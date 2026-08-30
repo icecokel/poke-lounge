@@ -4,19 +4,6 @@
   --poke-lounge-container-height: 100dvh;
   --poke-lounge-frame-available-height: var(--poke-lounge-container-height);
   --poke-lounge-max-display-width: 1440px;
-  --poke-lounge-touch-control-gap: 8px;
-  --poke-lounge-touch-control-offset: 12px;
-  --poke-lounge-touch-controls-height: clamp(136px, 21dvh, 176px);
-  --poke-lounge-touch-dpad-button-size: clamp(38px, 11.8vw, 46px);
-  --poke-lounge-touch-action-button-size: clamp(44px, 13.4vw, 52px);
-  --poke-lounge-mobile-fullscreen-button-size: 42px;
-  --poke-lounge-mobile-fullscreen-gap: 10px;
-  --poke-lounge-touch-controls-reserve: calc(
-    var(--poke-lounge-touch-controls-height) + var(--poke-lounge-touch-control-offset) +
-      var(--poke-lounge-mobile-fullscreen-gap) + var(--poke-lounge-mobile-fullscreen-button-size) +
-      max(16px, env(safe-area-inset-bottom))
-  );
-
   position: relative;
   display: grid;
   width: 100%;
@@ -73,30 +60,19 @@
 
 .gameFrame {
   position: relative;
-  width: min(
-    100%,
-    var(--poke-lounge-container-width),
-    calc(var(--poke-lounge-frame-available-height) * 4 / 3),
-    var(--poke-lounge-max-display-width)
-  );
-  max-width: 100%;
-  max-height: var(--poke-lounge-frame-available-height);
-  aspect-ratio: 4 / 3;
-  background: var(--rom-screen-background);
-}
-
-.gameFrame[data-poke-lounge-canvas-mounted="false"] {
   width: min(100%, var(--poke-lounge-container-width), var(--poke-lounge-max-display-width));
   height: var(--poke-lounge-frame-available-height);
+  max-width: 100%;
   max-height: var(--poke-lounge-frame-available-height);
-  aspect-ratio: auto;
+  background: var(--rom-screen-background);
 }
 
 .page:fullscreen .gameFrame,
 .page:global(.is-game-fullscreen-fallback) .gameFrame {
   --poke-lounge-frame-available-height: 100dvh;
 
-  width: min(100vw, calc(100dvh * 4 / 3), var(--poke-lounge-max-display-width));
+  width: min(100vw, var(--poke-lounge-max-display-width));
+  height: 100dvh;
   max-height: 100dvh;
 }
 
@@ -107,11 +83,572 @@
   background: var(--rom-screen-background);
 }
 
-.page :global(#game-root canvas) {
-  display: block;
+.webRuntime {
   width: 100%;
   height: 100%;
+  min-height: 0;
+}
+
+.webHub {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: #d8e6d4;
+  color: #17201a;
+  overflow: hidden;
+}
+
+.webHubHeader {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 3px solid #17231c;
+  background: #f8fbf0;
+}
+
+.webHubHeader p,
+.webHubHeader h1,
+.webHubLead span,
+.webHubLead strong,
+.webHubLead small,
+.webHubMessage,
+.webPanelHeader h2,
+.webPanelHeader span,
+.webPcColumns h3 {
+  margin: 0;
+}
+
+.webHubHeader p {
+  color: #4a5b4d;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.webHubHeader h1 {
+  margin-top: 3px;
+  font-size: clamp(1.2rem, 3vw, 2rem);
+}
+
+.webHubStatus {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.webHubStatus span {
+  padding: 7px 9px;
+  border: 2px solid #607d6c;
+  border-radius: 4px;
+  background: #eef4df;
+}
+
+.webHubWorkspace {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
+}
+
+.webHubStage {
+  display: grid;
+  min-height: 0;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: clamp(20px, 5vw, 56px);
+  border-right: 3px solid #17231c;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(248, 251, 240, 0.94) 0 24%, transparent 24.5%),
+    linear-gradient(180deg, #9dd08c 0 62%, #607d6c 62% 65%, #d6c49d 65% 100%);
+}
+
+.webHubPokemon {
+  display: grid;
+  width: min(100%, 320px);
+  min-height: 210px;
+  place-items: center;
+}
+
+.webPokemonSprite {
+  display: block;
+  width: 144px;
+  height: 144px;
+  filter: drop-shadow(0 8px 0 rgba(23, 35, 28, 0.28));
   image-rendering: pixelated;
+  animation: web-pokemon-idle 1.4s ease-in-out infinite;
+}
+
+@keyframes web-pokemon-idle {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.webHubLead {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.webHubLead span,
+.webHubLead small {
+  color: #4a5b4d;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.webHubLead strong {
+  font-size: clamp(1.35rem, 4vw, 2.4rem);
+}
+
+.webHubActions {
+  display: grid;
+  width: min(100%, 460px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.webHubActions button,
+.webHubStatus button,
+.webList button {
+  border: 2px solid #17231c;
+  border-radius: 4px;
+  box-shadow: 0 3px 0 #17231c;
+  font-weight: 900;
+}
+
+.webHubMessage {
+  max-width: 460px;
+  color: #8d2f24;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.webHubPanel {
+  min-height: 0;
+  padding: clamp(18px, 4vw, 36px);
+  background: #f8fbf0;
+  overflow: auto;
+}
+
+.webPanelHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid rgba(96, 125, 108, 0.42);
+}
+
+.webPanelHeader h2 {
+  font-size: 1.4rem;
+}
+
+.webPanelHeader span {
+  color: #607d6c;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.webList {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.webList li {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(96, 125, 108, 0.3);
+}
+
+.webList li[data-active="true"] {
+  color: #294123;
+}
+
+.webList strong,
+.webList small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webList small {
+  color: #607d6c;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.webList b {
+  font-size: 0.74rem;
+}
+
+.webPcColumns {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.webPcColumns h3 {
+  padding-top: 14px;
+  font-size: 0.9rem;
+}
+
+.webExploreList {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.webExploreList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 2px solid #607d6c;
+  border-radius: 6px;
+  background: #eef4df;
+}
+
+.webExploreList div {
+  display: grid;
+  gap: 4px;
+}
+
+.webExploreList strong {
+  font-size: 0.95rem;
+}
+
+.webExploreList small {
+  color: #4a5b4d;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.webBattle {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: #d8e6d4;
+  color: #17201a;
+  overflow: hidden;
+}
+
+.webBattleField {
+  position: relative;
+  min-height: 0;
+  background:
+    linear-gradient(180deg, rgba(248, 251, 240, 0.08), rgba(23, 32, 26, 0.12)),
+    url("/assets/poke-lounge/screens/pbr_b_plist_gra.narc/screen_0010_gfx_0022_pal_0023.png")
+      center / cover;
+  image-rendering: pixelated;
+}
+
+.webBattleField::before,
+.webBattleField::after {
+  position: absolute;
+  width: 34%;
+  height: 12%;
+  border-radius: 50%;
+  background: rgba(43, 55, 66, 0.22);
+  content: "";
+}
+
+.webBattleField::before {
+  top: 40%;
+  right: 7%;
+}
+
+.webBattleField::after {
+  bottom: 7%;
+  left: 6%;
+}
+
+.webBattlePokemonCard {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  width: min(42%, 290px);
+  gap: 6px;
+  padding: 12px 14px;
+  border: 3px solid #2b3742;
+  border-radius: 7px;
+  background: #f4f7e3;
+  box-shadow: 4px 5px 0 rgba(43, 55, 66, 0.35);
+}
+
+.webBattlePokemonCard[data-side="opponent"] {
+  top: 8%;
+  left: 6%;
+}
+
+.webBattlePokemonCard[data-side="player"] {
+  right: 6%;
+  bottom: 5%;
+}
+
+.webBattlePokemonCard header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.webBattlePokemonCard strong {
+  overflow: hidden;
+  font-size: clamp(0.88rem, 2.5vw, 1.2rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webBattlePokemonCard span,
+.webBattlePokemonCard small {
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.webBattleHpTrack {
+  height: 10px;
+  border: 2px solid #2b3742;
+  border-radius: 999px;
+  background: #8b9588;
+  overflow: hidden;
+}
+
+.webBattleHpTrack span {
+  display: block;
+  height: 100%;
+  background: #43b65c;
+  transition: width 280ms ease;
+}
+
+.webBattleSpriteSlot {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  width: 180px;
+  height: 180px;
+  place-items: center;
+}
+
+.webBattleSpriteSlot[data-side="front"] {
+  top: 20%;
+  right: 11%;
+}
+
+.webBattleSpriteSlot[data-side="back"] {
+  bottom: 8%;
+  left: 12%;
+}
+
+.webBattleSprite {
+  display: block;
+  transform: scale(2);
+  filter: drop-shadow(0 5px 0 rgba(43, 55, 66, 0.2));
+  image-rendering: pixelated;
+}
+
+.webBattleControls {
+  position: relative;
+  z-index: 5;
+  min-height: 132px;
+  padding: 12px;
+  border-top: 3px solid #2b3742;
+  background: #f4f7e3;
+}
+
+.webBattleMessage {
+  display: flex;
+  width: 100%;
+  min-height: 104px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 22px;
+  border: 3px solid #2b3742;
+  border-radius: 7px;
+  background: #fff;
+  color: #17201a;
+  text-align: left;
+}
+
+.webBattleMessage span {
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  font-weight: 900;
+}
+
+.webBattleMessage b {
+  flex: none;
+  font-size: 0.72rem;
+}
+
+.webBattleMessage:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+.webBattleMenu {
+  display: grid;
+  min-height: 104px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.webBattleMenu button {
+  display: flex;
+  min-width: 0;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 2px solid #2b3742;
+  border-radius: 5px;
+  font-weight: 900;
+}
+
+.webBattleMenu button small {
+  overflow: hidden;
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webBattleLearningPrompt {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.webBattleComplete {
+  width: 100%;
+  min-height: 104px;
+}
+
+.webBattlePending {
+  display: grid;
+  height: 100%;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px;
+  background: #d8e6d4;
+  text-align: center;
+}
+
+.webBattlePending p,
+.webBattlePending h2,
+.webBattlePending span {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .webHubHeader {
+    align-items: flex-start;
+    padding: 12px 14px;
+  }
+
+  .webHubStatus {
+    flex-wrap: wrap;
+  }
+
+  .webHubStatus span {
+    display: none;
+  }
+
+  .webHubWorkspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+  }
+
+  .webHubStage {
+    gap: 9px;
+    padding: 14px;
+    border-right: 0;
+    border-bottom: 3px solid #17231c;
+  }
+
+  .webHubPokemon {
+    min-height: 120px;
+  }
+
+  .webHubActions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .webHubActions button {
+    min-height: 36px;
+    padding: 6px;
+    font-size: 0.68rem;
+  }
+
+  .webHubPanel {
+    padding: 14px;
+  }
+
+  .webExploreList li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .webBattlePokemonCard {
+    width: 48%;
+    padding: 8px 9px;
+  }
+
+  .webBattleSpriteSlot {
+    width: 120px;
+    height: 120px;
+  }
+
+  .webBattleSprite {
+    transform: scale(1.4);
+  }
+
+  .webBattleSpriteSlot[data-side="front"] {
+    top: 26%;
+    right: 5%;
+  }
+
+  .webBattleSpriteSlot[data-side="back"] {
+    bottom: 3%;
+    left: 5%;
+  }
+
+  .webBattleControls {
+    min-height: 142px;
+  }
+
+  .webBattleMenu {
+    max-height: 180px;
+    overflow: auto;
+  }
+
+  .webPcColumns {
+    grid-template-columns: 1fr;
+  }
 }
 
 .resultOverlay {
@@ -132,43 +669,6 @@
   overflow: auto;
 }
 
-.mobileResultScreen,
-.mobileStateScreen {
-  position: absolute;
-  inset: 0;
-  z-index: 90;
-  display: grid;
-  align-content: center;
-  gap: 12px;
-  padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
-    max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-  background: #d8e6d4;
-  color: #17201a;
-  overflow: auto;
-}
-
-.mobileResultScreen {
-  justify-items: stretch;
-  text-align: center;
-}
-
-.mobileStateScreen {
-  justify-items: center;
-  text-align: center;
-}
-
-.touchGameDevice {
-  --poke-lounge-mobile-letterbox-top: max(16px, env(safe-area-inset-top, 0px));
-  --poke-lounge-mobile-letterbox-bottom: max(16px, env(safe-area-inset-bottom, 0px));
-
-  background: #17201a;
-}
-
-.touchGameDevice .mobileResultScreen,
-.touchGameDevice .mobileStateScreen {
-  inset: var(--poke-lounge-mobile-letterbox-top) 0 var(--poke-lounge-mobile-letterbox-bottom);
-}
-
 .resultEyebrow {
   margin: 0;
   color: #4a5b4d;
@@ -177,53 +677,12 @@
   text-transform: uppercase;
 }
 
-.resultScore {
-  min-height: 48px;
-  font-size: 2.5rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.resultMeta,
 .resultStatus {
   min-height: 20px;
   margin: 0;
   color: #4a5b4d;
   font-size: 0.85rem;
   font-weight: 700;
-}
-
-.resultActions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.resultActions > :first-child:last-child,
-.resultActions > :last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-}
-
-.startupErrorTitle {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 900;
-}
-
-.settingsOverlay {
-  position: absolute;
-  top: max(14px, env(safe-area-inset-top));
-  right: max(14px, env(safe-area-inset-right));
-  z-index: 60;
-  display: grid;
-  width: min(220px, calc(100vw - 28px));
-  gap: 10px;
-  padding: 12px;
-  border: 3px solid #17231c;
-  border-radius: 6px;
-  background: rgba(248, 251, 240, 0.96);
-  box-shadow: 0 5px 0 rgba(23, 35, 28, 0.86);
-  color: #17201a;
 }
 
 .settingsDialog,
@@ -241,36 +700,6 @@
 }
 
 .confirmDialog button {
-  border: 2px solid #17231c;
-  border-radius: 4px;
-  box-shadow: 0 3px 0 #17231c;
-  font-weight: 900;
-}
-
-.mobileDecisionSheet {
-  position: fixed !important;
-  top: auto !important;
-  right: 0;
-  bottom: 0 !important;
-  left: 0 !important;
-  box-sizing: border-box;
-  width: 100% !important;
-  max-width: none !important;
-  max-height: min(72dvh, 560px);
-  padding: 20px max(18px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom))
-    max(18px, env(safe-area-inset-left));
-  transform: none !important;
-  translate: none !important;
-  border: 3px solid #17231c;
-  border-bottom: 0;
-  border-radius: 16px 16px 0 0;
-  background: #f8fbf0;
-  box-shadow: 0 -6px 0 rgba(23, 35, 28, 0.28);
-  color: #17201a;
-  overflow: auto;
-}
-
-.mobileDecisionSheet button {
   border: 2px solid #17231c;
   border-radius: 4px;
   box-shadow: 0 3px 0 #17231c;
@@ -385,55 +814,6 @@
   padding: 5px 8px;
   pointer-events: auto;
   font-size: 0.68rem;
-  font-weight: 900;
-}
-
-.touchGameDevice .statusRail {
-  top: max(8px, env(safe-area-inset-top));
-  bottom: auto;
-  max-width: min(210px, calc(100vw - 16px));
-}
-
-.touchGameDevice .statusChip {
-  padding: 4px 6px;
-  font-size: 0.62rem;
-}
-
-.noticeBanner {
-  position: absolute;
-  top: max(14px, env(safe-area-inset-top));
-  left: 50%;
-  z-index: 70;
-  display: grid;
-  width: min(440px, calc(100vw - 28px));
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  transform: translateX(-50%);
-  border: 3px solid #17231c;
-  border-radius: 6px;
-  background: #fff9dd;
-  box-shadow: 0 5px 0 rgba(23, 35, 28, 0.86);
-  color: #17201a;
-}
-
-.noticeBanner[data-tone="error"] {
-  background: #ffd7d1;
-  color: #8d2f24;
-}
-
-.noticeBanner p {
-  margin: 0;
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.noticeBanner button {
-  min-height: 34px;
-  border: 2px solid #17231c;
-  border-radius: 4px;
-  box-shadow: 0 3px 0 #17231c;
   font-weight: 900;
 }
 
@@ -572,190 +952,6 @@
   transform: translateY(2px);
   box-shadow: 0 1px 0 #17231c;
   background: #fff9dd;
-}
-
-.page :global(.fullscreen-toggle-button) {
-  display: inline-grid;
-  width: var(--poke-lounge-mobile-fullscreen-button-size);
-  height: var(--poke-lounge-mobile-fullscreen-button-size);
-  place-items: center;
-  border: 3px solid #17231c;
-  border-radius: 50%;
-  background: rgba(248, 251, 240, 0.84);
-  box-shadow: 0 4px 0 rgba(23, 35, 28, 0.86);
-  color: #17201a;
-  cursor: pointer;
-  font-size: 1.25rem;
-  font-weight: 900;
-  line-height: 1;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.page :global(.mobile-settings-button) {
-  display: inline-grid;
-  width: var(--poke-lounge-mobile-fullscreen-button-size);
-  height: var(--poke-lounge-mobile-fullscreen-button-size);
-  place-items: center;
-  border: 3px solid #17231c;
-  border-radius: 50%;
-  background: rgba(248, 251, 240, 0.84);
-  box-shadow: 0 4px 0 rgba(23, 35, 28, 0.86);
-  color: #17201a;
-  cursor: pointer;
-  font-size: 1.25rem;
-  font-weight: 900;
-  line-height: 1;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.page :global(.fullscreen-toggle-button--mobile) {
-  position: absolute;
-  top: calc(
-    100% + var(--poke-lounge-touch-control-offset) + var(--poke-lounge-touch-controls-height) +
-      var(--poke-lounge-mobile-fullscreen-gap)
-  );
-  left: 50%;
-  z-index: 35;
-  display: none;
-  transform: translateX(-50%);
-}
-
-.page :global(.mobile-settings-button--mobile) {
-  position: absolute;
-  top: calc(
-    100% + var(--poke-lounge-touch-control-offset) + var(--poke-lounge-touch-controls-height) +
-      var(--poke-lounge-mobile-fullscreen-gap)
-  );
-  left: calc(50% + (var(--poke-lounge-mobile-fullscreen-button-size) / 2) + 8px);
-  z-index: 35;
-  display: none;
-}
-
-.touchGameDevice :global(.fullscreen-toggle-button--mobile) {
-  display: inline-grid;
-}
-
-.page :global(.has-touch-game-device .mobile-settings-button--mobile) {
-  display: inline-grid;
-}
-
-.page :global(.fullscreen-toggle-button--mobile:active) {
-  transform: translate(-50%, 3px);
-  box-shadow: 0 1px 0 rgba(23, 35, 28, 0.86);
-  background: #fff9dd;
-}
-
-.page :global(.mobile-settings-button--mobile:active) {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 rgba(23, 35, 28, 0.86);
-  background: #fff9dd;
-}
-
-.page :global(.mobile-touch-controls) {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  display: none;
-  pointer-events: none;
-  touch-action: none;
-}
-
-.page :global(.mobile-touch-controls__dpad),
-.page :global(.mobile-touch-controls__actions) {
-  position: absolute;
-  display: grid;
-  gap: var(--poke-lounge-touch-control-gap);
-  pointer-events: none;
-}
-
-.page :global(.mobile-touch-controls__dpad) {
-  left: max(12px, env(safe-area-inset-left));
-  bottom: max(14px, env(safe-area-inset-bottom));
-  grid-template-areas:
-    ". up ."
-    "left . right"
-    ". down .";
-  grid-template-columns: repeat(3, var(--poke-lounge-touch-dpad-button-size));
-  grid-template-rows: repeat(3, var(--poke-lounge-touch-dpad-button-size));
-}
-
-.page :global(.mobile-touch-controls__actions) {
-  right: max(12px, env(safe-area-inset-right));
-  bottom: max(14px, env(safe-area-inset-bottom));
-  grid-template-columns: repeat(2, var(--poke-lounge-touch-action-button-size));
-  grid-template-rows: repeat(2, var(--poke-lounge-touch-action-button-size));
-}
-
-.page :global(.mobile-touch-controls__button) {
-  width: 100%;
-  height: 100%;
-  border: 3px solid #17231c;
-  border-radius: 50%;
-  background: rgba(248, 251, 240, 0.84);
-  box-shadow: 0 4px 0 rgba(23, 35, 28, 0.86);
-  color: #17201a;
-  cursor: pointer;
-  font-size: 1.05rem;
-  font-weight: 900;
-  line-height: 1;
-  pointer-events: auto;
-  touch-action: none;
-  user-select: none;
-  transform: translateY(0) scale(1);
-  transition:
-    transform 120ms ease,
-    box-shadow 120ms ease,
-    background 120ms ease;
-  -webkit-user-select: none;
-  will-change: transform;
-}
-
-.page :global(.mobile-touch-controls__button:active),
-.page :global(.mobile-touch-controls__button.is-pressed),
-.page :global(.mobile-touch-controls__button[data-pressed="true"]) {
-  transform: translateY(4px) scale(0.94);
-  box-shadow: 0 1px 0 rgba(23, 35, 28, 0.86);
-  background: #fff9dd;
-}
-
-.page :global(.mobile-touch-controls__button--up) {
-  grid-area: up;
-}
-
-.page :global(.mobile-touch-controls__button--left) {
-  grid-area: left;
-}
-
-.page :global(.mobile-touch-controls__button--right) {
-  grid-area: right;
-}
-
-.page :global(.mobile-touch-controls__button--down) {
-  grid-area: down;
-}
-
-.page :global(.has-touch-game-device .mobile-touch-controls) {
-  display: block;
-}
-
-.page :global(.is-shortcut-guide-open .mobile-touch-controls) {
-  display: none !important;
-}
-
-.page :global(.is-shortcut-guide-open .fullscreen-toggle-button) {
-  display: none !important;
-}
-
-.page :global(#game-root.is-shortcut-guide-open ~ .fullscreen-toggle-button) {
-  display: none !important;
-}
-
-.page :global(.is-shortcut-guide-open .mobile-settings-button) {
-  display: none !important;
 }
 
 .page :global(.webrtc-signaling-panel) {
@@ -986,120 +1182,6 @@
 .page :global(.room-lobby-error) {
   min-height: 1.1em;
   color: #9f2d25;
-}
-
-.touchGameDevice[data-poke-lounge-room-lobby-open="true"]
-  :global([data-poke-lounge-mobile-control-dock="true"]),
-.touchGameDevice[data-poke-lounge-room-lobby-open="true"]
-  :global([data-poke-lounge-mobile-fullscreen-scene="true"]) {
-  display: none;
-}
-
-@media (orientation: portrait) {
-  .touchGameDevice {
-    --poke-lounge-mobile-screen-gap: clamp(6px, 1.5dvh, 12px);
-    --poke-lounge-mobile-available-inline-size: max(
-      0px,
-      calc(
-        var(--poke-lounge-container-width) - env(safe-area-inset-left, 0px) -
-          env(safe-area-inset-right, 0px)
-      )
-    );
-    --poke-lounge-mobile-screen-width: var(--poke-lounge-mobile-available-inline-size);
-    --poke-lounge-mobile-screen-height: calc(var(--poke-lounge-mobile-screen-width) * 3 / 4);
-    --poke-lounge-frame-available-height: var(--poke-lounge-mobile-screen-height);
-
-    display: grid;
-    grid-template-columns: minmax(0, var(--poke-lounge-mobile-screen-width));
-    grid-template-rows:
-      var(--poke-lounge-mobile-screen-height)
-      minmax(0, 1fr);
-    align-content: stretch;
-    justify-content: center;
-    align-items: stretch;
-    gap: var(--poke-lounge-mobile-screen-gap);
-    padding: var(--poke-lounge-mobile-letterbox-top) env(safe-area-inset-right, 0px)
-      var(--poke-lounge-mobile-letterbox-bottom) env(safe-area-inset-left, 0px);
-  }
-
-  .touchGameDevice .gameFrame {
-    grid-column: 1;
-    grid-row: 1;
-    width: var(--poke-lounge-mobile-screen-width);
-    height: var(--poke-lounge-mobile-screen-height);
-    max-width: 100%;
-    max-height: var(--poke-lounge-mobile-screen-height);
-    margin: 0;
-    align-self: stretch;
-    justify-self: stretch;
-  }
-
-  .touchGameDevice .gameFrame[data-poke-lounge-canvas-mounted="false"] {
-    position: absolute;
-    inset: var(--poke-lounge-mobile-letterbox-top) 0 var(--poke-lounge-mobile-letterbox-bottom);
-    width: auto;
-    height: auto;
-    max-width: none;
-    max-height: none;
-    margin: 0;
-  }
-
-  .page :global(.has-touch-game-device .mobile-touch-controls) {
-    top: calc(100% + var(--poke-lounge-touch-control-offset));
-    bottom: auto;
-    height: var(--poke-lounge-touch-controls-height);
-  }
-
-  .page :global(.has-touch-game-device .mobile-touch-controls__dpad) {
-    top: 0;
-    bottom: auto;
-  }
-
-  .page :global(.has-touch-game-device .mobile-touch-controls__actions) {
-    top: 4px;
-    bottom: auto;
-  }
-}
-
-.page:fullscreen.touchGameDevice,
-.page:global(.is-game-fullscreen-fallback).touchGameDevice {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
-  align-content: stretch;
-  justify-content: stretch;
-  align-items: center;
-  gap: 0;
-  padding: 0;
-}
-
-.page:fullscreen.touchGameDevice .gameFrame,
-.page:global(.is-game-fullscreen-fallback).touchGameDevice .gameFrame {
-  grid-column: 1;
-  grid-row: 1;
-  width: min(100vw, calc(100dvh * 4 / 3), var(--poke-lounge-max-display-width));
-  height: auto;
-  max-height: 100dvh;
-  margin: 0;
-  align-self: center;
-  justify-self: center;
-}
-
-.page:fullscreen.touchGameDevice .gameFrame[data-poke-lounge-canvas-mounted="false"],
-.page:global(.is-game-fullscreen-fallback).touchGameDevice
-  .gameFrame[data-poke-lounge-canvas-mounted="false"] {
-  width: 100%;
-  height: 100%;
-  max-height: none;
-  aspect-ratio: auto;
-  align-self: stretch;
-  justify-self: stretch;
-}
-
-@media (max-width: 600px) {
-  .page :global(#game-root canvas) {
-    image-rendering: auto !important;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2216,10 +2298,6 @@
   .statusRail {
     bottom: max(8px, env(safe-area-inset-bottom));
     max-width: min(230px, calc(100vw - 20px));
-  }
-
-  .noticeBanner {
-    grid-template-columns: 1fr;
   }
 
   .rankingHeader {

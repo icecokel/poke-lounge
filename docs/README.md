@@ -9,6 +9,7 @@
 - [서버 안정화 계획과 완료 기록](./poke-lounge-game-server-stabilization-plan.md)
 - [Redis 실시간 상태 계획](./poke-lounge-redis-live-state-plan.md)
 - [성능 최적화 계획](./poke-lounge-performance-optimization-plan.md)
+- [Phaser 제거 및 Web UI 전환 계획](./phaser-to-web-migration-plan.md)
 - [Playwright 테스트](./playwright-testing.md)
 - [Docker 실행](./docker.md)
 - [점수 정책](./game-score-policy.md)

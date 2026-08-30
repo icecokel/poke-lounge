@@ -14,18 +14,6 @@ type PublicRoom = {
   };
 };
 
-type PokeLoungeWindow = Window & {
-  __POKE_LOUNGE_E2E__?: {
-    getGameStateSnapshot(): {
-      tournament: {
-        serverProjection: {
-          roomRound: PublicRoom["round"];
-        } | null;
-      };
-    };
-  };
-};
-
 const publicGameUrl = "/ko-KR/game/poke-lounge?e2e=1";
 
 test.use({ trace: "off" });
@@ -133,11 +121,11 @@ async function enterPublicRoom(
   await page.locator("[data-room-entry-multiplayer-submit='true']").click();
 
   const starterSelection = page.locator("[data-screen='starter-selection']");
-  const canvas = page.locator("#game-root canvas");
+  const hub = page.locator("[data-web-hub='true']");
   await expect
     .poll(async () => {
       if (await starterSelection.isVisible().catch(() => false)) return "starter";
-      if (await canvas.isVisible().catch(() => false)) return "canvas";
+      if (await hub.isVisible().catch(() => false)) return "hub";
       return null;
     })
     .not.toBeNull();
@@ -161,15 +149,13 @@ function isRoomCreationResponse(response: {
 
 async function getRoundClock(page: Page): Promise<PublicRoom["round"] | null> {
   return page.evaluate(() => {
-    const pokeWindow = window as PokeLoungeWindow;
-    const roomRound =
-      pokeWindow.__POKE_LOUNGE_E2E__?.getGameStateSnapshot().tournament.serverProjection?.roomRound;
-    return roomRound
-      ? {
-          durationMs: roomRound.durationMs,
-          startedAtMs: roomRound.startedAtMs,
-          endsAtMs: roomRound.endsAtMs,
-        }
+    const hub = document.querySelector<HTMLElement>("[data-web-hub='true']");
+    const durationMs = Number(hub?.dataset.roundDurationMs);
+    const startedAtMs = Number(hub?.dataset.roundStartedAtMs);
+    const endsAtMs = Number(hub?.dataset.roundEndsAtMs);
+
+    return Number.isFinite(durationMs) && Number.isFinite(startedAtMs) && Number.isFinite(endsAtMs)
+      ? { durationMs, startedAtMs, endsAtMs }
       : null;
   });
 }
