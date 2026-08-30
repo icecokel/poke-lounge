@@ -6,7 +6,7 @@
 
 **Architecture:** PostgreSQL commits the terminal match projection, stable terminal event metadata, room revision, next authority assignment, and applicable receipts in one transaction. Normal action completion resolves both action receipts; leave/forfeit resolves only an existing pending action receipt, if any, and stores/replays its room-command receipt without inventing another action receipt. New terminal REST action projections and stored receipts carry the same event ID/revision as the completed projection in the post-commit composite room snapshot. `competitiveTransitions` contains completed assignments while the existing optional `competitive` field contains only the current assignment. The Web transport keeps bounded terminal and current-assignment caches plus independent room/terminal cursors, caches transitions even without listeners, and applies each terminal before advancing its terminal cursor. BattleScene consumes only its same-match terminal transition, hands the completed old launch key to WorldScene, and WorldScene alone completes that key and launches the next assignment exactly once. Reconnect uses the terminal cursor as `afterRevision` and durable terminal metadata to recover missed transitions. Targeted Playwright gates read each browser's real store, active scene, BattleScene state, and active authoritative projection instead of copying REST state into tester reports.
 
-**Tech Stack:** Next.js 15, React 19, Phaser, NestJS 11, TypeORM, PostgreSQL, Socket.IO, Jest, Node test runner, Playwright, pnpm 9.12.0.
+**Tech Stack:** Next.js 15, React 19, NestJS 11, TypeORM, PostgreSQL, Socket.IO, Jest, Node test runner, Playwright, pnpm 9.12.0.
 
 ## Completion Status (2026-07-16)
 

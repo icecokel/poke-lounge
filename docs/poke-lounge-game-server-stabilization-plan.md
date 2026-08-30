@@ -27,7 +27,7 @@ Redis를 room, 경쟁전과 결과의 유일한 서버 권위 상태로 유지�
    전진한다.
 5. match 전환에서 탈락자의 이전 상대·참가 상태를 제거하고, 완료된 참가자는 reload 후에도 최종
    결과를 다시 볼 수 있다.
-6. Phaser scene 종료와 재생성 중 stale callback이 실행되지 않아 홈 이탈이나 `null.add` 오류가
+6. game scene 종료와 재생성 중 stale callback이 실행되지 않아 홈 이탈이나 `null.add` 오류가
    발생하지 않는다.
 7. 운영 3인 한 사이클을 2회 연속 수행해 수동 reload, 예상하지 않은 4xx·5xx, page error 없이
    같은 우승자와 순위에 수렴한다.
@@ -50,7 +50,7 @@ Redis를 room, 경쟁전과 결과의 유일한 서버 권위 상태로 유지�
 | 서버 권위 시간   | 준비 countdown과 turn 전환의 로컬 자율 진행 제거, 서버 시각 기반 표시           |
 | match lifecycle  | terminal 우선 적용, 다음 assignment 전환, 탈락자 projection 정리                |
 | 완료 lifecycle   | 최종 결과 보존, reload·재진입 복구, 명시적 leave·만료 시 identity 정리          |
-| Phaser lifecycle | scene 종료 뒤 callback·subscription·tween 실행 방지와 오류 경계 보강            |
+| Scene lifecycle  | scene 종료 뒤 callback·subscription·tween 실행 방지와 오류 경계 보강            |
 | 운영 가시성      | revision 지연, 자동 복구, queue 지연·실패와 Socket 재구독 지표                  |
 | 문서·테스트      | 구현 경계, 운영 runbook, 관련 단위·통합·브라우저 검증 갱신                      |
 
@@ -169,7 +169,7 @@ turn으로 수렴하고, 서버 시작 전 countdown이나 조기 `round-ready` 
    허용한다.
 6. 명시적 leave, room `closed` 또는 TTL 만료에서만 resume identity를 제거한다.
 7. BattleScene과 WorldScene 전환에서 subscription, tween과 delayed callback을 먼저 정리하고,
-   파괴된 Phaser object에 접근하는 callback을 무시한다.
+   파괴된 scene object에 접근하는 callback을 무시한다.
 
 **Gate 4:** 승자·패자·부전승 플레이어가 같은 terminal, 다음 대진과 최종 순위를 보며, 완료 화면을
 reload해도 입장 화면으로 이탈하지 않아야 한다. page error는 0건이어야 한다.
@@ -212,7 +212,7 @@ pnpm test:web
 - Socket online 상태에서 revision이 멈췄을 때 bounded `afterRevision` 복구
 - 경쟁 대기실에서 로컬 준비 countdown이 시작되지 않는 동작
 - terminal 우선 적용, 탈락자 projection 제거와 final result resume
-- scene destroy 뒤 callback이 Phaser object를 다시 생성하지 않는 동작
+- scene destroy 뒤 callback이 scene object를 다시 생성하지 않는 동작
 
 ### 4.2 Redis·API·worker 통합 검증
 

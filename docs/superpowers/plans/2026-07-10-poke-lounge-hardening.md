@@ -6,7 +6,7 @@
 
 **Architecture:** The browser hydrates a versioned, validated local-player snapshot before it may autosave. A PostgreSQL TypeORM repository replaces the API-process room map and persists revisioned room snapshots plus idempotent mutation receipts. Socket.IO delivers committed revisioned snapshots; REST remains the initial snapshot and reconnect-recovery path. Exactly two authenticated seats submit only their own actions while the API advances the shared deterministic battle engine; solo and other casual modes remain explicitly client-asserted and unranked.
 
-**Tech Stack:** Next.js 15, React 19, Phaser, NestJS 11, TypeORM, PostgreSQL, Socket.IO, Jest, Supertest, Playwright, pnpm 9.12.0.
+**Tech Stack:** Next.js 15, React 19, NestJS 11, TypeORM, PostgreSQL, Socket.IO, Jest, Supertest, Playwright, pnpm 9.12.0.
 
 ## Global Constraints
 
@@ -29,7 +29,7 @@
 | `apps/web/src/services/poke-lounge-state-service.ts`                                                              | Typed GET hydration and PUT persistence client.                                                               |
 | `apps/web/src/components/poke-lounge/runtime/game/state/poke-lounge-save-snapshot.ts`                             | Versioned snapshot parser, sanitizer, and builder.                                                            |
 | `apps/web/src/components/poke-lounge/runtime/game/state/gameStateStore.ts`                                        | Atomic validated local-player hydration API.                                                                  |
-| `apps/web/src/components/poke-lounge/poke-lounge-game.tsx`                                                        | Hydration gate that starts the Phaser page and autosave only after GET completes safely.                      |
+| `apps/web/src/components/poke-lounge/poke-lounge-game.tsx`                                                        | Hydration gate that starts the game page and autosave only after GET completes safely.                        |
 | `apps/web/src/components/poke-lounge/runtime/game/scenes/world-scene-{hud,interactions,tournament,encounters}.ts` | Focused WorldScene collaborators with no gameplay-policy changes.                                             |
 | `apps/api/src/poke-lounge/entities/poke-lounge-room.entity.ts`                                                    | Revisioned JSONB room aggregate and TTL timestamp.                                                            |
 | `apps/api/src/poke-lounge/entities/poke-lounge-room-command.entity.ts`                                            | Idempotent mutation receipt keyed by room, actor, and client command ID.                                      |
@@ -45,7 +45,7 @@
 | Task                                | Status                        | Actual result                                                                                                                                        |
 | ----------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1. Provenance/release gate          | Complete                      | Machine-checkable manifest exists; public release intentionally remains `BLOCKED`.                                                                   |
-| 2. Hydration before autosave        | Complete                      | Authenticated GET hydration precedes Phaser and PUT; versioned `sessionStorage` is the local fallback.                                               |
+| 2. Hydration before autosave        | Complete                      | Authenticated GET hydration precedes the game runtime and PUT; versioned `sessionStorage` is the local fallback.                                     |
 | 3. Ranking containment              | Complete                      | Client-asserted Poke Lounge rows are unranked; verified-room rows alone feed ranking.                                                                |
 | 4. WorldScene decomposition         | Complete                      | HUD, interactions, tournament, and encounters are collaborator modules behind the scene orchestrator.                                                |
 | 5. PostgreSQL room durability       | Complete                      | Room revisions, TTL and idempotent command receipts are transactional and durable.                                                                   |
@@ -181,7 +181,7 @@ Expected: FAIL because the parser, GET result, and hydration ordering do not exi
 
 Accept only `version === POKE_LOUNGE_SAVE_SNAPSHOT_VERSION`, `game === "poke-lounge"`, a string `currentPlayerId`, and a string-keyed `playersById` record. Strip `remotePlayers`, `session`, `round`, and `tournament`; validate every persisted player/party/inventory numeric field with the same finite-integer bounds used by the store; reject the whole snapshot when its current player is absent. `hydrateLocalPlayers` must call the store's existing local-player update path so listeners and local storage receive one atomic notification.
 
-Implement `loadPokeLoungeState(token, dependencies)` with `apiClient.get` and normalize an empty/404 state to `{ success: true, snapshot: null }`. In `PokeLoungeGame`, await that call before creating `startPokeLoungeAutosave`; hydrate before starting Phaser so `getDefaultGameStateStore()` is initialized from server state. On an unavailable GET, render the existing game without autosave and expose a retry action; this prevents an old local snapshot from overwriting an unreachable newer server copy. On unauthenticated sessions, start solo normally and never issue GET or PUT.
+Implement `loadPokeLoungeState(token, dependencies)` with `apiClient.get` and normalize an empty/404 state to `{ success: true, snapshot: null }`. In `PokeLoungeGame`, await that call before creating `startPokeLoungeAutosave`; hydrate before starting the game runtime so `getDefaultGameStateStore()` is initialized from server state. On an unavailable GET, render the existing game without autosave and expose a retry action; this prevents an old local snapshot from overwriting an unreachable newer server copy. On unauthenticated sessions, start solo normally and never issue GET or PUT.
 
 - [ ] **Step 4: Run green tests and type checks**
 
@@ -303,7 +303,7 @@ Expected: PASS before refactoring; save the command output with the task record.
 
 - [ ] **Step 3: Extract collaborators in four behavior-preserving commits**
 
-Move only these existing methods, retaining their constants and output text: HUD/party/status rendering to `world-scene-hud.ts`; NPC, shop, inventory, PC, nurse, shortcut, and dice controls to `world-scene-interactions.ts`; room tournament lifecycle and result panel flow to `world-scene-tournament.ts`; tile steps, encounter selection, wild-battle start, and battle intro to `world-scene-encounters.ts`. `WorldScene.create`, `update`, `shutdown`, room binding, movement snapshots, and `WorldE2eSnapshot` stay as the orchestration boundary. Give each collaborator explicit dependencies rather than exporting Phaser-private fields.
+Move only these existing methods, retaining their constants and output text: HUD/party/status rendering to `world-scene-hud.ts`; NPC, shop, inventory, PC, nurse, shortcut, and dice controls to `world-scene-interactions.ts`; room tournament lifecycle and result panel flow to `world-scene-tournament.ts`; tile steps, encounter selection, wild-battle start, and battle intro to `world-scene-encounters.ts`. `WorldScene.create`, `update`, `shutdown`, room binding, movement snapshots, and `WorldE2eSnapshot` stay as the orchestration boundary. Give each collaborator explicit dependencies rather than exporting engine-private fields.
 
 - [ ] **Step 4: Run behavior checks after each extraction**
 

@@ -151,7 +151,7 @@ Web 적용 규칙:
 2. 순번 비교와 resync 요청을 network adapter 한 곳에서 처리한다.
 3. `CURRENT_PLAYERS`는 참가·퇴장 lifecycle만 처리하고 원격 위치를 고정 좌표로 만들지 않는다.
 4. `WorldScene`은 검증된 network snapshot만 렌더링한다.
-5. reconnect 중 파괴된 Phaser sprite를 참조하지 않도록 기존 scene lifecycle guard를 함께 검증한다.
+5. reconnect 중 파괴된 scene sprite를 참조하지 않도록 기존 scene lifecycle guard를 함께 검증한다.
 
 ### 7.4 경쟁전 상태 보강
 
@@ -253,7 +253,7 @@ Redis로 경쟁전 상태를 옮기지 않는다. 다만 action 제출 뒤 상�
 
 - 원격 이동이 운영 화면에 500ms 이내 반영된다.
 - 위치 이벤트 유실 뒤 2초 이내 서버 snapshot으로 수렴한다.
-- 재접속 뒤 중복 캐릭터와 stale Phaser 객체 오류가 없다.
+- 재접속 뒤 중복 캐릭터와 stale scene 객체 오류가 없다.
 - API 인스턴스가 달라도 같은 방의 위치와 cursor가 일치한다.
 - ready, 3라운드 대진, 점수와 최종 우승은 PostgreSQL 기준으로 기존 동작을 유지한다.
 - 전원 퇴장 또는 room expiry 뒤 Redis 상태가 제거된다.

@@ -34,7 +34,7 @@ Poke Lounge의 2~6인 플레이에서 전투 애니메이션 프레임 저하, �
 ### 2.2 전투 렌더링
 
 `BattleScene`은 HP, 피격, 등장, 포획과 진화 tween의 매 `onUpdate`에서 전체 `render()`를 호출한다.
-`render()`는 `children.removeAll(true)`로 모든 Phaser 오브젝트를 제거하고 배경, 포켓몬, HP 패널,
+`render()`는 `children.removeAll(true)`로 모든 scene 오브젝트를 제거하고 배경, 포켓몬, HP 패널,
 메시지와 overlay를 다시 만든다. 접근성 상태와 모바일 전투 UI 상태도 같은 주기로 다시 발행한다.
 
 이 구조는 Canvas renderer와 headless 실행에서 객체 할당, 해제, 텍스트 생성과 DOM 이벤트를
@@ -111,7 +111,7 @@ Poke Lounge의 2~6인 플레이에서 전투 애니메이션 프레임 저하, �
 목적은 최적화 전후를 같은 입력으로 비교하고 추측성 변경을 막는 것이다.
 
 1. Desktop Chromium 1440×900과 Mobile Chromium 390×844에서 같은 전투 fixture를 실행한다.
-2. 등장, HP 감소, 피격과 terminal 구간의 frame time, long task와 Phaser object 수를 기록한다.
+2. 등장, HP 감소, 피격과 terminal 구간의 frame time, long task와 scene object 수를 기록한다.
 3. 3인과 6인 지속 이동 30초 동안 플레이어별 Socket 전송 건수, Redis 갱신 건수와 수신 지연을
    기록한다.
 4. 3인 라운드 종료에서 ready 요청 수, 응답 code와 room revision 전진을 기록한다.
@@ -153,7 +153,7 @@ Poke Lounge의 2~6인 플레이에서 전투 애니메이션 프레임 저하, �
   시나리오가 통과했다.
 - 검증된 전체 render 증분 상한은 등장 2회, 공격 4회, 포획 3회, 진화 4회다. 이는 animation frame
   수가 아니라 시작·완료·메시지 등 이산 상태 전환에 한정된다.
-- 실제 기기 frame time, long task와 Phaser object 수 측정은 남아 있으므로 Gate 0과 성능 예산 달성
+- 실제 기기 frame time, long task와 scene object 수 측정은 남아 있으므로 Gate 0과 성능 예산 달성
   판정은 아직 완료하지 않는다.
 
 ### 단계 2. 원격 이동 보간과 latest-wins 유지
@@ -166,7 +166,7 @@ Poke Lounge의 2~6인 플레이에서 전투 애니메이션 프레임 저하, �
 -> 기존 90ms 제한으로 최신 위치 전송
 -> API 검증과 Redis latest snapshot 갱신
 -> peer가 목표 좌표 저장
--> Phaser update에서 현재 좌표를 목표 좌표로 보간
+-> animation update에서 현재 좌표를 목표 좌표로 보간
 ```
 
 1. 기존 90ms 전송 제한과 `worldSeq` 복구를 유지한다.
@@ -377,5 +377,5 @@ TTL 데이터이므로 데이터 변환 롤백은 만들지 않는다. round-rea
 - 새로운 렌더링 엔진 도입
 - 성능 근거 없는 전체 room delta protocol 재설계
 
-현재 최대 6명, 단일 리전과 단일 활성 대진에서는 기존 Phaser, Socket.IO와 Redis를 유지하는 것이
+현재 최대 6명, 단일 리전과 단일 활성 대진에서는 기존 Web runtime, Socket.IO와 Redis를 유지하는 것이
 가장 작은 구조다.

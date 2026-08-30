@@ -4,15 +4,15 @@
 
 **Goal:** Bring `/Users/smlee/Documents/poke-lounge` into VSCoke as a playable locale-aware web game at `/:locale/game/poke-lounge`.
 
-**Architecture:** Keep Poke Lounge as a browser-only Phaser island under the existing VSCoke Next app. Use a thin VSCoke route/client wrapper, copy the source-compatible runtime into a contained feature directory, and copy only the minimal static assets required for starter selection, room entry, world boot, and battle smoke. Leave backend ranking, ROM conversion, and full asset browsing out of the first port.
+**Architecture:** Keep Poke Lounge as a browser-only game module under the existing VSCoke Next app. Use a thin VSCoke route/client wrapper, copy the source-compatible runtime into a contained feature directory, and copy only the minimal static assets required for starter selection, room entry, world boot, and battle smoke. Leave backend ranking, ROM conversion, and full asset browsing out of the first port.
 
-**Tech Stack:** VSCoke pnpm monorepo, `apps/web` Next 15 App Router, React 19, next-intl, Tailwind v4, Phaser 3.90, Playwright E2E.
+**Tech Stack:** VSCoke pnpm monorepo, `apps/web` Next 15 App Router, React 19, next-intl, Tailwind v4, Playwright E2E.
 
 ---
 
 ## Team Analysis Summary
 
-- Source analyst: Poke Lounge is a Next App Router single project. The playable game route is `src/app/game/page.tsx` -> `src/app/game/GameClient.tsx` -> dynamic import `src/game-page.ts` -> `src/game/gamePageStartup.ts`. Phaser boots through `src/game/createPokeLoungeGame.ts` with `BootScene`, `WorldScene`, and `BattleScene`.
+- Source analyst: Poke Lounge is a Next App Router single project. The playable game route is `src/app/game/page.tsx` -> `src/app/game/GameClient.tsx` -> dynamic import `src/game-page.ts` -> `src/game/gamePageStartup.ts`. The game runtime boots through `src/game/createPokeLoungeGame.ts` with `BootScene`, `WorldScene`, and `BattleScene`.
 - Target analyst: VSCoke game routes belong under `apps/web/src/app/[locale]/game/*`. Game-specific UI/code should live under `apps/web/src/components/poke-lounge/`. The Game Center, search index, explorer tree, sitemap, messages, and Playwright tests must be updated.
 - Risk analyst: Direct copy is unsafe because VSCoke is a pnpm monorepo on Next 15 with next-intl and Tailwind v4, while Poke Lounge is a standalone Next 16/npm project with global CSS and Vitest/jsdom. First port should cover starter selection, room entry, world/battle boot smoke, and nothing more.
 
@@ -539,7 +539,7 @@ export function PokeLoungeGame() {
   }, [setGamePlaying]);
 
   return (
-    <main className={`${styles.page} phaser-game-page`} data-testid="poke-lounge-page">
+    <main className={`${styles.page} game-page`} data-testid="poke-lounge-page">
       <div id="game-root" data-testid="poke-lounge-game-root" />
     </main>
   );
@@ -671,7 +671,7 @@ In `apps/web/src/hooks/use-search-index.ts`, add this item between Fish Drift an
         type: "game",
         title: tGame("pokeLoungeTitle"),
         description: tGame("pokeLoungeDesc"),
-        keywords: ["poke lounge", "pokemon", "phaser", "rpg"],
+        keywords: ["poke lounge", "pokemon", "rpg"],
         path: "/game/poke-lounge",
         featured: true,
         priority: 392,
@@ -734,7 +734,7 @@ Expected: PASS. The test must see:
 - Game Center card.
 - Starter selection screen.
 - Room entry screen.
-- Phaser canvas.
+- Game canvas.
 - E2E scene key `battle`.
 - Non-empty `document.documentElement.dataset.pokeLoungeE2eBattle`.
 - No page errors or console errors.
@@ -786,7 +786,7 @@ Expected: exit `0`.
 pnpm knip
 ```
 
-Expected: exit `0`. If knip flags copied runtime exports as unused but they are used by dynamic import or Phaser scenes, add the narrowest `knip.json` ignore entry for the exact file/export and explain it in the commit body.
+Expected: exit `0`. If knip flags copied runtime exports as unused but they are used by dynamic import or game scenes, add the narrowest `knip.json` ignore entry for the exact file/export and explain it in the commit body.
 
 - [ ] **Step 4: Run web build**
 

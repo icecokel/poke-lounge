@@ -6,7 +6,7 @@
 
 **Architecture:** 전투 피격 연출은 `BattleScene`의 HP 동기화 흐름에 side별 render-only state를 붙인다. 레이아웃은 `poke-lounge.module.css`에서 캔버스와 모바일 컨트롤 영역의 계산값을 CSS 변수로 정리하고, E2E는 실제 DOM rect로 4:3과 뷰포트 범위를 검증한다.
 
-**Tech Stack:** Next.js app router, CSS Modules, Phaser, Playwright E2E, TypeScript.
+**Tech Stack:** Next.js app router, CSS Modules, Playwright E2E, TypeScript.
 
 ## Global Constraints
 

@@ -428,7 +428,7 @@ Phase 3 인계 결정 사항:
 
 2026-07-10 계획의 Tasks 1-7 구현과 Task 8 문서 감사를 거쳐 다음 항목이 현재 기준이 됐다.
 
-- 로그인 GET hydration과 versioned local fallback이 Phaser/autosave보다 먼저 실행된다.
+- 로그인 GET hydration과 versioned local fallback이 game runtime/autosave보다 먼저 실행된다.
 - PostgreSQL이 room snapshot, revision, TTL, command receipt의 source of truth다.
 - Socket.IO `/poke-lounge`가 committed snapshot을 전송하고 REST GET은 initial/outage/conflict recovery를 담당한다.
 - `WorldScene`은 HUD, interactions, tournament, encounters collaborator를 조합한다.

@@ -6,9 +6,9 @@
 
 **Goal:** Finish the remaining Poke Lounge work in VSCoke after the initial port, API result integration, and server-room MVP, using the latest source Poke Lounge documents as the governing scope.
 
-**Architecture:** Keep Poke Lounge as a browser-only Phaser island under `apps/web`, with VSCoke API ownership in `apps/api`. Runtime tunable game data moves toward `apps/web/public/game-data/*.json`, while TypeScript remains responsible for validation, normalization, and scene wiring. Server multiplayer stays REST polling for this plan; WebSocket is not introduced here.
+**Architecture:** Keep Poke Lounge as a browser-only game module under `apps/web`, with VSCoke API ownership in `apps/api`. Runtime tunable game data moves toward `apps/web/public/game-data/*.json`, while TypeScript remains responsible for validation, normalization, and scene wiring. Server multiplayer stays REST polling for this plan; WebSocket is not introduced here.
 
-**Tech Stack:** VSCoke pnpm monorepo, Next.js 15 App Router, React 19, Phaser 3.90, NestJS 11, TypeScript, Playwright, Jest/Supertest API tests.
+**Tech Stack:** VSCoke pnpm monorepo, Next.js 15 App Router, React 19, NestJS 11, TypeScript, Playwright, Jest/Supertest API tests.
 
 ---
 
@@ -71,7 +71,7 @@
 - `apps/web/src/components/poke-lounge/runtime/game/battle/battlePokemonAssets.ts`: replace hard-coded asset table with validated manifest fallback.
 - `apps/web/src/components/poke-lounge/runtime/game/battle/wildBattleFactory.ts`: replace hard-coded wild move sets with validated data.
 - `apps/web/src/components/poke-lounge/runtime/game/battle/levelUpMoves.ts`: replace hard-coded level-up table with validated data.
-- `apps/web/src/components/poke-lounge/runtime/game/gamePageStartup.ts`: load validated game-data JSON before creating the Phaser game.
+- `apps/web/src/components/poke-lounge/runtime/game/gamePageStartup.ts`: load validated game-data JSON before creating the game runtime.
 - `apps/web/src/components/poke-lounge/runtime/game/scenes/BootScene.ts`: ensure preloaded battle Pokemon assets come from the validated manifest.
 - `apps/web/src/components/poke-lounge/runtime/game/network/serverRoom.ts`: consume hardened server room contract and party snapshot updates.
 - `apps/web/src/components/poke-lounge/runtime/game/network/roomEntryScreen.ts`: expose server room create/join/ready flow without relying only on query parameters.

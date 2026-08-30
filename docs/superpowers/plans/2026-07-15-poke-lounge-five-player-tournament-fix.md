@@ -6,7 +6,7 @@
 
 **아키텍처:** 서버 방의 PostgreSQL snapshot을 대진·부전승·현재 활성 매치의 단일 기준으로 사용한다. 한 배틀의 참가자 수는 계속 2명으로 유지하고, 5인 토너먼트는 여러 2인 매치를 순차 배정하는 방식으로 구성한다. Web은 서버 대진을 다시 계산하지 않고 snapshot을 검증해 표시한다. 캐주얼 결과는 명시적으로 unranked로 유지하고, 권위 매치는 기존 결정론적 배틀 엔진을 재사용하되 토너먼트 match에서는 공개 랭킹 이력을 만들지 않는다.
 
-**기술 스택:** Next.js 15, React 19, Phaser 3.90, NestJS 11, TypeORM, PostgreSQL, Socket.IO, `@vscoke/poke-lounge-battle`, Jest, Supertest, Playwright 1.60, pnpm 9.12.0.
+**기술 스택:** Next.js 15, React 19, NestJS 11, TypeORM, PostgreSQL, Socket.IO, `@vscoke/poke-lounge-battle`, Jest, Supertest, Playwright 1.60, pnpm 9.12.0.
 
 ---
 
@@ -508,7 +508,7 @@ Playwright project 다섯 개를 별도로 실행하면 같은 test state를 공
 - [ ] seed 4/5만 첫 battle에 진입하고 seed 1/3/2는 bye 상태를 본다.
 - [ ] 두 match 참가자가 각자 action을 제출하고 terminal 결과를 받는다.
 - [ ] 나머지 세 context도 Socket으로 같은 winner와 다음 bracket round를 받는다.
-- [ ] 모바일 두 context에서 touch control이 보이고 실제 입력이 Phaser state에 반영된다.
+- [ ] 모바일 두 context에서 touch control이 보이고 실제 입력이 client state에 반영된다.
 - [ ] Firefox context에서 module resolution HTTP 500이 발생하지 않는다.
 - [ ] 한 context reconnect 후 같은 room revision, bracket round, match turn을 복구한다.
 

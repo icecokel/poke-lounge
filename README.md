@@ -153,7 +153,6 @@ PLAYWRIGHT_ENABLE_CROSS_BROWSER=1 pnpm e2e:five-player
 
 - [게임 콘셉트](docs/poke-lounge-game-concept.md)
 - [게임 규칙](docs/poke-lounge-rules/index.md)
-- [Phaser 제거 및 Web UI 전환 기록](docs/phaser-to-web-migration-plan.md)
 - [멀티플레이 테스트 시나리오](docs/poke-lounge-multiplayer-test-scenarios.md)
 - [배포와 환경 변수](docs/deployment-and-env.md)
 - [운영 런북](docs/operations-runbook.md)

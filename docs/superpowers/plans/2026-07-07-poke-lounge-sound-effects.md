@@ -6,7 +6,7 @@
 
 **Architecture:** ROM/SDAT/raw subfile은 로컬 ignored 영역에서만 다룬다. 추출 파이프라인은 `data/roms`의 NDS 롬을 입력으로 SDAT catalog/subfile을 만들고, 선택된 cue만 WAV로 렌더링한 뒤 MP3로 변환한다. 웹 앱은 public audio manifest와 MP3 파일만 로드하며, 사용자 입력 이후 오디오 컨텍스트를 prime하고 이벤트별 SFX를 fire-and-forget 방식으로 재생한다.
 
-**Tech Stack:** Python extraction scripts, external NDS SDAT/SSEQ decoder, ffmpeg, Next.js app router, Phaser, TypeScript, Playwright E2E.
+**Tech Stack:** Python extraction scripts, external NDS SDAT/SSEQ decoder, ffmpeg, Next.js app router, TypeScript, Playwright E2E.
 
 ## Current Local Context
 

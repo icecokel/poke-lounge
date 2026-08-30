@@ -16,7 +16,7 @@ Branch: `feature/poke-lounge`
 - Updated the web server-room adapter to keep the private `sessionId` in local identity storage and send it only as a write credential.
 - Added server-room result ID reverse mapping so local player IDs are submitted as server participant IDs.
 - Added class-validator decorators to Poke Lounge request DTOs and applied the production `ValidationPipe` to API e2e coverage.
-- Added a production cleanup handle so React unmount destroys the Phaser game and disposes server rooms without relying on dev/E2E globals.
+- Added a production cleanup handle so React unmount destroys the game runtime and disposes server rooms without relying on dev/E2E globals.
 - Added in-memory server room cleanup via stale-room pruning, a process room cap, and waiting-room party snapshot deletion on leave.
 - Moved tracked runtime assets from `apps/web/public/assets/rom-*` to curated `apps/web/public/assets/poke-lounge/...` paths.
 - Updated runtime references, public manifests, and source metadata so old public `rom-*` URLs are not referenced.

@@ -13,7 +13,7 @@
 competitive action receipt, terminal convergence를 그대로 사용한다. 새 실시간 프로토콜, 새 DB
 테이블, 새 런타임 의존성은 만들지 않는다.
 
-**기술 스택:** Next.js 15, React 19, Phaser 3.90, NestJS 11, TypeORM, PostgreSQL,
+**기술 스택:** Next.js 15, React 19, NestJS 11, TypeORM, PostgreSQL,
 Socket.IO, `@vscoke/poke-lounge-battle`, Jest, Node test runner, Playwright, pnpm 9.12.0.
 
 **현재 상태:** V2 파티 계약, 서버 정규화, 동적 assignment, 실제 numeric species/move 표시,
