@@ -6,6 +6,11 @@ Poke Lounge는 Web, API, 턴 워커, PostgreSQL과 Redis를 Docker Compose로 �
 main -> icenux self-hosted runner -> Docker Compose
 ```
 
+## 운영 주소
+
+운영 Web origin은 <https://poke-lounge.icecoke.kr>이다. `AUTH_URL`과 API의
+`CORS_ORIGINS` 허용값도 이 origin을 기준으로 설정한다.
+
 ## Web
 
 필수 환경 변수:
