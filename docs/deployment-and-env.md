@@ -1,16 +1,12 @@
 # Deployment and Environment
 
-Poke Lounge는 Web과 API를 별도로 배포한다.
+Poke Lounge는 Web, API, 턴 워커, PostgreSQL과 Redis를 Docker Compose로 함께 배포한다.
 
 ```text
-apps/web -> Vercel
-apps/api + turn worker -> self-hosted runner -> PM2
+main -> icenux self-hosted runner -> Docker Compose
 ```
 
 ## Web
-
-Vercel Root Directory는 `apps/web`, Node.js는 22.x로 설정한다. 빌드는
-`pnpm build`를 사용한다.
 
 필수 환경 변수:
 
@@ -21,13 +17,13 @@ Vercel Root Directory는 `apps/web`, Node.js는 22.x로 설정한다. 빌드는
 | `AUTH_GOOGLE_SECRET`  | Google OAuth client secret        |
 | `AUTH_SECRET`         | Auth.js 서명 secret               |
 
-`AUTH_URL`은 플랫폼이 URL을 추론하지 못할 때만 설정한다. 공개 배포를 권리 상태와 함께
+`AUTH_URL`은 배포 Web origin으로 설정한다. 공개 배포를 권리 상태와 함께
 차단하려면 `POKE_LOUNGE_PROVENANCE_STRICT=1`을 설정한다.
 
 ## API
 
-API와 턴 워커는 같은 release와 `.env`를 사용한다. 실제 값은 저장소에 커밋하지 않고
-`apps/api/.env.example`을 기준으로 배포 호스트에 구성한다.
+API와 턴 워커는 같은 image와 Compose 환경을 사용한다. 실제 값은 저장소에 커밋하지 않고
+GitHub Actions Variables와 Secrets에서 주입한다.
 
 필수 환경 변수:
 
@@ -42,26 +38,24 @@ API와 턴 워커는 같은 release와 `.env`를 사용한다. 실제 값은 저
 
 Redis 연결에 실패하면 API와 worker는 시작하지 않으며 메모리 fallback을 사용하지 않는다.
 
-`.github/workflows/deploy-api.yml`을 사용하려면 repository variables에 다음 값을 등록한다.
+`.github/workflows/deploy-api.yml`은 다음 repository variables를 사용한다.
 
-| 이름                           | 필수 | 설명                       |
-| ------------------------------ | ---- | -------------------------- |
-| `API_DEPLOY_DIR`               | 필수 | 호스트의 절대 release 경로 |
-| `API_HEALTH_URL`               | 필수 | 공개 `/health` URL         |
-| `API_LOCAL_HEALTH_URL`         | 선택 | 호스트 내부 `/health` URL  |
-| `API_PROCESS_NAME`             | 선택 | PM2 API 이름               |
-| `API_TURN_WORKER_PROCESS_NAME` | 선택 | PM2 worker 이름            |
+| 이름                  | 필수 | 설명                         |
+| --------------------- | ---- | ---------------------------- |
+| `BIND_ADDRESS`        | 선택 | 기본 `127.0.0.1`             |
+| `WEB_PORT`            | 선택 | 기본 `3100`                  |
+| `API_PORT`            | 선택 | 기본 `3101`                  |
+| `NEXT_PUBLIC_API_URL` | 필수 | 브라우저가 호출할 API origin |
+| `CORS_ORIGINS`        | 필수 | 허용할 Web origin            |
+| `AUTH_URL`            | 필수 | 배포 Web origin              |
+
+Repository secrets에는 `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_SECRET`, `DB_PASSWORD`를
+등록한다.
 
 ## Database migrations
 
-배포 workflow는 migration을 자동 실행하지 않는다. 운영 반영 전 backup을 만들고 다음 순서로
-실행한다.
-
-```bash
-pnpm build:api
-pnpm --filter @poke-lounge/api migration:show
-pnpm --filter @poke-lounge/api migration:run
-```
+배포 workflow는 PostgreSQL health 확인 뒤 migration을 실행하고, 성공한 경우에만 API와 턴
+워커를 시작한다.
 
 legacy baseline은 기존 `user`, `game_history` schema가 정확히 일치할 때만 채택한다. 일부 객체나
 schema 차이가 있으면 자동 수리하지 않고 실패한다.

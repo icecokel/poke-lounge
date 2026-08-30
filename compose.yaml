@@ -15,21 +15,22 @@ x-api-environment: &api-environment
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-docker-local-google-client-id}
   DB_HOST: postgres
   DB_PORT: 5432
-  DB_USERNAME: poke_lounge
-  DB_PASSWORD: poke_lounge
-  DB_DATABASE: poke_lounge
+  DB_USERNAME: ${DB_USERNAME:-poke_lounge}
+  DB_PASSWORD: ${DB_PASSWORD:-poke_lounge}
+  DB_DATABASE: ${DB_DATABASE:-poke_lounge}
   DB_SYNCHRONIZE: "false"
   REDIS_URL: redis://redis:6379
 
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: poke_lounge
-      POSTGRES_PASSWORD: poke_lounge
-      POSTGRES_DB: poke_lounge
+      POSTGRES_USER: ${DB_USERNAME:-poke_lounge}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-poke_lounge}
+      POSTGRES_DB: ${DB_DATABASE:-poke_lounge}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U poke_lounge -d poke_lounge"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -38,6 +39,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -57,6 +59,7 @@ services:
 
   api:
     <<: *app
+    restart: unless-stopped
     command: ["pnpm", "--filter", "@poke-lounge/api", "start:prod"]
     environment: *api-environment
     depends_on:
@@ -76,10 +79,11 @@ services:
       timeout: 5s
       retries: 12
     ports:
-      - "${API_PORT:-3001}:3001"
+      - "${BIND_ADDRESS:-0.0.0.0}:${API_PORT:-3001}:3001"
 
   turn-worker:
     <<: *app
+    restart: unless-stopped
     command: ["pnpm", "--filter", "@poke-lounge/api", "start:turn-worker"]
     environment: *api-environment
     depends_on:
@@ -90,6 +94,7 @@ services:
 
   web:
     <<: *app
+    restart: unless-stopped
     command:
       [
         "pnpm",
@@ -126,7 +131,7 @@ services:
       timeout: 5s
       retries: 12
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - "${BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-3000}:3000"
 
 volumes:
   postgres-data:

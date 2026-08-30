@@ -31,3 +31,12 @@ docker compose down --volumes
 ```bash
 NEXT_PUBLIC_API_URL=https://api.example.com docker compose build
 ```
+
+## icenux 배포
+
+`main` 반영 시 전용 self-hosted runner가 같은 Compose 스택을 빌드하고 실행한다. icenux에서는
+기존 서비스와 충돌하지 않도록 Web `127.0.0.1:3100`, API `127.0.0.1:3101`을 사용한다.
+PostgreSQL과 Redis 데이터는 Docker named volume에 유지된다.
+
+공개값은 GitHub Actions Variables, 인증값과 DB 비밀번호는 Actions Secrets에 저장한다. 운영
+컨테이너는 `restart: unless-stopped`, Docker와 runner는 systemd 서비스로 재부팅 시 복구된다.
