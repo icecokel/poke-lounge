@@ -10,6 +10,7 @@
 - [Redis 실시간 상태 계획](./poke-lounge-redis-live-state-plan.md)
 - [성능 최적화 계획](./poke-lounge-performance-optimization-plan.md)
 - [Playwright 테스트](./playwright-testing.md)
+- [Docker 실행](./docker.md)
 - [점수 정책](./game-score-policy.md)
 - [배포와 환경 변수](./deployment-and-env.md)
 - [운영 런북](./operations-runbook.md)

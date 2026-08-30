@@ -15,6 +15,13 @@ Web은 `http://localhost:3000`, API는 `http://localhost:3001`을 기본으로 �
 PostgreSQL이 필요하며, 경쟁 턴 제한 처리는 `pnpm --filter @poke-lounge/api start:turn-worker`로
 별도 실행한다.
 
+Docker로 전체 서비스를 실행하려면 다음 명령을 사용한다. 자세한 내용은
+[`docs/docker.md`](docs/docker.md)를 따른다.
+
+```bash
+docker compose up --build --detach
+```
+
 ```bash
 pnpm lint
 pnpm test

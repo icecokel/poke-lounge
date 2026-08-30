@@ -166,11 +166,7 @@ export interface CompetitiveIndividualValues {
 }
 
 export type CompetitivePersistentStatus =
-  | "normal"
-  | "poisoned"
-  | "burned"
-  | "paralyzed"
-  | "fainted";
+  "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
 
 export interface CompetitivePartyMemberInput {
   slotIndex: number;
@@ -374,8 +370,7 @@ move metadata를 runtime data에서 다시 만들지만 승패 계산에는 사�
 
 ```ts
 export type CanonicalCompetitiveAction =
-  | { kind: "move"; moveId: number | "struggle" }
-  | { kind: "switch"; slotIndex: number };
+  { kind: "move"; moveId: number | "struggle" } | { kind: "switch"; slotIndex: number };
 ```
 
 - numeric move ID는 safe integer 1~470이어야 한다.
@@ -486,8 +481,8 @@ room snapshot과 OpenAPI에는 있으나 현재 Web에 전용 안내 문구로 �
 
 source는 `apps/web/public/game-data/pokemon-data.json` 한 곳이다.
 
-- species는 1~493만 포함한다. 494~500 내부 레코드는 제외한다.
-- move는 1~470만 포함한다. move 0은 제외한다.
+- species는 1–493만 포함한다. 494–500 내부 레코드는 제외한다.
+- move는 1–470만 포함한다. move 0은 제외한다.
 - species 필드: `speciesId`, base stats 6개, primary/secondary type ID
 - move 필드: `moveId`, `typeId`, `category`, `power`, `accuracy`, `effectCode`, `maxPp`
 - 이름, 스프라이트, catch rate, growth rate, learnset은 server battle catalog에 넣지 않는다.
@@ -1357,7 +1352,7 @@ docs(poke-lounge):육성 파티 경쟁 규칙 반영
 
 | 계층            | 정상                                 | 실패/경계                                   |
 | --------------- | ------------------------------------ | ------------------------------------------- |
-| Catalog         | species 1~493, move 1~470            | excluded IDs, generated drift               |
+| Catalog         | species 1–493, move 1–470            | excluded IDs, generated drift               |
 | Party normalize | 1~6, holes, different levels         | duplicate, invalid IV/HP/PP/status          |
 | Initial state   | different species/level/size         | duplicate player, missing party             |
 | Resolver        | move, switch, status, type, struggle | illegal move/switch, fainted active         |
