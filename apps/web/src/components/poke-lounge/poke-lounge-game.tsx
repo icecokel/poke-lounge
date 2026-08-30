@@ -78,6 +78,7 @@ import {
   type PokeLoungeStateHydrationStatus,
 } from "./poke-lounge-game-overlays";
 import styles from "./poke-lounge.module.css";
+import themeStyles from "./poke-lounge-theme.module.css";
 
 type PokeLoungeWindow = Window & {
   __POKE_LOUNGE_CLEANUP_FOR_TEST__?: () => void;
@@ -1167,7 +1168,7 @@ export function PokeLoungeGame() {
   return (
     <main
       ref={pageRef}
-      className={`${styles.page} ${touchGameDevice ? styles.touchGameDevice : ""}`}
+      className={`${styles.page} ${themeStyles.theme} ${touchGameDevice ? styles.touchGameDevice : ""}`}
       data-testid="poke-lounge-page"
       data-poke-lounge-ui-size={uiSize}
       data-poke-lounge-mobile-shell={touchGameDevice ? "true" : undefined}

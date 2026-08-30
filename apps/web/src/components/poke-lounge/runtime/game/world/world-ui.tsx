@@ -14,6 +14,12 @@ import {
   getPokemonHpRatio,
 } from "../scenes/world-scene-hud";
 import type { WorldUiSnapshot, WorldUiStore } from "./world-ui-store";
+import {
+  HealthBar,
+  PixelPanel,
+  PokemonSlot,
+  StatusBadge,
+} from "../../../ui/poke-lounge-ui-primitives";
 import styles from "../../../poke-lounge.module.css";
 
 export function WorldUiLayer({
@@ -102,7 +108,11 @@ export function WorldHud({
 }
 
 export function CurrencyHud({ value }: { value: number }) {
-  return <div className={styles.worldCurrencyHud}>{formatPokeDollars(value)}</div>;
+  return (
+    <StatusBadge className={styles.worldCurrencyHud} tone="gold">
+      {formatPokeDollars(value)}
+    </StatusBadge>
+  );
 }
 
 export function RankScoreHud({
@@ -113,9 +123,9 @@ export function RankScoreHud({
   stats: { rank: number | null; score: number };
 }) {
   return (
-    <div className={styles.worldRankHud}>
+    <StatusBadge className={styles.worldRankHud} tone="blue">
       {formatRankScoreHud(stats, competitive ? "competitive" : "solo")}
-    </div>
+    </StatusBadge>
   );
 }
 
@@ -132,7 +142,11 @@ export function RoundHud({ gameStateStore }: { gameStateStore: GameStateStore })
     return () => window.clearInterval(timer);
   }, []);
 
-  return <div className={styles.worldRoundHud}>{formatRoundHudText(state.round, now)}</div>;
+  return (
+    <StatusBadge className={styles.worldRoundHud} tone="green">
+      {formatRoundHudText(state.round, now)}
+    </StatusBadge>
+  );
 }
 
 export function PartyHud({
@@ -179,21 +193,30 @@ export function PartyHudSlot({
   slotIndex: number;
 }) {
   return (
-    <button
-      type="button"
+    <PokemonSlot
       className={styles.worldPartyHudSlot}
-      data-active={active || undefined}
-      data-selected={selected || undefined}
+      active={active}
+      emptyLabel={`슬롯 ${slotIndex + 1}`}
+      hp={
+        pokemon
+          ? {
+              current: pokemon.currentHp ?? null,
+              max: pokemon.maxHp ?? null,
+              ratio: getPokemonHpRatio(pokemon),
+            }
+          : undefined
+      }
+      level={pokemon?.level}
+      name={pokemon?.name}
+      selected={selected}
+      sprite={pokemon ? <PokemonSprite pokemon={pokemon} size={42} /> : undefined}
+      status={pokemon && pokemon.status !== "normal" ? formatStatus(pokemon.status) : undefined}
       disabled={!pokemon}
       onClick={() => onSelect(slotIndex)}
       aria-label={
         pokemon ? `${pokemon.name} Lv.${pokemon.level} 상세` : `빈 파티 슬롯 ${slotIndex + 1}`
       }
-    >
-      {pokemon ? <PokemonSprite pokemon={pokemon} size={42} /> : <span>–</span>}
-      <span>{pokemon?.name ?? "-"}</span>
-      <small>{pokemon ? `Lv.${pokemon.level}` : ""}</small>
-    </button>
+    />
   );
 }
 
@@ -216,7 +239,7 @@ export function PokemonStatusPanel({
   const canSetLead = !isActive && pokemon.status !== "fainted";
 
   return (
-    <section className={styles.worldPokemonPanel} data-poke-lounge-pokemon-status="true">
+    <PixelPanel className={styles.worldPokemonPanel} data-poke-lounge-pokemon-status="true">
       <button type="button" className={styles.worldPanelClose} onClick={onClose} aria-label="닫기">
         ×
       </button>
@@ -228,7 +251,7 @@ export function PokemonStatusPanel({
         </div>
       </div>
       <p>HP {formatPokemonHp(pokemon)}</p>
-      <meter min={0} max={1} value={getPokemonHpRatio(pokemon)} aria-label="HP" />
+      <HealthBar value={getPokemonHpRatio(pokemon)} aria-label="HP" />
       <p>
         {experience.atMaxLevel ? "EXP MAX" : `EXP ${experience.current} / ${experience.required}`}
       </p>
@@ -248,7 +271,7 @@ export function PokemonStatusPanel({
       <button type="button" disabled={!canSetLead} onClick={onSetLead}>
         {isActive ? "현재 선두" : pokemon.status === "fainted" ? "선두 지정 불가" : "선두로 지정"}
       </button>
-    </section>
+    </PixelPanel>
   );
 }
 

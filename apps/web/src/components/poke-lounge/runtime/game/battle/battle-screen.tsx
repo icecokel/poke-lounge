@@ -20,6 +20,12 @@ import {
   createShortcutGuideRows,
   createShortcutGuideTitle,
 } from "../ui/shortcutGuide";
+import {
+  HealthBar,
+  MessageBox,
+  PixelButton,
+  PixelPanel,
+} from "../../../ui/poke-lounge-ui-primitives";
 
 const logicalWidth = 256;
 const logicalHeight = 192;
@@ -188,7 +194,7 @@ export function BattleHpPanel({
 }) {
   const status = getBattleStatusTextView(combatant.status);
   return (
-    <section
+    <PixelPanel
       className={styles.battleHpPanel}
       data-poke-lounge-battle-hp-panel={side}
       style={toRectStyle(rect)}
@@ -198,10 +204,12 @@ export function BattleHpPanel({
         {combatant.name} <small>Lv.{combatant.level}</small>
       </strong>
       {status ? <span style={{ color: status.color }}>{status.label}</span> : null}
-      <div className={styles.battleHpTrack}>
-        <i style={{ width: `${hpRatio(combatant.displayedHp, combatant.maxHp) * 100}%` }} />
-      </div>
-    </section>
+      <HealthBar
+        className={styles.battleHpTrack}
+        value={hpRatio(combatant.displayedHp, combatant.maxHp)}
+        aria-label={`${combatant.name} HP`}
+      />
+    </PixelPanel>
   );
 }
 
@@ -272,15 +280,14 @@ export function BattleMessagePanel({
   onConfirm(): void;
 }) {
   return (
-    <button
-      type="button"
+    <MessageBox
       className={`${styles.battleWindow} ${styles.battleMessagePanel}`}
       data-poke-lounge-battle-surface="message"
       disabled={locked}
       onClick={onConfirm}
     >
       {message}
-    </button>
+    </MessageBox>
   );
 }
 
@@ -498,13 +505,13 @@ function BattleOptionButton({
   selected: boolean;
 }) {
   return (
-    <button type="button" data-selected={selected} disabled={disabled} onClick={onClick}>
+    <PixelButton selected={selected} disabled={disabled} onClick={onClick}>
       <span>
         {selected ? "▶ " : ""}
         {label}
       </span>
       {meta ? <small>{meta}</small> : null}
-    </button>
+    </PixelButton>
   );
 }
 
