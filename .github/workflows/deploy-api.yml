@@ -34,7 +34,8 @@ jobs:
       AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
       AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
       GOOGLE_CLIENT_ID: ${{ secrets.AUTH_GOOGLE_ID }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+"      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      COMPOSE_BAKE: "false" # ponytail: Remove after docker-buildx is installed on the runner."
     steps:
       - uses: actions/checkout@v4
 
