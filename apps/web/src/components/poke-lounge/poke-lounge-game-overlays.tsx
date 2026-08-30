@@ -14,11 +14,7 @@ import type { PokeLoungeRoomLeaveRequestDetail } from "./runtime/game/ui/poke-lo
 import styles from "./poke-lounge.module.css";
 
 export type PokeLoungeStateHydrationStatus =
-  | "pending"
-  | "ready"
-  | "local-ready"
-  | "conflict"
-  | "unavailable";
+  "pending" | "ready" | "local-ready" | "conflict" | "unavailable";
 
 export function PokeLoungeHydrationScreens({
   copy,
@@ -142,11 +138,7 @@ export function PokeLoungeStatusRail({
       <p
         className={styles.statusChip}
         data-tone={
-          usingLocalHydrationFallback
-            ? "warning"
-            : autosaveStatus === "error"
-              ? "error"
-              : "neutral"
+          usingLocalHydrationFallback ? "warning" : autosaveStatus === "error" ? "error" : "neutral"
         }
         data-poke-lounge-save-status={
           usingLocalHydrationFallback || !authenticated ? "local" : autosaveStatus
@@ -253,10 +245,20 @@ export function PokeLoungeResultPanel({
         {requiresAuthentication ? copy.resultAuthRequired : statusMessage}
       </p>
       <div className={styles.resultActions}>
-        <Button type="button" variant="outline" onClick={onRetry} data-testid="poke-lounge-result-retry">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onRetry}
+          data-testid="poke-lounge-result-retry"
+        >
           {returnsToRoomEntry ? copy.resultRoomEntry : copy.resultRetry}
         </Button>
-        <Button type="button" variant="outline" onClick={onLobby} data-testid="poke-lounge-result-lobby">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onLobby}
+          data-testid="poke-lounge-result-lobby"
+        >
           {copy.resultLobby}
         </Button>
       </div>
@@ -327,10 +329,7 @@ export function PokeLoungeDecisionDialogs({
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={exitOpen} onOpenChange={onExitOpenChange}>
-        <AlertDialogContent
-          className={dialogClassName}
-          data-poke-lounge-game-exit-dialog="true"
-        >
+        <AlertDialogContent className={dialogClassName} data-poke-lounge-game-exit-dialog="true">
           <AlertDialogHeader>
             <AlertDialogTitle>{copy.exitTitle}</AlertDialogTitle>
             <AlertDialogDescription>{copy.exitDescription}</AlertDialogDescription>
@@ -348,10 +347,7 @@ export function PokeLoungeDecisionDialogs({
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={Boolean(leaveRequest)} onOpenChange={onLeaveOpenChange}>
-        <AlertDialogContent
-          className={dialogClassName}
-          data-poke-lounge-leave-dialog="true"
-        >
+        <AlertDialogContent className={dialogClassName} data-poke-lounge-leave-dialog="true">
           <AlertDialogHeader>
             <AlertDialogTitle>{leaveRequest?.title ?? copy.leaveTitle}</AlertDialogTitle>
             <AlertDialogDescription>

@@ -10,10 +10,7 @@ import {
 
 test("로컬 직선·대각선 이동은 같은 104px/s 속도와 기존 방향 우선순위를 유지한다", () => {
   assert.deepEqual(
-    resolveLocalPlayerVelocity(
-      { left: false, right: false, up: false, down: false },
-      "left",
-    ),
+    resolveLocalPlayerVelocity({ left: false, right: false, up: false, down: false }, "left"),
     { x: 0, y: 0, facing: "left" },
   );
 

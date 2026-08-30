@@ -41,9 +41,7 @@ const GAME_DATA_JSON_CACHE_ASSETS = [
   ["levelUpMoveTable", LEVEL_UP_MOVE_TABLE_JSON_PATH, "levelUpMoveTable"],
   ["wildBattleMoveSets", WILD_BATTLE_MOVE_SETS_JSON_PATH, "wildBattleMoveSets"],
   ["battlePokemonAssets", BATTLE_POKEMON_ASSETS_JSON_PATH, "battlePokemonAssets"],
-] as const satisfies ReadonlyArray<
-  readonly [string, string, keyof RuntimeGameDataJson]
->;
+] as const satisfies ReadonlyArray<readonly [string, string, keyof RuntimeGameDataJson]>;
 
 export interface PokeLoungeAssetLoadProgress {
   loaded: number;
@@ -105,12 +103,7 @@ export async function loadPokeLoungeRuntimeAssets({
     ...spriteSheetAssets.map(asset => asset.path),
     FIELD_MAP.player.atlasUrl,
   ]);
-  const total =
-    1 +
-    JSON_CACHE_ASSETS.length +
-    2 +
-    uniqueImagePaths.size +
-    audioAssets.length;
+  const total = 1 + JSON_CACHE_ASSETS.length + 2 + uniqueImagePaths.size + audioAssets.length;
   let loaded = 1;
   const reportProgress = () => {
     onProgress?.({ loaded, total, ratio: loaded / total });
@@ -129,10 +122,10 @@ export async function loadPokeLoungeRuntimeAssets({
 
   const [jsonEntries, tilemapValue, playerAtlasValue] = await Promise.all([
     Promise.all(
-      JSON_CACHE_ASSETS.map(async ([key, path]) => [
-        key,
-        complete(await fetchRequiredJson(fetcher, path, signal)),
-      ] as const),
+      JSON_CACHE_ASSETS.map(
+        async ([key, path]) =>
+          [key, complete(await fetchRequiredJson(fetcher, path, signal))] as const,
+      ),
     ),
     fetchRequiredJson(fetcher, FIELD_MAP.mapUrl, signal).then(complete),
     fetchRequiredJson(fetcher, FIELD_MAP.player.atlasJsonUrl, signal).then(complete),
@@ -155,18 +148,16 @@ export async function loadPokeLoungeRuntimeAssets({
     return promise;
   };
   const [loadedImages, spriteSheets, playerAtlasImage, audioBufferEntries] = await Promise.all([
-    Promise.all(
-      imageAssets.map(async asset => [asset.key, await getImage(asset.path)] as const),
-    ),
+    Promise.all(imageAssets.map(async asset => [asset.key, await getImage(asset.path)] as const)),
     Promise.all(
       spriteSheetAssets.map(async asset => ({ ...asset, image: await getImage(asset.path) })),
     ),
     getImage(FIELD_MAP.player.atlasUrl),
     Promise.all(
-      audioAssets.map(async asset => [
-        asset.id,
-        complete(await fetchRequiredArrayBuffer(fetcher, asset.src, signal)),
-      ] as const),
+      audioAssets.map(
+        async asset =>
+          [asset.id, complete(await fetchRequiredArrayBuffer(fetcher, asset.src, signal))] as const,
+      ),
     ),
   ]);
 

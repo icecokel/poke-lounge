@@ -15,10 +15,7 @@ export function RomAssetBrowser({ manifest }: { manifest?: UiAssetManifest | nul
   const empty = !manifest || (manifest.assets.length === 0 && archives.length === 0);
 
   return (
-    <section
-      className="rom-asset-browser"
-      data-rom-asset-browser={manifest ? "loaded" : "empty"}
-    >
+    <section className="rom-asset-browser" data-rom-asset-browser={manifest ? "loaded" : "empty"}>
       <header className="rom-browser-header">
         <div className="rom-browser-title">
           <p className="kicker">HGSS Graphics</p>
@@ -39,9 +36,7 @@ export function RomAssetBrowser({ manifest }: { manifest?: UiAssetManifest | nul
                 <p>
                   {[
                     archive.fileCount === undefined ? null : `${archive.fileCount} files`,
-                    archive.assets.length === 1
-                      ? "1 asset"
-                      : `${archive.assets.length} assets`,
+                    archive.assets.length === 1 ? "1 asset" : `${archive.assets.length} assets`,
                   ]
                     .filter((item): item is string => item !== null)
                     .join(" / ")}
@@ -98,7 +93,8 @@ function getArchivePriority(archive: UiAssetArchive): number {
     archive.sourceArchivePath ?? archive.label ?? "",
   );
   if (knownPriority >= 0) return knownPriority;
-  if (archive.assets.some(asset => asset.role === "item-icon")) return PRIORITY_ARCHIVE_PATHS.length;
+  if (archive.assets.some(asset => asset.role === "item-icon"))
+    return PRIORITY_ARCHIVE_PATHS.length;
   if (
     archive.assets.some(asset =>
       ["menu-background", "button-frame", "ui-fragment"].includes(asset.role ?? ""),

@@ -29,8 +29,8 @@ test("DOM 월드 camera는 기존 512x384 viewport를 맵 경계 안에 clamp한
     x: 0,
     y: 0,
   });
-  assert.deepEqual(
-    resolveWorldCamera({ x: 1268, y: 564 }, { width: 512, height: 384 }, model),
-    { x: 768, y: 192 },
-  );
+  assert.deepEqual(resolveWorldCamera({ x: 1268, y: 564 }, { width: 512, height: 384 }, model), {
+    x: 768,
+    y: 192,
+  });
 });

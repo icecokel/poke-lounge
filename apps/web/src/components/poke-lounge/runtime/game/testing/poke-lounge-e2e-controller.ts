@@ -1,10 +1,6 @@
 import type { PokeLoungeAudioPlaybackSnapshot } from "../audio/poke-lounge-audio";
 import type { BattleRect } from "../battle/battleLayout";
-import type {
-  BattleCommand,
-  BattlePokemonStatus,
-  BattleScreenState,
-} from "../battle/battleTypes";
+import type { BattleCommand, BattlePokemonStatus, BattleScreenState } from "../battle/battleTypes";
 import type { VirtualGamepadButton } from "../input/virtualGamepad";
 import type { PlayerFacing, PlayerSnapshot } from "../network/localPreviewRoom";
 import type { ServerRoomTransportDiagnostics } from "../network/serverRoom";

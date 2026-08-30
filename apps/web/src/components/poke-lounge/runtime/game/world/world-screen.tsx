@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  forwardRef,
-  useEffect,
-  useRef,
-  useSyncExternalStore,
-  type RefCallback,
-} from "react";
+import { forwardRef, useEffect, useRef, useSyncExternalStore, type RefCallback } from "react";
 import { BATTLE_INTRO_TIMING, createBattleIntroStripes } from "../battle/battleIntro";
 import { FIELD_MAP } from "./fieldMap";
 import type { WorldFrameStore } from "./world-frame-store";

@@ -76,11 +76,7 @@ test("town map과 hero atlas의 DOM 이식 좌표 계약을 고정한다", () =>
     margin: 1,
     spacing: 2,
   });
-  assert.ok(
-    map.layers
-      .flatMap(layer => layer.data ?? [])
-      .every(gid => (gid & 0xe0000000) === 0),
-  );
+  assert.ok(map.layers.flatMap(layer => layer.data ?? []).every(gid => (gid & 0xe0000000) === 0));
 
   const atlas = JSON.parse(
     fs.readFileSync(path.join(webRoot, "public", FIELD_MAP.player.atlasJsonUrl), "utf8"),
@@ -101,8 +97,6 @@ test("town map과 hero atlas의 DOM 이식 좌표 계약을 고정한다", () =>
   assert.deepEqual(atlas.meta.size, { w: 128, h: 128 });
   assert.deepEqual(Object.keys(atlas.frames).sort(), expectedFrameNames.sort());
   assert.ok(
-    Object.values(atlas.frames).every(
-      frame => frame.frame.w === 32 && frame.frame.h === 32,
-    ),
+    Object.values(atlas.frames).every(frame => frame.frame.w === 32 && frame.frame.h === 32),
   );
 });
