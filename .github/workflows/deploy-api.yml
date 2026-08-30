@@ -1,119 +1,59 @@
-name: Deploy API
+name: Deploy
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - apps/api/**
-      - packages/poke-lounge-battle/**
+      - apps/**
+      - packages/**
+      - scripts/**
+      - Dockerfile
+      - compose.yaml
+      - .dockerignore
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - .github/workflows/deploy-api.yml
 
 concurrency:
-  group: deploy-poke-lounge-api
+  group: deploy-poke-lounge
   cancel-in-progress: false
 
 jobs:
   deploy:
-    runs-on: [self-hosted, host]
+    runs-on: [self-hosted, linux, x64, poke-lounge]
     env:
-      API_DEPLOY_DIR: ${{ vars.API_DEPLOY_DIR }}
-      API_HEALTH_URL: ${{ vars.API_HEALTH_URL }}
-      API_LOCAL_HEALTH_URL: ${{ vars.API_LOCAL_HEALTH_URL || 'http://127.0.0.1:3001/health' }}
-      API_PROCESS_NAME: ${{ vars.API_PROCESS_NAME || 'poke-lounge-api' }}
-      API_TURN_WORKER_PROCESS_NAME: ${{ vars.API_TURN_WORKER_PROCESS_NAME || 'poke-lounge-turn-worker' }}
+      BIND_ADDRESS: ${{ vars.BIND_ADDRESS || '127.0.0.1' }}
+      WEB_PORT: ${{ vars.WEB_PORT || '3100' }}
+      API_PORT: ${{ vars.API_PORT || '3101' }}
+      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+      AUTH_URL: ${{ vars.AUTH_URL }}
+      AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
+      AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      GOOGLE_CLIENT_ID: ${{ secrets.AUTH_GOOGLE_ID }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
       - name: Verify deployment configuration
         run: |
-          test -n "$API_DEPLOY_DIR"
-          test -n "$API_HEALTH_URL"
-          case "$API_DEPLOY_DIR" in /*) ;; *) exit 1 ;; esac
-          test "$API_DEPLOY_DIR" != "/"
-          test "$API_DEPLOY_DIR" != "$HOME"
-          command -v pm2
-          command -v rsync
-          test -d "$API_DEPLOY_DIR"
-          test -f "$API_DEPLOY_DIR/.env"
+          test -n "$NEXT_PUBLIC_API_URL"
+          test -n "$CORS_ORIGINS"
+          test -n "$AUTH_URL"
+          test -n "$AUTH_GOOGLE_ID"
+          test -n "$AUTH_GOOGLE_SECRET"
+          test -n "$AUTH_SECRET"
+          test -n "$DB_PASSWORD"
+          command -v docker
+          docker compose version
 
-      - name: Enable pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.0 --activate
-
-      - name: Build release
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm build:api
-          test -f apps/api/dist/src/main.js
-          test -f apps/api/dist/src/poke-lounge-turn-worker.js
-          test -f packages/poke-lounge-battle/dist/index.js
-
-      - name: Stage release
-        run: |
-          RELEASE_DIR="$API_DEPLOY_DIR/.next-release"
-          rm -rf "$RELEASE_DIR"
-          mkdir -p "$RELEASE_DIR/apps/api" "$RELEASE_DIR/packages/poke-lounge-battle"
-          rsync -a apps/api/dist "$RELEASE_DIR/apps/api/"
-          rsync -a packages/poke-lounge-battle/dist "$RELEASE_DIR/packages/poke-lounge-battle/"
-          cp apps/api/package.json "$RELEASE_DIR/apps/api/package.json"
-          cp packages/poke-lounge-battle/package.json "$RELEASE_DIR/packages/poke-lounge-battle/package.json"
-          cp package.json pnpm-lock.yaml pnpm-workspace.yaml "$RELEASE_DIR/"
-          cd "$RELEASE_DIR"
-          pnpm --filter @poke-lounge/api install --prod --frozen-lockfile --ignore-scripts
-          pnpm --filter @poke-lounge/api exec node -e "require('@poke-lounge/battle'); require('bullmq'); require('ioredis'); require('redis')"
-
-      - name: Verify Redis
-        run: |
-          cd "$API_DEPLOY_DIR"
-          set -a
-          . ./.env
-          set +a
-          test -n "${REDIS_URL:-}"
-          cd .next-release
-          pnpm --filter @poke-lounge/api exec node - <<'NODE'
-          const { createClient } = require('redis');
-          (async () => {
-            const client = createClient({ url: process.env.REDIS_URL });
-            try {
-              await client.connect();
-              if ((await client.ping()) !== 'PONG') process.exitCode = 1;
-            } finally {
-              if (client.isOpen) await client.close();
-            }
-          })().catch((error) => {
-            console.error(error.message);
-            process.exit(1);
-          });
-          NODE
-
-      - name: Promote and restart
-        run: |
-          RELEASE_DIR="$API_DEPLOY_DIR/.next-release"
-          rsync -a --delete --exclude .env --exclude .next-release --exclude backups "$RELEASE_DIR/" "$API_DEPLOY_DIR/"
-          cd "$API_DEPLOY_DIR"
-          set -a
-          . ./.env
-          set +a
-          pm2 delete "$API_TURN_WORKER_PROCESS_NAME" || true
-          pm2 delete "$API_PROCESS_NAME" || true
-          pm2 start apps/api/dist/src/main.js --name "$API_PROCESS_NAME" --update-env
-          pm2 start apps/api/dist/src/poke-lounge-turn-worker.js --name "$API_TURN_WORKER_PROCESS_NAME" --update-env
-          pm2 save
+      - name: Deploy Docker Compose stack
+        run: docker compose up --build --detach --remove-orphans --wait --wait-timeout 180
 
       - name: Verify health
         run: |
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error "$API_LOCAL_HEALTH_URL" >/dev/null; then break; fi
-            if [ "$attempt" -eq 30 ]; then exit 1; fi
-            sleep 2
-          done
-          curl --fail --silent --show-error "$API_HEALTH_URL" >/dev/null
+          curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/health" >/dev/null
+          curl --fail --silent --show-error "http://127.0.0.1:${WEB_PORT}/ko-KR/game" >/dev/null
