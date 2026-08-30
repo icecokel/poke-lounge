@@ -59,7 +59,7 @@ flowchart LR
 ```text
 apps/web
   Next.js route와 React wrapper
-  Legacy BootScene / WorldScene / BattleScene
+  Phaser BootScene / WorldScene / BattleScene
   local save, room adapter, UI와 입력
 
 apps/api
@@ -84,7 +84,7 @@ Socket.IO는 승인된 참가자의 실시간 위치와 committed snapshot 전�
 
 ```mermaid
 flowchart LR
-  Web["Web client"] -->|"room command"| API["NestJS API"]
+  Web["Phaser Web client"] -->|"room command"| API["NestJS API"]
   API -->|"Lua CAS"| Redis["Redis"]
   Redis -->|"commit"| API
   API -->|"room.snapshot"| Web
@@ -122,7 +122,7 @@ terminal event와 match를 중복 제거한 뒤 결과를 먼저 적용하고, �
 
 ## 화면과 오디오
 
-월드와 전투는 Web pixel-art scene으로 렌더링한다. 화면 경계는
+월드와 전투는 Phaser pixel-art scene으로 렌더링한다. 화면 경계는
 [Poke Lounge 화면 경계 정책](./poke-lounge-viewport-layout.md), 키보드·모바일 입력은
 [플레이와 성장 규칙](./poke-lounge-rules/play-and-growth.md)을 따른다.
 
