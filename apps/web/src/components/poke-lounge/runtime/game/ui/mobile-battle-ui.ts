@@ -1,9 +1,4 @@
-import type { BattleCommand, BattlePhase } from "../battle/battleTypes";
-
-export const POKE_LOUNGE_MOBILE_BATTLE_STATE_EVENT = "poke-lounge:mobile-battle-state";
-export const POKE_LOUNGE_MOBILE_BATTLE_ACTION_EVENT = "poke-lounge:mobile-battle-action";
-export const POKE_LOUNGE_MOBILE_BATTLE_STATE_REQUEST_EVENT =
-  "poke-lounge:mobile-battle-state-request";
+import type { BattleCommand, BattlePhase, BattleSpriteRef } from "../battle/battleTypes";
 
 export type MobileBattleDeckPhase = Extract<
   BattlePhase,
@@ -45,6 +40,7 @@ export interface MobileBattlePartyOption {
   isFainted: boolean;
   isEmpty: boolean;
   canSwitch: boolean;
+  sprite: BattleSpriteRef | null;
 }
 
 export interface MobileBattleItemOption {
@@ -88,27 +84,4 @@ export type MobileBattleUiAction =
 
 export function isMobileBattleMoveDisabled(phase: MobileBattleDeckPhase, pp: number): boolean {
   return phase === "move-select" && pp <= 0;
-}
-
-export function dispatchMobileBattleUiState(document: Document, state: MobileBattleUiState): void {
-  document.dispatchEvent(
-    new CustomEvent<MobileBattleUiState>(POKE_LOUNGE_MOBILE_BATTLE_STATE_EVENT, {
-      detail: state,
-    }),
-  );
-}
-
-export function dispatchMobileBattleUiAction(
-  document: Document,
-  action: MobileBattleUiAction,
-): void {
-  document.dispatchEvent(
-    new CustomEvent<MobileBattleUiAction>(POKE_LOUNGE_MOBILE_BATTLE_ACTION_EVENT, {
-      detail: action,
-    }),
-  );
-}
-
-export function requestMobileBattleUiState(document: Document): void {
-  document.dispatchEvent(new CustomEvent(POKE_LOUNGE_MOBILE_BATTLE_STATE_REQUEST_EVENT));
 }

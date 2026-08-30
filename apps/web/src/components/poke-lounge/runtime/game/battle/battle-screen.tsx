@@ -1,0 +1,678 @@
+"use client";
+
+import { useSyncExternalStore, type CSSProperties } from "react";
+import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
+import styles from "../../../poke-lounge.module.css";
+import { primePokeLoungeAudio } from "../audio/poke-lounge-audio";
+import { BATTLE_LAYOUT, getBattleStatusTextView, hpRatio, type BattleRect } from "./battleLayout";
+import { ROM_BATTLE_DESIGN_ASSETS } from "./battleDesign";
+import type {
+  BattleCapturePresentation,
+  BattleCombatantPresentation,
+  BattleEvolutionPresentation,
+  BattlePresentationState,
+  BattleSpritePresentation,
+  BattleUiStore,
+} from "./battle-ui-store";
+import type { MobileBattleUiAction, MobileBattleUiState } from "../ui/mobile-battle-ui";
+import {
+  createShortcutGuideFooter,
+  createShortcutGuideRows,
+  createShortcutGuideTitle,
+} from "../ui/shortcutGuide";
+
+const logicalWidth = 256;
+const logicalHeight = 192;
+
+export function BattleScreen({
+  copy,
+  desktop,
+  uiStore,
+}: {
+  copy: PokeLoungeCopy;
+  desktop: boolean;
+  uiStore: BattleUiStore;
+}) {
+  const snapshot = useSyncExternalStore(
+    uiStore.subscribe,
+    uiStore.getSnapshot,
+    uiStore.getSnapshot,
+  );
+  const presentation = snapshot.presentation;
+  const controls = snapshot.controls;
+
+  if (!presentation || !controls) return null;
+  const onAction = (action: MobileBattleUiAction) => {
+    void primePokeLoungeAudio();
+    uiStore.dispatch(action);
+  };
+
+  return (
+    <section
+      className={styles.battleScreen}
+      data-poke-lounge-battle-screen="true"
+      data-poke-lounge-battle-phase={presentation.phase}
+      aria-label={copy.mobile.battleDeckLabel}
+    >
+      <BattleStage
+        controls={controls}
+        desktop={desktop}
+        onAction={onAction}
+        presentation={presentation}
+      />
+      {desktop ? (
+        <button
+          type="button"
+          className={styles.battleHelpButton}
+          aria-label="전투 도움말"
+          data-poke-lounge-battle-help="true"
+          onClick={() => onAction({ type: "toggle-help" })}
+        >
+          ?
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
+export function BattleStage({
+  controls,
+  desktop,
+  onAction,
+  presentation,
+}: {
+  controls: MobileBattleUiState;
+  desktop: boolean;
+  onAction(action: MobileBattleUiAction): void;
+  presentation: BattlePresentationState;
+}) {
+  return (
+    <div className={styles.battleStage}>
+      <BattleBackground evolution={Boolean(presentation.evolution)} />
+      {presentation.evolution ? (
+        <BattleEvolutionScene evolution={presentation.evolution} />
+      ) : (
+        <>
+          <BattlePokemonLayer presentation={presentation} />
+          <BattleCaptureEffect capture={presentation.capture} />
+          <BattleHpPanel
+            combatant={presentation.opponent}
+            rect={BATTLE_LAYOUT.opponentHpPanel}
+            side="opponent"
+          />
+          <BattleHpPanel
+            combatant={presentation.player}
+            rect={BATTLE_LAYOUT.playerHpPanel}
+            side="player"
+          />
+        </>
+      )}
+      <BattleSurfaceRouter
+        controls={controls}
+        desktop={desktop}
+        onAction={onAction}
+        presentation={presentation}
+      />
+      {presentation.help.open && desktop ? (
+        <BattleShortcutGuide
+          onClose={() => onAction({ type: "toggle-help" })}
+          state={presentation}
+        />
+      ) : null}
+      <BattleEntranceEffect entrance={presentation.entrance} />
+    </div>
+  );
+}
+
+export function BattleBackground({ evolution }: { evolution: boolean }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={styles.battleBackground}
+      style={{
+        backgroundImage: `url(${evolution ? ROM_BATTLE_DESIGN_ASSETS.evolutionBackground.path : ROM_BATTLE_DESIGN_ASSETS.background.path})`,
+      }}
+    />
+  );
+}
+
+export function BattlePokemonLayer({ presentation }: { presentation: BattlePresentationState }) {
+  return (
+    <div className={styles.battlePokemonLayer} aria-hidden="true">
+      <BattlePokemonSprite side="opponent" view={presentation.opponent.sprite} />
+      <BattlePokemonSprite side="player" view={presentation.player.sprite} />
+    </div>
+  );
+}
+
+export function BattlePokemonSprite({
+  alpha,
+  side,
+  view,
+}: {
+  alpha?: number;
+  side: "evolution" | "opponent" | "party" | "player";
+  view: BattleSpritePresentation;
+}) {
+  const columns = view.sprite.columns ?? 16;
+  const rows = view.sprite.rows ?? 16;
+  const column = view.sprite.frame % columns;
+  const row = Math.floor(view.sprite.frame / columns);
+  const positionX = columns <= 1 ? 0 : (column / (columns - 1)) * 100;
+  const positionY = rows <= 1 ? 0 : (row / (rows - 1)) * 100;
+
+  return (
+    <span
+      className={styles.battlePokemonSprite}
+      data-poke-lounge-battle-pokemon={side}
+      style={{
+        ...toCenteredRectStyle(view),
+        backgroundImage: `url(${view.sprite.path})`,
+        backgroundPosition: `${positionX}% ${positionY}%`,
+        backgroundSize: `${columns * 100}% ${rows * 100}%`,
+        filter: view.tint === "white" ? "brightness(0) invert(1)" : undefined,
+        opacity: alpha ?? view.alpha,
+      }}
+    />
+  );
+}
+
+export function BattleHpPanel({
+  combatant,
+  rect,
+  side,
+}: {
+  combatant: BattleCombatantPresentation;
+  rect: BattleRect;
+  side: "opponent" | "player";
+}) {
+  const status = getBattleStatusTextView(combatant.status);
+  return (
+    <section
+      className={styles.battleHpPanel}
+      data-poke-lounge-battle-hp-panel={side}
+      style={toRectStyle(rect)}
+      aria-label={`${combatant.name} HP ${Math.round(combatant.displayedHp)}/${combatant.maxHp}`}
+    >
+      <strong>
+        {combatant.name} <small>Lv.{combatant.level}</small>
+      </strong>
+      {status ? <span style={{ color: status.color }}>{status.label}</span> : null}
+      <div className={styles.battleHpTrack}>
+        <i style={{ width: `${hpRatio(combatant.displayedHp, combatant.maxHp) * 100}%` }} />
+      </div>
+    </section>
+  );
+}
+
+export function BattleSurfaceRouter({
+  controls,
+  desktop,
+  onAction,
+  presentation,
+}: {
+  controls: MobileBattleUiState;
+  desktop: boolean;
+  onAction(action: MobileBattleUiAction): void;
+  presentation: BattlePresentationState;
+}) {
+  if (presentation.evolution) return null;
+  if (!desktop) {
+    return (
+      <BattleMessagePanel
+        message={presentation.message ?? "아래 터치 화면에서 행동을 선택하세요."}
+        locked={controls.isInputLocked}
+        onConfirm={() => onAction({ type: "confirm-message" })}
+      />
+    );
+  }
+  if (presentation.message) {
+    return (
+      <BattleMessagePanel
+        message={presentation.message}
+        locked={controls.isInputLocked}
+        onConfirm={() => onAction({ type: "confirm-message" })}
+      />
+    );
+  }
+  if (controls.isInputLocked || presentation.phase === "resolving") {
+    return <BattleWaitingPanel />;
+  }
+  if (presentation.phase === "command") {
+    return <BattleCommandPanel controls={controls} onAction={onAction} />;
+  }
+  if (presentation.phase === "move-select") {
+    return <BattleMovePanel controls={controls} onAction={onAction} />;
+  }
+  if (presentation.phase === "move-replace-select") {
+    return <BattleMoveReplacementPanel controls={controls} onAction={onAction} />;
+  }
+  if (presentation.phase === "party-select") {
+    return <BattlePartyPanel controls={controls} onAction={onAction} />;
+  }
+  if (presentation.phase === "bag-select") {
+    return <BattleBagPanel controls={controls} onAction={onAction} />;
+  }
+  return (
+    <BattleMessagePanel
+      message="전투가 종료되었습니다."
+      locked={controls.isInputLocked}
+      onConfirm={() => onAction({ type: "confirm-message" })}
+    />
+  );
+}
+
+export function BattleMessagePanel({
+  locked,
+  message,
+  onConfirm,
+}: {
+  locked: boolean;
+  message: string;
+  onConfirm(): void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`${styles.battleWindow} ${styles.battleMessagePanel}`}
+      data-poke-lounge-battle-surface="message"
+      disabled={locked}
+      onClick={onConfirm}
+    >
+      {message}
+    </button>
+  );
+}
+
+export function BattleCommandPanel({
+  controls,
+  onAction,
+}: {
+  controls: MobileBattleUiState;
+  onAction(action: MobileBattleUiAction): void;
+}) {
+  const labels = { bag: "가방", fight: "싸운다", pokemon: "포켓몬", run: "도망" };
+  return (
+    <div
+      className={`${styles.battleWindow} ${styles.battleOptionGrid}`}
+      data-poke-lounge-battle-surface="command"
+    >
+      {controls.commands.map((command, index) => (
+        <BattleOptionButton
+          key={command.id}
+          label={labels[command.id]}
+          selected={command.selected}
+          onClick={() => onAction({ type: "select-command", index })}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function BattleMovePanel({
+  controls,
+  onAction,
+}: {
+  controls: MobileBattleUiState;
+  onAction(action: MobileBattleUiAction): void;
+}) {
+  return (
+    <div
+      className={`${styles.battleWindow} ${styles.battleOptionGrid}`}
+      data-poke-lounge-battle-surface="moves"
+    >
+      {Array.from({ length: 4 }, (_, index) => {
+        const move = controls.moves[index];
+        return (
+          <BattleOptionButton
+            key={move?.index ?? `empty-${index}`}
+            disabled={!move || move.disabled}
+            label={move?.name ?? "-"}
+            meta={
+              move
+                ? `PP ${move.pp}/${move.maxPp} ${move.type}${move.effectNotice ? ` · ${move.effectNotice}` : ""}`
+                : undefined
+            }
+            selected={Boolean(move?.selected)}
+            onClick={() => move && onAction({ type: "select-move", index: move.index })}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+export function BattleMoveReplacementPanel({
+  controls,
+  onAction,
+}: {
+  controls: MobileBattleUiState;
+  onAction(action: MobileBattleUiAction): void;
+}) {
+  const pending = controls.moveReplacement;
+  return (
+    <div
+      className={`${styles.battleWindow} ${styles.battleReplacementPanel}`}
+      data-poke-lounge-battle-surface="move-replacement"
+    >
+      <strong>{pending ? `${pending.newMoveName}을 배우려면 잊을 기술 선택` : "기술 교체"}</strong>
+      <div className={styles.battleReplacementGrid}>
+        {Array.from({ length: 4 }, (_, index) => {
+          const move = controls.moves[index];
+          return (
+            <BattleOptionButton
+              key={move?.index ?? `empty-${index}`}
+              disabled={!move}
+              label={move?.name ?? "-"}
+              selected={Boolean(move?.selected)}
+              onClick={() =>
+                move && onAction({ type: "select-move-replacement", index: move.index })
+              }
+            />
+          );
+        })}
+      </div>
+      {controls.canGoBack ? (
+        <button
+          type="button"
+          className={styles.battleInlineBack}
+          onClick={() => onAction({ type: "go-back" })}
+        >
+          배우지 않는다
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+export function BattlePartyPanel({
+  controls,
+  onAction,
+}: {
+  controls: MobileBattleUiState;
+  onAction(action: MobileBattleUiAction): void;
+}) {
+  return (
+    <div className={styles.battlePartyPanel} data-poke-lounge-battle-surface="party">
+      <header>
+        <strong>교체할 포켓몬 선택</strong>
+        <span>{controls.isForcedPartySwitch ? "필수 교체" : "B 돌아가기"}</span>
+      </header>
+      <div>
+        {controls.party.map(pokemon => (
+          <button
+            key={pokemon.slotIndex}
+            type="button"
+            className={styles.battlePartySlot}
+            data-current={pokemon.isCurrent}
+            data-selected={pokemon.selected}
+            disabled={!pokemon.canSwitch}
+            onClick={() => onAction({ type: "select-party", index: pokemon.slotIndex })}
+          >
+            {pokemon.sprite ? (
+              <BattlePokemonSprite
+                side="party"
+                view={{
+                  alpha: pokemon.isFainted ? 0.34 : 1,
+                  height: 18,
+                  sprite: pokemon.sprite,
+                  tint: null,
+                  width: 18,
+                  x: 10,
+                  y: 10,
+                }}
+              />
+            ) : null}
+            <strong>{pokemon.isEmpty ? "- 빈 슬롯" : pokemon.name}</strong>
+            {!pokemon.isEmpty ? (
+              <small>
+                Lv.{pokemon.level} · HP {pokemon.currentHp}/{pokemon.maxHp}
+                {pokemon.status && pokemon.status !== "normal" ? ` · ${pokemon.status}` : ""}
+              </small>
+            ) : null}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function BattleBagPanel({
+  controls,
+  onAction,
+}: {
+  controls: MobileBattleUiState;
+  onAction(action: MobileBattleUiAction): void;
+}) {
+  const selectedIndex = Math.max(
+    0,
+    controls.items.findIndex(item => item.selected),
+  );
+  const pageStart = Math.floor(selectedIndex / 4) * 4;
+  return (
+    <div
+      className={`${styles.battleWindow} ${styles.battleBagPanel}`}
+      data-poke-lounge-battle-surface="bag"
+    >
+      {controls.items.slice(pageStart, pageStart + 4).map(item => (
+        <button
+          key={item.id}
+          type="button"
+          data-selected={item.selected}
+          disabled={item.disabled}
+          onClick={() => onAction({ type: "select-item", index: item.index })}
+        >
+          <span>
+            {item.selected ? "▶ " : "  "}
+            {item.name}
+          </span>
+          <small>×{item.count}</small>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function BattleWaitingPanel() {
+  return (
+    <div
+      className={`${styles.battleWindow} ${styles.battleMessagePanel}`}
+      data-poke-lounge-battle-surface="waiting"
+    >
+      전투 처리를 기다리는 중입니다.
+    </div>
+  );
+}
+
+function BattleOptionButton({
+  disabled = false,
+  label,
+  meta,
+  onClick,
+  selected,
+}: {
+  disabled?: boolean;
+  label: string;
+  meta?: string;
+  onClick(): void;
+  selected: boolean;
+}) {
+  return (
+    <button type="button" data-selected={selected} disabled={disabled} onClick={onClick}>
+      <span>
+        {selected ? "▶ " : ""}
+        {label}
+      </span>
+      {meta ? <small>{meta}</small> : null}
+    </button>
+  );
+}
+
+export function BattleShortcutGuide({
+  onClose,
+  state,
+}: {
+  onClose(): void;
+  state: BattlePresentationState;
+}) {
+  const rows = createShortcutGuideRows("battle", state.help.inputMode);
+  return (
+    <section className={styles.battleShortcutGuide} data-poke-lounge-battle-surface="help">
+      <header>
+        <strong>{createShortcutGuideTitle("battle", state.help.inputMode)}</strong>
+        <button type="button" onClick={onClose}>
+          닫기
+        </button>
+      </header>
+      <dl>
+        {rows.map(row => (
+          <div key={row.action}>
+            <dt>{row.action}</dt>
+            <dd>{row.keys}</dd>
+          </div>
+        ))}
+      </dl>
+      <p>{createShortcutGuideFooter(state.help.inputMode)}</p>
+    </section>
+  );
+}
+
+export function BattleCaptureEffect({ capture }: { capture: BattleCapturePresentation | null }) {
+  if (!capture) return null;
+  const rayColor = capture.caught ? "#f4cf58" : "#ffffff";
+  const resultProgress = capture.resultProgress;
+  return (
+    <div
+      className={styles.battleCaptureEffect}
+      data-poke-lounge-battle-capture="true"
+      aria-hidden="true"
+    >
+      {capture.showBall ? (
+        <span
+          className={styles.battleCaptureBall}
+          data-ball={capture.ballItemId}
+          style={{
+            left: `${(capture.ballX / logicalWidth) * 100}%`,
+            top: `${(capture.ballY / logicalHeight) * 100}%`,
+            transform: `translate(-50%, -50%) rotate(${capture.ballRotation}rad)`,
+          }}
+        />
+      ) : null}
+      {resultProgress !== null
+        ? Array.from({ length: 8 }, (_, index) => (
+            <i
+              key={index}
+              style={{
+                background: rayColor,
+                left: `${(capture.ballX / logicalWidth) * 100}%`,
+                opacity: 1 - resultProgress * 0.55,
+                top: `${(capture.ballY / logicalHeight) * 100}%`,
+                transform: `rotate(${index * 45}deg) translateX(${((7 + resultProgress * 13) / logicalWidth) * 100}cqw)`,
+              }}
+            />
+          ))
+        : null}
+    </div>
+  );
+}
+
+export function BattleEvolutionScene({ evolution }: { evolution: BattleEvolutionPresentation }) {
+  const energy = createEvolutionEnergyLines(evolution.progress);
+  return (
+    <div className={styles.battleEvolutionScene} data-poke-lounge-battle-evolution="true">
+      <svg viewBox="0 0 256 192" aria-hidden="true">
+        {energy.lines.map((line, index) => (
+          <line key={index} {...line} opacity={energy.alpha * 0.52} />
+        ))}
+        <circle
+          cx="128"
+          cy="82"
+          r={20 + ((evolution.progress * 120) % 28)}
+          opacity={energy.alpha * 0.58}
+        />
+        <circle
+          cx="128"
+          cy="82"
+          r={34 + ((evolution.progress * 180) % 32)}
+          opacity={energy.alpha * 0.42}
+        />
+      </svg>
+      <BattlePokemonSprite side="evolution" view={evolution.sprite} />
+      <BattlePokemonSprite
+        alpha={evolution.silhouetteAlpha}
+        side="evolution"
+        view={{ ...evolution.sprite, tint: "white" }}
+      />
+      {evolution.flashAlpha > 0 ? (
+        <i className={styles.battleEvolutionFlash} style={{ opacity: evolution.flashAlpha }} />
+      ) : null}
+    </div>
+  );
+}
+
+export function BattleEntranceEffect({
+  entrance,
+}: {
+  entrance: BattlePresentationState["entrance"];
+}) {
+  if (!entrance.active && entrance.progress >= 1) return null;
+  return (
+    <div
+      className={styles.battleEntranceEffect}
+      data-poke-lounge-battle-entrance="true"
+      style={{ backgroundColor: `rgb(16 24 32 / ${Math.max(0, 1 - entrance.progress)})` }}
+      aria-hidden="true"
+    >
+      {Array.from({ length: 6 }, (_, index) => (
+        <i
+          key={index}
+          style={{
+            left: index % 2 === 0 ? 0 : `${entrance.progress * 100}%`,
+            opacity: Math.max(0, 0.42 - entrance.progress * 0.5),
+            top: `${(index / 6) * 100}%`,
+            width: `${(1 - entrance.progress) * 100}%`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function createEvolutionEnergyLines(progress: number) {
+  const startProgress = Math.min(1, Math.max(0, (progress - 0.17) / 0.65));
+  const endFade = Math.min(1, Math.max(0, (0.94 - progress) / 0.12));
+  const alpha = Math.min(startProgress * 1.6, endFade);
+  const rotation = progress * Math.PI * 1.5;
+  const innerRadius = 14 + startProgress * 8;
+  const outerRadius = 48 + startProgress * 20;
+  return {
+    alpha,
+    lines: Array.from({ length: 12 }, (_, index) => {
+      const angle = rotation + (Math.PI * 2 * index) / 12;
+      return {
+        x1: 128 + Math.cos(angle) * innerRadius,
+        x2: 128 + Math.cos(angle) * outerRadius,
+        y1: 82 + Math.sin(angle) * innerRadius,
+        y2: 82 + Math.sin(angle) * outerRadius,
+      };
+    }),
+  };
+}
+
+function toRectStyle(rect: BattleRect): CSSProperties {
+  return {
+    height: `${(rect.height / logicalHeight) * 100}%`,
+    left: `${(rect.x / logicalWidth) * 100}%`,
+    top: `${(rect.y / logicalHeight) * 100}%`,
+    width: `${(rect.width / logicalWidth) * 100}%`,
+  };
+}
+
+function toCenteredRectStyle(rect: BattleSpritePresentation): CSSProperties {
+  return {
+    height: `${(rect.height / logicalHeight) * 100}%`,
+    left: `${((rect.x - rect.width / 2) / logicalWidth) * 100}%`,
+    top: `${((rect.y - rect.height / 2) / logicalHeight) * 100}%`,
+    width: `${(rect.width / logicalWidth) * 100}%`,
+  };
+}

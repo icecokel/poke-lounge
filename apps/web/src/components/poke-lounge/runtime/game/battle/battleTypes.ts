@@ -24,6 +24,8 @@ export interface BattleSpriteRef {
   frame: number;
   width?: number;
   height?: number;
+  columns?: number;
+  rows?: number;
 }
 
 export type BattleMoveCategory = "physical" | "special" | "status";

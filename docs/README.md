@@ -4,6 +4,7 @@
 
 - [게임 컨셉](./poke-lounge-game-concept.md)
 - [게임 규칙](./poke-lounge-rules/index.md)
+- [게임성 보존 Phaser → TSX/DOM 이식 기준](./poke-lounge-phaser-to-tsx-migration-plan.md)
 - [멀티플레이 테스트 시나리오](./poke-lounge-multiplayer-test-scenarios.md)
 - [화면 배치 원칙](./poke-lounge-viewport-layout.md)
 - [서버 안정화 계획과 완료 기록](./poke-lounge-game-server-stabilization-plan.md)

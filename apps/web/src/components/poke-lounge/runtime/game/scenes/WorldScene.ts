@@ -1,8 +1,6 @@
-import * as Phaser from "phaser";
 import { playPokeLoungeBgm, stopPokeLoungeBgm } from "../audio/poke-lounge-audio";
-import { GAME_VIEWPORT_SIZE } from "../gameViewport";
+import { GAME_VIEWPORT_SIZE, type GameViewportDisplaySize } from "../gameViewport";
 import {
-  createLocalPreviewRoom,
   type MultiplayerRoom,
   type PlayerFacing,
   type PlayerSnapshot,
@@ -11,25 +9,21 @@ import {
   type RoomUnsubscribe,
 } from "../network/localPreviewRoom";
 import { FIELD_MAP } from "../world/fieldMap";
-import { createTallGrassLayers } from "../world/tall-grass";
 import { WILD_ENCOUNTER_TABLES_JSON_ASSET } from "../world/wildEncounterTables";
-import { getDefaultGameStateStore } from "../state/defaultGameStateStore";
 import {
   createDefaultLocalPlayer,
   healLocalPlayer,
   type GameStateStore,
   type LocalPlayerState,
-  type PlayerPokemon,
   type RemotePlayerState,
 } from "../state/gameStateStore";
 import type { TournamentMatch } from "../tournament/tournamentState";
 import type { TournamentSession } from "../tournament/tournamentSession";
 import { type DiceGambleNumber, type DiceGamblePrediction } from "../gamble/diceGamble";
-import { createGameTextStyle } from "../ui/gameTextStyle";
 import { DEFAULT_PREPARATION_DURATION_MS } from "../round/roundState";
 import { isVirtualGamepadPressed, resetVirtualGamepad } from "../input/virtualGamepad";
 import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
-import { createRoomLobbyScreen, type RoomLobbyScreen } from "../ui/room-lobby-screen";
+import type { RoomLobbyRuntimeState } from "../ui/room-lobby-screen";
 import { createWorldSceneHud, type WorldSceneHudController } from "./world-scene-hud";
 import {
   createWorldSceneInteractions,
@@ -44,20 +38,26 @@ import {
 import { resolvePersistedWorldSpawn, shouldPersistSoloWorldPosition } from "./world-scene-spawn";
 import { shouldDisposeRoomOnWorldShutdown } from "./world-scene-room-lifecycle";
 import {
-  resolveRemotePlayerMotion,
-  shouldSnapRemotePlayer,
-  type RemotePlayerMotion,
-} from "./world-scene-motion";
-import {
   createWorldSceneEncounters,
-  type WildBattleStartInput,
   type WorldSceneEncounterController,
 } from "./world-scene-encounters";
+import type { WildBattleStartInput } from "../world/wildEncounters";
 import {
   createCompetitiveBattleLaunchCache,
   isCompetitiveAssignmentForPlayer,
   type CompetitiveBattleLaunchKey,
 } from "./competitive-battle-launch";
+import type {
+  PokeLoungeBattleLaunchSnapshot,
+  WorldE2eSnapshot,
+} from "../testing/poke-lounge-e2e-controller";
+import { readPokeLoungeBattleLaunchSnapshot } from "../testing/poke-lounge-e2e-controller";
+import type { WorldFrameStore } from "../world/world-frame-store";
+import type { WorldMovementInput, WorldRuntime } from "../world/world-runtime";
+import type { WorldUiStore } from "../world/world-ui-store";
+import type { WorldMapModel } from "../world/world-map-model";
+import type { RuntimeKeyboard } from "../runtime-input";
+import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-assets";
 
 export { formatPokeDollars, formatRankScoreHud } from "./world-scene-hud";
 export {
@@ -66,23 +66,8 @@ export {
 } from "./world-scene-encounters";
 export type { WorldTournamentBattleResult } from "./world-scene-tournament";
 
-const PLAYER_SPEED = 104;
-const PLAYER_SIZE = FIELD_MAP.player.displaySize;
-const PLAYER_HITBOX = FIELD_MAP.player.hitbox;
-const PLAYER_DEPTH = 20;
-const TALL_GRASS_FOREGROUND_DEPTH = 30;
-const ABOVE_PLAYER_DEPTH = 40;
 const PLAYER_POSITION_PERSIST_INTERVAL_MS = 1_000;
 export const ROUND_DURATION_QUERY_PARAM = "roundMs";
-
-type PcBoxFocus = "party" | "box";
-
-type CursorMap = Phaser.Types.Input.Keyboard.CursorKeys & {
-  w: Phaser.Input.Keyboard.Key;
-  a: Phaser.Input.Keyboard.Key;
-  s: Phaser.Input.Keyboard.Key;
-  d: Phaser.Input.Keyboard.Key;
-};
 
 export interface WorldSpawnPosition {
   x: number;
@@ -99,45 +84,17 @@ export interface WorldSceneCreateData {
 
 export interface WorldSceneOptions {
   competitiveRoundsEnabled?: boolean;
+  keyboard: RuntimeKeyboard;
+  onRoomLobbyStateChange?: (state: RoomLobbyRuntimeState | null) => void;
+  onStartBattle(data: object): void;
+  ownerDocument: Document;
+  runtimeAssets: PokeLoungeRuntimeAssets;
   serverAuthoritativeRounds?: boolean;
-}
-
-export interface WorldE2eSnapshot {
-  player: {
-    x: number;
-    y: number;
-    facing: PlayerFacing;
-    displayWidth: number;
-    displayHeight: number;
-  } | null;
-  camera: {
-    zoom: number;
-  };
-  shortcutGuideOpen: boolean;
-  encounterLocked: boolean;
-  battleIntroPlaying: boolean;
-  partyHudVisible: boolean;
-  pokemonStatusPanel: {
-    slotIndex: number;
-    name: string;
-    level: number;
-    currentHp: number | null;
-    maxHp: number | null;
-    status: NonNullable<PlayerPokemon["status"]>;
-  } | null;
-  pcBox: {
-    open: boolean;
-    focus: PcBoxFocus;
-    partySlotIndex: number;
-    boxIndex: number;
-    message: string;
-    partyCount: number;
-    boxCount: number;
-  };
-  nurseHealing: {
-    active: boolean;
-    effectCount: number;
-  };
+  viewportSize?: GameViewportDisplaySize;
+  worldFrameStore: WorldFrameStore;
+  worldModel: WorldMapModel;
+  worldRuntime: WorldRuntime;
+  worldUiStore: WorldUiStore;
 }
 
 export interface ResolvedWorldSpawn {
@@ -191,17 +148,8 @@ export function resolveWorldSpawn(
   };
 }
 
-export class WorldScene extends Phaser.Scene {
-  private cursors: CursorMap | null = null;
-  private worldLayer!: Phaser.Tilemaps.TilemapLayer;
-  private tallGrassLayer: Phaser.Tilemaps.TilemapLayer | null = null;
-  private aboveLayer: Phaser.Tilemaps.TilemapLayer | null = null;
-  private player!: Phaser.Physics.Arcade.Sprite;
-  private staticNpcs: Phaser.Physics.Arcade.StaticGroup | null = null;
-  private remotePlayers = new Map<string, Phaser.Physics.Arcade.Sprite>();
-  private remoteLabels = new Map<string, Phaser.GameObjects.Text>();
+export class WorldController {
   private remotePlayerSnapshots = new Map<string, PlayerSnapshot>();
-  private remotePlayerMotions = new Map<string, RemotePlayerMotion>();
   private unsubscribers: RoomUnsubscribe[] = [];
   private roomConnected = false;
   private pendingRoomMessages: Array<{ type: RoomMessage; payload: RoomEvent[RoomMessage] }> = [];
@@ -209,7 +157,7 @@ export class WorldScene extends Phaser.Scene {
   private shutdownComplete = false;
   private hud!: WorldSceneHudController;
   private tournament: WorldSceneTournamentController | null = null;
-  private roomLobby: RoomLobbyScreen | null = null;
+  private roomLobbyOpen = false;
   private facing: PlayerFacing = "front";
   private lastSentAt = 0;
   private lastPositionPersistedAt = 0;
@@ -224,67 +172,50 @@ export class WorldScene extends Phaser.Scene {
   private readonly competitiveRoundsEnabled: boolean;
   private readonly serverAuthoritativeRounds: boolean;
   private readonly competitiveBattleLaunchCache = createCompetitiveBattleLaunchCache();
+  private e2eBattleLaunchTracking = false;
+  private e2eBattleLaunches: PokeLoungeBattleLaunchSnapshot[] = [];
   private preserveRoomForBattle = false;
+  private started = false;
+  private viewportSize: GameViewportDisplaySize;
 
   constructor(
-    private readonly gameStateStore: GameStateStore = getDefaultGameStateStore(),
-    private readonly room: MultiplayerRoom = createLocalPreviewRoom(),
-    options: WorldSceneOptions = {},
+    private readonly gameStateStore: GameStateStore,
+    private readonly room: MultiplayerRoom,
+    private readonly options: WorldSceneOptions,
   ) {
-    super("world");
+    this.viewportSize = options.viewportSize ?? GAME_VIEWPORT_SIZE;
     this.competitiveRoundsEnabled = options.competitiveRoundsEnabled ?? true;
     this.serverAuthoritativeRounds = options.serverAuthoritativeRounds ?? false;
     this.encounters = createWorldSceneEncounters({
       gameStateStore: this.gameStateStore,
       getPlayerPosition: () =>
-        this.player
-          ? {
-              x: this.player.x,
-              y: this.player.y,
-            }
-          : null,
+        this.started ? this.options.worldRuntime.readLocalPlayer().position : null,
       getPlayerFacing: () => this.facing,
-      hasTallGrassAt: tile => this.tallGrassLayer?.hasTileAt(tile.x, tile.y) ?? false,
-      stopPlayer: () => this.player?.setVelocity(0, 0),
+      hasTallGrassAt: tile =>
+        this.options.worldModel.tallGrassCoordinates.has(`${tile.x},${tile.y}`),
+      stopPlayer: () => {},
       getLocationUrl: () => new URL(window.location.href),
-      getEncounterTableData: () => this.cache.json.get(WILD_ENCOUNTER_TABLES_JSON_ASSET[0]),
-      getPokemonData: () => this.cache.json.get("pokemonData"),
+      getEncounterTableData: () =>
+        this.options.runtimeAssets.json.get(WILD_ENCOUNTER_TABLES_JSON_ASSET[0]),
+      getPokemonData: () => this.options.runtimeAssets.json.get("pokemonData"),
       persistPlayerPosition: position => {
         if (shouldPersistSoloWorldPosition(this.competitiveRoundsEnabled)) {
           this.gameStateStore.setLocalPlayerPosition(position);
         }
       },
-      getViewportSize: () => this.getViewportSize(),
-      createRectangle: (...args) => this.add.rectangle(...args),
-      shakeCamera: (duration, intensity) => this.cameras.main.shake(duration, intensity),
-      addTween: config => {
-        this.tweens.add(config);
-      },
-      delay: (ms, onComplete) => {
-        this.time.delayedCall(ms, onComplete);
-      },
+      delay: (ms, onComplete) => window.setTimeout(onComplete, ms),
       startBattle: data =>
-        this.scene.start("battle", {
+        this.startBattleScene({
           ...data,
           persistWorldPosition: shouldPersistSoloWorldPosition(this.competitiveRoundsEnabled),
         }),
     });
     this.interactions = createWorldSceneInteractions({
       gameStateStore: this.gameStateStore,
-      getDocument: () => this.game.canvas.ownerDocument,
-      getGameObjectFactory: () => this.add,
-      getInputPlugin: () => this.input,
-      createStaticGroup: () => this.physics.add.staticGroup(),
-      registerStaticNpcs: staticNpcs => {
-        this.staticNpcs = staticNpcs;
-      },
+      getDocument: () => this.options.ownerDocument,
+      keyboard: this.options.keyboard,
       getPlayerPosition: () =>
-        this.player
-          ? {
-              x: this.player.x,
-              y: this.player.y,
-            }
-          : null,
+        this.started ? this.options.worldRuntime.readLocalPlayer().position : null,
       canStartSoloChallenge: () =>
         !this.competitiveRoundsEnabled &&
         this.gameStateStore
@@ -293,9 +224,6 @@ export class WorldScene extends Phaser.Scene {
       startSoloChallenge: () => this.startSoloChallenge(),
       playNurseHealingEffect: (nursePosition, onComplete) =>
         this.playNurseHealingEffect(nursePosition, onComplete),
-      ensureCursorKeys: keyboard => {
-        return this.ensureCursorKeys(keyboard);
-      },
       isBattleIntroPlaying: () => this.encounters.isBattleIntroPlaying(),
       renderPartyHud: () => this.hud?.render(),
       closePokemonStatusPanel: options => this.hud?.closePokemonStatusPanel(options),
@@ -303,11 +231,11 @@ export class WorldScene extends Phaser.Scene {
         this.hud?.getPartyPokemonBySlotIndex(slotIndex) ?? null,
       getPokemonStatusPanelSnapshot: () => this.hud?.getPokemonStatusPanelSnapshot() ?? null,
       isPokemonStatusPanelOpen: () => this.hud?.isPokemonStatusPanelOpen() ?? false,
-      getViewportSize: () => this.getViewportSize(),
+      worldUiStore: this.options.worldUiStore,
     });
   }
 
-  create(data: WorldSceneCreateData = {}): void {
+  start(data: WorldSceneCreateData = {}): void {
     if (data.completedCompetitiveBattle) {
       this.competitiveBattleLaunchCache.complete(
         data.completedCompetitiveBattle.matchId,
@@ -318,22 +246,29 @@ export class WorldScene extends Phaser.Scene {
     this.preserveRoomForBattle = false;
     this.isMovementActive = false;
     this.lastPositionPersistedAt = 0;
+    this.started = true;
     this.hud = createWorldSceneHud({
-      getDocument: () => this.game.canvas.ownerDocument,
-      getGameObjectFactory: () => this.add,
+      getDocument: () => this.options.ownerDocument,
       gameStateStore: this.gameStateStore,
       competitiveRoundsEnabled: this.competitiveRoundsEnabled,
       serverAuthoritativeRounds: this.serverAuthoritativeRounds,
       roundWaitingText: getPokeLoungeCopyForUrl(new URL(window.location.href)).mobile.roundWaiting,
       addUnsubscriber: unsubscribe => this.unsubscribers.push(unsubscribe),
       canOpenPokemonStatusPanel: () => this.interactions.canOpenPokemonStatusPanel(),
-      getViewportSize: () => this.getViewportSize(),
       isShutdownComplete: () => this.shutdownComplete,
+      worldUiStore: this.options.worldUiStore,
+    });
+    this.options.worldUiStore.setActionHandler(action => {
+      if (action.type === "open-pokemon-status") this.hud.openPokemonStatusPanel(action.slotIndex);
+      else if (action.type === "set-pokemon-status-lead")
+        this.hud.setPokemonStatusLead(action.slotIndex);
+      else if (action.type === "close-pokemon-status") this.hud.closePokemonStatusPanel();
+      else this.interactions.handleUiAction(action);
     });
     this.tournament = createWorldSceneTournament({
       gameStateStore: this.gameStateStore,
       isBattleIntroPlaying: () => this.encounters.isBattleIntroPlaying(),
-      hasWorldPlayer: () => Boolean(this.player),
+      hasWorldPlayer: () => this.started,
       isRoomTournamentHost: () => this.isRoomTournamentHost(),
       getRemotePlayerSnapshots: () => [...this.remotePlayerSnapshots.values()],
       startTrainerBattle: (match, player, opponent) =>
@@ -344,42 +279,13 @@ export class WorldScene extends Phaser.Scene {
         this.sendRoomMessage("TOURNAMENT_MATCH_RESULT", payload),
       sendTournamentCompleted: payload => this.sendRoomMessage("TOURNAMENT_COMPLETED", payload),
       sendRoundScoreUpdates: payloads => {
-        for (const payload of payloads) {
-          this.sendRoomMessage("ROUND_SCORE_UPDATED", payload);
-        }
+        for (const payload of payloads) this.sendRoomMessage("ROUND_SCORE_UPDATED", payload);
       },
-      createAnnouncement: (text, fontSize) => this.createTournamentAnnouncement(text, fontSize),
+      createAnnouncement: text => this.createTournamentAnnouncement(text),
     });
-    this.registerLifecycleCleanup();
     this.applyReturnedTournamentResult(data);
-    if (!this.competitiveRoundsEnabled) {
-      this.gameStateStore.resetCompetitiveSession();
-    }
+    if (!this.competitiveRoundsEnabled) this.gameStateStore.resetCompetitiveSession();
     playPokeLoungeBgm("field-day");
-
-    const map = this.make.tilemap({ key: FIELD_MAP.key });
-    const tileset = map.addTilesetImage(FIELD_MAP.tilesetName, FIELD_MAP.tilesetKey);
-
-    if (!tileset) {
-      throw new Error(`Missing tileset: ${FIELD_MAP.tilesetName}`);
-    }
-
-    map.createLayer("Below Player", tileset, 0, 0);
-    const worldLayer = map.createLayer("World", tileset, 0, 0);
-    const tallGrassLayers = createTallGrassLayers(map, tileset, FIELD_MAP.tallGrass);
-    this.aboveLayer = map.createLayer("Above Player", tileset, 0, 0);
-
-    if (!worldLayer) {
-      throw new Error("Missing World tile layer.");
-    }
-
-    this.worldLayer = worldLayer;
-    this.tallGrassLayer = tallGrassLayers.baseLayer;
-    this.worldLayer.setCollisionByProperty({ collides: true });
-    tallGrassLayers.foregroundLayer.setDepth(TALL_GRASS_FOREGROUND_DEPTH);
-    this.aboveLayer?.setDepth(ABOVE_PLAYER_DEPTH);
-    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
-    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.createCurrencyHud();
     this.createRankScoreHud();
     if (this.competitiveRoundsEnabled) {
@@ -389,6 +295,7 @@ export class WorldScene extends Phaser.Scene {
       );
     }
     this.createPartyHud();
+    const map = createWorldObjectLayerLookup(this.options.worldModel);
     this.interactions.createStaticNpcs(map);
     const persistedSpawnPosition =
       !this.competitiveRoundsEnabled && !data.spawnPosition
@@ -396,8 +303,8 @@ export class WorldScene extends Phaser.Scene {
             this.gameStateStore.getCurrentLocalPlayer().position,
             FIELD_MAP.key,
             {
-              width: map.widthInPixels,
-              height: map.heightInPixels,
+              width: this.options.worldModel.widthInPixels,
+              height: this.options.worldModel.heightInPixels,
             },
           )
         : null;
@@ -419,88 +326,56 @@ export class WorldScene extends Phaser.Scene {
     this.interactions.showInitialShortcutGuideIfNeeded();
   }
 
-  update(time: number): void {
-    if (!this.player) {
-      return;
-    }
+  update(time: number, delta = 1000 / 60): void {
+    if (this.started && !this.shutdownComplete) this.updateWorldRuntime(time, delta);
+  }
 
-    this.updateRemotePlayers(time);
+  resize(viewportSize: GameViewportDisplaySize): void {
+    this.viewportSize = viewportSize;
+    if (!this.started) return;
+    const local = this.options.worldRuntime.readLocalPlayer();
+    this.options.worldRuntime.setLocalPosition(
+      { ...local.position, facing: local.facing },
+      this.getViewportSize(),
+    );
+  }
 
-    if (this.roomLobby) {
-      this.player.setVelocity(0, 0);
-      this.player.anims.stop();
-      this.player.setFrame(FIELD_MAP.player.frameNames[this.facing]);
-      return;
-    }
-
-    this.updateRoundClock(Date.now());
-
-    if (this.encounters.isBattleIntroPlaying()) {
-      this.player.setVelocity(0, 0);
-      return;
-    }
-
-    if (this.interactions.handleInput()) {
-      this.player.setVelocity(0, 0);
-      return;
-    }
-
-    const velocity = this.readVelocity();
-    this.player.setVelocity(velocity.x, velocity.y);
-
-    if (velocity.x !== 0 || velocity.y !== 0) {
-      this.isMovementActive = true;
-      this.facing = velocity.facing;
-      this.player.anims.play(FIELD_MAP.player.walkAnimationKeys[this.facing], true);
-      this.maybeSendMovement(time);
-      this.encounters.afterMovement();
-      return;
-    }
-
-    this.player.setVelocity(0, 0);
-    this.player.anims.stop();
-    this.player.setFrame(FIELD_MAP.player.frameNames[this.facing]);
-    this.maybeSendMovementEnd(time);
+  isActive(): boolean {
+    return this.started && !this.shutdownComplete;
   }
 
   shutdown(): void {
-    if (this.shutdownComplete) {
-      return;
-    }
-
+    if (this.shutdownComplete) return;
     const shouldDisposeRoom = shouldDisposeRoomOnWorldShutdown(
       this.encounters.isBattleIntroPlaying(),
       this.preserveRoomForBattle,
     );
-    if (this.player) {
-      this.persistLocalPlayerPositionIfChanged();
-    }
+    if (this.started) this.persistLocalPlayerPositionIfChanged();
+    this.started = false;
     this.shutdownComplete = true;
     if (!this.encounters.isBattleIntroPlaying() && !this.preserveRoomForBattle) {
       stopPokeLoungeBgm("field-day");
     }
-
-    for (const unsubscribe of this.unsubscribers) {
-      unsubscribe();
-    }
+    for (const unsubscribe of this.unsubscribers) unsubscribe();
     this.unsubscribers = [];
-    this.hud.destroyPartyHud();
+    this.hud?.destroyPartyHud();
     this.interactions.destroy();
-    this.hud.destroy();
+    this.hud?.destroy();
     this.tournament?.destroy();
     this.tournament = null;
-    this.roomLobby?.destroy();
-    this.roomLobby = null;
+    if (this.roomLobbyOpen) {
+      this.options.onRoomLobbyStateChange?.(null);
+      this.roomLobbyOpen = false;
+    }
     this.encounters.destroy();
     this.roomConnected = false;
     this.pendingRoomMessages = [];
-    this.remotePlayers.clear();
-    this.remoteLabels.clear();
     this.remotePlayerSnapshots.clear();
-    this.remotePlayerMotions.clear();
+    this.options.worldRuntime.clear();
+    this.options.worldFrameStore.clear();
+    this.options.worldUiStore.clear();
     this.lastLocalSnapshotSyncKey = "";
     this.isMovementActive = false;
-    this.cursors = null;
     if (shouldDisposeRoom) {
       this.room.dispose();
       this.gameStateStore.setSession({
@@ -509,11 +384,6 @@ export class WorldScene extends Phaser.Scene {
         connectionStatus: "offline",
       });
     }
-  }
-
-  private registerLifecycleCleanup(): void {
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shutdown());
-    this.events.once(Phaser.Scenes.Events.DESTROY, () => this.shutdown());
   }
 
   startWildBattleForTest(input: WildBattleStartInput): void {
@@ -527,19 +397,24 @@ export class WorldScene extends Phaser.Scene {
   getE2eSnapshotForTest(): WorldE2eSnapshot {
     const interactionSnapshot = this.interactions.getE2eSnapshot();
     const encounterSnapshot = this.encounters.getE2eSnapshot();
-
+    const local = this.started ? this.options.worldRuntime.readLocalPlayer() : null;
+    const camera = this.options.worldFrameStore.read().camera;
     return {
-      player: this.player
+      player: local
         ? {
-            x: Math.round(this.player.x),
-            y: Math.round(this.player.y),
-            facing: this.facing,
-            displayWidth: Math.round(this.player.displayWidth),
-            displayHeight: Math.round(this.player.displayHeight),
+            x: Math.round(local.position.x),
+            y: Math.round(local.position.y),
+            facing: local.facing,
+            displayWidth: Math.round(FIELD_MAP.player.displaySize.width),
+            displayHeight: Math.round(FIELD_MAP.player.displaySize.height),
           }
         : null,
       camera: {
-        zoom: Number(this.cameras.main.zoom.toFixed(2)),
+        zoom: 1,
+        scrollX: Math.round(camera.x),
+        scrollY: Math.round(camera.y),
+        width: Math.round(camera.width),
+        height: Math.round(camera.height),
       },
       shortcutGuideOpen: interactionSnapshot.shortcutGuideOpen,
       encounterLocked: encounterSnapshot.encounterLocked,
@@ -548,6 +423,10 @@ export class WorldScene extends Phaser.Scene {
       pokemonStatusPanel: interactionSnapshot.pokemonStatusPanel,
       pcBox: interactionSnapshot.pcBox,
       nurseHealing: interactionSnapshot.nurseHealing,
+      nurseMessage: interactionSnapshot.nurseMessage,
+      interactionPrompt: interactionSnapshot.interactionPrompt,
+      surface: interactionSnapshot.surface,
+      shopKind: interactionSnapshot.shopKind,
     };
   }
 
@@ -564,7 +443,7 @@ export class WorldScene extends Phaser.Scene {
     spawnPointName: string,
     spawnPositionOverride?: WorldSpawnPosition,
   ): void {
-    this.createPlayer(map as Phaser.Tilemaps.Tilemap, spawnPointName, spawnPositionOverride);
+    this.createPlayer(map, spawnPointName, spawnPositionOverride);
   }
 
   createCurrencyHudForTest(): void {
@@ -595,8 +474,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   healAtNurseForTest(): void {
-    this.player.setPosition(FIELD_MAP.recoverySpawn.x, FIELD_MAP.recoverySpawn.y);
-    this.facing = FIELD_MAP.recoverySpawn.facing;
+    this.setPlayerPositionForTest(FIELD_MAP.recoverySpawn);
     this.interactions.test.handleConfirmInteraction();
   }
 
@@ -609,10 +487,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private getViewportSize(): { width: number; height: number } {
-    return {
-      width: this.scale?.width || GAME_VIEWPORT_SIZE.width,
-      height: this.scale?.height || GAME_VIEWPORT_SIZE.height,
-    };
+    return resolveGameViewportSize(this.viewportSize);
   }
 
   openShopForTest(): void {
@@ -699,6 +574,38 @@ export class WorldScene extends Phaser.Scene {
     this.interactions.test.openDiceGamble(targetNumber);
   }
 
+  setPlayerPositionForTest(position: { x: number; y: number; facing?: PlayerFacing }): void {
+    if (!this.started) return;
+    this.options.worldRuntime.setLocalPosition(position, this.getViewportSize());
+    if (position.facing) this.facing = position.facing;
+  }
+
+  sendCurrentPlayerChangedMapForTest(overrides: Partial<PlayerSnapshot> = {}): boolean {
+    this.sendRoomMessage("PLAYER_CHANGED_MAP", {
+      ...this.createLocalPlayerSnapshot(),
+      ...structuredClone(overrides),
+    });
+    return true;
+  }
+
+  disposeRoomForTest(): void {
+    this.room.dispose();
+  }
+
+  reconnectRoomForTest(): boolean {
+    this.room.connect(this.createLocalPlayerSnapshot());
+    return true;
+  }
+
+  beginBattleLaunchTrackingForTest(): void {
+    this.e2eBattleLaunches = [];
+    this.e2eBattleLaunchTracking = true;
+  }
+
+  getBattleLaunchesForTest(): PokeLoungeBattleLaunchSnapshot[] {
+    return structuredClone(this.e2eBattleLaunches);
+  }
+
   closeDiceGambleForTest(): void {
     this.interactions.test.closeDiceGamble();
   }
@@ -745,26 +652,21 @@ export class WorldScene extends Phaser.Scene {
     this.tournament?.update(nowMs);
   }
 
-  private createTournamentAnnouncement(
-    text: string,
-    fontSize: "14px" | "16px",
-  ): Phaser.GameObjects.Text {
-    return this.add
-      .text(
-        Math.round(this.getViewportSize().width / 2),
-        56,
-        text,
-        createGameTextStyle({
-          align: "center",
-          color: "#fff9dd",
-          fontSize,
-          stroke: "#263238",
-          strokeThickness: 5,
+  private createTournamentAnnouncement(text: string): { destroy(): void } {
+    const result =
+      this.gameStateStore.getState().round.phase === "round-result" ||
+      this.gameStateStore.getState().round.phase === "game-result";
+    this.options.worldUiStore.publishPresentation({
+      tournamentAnnouncement: result ? null : text,
+      tournamentResult: result ? text : null,
+    });
+    return {
+      destroy: () =>
+        this.options.worldUiStore.publishPresentation({
+          tournamentAnnouncement: null,
+          tournamentResult: null,
         }),
-      )
-      .setOrigin(0.5, 0)
-      .setScrollFactor(0)
-      .setDepth(1001);
+    };
   }
 
   private startTournamentBattle(
@@ -772,12 +674,12 @@ export class WorldScene extends Phaser.Scene {
     player: LocalPlayerState,
     opponent: LocalPlayerState,
   ): void {
-    const x = Math.round(this.player.x);
-    const y = Math.round(this.player.y);
+    const position = this.options.worldRuntime.readLocalPlayer().position;
+    const x = Math.round(position.x);
+    const y = Math.round(position.y);
     const facing = this.facing;
 
     this.preserveRoomForBattle = true;
-    this.player.setVelocity(0, 0);
     this.gameStateStore.healCurrentParty();
 
     const battleData = {
@@ -797,7 +699,7 @@ export class WorldScene extends Phaser.Scene {
     } as const;
 
     this.encounters.playBattleIntroTransition(() => {
-      this.scene.start("battle", battleData);
+      this.startBattleScene(battleData);
     });
   }
 
@@ -821,8 +723,9 @@ export class WorldScene extends Phaser.Scene {
       player = this.gameStateStore.getCurrentLocalPlayer();
     }
 
-    const x = Math.round(this.player.x);
-    const y = Math.round(this.player.y);
+    const position = this.options.worldRuntime.readLocalPlayer().position;
+    const x = Math.round(position.x);
+    const y = Math.round(position.y);
     const facing = this.facing;
     const opponent: LocalPlayerState = {
       ...createDefaultLocalPlayer("solo-challenger"),
@@ -831,9 +734,8 @@ export class WorldScene extends Phaser.Scene {
       activePartySlotIndex: player.activePartySlotIndex,
     };
 
-    this.player.setVelocity(0, 0);
     this.encounters.playBattleIntroTransition(() => {
-      this.scene.start("battle", {
+      this.startBattleScene({
         battleKind: "trainer",
         soloChallenge: true,
         matchId: "solo-challenge",
@@ -863,73 +765,27 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private createPlayer(
-    map: Phaser.Tilemaps.Tilemap,
+    map: ObjectLayerLookup,
     spawnPointName: string,
     spawnPositionOverride?: WorldSpawnPosition,
   ): void {
     const spawnPosition = resolveWorldSpawn(map, spawnPointName, spawnPositionOverride);
-    const x = spawnPosition.x;
-    const y = spawnPosition.y;
-
-    if (spawnPosition.facing) {
-      this.facing = spawnPosition.facing;
-    }
-
-    this.player = this.physics.add.sprite(
-      x,
-      y,
-      FIELD_MAP.player.textureKey,
-      FIELD_MAP.player.frameNames[this.facing],
-    );
-    this.player.setDisplaySize(PLAYER_SIZE.width, PLAYER_SIZE.height);
-    this.player.setDepth(PLAYER_DEPTH);
-    this.player.body?.setSize(PLAYER_HITBOX.width, PLAYER_HITBOX.height);
-    this.player.body?.setOffset(PLAYER_HITBOX.offsetX, PLAYER_HITBOX.offsetY);
-    this.player.setCollideWorldBounds(true);
-    this.physics.add.collider(this.player, this.worldLayer);
-    if (this.staticNpcs) {
-      this.physics.add.collider(this.player, this.staticNpcs);
-    }
-    this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
-    this.cameras.main.roundPixels = true;
-    this.lastSent = { x: this.player.x, y: this.player.y, facing: this.facing };
-    this.encounters.initialize({ x: this.player.x, y: this.player.y });
+    if (spawnPosition.facing) this.facing = spawnPosition.facing;
+    this.options.worldRuntime.initialize({
+      facing: this.facing,
+      nowMs: performance.now(),
+      position: { x: spawnPosition.x, y: spawnPosition.y },
+      viewport: this.getViewportSize(),
+    });
+    this.lastSent = { x: spawnPosition.x, y: spawnPosition.y, facing: this.facing };
+    this.encounters.initialize({ x: spawnPosition.x, y: spawnPosition.y });
   }
 
   private playNurseHealingEffect(
-    nursePosition: { x: number; y: number },
+    _nursePosition: { x: number; y: number },
     onComplete: () => void,
   ): void {
-    const particleOffsets = [
-      { x: -22, y: -24, color: 0xfff176 },
-      { x: -9, y: -39, color: 0x81d4fa },
-      { x: 9, y: -36, color: 0xf8bbd0 },
-      { x: 22, y: -21, color: 0xc5e1a5 },
-    ] as const;
-    const particles = particleOffsets.map(({ x, y, color }) =>
-      this.add
-        .rectangle(nursePosition.x + x, nursePosition.y + y, 7, 7, color, 0.95)
-        .setAngle(45)
-        .setDepth(42),
-    );
-    const halo = this.add
-      .circle(nursePosition.x, nursePosition.y - 22, 18, 0xffffff, 0.08)
-      .setStrokeStyle(3, 0xfff9c4, 0.9)
-      .setDepth(41);
-    const targets = [...particles, halo];
-
-    this.tweens.add({
-      targets,
-      y: "-=24",
-      alpha: 0,
-      scale: 1.8,
-      duration: 720,
-      ease: "Sine.easeOut",
-      onComplete: () => {
-        targets.forEach(target => target.destroy());
-        onComplete();
-      },
-    });
+    window.setTimeout(onComplete, 720);
   }
 
   private bindRoom(): void {
@@ -959,7 +815,6 @@ export class WorldScene extends Phaser.Scene {
       this.room.on("PLAYER_MOVEMENT_ENDED", player => {
         if (player.sessionId !== this.room.sessionId) {
           this.upsertRemotePlayer(player, "snap");
-          this.remotePlayers.get(player.sessionId)?.setVelocity(0, 0);
         }
       }),
       this.room.on("PLAYER_CHANGED_MAP", player => {
@@ -968,12 +823,8 @@ export class WorldScene extends Phaser.Scene {
         }
       }),
       this.room.on("PLAYER_LEFT", ({ sessionId }) => {
-        this.remotePlayers.get(sessionId)?.destroy();
-        this.remoteLabels.get(sessionId)?.destroy();
-        this.remotePlayers.delete(sessionId);
-        this.remoteLabels.delete(sessionId);
         this.remotePlayerSnapshots.delete(sessionId);
-        this.remotePlayerMotions.delete(sessionId);
+        this.options.worldRuntime.removeRemotePlayer(sessionId);
         this.gameStateStore.removeRemotePlayer(sessionId);
       }),
       this.room.on("TOURNAMENT_STATE", payload => {
@@ -1011,7 +862,7 @@ export class WorldScene extends Phaser.Scene {
 
         if (
           this.shutdownComplete ||
-          !this.player ||
+          !this.started ||
           !isCompetitiveAssignmentForPlayer(payload) ||
           !this.competitiveBattleLaunchCache.begin(payload)
         ) {
@@ -1020,7 +871,6 @@ export class WorldScene extends Phaser.Scene {
 
         this.gameStateStore.healCurrentParty();
         this.preserveRoomForBattle = true;
-        this.player.setVelocity(0, 0);
         this.encounters.playBattleIntroTransition(() => {
           const latest = this.competitiveBattleLaunchCache.get(
             projection.matchId,
@@ -1029,7 +879,8 @@ export class WorldScene extends Phaser.Scene {
           if (!latest) {
             return;
           }
-          this.scene.start("battle", {
+          const position = this.options.worldRuntime.readLocalPlayer().position;
+          this.startBattleScene({
             battleKind: "authoritative",
             ownPlayerId: latest.viewPlayerId ?? latest.ownPlayerId,
             spectating: latest.spectating === true,
@@ -1037,8 +888,8 @@ export class WorldScene extends Phaser.Scene {
             projection: latest.projection,
             returnToWorld: {
               mapKey: FIELD_MAP.key,
-              x: Math.round(this.player.x),
-              y: Math.round(this.player.y),
+              x: Math.round(position.x),
+              y: Math.round(position.y),
               facing: this.facing,
             },
           });
@@ -1101,7 +952,7 @@ export class WorldScene extends Phaser.Scene {
     this.lastLocalSnapshotSyncKey = this.createLocalSnapshotSyncKey();
     this.unsubscribers.push(
       this.gameStateStore.subscribe(() => {
-        if (!this.roomConnected || !this.player) {
+        if (!this.roomConnected || !this.started) {
           return;
         }
 
@@ -1129,93 +980,45 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private upsertRemotePlayer(snapshot: PlayerSnapshot, movement: "interpolate" | "snap"): void {
-    const previousSnapshot = this.remotePlayerSnapshots.get(snapshot.sessionId);
     this.remotePlayerSnapshots.set(snapshot.sessionId, clonePlayerSnapshot(snapshot));
-    let sprite = this.remotePlayers.get(snapshot.sessionId);
-    let label = this.remoteLabels.get(snapshot.sessionId);
-    const isNewPlayer = !sprite;
-
-    if (!sprite) {
-      sprite = this.physics.add.sprite(
-        snapshot.x,
-        snapshot.y,
-        FIELD_MAP.player.textureKey,
-        FIELD_MAP.player.frameNames.front,
-      );
-      sprite.setDisplaySize(PLAYER_SIZE.width, PLAYER_SIZE.height);
-      sprite.setDepth(19);
-      sprite.setTint(0x9ec5ff);
-      sprite.body?.setSize(PLAYER_HITBOX.width, PLAYER_HITBOX.height);
-      sprite.body?.setOffset(PLAYER_HITBOX.offsetX, PLAYER_HITBOX.offsetY);
-      this.physics.add.collider(sprite, this.worldLayer);
-      if (this.staticNpcs) {
-        this.physics.add.collider(sprite, this.staticNpcs);
-      }
-      this.remotePlayers.set(snapshot.sessionId, sprite);
-    }
-
-    if (!label) {
-      label = this.add.text(
-        snapshot.x,
-        snapshot.y - 22,
-        getRemotePlayerDisplayName(snapshot),
-        createGameTextStyle({
-          color: "#f8fbf0",
-          fontSize: "8px",
-        }),
-      );
-      label.setOrigin(0.5, 1);
-      label.setDepth(30);
-      this.remoteLabels.set(snapshot.sessionId, label);
-    }
-
-    const shouldSnap =
-      movement === "snap" ||
-      isNewPlayer ||
-      previousSnapshot?.map !== snapshot.map ||
-      shouldSnapRemotePlayer(sprite, snapshot);
-
-    if (shouldSnap) {
-      this.remotePlayerMotions.delete(snapshot.sessionId);
-      sprite.setPosition(snapshot.x, snapshot.y);
-      sprite.anims.stop();
-      sprite.setFrame(FIELD_MAP.player.frameNames[snapshot.facing]);
-      label.setPosition(snapshot.x, snapshot.y - 22);
-      this.gameStateStore.upsertRemotePlayer(toRemotePlayerState(snapshot));
-    } else {
-      this.remotePlayerMotions.set(snapshot.sessionId, {
-        fromX: sprite.x,
-        fromY: sprite.y,
-        targetX: snapshot.x,
-        targetY: snapshot.y,
-        startedAtMs: this.time.now,
-      });
-      sprite.anims.play(FIELD_MAP.player.walkAnimationKeys[snapshot.facing], true);
-    }
-
-    label.setText(getRemotePlayerDisplayName(snapshot));
+    this.options.worldRuntime.upsertRemotePlayer(snapshot, movement, performance.now());
+    this.gameStateStore.upsertRemotePlayer(toRemotePlayerState(snapshot));
   }
 
-  private updateRemotePlayers(time: number): void {
-    for (const [sessionId, motion] of this.remotePlayerMotions) {
-      const sprite = this.remotePlayers.get(sessionId);
-      const label = this.remoteLabels.get(sessionId);
-      const snapshot = this.remotePlayerSnapshots.get(sessionId);
-
-      if (!sprite || !label || !snapshot) {
-        this.remotePlayerMotions.delete(sessionId);
-        continue;
-      }
-
-      const next = resolveRemotePlayerMotion(motion, time);
-      sprite.setPosition(next.x, next.y);
-      label.setPosition(next.x, next.y - 22);
-      if (next.complete) {
-        sprite.anims.stop();
-        sprite.setFrame(FIELD_MAP.player.frameNames[snapshot.facing]);
-        this.remotePlayerMotions.delete(sessionId);
-      }
+  private updateWorldRuntime(time: number, delta: number): void {
+    let inputLocked = this.roomLobbyOpen;
+    let input: WorldMovementInput = { down: false, left: false, right: false, up: false };
+    if (!this.roomLobbyOpen) {
+      this.updateRoundClock(Date.now());
+      inputLocked = this.encounters.isBattleIntroPlaying();
+      if (!inputLocked) inputLocked = this.interactions.handleInput();
+      if (!inputLocked) input = this.readMovementInput();
     }
+    this.options.worldRuntime.setBattleIntroPlaying(this.encounters.isBattleIntroPlaying());
+    const next = this.options.worldRuntime.update({
+      elapsedMs: delta,
+      input,
+      inputLocked,
+      nowMs: time,
+      viewport: this.getViewportSize(),
+    });
+    this.facing = next.facing;
+    if (next.walking) {
+      this.isMovementActive = true;
+      this.maybeSendMovement(time);
+      if (next.moved) this.encounters.afterMovement(next.completedTileSteps);
+    } else {
+      this.maybeSendMovementEnd(time);
+    }
+  }
+
+  private readMovementInput(): WorldMovementInput {
+    return {
+      left: this.options.keyboard.isDown("ArrowLeft", "KeyA") || isVirtualGamepadPressed("left"),
+      right: this.options.keyboard.isDown("ArrowRight", "KeyD") || isVirtualGamepadPressed("right"),
+      up: this.options.keyboard.isDown("ArrowUp", "KeyW") || isVirtualGamepadPressed("up"),
+      down: this.options.keyboard.isDown("ArrowDown", "KeyS") || isVirtualGamepadPressed("down"),
+    };
   }
 
   private isRoomTournamentHost(): boolean {
@@ -1277,26 +1080,18 @@ export class WorldScene extends Phaser.Scene {
 
   private updateRoomLobby(payload: RoomEvent["TOURNAMENT_STATE"]): void {
     if (payload.roomStatus !== "waiting") {
-      this.roomLobby?.destroy();
-      this.roomLobby = null;
+      if (this.roomLobbyOpen) {
+        this.options.onRoomLobbyStateChange?.(null);
+        this.roomLobbyOpen = false;
+      }
       return;
     }
 
-    if (this.roomLobby) {
-      this.roomLobby.update(payload);
-      return;
+    if (!this.roomLobbyOpen) {
+      resetVirtualGamepad();
+      this.roomLobbyOpen = true;
     }
-
-    const mount = this.game.canvas.parentElement;
-    if (!mount) {
-      return;
-    }
-
-    resetVirtualGamepad();
-    this.player?.setVelocity(0, 0);
-    this.roomLobby = createRoomLobbyScreen({
-      mount,
-      copy: getPokeLoungeCopyForUrl(new URL(window.location.href)).lobby,
+    this.options.onRoomLobbyStateChange?.({
       projection: payload,
       onSetReady: ready => this.room.setLobbyReady(ready),
       onStart: () => this.room.startChampionship(),
@@ -1343,61 +1138,23 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private readVelocity(): { x: number; y: number; facing: PlayerFacing } {
-    const keyboard = this.input.keyboard;
-
-    if (keyboard) {
-      this.ensureCursorKeys(keyboard);
-    }
-
-    const left =
-      Boolean(this.cursors?.left.isDown || this.cursors?.a.isDown) ||
-      isVirtualGamepadPressed("left");
-    const right =
-      Boolean(this.cursors?.right.isDown || this.cursors?.d.isDown) ||
-      isVirtualGamepadPressed("right");
-    const up =
-      Boolean(this.cursors?.up.isDown || this.cursors?.w.isDown) || isVirtualGamepadPressed("up");
-    const down =
-      Boolean(this.cursors?.down.isDown || this.cursors?.s.isDown) ||
-      isVirtualGamepadPressed("down");
-    const vector = new Phaser.Math.Vector2(
-      (right ? 1 : 0) - (left ? 1 : 0),
-      (down ? 1 : 0) - (up ? 1 : 0),
-    );
-
-    if (vector.lengthSq() === 0) {
-      return { x: 0, y: 0, facing: this.facing };
-    }
-
-    vector.normalize().scale(PLAYER_SPEED);
-
+    const input = this.readMovementInput();
+    const horizontal = Number(input.right) - Number(input.left);
+    const vertical = Number(input.down) - Number(input.up);
     return {
-      x: vector.x,
-      y: vector.y,
+      x: horizontal,
+      y: vertical,
       facing:
-        Math.abs(vector.x) > Math.abs(vector.y)
-          ? vector.x > 0
-            ? "right"
-            : "left"
-          : vector.y > 0
-            ? "front"
-            : "back",
+        Math.abs(horizontal) > Math.abs(vertical)
+          ? horizontal < 0
+            ? "left"
+            : "right"
+          : vertical < 0
+            ? "back"
+            : vertical > 0
+              ? "front"
+              : this.facing,
     };
-  }
-
-  private ensureCursorKeys(keyboard: Phaser.Input.Keyboard.KeyboardPlugin): CursorMap {
-    if (!this.cursors) {
-      const cursorKeys = keyboard.createCursorKeys();
-      this.cursors = {
-        ...cursorKeys,
-        w: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-        a: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-        s: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-        d: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-      } as CursorMap;
-    }
-
-    return this.cursors;
   }
 
   private maybeSendMovement(time: number): void {
@@ -1405,9 +1162,10 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
+    const position = this.options.worldRuntime.readLocalPlayer().position;
     if (
-      Math.abs(this.player.x - this.lastSent.x) < 1 &&
-      Math.abs(this.player.y - this.lastSent.y) < 1 &&
+      Math.abs(position.x - this.lastSent.x) < 1 &&
+      Math.abs(position.y - this.lastSent.y) < 1 &&
       this.facing === this.lastSent.facing
     ) {
       return;
@@ -1419,7 +1177,7 @@ export class WorldScene extends Phaser.Scene {
       this.lastPositionPersistedAt = time;
     }
     this.lastSentAt = time;
-    this.lastSent = { x: this.player.x, y: this.player.y, facing: this.facing };
+    this.lastSent = { x: position.x, y: position.y, facing: this.facing };
   }
 
   private maybeSendMovementEnd(time: number): void {
@@ -1443,10 +1201,11 @@ export class WorldScene extends Phaser.Scene {
       return false;
     }
 
+    const position = this.options.worldRuntime.readLocalPlayer().position;
     const nextPosition = {
       mapKey: FIELD_MAP.key,
-      x: Math.round(this.player.x),
-      y: Math.round(this.player.y),
+      x: Math.round(position.x),
+      y: Math.round(position.y),
       facing: this.facing,
     };
     const currentPosition = this.gameStateStore.getCurrentLocalPlayer().position;
@@ -1460,7 +1219,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private createLocalPlayerSnapshot(): PlayerSnapshot {
-    if (!this.player) {
+    if (!this.started) {
       return createLocalPlayerSnapshot(
         this.room.sessionId,
         this.gameStateStore.getCurrentLocalPlayer(),
@@ -1472,12 +1231,13 @@ export class WorldScene extends Phaser.Scene {
       );
     }
 
+    const position = this.options.worldRuntime.readLocalPlayer().position;
     return createLocalPlayerSnapshot(
       this.room.sessionId,
       this.gameStateStore.getCurrentLocalPlayer(),
       {
-        x: Math.round(this.player.x),
-        y: Math.round(this.player.y),
+        x: Math.round(position.x),
+        y: Math.round(position.y),
         facing: this.facing,
       },
     );
@@ -1496,6 +1256,14 @@ export class WorldScene extends Phaser.Scene {
 
     this.room.send(type, payload);
   }
+
+  private startBattleScene(data: object): void {
+    if (this.e2eBattleLaunchTracking) {
+      const launch = readPokeLoungeBattleLaunchSnapshot(data);
+      if (launch) this.e2eBattleLaunches.push(launch);
+    }
+    this.options.onStartBattle(data);
+  }
 }
 
 export function hasPlayerPositionChanged(
@@ -1508,6 +1276,36 @@ export function hasPlayerPositionChanged(
     currentPosition.y !== nextPosition.y ||
     currentPosition.facing !== nextPosition.facing
   );
+}
+
+function resolveGameViewportSize(viewportSize: GameViewportDisplaySize): GameViewportDisplaySize {
+  return {
+    width: Math.max(1, Math.round(viewportSize.width)),
+    height: Math.max(1, Math.round(viewportSize.height)),
+  };
+}
+
+function createWorldObjectLayerLookup(model: WorldMapModel): ObjectLayerLookup {
+  return {
+    getObjectLayer(layerName) {
+      if (layerName === "Npcs") {
+        return {
+          objects: model.npcs.map(npc => ({
+            name: npc.name,
+            type: npc.role,
+            x: npc.x,
+            y: npc.y,
+          })),
+        };
+      }
+      if (layerName === "SpawnPoints" || layerName === "Spawns") {
+        return {
+          objects: [...model.spawnPoints].map(([name, position]) => ({ name, ...position })),
+        };
+      }
+      return null;
+    },
+  };
 }
 
 const isBattleReadyPartySlot = (slot: LocalPlayerState["party"][number] | undefined): boolean => {
@@ -1570,10 +1368,6 @@ export function toRemotePlayerState(snapshot: PlayerSnapshot): RemotePlayerState
     facing: snapshot.facing,
     activePokemon: snapshot.activePokemon,
   };
-}
-
-function getRemotePlayerDisplayName(snapshot: PlayerSnapshot): string {
-  return snapshot.displayName?.trim() || snapshot.playerId?.trim() || snapshot.sessionId;
 }
 
 function clonePlayerSnapshot(snapshot: PlayerSnapshot): PlayerSnapshot {

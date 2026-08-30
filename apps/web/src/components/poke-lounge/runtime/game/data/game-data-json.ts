@@ -71,6 +71,13 @@ interface RuntimeGameDataJsonState {
   battlePokemonAssets: { spriteSheetRanges: BattlePokemonSpriteSheetRangeRecord[] } | null;
 }
 
+export interface RuntimeGameDataJson {
+  pokemonData: unknown;
+  levelUpMoveTable: unknown;
+  wildBattleMoveSets: unknown;
+  battlePokemonAssets: unknown;
+}
+
 const runtimeGameDataJsonState: RuntimeGameDataJsonState = {
   pokemonData: null,
   pokemonDataRecordCount: null,
@@ -80,7 +87,9 @@ const runtimeGameDataJsonState: RuntimeGameDataJsonState = {
   battlePokemonAssets: null,
 };
 
-export async function loadRuntimeGameDataJson(fetcher: typeof fetch = fetch): Promise<void> {
+export async function loadRuntimeGameDataJson(
+  fetcher: typeof fetch = fetch,
+): Promise<RuntimeGameDataJson> {
   const [pokemonData, levelUpMoveTable, wildBattleMoveSets, battlePokemonAssets] =
     await Promise.all([
       fetchJson(fetcher, POKEMON_DATA_JSON_PATH),
@@ -89,6 +98,15 @@ export async function loadRuntimeGameDataJson(fetcher: typeof fetch = fetch): Pr
       fetchJson(fetcher, BATTLE_POKEMON_ASSETS_JSON_PATH),
     ]);
 
+  const data = { pokemonData, levelUpMoveTable, wildBattleMoveSets, battlePokemonAssets };
+
+  registerRuntimeGameDataJson(data);
+
+  return data;
+}
+
+export function registerRuntimeGameDataJson(data: RuntimeGameDataJson): void {
+  const { pokemonData, levelUpMoveTable, wildBattleMoveSets, battlePokemonAssets } = data;
   const normalizedPokemonData = isPokemonDataJson(pokemonData) ? pokemonData : null;
   const pokemonDataRecordCount = normalizePokemonDataRecordCount(pokemonData);
   const moveNames = normalizePokemonMoveNames(pokemonData);

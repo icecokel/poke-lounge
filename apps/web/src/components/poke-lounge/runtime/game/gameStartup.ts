@@ -1,11 +1,7 @@
+import type { BattleE2eScenario } from "./testing/poke-lounge-e2e-controller";
+
 export type InitialGameScene = "world" | "battle";
-export type InitialBattleE2eScenario =
-  | "wild-victory"
-  | "wild-defeat"
-  | "wild-evolution"
-  | "wild-move-learning"
-  | "wild-status-badge"
-  | "wild-paralysis";
+export type InitialBattleE2eScenario = BattleE2eScenario;
 
 export function readInitialGameScene(location: Pick<URL, "searchParams">): InitialGameScene {
   return location.searchParams.get("scene") === "battle" ? "battle" : "world";

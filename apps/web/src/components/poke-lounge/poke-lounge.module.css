@@ -4,19 +4,6 @@
   --poke-lounge-container-height: 100dvh;
   --poke-lounge-frame-available-height: var(--poke-lounge-container-height);
   --poke-lounge-max-display-width: 1440px;
-  --poke-lounge-touch-control-gap: 8px;
-  --poke-lounge-touch-control-offset: 12px;
-  --poke-lounge-touch-controls-height: clamp(136px, 21dvh, 176px);
-  --poke-lounge-touch-dpad-button-size: clamp(38px, 11.8vw, 46px);
-  --poke-lounge-touch-action-button-size: clamp(44px, 13.4vw, 52px);
-  --poke-lounge-mobile-fullscreen-button-size: 42px;
-  --poke-lounge-mobile-fullscreen-gap: 10px;
-  --poke-lounge-touch-controls-reserve: calc(
-    var(--poke-lounge-touch-controls-height) + var(--poke-lounge-touch-control-offset) +
-      var(--poke-lounge-mobile-fullscreen-gap) + var(--poke-lounge-mobile-fullscreen-button-size) +
-      max(16px, env(safe-area-inset-bottom))
-  );
-
   position: relative;
   display: grid;
   width: 100%;
@@ -85,11 +72,23 @@
   background: var(--rom-screen-background);
 }
 
-.gameFrame[data-poke-lounge-canvas-mounted="false"] {
+.gameFrame[data-poke-lounge-runtime-mounted="false"] {
   width: min(100%, var(--poke-lounge-container-width), var(--poke-lounge-max-display-width));
   height: var(--poke-lounge-frame-available-height);
   max-height: var(--poke-lounge-frame-available-height);
   aspect-ratio: auto;
+}
+
+.runtimeScreen {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  min-width: 0;
+  min-height: 0;
+}
+
+.runtimeLobbyScreen {
+  z-index: 45;
 }
 
 .page:fullscreen .gameFrame,
@@ -107,11 +106,834 @@
   background: var(--rom-screen-background);
 }
 
-.page :global(#game-root canvas) {
+.worldScreen,
+.worldViewport,
+.worldStage,
+.worldMap,
+.worldTileLayer,
+.worldActorLayer,
+.worldEffectLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.worldScreen {
+  z-index: 30;
+  overflow: hidden;
+  background: var(--rom-screen-background);
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+.battleScreen {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  background: #d8e6d4;
+  container-type: size;
+  image-rendering: pixelated;
+}
+
+.battleStage,
+.battleBackground,
+.battlePokemonLayer,
+.battleCaptureEffect,
+.battleEvolutionScene,
+.battleEntranceEffect {
+  position: absolute;
+  inset: 0;
+}
+
+.battleStage {
+  overflow: hidden;
+  color: #17201a;
+  font-size: clamp(8px, 3.125cqw, 44px);
+}
+
+.battleHelpButton {
+  position: absolute;
+  top: 2.5%;
+  right: 2%;
+  z-index: 850;
+  display: grid;
+  width: clamp(28px, 4.2cqw, 56px);
+  aspect-ratio: 1;
+  padding: 0;
+  color: #f8fbf0;
+  background: rgb(43 55 66 / 88%);
+  border: max(1px, 0.15cqw) solid rgb(255 255 255 / 62%);
+  border-radius: 50%;
+  font-weight: 800;
+  place-items: center;
+}
+
+.battleBackground {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.battlePokemonLayer {
+  pointer-events: none;
+}
+
+.battlePokemonSprite {
+  position: absolute;
   display: block;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.battleHpPanel {
+  position: absolute;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-content: start;
+  gap: 0.15em 0.4em;
+  padding: 1.5% 5%;
+  overflow: hidden;
+  background: #f4f7e3;
+  border: max(1px, 0.18cqw) solid #2b3742;
+  box-shadow:
+    0.7cqw 0.7cqw 0 rgb(139 149 136 / 86%),
+    inset 0 0 0 max(1px, 0.08cqw) #fff;
+  font-size: 0.8em;
+  line-height: 1;
+}
+
+.battleHpPanel strong {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.battleHpPanel small {
+  font-size: 0.72em;
+  font-weight: 700;
+}
+
+.battleHpTrack {
+  grid-column: 1 / -1;
+  align-self: end;
+  width: 100%;
+  height: max(3px, 0.55cqw);
+  margin-top: 0.15em;
+  overflow: hidden;
+  background: #2b3742;
+}
+
+.battleHpTrack i {
+  display: block;
+  height: 100%;
+  background: #43b65c;
+  transition: none;
+}
+
+.battleWindow {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 30.208333%;
+  margin: 0;
+  padding: 2.34375%;
+  color: #17201a;
+  background: #f4f7e3;
+  border: max(1px, 0.3cqw) solid #2b3742;
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 max(1px, 0.12cqw) #fff,
+    inset 0 0 0 max(2px, 0.45cqw) rgb(139 149 136 / 65%);
+  font: inherit;
+}
+
+.battleMessagePanel {
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 4.6875% 3.90625%;
+  text-align: left;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.battleMessagePanel:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.battleOptionGrid {
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 2.083333% 1.5625%;
+}
+
+.battleOptionGrid > button,
+.battleReplacementGrid > button {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4em;
+  padding: 0.2em 0.75em;
+  color: #17201a;
+  background: #f4f7e3;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.battleOptionGrid > button[data-selected="true"],
+.battleReplacementGrid > button[data-selected="true"] {
+  box-shadow: inset max(2px, 0.75cqw) 0 #43b65c;
+}
+
+.battleOptionGrid > button:disabled,
+.battleReplacementGrid > button:disabled {
+  color: #7a827c;
+  opacity: 0.62;
+  cursor: default;
+}
+
+.battleOptionGrid small,
+.battleReplacementGrid small {
+  color: #68736d;
+  font-size: 0.62em;
+  white-space: nowrap;
+}
+
+.battleReplacementPanel {
+  z-index: 20;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 0.25em;
+  padding-top: 1.5%;
+  font-size: 0.76em;
+}
+
+.battleReplacementGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  min-height: 0;
+  gap: 0.15em 0.35em;
+}
+
+.battleInlineBack {
+  position: absolute;
+  top: 0.25em;
+  right: 0.5em;
+  padding: 0.15em 0.45em;
+  color: #4b554f;
+  background: transparent;
+  border: 0;
+  font-size: 0.75em;
+}
+
+.battlePartyPanel {
+  position: absolute;
+  inset: 71.875% 0 0;
+  z-index: 20;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: 0.35em 0.5em 0.45em;
+  color: #f8fbf0;
+  background: rgb(43 55 66 / 92%);
+  border: max(1px, 0.18cqw) solid rgb(255 255 255 / 54%);
+  font-size: 0.56em;
+}
+
+.battlePartyPanel > header {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 0.25em;
+}
+
+.battlePartyPanel > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 0.3em;
+  min-height: 0;
+}
+
+.battlePartySlot {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24% 1fr;
+  grid-template-rows: repeat(2, 1fr);
+  min-width: 0;
+  padding: 0.3em 0.35em 0.3em 24%;
+  overflow: hidden;
+  color: #17201a;
+  background: #f4f7e3;
+  border: max(1px, 0.12cqw) solid #2b3742;
+  box-shadow: inset 0 0 0 max(1px, 0.1cqw) #fff;
+  text-align: left;
+}
+
+.battlePartySlot[data-selected="true"] {
+  background: #fff4a3;
+  box-shadow:
+    inset max(2px, 0.5cqw) 0 #43b65c,
+    inset 0 0 0 max(1px, 0.1cqw) #fff;
+}
+
+.battlePartySlot[data-current="true"] {
+  border-color: #355c7d;
+}
+
+.battlePartySlot:disabled {
+  opacity: 0.7;
+}
+
+.battlePartySlot .battlePokemonSprite {
+  left: 0;
+  top: 0;
+  width: 24%;
+  height: 100%;
+}
+
+.battlePartySlot strong,
+.battlePartySlot small {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battlePartySlot small {
+  font-size: 0.82em;
+}
+
+.battleBagPanel {
+  z-index: 20;
+  display: grid;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 0.1em;
+}
+
+.battleBagPanel > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.5em;
+  color: #17201a;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  text-align: left;
+}
+
+.battleBagPanel > button[data-selected="true"] {
+  background: #fff4a3;
+}
+
+.battleBagPanel > button:disabled {
+  color: #7a827c;
+}
+
+.battleShortcutGuide {
+  position: absolute;
+  top: 15.625%;
+  left: 18.75%;
+  z-index: 800;
+  width: 77.34375%;
+  min-height: 68.75%;
+  padding: 4% 4.7%;
+  background: #f4f7e3;
+  border: max(2px, 0.4cqw) solid #2b3742;
+  box-shadow:
+    0.7cqw 0.7cqw 0 #8b9588,
+    inset 0 0 0 max(1px, 0.15cqw) #fff;
+  font-size: 0.82em;
+}
+
+.battleShortcutGuide header,
+.battleShortcutGuide dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+}
+
+.battleShortcutGuide header button {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  font-size: 0.8em;
+}
+
+.battleShortcutGuide dl {
+  display: grid;
+  gap: 0.5em;
+  margin: 1em 0;
+}
+
+.battleShortcutGuide dt {
+  color: #4b554f;
+}
+
+.battleShortcutGuide dd {
+  margin: 0;
+}
+
+.battleShortcutGuide p {
+  margin: 0;
+  color: #4b554f;
+  font-size: 0.78em;
+}
+
+.battleCaptureEffect {
+  z-index: 15;
+  pointer-events: none;
+}
+
+.battleCaptureBall {
+  position: absolute;
+  width: 4.6875%;
+  aspect-ratio: 1;
+  background: linear-gradient(to bottom, #d94b43 0 44%, #1c262d 44% 61%, #f7f4e8 61% 100%);
+  border: max(1px, 0.25cqw) solid #1c262d;
+  border-radius: 50%;
+  image-rendering: pixelated;
+}
+
+.battleCaptureBall[data-ball="ultraBall"] {
+  background: linear-gradient(
+    to bottom,
+    #303239 0 33%,
+    #f4cf58 33% 44%,
+    #1c262d 44% 61%,
+    #f7f4e8 61% 100%
+  );
+}
+
+.battleCaptureEffect > i {
+  position: absolute;
+  width: max(2px, 0.5cqw);
+  height: max(2px, 0.5cqw);
+  transform-origin: 0 0;
+}
+
+.battleEvolutionScene {
+  z-index: 10;
+  pointer-events: none;
+}
+
+.battleEvolutionScene svg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  fill: none;
+  stroke: #e9fff8;
+  stroke-width: 1.4;
+}
+
+.battleEvolutionFlash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+}
+
+.battleEntranceEffect {
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.battleEntranceEffect i {
+  position: absolute;
+  display: block;
+  height: 16.666667%;
+  background: #f8fbf0;
+}
+
+.worldViewport {
+  overflow: hidden;
+}
+
+.worldStage {
+  transform-origin: 0 0;
+}
+
+.worldMap {
+  inset: auto;
+  will-change: transform;
+}
+
+.worldTileLayer,
+.worldActorLayer {
+  inset: auto;
+  width: 100%;
+  height: 100%;
+}
+
+.worldTile,
+.worldPlayerActor,
+.worldNpcActor {
+  position: absolute;
+  display: block;
   image-rendering: pixelated;
+}
+
+.worldTile {
+  background-repeat: no-repeat;
+}
+
+.worldActorLayer {
+  z-index: 20;
+}
+
+.worldPlayerActor {
+  z-index: 20;
+  width: 40px;
+  height: 40px;
+  background-repeat: no-repeat;
+  will-change: transform, background-position;
+}
+
+.worldRemotePlayerActor {
+  z-index: 19;
+  filter: sepia(0.18) saturate(1.45) hue-rotate(174deg) brightness(1.08);
+}
+
+.worldPlayerNameLabel {
+  position: absolute;
+  left: 50%;
+  bottom: 38px;
+  padding: 1px 3px;
+  color: #f8fbf0;
+  font-family: monospace;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow:
+    -1px -1px #17231c,
+    1px -1px #17231c,
+    -1px 1px #17231c,
+    1px 1px #17231c;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.worldNpcActor {
+  z-index: 18;
+  object-fit: fill;
+}
+
+.worldEffectLayer {
+  z-index: 30000;
+  overflow: hidden;
+}
+
+.worldUiLayer,
+.worldHud,
+.worldNoticeLayer,
+.worldSurfaceScrim {
+  position: absolute;
+  inset: 0;
+}
+
+.worldUiLayer {
+  z-index: 20000;
+  color: #17201a;
+  font-family: monospace;
+  image-rendering: auto;
+}
+
+.worldHud,
+.worldNoticeLayer {
+  pointer-events: none;
+}
+
+.worldCurrencyHud,
+.worldRankHud,
+.worldRoundHud,
+.worldAreaAnnouncement,
+.worldNurseMessage,
+.worldInteractionPrompt,
+.worldTournamentAnnouncement,
+.worldTournamentResult {
+  position: absolute;
+  color: #fff9dd;
+  font-weight: 900;
+  line-height: 1.25;
+  white-space: pre-line;
+  text-shadow:
+    -2px -2px #263238,
+    2px -2px #263238,
+    -2px 2px #263238,
+    2px 2px #263238;
+}
+
+.worldCurrencyHud {
+  top: 10px;
+  left: 12px;
+  font-size: 14px;
+}
+
+.worldRankHud {
+  top: 10px;
+  right: 12px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.worldRoundHud {
+  top: 10px;
+  left: 50%;
+  font-size: 12px;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.worldPartyHud {
+  --poke-lounge-party-hud-scale: 100%;
+
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  display: grid;
+  width: 132px;
+  gap: 9px;
+  transform: translateY(-50%) scale(var(--poke-lounge-party-hud-scale));
+  transform-origin: left center;
+  pointer-events: auto;
+}
+
+.worldPartyHudSlot {
+  display: grid;
+  width: 132px;
+  height: 51px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  align-items: center;
+  gap: 0 4.5px;
+  padding: 3px 6px;
+  border: 1.5px solid #263238;
+  border-radius: 3px;
+  background: rgba(248, 251, 240, 0.9);
+  color: #263238;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.worldPartyHudSlot[data-active="true"],
+.worldPartyHudSlot[data-selected="true"] {
+  background: #fff4a3;
+}
+
+.worldPartyHudSlot[data-selected="true"] {
+  outline: 3px solid #101820;
+}
+
+.worldPartyHudSlot:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.worldPartyHudSlot > :first-child {
+  grid-row: 1 / -1;
+}
+
+.worldPartyHudSlot > span:not(:first-child) {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worldPartyHudSlot small {
+  font-size: 12px;
+}
+
+.worldPokemonSprite {
+  display: inline-block;
+  flex: 0 0 auto;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.worldPokemonPanel {
+  position: absolute;
+  top: 50%;
+  left: 112px;
+  display: grid;
+  width: 300px;
+  min-height: 310px;
+  gap: 6px;
+  padding: 16px 18px;
+  transform: translateY(-50%);
+  border: 3px solid #263238;
+  border-radius: 5px;
+  background: rgba(248, 251, 240, 0.98);
+  box-shadow: 0 5px 0 rgba(23, 35, 28, 0.7);
+  pointer-events: auto;
+}
+
+.worldPokemonPanel p,
+.worldPokemonPanel h3,
+.worldPokemonPanel ul {
+  margin: 0;
+}
+
+.worldPokemonPanel h3 {
+  font-size: 11px;
+}
+
+.worldPokemonPanel ul {
+  display: grid;
+  gap: 3px;
+  padding: 0;
+  list-style: none;
+}
+
+.worldPokemonPanel li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+}
+
+.worldPokemonPanel meter {
+  width: 100%;
+}
+
+.worldPokemonPanel > button:not(.worldPanelClose) {
+  min-height: 28px;
+  border: 2px solid #263238;
+  border-radius: 3px;
+  background: #fff4a3;
+  box-shadow: 0 2px 0 #263238;
+  font-weight: 900;
+}
+
+.worldPokemonPanel > button:disabled {
+  background: #e9eee1;
+  box-shadow: none;
+}
+
+.worldPanelClose {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 0;
+  background: transparent;
+  color: #263238;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.worldPokemonHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.worldPokemonHeading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.worldAreaAnnouncement,
+.worldTournamentAnnouncement,
+.worldTournamentResult {
+  top: 78px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  text-align: center;
+}
+
+.worldNurseMessage {
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+}
+
+.worldInteractionPrompt {
+  bottom: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+}
+
+.worldNurseEffect {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  transform: translate(-50%, -50%);
+}
+
+.worldNurseEffect i {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #fff176;
+  animation: worldNurseSparkle 720ms ease-out forwards;
+  transform: rotate(45deg);
+}
+
+.worldNurseEffect i:nth-child(2) {
+  left: 24px;
+  background: #81d4fa;
+  animation-delay: 60ms;
+}
+
+.worldNurseEffect i:nth-child(3) {
+  left: 48px;
+  background: #f8bbd0;
+  animation-delay: 100ms;
+}
+
+.worldNurseEffect i:nth-child(4) {
+  left: 70px;
+  background: #c5e1a5;
+  animation-delay: 140ms;
+}
+
+.worldSurfaceScrim {
+  z-index: 10;
+  background: rgba(16, 24, 32, 0.3);
+  pointer-events: auto;
+}
+
+@keyframes worldNurseSparkle {
+  from {
+    opacity: 1;
+    translate: 0 40px;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -24px;
+    scale: 1.8;
+  }
+}
+
+.worldBattleTransition {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #101820;
+  opacity: 0;
+}
+
+.worldBattleTransitionStripe {
+  position: absolute;
+  background: #101820;
+  will-change: transform;
 }
 
 .resultOverlay {
@@ -245,6 +1067,12 @@
   border-radius: 4px;
   box-shadow: 0 3px 0 #17231c;
   font-weight: 900;
+}
+
+.roomEntryConfirmDialogActions button {
+  display: grid;
+  place-items: center;
+  text-align: center;
 }
 
 .mobileDecisionSheet {
@@ -574,190 +1402,6 @@
   background: #fff9dd;
 }
 
-.page :global(.fullscreen-toggle-button) {
-  display: inline-grid;
-  width: var(--poke-lounge-mobile-fullscreen-button-size);
-  height: var(--poke-lounge-mobile-fullscreen-button-size);
-  place-items: center;
-  border: 3px solid #17231c;
-  border-radius: 50%;
-  background: rgba(248, 251, 240, 0.84);
-  box-shadow: 0 4px 0 rgba(23, 35, 28, 0.86);
-  color: #17201a;
-  cursor: pointer;
-  font-size: 1.25rem;
-  font-weight: 900;
-  line-height: 1;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.page :global(.mobile-settings-button) {
-  display: inline-grid;
-  width: var(--poke-lounge-mobile-fullscreen-button-size);
-  height: var(--poke-lounge-mobile-fullscreen-button-size);
-  place-items: center;
-  border: 3px solid #17231c;
-  border-radius: 50%;
-  background: rgba(248, 251, 240, 0.84);
-  box-shadow: 0 4px 0 rgba(23, 35, 28, 0.86);
-  color: #17201a;
-  cursor: pointer;
-  font-size: 1.25rem;
-  font-weight: 900;
-  line-height: 1;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.page :global(.fullscreen-toggle-button--mobile) {
-  position: absolute;
-  top: calc(
-    100% + var(--poke-lounge-touch-control-offset) + var(--poke-lounge-touch-controls-height) +
-      var(--poke-lounge-mobile-fullscreen-gap)
-  );
-  left: 50%;
-  z-index: 35;
-  display: none;
-  transform: translateX(-50%);
-}
-
-.page :global(.mobile-settings-button--mobile) {
-  position: absolute;
-  top: calc(
-    100% + var(--poke-lounge-touch-control-offset) + var(--poke-lounge-touch-controls-height) +
-      var(--poke-lounge-mobile-fullscreen-gap)
-  );
-  left: calc(50% + (var(--poke-lounge-mobile-fullscreen-button-size) / 2) + 8px);
-  z-index: 35;
-  display: none;
-}
-
-.touchGameDevice :global(.fullscreen-toggle-button--mobile) {
-  display: inline-grid;
-}
-
-.page :global(.has-touch-game-device .mobile-settings-button--mobile) {
-  display: inline-grid;
-}
-
-.page :global(.fullscreen-toggle-button--mobile:active) {
-  transform: translate(-50%, 3px);
-  box-shadow: 0 1px 0 rgba(23, 35, 28, 0.86);
-  background: #fff9dd;
-}
-
-.page :global(.mobile-settings-button--mobile:active) {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 rgba(23, 35, 28, 0.86);
-  background: #fff9dd;
-}
-
-.page :global(.mobile-touch-controls) {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  display: none;
-  pointer-events: none;
-  touch-action: none;
-}
-
-.page :global(.mobile-touch-controls__dpad),
-.page :global(.mobile-touch-controls__actions) {
-  position: absolute;
-  display: grid;
-  gap: var(--poke-lounge-touch-control-gap);
-  pointer-events: none;
-}
-
-.page :global(.mobile-touch-controls__dpad) {
-  left: max(12px, env(safe-area-inset-left));
-  bottom: max(14px, env(safe-area-inset-bottom));
-  grid-template-areas:
-    ". up ."
-    "left . right"
-    ". down .";
-  grid-template-columns: repeat(3, var(--poke-lounge-touch-dpad-button-size));
-  grid-template-rows: repeat(3, var(--poke-lounge-touch-dpad-button-size));
-}
-
-.page :global(.mobile-touch-controls__actions) {
-  right: max(12px, env(safe-area-inset-right));
-  bottom: max(14px, env(safe-area-inset-bottom));
-  grid-template-columns: repeat(2, var(--poke-lounge-touch-action-button-size));
-  grid-template-rows: repeat(2, var(--poke-lounge-touch-action-button-size));
-}
-
-.page :global(.mobile-touch-controls__button) {
-  width: 100%;
-  height: 100%;
-  border: 3px solid #17231c;
-  border-radius: 50%;
-  background: rgba(248, 251, 240, 0.84);
-  box-shadow: 0 4px 0 rgba(23, 35, 28, 0.86);
-  color: #17201a;
-  cursor: pointer;
-  font-size: 1.05rem;
-  font-weight: 900;
-  line-height: 1;
-  pointer-events: auto;
-  touch-action: none;
-  user-select: none;
-  transform: translateY(0) scale(1);
-  transition:
-    transform 120ms ease,
-    box-shadow 120ms ease,
-    background 120ms ease;
-  -webkit-user-select: none;
-  will-change: transform;
-}
-
-.page :global(.mobile-touch-controls__button:active),
-.page :global(.mobile-touch-controls__button.is-pressed),
-.page :global(.mobile-touch-controls__button[data-pressed="true"]) {
-  transform: translateY(4px) scale(0.94);
-  box-shadow: 0 1px 0 rgba(23, 35, 28, 0.86);
-  background: #fff9dd;
-}
-
-.page :global(.mobile-touch-controls__button--up) {
-  grid-area: up;
-}
-
-.page :global(.mobile-touch-controls__button--left) {
-  grid-area: left;
-}
-
-.page :global(.mobile-touch-controls__button--right) {
-  grid-area: right;
-}
-
-.page :global(.mobile-touch-controls__button--down) {
-  grid-area: down;
-}
-
-.page :global(.has-touch-game-device .mobile-touch-controls) {
-  display: block;
-}
-
-.page :global(.is-shortcut-guide-open .mobile-touch-controls) {
-  display: none !important;
-}
-
-.page :global(.is-shortcut-guide-open .fullscreen-toggle-button) {
-  display: none !important;
-}
-
-.page :global(#game-root.is-shortcut-guide-open ~ .fullscreen-toggle-button) {
-  display: none !important;
-}
-
-.page :global(.is-shortcut-guide-open .mobile-settings-button) {
-  display: none !important;
-}
-
 .page :global(.webrtc-signaling-panel) {
   position: absolute;
   right: max(12px, env(safe-area-inset-right));
@@ -1034,7 +1678,7 @@
     justify-self: stretch;
   }
 
-  .touchGameDevice .gameFrame[data-poke-lounge-canvas-mounted="false"] {
+  .touchGameDevice .gameFrame[data-poke-lounge-runtime-mounted="false"] {
     position: absolute;
     inset: var(--poke-lounge-mobile-letterbox-top) 0 var(--poke-lounge-mobile-letterbox-bottom);
     width: auto;
@@ -1044,21 +1688,6 @@
     margin: 0;
   }
 
-  .page :global(.has-touch-game-device .mobile-touch-controls) {
-    top: calc(100% + var(--poke-lounge-touch-control-offset));
-    bottom: auto;
-    height: var(--poke-lounge-touch-controls-height);
-  }
-
-  .page :global(.has-touch-game-device .mobile-touch-controls__dpad) {
-    top: 0;
-    bottom: auto;
-  }
-
-  .page :global(.has-touch-game-device .mobile-touch-controls__actions) {
-    top: 4px;
-    bottom: auto;
-  }
 }
 
 .page:fullscreen.touchGameDevice,
@@ -1085,21 +1714,15 @@
   justify-self: center;
 }
 
-.page:fullscreen.touchGameDevice .gameFrame[data-poke-lounge-canvas-mounted="false"],
+.page:fullscreen.touchGameDevice .gameFrame[data-poke-lounge-runtime-mounted="false"],
 .page:global(.is-game-fullscreen-fallback).touchGameDevice
-  .gameFrame[data-poke-lounge-canvas-mounted="false"] {
+  .gameFrame[data-poke-lounge-runtime-mounted="false"] {
   width: 100%;
   height: 100%;
   max-height: none;
   aspect-ratio: auto;
   align-self: stretch;
   justify-self: stretch;
-}
-
-@media (max-width: 600px) {
-  .page :global(#game-root canvas) {
-    image-rendering: auto !important;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

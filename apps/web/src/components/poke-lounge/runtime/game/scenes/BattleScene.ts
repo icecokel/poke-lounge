@@ -1,23 +1,22 @@
-import * as Phaser from "phaser";
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle";
 import {
   BATTLE_LAYOUT,
   getBattleOptionIndexAtPoint,
   getBattleStatusTextView,
-  hpRatio,
-  resolveBattleOptionSlotRects,
   type BattleRect,
   type BattleSpriteBox,
 } from "../battle/battleLayout";
 import {
   createBattlePartySlotViews,
   getFirstSwitchableBattlePartySlotIndex,
-  getBattlePartySlotIndexAtPoint,
   moveBattlePartySelection,
   type BattlePartySlotView,
 } from "../battle/battle-party-select";
 import { createSampleBattleState } from "../battle/battleSampleState";
-import { BATTLE_POKEMON_FRAME_SIZE } from "../battle/battlePokemonAssets";
+import {
+  BATTLE_POKEMON_FRAME_SIZE,
+  getBattlePokemonAlphaBounds,
+} from "../battle/battlePokemonAssets";
 import {
   createWildBattleState,
   type RomPersonalRecordCollection,
@@ -27,7 +26,6 @@ import { createPvpBattleState } from "../battle/pvpBattleFactory";
 import {
   BATTLE_BACKGROUND_ASSET_KEY,
   BATTLE_WINDOW_FRAME_ASSET_KEY,
-  EVOLUTION_BACKGROUND_ASSET_KEY,
   ROM_BATTLE_WINDOW_STYLE,
 } from "../battle/battleDesign";
 import {
@@ -56,7 +54,6 @@ import type {
   BattlePokemon,
   BattlePokemonStatus,
   BattleScreenState,
-  BattleSpriteRef,
 } from "../battle/battleTypes";
 import { formatReplacedMoveMessage, formatSkippedMoveMessage } from "../battle/levelUpMoves";
 import { planLevelUpBattleProgression } from "../battle/level-up-progression";
@@ -70,7 +67,7 @@ import {
   resolveRomCaptureAnimationFrame,
   ROM_CAPTURE_ANIMATION_DURATION_MS,
 } from "../battle/capture-presentation";
-import { BATTLE_BASE_SIZE, getBattleCameraZoom } from "../gameViewport";
+import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-assets";
 import { getDefaultGameStateStore } from "../state/defaultGameStateStore";
 import {
   getShopItemById,
@@ -81,7 +78,6 @@ import {
   type PlayerPokemon,
   type ShopItemId,
 } from "../state/gameStateStore";
-import { createGameTextStyle } from "../ui/gameTextStyle";
 import {
   dispatchPokeLoungeAccessibleStatus,
   dispatchPokeLoungeNotice,
@@ -89,23 +85,20 @@ import {
 import { setBattleSceneMarker } from "../ui/active-game-scene-marker";
 import { FIELD_MAP } from "../world/fieldMap";
 import {
-  dispatchMobileBattleUiState,
   isMobileBattleMoveDisabled,
-  POKE_LOUNGE_MOBILE_BATTLE_ACTION_EVENT,
-  POKE_LOUNGE_MOBILE_BATTLE_STATE_REQUEST_EVENT,
   type MobileBattleUiAction,
   type MobileBattleUiState,
 } from "../ui/mobile-battle-ui";
+import type {
+  BattlePresentationState,
+  BattleSpritePresentation,
+  BattleUiStore,
+} from "../battle/battle-ui-store";
 import {
   hasPokeLoungeMobileFullscreenScene,
   usesPokeLoungeMobileShell,
 } from "../ui/mobile-ui-capability";
-import {
-  createShortcutGuideFooter,
-  createShortcutGuideRows,
-  createShortcutGuideTitle,
-  type ShortcutGuideInputMode,
-} from "../ui/shortcutGuide";
+import type { ShortcutGuideInputMode } from "../ui/shortcutGuide";
 import { consumeVirtualGamepadPress, resetVirtualGamepad } from "../input/virtualGamepad";
 import { setShortcutGuideTouchControlsSuppressed } from "../input/mobileTouchControlsVisibility";
 import type { WildEncounterCandidate } from "../world/wildEncounters";
@@ -127,11 +120,20 @@ import type {
   RoomUnsubscribe,
 } from "../network/localPreviewRoom";
 import type { CompetitiveBattleLaunchKey } from "./competitive-battle-launch";
+import type { BattleE2eScenario, BattleE2eSnapshot } from "../testing/poke-lounge-e2e-controller";
 import {
   isCompetitiveAssignmentForPlayer,
   shouldPreemptLocalBattleForRound,
 } from "./competitive-battle-launch";
 import { isRoundReadinessDue } from "../network/tournament-projection";
+import {
+  animateRuntimeValue,
+  clampUnit,
+  lerp,
+  scheduleRuntimeTask,
+  type RuntimeAnimation,
+} from "../runtime-animation";
+import type { RuntimeKeyboard } from "../runtime-input";
 
 export const BATTLE_COMMAND_LABELS = ["싸운다", "가방", "포켓몬", "도망"] as const;
 export const BATTLE_SPRITE_CROP = { x: 0, y: 0, ...BATTLE_POKEMON_FRAME_SIZE } as const;
@@ -141,11 +143,7 @@ export const BATTLE_SCENE_BACKGROUND_KEY = BATTLE_BACKGROUND_ASSET_KEY;
 export const BATTLE_SCENE_WINDOW_FRAME_KEY = BATTLE_WINDOW_FRAME_ASSET_KEY;
 export const BATTLE_SCENE_WINDOW_STYLE = ROM_BATTLE_WINDOW_STYLE;
 export const BATTLE_HP_PANEL_WINDOW_OPTIONS = { radius: 4, includeFrameMarker: false } as const;
-export const BATTLE_CONFIRM_KEY_CODES = [
-  Phaser.Input.Keyboard.KeyCodes.ENTER,
-  Phaser.Input.Keyboard.KeyCodes.SPACE,
-  Phaser.Input.Keyboard.KeyCodes.Z,
-] as const;
+export const BATTLE_CONFIRM_KEY_CODES = ["Enter", "Space", "KeyZ"] as const;
 const BATTLE_HP_DECREASE_TWEEN_MS = 560;
 const BATTLE_HIT_TWEEN_MS = 300;
 const BATTLE_MESSAGE_AUTO_ADVANCE_MS = 850;
@@ -157,95 +155,9 @@ const BATTLE_BAG_PREMIUM_ITEM_IDS = [
   "revive",
   "ultraBall",
 ] as const satisfies readonly PremiumShopItemId[];
-const BATTLE_BAG_VISIBLE_ITEM_COUNT = 4;
 
 type PremiumBattleBagItemId = (typeof BATTLE_BAG_PREMIUM_ITEM_IDS)[number];
 type BattleBagItemId = ShopItemId | PremiumBattleBagItemId;
-export type BattleE2eScenario =
-  | "wild-victory"
-  | "wild-defeat"
-  | "wild-evolution"
-  | "wild-move-learning"
-  | "wild-status-badge"
-  | "wild-paralysis";
-
-export interface BattleE2eSnapshot {
-  battleKind: BattleScreenState["battleKind"];
-  phase: BattleScreenState["phase"];
-  turn: number;
-  message: string | null;
-  messageQueue: string[];
-  selectedCommandIndex: number;
-  selectedCommand: BattleCommand;
-  selectedCommandLabel: string;
-  selectedMoveIndex: number;
-  selectedMoveName: string | null;
-  selectedBagItemIndex: number;
-  selectedPartySlotIndex: number;
-  isForcedPartySwitch: boolean;
-  partySlots: Array<{
-    slotIndex: number;
-    rect: BattleRect;
-    name: string | null;
-    level: number | null;
-    currentHp: number | null;
-    maxHp: number | null;
-    status: string | null;
-    isSelected: boolean;
-    isCurrent: boolean;
-    isFainted: boolean;
-    isEmpty: boolean;
-    canSwitch: boolean;
-  }>;
-  moveReplacement: {
-    pokemonName: string;
-    newMoveName: string;
-    selectedMoveIndex: number;
-  } | null;
-  result: BattleScreenState["result"];
-  returnToWorld: BattleScreenState["returnToWorld"];
-  battleEntrancePlaying: boolean;
-  battleEntrancePlayed: boolean;
-  authoritativeInputPending: boolean;
-  fullRenderCount: number;
-  animationFrameUpdateCount: number;
-  hpAnimationPlaying: boolean;
-  hpAnimationStartedCount: number;
-  hitAnimationPlaying: boolean;
-  hitAnimationStartedCount: number;
-  captureAnimationPlaying: boolean;
-  captureAnimationStartedCount: number;
-  captureAnimationShakes: number | null;
-  evolutionAnimationPlaying: boolean;
-  evolutionAnimationStartedCount: number;
-  evolutionFromSpeciesId: number | null;
-  evolutionToSpeciesId: number | null;
-  player: {
-    name: string;
-    level: number;
-    currentHp: number;
-    maxHp: number;
-    displayedCurrentHp: number;
-    hitAnimationStartedCount: number;
-    status: BattlePokemonStatus;
-    displayedStatus: BattlePokemonStatus;
-    statusTextLabel: string | null;
-    activePartySlotIndex: number;
-    moves: Array<{ id: number; name: string }>;
-  };
-  opponent: {
-    name: string;
-    level: number;
-    currentHp: number;
-    maxHp: number;
-    displayedCurrentHp: number;
-    hitAnimationStartedCount: number;
-    status: BattlePokemonStatus;
-    displayedStatus: BattlePokemonStatus;
-    statusTextLabel: string | null;
-  };
-}
-
 interface PendingMoveLearning {
   slotIndex: number;
   pokemonName: string;
@@ -295,13 +207,6 @@ export interface AuthoritativeBattleSceneData extends BattleWorldPositionPolicy 
   returnToWorld: BattleScreenState["returnToWorld"];
 }
 
-interface LogicalCanvasPointInput {
-  clientX: number;
-  clientY: number;
-  logicalSize: { width: number; height: number };
-  rect: Pick<DOMRect, "left" | "top" | "width" | "height">;
-}
-
 type BattleHpSide = "player" | "opponent";
 type BattleDisplayedHp = Record<BattleHpSide, number>;
 type BattleDisplayedStatus = Record<BattleHpSide, BattlePokemonStatus>;
@@ -310,7 +215,7 @@ const BATTLE_HP_SIDES = ["player", "opponent"] as const satisfies readonly Battl
 interface BattleHitEffectState {
   progress: number;
   startedCount: number;
-  tween: Phaser.Tweens.Tween | null;
+  tween: RuntimeAnimation | null;
 }
 
 type BattleHitEffects = Record<BattleHpSide, BattleHitEffectState>;
@@ -365,18 +270,6 @@ function isAuthoritativeBattleSceneData(data: unknown): data is AuthoritativeBat
     isRecord(data.projection) &&
     isRecord(data.returnToWorld)
   );
-}
-
-export function toLogicalCanvasPoint({
-  clientX,
-  clientY,
-  logicalSize,
-  rect,
-}: LogicalCanvasPointInput): { x: number; y: number } {
-  return {
-    x: ((clientX - rect.left) * logicalSize.width) / rect.width,
-    y: ((clientY - rect.top) * logicalSize.height) / rect.height,
-  };
 }
 
 export function getCroppedBattleSpriteDisplaySize(
@@ -473,47 +366,42 @@ const COMMANDS: Array<{ label: (typeof BATTLE_COMMAND_LABELS)[number]; command: 
   { label: "도망", command: "run" },
 ];
 
-export class BattleScene extends Phaser.Scene {
+export interface BattleControllerOptions {
+  battleUiStore: BattleUiStore;
+  gameStateStore?: GameStateStore;
+  keyboard: RuntimeKeyboard;
+  multiplayerRoom?: MultiplayerRoom;
+  parent: HTMLElement;
+  runtimeAssets: PokeLoungeRuntimeAssets;
+  onRestart(data: unknown): void;
+  onReturnToWorld(data: unknown): void;
+}
+
+export class BattleController {
   private state: BattleScreenState = createSampleBattleState();
   private selectedCommandIndex = 0;
   private selectedMoveIndex = 0;
   private selectedPartySlotIndex = 0;
   private selectedBagItemIndex = 0;
-  private readonly spriteVisibleBoundsCache = new Map<string, BattleSpriteVisibleBounds>();
-  private cursors: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
-  private confirmKeys: Phaser.Input.Keyboard.Key[] = [];
-  private keyboardConfirmQueued = false;
-  private escKey: Phaser.Input.Keyboard.Key | null = null;
-  private backspaceKey: Phaser.Input.Keyboard.Key | null = null;
-  private helpKey: Phaser.Input.Keyboard.Key | null = null;
   private shortcutGuideOpen = false;
   private returningToWorld = false;
   private displayedHp: BattleDisplayedHp = { player: 0, opponent: 0 };
   private displayedStatus: BattleDisplayedStatus = { player: "normal", opponent: "normal" };
-  private readonly pokemonImages: Partial<Record<BattleHpSide, Phaser.GameObjects.Image>> = {};
-  private readonly hpBarGraphics: Partial<Record<BattleHpSide, Phaser.GameObjects.Graphics>> = {};
-  private battleEntranceOverlay: Phaser.GameObjects.Graphics | null = null;
-  private captureBallGraphics: Phaser.GameObjects.Graphics | null = null;
-  private captureResultGraphics: Phaser.GameObjects.Graphics | null = null;
-  private evolutionEnergyGraphics: Phaser.GameObjects.Graphics | null = null;
-  private evolutionPokemonImage: Phaser.GameObjects.Image | null = null;
-  private evolutionSilhouetteImage: Phaser.GameObjects.Image | null = null;
-  private evolutionFlashGraphics: Phaser.GameObjects.Graphics | null = null;
-  private readonly hpTweens: Partial<Record<BattleHpSide, Phaser.Tweens.Tween>> = {};
-  private readonly statusCommitTweens: Partial<Record<BattleHpSide, Phaser.Tweens.Tween>> = {};
+  private readonly hpTweens: Partial<Record<BattleHpSide, RuntimeAnimation>> = {};
+  private readonly statusCommitTweens: Partial<Record<BattleHpSide, RuntimeAnimation>> = {};
   private hitEffects: BattleHitEffects = createBattleHitEffects();
   private battleEntrancePlaying = false;
   private battleEntranceProgress = 1;
   private battleEntrancePlayed = false;
-  private battleEntranceTween: Phaser.Tweens.Tween | null = null;
+  private battleEntranceTween: RuntimeAnimation | null = null;
   private captureAnimationPlaying = false;
   private captureAnimationProgress = 1;
-  private captureAnimationTween: Phaser.Tweens.Tween | null = null;
+  private captureAnimationTween: RuntimeAnimation | null = null;
   private captureAnimationStartedCount = 0;
   private captureAnimationAttempt: BattleCaptureAttempt | null = null;
   private evolutionAnimationPlaying = false;
   private evolutionAnimationProgress = 1;
-  private evolutionAnimationTween: Phaser.Tweens.Tween | null = null;
+  private evolutionAnimationTween: RuntimeAnimation | null = null;
   private evolutionAnimationStartedCount = 0;
   private evolutionTransition: BattleEvolutionTransition | null = null;
   private evolutionAnimationPending = false;
@@ -535,19 +423,27 @@ export class BattleScene extends Phaser.Scene {
   private authoritativeUnsubscribers: RoomUnsubscribe[] = [];
   private competitivePreemptionQueued = false;
   private lastAccessibleStatus = "";
-  private removeMobileBattleUiListeners: (() => void) | null = null;
-  private messageAutoAdvanceTimer: Phaser.Time.TimerEvent | null = null;
+  private messageAutoAdvanceTimer: RuntimeAnimation | null = null;
   private sceneLifecycleActive = false;
   private sceneGeneration = 0;
 
-  constructor(
-    private readonly gameStateStore: GameStateStore = getDefaultGameStateStore(),
-    private readonly multiplayerRoom?: MultiplayerRoom,
-  ) {
-    super("battle");
+  private readonly battleUiStore: BattleUiStore;
+  private readonly gameStateStore: GameStateStore;
+  private readonly keyboard: RuntimeKeyboard;
+  private readonly multiplayerRoom?: MultiplayerRoom;
+  private readonly ownerDocument: Document;
+  private readonly runtimeAssets: PokeLoungeRuntimeAssets;
+
+  constructor(private readonly options: BattleControllerOptions) {
+    this.battleUiStore = options.battleUiStore;
+    this.gameStateStore = options.gameStateStore ?? getDefaultGameStateStore();
+    this.keyboard = options.keyboard;
+    this.multiplayerRoom = options.multiplayerRoom;
+    this.ownerDocument = options.parent.ownerDocument;
+    this.runtimeAssets = options.runtimeAssets;
   }
 
-  create(data: unknown = {}): void {
+  start(data: unknown = {}): void {
     this.cleanupSceneLifecycle();
     this.sceneLifecycleActive = true;
     this.sceneGeneration += 1;
@@ -615,30 +511,10 @@ export class BattleScene extends Phaser.Scene {
     this.resetHitEffects();
     this.syncDisplayedHpToState();
     this.syncDisplayedStatusToState();
-    this.cameras.main.setBackgroundColor("#d8e6d4");
-    this.cameras.main.setBounds(0, 0, BATTLE_BASE_SIZE.width, BATTLE_BASE_SIZE.height);
-    this.cameras.main.setZoom(getBattleCameraZoom(this.scale.width));
     this.setBattleUiSceneMarker(true);
-    this.bindKeys();
-    this.bindPointerConfirm();
-    this.bindMobileBattleUi();
+    this.battleUiStore.setActionHandler(action => this.handleBattleUiAction(action));
     this.render();
     playWildBattleBgm();
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      if (!this.returningToWorld) {
-        stopWildBattleBgm();
-      }
-      this.cleanupSceneLifecycle();
-      this.setBattleUiSceneMarker(false);
-      dispatchPokeLoungeAccessibleStatus(this.game.canvas.ownerDocument, "필드 탐색");
-    });
-    this.events.once(Phaser.Scenes.Events.DESTROY, () => {
-      if (!this.returningToWorld) {
-        stopWildBattleBgm();
-      }
-      this.cleanupSceneLifecycle();
-      this.setBattleUiSceneMarker(false);
-    });
     if (this.authoritativeProjection?.status === "completed") {
       this.finishBattleEntranceAnimation();
       this.render();
@@ -650,33 +526,22 @@ export class BattleScene extends Phaser.Scene {
 
   update(): void {
     if (
-      !this.cursors ||
-      this.confirmKeys.length === 0 ||
-      !this.escKey ||
-      !this.backspaceKey ||
-      !this.helpKey
+      usesPokeLoungeMobileShell(this.ownerDocument) &&
+      hasPokeLoungeMobileFullscreenScene(this.ownerDocument)
     ) {
-      return;
-    }
-
-    const ownerDocument = this.game.canvas.ownerDocument;
-    if (
-      usesPokeLoungeMobileShell(ownerDocument) &&
-      hasPokeLoungeMobileFullscreenScene(ownerDocument)
-    ) {
-      this.keyboardConfirmQueued = false;
+      this.keyboard.clearPresses();
       resetVirtualGamepad();
       return;
     }
 
     if (this.battleEntrancePlaying) {
-      this.keyboardConfirmQueued = false;
+      this.keyboard.clearPresses();
       resetVirtualGamepad();
       return;
     }
 
     if (this.captureAnimationPlaying || this.evolutionAnimationPlaying) {
-      this.keyboardConfirmQueued = false;
+      this.keyboard.clearPresses();
       resetVirtualGamepad();
       return;
     }
@@ -686,12 +551,12 @@ export class BattleScene extends Phaser.Scene {
       this.isHitAnimationPlaying() ||
       this.isStatusCommitPlaying()
     ) {
-      this.keyboardConfirmQueued = false;
+      this.keyboard.clearPresses();
       resetVirtualGamepad();
       return;
     }
 
-    if (consumeVirtualGamepadPress("help") || Phaser.Input.Keyboard.JustDown(this.helpKey)) {
+    if (consumeVirtualGamepadPress("help") || this.keyboard.consume("KeyH")) {
       playBattleConfirmSound();
       this.toggleShortcutGuide();
       return;
@@ -702,8 +567,7 @@ export class BattleScene extends Phaser.Scene {
         this.consumeKeyboardConfirm() ||
         consumeVirtualGamepadPress("confirm") ||
         consumeVirtualGamepadPress("back") ||
-        Phaser.Input.Keyboard.JustDown(this.escKey) ||
-        Phaser.Input.Keyboard.JustDown(this.backspaceKey)
+        this.keyboard.consume("Escape", "Backspace")
       ) {
         playBattleCancelSound();
         this.closeShortcutGuide();
@@ -728,11 +592,7 @@ export class BattleScene extends Phaser.Scene {
       this.confirmSelection();
     }
 
-    if (
-      consumeVirtualGamepadPress("back") ||
-      Phaser.Input.Keyboard.JustDown(this.escKey) ||
-      Phaser.Input.Keyboard.JustDown(this.backspaceKey)
-    ) {
+    if (consumeVirtualGamepadPress("back") || this.keyboard.consume("Escape", "Backspace")) {
       playBattleCancelSound();
       this.goBack();
     }
@@ -806,6 +666,17 @@ export class BattleScene extends Phaser.Scene {
       battleEntrancePlaying: this.battleEntrancePlaying,
       battleEntrancePlayed: this.battleEntrancePlayed,
       authoritativeInputPending: this.authoritativeInputPending,
+      competitive: this.authoritativeProjection
+        ? {
+            matchId: this.authoritativeProjection.matchId,
+            bracketMatchId: this.authoritativeProjection.bracketMatchId,
+            assignmentRevision: this.authoritativeProjection.assignmentRevision,
+            currentTurn: this.authoritativeProjection.currentTurn,
+            status: this.authoritativeProjection.status,
+            terminal: structuredClone(this.authoritativeProjection.terminal ?? null),
+            submittedPlayerIds: [...this.authoritativeProjection.submittedPlayerIds],
+          }
+        : null,
       fullRenderCount: this.fullRenderCount,
       animationFrameUpdateCount: this.animationFrameUpdateCount,
       hpAnimationPlaying: this.isHpAnimationPlaying(),
@@ -935,87 +806,19 @@ export class BattleScene extends Phaser.Scene {
     return this.shortcutGuideOpen;
   }
 
-  private bindKeys(): void {
-    const keyboard = this.input.keyboard;
-    if (!keyboard) {
-      return;
-    }
-
-    this.unbindKeys();
-    this.cursors = keyboard.createCursorKeys();
-    this.confirmKeys = BATTLE_CONFIRM_KEY_CODES.map(keyCode => keyboard.addKey(keyCode));
-    this.confirmKeys.forEach(key => key.on("down", this.queueKeyboardConfirm, this));
-    this.escKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-    this.backspaceKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.BACKSPACE);
-    this.helpKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.H);
-  }
-
-  private queueKeyboardConfirm(): void {
-    this.keyboardConfirmQueued = true;
-  }
-
   private consumeKeyboardConfirm(): boolean {
-    const queued = this.keyboardConfirmQueued;
-    this.keyboardConfirmQueued = false;
-    return queued;
-  }
-
-  private unbindKeys(): void {
-    this.confirmKeys.forEach(key => key.off("down", this.queueKeyboardConfirm, this));
-    this.confirmKeys = [];
-    this.keyboardConfirmQueued = false;
+    return this.keyboard.consume(...BATTLE_CONFIRM_KEY_CODES);
   }
 
   private setBattleUiSceneMarker(active: boolean): void {
-    const gameRoot = this.game.canvas.parentElement;
-
-    if (!gameRoot) {
-      return;
-    }
-
-    setBattleSceneMarker(gameRoot, active);
+    setBattleSceneMarker(this.options.parent, active);
   }
 
   private usesMobileBattleDeck(): boolean {
-    return (
-      this.game.canvas.parentElement?.closest<HTMLElement>(
-        "[data-poke-lounge-mobile-shell='true']",
-      ) !== null
-    );
+    return this.options.parent.closest("[data-poke-lounge-mobile-shell='true']") !== null;
   }
 
-  private bindMobileBattleUi(): void {
-    this.removeMobileBattleUiListeners?.();
-
-    const documentRef = this.game.canvas.ownerDocument;
-    const handleAction = (event: Event) => {
-      if (!this.usesMobileBattleDeck()) {
-        return;
-      }
-
-      const action = (event as CustomEvent<MobileBattleUiAction>).detail;
-      if (!action) {
-        return;
-      }
-
-      this.handleMobileBattleUiAction(action);
-    };
-    const handleStateRequest = () => {
-      this.publishMobileBattleUiState();
-    };
-
-    documentRef.addEventListener(POKE_LOUNGE_MOBILE_BATTLE_ACTION_EVENT, handleAction);
-    documentRef.addEventListener(POKE_LOUNGE_MOBILE_BATTLE_STATE_REQUEST_EVENT, handleStateRequest);
-    this.removeMobileBattleUiListeners = () => {
-      documentRef.removeEventListener(POKE_LOUNGE_MOBILE_BATTLE_ACTION_EVENT, handleAction);
-      documentRef.removeEventListener(
-        POKE_LOUNGE_MOBILE_BATTLE_STATE_REQUEST_EVENT,
-        handleStateRequest,
-      );
-    };
-  }
-
-  private handleMobileBattleUiAction(action: MobileBattleUiAction): void {
+  public handleBattleUiAction(action: MobileBattleUiAction): void {
     if (
       this.battleEntrancePlaying ||
       this.captureAnimationPlaying ||
@@ -1122,8 +925,8 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  private publishMobileBattleUiState(): void {
-    if (!this.usesMobileBattleDeck()) {
+  private publishBattleUiState(): void {
+    if (!this.battleUiStore) {
       return;
     }
 
@@ -1197,6 +1000,7 @@ export class BattleScene extends Phaser.Scene {
         isFainted: slot.isFainted,
         isEmpty: slot.isEmpty,
         canSwitch: slot.canSwitch,
+        sprite: slot.pokemon?.frontSprite ?? null,
       })),
       items: this.getBattleBagItemIds().map((itemId, index) => {
         const item = getShopItemById(itemId);
@@ -1222,130 +1026,174 @@ export class BattleScene extends Phaser.Scene {
         : null,
     };
 
-    dispatchMobileBattleUiState(this.game.canvas.ownerDocument, state);
+    this.battleUiStore.publish({
+      controls: state,
+      presentation: this.createBattlePresentationState(),
+    });
   }
 
-  private bindPointerConfirm(): void {
-    this.input.off("pointerdown", this.handlePointerConfirm, this);
-    this.input.on("pointerdown", this.handlePointerConfirm, this);
+  private publishBattlePresentationState(): void {
+    this.battleUiStore.publishPresentation(this.createBattlePresentationState());
   }
 
-  private handlePointerConfirm(pointer: Phaser.Input.Pointer): void {
-    if (
-      this.battleEntrancePlaying ||
-      this.captureAnimationPlaying ||
-      this.evolutionAnimationPlaying ||
-      this.isHpAnimationPlaying() ||
-      this.isHitAnimationPlaying() ||
-      this.isStatusCommitPlaying() ||
-      this.usesMobileBattleDeck()
-    ) {
-      return;
-    }
+  private createBattlePresentationState(): BattlePresentationState {
+    const entranceProgress = clampUnit(this.battleEntranceProgress);
+    const entranceOffset = Math.round((1 - entranceProgress) * 18);
+    const entranceAlpha = 0.35 + entranceProgress * 0.65;
+    const playerHit = this.getHitRenderEffect("player");
+    const opponentHit = this.getHitRenderEffect("opponent");
+    const captureOpponent = this.getCaptureOpponentRenderEffect();
+    const playerBox = getVisibleBoundsAlignedBattleSpriteRenderBox(
+      BATTLE_LAYOUT.playerSprite,
+      getBattlePokemonAlphaBounds(this.state.player.pokemon.backSprite),
+    );
+    const opponentBox = getVisibleBoundsAlignedBattleSpriteRenderBox(
+      BATTLE_LAYOUT.opponentSprite,
+      getBattlePokemonAlphaBounds(this.state.opponent.pokemon.frontSprite),
+    );
+    const evolution = this.createBattleEvolutionPresentation();
 
-    const battlePoint = this.toBattleWorldPoint(pointer);
-
-    if (this.state.phase === "command" && this.state.messageQueue.length === 0) {
-      const commandIndex = getBattleOptionIndexAtPoint(battlePoint, BATTLE_LAYOUT.commandWindow);
-
-      if (commandIndex !== null) {
-        this.selectedCommandIndex = commandIndex;
-      }
-    }
-
-    if (this.state.phase === "move-select" && this.state.messageQueue.length === 0) {
-      const moveIndex = getBattleOptionIndexAtPoint(battlePoint, BATTLE_LAYOUT.moveWindow);
-
-      if (moveIndex !== null) {
-        if (!this.state.player.pokemon.moves[moveIndex]) {
-          return;
-        }
-
-        this.selectedMoveIndex = moveIndex;
-      }
-    }
-
-    if (this.state.phase === "move-replace-select" && this.state.messageQueue.length === 0) {
-      const moveIndex = getBattleOptionIndexAtPoint(battlePoint, BATTLE_LAYOUT.moveWindow);
-
-      if (moveIndex !== null) {
-        if (!this.state.player.pokemon.moves[moveIndex]) {
-          return;
-        }
-
-        this.selectedMoveIndex = moveIndex;
-      }
-    }
-
-    if (this.state.phase === "party-select" && this.state.messageQueue.length === 0) {
-      const partySlotIndex = getBattlePartySlotIndexAtPoint(battlePoint, BATTLE_LAYOUT.partyWindow);
-
-      if (partySlotIndex === null) {
-        return;
-      }
-
-      this.selectedPartySlotIndex = partySlotIndex;
-      const slot = this.getBattlePartySlotViews()[partySlotIndex];
-
-      if (!slot?.canSwitch) {
-        playBattleCancelSound();
-
-        if (this.authoritativeProjection && this.authoritativeOwnPlayerId) {
-          this.render();
-          return;
-        }
-
-        this.confirmSelection();
-        return;
-      }
-
-      playBattleConfirmSound();
-      this.confirmSelection();
-      return;
-    }
-
-    if (this.state.phase === "bag-select" && this.state.messageQueue.length === 0) {
-      const rowHeight = 11;
-      const row = Math.floor((battlePoint.y - BATTLE_LAYOUT.moveWindow.y - 6) / rowHeight);
-      const pageStart =
-        Math.floor(this.selectedBagItemIndex / BATTLE_BAG_VISIBLE_ITEM_COUNT) *
-        BATTLE_BAG_VISIBLE_ITEM_COUNT;
-      const itemIndex = pageStart + row;
-
-      if (
-        row < 0 ||
-        row >= BATTLE_BAG_VISIBLE_ITEM_COUNT ||
-        !this.getBattleBagItemIds()[itemIndex]
-      ) {
-        return;
-      }
-
-      this.selectedBagItemIndex = itemIndex;
-    }
-
-    playBattleConfirmSound();
-    this.confirmSelection();
+    return {
+      authoritative: {
+        connectionStatus: this.authoritativeConnectionStatus,
+        inputPending: this.authoritativeInputPending,
+        spectating: this.authoritativeSpectating,
+      },
+      battleKind: this.state.battleKind,
+      capture: this.createBattleCapturePresentation(opponentBox),
+      entrance: { active: this.battleEntrancePlaying, progress: entranceProgress },
+      evolution,
+      help: { inputMode: this.getShortcutGuideInputMode(), open: this.shortcutGuideOpen },
+      message: this.getVisibleBattleMessage(),
+      opponent: {
+        currentHp: this.state.opponent.pokemon.currentHp,
+        displayedHp: this.displayedHp.opponent,
+        level: this.state.opponent.pokemon.level,
+        maxHp: this.state.opponent.pokemon.maxHp,
+        name: this.state.opponent.pokemon.name,
+        sprite: this.createBattleSpritePresentation({
+          alpha: entranceAlpha * opponentHit.alpha * captureOpponent.alpha,
+          height: opponentBox.height * captureOpponent.scale,
+          sprite: this.state.opponent.pokemon.frontSprite,
+          width: opponentBox.width * captureOpponent.scale,
+          x: opponentBox.x + entranceOffset + opponentHit.offsetX,
+          y: opponentBox.y,
+        }),
+        status: this.displayedStatus.opponent,
+      },
+      phase: this.state.phase,
+      player: {
+        currentHp: this.state.player.pokemon.currentHp,
+        displayedHp: this.displayedHp.player,
+        level: this.state.player.pokemon.level,
+        maxHp: this.state.player.pokemon.maxHp,
+        name: this.state.player.pokemon.name,
+        sprite: this.createBattleSpritePresentation({
+          alpha: entranceAlpha * playerHit.alpha,
+          height: playerBox.height,
+          sprite: this.state.player.pokemon.backSprite,
+          width: playerBox.width,
+          x: playerBox.x - entranceOffset + playerHit.offsetX,
+          y: playerBox.y,
+        }),
+        status: this.displayedStatus.player,
+      },
+    };
   }
 
-  private toBattleWorldPoint(pointer: Phaser.Input.Pointer): Phaser.Math.Vector2 {
-    const nativeEvent = pointer.event as { clientX?: number; clientY?: number } | undefined;
+  private createBattleSpritePresentation({
+    alpha,
+    height,
+    sprite,
+    width,
+    x,
+    y,
+    tint = null,
+  }: Omit<BattleSpritePresentation, "tint"> & {
+    tint?: BattleSpritePresentation["tint"];
+  }): BattleSpritePresentation {
+    return { alpha, height, sprite, tint, width, x, y };
+  }
 
-    if (typeof nativeEvent?.clientX === "number" && typeof nativeEvent.clientY === "number") {
-      const rect = this.game.canvas.getBoundingClientRect();
-      const { x: canvasX, y: canvasY } = toLogicalCanvasPoint({
-        clientX: nativeEvent.clientX,
-        clientY: nativeEvent.clientY,
-        logicalSize: {
-          width: this.scale.width,
-          height: this.scale.height,
-        },
-        rect,
-      });
-
-      return this.cameras.main.getWorldPoint(canvasX, canvasY);
+  private createBattleCapturePresentation(
+    targetBox: BattleRect,
+  ): BattlePresentationState["capture"] {
+    const attempt = this.captureAnimationAttempt;
+    if (!attempt) {
+      return null;
     }
 
-    return this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    const progress = clampUnit(this.captureAnimationProgress);
+    if (!attempt.caught && progress >= 1) {
+      return null;
+    }
+
+    const frame = resolveRomCaptureAnimationFrame(progress, attempt.shakes, attempt.caught);
+    const start = { x: 70, y: 126 };
+    const impact = { x: targetBox.x, y: targetBox.y - 2 };
+    const landed = { x: targetBox.x, y: targetBox.y + 34 };
+    let ballX = landed.x;
+    let ballY = landed.y;
+
+    if (frame.stage === "throw") {
+      const throwProgress = 1 - (1 - frame.stageProgress) ** 3;
+      ballX = lerp(start.x, impact.x, throwProgress);
+      ballY = lerp(start.y, impact.y, throwProgress) - Math.sin(frame.stageProgress * Math.PI) * 42;
+    } else if (frame.stage === "absorb") {
+      ballX = impact.x;
+      ballY = impact.y;
+    } else if (frame.stage === "fall") {
+      const fallProgress = frame.stageProgress ** 2;
+      ballX = lerp(impact.x, landed.x, fallProgress);
+      ballY = lerp(impact.y, landed.y, fallProgress);
+    } else {
+      ballX += frame.shakeOffsetX;
+      ballY += frame.bounceOffsetY + frame.shakeOffsetY;
+    }
+
+    return {
+      ballItemId: attempt.ballItemId,
+      ballRotation: frame.ballRotation,
+      ballX,
+      ballY,
+      caught: attempt.caught,
+      resultProgress: frame.stage === "result" ? frame.resultProgress : null,
+      showBall: frame.showBall,
+    };
+  }
+
+  private createBattleEvolutionPresentation(): BattlePresentationState["evolution"] {
+    const transition = this.evolutionTransition;
+    if (!this.evolutionAnimationPlaying || !transition) {
+      return null;
+    }
+
+    const progress = clampUnit(this.evolutionAnimationProgress);
+    const frame = resolveRomEvolutionAnimationFrame(progress);
+    const pokemon = frame.pokemon === "from" ? transition.fromPokemon : transition.toPokemon;
+    const sprite = pokemon.frontSprite;
+    const renderBox = getVisibleBoundsContainedBattleSpriteRenderBox(
+      { x: 88, y: 40, width: 80, height: 80 },
+      getBattlePokemonAlphaBounds(sprite),
+    );
+
+    return {
+      flashAlpha: frame.flashAlpha,
+      progress,
+      silhouetteAlpha: frame.silhouetteAlpha,
+      sprite: this.createBattleSpritePresentation({
+        alpha: 1,
+        height: renderBox.height * frame.scale,
+        sprite,
+        width: renderBox.width * frame.scale,
+        x: renderBox.x,
+        y: renderBox.y,
+      }),
+    };
+  }
+
+  private getShortcutGuideInputMode(): ShortcutGuideInputMode {
+    return usesPokeLoungeMobileShell(this.ownerDocument) ? "touch" : "keyboard";
   }
 
   private createInitialState(data: unknown): BattleScreenState {
@@ -1371,8 +1219,12 @@ export class BattleScene extends Phaser.Scene {
           matchId: data.matchId,
           player: data.player,
           opponent: data.opponent,
-          personalRecords: this.cache.json.get("romPersonalData") as RomPersonalRecordCollection,
-          moveRecords: this.cache.json.get("romRefinedBattleRecords") as RomRefinedMoveCollection,
+          personalRecords: this.runtimeAssets.json.get(
+            "romPersonalData",
+          ) as RomPersonalRecordCollection,
+          moveRecords: this.runtimeAssets.json.get(
+            "romRefinedBattleRecords",
+          ) as RomRefinedMoveCollection,
         }),
         returnToWorld: data.returnToWorld,
       };
@@ -1389,8 +1241,12 @@ export class BattleScene extends Phaser.Scene {
         playerParty: localPlayer.party,
         activePartySlotIndex: localPlayer.activePartySlotIndex,
         returnToWorld: data.returnToWorld,
-        personalRecords: this.cache.json.get("romPersonalData") as RomPersonalRecordCollection,
-        moveRecords: this.cache.json.get("romRefinedBattleRecords") as RomRefinedMoveCollection,
+        personalRecords: this.runtimeAssets.json.get(
+          "romPersonalData",
+        ) as RomPersonalRecordCollection,
+        moveRecords: this.runtimeAssets.json.get(
+          "romRefinedBattleRecords",
+        ) as RomRefinedMoveCollection,
       });
     }
 
@@ -1692,11 +1548,9 @@ export class BattleScene extends Phaser.Scene {
         };
         this.render();
         queueMicrotask(() => {
-          if (!this.isSceneLifecycleCurrent(sceneGeneration) || !this.scene.isActive()) {
-            return;
-          }
+          if (!this.isSceneLifecycleCurrent(sceneGeneration)) return;
 
-          this.scene.start("world", {
+          this.options.onReturnToWorld({
             spawnPosition: {
               x: destination.x,
               y: destination.y,
@@ -1778,7 +1632,7 @@ export class BattleScene extends Phaser.Scene {
           return;
         }
 
-        this.scene.restart({
+        this.options.onRestart({
           battleKind: "authoritative",
           ownPlayerId: event.viewPlayerId ?? event.ownPlayerId,
           spectating: event.spectating === true,
@@ -1824,11 +1678,9 @@ export class BattleScene extends Phaser.Scene {
         };
         this.render();
         queueMicrotask(() => {
-          if (!this.isSceneLifecycleCurrent(sceneGeneration) || !this.scene.isActive()) {
-            return;
-          }
+          if (!this.isSceneLifecycleCurrent(sceneGeneration)) return;
 
-          this.scene.start("world", {
+          this.options.onReturnToWorld({
             spawnPosition: {
               x: destination.x,
               y: destination.y,
@@ -1851,11 +1703,9 @@ export class BattleScene extends Phaser.Scene {
         this.gameStateStore.healCurrentParty();
         const sceneGeneration = this.sceneGeneration;
         queueMicrotask(() => {
-          if (!this.isSceneLifecycleCurrent(sceneGeneration) || !this.scene.isActive()) {
-            return;
-          }
+          if (!this.isSceneLifecycleCurrent(sceneGeneration)) return;
 
-          this.scene.restart({
+          this.options.onRestart({
             battleKind: "authoritative",
             ownPlayerId: event.viewPlayerId ?? event.ownPlayerId,
             spectating: event.spectating === true,
@@ -1873,14 +1723,24 @@ export class BattleScene extends Phaser.Scene {
     this.authoritativeUnsubscribers = [];
   }
 
+  stop(): void {
+    if (!this.sceneLifecycleActive) return;
+    stopWildBattleBgm();
+    this.cleanupSceneLifecycle();
+    this.setBattleUiSceneMarker(false);
+    dispatchPokeLoungeAccessibleStatus(this.ownerDocument, "필드 탐색");
+  }
+
+  isActive(): boolean {
+    return this.sceneLifecycleActive;
+  }
+
   private cleanupSceneLifecycle(): void {
     this.sceneLifecycleActive = false;
     this.clearAuthoritativeSubscriptions();
-    this.unbindKeys();
-    this.messageAutoAdvanceTimer?.remove(false);
+    this.messageAutoAdvanceTimer?.stop();
     this.messageAutoAdvanceTimer = null;
-    this.removeMobileBattleUiListeners?.();
-    this.removeMobileBattleUiListeners = null;
+    this.battleUiStore.clear();
     this.shortcutGuideOpen = false;
     setShortcutGuideTouchControlsSuppressed(false);
     this.cancelHpTweens();
@@ -1892,7 +1752,6 @@ export class BattleScene extends Phaser.Scene {
     this.captureAnimationTween = null;
     this.evolutionAnimationTween?.stop();
     this.evolutionAnimationTween = null;
-    this.resetRenderedObjectReferences();
   }
 
   private isSceneLifecycleCurrent(sceneGeneration: number): boolean {
@@ -1955,7 +1814,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private scheduleBattleMessageAutoAdvance(): void {
-    this.messageAutoAdvanceTimer?.remove(false);
+    this.messageAutoAdvanceTimer?.stop();
     this.messageAutoAdvanceTimer = null;
 
     if (
@@ -1967,7 +1826,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     const sceneGeneration = this.sceneGeneration;
-    const timer = this.time.delayedCall(BATTLE_MESSAGE_AUTO_ADVANCE_MS, () => {
+    const timer = scheduleRuntimeTask(BATTLE_MESSAGE_AUTO_ADVANCE_MS, () => {
       if (
         !this.isSceneLifecycleCurrent(sceneGeneration) ||
         this.messageAutoAdvanceTimer !== timer
@@ -1983,8 +1842,8 @@ export class BattleScene extends Phaser.Scene {
         this.isHpAnimationPlaying() ||
         this.isHitAnimationPlaying() ||
         this.isStatusCommitPlaying() ||
-        (usesPokeLoungeMobileShell(this.game.canvas.ownerDocument) &&
-          hasPokeLoungeMobileFullscreenScene(this.game.canvas.ownerDocument)) ||
+        (usesPokeLoungeMobileShell(this.ownerDocument) &&
+          hasPokeLoungeMobileFullscreenScene(this.ownerDocument)) ||
         this.shortcutGuideOpen
       ) {
         this.scheduleBattleMessageAutoAdvance();
@@ -2030,26 +1889,24 @@ export class BattleScene extends Phaser.Scene {
       }
 
       if (animateHpDecrease && targetHp < displayedHp) {
-        const tweenState = { value: displayedHp };
-
         this.hpAnimationStartedCount += 1;
         this.playHitAnimation(side);
         if (this.shouldPlayAttackHitSound(side)) {
           playBattleHitSound();
         }
-        const tween = this.tweens.add({
-          targets: tweenState,
-          value: targetHp,
+        const tween = animateRuntimeValue({
+          from: displayedHp,
+          to: targetHp,
           duration: BATTLE_HP_DECREASE_TWEEN_MS,
-          ease: "Cubic.easeOut",
-          onUpdate: () => {
+          ease: "cubic-out",
+          onUpdate: value => {
             if (this.hpTweens[side] !== tween) {
               return;
             }
 
-            this.displayedHp[side] = tweenState.value;
+            this.displayedHp[side] = value;
             this.animationFrameUpdateCount += 1;
-            this.updateHpBar(side);
+            this.publishBattlePresentationState();
           },
           onComplete: () => {
             if (this.hpTweens[side] !== tween) {
@@ -2095,11 +1952,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private deferDisplayedStatus(side: BattleHpSide, targetStatus: BattlePokemonStatus): void {
-    const tweenState = { progress: 0 };
-    const tween = this.tweens.add({
-      targets: tweenState,
-      progress: 1,
+    const tween = animateRuntimeValue({
       duration: BATTLE_HIT_TWEEN_MS,
+      onUpdate: () => {},
       onComplete: () => {
         if (this.statusCommitTweens[side] !== tween) {
           return;
@@ -2185,26 +2040,23 @@ export class BattleScene extends Phaser.Scene {
 
   private playHitAnimation(side: BattleHpSide): void {
     const hitEffect = this.hitEffects[side];
-    const tweenState = { progress: 0 };
 
     hitEffect.tween?.stop();
     hitEffect.progress = 0;
     hitEffect.startedCount += 1;
     this.hitAnimationStartedCount += 1;
 
-    const tween = this.tweens.add({
-      targets: tweenState,
-      progress: 1,
+    const tween = animateRuntimeValue({
       duration: BATTLE_HIT_TWEEN_MS,
-      ease: "Sine.easeOut",
-      onUpdate: () => {
+      ease: "sine-out",
+      onUpdate: progress => {
         if (hitEffect.tween !== tween) {
           return;
         }
 
-        hitEffect.progress = tweenState.progress;
+        hitEffect.progress = progress;
         this.animationFrameUpdateCount += 1;
-        this.updatePokemonImages();
+        this.publishBattlePresentationState();
       },
       onComplete: () => {
         if (hitEffect.tween !== tween) {
@@ -2213,7 +2065,7 @@ export class BattleScene extends Phaser.Scene {
 
         hitEffect.progress = 0;
         hitEffect.tween = null;
-        this.updatePokemonImages();
+        this.publishBattlePresentationState();
       },
     });
 
@@ -2225,22 +2077,18 @@ export class BattleScene extends Phaser.Scene {
     this.battleEntranceProgress = 0;
     this.battleEntrancePlaying = true;
     this.battleEntrancePlayed = true;
-    const tweenState = { progress: 0 };
 
-    const tween = this.tweens.add({
-      targets: tweenState,
-      progress: 1,
+    const tween = animateRuntimeValue({
       duration: BATTLE_ENTRANCE_TWEEN_MS,
-      ease: "Cubic.easeOut",
-      onUpdate: () => {
+      ease: "cubic-out",
+      onUpdate: progress => {
         if (this.battleEntranceTween !== tween) {
           return;
         }
 
-        this.battleEntranceProgress = tweenState.progress;
+        this.battleEntranceProgress = progress;
         this.animationFrameUpdateCount += 1;
-        this.updatePokemonImages();
-        this.updateBattleEntranceOverlay();
+        this.publishBattlePresentationState();
       },
       onComplete: () => {
         if (this.battleEntranceTween !== tween) {
@@ -2270,22 +2118,17 @@ export class BattleScene extends Phaser.Scene {
     this.captureAnimationProgress = 0;
     this.captureAnimationPlaying = true;
     this.captureAnimationStartedCount += 1;
-    const tweenState = { progress: 0 };
 
-    const tween = this.tweens.add({
-      targets: tweenState,
-      progress: 1,
+    const tween = animateRuntimeValue({
       duration: ROM_CAPTURE_ANIMATION_DURATION_MS,
-      ease: "Linear",
-      onUpdate: () => {
+      onUpdate: progress => {
         if (this.captureAnimationTween !== tween) {
           return;
         }
 
-        this.captureAnimationProgress = tweenState.progress;
+        this.captureAnimationProgress = progress;
         this.animationFrameUpdateCount += 1;
-        this.updatePokemonImages();
-        this.updateCaptureAnimationObjects();
+        this.publishBattlePresentationState();
       },
       onComplete: () => {
         if (this.captureAnimationTween !== tween) {
@@ -2310,21 +2153,17 @@ export class BattleScene extends Phaser.Scene {
     this.evolutionAnimationProgress = 0;
     this.evolutionAnimationPlaying = true;
     this.evolutionAnimationStartedCount += 1;
-    const tweenState = { progress: 0 };
 
-    const tween = this.tweens.add({
-      targets: tweenState,
-      progress: 1,
+    const tween = animateRuntimeValue({
       duration: ROM_EVOLUTION_ANIMATION_DURATION_MS,
-      ease: "Linear",
-      onUpdate: () => {
+      onUpdate: progress => {
         if (this.evolutionAnimationTween !== tween) {
           return;
         }
 
-        this.evolutionAnimationProgress = tweenState.progress;
+        this.evolutionAnimationProgress = progress;
         this.animationFrameUpdateCount += 1;
-        this.updateEvolutionAnimationObjects();
+        this.publishBattlePresentationState();
       },
       onComplete: () => {
         if (this.evolutionAnimationTween !== tween) {
@@ -2376,7 +2215,7 @@ export class BattleScene extends Phaser.Scene {
 
     if (this.authoritativeSpectating) {
       this.clearAuthoritativeSubscriptions();
-      this.scene.start("world", {
+      this.options.onReturnToWorld({
         spawnPosition: {
           x: returnToWorld.x,
           y: returnToWorld.y,
@@ -2448,7 +2287,7 @@ export class BattleScene extends Phaser.Scene {
       );
     }
 
-    this.scene.start("world", {
+    this.options.onReturnToWorld({
       spawnPosition: {
         x,
         y,
@@ -2483,7 +2322,7 @@ export class BattleScene extends Phaser.Scene {
     });
 
     if (placement?.destination === "box" && capturedPokemon) {
-      dispatchPokeLoungeNotice(this.game.canvas.ownerDocument, {
+      dispatchPokeLoungeNotice(this.ownerDocument, {
         message: `포획한 ${capturedPokemon.name}, 파티가 가득 차 PC 박스로 전송했습니다.`,
         tone: "info",
       });
@@ -2534,9 +2373,11 @@ export class BattleScene extends Phaser.Scene {
       return state;
     }
 
-    const moveRecords = this.cache.json.get("romRefinedBattleRecords");
-    const personalRecords = this.cache.json.get("romPersonalData");
-    const evolutionTable = normalizePokemonEvolutionTable(this.cache.json.get("pokemonData"));
+    const moveRecords = this.runtimeAssets.json.get("romRefinedBattleRecords");
+    const personalRecords = this.runtimeAssets.json.get("romPersonalData");
+    const evolutionTable = normalizePokemonEvolutionTable(
+      this.runtimeAssets.json.get("pokemonData"),
+    );
 
     if (
       !isRomRefinedMoveCollection(moveRecords) ||
@@ -2784,30 +2625,26 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private updateCommandSelection(): void {
-    if (!this.cursors) {
-      return;
-    }
-
-    if (consumeVirtualGamepadPress("left") || Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
+    if (consumeVirtualGamepadPress("left") || this.keyboard.consume("ArrowLeft", "KeyA")) {
       this.selectedCommandIndex =
         this.selectedCommandIndex % 2 === 1
           ? this.selectedCommandIndex - 1
           : this.selectedCommandIndex;
       this.render();
     }
-    if (consumeVirtualGamepadPress("right") || Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
+    if (consumeVirtualGamepadPress("right") || this.keyboard.consume("ArrowRight", "KeyD")) {
       this.selectedCommandIndex =
         this.selectedCommandIndex % 2 === 0
           ? Math.min(COMMANDS.length - 1, this.selectedCommandIndex + 1)
           : this.selectedCommandIndex;
       this.render();
     }
-    if (consumeVirtualGamepadPress("up") || Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+    if (consumeVirtualGamepadPress("up") || this.keyboard.consume("ArrowUp", "KeyW")) {
       this.selectedCommandIndex =
         this.selectedCommandIndex >= 2 ? this.selectedCommandIndex - 2 : this.selectedCommandIndex;
       this.render();
     }
-    if (consumeVirtualGamepadPress("down") || Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+    if (consumeVirtualGamepadPress("down") || this.keyboard.consume("ArrowDown", "KeyS")) {
       this.selectedCommandIndex =
         this.selectedCommandIndex < 2
           ? Math.min(COMMANDS.length - 1, this.selectedCommandIndex + 2)
@@ -2817,30 +2654,26 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private updateMoveSelection(): void {
-    if (!this.cursors) {
-      return;
-    }
-
     const maxMoveIndex = Math.max(0, this.state.player.pokemon.moves.length - 1);
 
-    if (consumeVirtualGamepadPress("left") || Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
+    if (consumeVirtualGamepadPress("left") || this.keyboard.consume("ArrowLeft", "KeyA")) {
       this.selectedMoveIndex =
         this.selectedMoveIndex % 2 === 1 ? this.selectedMoveIndex - 1 : this.selectedMoveIndex;
       this.render();
     }
-    if (consumeVirtualGamepadPress("right") || Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
+    if (consumeVirtualGamepadPress("right") || this.keyboard.consume("ArrowRight", "KeyD")) {
       this.selectedMoveIndex =
         this.selectedMoveIndex % 2 === 0
           ? Math.min(maxMoveIndex, this.selectedMoveIndex + 1)
           : this.selectedMoveIndex;
       this.render();
     }
-    if (consumeVirtualGamepadPress("up") || Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+    if (consumeVirtualGamepadPress("up") || this.keyboard.consume("ArrowUp", "KeyW")) {
       this.selectedMoveIndex =
         this.selectedMoveIndex >= 2 ? this.selectedMoveIndex - 2 : this.selectedMoveIndex;
       this.render();
     }
-    if (consumeVirtualGamepadPress("down") || Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+    if (consumeVirtualGamepadPress("down") || this.keyboard.consume("ArrowDown", "KeyS")) {
       this.selectedMoveIndex =
         this.selectedMoveIndex < 2
           ? Math.min(maxMoveIndex, this.selectedMoveIndex + 2)
@@ -2850,20 +2683,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private updatePartySelection(): void {
-    if (!this.cursors) {
-      return;
-    }
-
-    if (consumeVirtualGamepadPress("left") || Phaser.Input.Keyboard.JustDown(this.cursors.left)) {
+    if (consumeVirtualGamepadPress("left") || this.keyboard.consume("ArrowLeft", "KeyA")) {
       this.movePartySelection("left");
     }
-    if (consumeVirtualGamepadPress("right") || Phaser.Input.Keyboard.JustDown(this.cursors.right)) {
+    if (consumeVirtualGamepadPress("right") || this.keyboard.consume("ArrowRight", "KeyD")) {
       this.movePartySelection("right");
     }
-    if (consumeVirtualGamepadPress("up") || Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+    if (consumeVirtualGamepadPress("up") || this.keyboard.consume("ArrowUp", "KeyW")) {
       this.movePartySelection("up");
     }
-    if (consumeVirtualGamepadPress("down") || Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+    if (consumeVirtualGamepadPress("down") || this.keyboard.consume("ArrowDown", "KeyS")) {
       this.movePartySelection("down");
     }
   }
@@ -2880,16 +2709,12 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private updateBagSelection(): void {
-    if (!this.cursors) {
-      return;
-    }
-
     const battleBagItemIds = this.getBattleBagItemIds();
-    if (consumeVirtualGamepadPress("up") || Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+    if (consumeVirtualGamepadPress("up") || this.keyboard.consume("ArrowUp", "KeyW")) {
       this.selectedBagItemIndex = Math.max(0, this.selectedBagItemIndex - 1);
       this.render();
     }
-    if (consumeVirtualGamepadPress("down") || Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+    if (consumeVirtualGamepadPress("down") || this.keyboard.consume("ArrowDown", "KeyS")) {
       this.selectedBagItemIndex = Math.min(
         battleBagItemIds.length - 1,
         this.selectedBagItemIndex + 1,
@@ -2926,95 +2751,10 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
-    const visibleMessage = this.getVisibleBattleMessage();
-
-    this.children.removeAll(true);
-    this.resetRenderedObjectReferences();
     this.fullRenderCount += 1;
-    if (this.evolutionAnimationPlaying && this.evolutionTransition) {
-      this.drawEvolutionScene();
-    } else {
-      this.drawBackground();
-      this.drawPokemon();
-      this.drawCaptureAnimation();
-      this.drawHpPanel(
-        BATTLE_LAYOUT.opponentHpPanel,
-        this.state.opponent.pokemon,
-        "opponent",
-        false,
-      );
-      this.drawHpPanel(BATTLE_LAYOUT.playerHpPanel, this.state.player.pokemon, "player", true);
-    }
     this.publishE2eSnapshot();
-    this.publishMobileBattleUiState();
+    this.publishBattleUiState();
     this.publishAccessibleStatus();
-
-    if (
-      this.usesMobileBattleDeck() &&
-      !visibleMessage &&
-      (this.state.phase === "command" ||
-        this.state.phase === "move-select" ||
-        this.state.phase === "move-replace-select" ||
-        this.state.phase === "party-select" ||
-        this.state.phase === "bag-select")
-    ) {
-      this.drawMessageWindow("아래 터치 화면에서 행동을 선택하세요.");
-      this.drawBattleEntranceOverlay();
-      return;
-    }
-
-    if (this.state.phase === "move-select" && !visibleMessage) {
-      this.drawMoveWindow();
-      this.drawShortcutGuideIfOpen();
-      this.drawBattleEntranceOverlay();
-      return;
-    }
-
-    if (this.state.phase === "move-replace-select" && !visibleMessage) {
-      this.drawMoveReplacementWindow();
-      this.drawShortcutGuideIfOpen();
-      this.drawBattleEntranceOverlay();
-      return;
-    }
-
-    if (this.state.phase === "party-select" && !visibleMessage) {
-      this.drawPartySelectWindow();
-      this.drawShortcutGuideIfOpen();
-      this.drawBattleEntranceOverlay();
-      return;
-    }
-
-    if (this.state.phase === "bag-select" && !visibleMessage) {
-      this.drawBagSelectWindow();
-      this.drawShortcutGuideIfOpen();
-      this.drawBattleEntranceOverlay();
-      return;
-    }
-
-    if (this.state.phase === "command" && !visibleMessage) {
-      this.drawCommandWindow();
-      this.drawShortcutGuideIfOpen();
-      this.drawBattleEntranceOverlay();
-      return;
-    }
-
-    this.drawMessageWindow(visibleMessage ?? BATTLE_END_CONFIRM_MESSAGE);
-    this.drawShortcutGuideIfOpen();
-    this.drawBattleEntranceOverlay();
-  }
-
-  private resetRenderedObjectReferences(): void {
-    BATTLE_HP_SIDES.forEach(side => {
-      delete this.pokemonImages[side];
-      delete this.hpBarGraphics[side];
-    });
-    this.battleEntranceOverlay = null;
-    this.captureBallGraphics = null;
-    this.captureResultGraphics = null;
-    this.evolutionEnergyGraphics = null;
-    this.evolutionPokemonImage = null;
-    this.evolutionSilhouetteImage = null;
-    this.evolutionFlashGraphics = null;
   }
 
   private publishAccessibleStatus(): void {
@@ -3065,7 +2805,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     this.lastAccessibleStatus = nextStatus;
-    dispatchPokeLoungeAccessibleStatus(this.game.canvas.ownerDocument, nextStatus);
+    dispatchPokeLoungeAccessibleStatus(this.ownerDocument, nextStatus);
   }
 
   private getVisibleBattleMessage(): string | null {
@@ -3077,911 +2817,28 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private getBattleStatusCopy() {
-    return getPokeLoungeCopyForUrl(new URL(this.game.canvas.ownerDocument.location.href)).mobile;
-  }
-
-  private drawBackground(): void {
-    this.add
-      .image(BATTLE_BASE_SIZE.width / 2, BATTLE_BASE_SIZE.height / 2, BATTLE_SCENE_BACKGROUND_KEY)
-      .setDisplaySize(BATTLE_BASE_SIZE.width, BATTLE_BASE_SIZE.height);
-  }
-
-  private drawEvolutionScene(): void {
-    const transition = this.evolutionTransition;
-
-    if (!transition) {
-      return;
-    }
-
-    const renderBox = { x: 128, y: 80, width: 80, height: 80 };
-
-    this.add
-      .image(
-        BATTLE_BASE_SIZE.width / 2,
-        BATTLE_BASE_SIZE.height / 2,
-        EVOLUTION_BACKGROUND_ASSET_KEY,
-      )
-      .setDisplaySize(BATTLE_BASE_SIZE.width, BATTLE_BASE_SIZE.height);
-    this.evolutionEnergyGraphics = this.add.graphics();
-    this.evolutionPokemonImage = this.drawPlayerPokemonImage({
-      alpha: 1,
-      offsetX: 0,
-      renderBox,
-      scale: 1,
-      sprite: transition.fromPokemon.frontSprite,
-      tint: null,
-    });
-    this.evolutionSilhouetteImage = this.drawPlayerPokemonImage({
-      alpha: 0,
-      offsetX: 0,
-      renderBox,
-      scale: 1,
-      sprite: transition.fromPokemon.frontSprite,
-      tint: 0xffffff,
-    });
-    this.evolutionFlashGraphics = this.add.graphics();
-    this.updateEvolutionAnimationObjects();
-  }
-
-  private updateEvolutionAnimationObjects(): void {
-    const transition = this.evolutionTransition;
-    const energyGraphics = this.evolutionEnergyGraphics;
-    const pokemonImage = this.evolutionPokemonImage;
-    const silhouetteImage = this.evolutionSilhouetteImage;
-    const flashGraphics = this.evolutionFlashGraphics;
-
-    if (!transition || !energyGraphics || !pokemonImage || !silhouetteImage || !flashGraphics) {
-      return;
-    }
-
-    const progress = Phaser.Math.Clamp(this.evolutionAnimationProgress, 0, 1);
-    const frame = resolveRomEvolutionAnimationFrame(progress);
-    const pokemon = frame.pokemon === "from" ? transition.fromPokemon : transition.toPokemon;
-    const renderBox = { x: 128, y: 80, width: 80, height: 80 };
-    const scaledRenderBox = {
-      ...renderBox,
-      width: renderBox.width * frame.scale,
-      height: renderBox.height * frame.scale,
-    };
-
-    this.updatePlayerPokemonImage(pokemonImage, {
-      alpha: 1,
-      offsetX: 0,
-      renderBox: scaledRenderBox,
-      scale: 1,
-      sprite: pokemon.frontSprite,
-      tint: null,
-    });
-    this.updatePlayerPokemonImage(silhouetteImage, {
-      alpha: frame.silhouetteAlpha,
-      offsetX: 0,
-      renderBox: scaledRenderBox,
-      scale: 1,
-      sprite: pokemon.frontSprite,
-      tint: 0xffffff,
-    });
-    energyGraphics.clear();
-    this.drawEvolutionEnergyEffect(progress, energyGraphics);
-    flashGraphics.clear();
-    if (frame.flashAlpha > 0) {
-      flashGraphics
-        .fillStyle(0xffffff, frame.flashAlpha)
-        .fillRect(0, 0, BATTLE_BASE_SIZE.width, BATTLE_BASE_SIZE.height);
-    }
-  }
-
-  private drawEvolutionEnergyEffect(progress: number, graphics: Phaser.GameObjects.Graphics): void {
-    const startProgress = Phaser.Math.Clamp((progress - 0.17) / 0.65, 0, 1);
-    const endFade = Phaser.Math.Clamp((0.94 - progress) / 0.12, 0, 1);
-    const alpha = Math.min(startProgress * 1.6, endFade);
-
-    if (alpha <= 0) {
-      return;
-    }
-
-    const centerX = BATTLE_BASE_SIZE.width / 2;
-    const centerY = 82;
-    const rotation = progress * Math.PI * 1.5;
-    const innerRadius = 14 + startProgress * 8;
-    const outerRadius = 48 + startProgress * 20;
-
-    for (let index = 0; index < 12; index += 1) {
-      const angle = rotation + (Math.PI * 2 * index) / 12;
-      graphics
-        .lineStyle(1, 0xffffff, alpha * 0.52)
-        .beginPath()
-        .moveTo(
-          Math.round(centerX + Math.cos(angle) * innerRadius),
-          Math.round(centerY + Math.sin(angle) * innerRadius),
-        )
-        .lineTo(
-          Math.round(centerX + Math.cos(angle) * outerRadius),
-          Math.round(centerY + Math.sin(angle) * outerRadius),
-        )
-        .strokePath();
-    }
-
-    graphics
-      .lineStyle(2, 0xe9fff8, alpha * 0.58)
-      .strokeCircle(centerX, centerY, 20 + ((progress * 120) % 28))
-      .lineStyle(1, 0xffffff, alpha * 0.42)
-      .strokeCircle(centerX, centerY, 34 + ((progress * 180) % 32));
-  }
-
-  private drawPokemon(): void {
-    const opponentSprite = this.state.opponent.pokemon.frontSprite;
-    this.pokemonImages.opponent = this.add
-      .image(0, 0, opponentSprite.assetKey, opponentSprite.frame)
-      .setCrop(
-        BATTLE_SPRITE_CROP.x,
-        BATTLE_SPRITE_CROP.y,
-        BATTLE_SPRITE_CROP.width,
-        BATTLE_SPRITE_CROP.height,
-      );
-
-    this.pokemonImages.player = this.drawPlayerPokemonImage({
-      alpha: 1,
-      offsetX: 0,
-      renderBox: getCroppedBattleSpriteRenderBox(BATTLE_LAYOUT.playerSprite),
-      scale: 1,
-      sprite: this.state.player.pokemon.backSprite,
-      tint: null,
-    });
-    this.updatePokemonImages();
-  }
-
-  private updatePokemonImages(): void {
-    const opponentImage = this.pokemonImages.opponent;
-    const playerImage = this.pokemonImages.player;
-
-    if (!opponentImage || !playerImage) {
-      return;
-    }
-
-    const entranceProgress = Phaser.Math.Clamp(this.battleEntranceProgress, 0, 1);
-    const entranceOffset = Math.round((1 - entranceProgress) * 18);
-    const entranceAlpha = 0.35 + entranceProgress * 0.65;
-    const opponentHit = this.getHitRenderEffect("opponent");
-    const playerHit = this.getHitRenderEffect("player");
-    const opponentSprite = this.state.opponent.pokemon.frontSprite;
-    const opponentRenderBox = getVisibleBoundsAlignedBattleSpriteRenderBox(
-      BATTLE_LAYOUT.opponentSprite,
-      this.resolveBattleSpriteVisibleBounds(opponentSprite),
-    );
-    const captureOpponent = this.getCaptureOpponentRenderEffect();
-
-    opponentImage
-      .setPosition(opponentRenderBox.x + entranceOffset + opponentHit.offsetX, opponentRenderBox.y)
-      .setDisplaySize(
-        opponentRenderBox.width * captureOpponent.scale,
-        opponentRenderBox.height * captureOpponent.scale,
-      )
-      .setAlpha(entranceAlpha * opponentHit.alpha * captureOpponent.alpha);
-    this.updatePlayerPokemonImage(playerImage, {
-      alpha: entranceAlpha * playerHit.alpha,
-      offsetX: -entranceOffset + playerHit.offsetX,
-      renderBox: getCroppedBattleSpriteRenderBox(BATTLE_LAYOUT.playerSprite),
-      scale: 1,
-      sprite: this.state.player.pokemon.backSprite,
-      tint: null,
-    });
-  }
-
-  private drawPlayerPokemonImage({
-    alpha,
-    offsetX,
-    renderBox,
-    scale,
-    sprite,
-    tint,
-  }: {
-    alpha: number;
-    offsetX: number;
-    renderBox: BattleRect;
-    scale: number;
-    sprite: BattleSpriteRef;
-    tint: number | null;
-  }): Phaser.GameObjects.Image {
-    const playerImage = this.add.image(
-      renderBox.x + offsetX,
-      renderBox.y,
-      sprite.assetKey,
-      sprite.frame,
-    );
-
-    this.updatePlayerPokemonImage(playerImage, {
-      alpha,
-      offsetX,
-      renderBox,
-      scale,
-      sprite,
-      tint,
-    });
-    return playerImage;
-  }
-
-  private updatePlayerPokemonImage(
-    playerImage: Phaser.GameObjects.Image,
-    {
-      alpha,
-      offsetX,
-      renderBox,
-      scale,
-      sprite,
-      tint,
-    }: {
-      alpha: number;
-      offsetX: number;
-      renderBox: BattleRect;
-      scale: number;
-      sprite: BattleSpriteRef;
-      tint: number | null;
-    },
-  ): void {
-    playerImage
-      .setTexture(sprite.assetKey, sprite.frame)
-      .setPosition(renderBox.x + offsetX, renderBox.y)
-      .setCrop(
-        BATTLE_SPRITE_CROP.x,
-        BATTLE_SPRITE_CROP.y,
-        BATTLE_SPRITE_CROP.width,
-        BATTLE_SPRITE_CROP.height,
-      )
-      .setDisplaySize(renderBox.width * scale, renderBox.height * scale)
-      .setAlpha(alpha)
-      .clearTint();
-
-    if (tint !== null) {
-      playerImage.setTintFill(tint);
-    }
+    return getPokeLoungeCopyForUrl(new URL(this.ownerDocument.location.href)).mobile;
   }
 
   private getHitRenderEffect(side: BattleHpSide): { alpha: number; offsetX: number } {
-    const progress = Phaser.Math.Clamp(this.hitEffects[side].progress, 0, 1);
-
-    if (progress <= 0 || progress >= 1) {
-      return { alpha: 1, offsetX: 0 };
-    }
-
-    const dampening = 1 - progress;
-    const shake = Math.sin(progress * Math.PI * 7) * BATTLE_HIT_SHAKE_PIXELS * dampening;
-    const direction = side === "player" ? -1 : 1;
-    const flashAlpha = progress < 0.35 ? 0.58 : 1;
-
+    const progress = clampUnit(this.hitEffects[side].progress);
+    if (progress <= 0 || progress >= 1) return { alpha: 1, offsetX: 0 };
+    const shake = Math.sin(progress * Math.PI * 7) * BATTLE_HIT_SHAKE_PIXELS * (1 - progress);
     return {
-      alpha: flashAlpha,
-      offsetX: Math.round(shake * direction),
+      alpha: progress < 0.35 ? 0.58 : 1,
+      offsetX: Math.round(shake * (side === "player" ? -1 : 1)),
     };
   }
 
   private getCaptureOpponentRenderEffect(): { alpha: number; scale: number } {
     const attempt = this.captureAnimationAttempt;
-    if (!attempt) {
-      return { alpha: 1, scale: 1 };
-    }
-
-    const progress = Phaser.Math.Clamp(this.captureAnimationProgress, 0, 1);
-    const frame = resolveRomCaptureAnimationFrame(progress, attempt.shakes, attempt.caught);
-
-    return {
-      alpha: frame.opponentAlpha,
-      scale: frame.opponentScale,
-    };
-  }
-
-  private drawCaptureAnimation(): void {
-    if (!this.captureAnimationAttempt) {
-      return;
-    }
-
-    this.captureBallGraphics = this.add.graphics().setDepth(510);
-    this.captureResultGraphics = this.add.graphics().setDepth(500);
-    this.updateCaptureAnimationObjects();
-  }
-
-  private updateCaptureAnimationObjects(): void {
-    const attempt = this.captureAnimationAttempt;
-    const ballGraphics = this.captureBallGraphics;
-    const resultGraphics = this.captureResultGraphics;
-
-    if (!ballGraphics || !resultGraphics) {
-      return;
-    }
-
-    ballGraphics.clear().setVisible(false);
-    resultGraphics.clear().setVisible(false);
-    if (!attempt) {
-      return;
-    }
-
-    const progress = Phaser.Math.Clamp(this.captureAnimationProgress, 0, 1);
-    if (!attempt.caught && progress >= 1) {
-      return;
-    }
-
-    const targetSprite = this.state.opponent.pokemon.frontSprite;
-    const targetBox = getVisibleBoundsAlignedBattleSpriteRenderBox(
-      BATTLE_LAYOUT.opponentSprite,
-      this.resolveBattleSpriteVisibleBounds(targetSprite),
+    if (!attempt) return { alpha: 1, scale: 1 };
+    const frame = resolveRomCaptureAnimationFrame(
+      clampUnit(this.captureAnimationProgress),
+      attempt.shakes,
+      attempt.caught,
     );
-    const start = { x: 70, y: 126 };
-    const impact = { x: targetBox.x, y: targetBox.y - 2 };
-    const landed = { x: targetBox.x, y: targetBox.y + 34 };
-    const frame = resolveRomCaptureAnimationFrame(progress, attempt.shakes, attempt.caught);
-    let ballX = landed.x;
-    let ballY = landed.y;
-
-    if (frame.stage === "throw") {
-      const throwProgress = 1 - (1 - frame.stageProgress) ** 3;
-      ballX = Phaser.Math.Linear(start.x, impact.x, throwProgress);
-      ballY =
-        Phaser.Math.Linear(start.y, impact.y, throwProgress) -
-        Math.sin(frame.stageProgress * Math.PI) * 42;
-    } else if (frame.stage === "absorb") {
-      ballX = impact.x;
-      ballY = impact.y;
-    } else if (frame.stage === "fall") {
-      const fallProgress = frame.stageProgress ** 2;
-      ballX = Phaser.Math.Linear(impact.x, landed.x, fallProgress);
-      ballY = Phaser.Math.Linear(impact.y, landed.y, fallProgress);
-    } else {
-      ballX += frame.shakeOffsetX;
-      ballY += frame.bounceOffsetY + frame.shakeOffsetY;
-    }
-
-    if (frame.showBall) {
-      this.drawCaptureBall(
-        ballGraphics.setVisible(true),
-        ballX,
-        ballY,
-        attempt.ballItemId,
-        frame.ballRotation,
-      );
-    }
-
-    if (frame.stage !== "result") {
-      return;
-    }
-
-    const resultProgress = frame.resultProgress;
-    const rayColor = attempt.caught ? 0xf4cf58 : 0xffffff;
-
-    resultGraphics.setVisible(true);
-    for (let index = 0; index < 8; index += 1) {
-      const angle = (Math.PI * 2 * index) / 8;
-      const distance = 7 + resultProgress * 13;
-      const size = attempt.caught ? 2 : 1.5;
-      resultGraphics
-        .fillStyle(rayColor, 1 - resultProgress * 0.55)
-        .fillRect(
-          Math.round(landed.x + Math.cos(angle) * distance - size / 2),
-          Math.round(landed.y + Math.sin(angle) * distance - size / 2),
-          size,
-          size,
-        );
-    }
-  }
-
-  private drawCaptureBall(
-    graphics: Phaser.GameObjects.Graphics,
-    x: number,
-    y: number,
-    ballItemId: string,
-    rotation: number,
-  ): void {
-    graphics.setPosition(Math.round(x), Math.round(y)).setRotation(rotation);
-    const topColor = ballItemId === "ultraBall" ? 0x303239 : 0xd94b43;
-    const accentColor = ballItemId === "ultraBall" ? 0xf4cf58 : 0xf7f4e8;
-    const left = -6;
-    const top = -6;
-
-    graphics
-      .fillStyle(0x1c262d, 1)
-      .fillRect(left + 2, top, 8, 12)
-      .fillRect(left, top + 2, 12, 8)
-      .fillStyle(topColor, 1)
-      .fillRect(left + 2, top + 1, 8, 4)
-      .fillRect(left + 1, top + 3, 10, 3)
-      .fillStyle(accentColor, 1)
-      .fillRect(left + 2, top + 7, 8, 4)
-      .fillRect(left + 3, top + 10, 6, 1)
-      .fillStyle(0x1c262d, 1)
-      .fillRect(left + 1, top + 6, 10, 2)
-      .fillStyle(accentColor, 1)
-      .fillRect(left + 5, top + 5, 3, 3)
-      .fillStyle(0x1c262d, 1)
-      .fillRect(left + 6, top + 6, 1, 1);
-  }
-
-  private resolveBattleSpriteVisibleBounds(sprite: BattleSpriteRef): BattleSpriteVisibleBounds {
-    const cacheKey = `${sprite.assetKey}:${sprite.frame}`;
-    const cachedBounds = this.spriteVisibleBoundsCache.get(cacheKey);
-
-    if (cachedBounds) {
-      return cachedBounds;
-    }
-
-    const textureManager = (
-      this as unknown as {
-        textures?: Pick<Phaser.Textures.TextureManager, "getPixelAlpha">;
-      }
-    ).textures;
-
-    if (!textureManager || typeof textureManager.getPixelAlpha !== "function") {
-      return BATTLE_SPRITE_CROP;
-    }
-
-    let minX: number = BATTLE_SPRITE_CROP.width;
-    let minY: number = BATTLE_SPRITE_CROP.height;
-    let maxX: number = -1;
-    let maxY: number = -1;
-
-    for (let y = BATTLE_SPRITE_CROP.y; y < BATTLE_SPRITE_CROP.y + BATTLE_SPRITE_CROP.height; y++) {
-      for (let x = BATTLE_SPRITE_CROP.x; x < BATTLE_SPRITE_CROP.x + BATTLE_SPRITE_CROP.width; x++) {
-        const alpha = textureManager.getPixelAlpha(x, y, sprite.assetKey, sprite.frame);
-
-        if (typeof alpha === "number" && alpha > BATTLE_SPRITE_VISIBLE_ALPHA_THRESHOLD) {
-          minX = Math.min(minX, x - BATTLE_SPRITE_CROP.x);
-          minY = Math.min(minY, y - BATTLE_SPRITE_CROP.y);
-          maxX = Math.max(maxX, x - BATTLE_SPRITE_CROP.x);
-          maxY = Math.max(maxY, y - BATTLE_SPRITE_CROP.y);
-        }
-      }
-    }
-
-    const bounds =
-      maxX >= minX && maxY >= minY
-        ? { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 }
-        : BATTLE_SPRITE_CROP;
-
-    this.spriteVisibleBoundsCache.set(cacheKey, bounds);
-    return bounds;
-  }
-
-  private drawHpPanel(
-    rect: BattleRect,
-    pokemon: BattlePokemon,
-    side: BattleHpSide,
-    alignRight: boolean,
-  ): void {
-    this.drawRomWindow(rect, BATTLE_HP_PANEL_WINDOW_OPTIONS);
-
-    const nameX = alignRight ? rect.x + 8 : rect.x + 6;
-    this.add.text(
-      nameX,
-      rect.y + 4,
-      `${pokemon.name} Lv.${pokemon.level}`,
-      createGameTextStyle({
-        color: "#17201a",
-        fontSize: "8px",
-      }),
-    );
-
-    const statusText = getBattleStatusTextView(this.displayedStatus[side]);
-    const barY = rect.y + rect.height - 10;
-    this.hpBarGraphics[side] = this.add.graphics();
-    this.updateHpBar(side);
-
-    if (statusText) {
-      this.add
-        .text(
-          rect.x + rect.width - 8,
-          barY - 7,
-          statusText.label,
-          createGameTextStyle({
-            color: statusText.color,
-            fontSize: "5px",
-          }),
-        )
-        .setOrigin(1, 0);
-    }
-  }
-
-  private updateHpBar(side: BattleHpSide): void {
-    const graphics = this.hpBarGraphics[side];
-    if (!graphics) {
-      return;
-    }
-
-    const rect = side === "player" ? BATTLE_LAYOUT.playerHpPanel : BATTLE_LAYOUT.opponentHpPanel;
-    const pokemon = side === "player" ? this.state.player.pokemon : this.state.opponent.pokemon;
-    const displayedCurrentHp = Number.isFinite(this.displayedHp[side])
-      ? Math.min(pokemon.maxHp, Math.max(0, this.displayedHp[side]))
-      : pokemon.currentHp;
-    const barX = rect.x + 10;
-    const barY = rect.y + rect.height - 10;
-    const barWidth = rect.width - 20;
-
-    graphics
-      .clear()
-      .fillStyle(BATTLE_SCENE_WINDOW_STYLE.hpBack, 1)
-      .fillRect(barX, barY, barWidth, 4)
-      .fillStyle(BATTLE_SCENE_WINDOW_STYLE.hpGood, 1)
-      .fillRect(barX, barY, Math.round(barWidth * hpRatio(displayedCurrentHp, pokemon.maxHp)), 4);
-  }
-
-  private drawBattleEntranceOverlay(): void {
-    if (!this.battleEntrancePlaying && this.battleEntranceProgress >= 1) {
-      return;
-    }
-
-    this.battleEntranceOverlay = this.add.graphics().setDepth(10_000);
-    this.updateBattleEntranceOverlay();
-  }
-
-  private updateBattleEntranceOverlay(): void {
-    const graphics = this.battleEntranceOverlay;
-    if (!graphics) {
-      return;
-    }
-
-    graphics.clear();
-    if (!this.battleEntrancePlaying && this.battleEntranceProgress >= 1) {
-      graphics.setVisible(false);
-      return;
-    }
-
-    graphics.setVisible(true);
-    const progress = Phaser.Math.Clamp(this.battleEntranceProgress, 0, 1);
-    const coverAlpha = 1 - progress;
-
-    graphics
-      .fillStyle(0x101820, Math.max(0, coverAlpha))
-      .fillRect(0, 0, BATTLE_BASE_SIZE.width, BATTLE_BASE_SIZE.height);
-
-    const stripeAlpha = Math.max(0, 0.42 - progress * 0.5);
-
-    if (stripeAlpha <= 0) {
-      return;
-    }
-
-    const stripeHeight = Math.ceil(BATTLE_BASE_SIZE.height / 6);
-
-    for (let index = 0; index < 6; index += 1) {
-      const width = Math.round(BATTLE_BASE_SIZE.width * (1 - progress));
-      const x = index % 2 === 0 ? 0 : BATTLE_BASE_SIZE.width - width;
-
-      graphics
-        .fillStyle(0xf8fbf0, stripeAlpha)
-        .fillRect(x, index * stripeHeight, width, Math.min(stripeHeight, BATTLE_BASE_SIZE.height));
-    }
-  }
-
-  private drawMessageWindow(message: string): void {
-    const rect = BATTLE_LAYOUT.bottomWindow;
-    this.drawRomWindow(rect, { radius: 0, includeFrameMarker: false });
-    this.add.text(
-      rect.x + 10,
-      rect.y + 12,
-      message,
-      createGameTextStyle({
-        color: "#17201a",
-        fontSize: "10px",
-        wordWrap: { width: rect.width - 20, useAdvancedWrap: true },
-      }),
-    );
-  }
-
-  private drawCommandWindow(): void {
-    const rect = BATTLE_LAYOUT.commandWindow;
-    this.drawRomWindow(rect, { radius: 0, includeFrameMarker: false });
-
-    COMMANDS.forEach((item, index) => {
-      const slot = resolveBattleOptionSlotRects(rect)[index];
-
-      if (!slot) {
-        return;
-      }
-
-      this.drawBattleOptionSlot(slot, {
-        selected: index === this.selectedCommandIndex,
-        disabled: false,
-      });
-      this.add
-        .text(
-          slot.x + 10,
-          slot.y + slot.height / 2,
-          `${index === this.selectedCommandIndex ? "▶ " : ""}${item.label}`,
-          createGameTextStyle({
-            color: "#17201a",
-            fontSize: "8px",
-          }),
-        )
-        .setOrigin(0, 0.5);
-    });
-  }
-
-  private drawMoveWindow(): void {
-    const rect = BATTLE_LAYOUT.moveWindow;
-    this.drawRomWindow(rect, { radius: 0, includeFrameMarker: false });
-
-    resolveBattleOptionSlotRects(rect).forEach((slot, index) => {
-      const move = this.state.player.pokemon.moves[index] ?? null;
-      const disabled =
-        !move || move.pp <= 0 || move.competitiveEffectSupport === "unsupported-primary";
-
-      this.drawBattleOptionSlot(slot, {
-        selected: index === this.selectedMoveIndex && !disabled,
-        disabled,
-      });
-      this.add
-        .text(
-          slot.x + 10,
-          slot.y + slot.height / 2,
-          move ? `${index === this.selectedMoveIndex ? "▶ " : ""}${move.name}` : "-",
-          createGameTextStyle({
-            color: disabled ? "#7a827c" : "#17201a",
-            fontSize: "8px",
-          }),
-        )
-        .setOrigin(0, 0.5);
-
-      if (move) {
-        this.add
-          .text(
-            slot.x + slot.width - 58,
-            slot.y + slot.height / 2,
-            formatBattleMoveMeta(move),
-            createGameTextStyle({
-              color: "#7a827c",
-              fontSize: "6px",
-            }),
-          )
-          .setOrigin(0, 0.5);
-      }
-    });
-  }
-
-  private drawMoveReplacementWindow(): void {
-    const rect = BATTLE_LAYOUT.moveWindow;
-    const pending = this.getCurrentPendingMoveLearning();
-
-    this.drawRomWindow(rect, { radius: 0, includeFrameMarker: false });
-
-    if (!pending) {
-      this.drawMessageWindow(BATTLE_END_CONFIRM_MESSAGE);
-      return;
-    }
-
-    this.add.text(
-      rect.x + 10,
-      rect.y + 5,
-      `${pending.newMove.name}을 배우려면 잊을 기술 선택`,
-      createGameTextStyle({
-        color: "#17201a",
-        fontSize: "7px",
-      }),
-    );
-
-    resolveBattleOptionSlotRects({
-      ...rect,
-      y: rect.y + 18,
-      height: rect.height - 18,
-    }).forEach((slot, index) => {
-      const move = this.state.player.pokemon.moves[index] ?? null;
-      const disabled = !move;
-
-      this.drawBattleOptionSlot(slot, {
-        selected: index === this.selectedMoveIndex && !disabled,
-        disabled,
-      });
-      this.add
-        .text(
-          slot.x + 10,
-          slot.y + slot.height / 2,
-          move ? `${index === this.selectedMoveIndex ? "▶ " : ""}${move.name}` : "-",
-          createGameTextStyle({
-            color: disabled ? "#7a827c" : "#17201a",
-            fontSize: "8px",
-          }),
-        )
-        .setOrigin(0, 0.5);
-    });
-  }
-
-  private drawBattleOptionSlot(
-    rect: BattleRect,
-    options: { selected: boolean; disabled: boolean },
-  ): void {
-    const graphics = this.add.graphics();
-    const fillAlpha = options.disabled ? 0.58 : 1;
-
-    graphics
-      .fillStyle(BATTLE_SCENE_WINDOW_STYLE.fill, fillAlpha)
-      .fillRect(rect.x, rect.y, rect.width, rect.height);
-
-    if (options.selected) {
-      graphics
-        .fillStyle(BATTLE_SCENE_WINDOW_STYLE.hpGood, 1)
-        .fillRect(rect.x + 4, rect.y + 4, 3, rect.height - 8);
-    }
-  }
-
-  private drawPartySelectWindow(): void {
-    const panel = BATTLE_LAYOUT.partyWindow;
-    const graphics = this.add.graphics();
-
-    graphics
-      .fillStyle(BATTLE_SCENE_WINDOW_STYLE.border, 0.68)
-      .fillRect(panel.x, panel.y, panel.width, panel.height)
-      .lineStyle(1, BATTLE_SCENE_WINDOW_STYLE.highlight, 0.54)
-      .strokeRect(panel.x + 1, panel.y + 1, panel.width - 2, panel.height - 2);
-
-    this.add.text(
-      panel.x + 6,
-      panel.y + 3,
-      "교체할 포켓몬 선택",
-      createGameTextStyle({
-        color: "#f8fbf0",
-        fontSize: "6px",
-      }),
-    );
-    this.add
-      .text(
-        panel.x + panel.width - 6,
-        panel.y + 3,
-        isForcedPartySwitch(this.state) ? "필수 교체" : "B 돌아가기",
-        createGameTextStyle({
-          color: isForcedPartySwitch(this.state) ? "#fff4a3" : "#f8fbf0",
-          fontSize: "5px",
-        }),
-      )
-      .setOrigin(1, 0);
-
-    this.getBattlePartySlotViews().forEach(slot => this.drawBattlePartySlot(slot));
-  }
-
-  private drawBattlePartySlot(slot: BattlePartySlotView): void {
-    const graphics = this.add.graphics();
-    const fillColor = slot.isSelected
-      ? BATTLE_SCENE_WINDOW_STYLE.selectionFill
-      : BATTLE_SCENE_WINDOW_STYLE.fill;
-    const borderColor =
-      slot.isCurrent && !slot.isSelected
-        ? BATTLE_SCENE_WINDOW_STYLE.activeBorder
-        : BATTLE_SCENE_WINDOW_STYLE.border;
-    const fillAlpha = slot.isEmpty || slot.isFainted ? 0.7 : 0.98;
-
-    graphics
-      .fillStyle(BATTLE_SCENE_WINDOW_STYLE.shadow, slot.isSelected ? 0.64 : 0.4)
-      .fillRect(slot.rect.x + 1, slot.rect.y + 1, slot.rect.width, slot.rect.height)
-      .fillStyle(fillColor, fillAlpha)
-      .fillRect(slot.rect.x, slot.rect.y, slot.rect.width, slot.rect.height)
-      .lineStyle(1, BATTLE_SCENE_WINDOW_STYLE.highlight, 0.92)
-      .strokeRect(slot.rect.x + 1, slot.rect.y + 1, slot.rect.width - 2, slot.rect.height - 2)
-      .lineStyle(slot.isSelected ? 2 : 1, borderColor, 1)
-      .strokeRect(slot.rect.x + 2, slot.rect.y + 2, slot.rect.width - 4, slot.rect.height - 4);
-
-    if (slot.isSelected) {
-      graphics
-        .fillStyle(BATTLE_SCENE_WINDOW_STYLE.hpGood, 1)
-        .fillRect(slot.rect.x + 3, slot.rect.y + 3, 2, slot.rect.height - 6);
-    }
-
-    if (!slot.pokemon) {
-      this.add.text(
-        slot.rect.x + 20,
-        slot.rect.y + 5,
-        "-  빈 슬롯",
-        createGameTextStyle({
-          color: "#607d6c",
-          fontSize: "5px",
-        }),
-      );
-      return;
-    }
-
-    this.drawBattlePartyPokemonSprite(slot);
-
-    const textColor = slot.isFainted ? "#607d6c" : "#17201a";
-    this.add.text(
-      slot.rect.x + 19,
-      slot.rect.y + 2,
-      slot.displayName,
-      createGameTextStyle({
-        color: textColor,
-        fontSize: "5px",
-      }),
-    );
-    this.add
-      .text(
-        slot.rect.x + slot.rect.width - 4,
-        slot.rect.y + 2,
-        `Lv.${slot.pokemon.level}`,
-        createGameTextStyle({
-          color: textColor,
-          fontSize: "4px",
-        }),
-      )
-      .setOrigin(1, 0);
-
-    const hpBarX = slot.rect.x + 27;
-    const hpBarY = slot.rect.y + 13;
-    const hpBarWidth = 20;
-    graphics
-      .fillStyle(BATTLE_SCENE_WINDOW_STYLE.hpBack, 1)
-      .fillRect(hpBarX, hpBarY, hpBarWidth, 2)
-      .fillStyle(BATTLE_SCENE_WINDOW_STYLE.hpGood, 1)
-      .fillRect(hpBarX, hpBarY, Math.round(hpBarWidth * slot.hpRatio), 2);
-    this.add.text(
-      slot.rect.x + 19,
-      slot.rect.y + 10,
-      "HP",
-      createGameTextStyle({
-        color: textColor,
-        fontSize: "4px",
-      }),
-    );
-
-    if (slot.statusLabel) {
-      this.drawBattlePartyStatusLabel(slot);
-    }
-
-    this.add
-      .text(
-        slot.rect.x + slot.rect.width - 4,
-        slot.rect.y + 10,
-        `${slot.pokemon.currentHp}/${slot.pokemon.maxHp}`,
-        createGameTextStyle({
-          color: textColor,
-          fontSize: "4px",
-        }),
-      )
-      .setOrigin(1, 0);
-  }
-
-  private drawBattlePartyPokemonSprite(slot: BattlePartySlotView): void {
-    if (!slot.pokemon) {
-      return;
-    }
-
-    const sprite = slot.pokemon.frontSprite;
-    const renderBox = getVisibleBoundsContainedBattleSpriteRenderBox(
-      {
-        x: slot.rect.x + 3,
-        y: slot.rect.y + 2,
-        width: 14,
-        height: 14,
-      },
-      this.resolveBattleSpriteVisibleBounds(sprite),
-    );
-    const image = this.add
-      .image(renderBox.x, renderBox.y, sprite.assetKey, sprite.frame)
-      .setCrop(
-        BATTLE_SPRITE_CROP.x,
-        BATTLE_SPRITE_CROP.y,
-        BATTLE_SPRITE_CROP.width,
-        BATTLE_SPRITE_CROP.height,
-      )
-      .setDisplaySize(renderBox.width, renderBox.height)
-      .setAlpha(slot.isFainted ? 0.34 : slot.isCurrent ? 0.78 : 1);
-
-    if (slot.isFainted) {
-      image.setTint(0x7a827c);
-    }
-  }
-
-  private drawBattlePartyStatusLabel(slot: BattlePartySlotView): void {
-    if (!slot.pokemon || !slot.statusLabel) {
-      return;
-    }
-
-    const statusText = getBattleStatusTextView(slot.isFainted ? "fainted" : slot.pokemon.status);
-    const isCurrentLabel = slot.isCurrent && !statusText;
-    const compactLabel = slot.isFainted ? "기절" : isCurrentLabel ? "출전" : slot.statusLabel;
-    const textColor = isCurrentLabel ? "#355c7d" : (statusText?.color ?? "#4b554f");
-
-    this.add
-      .text(
-        slot.rect.x + 18,
-        slot.rect.y + 10,
-        compactLabel,
-        createGameTextStyle({
-          color: textColor,
-          fontSize: "4px",
-        }),
-      )
-      .setOrigin(1, 0);
+    return { alpha: frame.opponentAlpha, scale: frame.opponentScale };
   }
 
   private getBattlePartySlotViews(): BattlePartySlotView[] {
@@ -3993,147 +2850,8 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  private drawBagSelectWindow(): void {
-    const rect = BATTLE_LAYOUT.moveWindow;
-    const localPlayer = this.gameStateStore.getCurrentLocalPlayer();
-    const inventory = localPlayer.inventory;
-    const battleBagItemIds = this.getBattleBagItemIds();
-    this.selectedBagItemIndex = Math.max(
-      0,
-      Math.min(battleBagItemIds.length - 1, this.selectedBagItemIndex),
-    );
-    this.drawRomWindow(rect, { radius: 0, includeFrameMarker: true });
-
-    const pageStart =
-      Math.floor(this.selectedBagItemIndex / BATTLE_BAG_VISIBLE_ITEM_COUNT) *
-      BATTLE_BAG_VISIBLE_ITEM_COUNT;
-
-    battleBagItemIds
-      .slice(pageStart, pageStart + BATTLE_BAG_VISIBLE_ITEM_COUNT)
-      .forEach((itemId, visibleIndex) => {
-        const item = getShopItemById(itemId);
-
-        if (!item) {
-          return;
-        }
-
-        const quantity = inventory[itemId] ?? 0;
-        const index = pageStart + visibleIndex;
-        const y = rect.y + 6 + visibleIndex * 11;
-
-        this.add.text(
-          rect.x + 10,
-          y,
-          `${index === this.selectedBagItemIndex ? "▶" : " "} ${item.displayName}`,
-          createGameTextStyle({
-            color: quantity > 0 ? "#17201a" : "#7a827c",
-            fontSize: "8px",
-          }),
-        );
-        this.add.text(
-          rect.x + 148,
-          y,
-          `x${quantity}`,
-          createGameTextStyle({
-            color: quantity > 0 ? "#17201a" : "#7a827c",
-            fontSize: "8px",
-          }),
-        );
-      });
-  }
-
   private getBattleBagItemIds(): BattleBagItemId[] {
     return [...SHOP_ITEM_IDS, ...BATTLE_BAG_PREMIUM_ITEM_IDS];
-  }
-
-  private drawShortcutGuideIfOpen(): void {
-    if (!this.shortcutGuideOpen || this.usesMobileBattleDeck()) {
-      return;
-    }
-
-    const inputMode: ShortcutGuideInputMode = this.game.canvas.ownerDocument.querySelector(
-      ".has-touch-game-device [data-mobile-touch-controls]",
-    )
-      ? "touch"
-      : "keyboard";
-    const rect = { x: 48, y: 30, width: 198, height: 132 };
-    this.drawRomWindow(rect, { radius: 0, includeFrameMarker: true });
-    this.add.text(
-      rect.x + 12,
-      rect.y + 10,
-      createShortcutGuideTitle("battle", inputMode),
-      createGameTextStyle({
-        color: "#17201a",
-        fontSize: "10px",
-      }),
-    );
-
-    createShortcutGuideRows("battle", inputMode).forEach((row, index) => {
-      const rowY = rect.y + 30 + index * 17;
-
-      this.add.text(
-        rect.x + 14,
-        rowY,
-        row.action,
-        createGameTextStyle({
-          color: "#4b554f",
-          fontSize: "8px",
-        }),
-      );
-      this.add.text(
-        rect.x + 82,
-        rowY,
-        row.keys,
-        createGameTextStyle({
-          color: "#17201a",
-          fontSize: "8px",
-        }),
-      );
-    });
-
-    this.add.text(
-      rect.x + 12,
-      rect.y + rect.height - 16,
-      createShortcutGuideFooter(inputMode),
-      createGameTextStyle({
-        color: "#4b554f",
-        fontSize: "7px",
-      }),
-    );
-  }
-
-  private drawRomWindow(
-    rect: BattleRect,
-    options: { radius: number; includeFrameMarker: boolean },
-  ): Phaser.GameObjects.Graphics {
-    const graphics = this.add.graphics();
-    const radius = options.radius;
-    graphics
-      .fillStyle(BATTLE_SCENE_WINDOW_STYLE.shadow, 0.86)
-      .fillRoundedRect(rect.x + 2, rect.y + 2, rect.width, rect.height, radius);
-    graphics
-      .fillStyle(BATTLE_SCENE_WINDOW_STYLE.fill, 1)
-      .fillRoundedRect(rect.x, rect.y, rect.width, rect.height, radius);
-    graphics
-      .lineStyle(1, BATTLE_SCENE_WINDOW_STYLE.highlight, 1)
-      .strokeRoundedRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2, radius);
-    graphics
-      .lineStyle(2, BATTLE_SCENE_WINDOW_STYLE.border, 1)
-      .strokeRoundedRect(rect.x + 2, rect.y + 2, rect.width - 4, rect.height - 4, radius);
-
-    if (options.includeFrameMarker) {
-      this.drawWindowFrameMarker(rect);
-    }
-
-    return graphics;
-  }
-
-  private drawWindowFrameMarker(rect: BattleRect): void {
-    this.add
-      .image(rect.x + rect.width - 12, rect.y + 4, BATTLE_SCENE_WINDOW_FRAME_KEY)
-      .setOrigin(0, 0)
-      .setDisplaySize(8, 8)
-      .setAlpha(0.82);
   }
 
   private publishE2eSnapshot(): void {

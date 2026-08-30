@@ -1,4 +1,3 @@
-import type * as Phaser from "phaser";
 import type { CompletedTileStep, TileCoordinate } from "./tileSteps";
 
 export interface TallGrassTileRegion {
@@ -8,20 +7,15 @@ export interface TallGrassTileRegion {
   height: number;
 }
 
-export interface TallGrassLayerConfig {
-  regionLayerName: string;
-  baseLayerName: string;
-  foregroundLayerName: string;
-  baseTileIndex: number;
-  foregroundTileIndex: number;
-}
-
-export interface TallGrassLayers {
-  baseLayer: Phaser.Tilemaps.TilemapLayer;
-  foregroundLayer: Phaser.Tilemaps.TilemapLayer;
-}
-
 export type TallGrassTileLookup = (tile: TileCoordinate) => boolean;
+
+interface TallGrassRegionObject {
+  height?: number;
+  name?: string;
+  width?: number;
+  x?: number;
+  y?: number;
+}
 
 export const isTallGrassStep = (
   step: CompletedTileStep | null,
@@ -29,7 +23,7 @@ export const isTallGrassStep = (
 ): step is CompletedTileStep => step !== null && hasTallGrassAt(step.to);
 
 export const resolveTallGrassTileRegions = (
-  objects: ReadonlyArray<Phaser.Types.Tilemaps.TiledObject>,
+  objects: ReadonlyArray<TallGrassRegionObject>,
   tileWidth: number,
   tileHeight: number,
 ): TallGrassTileRegion[] => {
@@ -66,45 +60,4 @@ export const resolveTallGrassTileRegions = (
       height: height / tileHeight,
     };
   });
-};
-
-export const createTallGrassLayers = (
-  map: Phaser.Tilemaps.Tilemap,
-  tileset: Phaser.Tilemaps.Tileset,
-  config: TallGrassLayerConfig,
-): TallGrassLayers => {
-  const regionLayer = map.getObjectLayer(config.regionLayerName);
-
-  if (!regionLayer) {
-    throw new Error(`Missing tall grass region layer: ${config.regionLayerName}`);
-  }
-
-  const regions = resolveTallGrassTileRegions(regionLayer.objects, map.tileWidth, map.tileHeight);
-
-  if (regions.length === 0) {
-    throw new Error(`Tall grass region layer is empty: ${config.regionLayerName}`);
-  }
-
-  const baseLayer = map.createBlankLayer(config.baseLayerName, tileset);
-  const foregroundLayer = map.createBlankLayer(config.foregroundLayerName, tileset);
-
-  if (!baseLayer || !foregroundLayer) {
-    throw new Error("Failed to create tall grass tile layers.");
-  }
-
-  for (const region of regions) {
-    baseLayer.fill(config.baseTileIndex, region.tileX, region.tileY, region.width, region.height);
-    foregroundLayer.fill(
-      config.foregroundTileIndex,
-      region.tileX,
-      region.tileY,
-      region.width,
-      region.height,
-    );
-  }
-
-  return {
-    baseLayer,
-    foregroundLayer,
-  };
 };

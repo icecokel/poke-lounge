@@ -6,6 +6,7 @@ import {
 } from "../data/game-data-json";
 import type { BattleSpriteRef } from "./battleTypes";
 import { isSupportedPokemonSpeciesId } from "./pokemon-species";
+import alphaBounds from "./battle-pokemon-alpha-bounds.json";
 
 export interface BattlePokemonAssetSet {
   speciesId: number;
@@ -19,6 +20,13 @@ export interface BattlePokemonPreloadAsset {
   frameWidth: number;
   frameHeight: number;
   endFrame: number;
+}
+
+export interface BattlePokemonAlphaBounds {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
 }
 
 export const BATTLE_POKEMON_FRAME_SIZE = {
@@ -51,6 +59,17 @@ export function getBattlePokemonAssets(speciesId: number): BattlePokemonAssetSet
     front: createBattleSpriteRef(range, "front", frame),
     back: createBattleSpriteRef(range, "back", frame),
   };
+}
+
+export function getBattlePokemonAlphaBounds(sprite: BattleSpriteRef): BattlePokemonAlphaBounds {
+  const match = /^battle-pokemon-(front|back)-(\d+)-(\d+)$/.exec(sprite.assetKey);
+  if (!match) return { x: 0, y: 0, ...BATTLE_POKEMON_FRAME_SIZE };
+  const [, side, startSpeciesId] = match;
+  const speciesId = Number(startSpeciesId) + sprite.frame;
+  const bounds = alphaBounds[side as "front" | "back"][speciesId - 1];
+  if (!bounds) return { x: 0, y: 0, ...BATTLE_POKEMON_FRAME_SIZE };
+  const [x, y, width, height] = bounds;
+  return { x, y, width, height };
 }
 
 export function toBattlePokemonPreloadAssets(): BattlePokemonPreloadAsset[] {
@@ -93,6 +112,8 @@ function createBattleSpriteRef(
     frame,
     width: range.frameWidth,
     height: range.frameHeight,
+    columns: range.columns,
+    rows: range.rows,
   };
 }
 

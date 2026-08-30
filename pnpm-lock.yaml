@@ -182,9 +182,6 @@ importers:
       next-intl:
         specifier: ^4.13.0
         version: 4.14.1(next@15.5.24(@playwright/test@1.62.1)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
-      phaser:
-        specifier: ^3.90.0
-        version: 3.90.0
       react:
         specifier: ^19.2.7
         version: 19.2.8
@@ -7267,12 +7264,6 @@ packages:
         integrity: sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==,
       }
 
-  phaser@3.90.0:
-    resolution:
-      {
-        integrity: sha512-/cziz/5ZIn02uDkC9RzN8VF9x3Gs3XdFFf9nkiMEQT3p7hQlWuyjy4QWosU802qqno2YSLn2BfqwOKLv/sSVfQ==,
-      }
-
   picocolors@1.1.1:
     resolution:
       {
@@ -13645,10 +13636,6 @@ snapshots:
   pgpass@1.0.5:
     dependencies:
       split2: 4.2.0
-
-  phaser@3.90.0:
-    dependencies:
-      eventemitter3: 5.0.4
 
   picocolors@1.1.1: {}
 

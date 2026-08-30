@@ -1,72 +1,38 @@
-import * as Phaser from "phaser";
 import {
   getPokeLoungeAudioPlaybackSnapshotForTest,
+  registerPreloadedPokeLoungeAudio,
   stopAllPokeLoungeAudio,
-  type PokeLoungeAudioPlaybackSnapshot,
 } from "./audio/poke-lounge-audio";
-import { resolveGameCanvasSize, type GameViewportDisplaySize } from "./gameViewport";
+import type { PokeLoungeRuntimeAssets } from "./assets/poke-lounge-runtime-assets";
+import type { GameViewportDisplaySize } from "./gameViewport";
 import type { InitialGameScene } from "./gameStartup";
-import { BootScene } from "./scenes/BootScene";
-import { BattleScene, type BattleE2eScenario, type BattleE2eSnapshot } from "./scenes/BattleScene";
-import { WorldScene, type WorldE2eSnapshot } from "./scenes/WorldScene";
-import type { WildBattleStartInput } from "./scenes/world-scene-encounters";
-import type { MultiplayerRoom } from "./network/localPreviewRoom";
-import {
-  getServerRoomTransportDiagnosticsForE2e,
-  type ServerRoomTransportDiagnostics,
-} from "./network/serverRoom";
+import { BattleController } from "./scenes/BattleScene";
+import { WorldController, type WorldSceneCreateData } from "./scenes/WorldScene";
+import { createLocalPreviewRoom, type MultiplayerRoom } from "./network/localPreviewRoom";
+import { getServerRoomTransportDiagnosticsForE2e } from "./network/serverRoom";
 import { getDefaultGameStateStore } from "./state/defaultGameStateStore";
-import type { GameState, GameStateStore, LocalPlayerState } from "./state/gameStateStore";
+import type { GameStateStore } from "./state/gameStateStore";
 import { isDevelopmentRuntime } from "../runtimeEnvironment";
-import {
-  pressVirtualGamepadButton,
-  releaseVirtualGamepadButton,
-  type VirtualGamepadButton,
-} from "./input/virtualGamepad";
+import { pressVirtualGamepadButton, releaseVirtualGamepadButton } from "./input/virtualGamepad";
+import type {
+  BattleE2eScenario,
+  BattleE2eSnapshot,
+  PokeLoungeE2eController,
+} from "./testing/poke-lounge-e2e-controller";
+import type { RoomLobbyRuntimeState } from "./ui/room-lobby-screen";
+import type { WorldFrameStore } from "./world/world-frame-store";
+import type { WorldMapModel } from "./world/world-map-model";
+import type { WorldRuntime } from "./world/world-runtime";
+import type { WorldUiStore } from "./world/world-ui-store";
+import type { BattleUiStore } from "./battle/battle-ui-store";
+import { RuntimeKeyboard } from "./runtime-input";
+
+export type { PokeLoungeE2eController } from "./testing/poke-lounge-e2e-controller";
 
 declare global {
   interface Window {
-    __POKE_LOUNGE_GAME__?: Phaser.Game;
     __POKE_LOUNGE_E2E__?: PokeLoungeE2eController;
   }
-}
-
-export interface PokeLoungeE2eController {
-  getActiveSceneKey(): string | null;
-  getAudioPlaybackSnapshot(): PokeLoungeAudioPlaybackSnapshot;
-  getBattleSnapshot(): BattleE2eSnapshot | null;
-  setBattleScenario(scenario: BattleE2eScenario): BattleE2eSnapshot | null;
-  setBattleCommand(command: BattleE2eSnapshot["selectedCommand"]): BattleE2eSnapshot | null;
-  setBattleMoveIndex(index: number): BattleE2eSnapshot | null;
-  setBattleBagItemIndex(index: number): BattleE2eSnapshot | null;
-  confirmBattle(): BattleE2eSnapshot | null;
-  drainBattleMessages(maxMessages?: number): BattleE2eSnapshot | null;
-  getWorldSnapshot(): WorldE2eSnapshot | null;
-  healAtNurseForTest(): WorldE2eSnapshot | null;
-  startWildBattleForTest(input: WildBattleStartInput): WorldE2eSnapshot | null;
-  startSoloChallengeForTest(): WorldE2eSnapshot | null;
-  closeWorldShortcutGuide(): void;
-  setCurrentLocalPlayerForTest(player: LocalPlayerState): void;
-  openPcBoxForTest(): WorldE2eSnapshot | null;
-  movePcBoxSelectionForTest(delta: number): WorldE2eSnapshot | null;
-  togglePcBoxFocusForTest(): WorldE2eSnapshot | null;
-  confirmPcBoxSelectionForTest(): WorldE2eSnapshot | null;
-  closePcBoxForTest(): WorldE2eSnapshot | null;
-  pressVirtualGamepad(button: VirtualGamepadButton): void;
-  releaseVirtualGamepad(button: VirtualGamepadButton): void;
-  getCanvasSnapshot(): {
-    width: number;
-    height: number;
-    clientWidth: number;
-    clientHeight: number;
-  } | null;
-  getGameStateSnapshot(): GameState;
-  getRoomSnapshot(): {
-    roomId: string | null;
-    sessionId: string | null;
-  };
-  getRoomTransportDiagnostics?(): ServerRoomTransportDiagnostics | null;
-  completeTournamentForTest(): void;
 }
 
 export interface PokeLoungeGameResult {
@@ -75,66 +41,152 @@ export interface PokeLoungeGameResult {
 }
 
 export interface PokeLoungeGameOptions {
+  runtimeAssets: PokeLoungeRuntimeAssets;
   initialScene?: InitialGameScene;
   battleE2eScenario?: BattleE2eScenario | null;
+  battleUiStore: BattleUiStore;
   competitiveRoundsEnabled?: boolean;
   gameStateStore?: GameStateStore;
   multiplayerRoom?: MultiplayerRoom;
   onGameResult?: (result: PokeLoungeGameResult) => void;
+  onRoomLobbyStateChange?: (state: RoomLobbyRuntimeState | null) => void;
   serverAuthoritativeRounds?: boolean;
   viewportSize?: GameViewportDisplaySize;
+  worldFrameStore: WorldFrameStore;
+  worldModel: WorldMapModel;
+  worldRuntime: WorldRuntime;
+  worldUiStore: WorldUiStore;
+}
+
+export interface PokeLoungeGameRuntime {
+  destroy(): void;
+  resize(viewportSize: GameViewportDisplaySize): void;
 }
 
 export function createPokeLoungeGame(
   parent: HTMLElement,
-  options: PokeLoungeGameOptions = {},
-): Phaser.Game {
+  options: PokeLoungeGameOptions,
+): PokeLoungeGameRuntime {
   const gameStateStore = options.gameStateStore ?? getDefaultGameStateStore();
-  const canvasSize = resolveGameCanvasSize(options.viewportSize);
-  const game = new Phaser.Game({
-    type: Phaser.AUTO,
-    parent,
-    width: canvasSize.width,
-    height: canvasSize.height,
-    backgroundColor: "#4A4242",
-    pixelArt: true,
-    roundPixels: true,
-    scale: {
-      mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
-    },
-    physics: {
-      default: "arcade",
-      arcade: {
-        gravity: { x: 0, y: 0 },
-      },
-    },
-    scene: [
-      new BootScene(options.initialScene ?? "world", options.battleE2eScenario ?? null),
-      new WorldScene(gameStateStore, options.multiplayerRoom, {
-        competitiveRoundsEnabled: options.competitiveRoundsEnabled,
-        serverAuthoritativeRounds: options.serverAuthoritativeRounds,
-      }),
-      new BattleScene(gameStateStore, options.multiplayerRoom),
-    ],
+  const multiplayerRoom = options.multiplayerRoom ?? createLocalPreviewRoom();
+  const keyboard = new RuntimeKeyboard(parent);
+  const ownerWindow = parent.ownerDocument.defaultView ?? window;
+  let activeScene: InitialGameScene = options.initialScene ?? "world";
+  let viewportSize = normalizeViewportSize(options.viewportSize);
+  let destroyed = false;
+  let animationFrame = 0;
+  let previousFrameTime = performance.now();
+  function startWorld(data: unknown = {}) {
+    if (destroyed) return;
+    battleController.stop();
+    activeScene = "world";
+    worldController.start(toWorldSceneCreateData(data));
+  }
+  function startBattle(data: unknown = {}) {
+    if (destroyed) return;
+    worldController.shutdown();
+    activeScene = "battle";
+    battleController.start(data);
+  }
+
+  const worldController = new WorldController(gameStateStore, multiplayerRoom, {
+    competitiveRoundsEnabled: options.competitiveRoundsEnabled,
+    keyboard,
+    onRoomLobbyStateChange: options.onRoomLobbyStateChange,
+    onStartBattle: startBattle,
+    ownerDocument: parent.ownerDocument,
+    runtimeAssets: options.runtimeAssets,
+    serverAuthoritativeRounds: options.serverAuthoritativeRounds,
+    viewportSize,
+    worldFrameStore: options.worldFrameStore,
+    worldModel: options.worldModel,
+    worldRuntime: options.worldRuntime,
+    worldUiStore: options.worldUiStore,
   });
-  const unsubscribeGameResult = subscribeToFinalGameResult(gameStateStore, options.onGameResult);
-  game.events.once(Phaser.Core.Events.DESTROY, () => {
-    stopAllPokeLoungeAudio();
-    unsubscribeGameResult();
-    options.multiplayerRoom?.dispose();
+  const battleController = new BattleController({
+    battleUiStore: options.battleUiStore,
+    gameStateStore,
+    keyboard,
+    multiplayerRoom,
+    onRestart: startBattle,
+    onReturnToWorld: startWorld,
+    parent,
+    runtimeAssets: options.runtimeAssets,
   });
 
+  registerPreloadedPokeLoungeAudio(
+    options.runtimeAssets.audioManifest,
+    options.runtimeAssets.audioBuffers,
+  );
+  const unsubscribeGameResult = subscribeToFinalGameResult(gameStateStore, options.onGameResult);
+  parent.dataset.pokeLoungeResourceStatus = "ready";
+
+  if (activeScene === "battle") {
+    battleController.start(
+      options.battleE2eScenario ? { e2eScenario: options.battleE2eScenario } : {},
+    );
+  } else {
+    worldController.start();
+  }
+
+  const update = (now: number) => {
+    if (destroyed) return;
+    const elapsedMs = Math.min(100, Math.max(0, now - previousFrameTime));
+    previousFrameTime = now;
+    if (activeScene === "battle") battleController.update();
+    else worldController.update(now, elapsedMs);
+    animationFrame = ownerWindow.requestAnimationFrame(update);
+  };
+  animationFrame = ownerWindow.requestAnimationFrame(update);
+
+  const runtime: PokeLoungeGameRuntime = {
+    destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      ownerWindow.cancelAnimationFrame(animationFrame);
+      battleController.stop();
+      worldController.shutdown();
+      keyboard.destroy();
+      stopAllPokeLoungeAudio();
+      unsubscribeGameResult();
+      multiplayerRoom.dispose();
+      delete parent.dataset.pokeLoungeResourceStatus;
+      delete window.__POKE_LOUNGE_E2E__;
+    },
+    resize(nextViewportSize) {
+      viewportSize = normalizeViewportSize(nextViewportSize);
+      worldController.resize(viewportSize);
+    },
+  };
+
   if (shouldExposePokeLoungeE2eGlobals()) {
-    window.__POKE_LOUNGE_GAME__ = game;
     window.__POKE_LOUNGE_E2E__ = createPokeLoungeE2eController(
-      game,
+      parent,
+      () => activeScene,
+      battleController,
+      worldController,
       gameStateStore,
-      options.multiplayerRoom,
+      multiplayerRoom,
+      () => viewportSize,
     );
   }
 
-  return game;
+  return runtime;
+}
+
+function normalizeViewportSize(
+  viewportSize: GameViewportDisplaySize = { width: 512, height: 384 },
+): GameViewportDisplaySize {
+  return {
+    width: Math.max(1, Math.round(viewportSize.width)),
+    height: Math.max(1, Math.round(viewportSize.height)),
+  };
+}
+
+function toWorldSceneCreateData(value: unknown): WorldSceneCreateData {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as WorldSceneCreateData)
+    : {};
 }
 
 function subscribeToFinalGameResult(
@@ -188,32 +240,23 @@ function hasPokeLoungeE2eQuery(): boolean {
 }
 
 function createPokeLoungeE2eController(
-  game: Phaser.Game,
+  parent: HTMLElement,
+  getActiveScene: () => InitialGameScene,
+  battleController: BattleController,
+  worldController: WorldController,
   gameStateStore: GameStateStore,
-  multiplayerRoom?: MultiplayerRoom,
+  multiplayerRoom: MultiplayerRoom,
+  getViewportSize: () => GameViewportDisplaySize,
 ): PokeLoungeE2eController {
-  const getBattleScene = (): BattleScene | null => {
-    const sceneManager = getSceneManager(game);
-    const scene = sceneManager?.getScene("battle");
-
-    return scene instanceof BattleScene ? scene : null;
-  };
+  const getBattleScene = () => battleController;
 
   const getBattleSnapshot = (): BattleE2eSnapshot | null =>
     getBattleScene()?.getE2eSnapshotForTest() ?? null;
-  const getWorldScene = (): WorldScene | null => {
-    const sceneManager = getSceneManager(game);
-    const scene = sceneManager?.getScene("world");
-
-    return scene instanceof WorldScene ? scene : null;
-  };
+  const getWorldScene = () => worldController;
 
   return {
     getActiveSceneKey() {
-      const sceneManager = getSceneManager(game);
-      const activeScene = sceneManager?.getScenes(true)[0];
-
-      return activeScene?.scene.key ?? null;
+      return getActiveScene();
     },
     getAudioPlaybackSnapshot() {
       return getPokeLoungeAudioPlaybackSnapshotForTest();
@@ -257,6 +300,16 @@ function createPokeLoungeE2eController(
       }
 
       battleScene.setSelectedBagItemIndexForTest(index);
+      return battleScene.getE2eSnapshotForTest();
+    },
+    setBattlePartySlotIndex(index) {
+      const battleScene = getBattleScene();
+
+      if (!battleScene) {
+        return null;
+      }
+
+      battleScene.setSelectedPartySlotIndexForTest(index);
       return battleScene.getE2eSnapshotForTest();
     },
     confirmBattle() {
@@ -323,8 +376,50 @@ function createPokeLoungeE2eController(
     closeWorldShortcutGuide() {
       getWorldScene()?.closeShortcutGuideForTest();
     },
+    openWorldSurfaceForTest(surface) {
+      const worldScene = getWorldScene();
+
+      if (!worldScene) {
+        return null;
+      }
+
+      if (surface === "shop") {
+        worldScene.openShopForTest();
+      } else if (surface === "pc") {
+        worldScene.openPcBoxForTest();
+      } else {
+        worldScene.openDiceGambleForTest();
+      }
+
+      return worldScene.getE2eSnapshotForTest();
+    },
+    setWorldPlayerPositionForTest(position) {
+      const worldScene = getWorldScene();
+
+      if (!worldScene) {
+        return null;
+      }
+
+      worldScene.setPlayerPositionForTest(position);
+      return worldScene.getE2eSnapshotForTest();
+    },
     setCurrentLocalPlayerForTest(player) {
       gameStateStore.upsertLocalPlayer(player);
+    },
+    sendCurrentPlayerChangedMapForTest(overrides) {
+      return getWorldScene()?.sendCurrentPlayerChangedMapForTest(overrides) ?? false;
+    },
+    disposeRoomForTest() {
+      getWorldScene()?.disposeRoomForTest();
+    },
+    reconnectRoomForTest() {
+      return getWorldScene()?.reconnectRoomForTest() ?? false;
+    },
+    beginWorldBattleLaunchTracking() {
+      getWorldScene()?.beginBattleLaunchTrackingForTest();
+    },
+    getWorldBattleLaunches() {
+      return getWorldScene()?.getBattleLaunchesForTest() ?? [];
     },
     openPcBoxForTest() {
       const worldScene = getWorldScene();
@@ -382,18 +477,17 @@ function createPokeLoungeE2eController(
     releaseVirtualGamepad(button) {
       releaseVirtualGamepadButton(button);
     },
-    getCanvasSnapshot() {
-      const canvas = (game as Phaser.Game & { canvas?: HTMLCanvasElement }).canvas;
-
-      if (!canvas) {
+    getGameSurfaceSnapshot() {
+      if (parent.dataset.pokeLoungeResourceStatus !== "ready") {
         return null;
       }
-
+      const viewport = getViewportSize();
+      const bounds = parent.getBoundingClientRect();
       return {
-        width: canvas.width,
-        height: canvas.height,
-        clientWidth: canvas.clientWidth,
-        clientHeight: canvas.clientHeight,
+        width: viewport.width,
+        height: viewport.height,
+        clientWidth: Math.round(bounds.width),
+        clientHeight: Math.round(bounds.height),
       };
     },
     getGameStateSnapshot() {
@@ -429,14 +523,4 @@ function createPokeLoungeE2eController(
       );
     },
   };
-}
-
-function getSceneManager(game: Phaser.Game): Phaser.Scenes.SceneManager | null {
-  const sceneManager = (
-    game as Phaser.Game & {
-      scene?: Phaser.Scenes.SceneManager;
-    }
-  ).scene;
-
-  return sceneManager && typeof sceneManager.getScene === "function" ? sceneManager : null;
 }

@@ -58,6 +58,15 @@ type PokeLoungeWindow = Window & {
       y: number;
       facing: "front" | "back" | "left" | "right";
     }): unknown;
+    getBattleSnapshot(): {
+      competitive: { matchId: string } | null;
+    } | null;
+    setBattlePartySlotIndex(index: number): unknown;
+    sendCurrentPlayerChangedMapForTest(overrides?: Record<string, unknown>): boolean;
+    disposeRoomForTest(): void;
+    reconnectRoomForTest(): boolean;
+    beginWorldBattleLaunchTracking(): void;
+    getWorldBattleLaunches(): Array<{ matchId: string }>;
   };
   __POKE_LOUNGE_SOCKET_TEST__?: PokeLoungeSocketTestControl;
 };
@@ -543,7 +552,7 @@ test.describe("Poke Lounge server multiplayer", () => {
     expect(authSession.requestCount()).toBeGreaterThan(0);
     await expect.poll(() => Promise.resolve(server.competitiveSeatBodies.length)).toBe(1);
     expect(await getActiveSceneKey(page)).toBe("world");
-    await expect(page.locator("#game-root canvas")).toBeVisible();
+    await expect(page.locator('#game-root[data-poke-lounge-game-surface="ready"]')).toBeVisible();
   });
 
   test("malformed competitive seat projection은 battle로 열지 않고 REST recovery한다", async ({
@@ -759,8 +768,8 @@ test.describe("Poke Lounge server multiplayer", () => {
       (await getBattleSnapshot(guestPage))?.turn,
     );
 
-    const canvas = hostPage.locator("#game-root canvas");
-    await canvas.focus();
+    const surface = hostPage.locator('#game-root[data-poke-lounge-game-surface="ready"]');
+    await surface.focus();
     await hostPage.keyboard.press("Enter");
     await expect
       .poll(() => getBattleSnapshot(hostPage).then(snapshot => snapshot?.phase))
@@ -1211,13 +1220,26 @@ test.describe("Poke Lounge server multiplayer", () => {
     await mockServerRoom(page, server, { wrapped: true });
     await startServerRoom(page);
     await expect.poll(() => getRoundPhase(page)).toBe("game-result");
+    await expect
+      .poll(
+        () =>
+          Promise.resolve(
+            server.calls.filter(
+              call => call === `POST /poke-lounge/rooms/${ROOM_CODE}/party-snapshot`,
+            ).length,
+          ),
+        { timeout: 30000 },
+      )
+      .toBeGreaterThanOrEqual(1);
 
     const postCountBeforeReload = server.calls.filter(call => call.startsWith("POST ")).length;
     const getCountBeforeReload = server.calls.filter(call => call.startsWith("GET ")).length;
 
     await page.reload();
 
-    await expect(page.locator("#game-root canvas")).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#game-root[data-poke-lounge-game-surface="ready"]')).toBeVisible({
+      timeout: 30000,
+    });
     await expect.poll(() => getRoundPhase(page)).toBe("game-result");
     expect(server.calls.filter(call => call.startsWith("POST "))).toHaveLength(
       postCountBeforeReload,
@@ -1671,7 +1693,7 @@ test.describe("Poke Lounge server multiplayer", () => {
       .toBe(true);
 
     await page.evaluate(() => {
-      delete (window as Window & { __POKE_LOUNGE_GAME__?: unknown }).__POKE_LOUNGE_GAME__;
+      delete (window as Window & { __POKE_LOUNGE_E2E__?: unknown }).__POKE_LOUNGE_E2E__;
     });
 
     await page.evaluate(() => {
@@ -1877,72 +1899,12 @@ test.describe("Poke Lounge server multiplayer", () => {
   }) => {
     const server = createMockServerState();
 
-    await mockServerRoom(page, server, { wrapped: true });
+    await mockServerRoom(page, server, { lobbyLifecycle: true, wrapped: true });
     await startServerRoom(page);
 
     await page.evaluate(() => {
-      const game = (window as Window & { __POKE_LOUNGE_GAME__?: unknown }).__POKE_LOUNGE_GAME__ as {
-        scene?: {
-          getScene?: (key: string) => {
-            createLocalPlayerSnapshot?: () => unknown;
-            sendRoomMessage?: (type: "PLAYER_CHANGED_MAP", payload: unknown) => void;
-            closeShortcutGuideForTest?: () => void;
-            player?: { body?: { velocity?: { x: number; y: number } } };
-            roomConnected?: boolean;
-            gameStateStore?: {
-              getState: () => {
-                currentPlayerId: string;
-                playersById: Record<
-                  string,
-                  {
-                    activePartySlotIndex: number;
-                    party: Array<{
-                      pokemon: {
-                        speciesId: number;
-                        name: string;
-                        level: number;
-                      } | null;
-                    }>;
-                  }
-                >;
-              };
-            };
-          };
-        };
-      };
-      const worldScene = game.scene?.getScene?.("world");
-
-      if (!worldScene?.createLocalPlayerSnapshot || !worldScene.sendRoomMessage) {
-        return;
-      }
-
-      worldScene.closeShortcutGuideForTest?.();
-      const snapshot = worldScene.createLocalPlayerSnapshot() as {
-        activePartySlotIndex?: number;
-        party?: Array<{
-          slotIndex: number;
-          pokemon: {
-            speciesId: number;
-            name: string;
-            level: number;
-            currentHp: number;
-            maxHp: number;
-            status: "normal";
-            individualValues: {
-              hp: number;
-              attack: number;
-              defense: number;
-              specialAttack: number;
-              specialDefense: number;
-              speed: number;
-            };
-            moves: Array<{ id: number; name: string; pp: number; maxPp: number }>;
-          } | null;
-        }>;
-      };
-
-      worldScene.sendRoomMessage("PLAYER_CHANGED_MAP", {
-        ...snapshot,
+      const controller = (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__;
+      controller?.sendCurrentPlayerChangedMapForTest({
         activePartySlotIndex: 0,
         party: [
           {
@@ -2214,23 +2176,9 @@ test.describe("Poke Lounge server multiplayer", () => {
     server.maxConcurrentMutations = 0;
 
     await page.evaluate(() => {
-      const game = (window as Window & { __POKE_LOUNGE_GAME__?: unknown }).__POKE_LOUNGE_GAME__ as {
-        scene?: {
-          getScene?: (key: string) => {
-            createLocalPlayerSnapshot?: () => unknown;
-            sendRoomMessage?: (type: "PLAYER_CHANGED_MAP", payload: unknown) => void;
-          };
-        };
-      };
-      const worldScene = game.scene?.getScene?.("world");
-      const snapshot = worldScene?.createLocalPlayerSnapshot?.();
-
-      if (!snapshot || !worldScene?.sendRoomMessage) {
-        return;
-      }
-
-      worldScene.sendRoomMessage("PLAYER_CHANGED_MAP", snapshot);
-      worldScene.sendRoomMessage("PLAYER_CHANGED_MAP", snapshot);
+      const controller = (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__;
+      controller?.sendCurrentPlayerChangedMapForTest();
+      controller?.sendCurrentPlayerChangedMapForTest();
     });
 
     await expect
@@ -2246,7 +2194,9 @@ async function startServerRoom(
   displayName?: string,
 ): Promise<void> {
   await beginServerRoom(page, url, displayName);
-  await expect(page.locator("#game-root canvas")).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('#game-root[data-poke-lounge-game-surface="ready"]')).toBeVisible({
+    timeout: 30000,
+  });
 }
 
 async function beginServerRoom(page: Page, url: string, displayName?: string): Promise<void> {
@@ -2282,7 +2232,7 @@ async function confirmDirectMultiplayerEntry(page: Page, displayName?: string): 
 
 async function chooseStarterIfNeeded(page: Page): Promise<void> {
   const starterSelection = page.locator("[data-screen='starter-selection']");
-  const gameCanvas = page.locator("#game-root canvas");
+  const gameSurface = page.locator('#game-root[data-poke-lounge-game-surface="ready"]');
 
   await expect
     .poll(
@@ -2291,8 +2241,8 @@ async function chooseStarterIfNeeded(page: Page): Promise<void> {
           return "starter";
         }
 
-        if (await gameCanvas.isVisible().catch(() => false)) {
-          return "canvas";
+        if (await gameSurface.isVisible().catch(() => false)) {
+          return "surface";
         }
 
         return null;
@@ -2353,59 +2303,25 @@ async function getActiveSceneKey(page: Page): Promise<string | null> {
 }
 
 async function getAuthoritativeBattleMatchId(page: Page): Promise<string | null> {
-  return page.evaluate(() => {
-    const game = (window as Window & { __POKE_LOUNGE_GAME__?: unknown }).__POKE_LOUNGE_GAME__ as {
-      scene?: {
-        getScene?(key: string): {
-          authoritativeProjection?: { matchId?: unknown } | null;
-        };
-      };
-    };
-    const matchId = game.scene?.getScene?.("battle")?.authoritativeProjection?.matchId;
-
-    return typeof matchId === "string" ? matchId : null;
-  });
+  return page.evaluate(
+    () =>
+      (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__?.getBattleSnapshot()?.competitive?.matchId ??
+      null,
+  );
 }
 
 async function trackWorldBattleStarts(page: Page): Promise<void> {
   await page.evaluate(() => {
-    const pokeWindow = window as Window & { __POKE_LOUNGE_WORLD_BATTLE_STARTS__?: string[] };
-    const game = (window as Window & { __POKE_LOUNGE_GAME__?: unknown }).__POKE_LOUNGE_GAME__ as {
-      scene?: {
-        getScene?(key: string): {
-          scene: {
-            start(key: string, data?: unknown): unknown;
-          };
-        };
-      };
-    };
-    const scenePlugin = game.scene?.getScene?.("world")?.scene;
-
-    if (!scenePlugin) {
-      throw new Error("WorldScene is unavailable");
-    }
-
-    pokeWindow.__POKE_LOUNGE_WORLD_BATTLE_STARTS__ = [];
-    const originalStart = scenePlugin.start.bind(scenePlugin);
-    scenePlugin.start = (key: string, data?: unknown) => {
-      if (key === "battle") {
-        const matchId = (data as { projection?: { matchId?: unknown } } | undefined)?.projection
-          ?.matchId;
-        pokeWindow.__POKE_LOUNGE_WORLD_BATTLE_STARTS__?.push(
-          typeof matchId === "string" ? matchId : "unknown",
-        );
-      }
-
-      return originalStart(key, data);
-    };
+    (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__?.beginWorldBattleLaunchTracking();
   });
 }
 
 async function getTrackedWorldBattleStarts(page: Page): Promise<string[]> {
-  return page.evaluate(() => [
-    ...((window as Window & { __POKE_LOUNGE_WORLD_BATTLE_STARTS__?: string[] })
-      .__POKE_LOUNGE_WORLD_BATTLE_STARTS__ ?? []),
-  ]);
+  return page.evaluate(() =>
+    ((window as PokeLoungeWindow).__POKE_LOUNGE_E2E__?.getWorldBattleLaunches() ?? []).map(
+      launch => launch.matchId,
+    ),
+  );
 }
 
 async function waitForActiveScene(page: Page, sceneKey: string): Promise<void> {
@@ -2475,12 +2391,7 @@ async function setBattleCommand(page: Page, command: "pokemon"): Promise<void> {
 
 async function setBattlePartySlot(page: Page, slotIndex: number): Promise<void> {
   await page.evaluate(value => {
-    const game = (window as Window & { __POKE_LOUNGE_GAME__?: unknown }).__POKE_LOUNGE_GAME__ as {
-      scene?: {
-        getScene?(key: string): { setSelectedPartySlotIndexForTest?(index: number): void };
-      };
-    };
-    game.scene?.getScene?.("battle")?.setSelectedPartySlotIndexForTest?.(value);
+    (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__?.setBattlePartySlotIndex(value);
   }, slotIndex);
 }
 
@@ -2504,58 +2415,20 @@ async function getConnectionStatus(
 
 async function disposeServerRoom(page: Page): Promise<void> {
   await page.evaluate(() => {
-    const game = (window as Window & { __POKE_LOUNGE_GAME__?: unknown }).__POKE_LOUNGE_GAME__ as {
-      scene?: {
-        getScene?: (key: string) => {
-          room?: { dispose: () => void };
-        };
-      };
-    };
-
-    game.scene?.getScene?.("world")?.room?.dispose();
+    (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__?.disposeRoomForTest();
   });
 }
 
 async function sendPartySnapshot(page: Page): Promise<void> {
   await page.evaluate(() => {
-    const game = (window as Window & { __POKE_LOUNGE_GAME__?: unknown }).__POKE_LOUNGE_GAME__ as {
-      scene?: {
-        getScene?: (key: string) => {
-          createLocalPlayerSnapshot?: () => unknown;
-          sendRoomMessage?: (type: "PLAYER_CHANGED_MAP", payload: unknown) => void;
-        };
-      };
-    };
-    const worldScene = game.scene?.getScene?.("world");
-    const snapshot = worldScene?.createLocalPlayerSnapshot?.();
-
-    if (snapshot && worldScene?.sendRoomMessage) {
-      worldScene.sendRoomMessage("PLAYER_CHANGED_MAP", snapshot);
-    }
+    (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__?.sendCurrentPlayerChangedMapForTest();
   });
 }
 
 async function reconnectServerRoom(page: Page): Promise<boolean> {
-  return page.evaluate(() => {
-    const game = (window as Window & { __POKE_LOUNGE_GAME__?: unknown }).__POKE_LOUNGE_GAME__ as {
-      scene?: {
-        getScene?: (key: string) => {
-          createLocalPlayerSnapshot?: () => unknown;
-          room?: { connect: (snapshot: unknown) => void };
-        };
-      };
-    };
-    const worldScene = game.scene?.getScene?.("world");
-    const snapshot = worldScene?.createLocalPlayerSnapshot?.();
-
-    if (!snapshot || !worldScene?.room) {
-      return false;
-    }
-
-    worldScene.room.connect(snapshot);
-
-    return true;
-  });
+  return page.evaluate(
+    () => (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__?.reconnectRoomForTest() ?? false,
+  );
 }
 
 async function getSocketState(page: Page): Promise<{

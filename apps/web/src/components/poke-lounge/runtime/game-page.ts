@@ -1,6 +1,8 @@
 import { startGamePage, type GamePageHandle } from "./game/gamePageStartup";
 import type { PokeLoungeGameResult } from "./game/createPokeLoungeGame";
 import type { GameViewportDisplaySize } from "./game/gameViewport";
+import type { PokeLoungeRuntimeState } from "./game/game-page-state";
+import type { PokeLoungeRoomLeaveRequestDetail } from "./game/ui/poke-lounge-ui-events";
 
 export async function startGamePageFromDocument(
   documentRef: Document = document,
@@ -11,7 +13,8 @@ export async function startGamePageFromDocument(
     localTestModeActive?: boolean;
     getIdToken?: () => string | undefined;
     onGameResult?: (result: PokeLoungeGameResult) => void;
-    renderMobileControls?: boolean;
+    onRoomLeaveRequest?: (request: PokeLoungeRoomLeaveRequestDetail) => void;
+    onRuntimeStateChange?: (state: PokeLoungeRuntimeState) => void;
     viewportSize?: GameViewportDisplaySize;
   } = {},
 ): Promise<GamePageHandle> {
@@ -27,7 +30,8 @@ export async function startGamePageFromDocument(
     localTestModeActive: options.localTestModeActive,
     getIdToken: options.getIdToken,
     onGameResult: options.onGameResult,
-    renderMobileControls: options.renderMobileControls,
+    onRoomLeaveRequest: options.onRoomLeaveRequest,
+    onRuntimeStateChange: options.onRuntimeStateChange,
     viewportSize: options.viewportSize,
   });
 }

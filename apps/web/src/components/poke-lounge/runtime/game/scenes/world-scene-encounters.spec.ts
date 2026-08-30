@@ -75,10 +75,6 @@ const createEncounterHarness = (
     }),
     getPokemonData: () => null,
     persistPlayerPosition: () => undefined,
-    getViewportSize: () => ({ width: 800, height: 600 }),
-    createRectangle: () => createRectangleStub(),
-    shakeCamera: () => undefined,
-    addTween: () => undefined,
     delay,
     startBattle: data => {
       startedBattle = data;
@@ -156,14 +152,3 @@ test("파괴된 조우 컨트롤러의 지연 전환은 새 라이프사이클�
     battleIntroPlaying: false,
   });
 });
-
-const createRectangleStub = (): ReturnType<WorldSceneEncountersDependencies["createRectangle"]> => {
-  const rectangle = {
-    destroy: () => undefined,
-    setDepth: () => rectangle,
-    setOrigin: () => rectangle,
-    setScrollFactor: () => rectangle,
-  };
-
-  return rectangle as unknown as ReturnType<WorldSceneEncountersDependencies["createRectangle"]>;
-};

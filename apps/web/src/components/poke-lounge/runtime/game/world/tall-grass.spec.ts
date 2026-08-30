@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import type * as Phaser from "phaser";
 import { FIELD_MAP } from "./fieldMap";
 import { isTallGrassStep, resolveTallGrassTileRegions } from "./tall-grass";
 
@@ -41,7 +40,7 @@ test("월드 맵의 긴 풀 구역은 타일 격자에 맞춰 정의한다", () 
       data?: number[];
       height?: number;
       name: string;
-      objects?: Phaser.Types.Tilemaps.TiledObject[];
+      objects?: Array<{ height?: number; name?: string; width?: number; x?: number; y?: number }>;
     }>;
   };
   const regionLayer = map.layers.find(layer => layer.name === FIELD_MAP.tallGrass.regionLayerName);

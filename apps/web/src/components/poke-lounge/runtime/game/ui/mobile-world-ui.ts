@@ -1,11 +1,7 @@
 import type { DiceGamblePrediction } from "../gamble/diceGamble";
 import { PLAYER_PARTY_SLOT_COUNT, type PlayerPokemonSlot } from "../player/playerTypes";
 import type { PlayerPokemon } from "../state/gameStateStore";
-
-export const POKE_LOUNGE_MOBILE_WORLD_STATE_EVENT = "poke-lounge:mobile-world-state";
-export const POKE_LOUNGE_MOBILE_WORLD_ACTION_EVENT = "poke-lounge:mobile-world-action";
-export const POKE_LOUNGE_MOBILE_WORLD_STATE_REQUEST_EVENT =
-  "poke-lounge:mobile-world-state-request";
+import type { ShortcutGuideInputMode } from "./shortcutGuide";
 
 export type MobileWorldUiScreen =
   | "explore"
@@ -84,6 +80,7 @@ export interface MobileWorldDiceState {
 export interface MobileWorldUiState {
   box: MobileWorldBoxOption[];
   items: MobileWorldItemOption[];
+  inputMode: ShortcutGuideInputMode;
   message: string;
   moveReplacement: MobileWorldMoveReplacementState | null;
   party: MobileWorldPartyOption[];
@@ -141,27 +138,4 @@ export function createPokeLoungePartySlotSummaries({
       status: pokemon?.status ?? null,
     };
   });
-}
-
-export function dispatchMobileWorldUiState(documentRef: Document, state: MobileWorldUiState): void {
-  documentRef.dispatchEvent(
-    new CustomEvent<MobileWorldUiState>(POKE_LOUNGE_MOBILE_WORLD_STATE_EVENT, {
-      detail: state,
-    }),
-  );
-}
-
-export function dispatchMobileWorldUiAction(
-  documentRef: Document,
-  action: MobileWorldUiAction,
-): void {
-  documentRef.dispatchEvent(
-    new CustomEvent<MobileWorldUiAction>(POKE_LOUNGE_MOBILE_WORLD_ACTION_EVENT, {
-      detail: action,
-    }),
-  );
-}
-
-export function requestMobileWorldUiState(documentRef: Document): void {
-  documentRef.dispatchEvent(new CustomEvent(POKE_LOUNGE_MOBILE_WORLD_STATE_REQUEST_EVENT));
 }

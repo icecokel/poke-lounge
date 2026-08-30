@@ -74,6 +74,16 @@ type TournamentBracket = {
   championPlayerId: string | null;
 };
 
+type CompetitiveBattleSnapshot = {
+  matchId: string;
+  bracketMatchId: string;
+  assignmentRevision: number;
+  currentTurn: number;
+  status: string;
+  terminal: unknown;
+  submittedPlayerIds: string[];
+};
+
 type BattleSnapshot = {
   phase: string;
   turn: number;
@@ -88,6 +98,7 @@ type BattleSnapshot = {
     currentHp: number;
     activePartySlotIndex: number;
   };
+  competitive: CompetitiveBattleSnapshot | null;
 };
 
 type TesterRuntimeState = {
@@ -102,15 +113,7 @@ type TesterRuntimeState = {
   canonicalBracket: TournamentBracket | null;
   activeScene: string | null;
   battle: BattleSnapshot | null;
-  competitive: {
-    matchId: string;
-    bracketMatchId: string;
-    assignmentRevision: number;
-    currentTurn: number;
-    status: string;
-    terminal: unknown;
-    submittedPlayerIds: string[];
-  } | null;
+  competitive: CompetitiveBattleSnapshot | null;
   transportDiagnostics: TransportDiagnostics | null;
 };
 
@@ -355,7 +358,9 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       await host.page.route("**/poke-lounge/rooms", routeFivePlayerRoomCreation);
       await openServerRoom(host.page, undefined, `Tester ${host.id}`);
       await chooseStarterIfNeeded(host.page);
-      await expect(host.page.locator("#game-root canvas")).toBeVisible({ timeout: 30_000 });
+      await expect(
+        host.page.locator('#game-root[data-poke-lounge-game-surface="ready"]'),
+      ).toBeVisible({ timeout: 30_000 });
       roomCode = await waitForRoomCode(host.page);
       await host.page.unroute("**/poke-lounge/rooms", routeFivePlayerRoomCreation);
       await waitForParticipantReady(roomCode, host);
@@ -363,7 +368,9 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       for (const tester of testers.slice(1)) {
         await openServerRoom(tester.page, roomCode, `Tester ${tester.id}`);
         await chooseStarterIfNeeded(tester.page);
-        await expect(tester.page.locator("#game-root canvas")).toBeVisible({ timeout: 30_000 });
+        await expect(
+          tester.page.locator('#game-root[data-poke-lounge-game-surface="ready"]'),
+        ).toBeVisible({ timeout: 30_000 });
         await expect.poll(() => readRoomCode(tester.page), { timeout: 30_000 }).toBe(roomCode);
         await waitForParticipantReady(roomCode, tester);
       }
@@ -472,7 +479,9 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
         `Tester ${reconnectTester.id}`,
       );
       await chooseStarterIfNeeded(reconnectTester.page);
-      await expect(reconnectTester.page.locator("#game-root canvas")).toBeVisible({
+      await expect(
+        reconnectTester.page.locator('#game-root[data-poke-lounge-game-surface="ready"]'),
+      ).toBeVisible({
         timeout: 30_000,
       });
       await expect
@@ -505,7 +514,12 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       await expect
         .poll(() => Promise.resolve(getRecoveryRequestTotal(reconnectTester)), { timeout: 30_000 })
         .toBeGreaterThan(recoveryCount);
-      const freshRecovery = await waitForRecoveryEvidence(reconnectTester, "full-reload", roomCode);
+      const freshRecovery = await waitForRecoveryEvidence(
+        reconnectTester,
+        "full-reload",
+        roomCode,
+        freshTerminalCursor,
+      );
       expectSuccessfulRecoveryResponse(freshRecovery);
       const freshRuntime = await readTesterRuntimeState(reconnectTester.page);
       const latestRoomRevision = freshRuntime.revision;
@@ -1007,12 +1021,12 @@ async function openServerRoom(page: Page, roomCode?: string, displayName?: strin
 
 async function chooseStarterIfNeeded(page: Page): Promise<void> {
   const starter = page.locator("[data-screen='starter-selection']");
-  const canvas = page.locator("#game-root canvas");
+  const surface = page.locator('#game-root[data-poke-lounge-game-surface="ready"]');
   await expect
     .poll(
       async () => {
         if (await starter.isVisible().catch(() => false)) return "starter";
-        if (await canvas.isVisible().catch(() => false)) return "canvas";
+        if (await surface.isVisible().catch(() => false)) return "surface";
         return null;
       },
       { timeout: 30_000 },
@@ -1038,19 +1052,19 @@ async function confirmDirectMultiplayerEntryIfNeeded(
   page: Page,
   displayName: string,
 ): Promise<void> {
-  const canvas = page.locator("#game-root canvas");
+  const surface = page.locator('#game-root[data-poke-lounge-game-surface="ready"]');
   const directEntry = page.locator("[data-room-entry-direct-multiplayer='true']");
   await expect
     .poll(
       async () =>
-        (await canvas.isVisible().catch(() => false)) ||
+        (await surface.isVisible().catch(() => false)) ||
         (await directEntry.isVisible().catch(() => false)),
       { timeout: 30_000 },
     )
     .toBe(true);
 
   if (
-    !(await canvas.isVisible().catch(() => false)) &&
+    !(await surface.isVisible().catch(() => false)) &&
     (await directEntry.isVisible().catch(() => false))
   ) {
     await confirmDirectMultiplayerEntry(page, displayName);
@@ -1553,70 +1567,23 @@ async function reconnectContextWithoutReload(
 
 async function trackWorldBattleStarts(page: Page): Promise<void> {
   await page.evaluate(() => {
-    type BattleLaunch = {
-      matchId: string;
-      bracketMatchId: string;
-      assignmentRevision: number;
-    };
-    const pokeWindow = window as Window & {
-      __POKE_LOUNGE_GAME__?: {
-        scene?: {
-          getScene?(key: string): {
-            scene?: { start(key: string, data?: unknown): unknown };
-          };
-        };
-      };
-      __POKE_LOUNGE_WORLD_BATTLE_STARTS__?: BattleLaunch[];
-      __POKE_LOUNGE_WORLD_BATTLE_START_TRACKED__?: boolean;
-    };
-    const scenePlugin = pokeWindow.__POKE_LOUNGE_GAME__?.scene?.getScene?.("world")?.scene;
-    if (!scenePlugin) throw new Error("WorldScene is unavailable for battle launch tracking");
-
-    pokeWindow.__POKE_LOUNGE_WORLD_BATTLE_STARTS__ = [];
-    if (pokeWindow.__POKE_LOUNGE_WORLD_BATTLE_START_TRACKED__) return;
-    pokeWindow.__POKE_LOUNGE_WORLD_BATTLE_START_TRACKED__ = true;
-    const originalStart = scenePlugin.start.bind(scenePlugin);
-    scenePlugin.start = (key: string, data?: unknown) => {
-      const candidate = data as
-        | {
-            battleKind?: unknown;
-            projection?: {
-              matchId?: unknown;
-              bracketMatchId?: unknown;
-              assignmentRevision?: unknown;
-            };
-          }
-        | undefined;
-      if (
-        key === "battle" &&
-        candidate?.battleKind === "authoritative" &&
-        typeof candidate.projection?.matchId === "string" &&
-        typeof candidate.projection.bracketMatchId === "string" &&
-        typeof candidate.projection.assignmentRevision === "number"
-      ) {
-        pokeWindow.__POKE_LOUNGE_WORLD_BATTLE_STARTS__?.push({
-          matchId: candidate.projection.matchId,
-          bracketMatchId: candidate.projection.bracketMatchId,
-          assignmentRevision: candidate.projection.assignmentRevision,
-        });
+    (
+      window as Window & {
+        __POKE_LOUNGE_E2E__?: { beginWorldBattleLaunchTracking(): void };
       }
-      return originalStart(key, data as object | undefined);
-    };
+    ).__POKE_LOUNGE_E2E__?.beginWorldBattleLaunchTracking();
   });
 }
 
 async function getTrackedWorldBattleStarts(page: Page): Promise<BattleLaunchEvidence[]> {
-  return page.evaluate(() => [
-    ...((
-      window as Window & {
-        __POKE_LOUNGE_WORLD_BATTLE_STARTS__?: Array<{
-          matchId: string;
-          bracketMatchId: string;
-          assignmentRevision: number;
-        }>;
-      }
-    ).__POKE_LOUNGE_WORLD_BATTLE_STARTS__ ?? []),
-  ]);
+  return page.evaluate(
+    () =>
+      (
+        window as Window & {
+          __POKE_LOUNGE_E2E__?: { getWorldBattleLaunches(): BattleLaunchEvidence[] };
+        }
+      ).__POKE_LOUNGE_E2E__?.getWorldBattleLaunches() ?? [],
+  );
 }
 
 async function captureTerminalConvergence(
@@ -1635,9 +1602,6 @@ async function readTesterRuntimeState(page: Page): Promise<TesterRuntimeState> {
     const isRecord = (value: unknown): value is UnknownRecord =>
       Boolean(value) && typeof value === "object" && !Array.isArray(value);
     const pokeWindow = window as Window & {
-      __POKE_LOUNGE_GAME__?: {
-        scene?: { getScene?(key: string): unknown };
-      };
       __POKE_LOUNGE_E2E__?: {
         getActiveSceneKey(): string | null;
         getBattleSnapshot(): BattleSnapshot | null;
@@ -1754,32 +1718,7 @@ async function readTesterRuntimeState(page: Page): Promise<TesterRuntimeState> {
       : [];
     const activeScene = controller?.getActiveSceneKey() ?? null;
     const battle = controller?.getBattleSnapshot() ?? null;
-    let competitive: TesterRuntimeState["competitive"] = null;
-
-    if (activeScene === "battle") {
-      const battleScene = pokeWindow.__POKE_LOUNGE_GAME__?.scene?.getScene?.("battle");
-      const projection = isRecord(battleScene)
-        ? (battleScene as UnknownRecord).authoritativeProjection
-        : null;
-
-      if (isRecord(projection)) {
-        competitive = {
-          matchId: typeof projection.matchId === "string" ? projection.matchId : "",
-          bracketMatchId:
-            typeof projection.bracketMatchId === "string" ? projection.bracketMatchId : "",
-          assignmentRevision:
-            typeof projection.assignmentRevision === "number" ? projection.assignmentRevision : -1,
-          currentTurn: typeof projection.currentTurn === "number" ? projection.currentTurn : -1,
-          status: typeof projection.status === "string" ? projection.status : "",
-          terminal: projection.terminal ?? null,
-          submittedPlayerIds: Array.isArray(projection.submittedPlayerIds)
-            ? projection.submittedPlayerIds.filter(
-                (playerId): playerId is string => typeof playerId === "string",
-              )
-            : [],
-        };
-      }
-    }
+    const competitive = activeScene === "battle" ? (battle?.competitive ?? null) : null;
 
     return {
       currentPlayerId:
@@ -2398,12 +2337,11 @@ async function setBattleMoveIndexForTest(page: Page, index: number): Promise<voi
 
 async function setBattlePartySlotForTest(page: Page, slotIndex: number): Promise<void> {
   await page.evaluate(value => {
-    const game = (window as Window & { __POKE_LOUNGE_GAME__?: unknown }).__POKE_LOUNGE_GAME__ as {
-      scene?: {
-        getScene?(key: string): { setSelectedPartySlotIndexForTest?(index: number): void };
-      };
-    };
-    game.scene?.getScene?.("battle")?.setSelectedPartySlotIndexForTest?.(value);
+    (
+      window as Window & {
+        __POKE_LOUNGE_E2E__?: { setBattlePartySlotIndex(index: number): unknown };
+      }
+    ).__POKE_LOUNGE_E2E__?.setBattlePartySlotIndex(value);
   }, slotIndex);
 }
 

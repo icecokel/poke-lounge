@@ -1,4 +1,3 @@
-export const POKE_LOUNGE_ROOM_LEAVE_REQUEST_EVENT = "poke-lounge:room-leave-request";
 export const POKE_LOUNGE_NOTICE_EVENT = "poke-lounge:notice";
 export const POKE_LOUNGE_ACCESSIBLE_STATUS_EVENT = "poke-lounge:accessible-status";
 

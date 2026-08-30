@@ -4,6 +4,13 @@ export type VirtualGamepadButton =
 const pressedButtons = new Set<VirtualGamepadButton>();
 const pendingPresses = new Set<VirtualGamepadButton>();
 
+export interface VirtualGamepadController {
+  press(button: VirtualGamepadButton): void;
+  release(button: VirtualGamepadButton): void;
+  reset(): void;
+  setHeld(button: VirtualGamepadButton, isHeld: boolean): void;
+}
+
 export function pressVirtualGamepadButton(button: VirtualGamepadButton): void {
   if (!pressedButtons.has(button)) {
     pendingPresses.add(button);
@@ -44,3 +51,10 @@ export function resetVirtualGamepad(): void {
   pressedButtons.clear();
   pendingPresses.clear();
 }
+
+export const virtualGamepadController: VirtualGamepadController = {
+  press: pressVirtualGamepadButton,
+  release: releaseVirtualGamepadButton,
+  reset: resetVirtualGamepad,
+  setHeld: setVirtualGamepadButtonHeld,
+};

@@ -1,31 +1,34 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { PokeLoungePartySlotMenu } from "../party-slot-menu";
 import type { PokeLoungeCopy } from "../poke-lounge-copy";
 import { primePokeLoungeAudio } from "../runtime/game/audio/poke-lounge-audio";
 import {
-  dispatchMobileBattleUiAction,
-  POKE_LOUNGE_MOBILE_BATTLE_STATE_EVENT,
-  requestMobileBattleUiState,
   type MobileBattleUiAction,
   type MobileBattleUiState,
 } from "../runtime/game/ui/mobile-battle-ui";
+import type { BattleUiStore } from "../runtime/game/battle/battle-ui-store";
 import {
-  dispatchMobileWorldUiAction,
-  POKE_LOUNGE_MOBILE_WORLD_STATE_EVENT,
-  requestMobileWorldUiState,
   type MobileWorldUiAction,
   type MobileWorldUiState,
   type PokeLoungePartySlotSummary,
 } from "../runtime/game/ui/mobile-world-ui";
+import type { WorldUiStore } from "../runtime/game/world/world-ui-store";
+import { createShortcutGuideRows } from "../runtime/game/ui/shortcutGuide";
 import {
-  pressVirtualGamepadButton,
-  releaseVirtualGamepadButton,
   resetVirtualGamepad,
-  setVirtualGamepadButtonHeld,
+  virtualGamepadController,
   type VirtualGamepadButton,
+  type VirtualGamepadController,
 } from "../runtime/game/input/virtualGamepad";
 import styles from "./mobile-game-shell.module.css";
 
@@ -44,6 +47,7 @@ type MobileJoystickOffset = {
 const mobileJoystickDeadZoneRatio = 0.24;
 const mobileJoystickMaximumThumbOffsetRatio = 0.46;
 const emptyMobileJoystickOffset: MobileJoystickOffset = { x: 0, y: 0 };
+const subscribeToNothing = () => () => {};
 
 const resolveMobileJoystickDirections = (
   offset: MobileJoystickOffset,
@@ -144,42 +148,33 @@ interface MobileSettingsProps {
 
 export interface MobileGameShellProps {
   activeScene: MobileScene;
+  battleUiStore?: BattleUiStore;
   copy: PokeLoungeCopy;
   onOpenSettings(): void;
   settings: MobileSettingsProps;
+  worldInput?: VirtualGamepadController;
+  worldUiStore?: WorldUiStore;
 }
 
 export function MobileGameShell({
   activeScene,
+  battleUiStore,
   copy,
   onOpenSettings,
   settings,
+  worldInput = virtualGamepadController,
+  worldUiStore,
 }: MobileGameShellProps) {
-  const [worldState, setWorldState] = useState<MobileWorldUiState | null>(null);
-
-  useEffect(() => {
-    const handleState = (event: Event) => {
-      setWorldState((event as CustomEvent<MobileWorldUiState>).detail);
-    };
-
-    document.addEventListener(POKE_LOUNGE_MOBILE_WORLD_STATE_EVENT, handleState);
-    requestMobileWorldUiState(document);
-
-    return () => {
-      document.removeEventListener(POKE_LOUNGE_MOBILE_WORLD_STATE_EVENT, handleState);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (activeScene === "world") {
-      requestMobileWorldUiState(document);
-    }
-  }, [activeScene]);
+  const worldState = useSyncExternalStore(
+    worldUiStore?.subscribe ?? subscribeToNothing,
+    () => worldUiStore?.getSnapshot().mobile ?? null,
+    () => null,
+  );
 
   const dispatchWorldAction = (action: MobileWorldUiAction) => {
-    resetVirtualGamepad();
+    worldInput.reset();
     void primePokeLoungeAudio();
-    dispatchMobileWorldUiAction(document, action);
+    worldUiStore?.dispatch(action);
   };
   const isWorldSceneOpen = activeScene === "world" && worldState?.screen !== "explore";
 
@@ -199,7 +194,8 @@ export function MobileGameShell({
               type="button"
               className={styles.utilityButton}
               onClick={() => {
-                resetVirtualGamepad();
+                if (activeScene === "world") worldInput.reset();
+                else resetVirtualGamepad();
                 onOpenSettings();
               }}
               aria-label={copy.settingsOpenLabel}
@@ -219,7 +215,7 @@ export function MobileGameShell({
 
                   resetVirtualGamepad();
                   void primePokeLoungeAudio();
-                  dispatchMobileBattleUiAction(document, { type: "toggle-help" });
+                  battleUiStore?.dispatch({ type: "toggle-help" });
                 }}
                 aria-label={copy.mobile.help}
                 data-poke-lounge-mobile-help="true"
@@ -230,9 +226,14 @@ export function MobileGameShell({
           </div>
         </div>
         {activeScene === "battle" ? (
-          <MobileBattleDeck copy={copy} />
+          <MobileBattleDeck copy={copy} uiStore={battleUiStore} />
         ) : (
-          <MobileExploreDeck copy={copy} onAction={dispatchWorldAction} worldState={worldState} />
+          <MobileExploreDeck
+            copy={copy}
+            input={worldInput}
+            onAction={dispatchWorldAction}
+            worldState={worldState}
+          />
         )}
       </section>
       {isWorldSceneOpen && worldState ? (
@@ -245,10 +246,12 @@ export function MobileGameShell({
 
 function MobileExploreDeck({
   copy,
+  input,
   onAction,
   worldState,
 }: {
   copy: PokeLoungeCopy;
+  input: VirtualGamepadController;
   onAction(action: MobileWorldUiAction): void;
   worldState: MobileWorldUiState | null;
 }) {
@@ -271,12 +274,13 @@ function MobileExploreDeck({
         ) : null}
       </div>
       <div className={styles.controlCluster}>
-        <MobileDirectionalJoystick ariaLabel={copy.mobile.exploreDeckLabel} />
+        <MobileDirectionalJoystick ariaLabel={copy.mobile.exploreDeckLabel} input={input} />
         <div className={styles.fieldActions}>
           <TouchHoldButton
             control="confirm"
             className={styles.primaryAction}
             ariaLabel={copy.mobile.interact}
+            input={input}
           >
             <span>A</span>
             <small>{copy.mobile.interact}</small>
@@ -285,6 +289,7 @@ function MobileExploreDeck({
             control="bag"
             className={styles.secondaryAction}
             ariaLabel={copy.mobile.bag}
+            input={input}
           >
             <span>I</span>
             <small>{copy.mobile.bag}</small>
@@ -304,7 +309,13 @@ function MobileExploreDeck({
   );
 }
 
-function MobileDirectionalJoystick({ ariaLabel }: { ariaLabel: string }) {
+function MobileDirectionalJoystick({
+  ariaLabel,
+  input,
+}: {
+  ariaLabel: string;
+  input: VirtualGamepadController;
+}) {
   const [activeDirections, setActiveDirections] = useState<MobileJoystickDirection[]>([]);
   const [isActive, setIsActive] = useState(false);
   const [thumbOffset, setThumbOffset] = useState<MobileJoystickOffset>(emptyMobileJoystickOffset);
@@ -314,10 +325,10 @@ function MobileDirectionalJoystick({ ariaLabel }: { ariaLabel: string }) {
   useEffect(() => {
     return () => {
       for (const direction of activeDirectionsRef.current) {
-        setVirtualGamepadButtonHeld(direction, false);
+        input.setHeld(direction, false);
       }
     };
-  }, []);
+  }, [input]);
 
   const holdDirections = (directions: ReadonlyArray<MobileJoystickDirection>) => {
     const nextDirections = new Set(directions);
@@ -331,7 +342,7 @@ function MobileDirectionalJoystick({ ariaLabel }: { ariaLabel: string }) {
 
     for (const direction of mobileJoystickDirectionOrder) {
       if (activeDirectionsRef.current.has(direction) !== nextDirections.has(direction)) {
-        setVirtualGamepadButtonHeld(direction, nextDirections.has(direction));
+        input.setHeld(direction, nextDirections.has(direction));
       }
     }
 
@@ -442,14 +453,16 @@ function MobileDirectionalJoystick({ ariaLabel }: { ariaLabel: string }) {
   );
 }
 
-function MobileWorldScreen({
+export function MobileWorldScreen({
   copy,
   onAction,
   state,
+  variant = "mobile",
 }: {
   copy: PokeLoungeCopy;
   onAction(action: MobileWorldUiAction): void;
   state: MobileWorldUiState;
+  variant?: "desktop" | "mobile";
 }) {
   const close = () => onAction({ type: "close" });
   const back = () => onAction({ type: "back" });
@@ -457,49 +470,9 @@ function MobileWorldScreen({
   let footer: ReactNode = null;
 
   if (state.screen === "help") {
-    content = (
-      <ul className={styles.helpList}>
-        <li>
-          <b>방향</b>
-          <span>필드를 이동합니다.</span>
-        </li>
-        <li>
-          <b>A · {copy.mobile.interact}</b>
-          <span>NPC와 대화하거나 시설을 사용합니다.</span>
-        </li>
-        <li>
-          <b>I · {copy.mobile.bag}</b>
-          <span>아이템을 선택하고 파티에 사용합니다.</span>
-        </li>
-        <li>
-          <b>P · {copy.mobile.party}</b>
-          <span>선두 포켓몬을 바꿉니다.</span>
-        </li>
-      </ul>
-    );
+    content = <MobileWorldHelpScreen state={state} />;
   } else if (state.screen === "inventory-items") {
-    content = (
-      <>
-        <div className={styles.compactList}>
-          {state.items.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              className={styles.listButton}
-              data-selected={item.selected}
-              onClick={() => onAction({ type: "select-inventory-item", index: item.index })}
-            >
-              <span>{item.name}</span>
-              <small>×{item.count}</small>
-            </button>
-          ))}
-        </div>
-        <p className={styles.detailText}>
-          {state.selectedItemDescription || "사용할 아이템이 없습니다."}
-        </p>
-        <MobileWorldMessage message={state.message} />
-      </>
-    );
+    content = <MobileInventoryItemList onAction={onAction} state={state} />;
     footer = (
       <MobileWorldSceneFooter
         copy={copy}
@@ -509,30 +482,7 @@ function MobileWorldScreen({
       />
     );
   } else if (state.screen === "inventory-party") {
-    content = (
-      <>
-        <p className={styles.detailText}>{state.selectedItemName}</p>
-        <div className={styles.compactList}>
-          {state.party
-            .filter(pokemon => !pokemon.isEmpty)
-            .map(pokemon => (
-              <button
-                key={pokemon.slotIndex}
-                type="button"
-                className={styles.listButton}
-                data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
-                onClick={() =>
-                  onAction({ type: "select-inventory-party", slotIndex: pokemon.slotIndex })
-                }
-              >
-                <span>{pokemon.name}</span>
-                <small>{formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}</small>
-              </button>
-            ))}
-        </div>
-        <MobileWorldMessage message={state.message} />
-      </>
-    );
+    content = <MobileInventoryPartyTarget onAction={onAction} state={state} />;
     footer = (
       <MobileWorldSceneFooter
         copy={copy}
@@ -542,33 +492,7 @@ function MobileWorldScreen({
       />
     );
   } else if (state.screen === "inventory-move-replace") {
-    content = state.moveReplacement ? (
-      <>
-        <p className={styles.detailText}>
-          {copy.mobile.moveReplacementPrompt(
-            state.moveReplacement.pokemonName,
-            state.moveReplacement.newMoveName,
-          )}
-        </p>
-        <div className={styles.compactList}>
-          {state.moveReplacement.moves.map(move => (
-            <button
-              key={move.id}
-              type="button"
-              className={styles.listButton}
-              data-selected={move.selected}
-              onClick={() => onAction({ type: "select-inventory-move", index: move.index })}
-            >
-              <span>{move.name}</span>
-              <small>{move.selected ? copy.mobile.forgetMove : ""}</small>
-            </button>
-          ))}
-        </div>
-        <MobileWorldMessage message={state.message} />
-      </>
-    ) : (
-      <MobileWorldMessage message="기술 교체 정보를 불러올 수 없습니다." />
-    );
+    content = <MobileInventoryMoveReplacement copy={copy} onAction={onAction} state={state} />;
     footer = (
       <MobileWorldSceneFooter
         backLabel={copy.mobile.doNotLearnMove}
@@ -579,28 +503,7 @@ function MobileWorldScreen({
       />
     );
   } else if (state.screen === "shop") {
-    content = (
-      <>
-        <div className={styles.compactList}>
-          {state.items.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              className={styles.listButton}
-              data-selected={item.selected}
-              onClick={() => onAction({ type: "select-shop-item", index: item.index })}
-            >
-              <span>{item.name}</span>
-              <small>
-                {formatMobilePokeDollars(item.price ?? 0)} · ×{item.count}
-              </small>
-            </button>
-          ))}
-        </div>
-        <p className={styles.detailText}>{state.selectedItemDescription}</p>
-        <MobileWorldMessage message={state.message} />
-      </>
-    );
+    content = <MobileShopPanel onAction={onAction} state={state} />;
     footer = (
       <MobileWorldSceneFooter
         copy={copy}
@@ -611,66 +514,7 @@ function MobileWorldScreen({
     );
   } else if (state.screen === "pc") {
     const confirmLabel = state.pcFocus === "party" ? copy.mobile.deposit : copy.mobile.withdraw;
-    const isPartyFocused = state.pcFocus === "party";
-
-    content = (
-      <>
-        <div className={styles.pcTabs}>
-          <button
-            type="button"
-            className={styles.panelAction}
-            data-selected={state.pcFocus === "party"}
-            onClick={() => onAction({ type: "select-pc-focus", focus: "party" })}
-          >
-            {copy.mobile.pcParty}
-          </button>
-          <button
-            type="button"
-            className={styles.panelAction}
-            data-selected={state.pcFocus === "box"}
-            onClick={() => onAction({ type: "select-pc-focus", focus: "box" })}
-          >
-            {copy.mobile.pcBox}
-          </button>
-        </div>
-        <div className={styles.compactList}>
-          {isPartyFocused ? (
-            state.party.map(pokemon => (
-              <button
-                key={pokemon.slotIndex}
-                type="button"
-                className={styles.listButton}
-                data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
-                onClick={() => onAction({ type: "select-pc-party", slotIndex: pokemon.slotIndex })}
-              >
-                <span>{pokemon.isEmpty ? "-" : pokemon.name}</span>
-                <small>
-                  {pokemon.isEmpty
-                    ? ""
-                    : formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}
-                </small>
-              </button>
-            ))
-          ) : state.box.length > 0 ? (
-            state.box.map(pokemon => (
-              <button
-                key={pokemon.boxIndex}
-                type="button"
-                className={styles.listButton}
-                data-selected={pokemon.selected}
-                onClick={() => onAction({ type: "select-pc-box", boxIndex: pokemon.boxIndex })}
-              >
-                <span>{pokemon.name}</span>
-                <small>{formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}</small>
-              </button>
-            ))
-          ) : (
-            <p className={styles.emptyList}>비어 있음</p>
-          )}
-        </div>
-        <MobileWorldMessage message={state.message} />
-      </>
-    );
+    content = <MobilePcPanel copy={copy} onAction={onAction} state={state} />;
     footer = (
       <MobileWorldSceneFooter
         copy={copy}
@@ -680,39 +524,7 @@ function MobileWorldScreen({
       />
     );
   } else if (state.screen === "dice") {
-    content = (
-      <>
-        {state.dice ? (
-          <>
-            <p className={styles.diceMeta}>
-              기준 {state.dice.targetNumber} · 배팅{" "}
-              {formatMobilePokeDollars(state.dice.stakePokeDollars)}
-            </p>
-            <div className={styles.compactList}>
-              {state.dice.options.map(option => (
-                <button
-                  key={option.prediction}
-                  type="button"
-                  className={styles.listButton}
-                  data-selected={option.selected}
-                  disabled={option.disabled}
-                  onClick={() =>
-                    onAction({ type: "select-dice-prediction", prediction: option.prediction })
-                  }
-                >
-                  <span>{option.label}</span>
-                  <small>
-                    {option.winningCaseCount}/6 ·{" "}
-                    {formatMobilePokeDollars(option.rewardPokeDollars)}
-                  </small>
-                </button>
-              ))}
-            </div>
-          </>
-        ) : null}
-        <MobileWorldMessage message={state.message} />
-      </>
-    );
+    content = <MobileDicePanel onAction={onAction} state={state} />;
     footer = (
       <MobileWorldSceneFooter
         copy={copy}
@@ -722,42 +534,16 @@ function MobileWorldScreen({
       />
     );
   } else {
-    content = (
-      <div className={styles.compactList}>
-        {state.party.map(pokemon => (
-          <button
-            key={pokemon.slotIndex}
-            type="button"
-            className={styles.listButton}
-            data-selected={pokemon.isActive}
-            data-empty={pokemon.isEmpty || undefined}
-            disabled={pokemon.isEmpty || !pokemon.canSetAsLead}
-            onClick={() => onAction({ type: "set-party-lead", slotIndex: pokemon.slotIndex })}
-          >
-            <span>
-              {pokemon.isEmpty ? copy.partySlotLabel(pokemon.slotIndex + 1) : pokemon.name}
-            </span>
-            <small>
-              {pokemon.isEmpty
-                ? copy.partySlotEmpty
-                : pokemon.isActive
-                  ? copy.partySlotLead
-                  : pokemon.canSetAsLead
-                    ? copy.mobile.setLead
-                    : formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}
-            </small>
-          </button>
-        ))}
-      </div>
-    );
+    content = <MobilePartyPanel copy={copy} onAction={onAction} state={state} />;
   }
 
   return (
     <section
-      className={styles.worldScene}
+      className={`${styles.worldScene} ${variant === "desktop" ? styles.worldSceneDesktop : ""}`}
       aria-labelledby="poke-lounge-mobile-world-scene-title"
-      data-poke-lounge-mobile-deck={`world-${state.screen}`}
-      data-poke-lounge-mobile-fullscreen-scene="true"
+      data-poke-lounge-mobile-deck={variant === "mobile" ? `world-${state.screen}` : undefined}
+      data-poke-lounge-mobile-fullscreen-scene={variant === "mobile" ? "true" : undefined}
+      data-poke-lounge-world-surface={state.screen}
     >
       <MobileWorldSceneHeader
         copy={copy}
@@ -769,6 +555,311 @@ function MobileWorldScreen({
       <div className={styles.worldSceneBody}>{content}</div>
       {footer}
     </section>
+  );
+}
+
+export function MobileWorldHelpScreen({ state }: { state: MobileWorldUiState }) {
+  return (
+    <ul className={styles.helpList}>
+      {createShortcutGuideRows("world", state.inputMode).map(row => (
+        <li key={row.action}>
+          <b>{row.action}</b>
+          <span>{row.keys}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function MobileInventoryItemList({
+  onAction,
+  state,
+}: {
+  onAction(action: MobileWorldUiAction): void;
+  state: MobileWorldUiState;
+}) {
+  return (
+    <>
+      <div className={styles.compactList}>
+        {state.items.map(item => (
+          <button
+            key={item.id}
+            type="button"
+            className={styles.listButton}
+            data-poke-lounge-inventory-item={item.id}
+            data-selected={item.selected}
+            onClick={() => onAction({ type: "select-inventory-item", index: item.index })}
+          >
+            <span>{item.name}</span>
+            <small>×{item.count}</small>
+          </button>
+        ))}
+      </div>
+      <p className={styles.detailText}>
+        {state.selectedItemDescription || "사용할 아이템이 없습니다."}
+      </p>
+      <MobileWorldMessage message={state.message} />
+    </>
+  );
+}
+
+export function MobileInventoryPartyTarget({
+  onAction,
+  state,
+}: {
+  onAction(action: MobileWorldUiAction): void;
+  state: MobileWorldUiState;
+}) {
+  return (
+    <>
+      <p className={styles.detailText}>{state.selectedItemName}</p>
+      <div className={styles.compactList}>
+        {state.party
+          .filter(pokemon => !pokemon.isEmpty)
+          .map(pokemon => (
+            <button
+              key={pokemon.slotIndex}
+              type="button"
+              className={styles.listButton}
+              data-poke-lounge-inventory-party-slot={pokemon.slotIndex}
+              data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
+              onClick={() =>
+                onAction({ type: "select-inventory-party", slotIndex: pokemon.slotIndex })
+              }
+            >
+              <span>{pokemon.name}</span>
+              <small>{formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}</small>
+            </button>
+          ))}
+      </div>
+      <MobileWorldMessage message={state.message} />
+    </>
+  );
+}
+
+export function MobileInventoryMoveReplacement({
+  copy,
+  onAction,
+  state,
+}: {
+  copy: PokeLoungeCopy;
+  onAction(action: MobileWorldUiAction): void;
+  state: MobileWorldUiState;
+}) {
+  if (!state.moveReplacement) {
+    return <MobileWorldMessage message="기술 교체 정보를 불러올 수 없습니다." />;
+  }
+
+  return (
+    <>
+      <p className={styles.detailText}>
+        {copy.mobile.moveReplacementPrompt(
+          state.moveReplacement.pokemonName,
+          state.moveReplacement.newMoveName,
+        )}
+      </p>
+      <div className={styles.compactList}>
+        {state.moveReplacement.moves.map(move => (
+          <button
+            key={move.id}
+            type="button"
+            className={styles.listButton}
+            data-poke-lounge-move-replacement={move.id}
+            data-selected={move.selected}
+            onClick={() => onAction({ type: "select-inventory-move", index: move.index })}
+          >
+            <span>{move.name}</span>
+            <small>{move.selected ? copy.mobile.forgetMove : ""}</small>
+          </button>
+        ))}
+      </div>
+      <MobileWorldMessage message={state.message} />
+    </>
+  );
+}
+
+export function MobileShopPanel({
+  onAction,
+  state,
+}: {
+  onAction(action: MobileWorldUiAction): void;
+  state: MobileWorldUiState;
+}) {
+  return (
+    <>
+      <div className={styles.compactList}>
+        {state.items.map(item => (
+          <button
+            key={item.id}
+            type="button"
+            className={styles.listButton}
+            data-poke-lounge-shop-item={item.id}
+            data-selected={item.selected}
+            onClick={() => onAction({ type: "select-shop-item", index: item.index })}
+          >
+            <span>{item.name}</span>
+            <small>
+              {formatMobilePokeDollars(item.price ?? 0)} · ×{item.count}
+            </small>
+          </button>
+        ))}
+      </div>
+      <p className={styles.detailText}>{state.selectedItemDescription}</p>
+      <MobileWorldMessage message={state.message} />
+    </>
+  );
+}
+
+export function MobilePcPanel({
+  copy,
+  onAction,
+  state,
+}: {
+  copy: PokeLoungeCopy;
+  onAction(action: MobileWorldUiAction): void;
+  state: MobileWorldUiState;
+}) {
+  const isPartyFocused = state.pcFocus === "party";
+
+  return (
+    <>
+      <div className={styles.pcTabs}>
+        <button
+          type="button"
+          className={styles.panelAction}
+          data-selected={isPartyFocused}
+          onClick={() => onAction({ type: "select-pc-focus", focus: "party" })}
+        >
+          {copy.mobile.pcParty}
+        </button>
+        <button
+          type="button"
+          className={styles.panelAction}
+          data-selected={!isPartyFocused}
+          onClick={() => onAction({ type: "select-pc-focus", focus: "box" })}
+        >
+          {copy.mobile.pcBox}
+        </button>
+      </div>
+      <div className={styles.compactList}>
+        {isPartyFocused ? (
+          state.party.map(pokemon => (
+            <button
+              key={pokemon.slotIndex}
+              type="button"
+              className={styles.listButton}
+              data-poke-lounge-pc-party-slot={pokemon.slotIndex}
+              data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
+              onClick={() => onAction({ type: "select-pc-party", slotIndex: pokemon.slotIndex })}
+            >
+              <span>{pokemon.isEmpty ? "-" : pokemon.name}</span>
+              <small>
+                {pokemon.isEmpty
+                  ? ""
+                  : formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}
+              </small>
+            </button>
+          ))
+        ) : state.box.length > 0 ? (
+          state.box.map(pokemon => (
+            <button
+              key={pokemon.boxIndex}
+              type="button"
+              className={styles.listButton}
+              data-poke-lounge-pc-box-slot={pokemon.boxIndex}
+              data-selected={pokemon.selected}
+              onClick={() => onAction({ type: "select-pc-box", boxIndex: pokemon.boxIndex })}
+            >
+              <span>{pokemon.name}</span>
+              <small>{formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}</small>
+            </button>
+          ))
+        ) : (
+          <p className={styles.emptyList}>비어 있음</p>
+        )}
+      </div>
+      <MobileWorldMessage message={state.message} />
+    </>
+  );
+}
+
+export function MobileDicePanel({
+  onAction,
+  state,
+}: {
+  onAction(action: MobileWorldUiAction): void;
+  state: MobileWorldUiState;
+}) {
+  return (
+    <>
+      {state.dice ? (
+        <>
+          <p className={styles.diceMeta}>
+            기준 {state.dice.targetNumber} · 배팅{" "}
+            {formatMobilePokeDollars(state.dice.stakePokeDollars)}
+          </p>
+          <div className={styles.compactList}>
+            {state.dice.options.map(option => (
+              <button
+                key={option.prediction}
+                type="button"
+                className={styles.listButton}
+                data-poke-lounge-dice-option={option.prediction}
+                data-selected={option.selected}
+                disabled={option.disabled}
+                onClick={() =>
+                  onAction({ type: "select-dice-prediction", prediction: option.prediction })
+                }
+              >
+                <span>{option.label}</span>
+                <small>
+                  {option.winningCaseCount}/6 · {formatMobilePokeDollars(option.rewardPokeDollars)}
+                </small>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+      <MobileWorldMessage message={state.message} />
+    </>
+  );
+}
+
+export function MobilePartyPanel({
+  copy,
+  onAction,
+  state,
+}: {
+  copy: PokeLoungeCopy;
+  onAction(action: MobileWorldUiAction): void;
+  state: MobileWorldUiState;
+}) {
+  return (
+    <div className={styles.compactList}>
+      {state.party.map(pokemon => (
+        <button
+          key={pokemon.slotIndex}
+          type="button"
+          className={styles.listButton}
+          data-poke-lounge-mobile-party-slot={pokemon.slotIndex}
+          data-selected={pokemon.isActive}
+          data-empty={pokemon.isEmpty || undefined}
+          disabled={pokemon.isEmpty || !pokemon.canSetAsLead}
+          onClick={() => onAction({ type: "set-party-lead", slotIndex: pokemon.slotIndex })}
+        >
+          <span>{pokemon.isEmpty ? copy.partySlotLabel(pokemon.slotIndex + 1) : pokemon.name}</span>
+          <small>
+            {pokemon.isEmpty
+              ? copy.partySlotEmpty
+              : pokemon.isActive
+                ? copy.partySlotLead
+                : pokemon.canSetAsLead
+                  ? copy.mobile.setLead
+                  : formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}
+          </small>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -864,40 +955,22 @@ function formatMobileHp(
   return `${currentHp}/${maxHp}${statusLabel}`;
 }
 
-function MobileBattleDeck({ copy }: { copy: PokeLoungeCopy }) {
-  const [battleState, setBattleState] = useState<MobileBattleUiState | null>(null);
-  const battleStateRef = useRef<MobileBattleUiState | null>(null);
-
-  useEffect(() => {
-    let retryTimer: number | null = null;
-    const handleState = (event: Event) => {
-      const nextBattleState = (event as CustomEvent<MobileBattleUiState>).detail;
-
-      battleStateRef.current = nextBattleState;
-      setBattleState(nextBattleState);
-    };
-    const requestBattleState = (): void => {
-      requestMobileBattleUiState(document);
-
-      if (!battleStateRef.current) {
-        retryTimer = window.setTimeout(requestBattleState, 120);
-      }
-    };
-
-    document.addEventListener(POKE_LOUNGE_MOBILE_BATTLE_STATE_EVENT, handleState);
-    requestBattleState();
-
-    return () => {
-      if (retryTimer !== null) {
-        window.clearTimeout(retryTimer);
-      }
-      document.removeEventListener(POKE_LOUNGE_MOBILE_BATTLE_STATE_EVENT, handleState);
-    };
-  }, []);
+export function MobileBattleDeck({
+  copy,
+  uiStore,
+}: {
+  copy: PokeLoungeCopy;
+  uiStore?: BattleUiStore;
+}) {
+  const battleState = useSyncExternalStore(
+    uiStore?.subscribe ?? subscribeToNothing,
+    () => uiStore?.getSnapshot().controls ?? null,
+    () => null,
+  );
 
   const dispatchAction = (action: MobileBattleUiAction) => {
     void primePokeLoungeAudio();
-    dispatchMobileBattleUiAction(document, action);
+    uiStore?.dispatch(action);
   };
 
   if (!battleState) {
@@ -905,211 +978,293 @@ function MobileBattleDeck({ copy }: { copy: PokeLoungeCopy }) {
   }
 
   if (battleState.isHelpOpen) {
-    return (
-      <div className={styles.selectionDeck} data-poke-lounge-mobile-deck="battle-help">
-        <div className={styles.deckHeading}>
-          <strong>{copy.mobile.help}</strong>
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={() => dispatchAction({ type: "toggle-help" })}
-            data-poke-lounge-mobile-battle-help-close="true"
-          >
-            {copy.settingsClose}
-          </button>
-        </div>
-        <ul className={`${styles.helpList} ${styles.battleHelpList}`}>
-          <li>
-            <b>{copy.mobile.battleDeckLabel}</b>
-            <span>{copy.mobile.battleHelpChoose}</span>
-          </li>
-          <li>
-            <b>{copy.mobile.next}</b>
-            <span>{copy.mobile.battleHelpAdvance}</span>
-          </li>
-          <li>
-            <b>{copy.mobile.back}</b>
-            <span>{copy.mobile.battleHelpBack}</span>
-          </li>
-        </ul>
-      </div>
-    );
+    return <MobileBattleHelpDeck copy={copy} onAction={dispatchAction} />;
   }
 
   if (battleState.message) {
-    return (
-      <div className={styles.messageDeck} data-poke-lounge-mobile-deck="battle-message">
-        <p data-poke-lounge-mobile-battle-message="true">{battleState.message}</p>
-        <button
-          type="button"
-          className={styles.nextButton}
-          aria-label={`${battleState.message} ${copy.mobile.next}`}
-          onClick={() => dispatchAction({ type: "confirm-message" })}
-          disabled={battleState.isInputLocked}
-        >
-          {copy.mobile.next} <span>›</span>
-        </button>
-      </div>
-    );
+    return <MobileBattleMessageDeck copy={copy} onAction={dispatchAction} state={battleState} />;
   }
 
   if (battleState.isInputLocked || battleState.phase === "resolving") {
-    return <p className={styles.deckNotice}>{copy.mobile.waiting}</p>;
+    return <MobileBattleWaitingDeck copy={copy} />;
   }
 
-  const backButton = battleState.canGoBack ? (
-    <button
-      type="button"
-      className={styles.backButton}
-      onClick={() => dispatchAction({ type: "go-back" })}
-      aria-label={
-        battleState.phase === "move-replace-select" ? copy.mobile.doNotLearnMove : copy.mobile.back
-      }
-    >
-      ‹{" "}
-      {battleState.phase === "move-replace-select" ? copy.mobile.doNotLearnMove : copy.mobile.back}
-    </button>
-  ) : null;
-
   if (battleState.phase === "command") {
-    const labels = {
-      bag: copy.mobile.bag,
-      fight: copy.mobile.fight,
-      pokemon: copy.mobile.party,
-      run: copy.mobile.run,
-    };
-
-    return (
-      <div className={styles.commandDeck} data-poke-lounge-mobile-deck="battle-command">
-        {battleState.commands.map((command, index) => (
-          <button
-            key={command.id}
-            type="button"
-            className={styles.commandButton}
-            data-selected={command.selected}
-            onClick={() => dispatchAction({ type: "select-command", index })}
-          >
-            {labels[command.id]}
-          </button>
-        ))}
-      </div>
-    );
+    return <MobileBattleCommandDeck copy={copy} onAction={dispatchAction} state={battleState} />;
   }
 
   if (battleState.phase === "move-select" || battleState.phase === "move-replace-select") {
-    const actionType =
-      battleState.phase === "move-select" ? "select-move" : "select-move-replacement";
-    const moveReplacement = battleState.moveReplacement;
-    const title = moveReplacement
-      ? copy.mobile.moveReplacementPrompt(moveReplacement.pokemonName, moveReplacement.newMoveName)
-      : copy.mobile.chooseMove;
-
-    return (
-      <div className={styles.selectionDeck} data-poke-lounge-mobile-deck="battle-moves">
-        <div className={styles.deckHeading}>
-          <div
-            className={styles.moveReplacementSummary}
-            data-poke-lounge-mobile-move-replacement={moveReplacement ? "true" : undefined}
-          >
-            <strong>{title}</strong>
-            {moveReplacement ? (
-              <small>
-                {moveReplacement.newMoveName} · PP {moveReplacement.newMovePp}/
-                {moveReplacement.newMoveMaxPp} · {moveReplacement.newMoveType}
-              </small>
-            ) : null}
-          </div>
-          {backButton}
-        </div>
-        <div className={styles.optionGrid} data-poke-lounge-mobile-option-grid="moves">
-          {battleState.moves.map(move => (
-            <button
-              key={move.index}
-              type="button"
-              className={styles.moveButton}
-              data-selected={move.selected}
-              disabled={move.disabled}
-              aria-label={
-                moveReplacement
-                  ? `${move.name} · ${copy.mobile.forgetMove} → ${moveReplacement.newMoveName}`
-                  : undefined
-              }
-              onClick={() => dispatchAction({ type: actionType, index: move.index })}
-            >
-              <span>{move.name}</span>
-              <small>
-                PP {move.pp}/{move.maxPp} · {move.type}
-                {move.effectNotice ? ` · ${move.effectNotice}` : ""}
-                {moveReplacement ? ` · ${copy.mobile.forgetMove}` : ""}
-              </small>
-            </button>
-          ))}
-          <MobileBattleEmptySlots occupiedSlotCount={battleState.moves.length} />
-        </div>
-      </div>
-    );
+    return <MobileBattleMoveDeck copy={copy} onAction={dispatchAction} state={battleState} />;
   }
 
   if (battleState.phase === "party-select") {
-    return (
-      <div className={styles.selectionDeck} data-poke-lounge-mobile-deck="battle-party">
-        <div className={styles.deckHeading}>
-          <strong>{copy.mobile.chooseParty}</strong>
-          {backButton}
-        </div>
-        <div className={styles.partyList}>
-          {battleState.party.map(pokemon => (
-            <button
-              key={pokemon.slotIndex}
-              type="button"
-              className={styles.partyButton}
-              data-current={pokemon.isCurrent}
-              data-selected={pokemon.selected}
-              disabled={!pokemon.canSwitch}
-              onClick={() => dispatchAction({ type: "select-party", index: pokemon.slotIndex })}
-            >
-              <span>
-                {pokemon.name} <small>Lv.{pokemon.level}</small>
-              </span>
-              <small>
-                {pokemon.isCurrent
-                  ? "ON FIELD"
-                  : `${pokemon.currentHp}/${pokemon.maxHp}${pokemon.status ? ` · ${pokemon.status}` : ""}`}
-              </small>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
+    return <MobileBattlePartyDeck copy={copy} onAction={dispatchAction} state={battleState} />;
   }
 
   if (battleState.phase === "bag-select") {
-    return (
-      <div className={styles.selectionDeck} data-poke-lounge-mobile-deck="battle-bag">
-        <div className={styles.deckHeading}>
-          <strong>{copy.mobile.chooseItem}</strong>
-          {backButton}
-        </div>
-        <div className={styles.itemList} data-poke-lounge-mobile-option-grid="items">
-          {battleState.items.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              className={styles.itemButton}
-              data-selected={item.selected}
-              disabled={item.disabled}
-              onClick={() => dispatchAction({ type: "select-item", index: item.index })}
-            >
-              <span>{item.name}</span>
-              <small>×{item.count}</small>
-            </button>
-          ))}
-          <MobileBattleEmptySlots occupiedSlotCount={battleState.items.length} />
-        </div>
-      </div>
-    );
+    return <MobileBattleBagDeck copy={copy} onAction={dispatchAction} state={battleState} />;
   }
 
+  return <MobileBattleWaitingDeck copy={copy} />;
+}
+
+function MobileBattleBackButton({
+  copy,
+  onAction,
+  state,
+}: {
+  copy: PokeLoungeCopy;
+  onAction(action: MobileBattleUiAction): void;
+  state: MobileBattleUiState;
+}) {
+  if (!state.canGoBack) return null;
+  const label =
+    state.phase === "move-replace-select" ? copy.mobile.doNotLearnMove : copy.mobile.back;
+  return (
+    <button
+      type="button"
+      className={styles.backButton}
+      onClick={() => onAction({ type: "go-back" })}
+      aria-label={label}
+    >
+      ‹ {label}
+    </button>
+  );
+}
+
+export function MobileBattleCommandDeck({
+  copy,
+  onAction,
+  state,
+}: {
+  copy: PokeLoungeCopy;
+  onAction(action: MobileBattleUiAction): void;
+  state: MobileBattleUiState;
+}) {
+  const labels = {
+    bag: copy.mobile.bag,
+    fight: copy.mobile.fight,
+    pokemon: copy.mobile.party,
+    run: copy.mobile.run,
+  };
+  return (
+    <div className={styles.commandDeck} data-poke-lounge-mobile-deck="battle-command">
+      {state.commands.map((command, index) => (
+        <button
+          key={command.id}
+          type="button"
+          className={styles.commandButton}
+          data-selected={command.selected}
+          onClick={() => onAction({ type: "select-command", index })}
+        >
+          {labels[command.id]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function MobileBattleMoveDeck({
+  copy,
+  onAction,
+  state,
+}: {
+  copy: PokeLoungeCopy;
+  onAction(action: MobileBattleUiAction): void;
+  state: MobileBattleUiState;
+}) {
+  const actionType = state.phase === "move-select" ? "select-move" : "select-move-replacement";
+  const moveReplacement = state.moveReplacement;
+  const title = moveReplacement
+    ? copy.mobile.moveReplacementPrompt(moveReplacement.pokemonName, moveReplacement.newMoveName)
+    : copy.mobile.chooseMove;
+  return (
+    <div className={styles.selectionDeck} data-poke-lounge-mobile-deck="battle-moves">
+      <div className={styles.deckHeading}>
+        <div
+          className={styles.moveReplacementSummary}
+          data-poke-lounge-mobile-move-replacement={moveReplacement ? "true" : undefined}
+        >
+          <strong>{title}</strong>
+          {moveReplacement ? (
+            <small>
+              {moveReplacement.newMoveName} · PP {moveReplacement.newMovePp}/
+              {moveReplacement.newMoveMaxPp} · {moveReplacement.newMoveType}
+            </small>
+          ) : null}
+        </div>
+        <MobileBattleBackButton copy={copy} onAction={onAction} state={state} />
+      </div>
+      <div className={styles.optionGrid} data-poke-lounge-mobile-option-grid="moves">
+        {state.moves.map(move => (
+          <button
+            key={move.index}
+            type="button"
+            className={styles.moveButton}
+            data-selected={move.selected}
+            disabled={move.disabled}
+            aria-label={
+              moveReplacement
+                ? `${move.name} · ${copy.mobile.forgetMove} → ${moveReplacement.newMoveName}`
+                : undefined
+            }
+            onClick={() => onAction({ type: actionType, index: move.index })}
+          >
+            <span>{move.name}</span>
+            <small>
+              PP {move.pp}/{move.maxPp} · {move.type}
+              {move.effectNotice ? ` · ${move.effectNotice}` : ""}
+              {moveReplacement ? ` · ${copy.mobile.forgetMove}` : ""}
+            </small>
+          </button>
+        ))}
+        <MobileBattleEmptySlots occupiedSlotCount={state.moves.length} />
+      </div>
+    </div>
+  );
+}
+
+export function MobileBattlePartyDeck({
+  copy,
+  onAction,
+  state,
+}: {
+  copy: PokeLoungeCopy;
+  onAction(action: MobileBattleUiAction): void;
+  state: MobileBattleUiState;
+}) {
+  return (
+    <div className={styles.selectionDeck} data-poke-lounge-mobile-deck="battle-party">
+      <div className={styles.deckHeading}>
+        <strong>{copy.mobile.chooseParty}</strong>
+        <MobileBattleBackButton copy={copy} onAction={onAction} state={state} />
+      </div>
+      <div className={styles.partyList}>
+        {state.party.map(pokemon => (
+          <button
+            key={pokemon.slotIndex}
+            type="button"
+            className={styles.partyButton}
+            data-current={pokemon.isCurrent}
+            data-selected={pokemon.selected}
+            disabled={!pokemon.canSwitch}
+            onClick={() => onAction({ type: "select-party", index: pokemon.slotIndex })}
+          >
+            <span>
+              {pokemon.name} <small>Lv.{pokemon.level}</small>
+            </span>
+            <small>
+              {pokemon.isCurrent
+                ? "ON FIELD"
+                : `${pokemon.currentHp}/${pokemon.maxHp}${pokemon.status ? ` · ${pokemon.status}` : ""}`}
+            </small>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function MobileBattleBagDeck({
+  copy,
+  onAction,
+  state,
+}: {
+  copy: PokeLoungeCopy;
+  onAction(action: MobileBattleUiAction): void;
+  state: MobileBattleUiState;
+}) {
+  return (
+    <div className={styles.selectionDeck} data-poke-lounge-mobile-deck="battle-bag">
+      <div className={styles.deckHeading}>
+        <strong>{copy.mobile.chooseItem}</strong>
+        <MobileBattleBackButton copy={copy} onAction={onAction} state={state} />
+      </div>
+      <div className={styles.itemList} data-poke-lounge-mobile-option-grid="items">
+        {state.items.map(item => (
+          <button
+            key={item.id}
+            type="button"
+            className={styles.itemButton}
+            data-selected={item.selected}
+            disabled={item.disabled}
+            onClick={() => onAction({ type: "select-item", index: item.index })}
+          >
+            <span>{item.name}</span>
+            <small>×{item.count}</small>
+          </button>
+        ))}
+        <MobileBattleEmptySlots occupiedSlotCount={state.items.length} />
+      </div>
+    </div>
+  );
+}
+
+export function MobileBattleHelpDeck({
+  copy,
+  onAction,
+}: {
+  copy: PokeLoungeCopy;
+  onAction(action: MobileBattleUiAction): void;
+}) {
+  return (
+    <div className={styles.selectionDeck} data-poke-lounge-mobile-deck="battle-help">
+      <div className={styles.deckHeading}>
+        <strong>{copy.mobile.help}</strong>
+        <button
+          type="button"
+          className={styles.backButton}
+          onClick={() => onAction({ type: "toggle-help" })}
+          data-poke-lounge-mobile-battle-help-close="true"
+        >
+          {copy.settingsClose}
+        </button>
+      </div>
+      <ul className={`${styles.helpList} ${styles.battleHelpList}`}>
+        <li>
+          <b>{copy.mobile.battleDeckLabel}</b>
+          <span>{copy.mobile.battleHelpChoose}</span>
+        </li>
+        <li>
+          <b>{copy.mobile.next}</b>
+          <span>{copy.mobile.battleHelpAdvance}</span>
+        </li>
+        <li>
+          <b>{copy.mobile.back}</b>
+          <span>{copy.mobile.battleHelpBack}</span>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+export function MobileBattleMessageDeck({
+  copy,
+  onAction,
+  state,
+}: {
+  copy: PokeLoungeCopy;
+  onAction(action: MobileBattleUiAction): void;
+  state: MobileBattleUiState;
+}) {
+  if (!state.message) return null;
+  return (
+    <div className={styles.messageDeck} data-poke-lounge-mobile-deck="battle-message">
+      <p data-poke-lounge-mobile-battle-message="true">{state.message}</p>
+      <button
+        type="button"
+        className={styles.nextButton}
+        aria-label={`${state.message} ${copy.mobile.next}`}
+        onClick={() => onAction({ type: "confirm-message" })}
+        disabled={state.isInputLocked}
+      >
+        {copy.mobile.next} <span>›</span>
+      </button>
+    </div>
+  );
+}
+
+export function MobileBattleWaitingDeck({ copy }: { copy: PokeLoungeCopy }) {
   return <p className={styles.deckNotice}>{copy.mobile.waiting}</p>;
 }
 
@@ -1267,20 +1422,22 @@ function TouchHoldButton({
   children,
   className,
   control,
+  input,
 }: {
   ariaLabel: string;
   children: ReactNode;
   className: string;
   control: VirtualGamepadButton;
+  input: VirtualGamepadController;
 }) {
   const [pressed, setPressed] = useState(false);
   const activePointerId = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
-      releaseVirtualGamepadButton(control);
+      input.release(control);
     };
-  }, [control]);
+  }, [control, input]);
 
   const release = (pointerId?: number) => {
     if (pointerId !== undefined && activePointerId.current !== pointerId) {
@@ -1289,7 +1446,7 @@ function TouchHoldButton({
 
     activePointerId.current = null;
     setPressed(false);
-    releaseVirtualGamepadButton(control);
+    input.release(control);
   };
 
   return (
@@ -1309,7 +1466,7 @@ function TouchHoldButton({
         }
         setPressed(true);
         void primePokeLoungeAudio();
-        pressVirtualGamepadButton(control);
+        input.press(control);
       }}
       onPointerUp={event => release(event.pointerId)}
       onPointerCancel={event => release(event.pointerId)}
@@ -1318,7 +1475,7 @@ function TouchHoldButton({
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           setPressed(true);
-          pressVirtualGamepadButton(control);
+          input.press(control);
         }
       }}
       onKeyUp={event => {

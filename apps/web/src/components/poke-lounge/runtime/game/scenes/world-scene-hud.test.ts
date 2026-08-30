@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getExperienceForLevel } from "../battle/experience";
 import { createGameStateStore } from "../state/gameStateStore";
+import { createWorldUiStore } from "../world/world-ui-store";
 import {
   createWorldSceneHud,
   formatRankScoreHud,
   formatRoundHudText,
   getPokemonExperienceProgress,
   getPokemonHpRatio,
-  type WorldSceneHudDependencies,
 } from "./world-scene-hud";
 
 test("포켓몬 HP와 현재 레벨 경험치 진행률을 상태 패널용 값으로 변환한다", () => {
@@ -86,36 +86,16 @@ test("라운드 준비 시간이 끝나면 다른 플레이어 대기를 표시�
 
 test("서버 권위 라운드 HUD는 snapshot 전 waiting 상태를 로컬에서 전진시키지 않는다", () => {
   const gameStateStore = createGameStateStore();
-  const textObject = {
-    setDepth() {
-      return textObject;
-    },
-    setOrigin() {
-      return textObject;
-    },
-    setScrollFactor() {
-      return textObject;
-    },
-    setText() {
-      return textObject;
-    },
-  };
-  const gameObjectFactory = {
-    text() {
-      return textObject;
-    },
-  } as unknown as ReturnType<WorldSceneHudDependencies["getGameObjectFactory"]>;
   const hud = createWorldSceneHud({
     getDocument: () => ({}) as Document,
-    getGameObjectFactory: () => gameObjectFactory,
     gameStateStore,
     competitiveRoundsEnabled: true,
     serverAuthoritativeRounds: true,
     roundWaitingText: "다른 플레이어를 기다리는 중...",
     addUnsubscriber: () => {},
     canOpenPokemonStatusPanel: () => false,
-    getViewportSize: () => ({ width: 960, height: 540 }),
     isShutdownComplete: () => false,
+    worldUiStore: createWorldUiStore(),
   });
 
   hud.createRoundHud(1_000, 300_000);

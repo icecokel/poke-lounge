@@ -66,6 +66,10 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
     await enterPublicRoom(guestPage, "침착한 그린", temporaryPassword);
     const guestRoom = await readRoom(await guestRoomResponse);
     await expect(guestPage.locator("[data-room-lobby='true']")).toBeVisible();
+    await expect(hostPage.locator("[data-room-lobby-participant='true']")).toHaveCount(2);
+    await expect(hostPage.locator("[data-room-lobby-badge='true']")).toHaveCount(7);
+    await expect(hostPage.locator("[data-room-lobby-actions='true']")).toBeVisible();
+    await expect(hostPage.locator("[data-room-lobby-status='true']")).toBeVisible();
 
     expect(guestRoom.roomCode === hostRoom.roomCode).toBe(true);
     expect(guestRoom.participants.map(participant => participant.displayName)).toEqual([
@@ -133,11 +137,11 @@ async function enterPublicRoom(
   await page.locator("[data-room-entry-multiplayer-submit='true']").click();
 
   const starterSelection = page.locator("[data-screen='starter-selection']");
-  const canvas = page.locator("#game-root canvas");
+  const surface = page.locator('#game-root[data-poke-lounge-game-surface="ready"]');
   await expect
     .poll(async () => {
       if (await starterSelection.isVisible().catch(() => false)) return "starter";
-      if (await canvas.isVisible().catch(() => false)) return "canvas";
+      if (await surface.isVisible().catch(() => false)) return "surface";
       return null;
     })
     .not.toBeNull();

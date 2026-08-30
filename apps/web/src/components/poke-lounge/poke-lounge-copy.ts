@@ -21,8 +21,6 @@ export interface PokeLoungeCopy {
   autosaveSaved: string;
   autosaveReady: string;
   gameRegionLabel: string;
-  gameCanvasLabel: string;
-  gameCanvasFallback: string;
   settingsOpenLabel: string;
   fullscreenOn: string;
   fullscreenOff: string;
@@ -216,8 +214,6 @@ const KOREAN_COPY: PokeLoungeCopy = {
   autosaveSaved: "계정에 저장됨",
   autosaveReady: "계정 저장 준비됨",
   gameRegionLabel: "Poke Lounge 게임 화면",
-  gameCanvasLabel: "Poke Lounge 대화형 게임 캔버스",
-  gameCanvasFallback: "게임 화면을 표시할 수 없으면 아래의 실시간 게임 상태 요약을 확인해 주세요.",
   settingsOpenLabel: "Poke Lounge 설정 열기",
   fullscreenOn: "전체화면 켜기",
   fullscreenOff: "전체화면 끄기",
@@ -430,8 +426,6 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   autosaveSaved: "Saved to account",
   autosaveReady: "Account save ready",
   gameRegionLabel: "Poke Lounge game screen",
-  gameCanvasLabel: "Interactive Poke Lounge game canvas",
-  gameCanvasFallback: "If the game canvas is unavailable, use the live game summary below.",
   settingsOpenLabel: "Open Poke Lounge settings",
   fullscreenOn: "Enter fullscreen",
   fullscreenOff: "Exit fullscreen",
@@ -645,8 +639,6 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   autosaveSaved: "アカウントに保存済み",
   autosaveReady: "アカウント保存の準備完了",
   gameRegionLabel: "ポケラウンジのゲーム画面",
-  gameCanvasLabel: "操作可能なポケラウンジのゲームキャンバス",
-  gameCanvasFallback: "ゲーム画面を表示できない場合は、下のリアルタイム状況を確認してください。",
   settingsOpenLabel: "ポケラウンジの設定を開く",
   fullscreenOn: "全画面表示にする",
   fullscreenOff: "全画面表示を終了",

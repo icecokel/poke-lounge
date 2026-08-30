@@ -3,24 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
 import { useSession } from "next-auth/react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useGame } from "@/contexts/game-context";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -51,7 +33,6 @@ import {
 } from "./runtime/game/state/poke-lounge-save-snapshot";
 import { hasSamePokeLoungeLocalProgress } from "./runtime/game/state/poke-lounge-save-conflict";
 import { detectTouchGameDevice } from "./runtime/game/input/mobileTouchControls";
-import { GAME_SETTINGS_OPEN_EVENT } from "./runtime/game/input/settings-toggle";
 import {
   pressVirtualGamepadButton,
   releaseVirtualGamepadButton,
@@ -70,27 +51,35 @@ import {
 } from "./runtime/web-fullscreen";
 import {
   POKE_LOUNGE_NOTICE_EVENT,
-  POKE_LOUNGE_ROOM_LEAVE_REQUEST_EVENT,
   type PokeLoungeNoticeDetail,
   type PokeLoungeRoomLeaveRequestDetail,
 } from "./runtime/game/ui/poke-lounge-ui-events";
 import {
   createPokeLoungePartySlotSummaries,
-  dispatchMobileWorldUiAction,
   type PokeLoungePartySlotSummary,
 } from "./runtime/game/ui/mobile-world-ui";
 import { hasPokeLoungeMobileFullscreenScene } from "./runtime/game/ui/mobile-ui-capability";
 import { getPokeLoungeCopy } from "./poke-lounge-copy";
-import { PokeLoungePartySlotMenu } from "./party-slot-menu";
 import {
   createPokeLoungeRoomEntryUrl,
   isPokeLoungeMultiplayerResultUrl,
 } from "./poke-lounge-result-navigation";
 import { MobileGameShell } from "./mobile/mobile-game-shell";
+import type { PokeLoungeRuntimeState } from "./runtime/game/game-page-state";
+import { PokeLoungeGameFrame } from "./poke-lounge-game-frame";
+import { PokeLoungeSettingsDialog } from "./poke-lounge-settings-dialog";
+import {
+  PokeLoungeDecisionDialogs,
+  PokeLoungeHydrationScreens,
+  PokeLoungeNoticeBanner,
+  PokeLoungeResultPanel,
+  PokeLoungeStatusRail,
+  PokeLoungeStartupErrorScreen,
+  type PokeLoungeStateHydrationStatus,
+} from "./poke-lounge-game-overlays";
 import styles from "./poke-lounge.module.css";
 
 type PokeLoungeWindow = Window & {
-  __POKE_LOUNGE_GAME__?: { destroy: (removeCanvas?: boolean) => void };
   __POKE_LOUNGE_CLEANUP_FOR_TEST__?: () => void;
   __POKE_LOUNGE_E2E__?: unknown;
 };
@@ -129,8 +118,6 @@ type PokeLoungeGamePageHandle = {
   setViewportSize(viewportSize: GameViewportDisplaySize): void;
 };
 type PokeLoungeRoomShareStatus = "idle" | "success" | "error";
-type PokeLoungeStateHydrationStatus =
-  "pending" | "ready" | "local-ready" | "conflict" | "unavailable";
 type PokeLoungeRankingStatus = "idle" | "loading" | "ready" | "error";
 type PokeLoungeConnectionSummary = {
   connectionStatus: "offline" | "connecting" | "online";
@@ -247,7 +234,7 @@ export function PokeLoungeGame() {
   const [fullscreenActive, setFullscreenActive] = useState(false);
   const [touchGameDevice, setTouchGameDevice] = useState(false);
   const [touchGameDeviceResolved, setTouchGameDeviceResolved] = useState(false);
-  const [gameCanvasMounted, setGameCanvasMounted] = useState(false);
+  const [gameRuntimeMounted, setGameRuntimeMounted] = useState(false);
   const [activeGameScene, setActiveGameScene] = useState<"battle" | "world" | null>(null);
   const [settingsPartySlots, setSettingsPartySlots] = useState<PokeLoungePartySlotSummary[]>([]);
   const [volumeLevelIndex, setVolumeLevelIndex] = useState(POKE_LOUNGE_DEFAULT_VOLUME_LEVEL_INDEX);
@@ -278,6 +265,19 @@ export function PokeLoungeGame() {
   const [ranking, setRanking] = useState<GameHistory[]>([]);
   const [gameStartupAttempt, setGameStartupAttempt] = useState(0);
   const [gameStartupError, setGameStartupError] = useState(false);
+  const [runtimeState, setRuntimeState] = useState<PokeLoungeRuntimeState>({
+    phase: "hydrating",
+  });
+  const worldUiStore =
+    runtimeState.phase === "world" || runtimeState.phase === "lobby"
+      ? runtimeState.world?.uiStore
+      : undefined;
+  const battleUiStore =
+    runtimeState.phase === "world" ||
+    runtimeState.phase === "battle" ||
+    runtimeState.phase === "lobby"
+      ? runtimeState.battle.uiStore
+      : undefined;
   const volumeValue = POKE_LOUNGE_VOLUME_STEPS[volumeLevelIndex];
   const volumePercent = Math.round(volumeValue * 100);
   const volumeLabel = volumePercent === 0 ? copy.volumeMuted : copy.volumeLabel(volumePercent);
@@ -581,20 +581,13 @@ export function PokeLoungeGame() {
   }, [settingsOpen]);
 
   useEffect(() => {
-    const handleLeaveRequest = (event: Event) => {
-      const requestEvent = event as CustomEvent<PokeLoungeRoomLeaveRequestDetail>;
-      requestEvent.preventDefault();
-      setLeaveRequest(requestEvent.detail);
-    };
     const handleNotice = (event: Event) => {
       setNotice((event as CustomEvent<PokeLoungeNoticeDetail>).detail);
     };
 
-    document.addEventListener(POKE_LOUNGE_ROOM_LEAVE_REQUEST_EVENT, handleLeaveRequest);
     document.addEventListener(POKE_LOUNGE_NOTICE_EVENT, handleNotice);
 
     return () => {
-      document.removeEventListener(POKE_LOUNGE_ROOM_LEAVE_REQUEST_EVENT, handleLeaveRequest);
       document.removeEventListener(POKE_LOUNGE_NOTICE_EVENT, handleNotice);
     };
   }, []);
@@ -646,55 +639,41 @@ export function PokeLoungeGame() {
       return;
     }
 
-    const syncGameCanvasState = () => {
-      const canvas = gameRoot.querySelector("canvas");
+    const syncGameRuntimeState = () => {
       const resourceStatus = gameRoot.dataset.pokeLoungeResourceStatus;
-      const isGameReady = Boolean(canvas) && resourceStatus === "ready";
-      setGameCanvasMounted(isGameReady);
-      setActiveGameScene(
-        isGameReady
-          ? gameRoot.dataset.pokeLoungeActiveScene === "battle"
-            ? "battle"
-            : "world"
-          : null,
-      );
-
-      if (!canvas) {
-        return;
+      const isGameReady = resourceStatus === "ready";
+      const nextActiveScene = isGameReady
+        ? gameRoot.dataset.pokeLoungeActiveScene === "battle"
+          ? "battle"
+          : "world"
+        : null;
+      setGameRuntimeMounted(isGameReady);
+      setActiveGameScene(nextActiveScene);
+      if (nextActiveScene) {
+        setRuntimeState(current =>
+          current.phase === "world" || current.phase === "battle"
+            ? { ...current, phase: nextActiveScene }
+            : current,
+        );
       }
 
       if (resourceStatus === "error") {
-        setGameStartupError(true);
         setGamePlaying(false);
-      }
-
-      canvas.setAttribute("role", "img");
-      canvas.setAttribute("aria-label", copy.gameCanvasLabel);
-      canvas.setAttribute("aria-describedby", "poke-lounge-accessible-status");
-      canvas.setAttribute(
-        "aria-keyshortcuts",
-        "ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space H Escape",
-      );
-      canvas.tabIndex = 0;
-      if (canvas.textContent !== copy.gameCanvasFallback) {
-        canvas.textContent = copy.gameCanvasFallback;
       }
     };
 
-    syncGameCanvasState();
+    syncGameRuntimeState();
 
-    const observer = new MutationObserver(syncGameCanvasState);
+    const observer = new MutationObserver(syncGameRuntimeState);
     observer.observe(gameRoot, {
       attributes: true,
       attributeFilter: ["data-poke-lounge-active-scene", "data-poke-lounge-resource-status"],
-      childList: true,
-      subtree: true,
     });
 
     return () => {
       observer.disconnect();
     };
-  }, [copy, setGamePlaying]);
+  }, [setGamePlaying]);
 
   useEffect(() => {
     const page = pageRef.current;
@@ -783,7 +762,7 @@ export function PokeLoungeGame() {
         event.preventDefault();
         event.stopImmediatePropagation();
         resetVirtualGamepad();
-        dispatchMobileWorldUiAction(document, { type: "close" });
+        worldUiStore?.dispatch({ type: "close" });
         return;
       }
 
@@ -797,7 +776,8 @@ export function PokeLoungeGame() {
         event.key !== "Escape" ||
         isEditableEventTarget(event.target) ||
         hasOpenModalDialog(document) ||
-        !pageRef.current?.querySelector("canvas")
+        pageRef.current?.querySelector<HTMLElement>("#game-root")?.dataset
+          .pokeLoungeResourceStatus !== "ready"
       ) {
         return;
       }
@@ -810,7 +790,11 @@ export function PokeLoungeGame() {
       }
       pendingSettingsOpen = window.setTimeout(() => {
         pendingSettingsOpen = null;
-        if (!hasOpenModalDialog(document) && pageRef.current?.querySelector("canvas")) {
+        if (
+          !hasOpenModalDialog(document) &&
+          pageRef.current?.querySelector<HTMLElement>("#game-root")?.dataset
+            .pokeLoungeResourceStatus === "ready"
+        ) {
           setSettingsOpen(true);
         }
       }, 0);
@@ -824,20 +808,7 @@ export function PokeLoungeGame() {
         window.clearTimeout(pendingSettingsOpen);
       }
     };
-  }, [handleMobileSettingsClose, settingsOpen, touchGameDevice]);
-
-  useEffect(() => {
-    const handleSettingsOpen = () => {
-      resetVirtualGamepad();
-      setSettingsOpen(true);
-    };
-
-    document.addEventListener(GAME_SETTINGS_OPEN_EVENT, handleSettingsOpen);
-
-    return () => {
-      document.removeEventListener(GAME_SETTINGS_OPEN_EVENT, handleSettingsOpen);
-    };
-  }, []);
+  }, [handleMobileSettingsClose, settingsOpen, touchGameDevice, worldUiStore]);
 
   useEffect(() => {
     if (status === "loading") {
@@ -1047,20 +1018,14 @@ export function PokeLoungeGame() {
       cancelled = true;
       setGamePlaying(false);
 
-      if (destroyGamePage) {
-        destroyGamePage();
-      } else {
-        pokeWindow.__POKE_LOUNGE_GAME__?.destroy(true);
-      }
+      destroyGamePage?.();
       gamePageHandleRef.current = null;
-      delete pokeWindow.__POKE_LOUNGE_GAME__;
       delete pokeWindow.__POKE_LOUNGE_CLEANUP_FOR_TEST__;
       delete pokeWindow.__POKE_LOUNGE_E2E__;
       delete document.documentElement.dataset.pokeLoungeE2eBattle;
-      setGameCanvasMounted(false);
+      setGameRuntimeMounted(false);
       pageRef.current?.classList.remove("is-game-fullscreen-fallback");
       document.body.classList.remove("is-game-fullscreen-fallback-active");
-      document.querySelector<HTMLElement>("#game-root")?.replaceChildren();
     };
 
     if (new URLSearchParams(window.location.search).has("e2e")) {
@@ -1081,6 +1046,7 @@ export function PokeLoungeGame() {
           getIdToken: () =>
             accountId ? (accountTokensRef.current.get(accountId) ?? idToken) : undefined,
           onGameResult: result => {
+            setRuntimeState({ phase: "result" });
             setFinalResult({
               score: result.score,
               playTime: Math.max(1, Math.floor((Date.now() - startedAtMsRef.current) / 1000)),
@@ -1088,7 +1054,8 @@ export function PokeLoungeGame() {
             setSubmitStatus("idle");
             setSubmitMessage("");
           },
-          renderMobileControls: false,
+          onRoomLeaveRequest: setLeaveRequest,
+          onRuntimeStateChange: setRuntimeState,
           viewportSize: touchGameDevice
             ? MOBILE_GAME_VIEWPORT_SIZE
             : GAME_VIEWPORT_SIZE_PRESETS.large,
@@ -1200,41 +1167,31 @@ export function PokeLoungeGame() {
   return (
     <main
       ref={pageRef}
-      className={`${styles.page} ${touchGameDevice ? styles.touchGameDevice : ""} phaser-game-page`}
+      className={`${styles.page} ${touchGameDevice ? styles.touchGameDevice : ""}`}
       data-testid="poke-lounge-page"
       data-poke-lounge-ui-size={uiSize}
       data-poke-lounge-mobile-shell={touchGameDevice ? "true" : undefined}
+      data-poke-lounge-room-lobby-open={runtimeState.phase === "lobby" ? "true" : undefined}
     >
-      <div
-        className={styles.gameFrame}
-        data-poke-lounge-game-frame="true"
-        data-poke-lounge-mobile-screen={touchGameDevice ? "top" : undefined}
-        data-poke-lounge-canvas-mounted={gameCanvasMounted}
-      >
-        <div
-          id="game-root"
-          role="region"
-          aria-label={copy.gameRegionLabel}
-          aria-describedby="poke-lounge-accessible-status"
-          data-testid="poke-lounge-game-root"
-        />
-        {!touchGameDevice && gameCanvasMounted ? (
-          <button
-            type="button"
-            className={styles.desktopSettingsButton}
-            onClick={() => setSettingsOpen(true)}
-            aria-label={copy.settingsOpenLabel}
-            data-poke-lounge-desktop-settings-toggle="true"
-          >
-            ⚙
-          </button>
-        ) : null}
-      </div>
-      {touchGameDevice && gameCanvasMounted ? (
+      <PokeLoungeGameFrame
+        copy={copy}
+        gameRuntimeMounted={gameRuntimeMounted}
+        runtimeState={runtimeState}
+        touchGameDevice={touchGameDevice}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+      {touchGameDevice && gameRuntimeMounted ? (
         <MobileGameShell
           activeScene={activeGameScene}
+          battleUiStore={battleUiStore}
           copy={copy}
           onOpenSettings={handleMobileSettingsOpen}
+          worldInput={
+            runtimeState.phase === "world" || runtimeState.phase === "lobby"
+              ? runtimeState.world?.input
+              : undefined
+          }
+          worldUiStore={worldUiStore}
           settings={{
             autosaveLabel,
             connectionLabel,
@@ -1264,403 +1221,114 @@ export function PokeLoungeGame() {
           }}
         />
       ) : null}
-      {stateHydrationStatus === "pending" ? (
-        <section className={styles.loadingOverlay} role="status" aria-live="polite">
-          <p className={styles.resultEyebrow}>Poke Lounge</p>
-          <p className={styles.resultStatus}>{copy.hydrationLoading}</p>
-        </section>
-      ) : null}
-      {stateHydrationStatus === "unavailable" ? (
-        <section
-          className={touchGameDevice ? styles.mobileStateScreen : styles.resultOverlay}
-          data-testid="poke-lounge-state-hydration-error"
-        >
-          <p className={styles.resultStatus} aria-live="polite">
-            {stateHydrationMessage}
-          </p>
-          <Button
-            type="button"
-            onClick={handleStateHydrationRetry}
-            data-testid="poke-lounge-state-hydration-retry"
-          >
-            {copy.hydrationRetry}
-          </Button>
-        </section>
-      ) : null}
+      <PokeLoungeHydrationScreens
+        copy={copy}
+        message={stateHydrationMessage}
+        status={stateHydrationStatus}
+        touchGameDevice={touchGameDevice}
+        onRetry={handleStateHydrationRetry}
+      />
       {gameStartupError ? (
-        <section
-          className={touchGameDevice ? styles.mobileStateScreen : styles.loadingOverlay}
-          role="alert"
-          data-testid="poke-lounge-startup-error"
-        >
-          <p className={styles.resultEyebrow}>Poke Lounge</p>
-          <h2 className={styles.startupErrorTitle}>{copy.startup.title}</h2>
-          <p className={styles.resultStatus}>{copy.startup.description}</p>
-          <div className={styles.resultActions}>
-            <Button
-              type="button"
-              onClick={() => setGameStartupAttempt(attempt => attempt + 1)}
-              data-testid="poke-lounge-startup-retry"
-            >
-              {copy.startup.retry}
-            </Button>
-            <Button type="button" variant="outline" onClick={handleResultLobby}>
-              {copy.resultLobby}
-            </Button>
-          </div>
-        </section>
+        <PokeLoungeStartupErrorScreen
+          copy={copy}
+          touchGameDevice={touchGameDevice}
+          onRetry={() => setGameStartupAttempt(attempt => attempt + 1)}
+          onLobby={handleResultLobby}
+        />
       ) : null}
-      {gameCanvasMounted && !touchGameDevice ? (
-        <aside
-          className={styles.statusRail}
-          aria-label={copy.statusRailLabel}
-          data-poke-lounge-status-rail="true"
-        >
-          {multiplayerRoomId ? (
-            <p
-              className={styles.statusChip}
-              data-tone={connectionSummary.connectionStatus === "online" ? "success" : "warning"}
-              data-poke-lounge-connection-status={connectionSummary.connectionStatus}
-            >
-              {connectionLabel}
-            </p>
-          ) : null}
-          <p
-            className={styles.statusChip}
-            data-tone={
-              usingLocalHydrationFallback
-                ? "warning"
-                : autosaveStatus === "error"
-                  ? "error"
-                  : "neutral"
-            }
-            data-poke-lounge-save-status={
-              usingLocalHydrationFallback || status !== "authenticated" ? "local" : autosaveStatus
-            }
-          >
-            {autosaveLabel}
-          </p>
-          {usingLocalHydrationFallback ? (
-            <div
-              className={`${styles.statusChip} ${styles.hydrationFallbackChip}`}
-              data-tone="warning"
-              role="status"
-              data-testid="poke-lounge-state-hydration-local-fallback"
-            >
-              <span>{stateHydrationMessage}</span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className={styles.hydrationFallbackRetry}
-                onClick={handleStateHydrationRetry}
-                disabled={hydrationRetryDisabled}
-                data-testid="poke-lounge-state-hydration-retry"
-              >
-                {hydrationRetryLabel}
-              </Button>
-            </div>
-          ) : null}
-        </aside>
+      {gameRuntimeMounted && !touchGameDevice ? (
+        <PokeLoungeStatusRail
+          authenticated={status === "authenticated"}
+          autosaveLabel={autosaveLabel}
+          autosaveStatus={autosaveStatus}
+          connectionLabel={connectionLabel}
+          connectionStatus={connectionSummary.connectionStatus}
+          copy={copy}
+          hydrationMessage={stateHydrationMessage}
+          hydrationRetryDisabled={hydrationRetryDisabled}
+          hydrationRetryLabel={hydrationRetryLabel}
+          multiplayer={Boolean(multiplayerRoomId)}
+          usingLocalHydrationFallback={usingLocalHydrationFallback}
+          onRetryHydration={handleStateHydrationRetry}
+        />
       ) : null}
       {notice ? (
-        <aside
-          className={styles.noticeBanner}
-          data-tone={notice.tone}
-          role={notice.tone === "error" ? "alert" : "status"}
-          data-poke-lounge-notice="true"
-        >
-          <p>{notice.message}</p>
-          <Button type="button" variant="outline" onClick={() => setNotice(null)}>
-            {copy.noticeConfirm}
-          </Button>
-        </aside>
+        <PokeLoungeNoticeBanner
+          copy={copy}
+          message={notice.message}
+          tone={notice.tone}
+          onClose={() => setNotice(null)}
+        />
       ) : null}
       {!touchGameDevice ? (
-        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <DialogContent
-            className={styles.settingsDialog}
-            showCloseButton={false}
-            data-poke-lounge-settings="true"
-          >
-            <DialogHeader className={styles.settingsHeader}>
-              <DialogTitle className={styles.settingsTitle}>{copy.settingsTitle}</DialogTitle>
-              <DialogDescription className={styles.settingsDescription}>
-                {copy.settingsDescription}
-              </DialogDescription>
-            </DialogHeader>
-            <div className={styles.settingsOptions}>
-              <Button
-                type="button"
-                variant="outline"
-                className={styles.settingsOptionButton}
-                onClick={handleFullscreenToggle}
-                aria-label={fullscreenActive ? copy.fullscreenOff : copy.fullscreenOn}
-                aria-pressed={fullscreenActive}
-                data-fullscreen-toggle="true"
-                data-fullscreen-toggle-placement="settings"
-                data-poke-lounge-setting-option="true"
-                data-poke-lounge-setting-action="fullscreen"
-              >
-                {copy.settingsFullscreen}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className={styles.settingsOptionButton}
-                onClick={handleVolumeCycle}
-                aria-label={volumeAriaLabel}
-                data-poke-lounge-setting-option="true"
-                data-poke-lounge-setting-action="volume"
-                data-poke-lounge-volume-level={volumeLevelIndex}
-              >
-                {volumeLabel}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className={styles.settingsOptionButton}
-                onClick={handleUiSizeToggle}
-                aria-label={copy.settingsUiSizeAria}
-                aria-pressed={uiSize === "large"}
-                data-poke-lounge-setting-option="true"
-                data-poke-lounge-setting-action="ui-size"
-                data-poke-lounge-ui-size={uiSize}
-              >
-                {uiSizeLabel}
-              </Button>
-              {roomShareUrl ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={styles.settingsOptionButton}
-                  onClick={handleRoomShare}
-                  aria-label={localRoomShare ? copy.settingsLocalShare : copy.settingsShare}
-                  data-poke-lounge-setting-option="true"
-                  data-poke-lounge-setting-action="share-link"
-                >
-                  {roomShareStatus === "success"
-                    ? copy.settingsShareCopied
-                    : roomShareStatus === "error"
-                      ? copy.settingsShareFailed
-                      : localRoomShare
-                        ? copy.settingsLocalShare
-                        : copy.settingsShare}
-                </Button>
-              ) : null}
-              {localRoomShare ? (
-                <p
-                  className={styles.settingsDescription}
-                  data-poke-lounge-local-share-notice="true"
-                >
-                  {copy.roomEntry.localDescription}
-                </p>
-              ) : null}
-              <div className={styles.settingsStateSummary} aria-live="polite">
-                <span>{multiplayerRoomId ? connectionLabel : copy.settingsSolo}</span>
-                <span>{autosaveLabel}</span>
-              </div>
-              <PokeLoungePartySlotMenu copy={copy} party={settingsPartySlots} />
-              <section
-                className={styles.rankingSection}
-                aria-labelledby="poke-lounge-ranking-title"
-              >
-                <div className={styles.rankingHeader}>
-                  <h3 id="poke-lounge-ranking-title">{copy.settingsRankingTitle}</h3>
-                  <span>{copy.settingsRankingCaption}</span>
-                </div>
-                {rankingStatus === "loading" ? (
-                  <p className={styles.rankingEmpty}>{copy.settingsRankingLoading}</p>
-                ) : rankingStatus === "error" ? (
-                  <div className={styles.rankingEmpty}>
-                    <p>{copy.settingsRankingError}</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setRankingAttempt(attempt => attempt + 1)}
-                    >
-                      {copy.settingsRankingRetry}
-                    </Button>
-                  </div>
-                ) : ranking.length === 0 ? (
-                  <p className={styles.rankingEmpty}>{copy.settingsRankingEmpty}</p>
-                ) : (
-                  <ol className={styles.rankingList}>
-                    {ranking.map(entry => (
-                      <li key={`${entry.rank}-${entry.createdAt}`}>
-                        <span>#{entry.rank}</span>
-                        <strong>{getRankingDisplayName(entry, copy.unknownTrainer)}</strong>
-                        <b>{entry.score.toLocaleString(copy.locale)}</b>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </section>
-              <Button
-                type="button"
-                variant="destructive"
-                className={styles.settingsOptionButton}
-                onClick={handleGameExitRequest}
-                data-poke-lounge-setting-option="true"
-                data-poke-lounge-game-exit="true"
-              >
-                {copy.settingsExit}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className={styles.settingsOptionButton}
-                onClick={() => setSettingsOpen(false)}
-                data-poke-lounge-setting-option="true"
-                data-poke-lounge-settings-cancel="true"
-              >
-                {copy.settingsClose}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <PokeLoungeSettingsDialog
+          autosaveLabel={autosaveLabel}
+          connectionLabel={connectionLabel}
+          copy={copy}
+          fullscreenActive={fullscreenActive}
+          localRoomShare={localRoomShare}
+          multiplayer={Boolean(multiplayerRoomId)}
+          open={settingsOpen}
+          party={settingsPartySlots}
+          ranking={ranking.map(entry => ({
+            id: `${entry.rank}-${entry.createdAt}`,
+            name: getRankingDisplayName(entry, copy.unknownTrainer),
+            rank: entry.rank,
+            score: entry.score,
+          }))}
+          rankingStatus={rankingStatus}
+          roomShareAvailable={Boolean(roomShareUrl)}
+          roomShareStatus={roomShareStatus}
+          uiSize={uiSize}
+          uiSizeLabel={uiSizeLabel}
+          volumeAriaLabel={volumeAriaLabel}
+          volumeLabel={volumeLabel}
+          volumeLevelIndex={volumeLevelIndex}
+          onExit={handleGameExitRequest}
+          onFullscreenToggle={handleFullscreenToggle}
+          onOpenChange={setSettingsOpen}
+          onRankingRetry={() => setRankingAttempt(attempt => attempt + 1)}
+          onRoomShare={handleRoomShare}
+          onUiSizeToggle={handleUiSizeToggle}
+          onVolumeCycle={handleVolumeCycle}
+        />
       ) : null}
-      <AlertDialog
-        open={Boolean(pendingHydrationResolution)}
-        onOpenChange={open => {
+      <PokeLoungeDecisionDialogs
+        copy={copy}
+        exitOpen={exitConfirmationOpen}
+        hydrationConflictOpen={Boolean(pendingHydrationResolution)}
+        leaveRequest={leaveRequest}
+        touchGameDevice={touchGameDevice}
+        onDeferHydration={handleDeferHydrationResolution}
+        onExitConfirm={handleGameExitConfirm}
+        onExitOpenChange={setExitConfirmationOpen}
+        onHydrationOpenChange={open => {
           if (!open) {
             handleDeferHydrationResolution();
           }
         }}
-      >
-        <AlertDialogContent
-          className={touchGameDevice ? styles.mobileDecisionSheet : styles.confirmDialog}
-          data-testid="poke-lounge-state-hydration-conflict"
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>{copy.hydrationConflictTitle}</AlertDialogTitle>
-            <AlertDialogDescription>{copy.hydrationConflictDescription}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDeferHydrationResolution}>
-              {copy.hydrationDecideLater}
-            </AlertDialogCancel>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleUseLocalHydration}
-              data-testid="poke-lounge-state-hydration-use-local"
-            >
-              {copy.hydrationUseLocal}
-            </Button>
-            <Button
-              type="button"
-              onClick={handleUseServerHydration}
-              data-testid="poke-lounge-state-hydration-use-server"
-            >
-              {copy.hydrationUseServer}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={exitConfirmationOpen} onOpenChange={setExitConfirmationOpen}>
-        <AlertDialogContent
-          className={touchGameDevice ? styles.mobileDecisionSheet : styles.confirmDialog}
-          data-poke-lounge-game-exit-dialog="true"
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>{copy.exitTitle}</AlertDialogTitle>
-            <AlertDialogDescription>{copy.exitDescription}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{copy.exitContinue}</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={handleGameExitConfirm}
-              data-poke-lounge-game-exit-confirm="true"
-            >
-              {copy.exitConfirm}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog
-        open={Boolean(leaveRequest)}
-        onOpenChange={open => {
+        onLeaveOpenChange={open => {
           if (!open) {
             setLeaveRequest(null);
           }
         }}
-      >
-        <AlertDialogContent
-          className={touchGameDevice ? styles.mobileDecisionSheet : styles.confirmDialog}
-          data-poke-lounge-leave-dialog="true"
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>{leaveRequest?.title ?? copy.leaveTitle}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {leaveRequest?.description ?? copy.leaveDescription}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{copy.leaveContinue}</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                const request = leaveRequest;
-                setLeaveRequest(null);
-                request?.confirm();
-              }}
-            >
-              {copy.leaveConfirm}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onUseLocalHydration={handleUseLocalHydration}
+        onUseServerHydration={handleUseServerHydration}
+      />
       {finalResult ? (
-        <section
-          className={touchGameDevice ? styles.mobileResultScreen : styles.resultOverlay}
-          data-testid="poke-lounge-result-panel"
-        >
-          <p className={styles.resultEyebrow}>{copy.resultEyebrow}</p>
-          <div className={styles.resultScore} data-testid="poke-lounge-result-score">
-            {finalResult.score}
-          </div>
-          <p className={styles.resultMeta}>{copy.resultPlayTime(finalResult.playTime)}</p>
-          <p className={styles.resultStatus}>{copy.resultUnranked}</p>
-          <Button
-            type="button"
-            onClick={handleSubmitResult}
-            disabled={
-              resultRequiresAuthentication ||
-              submitStatus === "submitting" ||
-              submitStatus === "success"
-            }
-            data-testid="poke-lounge-result-submit"
-          >
-            {submitStatus === "submitting" ? copy.resultSaving : copy.resultSave}
-          </Button>
-          <p
-            className={styles.resultStatus}
-            data-testid="poke-lounge-result-status"
-            aria-live="polite"
-          >
-            {resultRequiresAuthentication ? copy.resultAuthRequired : submitMessage}
-          </p>
-          <div className={styles.resultActions}>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleResultRetry}
-              data-testid="poke-lounge-result-retry"
-            >
-              {resultReturnsToRoomEntry ? copy.resultRoomEntry : copy.resultRetry}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleResultLobby}
-              data-testid="poke-lounge-result-lobby"
-            >
-              {copy.resultLobby}
-            </Button>
-          </div>
-        </section>
+        <PokeLoungeResultPanel
+          copy={copy}
+          playTime={finalResult.playTime}
+          requiresAuthentication={resultRequiresAuthentication}
+          returnsToRoomEntry={resultReturnsToRoomEntry}
+          score={finalResult.score}
+          status={submitStatus}
+          statusMessage={submitMessage}
+          touchGameDevice={touchGameDevice}
+          onLobby={handleResultLobby}
+          onRetry={handleResultRetry}
+          onSubmit={handleSubmitResult}
+        />
       ) : null}
       <div
         id="poke-lounge-accessible-status"

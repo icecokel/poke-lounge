@@ -23,15 +23,6 @@ export interface GameViewportDisplaySize {
   height: number;
 }
 
-export function resolveGameCanvasSize(
-  viewportSize: GameViewportDisplaySize = GAME_VIEWPORT_SIZE,
-): GameViewportDisplaySize {
-  return {
-    width: Math.round(viewportSize.width),
-    height: Math.round(viewportSize.height),
-  };
-}
-
 export function getBattleCameraZoom(viewportWidth: number = GAME_VIEWPORT_SIZE.width): number {
   return viewportWidth / BATTLE_BASE_SIZE.width;
 }

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   BATTLE_POKEMON_FRAME_SIZE,
   DEFAULT_BATTLE_POKEMON_SPRITE_SHEET_RANGES,
+  getBattlePokemonAlphaBounds,
   getBattlePokemonAssets,
   toBattlePokemonPreloadAssets,
 } from "./battlePokemonAssets";
@@ -122,6 +123,8 @@ test("전국도감 1번부터 493번까지 고유 sprite frame을 제공한다",
     frame: 0,
     width: 80,
     height: 80,
+    columns: 16,
+    rows: 16,
   });
   assert.equal(firstRangeEnd.front.frame, 255);
   assert.equal(secondRangeStart.front.frame, 0);
@@ -135,12 +138,19 @@ test("전국도감 1번부터 493번까지 고유 sprite frame을 제공한다",
     assert.equal(assets.front.width, BATTLE_POKEMON_FRAME_SIZE.width);
     assert.equal(assets.front.height, BATTLE_POKEMON_FRAME_SIZE.height);
     assert.equal(assets.back.frame, assets.front.frame);
+    for (const sprite of [assets.front, assets.back]) {
+      const bounds = getBattlePokemonAlphaBounds(sprite);
+      assert.ok(bounds.width > 0 && bounds.height > 0);
+      assert.ok(bounds.x >= 0 && bounds.y >= 0);
+      assert.ok(bounds.x + bounds.width <= BATTLE_POKEMON_FRAME_SIZE.width);
+      assert.ok(bounds.y + bounds.height <= BATTLE_POKEMON_FRAME_SIZE.height);
+    }
   }
 
   assert.throws(() => getBattlePokemonAssets(494), /Missing battle Pokemon assets/);
 });
 
-test("Boot preload는 중복 없는 네 sprite sheet만 제공한다", () => {
+test("browser-native preload는 중복 없는 네 sprite sheet만 제공한다", () => {
   const preloadAssets = toBattlePokemonPreloadAssets();
 
   assert.equal(preloadAssets.length, 4);

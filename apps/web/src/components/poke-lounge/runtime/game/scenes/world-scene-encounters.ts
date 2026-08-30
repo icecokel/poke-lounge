@@ -1,11 +1,5 @@
-import * as Phaser from "phaser";
 import { playBattleTransitionSound } from "../battle/battleAudio";
-import {
-  BATTLE_INTRO_STRIPE_COUNT,
-  BATTLE_INTRO_TIMING,
-  createBattleIntroStripes,
-  getBattleIntroDurationMs,
-} from "../battle/battleIntro";
+import { getBattleIntroDurationMs } from "../battle/battleIntro";
 import type { PlayerFacing } from "../network/localPreviewRoom";
 import type { PlayerPosition } from "../player/playerTypes";
 import {
@@ -17,6 +11,7 @@ import { FIELD_MAP, resolveFieldEncounterAreaId } from "../world/fieldMap";
 import {
   consumeCompletedTileSteps,
   createTileStepTracker,
+  type CompletedTileStep,
   type TileCoordinate,
   type TileStepTracker,
 } from "../world/tileSteps";
@@ -24,7 +19,7 @@ import { isTallGrassStep } from "../world/tall-grass";
 import {
   createWildEncounterLevelRange,
   rollWildEncounter,
-  type WildEncounterCandidate,
+  type WildBattleStartInput,
   type WildEncounterLevelRange,
   type WildEncounterSlot,
 } from "../world/wildEncounters";
@@ -32,20 +27,13 @@ import { selectWildEncounterConfig, type WildEncounterConfig } from "../world/wi
 
 export const WILD_ENCOUNTER_RATE_QUERY_PARAM = "wildEncounterRate";
 
-export interface WildBattleStartInput {
-  encounter: WildEncounterCandidate;
-  x: number;
-  y: number;
-  facing: PlayerFacing;
-}
-
 export interface WorldSceneEncounterSnapshot {
   encounterLocked: boolean;
   battleIntroPlaying: boolean;
 }
 
 export interface WorldSceneEncounters {
-  afterMovement(): void;
+  afterMovement(completedSteps?: readonly CompletedTileStep[]): void;
   destroy(): void;
 }
 
@@ -67,17 +55,6 @@ export interface WorldSceneEncountersDependencies {
   getEncounterTableData(): unknown;
   getPokemonData(): unknown;
   persistPlayerPosition(position: PlayerPosition): void;
-  getViewportSize(): { width: number; height: number };
-  createRectangle(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    fillColor: number,
-    fillAlpha?: number,
-  ): Phaser.GameObjects.Rectangle;
-  shakeCamera(duration: number, intensity: number): void;
-  addTween(config: Phaser.Types.Tweens.TweenBuilderConfig): void;
   delay(ms: number, onComplete: () => void): void;
   startBattle(data: object): void;
 }
@@ -125,14 +102,14 @@ class DefaultWorldSceneEncounters implements WorldSceneEncounterController {
     );
   }
 
-  afterMovement(): void {
+  afterMovement(completedSteps?: readonly CompletedTileStep[]): void {
     const position = this.dependencies.getPlayerPosition();
 
     if (!position || !this.stepTracker || this.encounterLocked) {
       return;
     }
 
-    const steps = consumeCompletedTileSteps(this.stepTracker, position);
+    const steps = completedSteps ?? consumeCompletedTileSteps(this.stepTracker, position);
 
     if (!hasBattleCapablePartyPokemon(this.dependencies.gameStateStore.getCurrentLocalPlayer())) {
       return;
@@ -187,57 +164,6 @@ class DefaultWorldSceneEncounters implements WorldSceneEncounterController {
 
     this.battleIntroPlaying = true;
     playBattleTransitionSound();
-
-    const { width, height } = this.dependencies.getViewportSize();
-    const depth = 10_000;
-    const flash = this.dependencies
-      .createRectangle(0, 0, width, height, 0xf8fbf0, 0.86)
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(depth);
-
-    this.dependencies.shakeCamera(BATTLE_INTRO_TIMING.flashMs, 0.004);
-    this.dependencies.addTween({
-      targets: flash,
-      alpha: 0,
-      duration: BATTLE_INTRO_TIMING.flashMs,
-      ease: "Quad.easeOut",
-      onComplete: () => flash.destroy(),
-    });
-
-    createBattleIntroStripes({
-      width,
-      height,
-      stripeCount: BATTLE_INTRO_STRIPE_COUNT,
-    }).forEach((stripe, index) => {
-      const stripeBlock = this.dependencies
-        .createRectangle(stripe.x, stripe.y, stripe.width, stripe.height, 0x101820, 1)
-        .setOrigin(0, 0)
-        .setScrollFactor(0)
-        .setDepth(depth + 1 + index);
-
-      this.dependencies.addTween({
-        targets: stripeBlock,
-        x: 0,
-        delay: BATTLE_INTRO_TIMING.flashMs + index * 16,
-        duration: Math.max(120, BATTLE_INTRO_TIMING.stripeMs - index * 16),
-        ease: "Cubic.easeOut",
-      });
-    });
-
-    const fade = this.dependencies
-      .createRectangle(0, 0, width, height, 0x101820, 0)
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(depth + BATTLE_INTRO_STRIPE_COUNT + 1);
-
-    this.dependencies.addTween({
-      targets: fade,
-      alpha: 1,
-      delay: BATTLE_INTRO_TIMING.flashMs + BATTLE_INTRO_TIMING.stripeMs,
-      duration: BATTLE_INTRO_TIMING.fadeMs,
-      ease: "Linear",
-    });
     this.dependencies.delay(getBattleIntroDurationMs(), () => {
       if (this.lifecycleGeneration !== lifecycleGeneration || !this.battleIntroPlaying) {
         return;
