@@ -525,6 +525,22 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
+.worldSceneDesktop {
+  position: absolute;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  z-index: 1;
+  width: min(70%, 560px);
+  height: min(78%, 480px);
+  min-height: 300px;
+  transform: translate(-50%, -50%);
+  border: 3px solid #17231c;
+  border-radius: 8px;
+  box-shadow: 0 6px 0 rgba(23, 35, 28, 0.76);
+}
+
 .worldSceneHeader {
   display: grid;
   min-height: 62px;
@@ -588,6 +604,7 @@
 .compactList {
   display: grid;
   min-height: 0;
+  flex: 0 0 auto;
   gap: 8px;
   align-content: start;
 }

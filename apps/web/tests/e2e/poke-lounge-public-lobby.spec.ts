@@ -14,6 +14,18 @@ type PublicRoom = {
   };
 };
 
+type PokeLoungeWindow = Window & {
+  __POKE_LOUNGE_E2E__?: {
+    getGameStateSnapshot(): {
+      tournament: {
+        serverProjection: {
+          roomRound: PublicRoom["round"];
+        } | null;
+      };
+    };
+  };
+};
+
 const publicGameUrl = "/ko-KR/game/poke-lounge?e2e=1";
 
 test.use({ trace: "off" });
@@ -54,6 +66,10 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
     await enterPublicRoom(guestPage, "침착한 그린", temporaryPassword);
     const guestRoom = await readRoom(await guestRoomResponse);
     await expect(guestPage.locator("[data-room-lobby='true']")).toBeVisible();
+    await expect(hostPage.locator("[data-room-lobby-participant='true']")).toHaveCount(2);
+    await expect(hostPage.locator("[data-room-lobby-badge='true']")).toHaveCount(7);
+    await expect(hostPage.locator("[data-room-lobby-actions='true']")).toBeVisible();
+    await expect(hostPage.locator("[data-room-lobby-status='true']")).toBeVisible();
 
     expect(guestRoom.roomCode === hostRoom.roomCode).toBe(true);
     expect(guestRoom.participants.map(participant => participant.displayName)).toEqual([
@@ -121,11 +137,11 @@ async function enterPublicRoom(
   await page.locator("[data-room-entry-multiplayer-submit='true']").click();
 
   const starterSelection = page.locator("[data-screen='starter-selection']");
-  const hub = page.locator("[data-web-hub='true']");
+  const surface = page.locator('#game-root[data-poke-lounge-game-surface="ready"]');
   await expect
     .poll(async () => {
       if (await starterSelection.isVisible().catch(() => false)) return "starter";
-      if (await hub.isVisible().catch(() => false)) return "hub";
+      if (await surface.isVisible().catch(() => false)) return "surface";
       return null;
     })
     .not.toBeNull();
@@ -149,13 +165,15 @@ function isRoomCreationResponse(response: {
 
 async function getRoundClock(page: Page): Promise<PublicRoom["round"] | null> {
   return page.evaluate(() => {
-    const hub = document.querySelector<HTMLElement>("[data-web-hub='true']");
-    const durationMs = Number(hub?.dataset.roundDurationMs);
-    const startedAtMs = Number(hub?.dataset.roundStartedAtMs);
-    const endsAtMs = Number(hub?.dataset.roundEndsAtMs);
-
-    return Number.isFinite(durationMs) && Number.isFinite(startedAtMs) && Number.isFinite(endsAtMs)
-      ? { durationMs, startedAtMs, endsAtMs }
+    const pokeWindow = window as PokeLoungeWindow;
+    const roomRound =
+      pokeWindow.__POKE_LOUNGE_E2E__?.getGameStateSnapshot().tournament.serverProjection?.roomRound;
+    return roomRound
+      ? {
+          durationMs: roomRound.durationMs,
+          startedAtMs: roomRound.startedAtMs,
+          endsAtMs: roomRound.endsAtMs,
+        }
       : null;
   });
 }

@@ -19,8 +19,8 @@ test("URL 첫 경로 세그먼트에 맞는 게임 UI 문구를 제공한다", (
     "Try again",
   );
   assert.equal(
-    getPokeLoungeCopyForUrl(new URL("https://example.test/ja-JP/game/poke-lounge")).startup.retry,
-    "再試行",
+    getPokeLoungeCopyForUrl(new URL("https://example.test/ja-JP/game/poke-lounge")).resultRetry,
+    "もう一度プレイ",
   );
 });
 
@@ -49,4 +49,25 @@ test("모든 로케일에서 계정 저장 장애의 로컬 진행 보존과 재
     /local data.*keeping this tab's progress/,
   );
   assert.match(getPokeLoungeCopy("ja-JP").hydrationLocalFallback, /ローカルデータ.*進行を維持/);
+});
+
+test("로그아웃 결과는 OAuth 뒤 저장을 약속하지 않고 플레이 전 로그인을 안내한다", () => {
+  assert.match(
+    getPokeLoungeCopy("ko-KR").resultAuthRequired,
+    /이 결과는 저장할 수 없습니다.*플레이 전에 로그인/,
+  );
+  assert.match(
+    getPokeLoungeCopy("en-US").resultAuthRequired,
+    /result cannot be saved.*before playing/,
+  );
+  assert.match(
+    getPokeLoungeCopy("ja-JP").resultAuthRequired,
+    /この結果は保存できません.*プレイ前にログイン/,
+  );
+});
+
+test("멀티플레이 결과의 다음 행동은 방을 다시 선택한다고 명시한다", () => {
+  assert.equal(getPokeLoungeCopy("ko-KR").resultRoomEntry, "새 방 선택");
+  assert.equal(getPokeLoungeCopy("en-US").resultRoomEntry, "Choose another room");
+  assert.equal(getPokeLoungeCopy("ja-JP").resultRoomEntry, "別のルームを選ぶ");
 });

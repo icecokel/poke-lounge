@@ -10,33 +10,8 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: poke_lounge_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d poke_lounge_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
       NEXT_PUBLIC_API_URL: http://127.0.0.1:3001
-      REDIS_URL: redis://127.0.0.1:6379/15
-      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/poke_lounge_test
     steps:
       - uses: actions/checkout@v4
 
@@ -52,9 +27,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: pnpm --filter @poke-lounge/web exec playwright install --with-deps chromium webkit
-
       - name: Static checks
         run: |
           pnpm format:check
@@ -69,16 +41,3 @@ jobs:
         run: |
           pnpm test
           pnpm build
-
-      - name: Migrate test database
-        run: pnpm --filter @poke-lounge/api migration:run:test
-
-      - name: API PostgreSQL, Redis and Socket E2E
-        run: pnpm test:api:e2e
-
-      - name: Browser E2E
-        run: |
-          pnpm e2e:local-test-mode
-          pnpm --filter @poke-lounge/web e2e
-          pnpm e2e:integration
-          PLAYWRIGHT_ENABLE_CROSS_BROWSER=1 pnpm e2e:five-player

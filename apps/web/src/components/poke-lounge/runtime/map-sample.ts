@@ -163,105 +163,12 @@ export function createSampleMapModel(
   };
 }
 
-export function renderSampleMap(model = createSampleMapModel()): HTMLElement {
-  const section = document.createElement("section");
-  section.className = "map-sample";
-  section.dataset.mapSample = model.id;
-
-  const header = document.createElement("header");
-  header.className = "map-sample-header";
-
-  const title = document.createElement("h3");
-  title.textContent = model.name;
-
-  const meta = document.createElement("p");
-  meta.textContent = `${model.width} x ${model.height} tile code map`;
-
-  header.append(title, meta);
-
-  const board = document.createElement("div");
-  board.className = "map-sample-board";
-  board.style.setProperty("--map-columns", String(model.width));
-  board.style.setProperty("--map-rows", String(model.height));
-  board.setAttribute("role", "img");
-  board.setAttribute(
-    "aria-label",
-    "Sample ROM asset map with tree boundary, water, forest, and nurse NPC.",
-  );
-
-  for (const tile of model.tiles) {
-    board.append(
-      renderSampleMapTile(
-        tile,
-        model.npcs.filter(npc => npc.x === tile.x && npc.y === tile.y),
-      ),
-    );
-  }
-
-  section.append(header, board, createMapLegend());
-  return section;
-}
-
-function renderSampleMapTile(tile: SampleMapTile, npcs: readonly SampleMapNpc[] = []): HTMLElement {
-  const element = document.createElement("span");
-  element.className = `map-sample-tile map-sample-tile--${tile.code.toLowerCase()}`;
-  element.dataset.tileCode = tile.code;
-  element.dataset.tileX = String(tile.x);
-  element.dataset.tileY = String(tile.y);
-  element.dataset.tileVariant = String(getSampleTileVariant(tile));
-  element.classList.add(`map-sample-tile--variant-${element.dataset.tileVariant}`);
-  element.dataset.blocksMovement = String(tile.definition.blocksMovement);
-  element.dataset.encounterRate = String(tile.definition.encounterRate);
-  element.dataset.romAsset = tile.definition.assetPath;
-  element.dataset.romSource = tile.definition.sourcePaths.join(",");
-  element.style.setProperty("--tile-image", `url("${tile.definition.assetPath}")`);
-  element.setAttribute("aria-label", tile.definition.label);
-
-  for (const npc of npcs) {
-    element.append(renderSampleMapNpc(npc));
-  }
-
-  return element;
-}
-
-function getSampleTileVariant(tile: SampleMapTile): number {
+export function getSampleTileVariant(tile: SampleMapTile): number {
   if (!["P", "D"].includes(tile.code)) {
     return 0;
   }
 
   return Math.abs(tile.x * 3 + tile.y * 5) % 4;
-}
-
-function renderSampleMapNpc(npc: SampleMapNpc): HTMLElement {
-  const element = document.createElement("span");
-  element.className = `map-sample-npc map-sample-npc--${npc.id}`;
-  element.dataset.mapNpc = npc.id;
-  element.dataset.npcX = String(npc.x);
-  element.dataset.npcY = String(npc.y);
-  element.dataset.npcPlacement = npc.placement;
-  element.dataset.romAsset = npc.assetPath;
-  element.dataset.romSource = npc.sourcePaths.join(",");
-  element.style.setProperty("--npc-image", `url("${npc.assetPath}")`);
-  element.setAttribute("aria-label", npc.label);
-  return element;
-}
-
-function createMapLegend(): HTMLElement {
-  const legend = document.createElement("ul");
-  legend.className = "map-sample-legend";
-
-  for (const code of ["T", "G", "F", "W", "P", "D"] as const) {
-    const definition = SAMPLE_MAP_TILE_DEFINITIONS[code];
-    const item = document.createElement("li");
-    item.dataset.tileCode = code;
-    item.textContent =
-      definition.encounterRate > 0
-        ? `${definition.label} - encounter ${definition.encounterRate}%`
-        : definition.label;
-    legend.append(item);
-  }
-
-  return legend;
 }
 
 function isSampleMapTileCode(value: string): value is SampleMapTileCode {

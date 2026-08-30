@@ -124,19 +124,19 @@ agent-operated 한 사이클에는 배정하지 않는다.
 
 ### 4.4 3인 반복 실행 fixture
 
-| 항목      | 기준                                                                                          |
-| --------- | --------------------------------------------------------------------------------------------- |
-| 참가 순서 | `MP1` 방 자동 생성 완료 보고 뒤 `MP2`, `MP3` 순차 참가                                        |
-| 대진 seed | `joinedAtMs`, 동률이면 `playerId` 오름차순으로 `MP1=1`, `MP2=2`, `MP3=3`                      |
-| 스타터    | 발견 실행은 각자 첫 번째 스타터, 재현 실행은 발견 실행에서 저장한 같은 파티                   |
-| 전투 행동 | 매 턴 첫 번째 사용 가능한 공격 기술, 강제 교체 시 첫 번째 생존 슬롯                           |
-| Desktop   | fresh canvas ref focus 뒤 `Fight` Enter → fresh ref로 `move-select` 확인 → 첫 공격 기술 Enter |
-| Mobile    | 화면의 `Fight` touch → 기술 목록 확인 → 첫 공격 기술 touch                                    |
-| 턴 시한   | 서버 turn 진입부터 30,000ms, 미제출자는 해당 턴 행동만 생략                                   |
-| 결과 확인 | terminal 캡처 뒤 Desktop은 Enter, Mobile은 화면의 `다음`을 한 번 입력                         |
-| 금지 행동 | 기권이나 브라우저 종료로 승패 유도                                                            |
-| 준비 시간 | 분산 테스터는 제품 기본값 180,000ms, 단일 자동화만 30,000ms 허용                              |
-| 승패 판정 | 실행마다 서버가 확정한 점수·순위·우승자와 세 화면이 같은지 확인                               |
+| 항목      | 기준                                                                                                |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| 참가 순서 | `MP1` 방 자동 생성 완료 보고 뒤 `MP2`, `MP3` 순차 참가                                              |
+| 대진 seed | `joinedAtMs`, 동률이면 `playerId` 오름차순으로 `MP1=1`, `MP2=2`, `MP3=3`                            |
+| 스타터    | 발견 실행은 각자 첫 번째 스타터, 재현 실행은 발견 실행에서 저장한 같은 파티                         |
+| 전투 행동 | 매 턴 첫 번째 사용 가능한 공격 기술, 강제 교체 시 첫 번째 생존 슬롯                                 |
+| Desktop   | fresh game-surface ref focus 뒤 `Fight` Enter → fresh ref로 `move-select` 확인 → 첫 공격 기술 Enter |
+| Mobile    | 화면의 `Fight` touch → 기술 목록 확인 → 첫 공격 기술 touch                                          |
+| 턴 시한   | 서버 turn 진입부터 30,000ms, 미제출자는 해당 턴 행동만 생략                                         |
+| 결과 확인 | terminal 캡처 뒤 Desktop은 Enter, Mobile은 화면의 `다음`을 한 번 입력                               |
+| 금지 행동 | 기권이나 브라우저 종료로 승패 유도                                                                  |
+| 준비 시간 | 분산 테스터는 제품 기본값 180,000ms, 단일 자동화만 30,000ms 허용                                    |
+| 승패 판정 | 실행마다 서버가 확정한 점수·순위·우승자와 세 화면이 같은지 확인                                     |
 
 전투 참가자는 공유 관리자 채널에
 `ACTION-ARMED <gameRound> <matchId> <turn> <MP 역할>`을 보낸다. 관리자는 같은 match·turn의 두
@@ -417,7 +417,7 @@ route로 바꾸지 않는다. 전체 response, 방 코드, `playerId`, `sessionI
    shortcut guide가 열려 있으면 `Escape`를 정확히 한 번 입력해 `shortcutGuideOpen=false`와 help UI
    제거를 확인한다. guide를 닫은 뒤 설정을 열어 소리 control을 `소리 꺼짐`으로 맞추고 접근성 이름
    `소리 음소거`를 확인한 뒤 설정을 닫아 `AUDIO-MUTED`를 보고한다. 입력 전 화면 경계·장애물을 피한
-   이동 가능 방향 중 현재 avatar가 바라보는 방향과 다른 방향을 고른다. Desktop은 canvas focus 뒤
+   이동 가능 방향 중 현재 avatar가 바라보는 방향과 다른 방향을 고른다. Desktop은 game surface focus 뒤
    `node .agents/skills/poke-lounge-agent-browser-test/scripts/desktop-arrow-hold.mjs <session> <Arrow>`를 한 번
    실행한다. 이 helper는 공식 `agent-browser` stream 입력으로 물리 방향키 code를 포함한 keyDown을 보내고
    50ms 뒤 같은 키의 keyUp을 보장한다. `agent-browser` 0.34.0의 CLI `keydown`은 방향키의 물리 code를
@@ -447,9 +447,9 @@ route로 바꾸지 않는다. 전체 response, 방 코드, `playerId`, `sessionI
 2. 두 전투 참가자는 입력 watcher와 다음 turn 반복 루프까지 준비한 뒤 공유 관리자 채널에 정확한
    `ACTION-ARMED` 메시지를 보낸다. 관리자가 두 보고를 대조하고 같은 match·turn의 `ACTION-GO`를
    보내기 전에는 누구도 첫 action을 제출하지 않는다. 시작 신호 뒤 Desktop은 fresh interactive
-   snapshot에서 `Poke Lounge 대화형 게임 캔버스` ref를 얻어 `focus`한 다음 `Fight` Enter를
-   입력한다. canvas `click`은 pointer confirm까지 발생시키므로 focus 용도로 사용하지 않는다.
-   `move-select` 전환 뒤 fresh snapshot에서 canvas ref를 다시 얻어 `focus`하고 첫 공격 기술 Enter를
+   snapshot에서 `Poke Lounge 게임 화면` ref를 얻어 `focus`한 다음 `Fight` Enter를
+   입력한다. game surface `click`은 pointer confirm까지 발생시키므로 focus 용도로 사용하지 않는다.
+   `move-select` 전환 뒤 fresh snapshot에서 game-surface ref를 다시 얻어 `focus`하고 첫 공격 기술 Enter를
    입력한다. Mobile은 화면에 표시된 `Fight`, 첫 공격 기술을 차례로 touch한다. `ACTION-GO` 뒤 첫
    입력 전에는 screenshot이나 추가 관리자 보고를 기다리지 않는다. 한쪽 action이 2xx로 접수된
    서버 projection의 turn 진입부터 양쪽 모두 30초 turn deadline 안에 제출하며 이후 turn마다 관리자
@@ -467,7 +467,7 @@ route로 바꾸지 않는다. 전체 response, 방 코드, `playerId`, `sessionI
 6. 로컬 `phase=ended`, `result` 존재와 화면 결과 control을 모두 확인한 시점을 UI terminal
    checkpoint로 삼아 승자와 패자가 먼저 결과를 캡처한다. visible·enabled 결과 control이 남아 있는
    동안에는 page reload를 금지하며 캡처가 끝나기 전에는 키나 touch를 보내지 않는다. 캡처 뒤
-   Desktop은 canvas focus 후 Enter, Mobile은 화면의 `다음`을 정확히 한 번 입력하고 scene·match가
+   Desktop은 game surface focus 후 Enter, Mobile은 화면의 `다음`을 정확히 한 번 입력하고 scene·match가
    바뀔 때까지 추가 입력을 금지한다. 같은 UUID의 서버 완료 증적은 마지막 action 2xx response의
    `status=completed`·`terminal`, room `competitiveTransitions` 또는 완료된 bracket match history 중
    하나에서 별도로 확인한다. terminal 참가자·승패는 반드시 이 같은 UUID의 완료 증적과 action
@@ -518,7 +518,7 @@ route로 바꾸지 않는다. 전체 response, 방 코드, `playerId`, `sessionI
 - `CODE-FAIL`: 문서와 제품 규칙의 기대 결과는 명확하지만 화면, API, Socket 또는 DB가 다르게
   동작한다. 안전한 다음 checkpoint까지 증적을 보존한 뒤 관리자가 계속 여부를 정한다.
 - `TEST-RUNNER`: `ACTION-GO` 전 입력, 2xx 뒤 같은 turn 재입력, Desktop battle의 stale ref 재사용·
-  canvas focus용 click, 지정하지 않은 UI 입력 또는 서버 phase 전환 전에 필수 checkpoint를 끝내지
+  game surface focus용 click, 지정하지 않은 UI 입력 또는 서버 phase 전환 전에 필수 checkpoint를 끝내지
   못하거나 terminal 참가자를 다음 대진에서 추론한 경우처럼 runner가 절차를 위반했다. 제품 실패로
   세지 않고 새 입력을 즉시 중단해 증적을 보존한 뒤 room을 정리하고 같은 seed·환경 배정·파티·행동
   순서로 처음부터 다시 실행한다.

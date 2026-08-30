@@ -1,3 +1,4 @@
+import type { PlayerFacing } from "../network/localPreviewRoom";
 import type { CompletedTileStep } from "./tileSteps";
 
 export const WILD_ENCOUNTER_RATE = 0.15;
@@ -19,6 +20,13 @@ export interface WildEncounterCandidate {
   speciesId: number;
   name: string;
   level: number;
+}
+
+export interface WildBattleStartInput {
+  encounter: WildEncounterCandidate;
+  x: number;
+  y: number;
+  facing: PlayerFacing;
 }
 
 export interface WildEncounterLevelRange {
