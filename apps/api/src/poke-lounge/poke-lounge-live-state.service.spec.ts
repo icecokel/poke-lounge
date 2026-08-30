@@ -4,7 +4,7 @@ import { PokeLoungeLiveStateService } from './poke-lounge-live-state.service';
 describe('PokeLoungeLiveStateService', () => {
   it('requires Redis instead of silently falling back to process memory', async () => {
     const service = new PokeLoungeLiveStateService(
-      new ConfigService(),
+      new ConfigService({ REDIS_URL: '' }),
       jest.fn() as never,
     );
 
