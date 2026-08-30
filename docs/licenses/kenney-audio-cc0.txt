@@ -1,0 +1,13 @@
+Kenney audio packs
+
+Sources used by Poke Lounge:
+- Interface Sounds: https://kenney.nl/assets/interface-sounds
+- Digital Audio: https://kenney.nl/assets/digital-audio
+- Impact Sounds: https://kenney.nl/assets/impact-sounds
+
+License: Creative Commons Zero (CC0 1.0)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+The downloaded pack license files state that the assets may be used in
+personal, educational, and commercial projects. Credit to Kenney or
+https://kenney.nl is appreciated but not mandatory.

@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "romPath": "data/roms/포켓몬스터 하트골드(K).nds",
+  "sdatPath": "data/sound/gs_sound_data.sdat",
+  "processedDir": "data/processed/poke-lounge-audio",
+  "publicDir": "apps/web/public/assets/poke-lounge/audio",
+  "cues": [
+    {
+      "id": "button-confirm",
+      "sequenceName": "SEQ_SE_PL_BUTTON",
+      "sequenceIndex": 1394,
+      "durationMs": 420,
+      "fadeOutMs": 35,
+      "gain": 0.78,
+      "defaultVolume": 0.58,
+      "bitrate": "64k"
+    },
+    {
+      "id": "button-cancel",
+      "sequenceName": "SEQ_SE_GS_GEARCANCEL",
+      "sequenceIndex": 2368,
+      "durationMs": 520,
+      "fadeOutMs": 45,
+      "gain": 0.68,
+      "defaultVolume": 0.5,
+      "bitrate": "64k"
+    },
+    {
+      "id": "battle-transition",
+      "sequenceName": "SEQ_SE_PL_WARP",
+      "sequenceIndex": 1390,
+      "durationMs": 1180,
+      "fadeOutMs": 100,
+      "gain": 0.72,
+      "defaultVolume": 0.55,
+      "bitrate": "80k"
+    },
+    {
+      "id": "battle-start",
+      "sequenceName": "SEQ_SE_DP_VSDEMO03",
+      "sequenceIndex": 1815,
+      "durationMs": 760,
+      "fadeOutMs": 80,
+      "gain": 0.76,
+      "defaultVolume": 0.58,
+      "bitrate": "80k"
+    },
+    {
+      "id": "battle-hit",
+      "sequenceName": "SEQ_SE_GS_TACKLEHIT",
+      "sequenceIndex": 2256,
+      "durationMs": 520,
+      "fadeOutMs": 45,
+      "gain": 0.78,
+      "defaultVolume": 0.56,
+      "bitrate": "64k"
+    },
+    {
+      "id": "pokemon-faint",
+      "sequenceName": "SEQ_SE_DP_HINSI",
+      "sequenceIndex": 1796,
+      "durationMs": 760,
+      "fadeOutMs": 80,
+      "gain": 0.64,
+      "defaultVolume": 0.5,
+      "bitrate": "64k"
+    }
+  ],
+  "bgm": [
+    {
+      "id": "field-day",
+      "sequenceName": "SEQ_GS_R_1_29",
+      "sequenceIndex": 1028,
+      "durationMs": 30000,
+      "fadeOutMs": 0,
+      "gain": 0.34,
+      "defaultVolume": 0.24,
+      "bitrate": "80k"
+    },
+    {
+      "id": "wild-battle",
+      "sequenceName": "SEQ_GS_VS_NORAPOKE",
+      "sequenceIndex": 1116,
+      "durationMs": 30000,
+      "fadeOutMs": 0,
+      "gain": 0.38,
+      "defaultVolume": 0.28,
+      "bitrate": "80k"
+    }
+  ]
+}

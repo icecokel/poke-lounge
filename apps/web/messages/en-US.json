@@ -1,0 +1,10 @@
+{
+  "Game": {
+    "pokeLoungeLoading": "Loading Poke Lounge...",
+    "pokeLoungeDesc": "Choose a starter and explore a lounge world with browser-based battles.",
+    "backToGame": "Back to games",
+    "playNow": "Play now",
+    "signIn": "Sign in with Google",
+    "signOut": "Sign out"
+  }
+}

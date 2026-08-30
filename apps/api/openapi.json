@@ -1,0 +1,2682 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "서버가 정상적으로 동작 중임을 나타내는 메시지",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "string",
+                      "example": "Hello World!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "서버 상태 확인",
+        "tags": ["App"]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "AppController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "API 프로세스가 정상적으로 요청을 처리할 수 있는 상태",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/HealthCheckResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "API 헬스 체크",
+        "tags": ["App"]
+      }
+    },
+    "/game/result": {
+      "post": {
+        "operationId": "GameController_createResult",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGameHistoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/GameHistoryResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "게임 결과 생성 및 랭킹 확인",
+        "tags": ["Game"]
+      }
+    },
+    "/game/poke-lounge/state": {
+      "put": {
+        "operationId": "GameController_savePokeLoungeState",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePokeLoungeStateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeStateResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Poke Lounge 상태 저장",
+        "tags": ["Game"]
+      },
+      "get": {
+        "operationId": "GameController_getPokeLoungeState",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeStateResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "저장된 Poke Lounge 상태가 없음"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Poke Lounge 상태 조회",
+        "tags": ["Game"]
+      }
+    },
+    "/game/ranking": {
+      "get": {
+        "description": "POKE_LOUNGE는 영속 기록을 만들지 않아 빈 배열을 반환합니다.",
+        "operationId": "GameController_getRanking",
+        "parameters": [
+          {
+            "name": "gameType",
+            "required": true,
+            "in": "query",
+            "description": "조회할 게임 타입",
+            "schema": {
+              "$ref": "#/components/schemas/GameType"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/GameRankingHistoryDto"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "게임별 Top 10 랭킹 조회",
+        "tags": ["Game"]
+      }
+    },
+    "/game/result/{id}": {
+      "get": {
+        "operationId": "GameController_getGameResult",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "공유된 게임 결과 조회 (로그인 필요 없음)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/GameHistoryResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "게임 결과 상세 조회",
+        "tags": ["Game"]
+      }
+    },
+    "/poke-lounge/rooms": {
+      "post": {
+        "operationId": "PokeLoungeController_createRoom",
+        "parameters": [
+          {
+            "name": "If-Match-Revision",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePokeLoungeRoomDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/PokeLoungeRoomConflictResponseDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PokeLoungeRoomFullResponseDto"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}": {
+      "get": {
+        "operationId": "PokeLoungeController_getRoom",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "afterRevision",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/competitive-seat": {
+      "post": {
+        "operationId": "PokeLoungeController_bindCompetitiveSeat",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindCompetitiveSeatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CompetitiveAssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/matches/{matchId}/actions": {
+      "post": {
+        "operationId": "PokeLoungeController_submitCompetitiveAction",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "matchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitCompetitiveActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CompetitiveActionResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/matches/{matchId}/session-actions": {
+      "post": {
+        "operationId": "PokeLoungeController_submitSessionCompetitiveAction",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "matchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitSessionCompetitiveActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CompetitiveActionResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/join": {
+      "post": {
+        "operationId": "PokeLoungeController_joinRoom",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match-Revision",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPokeLoungeRoomDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/PokeLoungeRoomConflictResponseDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PokeLoungeRoomFullResponseDto"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/ready": {
+      "post": {
+        "operationId": "PokeLoungeController_setReady",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match-Revision",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPokeLoungeReadyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PokeLoungeRoomConflictResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/round-ready": {
+      "post": {
+        "operationId": "PokeLoungeController_setRoundReady",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPokeLoungeRoundReadyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/start": {
+      "post": {
+        "operationId": "PokeLoungeController_startRoom",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match-Revision",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartPokeLoungeRoomDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PokeLoungeRoomConflictResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/party-snapshot": {
+      "post": {
+        "operationId": "PokeLoungeController_updatePartySnapshot",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match-Revision",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePokeLoungePartySnapshotDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PokeLoungeRoomConflictResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/result": {
+      "post": {
+        "description": "Client-reported room results remain unverified and cannot create verified trust or public ranking entries.",
+        "operationId": "PokeLoungeController_submitResult",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match-Revision",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitPokeLoungeMatchResultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PokeLoungeRoomConflictResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submit a casual Poke Lounge result",
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/leave": {
+      "post": {
+        "operationId": "PokeLoungeController_leaveRoom",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match-Revision",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeavePokeLoungeRoomDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PokeLoungeRoomConflictResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    }
+  },
+  "info": {
+    "title": "Poke Lounge API",
+    "description": "Poke Lounge API 문서입니다.",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "HealthCheckResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "uptime": {
+            "type": "number",
+            "description": "API process uptime in seconds",
+            "example": 123.45
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Health check response time in ISO 8601 format",
+            "example": "2026-07-05T00:00:00.000Z"
+          }
+        },
+        "required": ["status", "uptime", "timestamp"]
+      },
+      "GameType": {
+        "type": "string",
+        "enum": ["SKY_DROP", "POKE_LOUNGE"],
+        "description": "서버에 등록된 게임 타입. 게임별 점수 정책은 서버에서 적용된다."
+      },
+      "CreateGameHistoryDto": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "number",
+            "description": "게임별 서버 정책으로 최종 검증되는 정수 점수. DTO는 전체 게임 타입의 제출 envelope만 검증한다.",
+            "example": 8500,
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "playTime": {
+            "type": "number",
+            "description": "플레이 시간(초). 제출되면 게임별 서버 정책의 점수 대비 비정상 속도 검증에 사용된다.",
+            "example": 120,
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "gameType": {
+            "description": "서버에 등록된 게임 타입. 게임별 점수 정책은 서버에서 적용된다.",
+            "example": "SKY_DROP",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GameType"
+              }
+            ]
+          }
+        },
+        "required": ["score", "gameType"]
+      },
+      "GameHistoryUserDto": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "description": "사용자 닉네임",
+            "example": "홍길동"
+          }
+        },
+        "required": ["displayName"]
+      },
+      "GameHistoryResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "게임 기록 ID (UUID)",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "score": {
+            "type": "number",
+            "description": "점수",
+            "example": 100
+          },
+          "gameType": {
+            "type": "string",
+            "description": "게임 타입",
+            "enum": ["SKY_DROP", "POKE_LOUNGE"],
+            "example": "SKY_DROP"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성 일시",
+            "example": "2024-01-30T12:00:00.000Z"
+          },
+          "user": {
+            "description": "사용자 정보",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GameHistoryUserDto"
+              }
+            ]
+          },
+          "rank": {
+            "type": "number",
+            "description": "현재 등수 (1부터 시작, 랭킹 외 시 null)",
+            "example": 1,
+            "nullable": true
+          },
+          "bestScore": {
+            "type": "number",
+            "description": "유저의 역대 최고 점수",
+            "example": 1200,
+            "nullable": true
+          },
+          "allTimeRank": {
+            "type": "number",
+            "description": "전체 기간 랭킹",
+            "example": 42,
+            "nullable": true
+          },
+          "weeklyRank": {
+            "type": "number",
+            "description": "금주 랭킹 (KST 월요일 0시 ~ 일요일 24시 기준)",
+            "example": 5,
+            "nullable": true
+          }
+        },
+        "required": ["id", "score", "gameType", "createdAt", "user"]
+      },
+      "SavePokeLoungeStateDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "object",
+            "description": "Poke Lounge 클라이언트의 현재 저장 상태",
+            "additionalProperties": true,
+            "example": {
+              "trainer": {
+                "x": 12,
+                "y": 3
+              },
+              "party": ["pikachu", "eevee"]
+            }
+          },
+          "expectedRevision": {
+            "type": "number",
+            "description": "마지막으로 조회하거나 저장한 서버 revision. 신규 저장은 0이며, 값이 일치할 때만 갱신됩니다. 생략은 구버전 Web의 신규 저장 또는 revision 0 마이그레이션 행의 1회 전환에만 허용됩니다.",
+            "example": 3,
+            "minimum": 0
+          },
+          "clientUpdatedAt": {
+            "type": "string",
+            "description": "진단용 클라이언트 갱신 시각. 저장 순서 판정에는 사용하지 않습니다.",
+            "example": "2026-07-08T12:00:00.000Z"
+          }
+        },
+        "required": ["state"]
+      },
+      "PokeLoungeStateResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Poke Lounge 상태 저장 ID",
+            "example": "123e4567-e89b-12d3-a456-426614174000"
+          },
+          "userId": {
+            "type": "string",
+            "description": "상태를 저장한 사용자 ID",
+            "example": "google-sub-id"
+          },
+          "state": {
+            "type": "object",
+            "description": "Poke Lounge 클라이언트의 저장 상태",
+            "additionalProperties": true
+          },
+          "revision": {
+            "type": "number",
+            "description": "서버가 원자적으로 증가시키는 저장 revision",
+            "example": 4,
+            "minimum": 0
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "서버 저장 생성 시각",
+            "example": "2026-07-08T12:00:01.000Z"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "서버 저장 갱신 시각",
+            "example": "2026-07-08T12:00:02.000Z"
+          },
+          "clientUpdatedAt": {
+            "type": "object",
+            "description": "클라이언트 기준 상태 갱신 시각",
+            "example": "2026-07-08T12:00:00.000Z",
+            "nullable": true
+          }
+        },
+        "required": ["id", "userId", "state", "revision", "createdAt", "updatedAt"]
+      },
+      "GameRankingHistoryDto": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "number",
+            "description": "점수",
+            "example": 100
+          },
+          "rank": {
+            "type": "number",
+            "description": "순위",
+            "example": 1
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성 일시",
+            "example": "2024-01-30T12:00:00.000Z"
+          },
+          "user": {
+            "description": "공개 사용자 정보",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GameHistoryUserDto"
+              }
+            ]
+          }
+        },
+        "required": ["score", "rank", "createdAt", "user"]
+      },
+      "PokeLoungeRepresentativePokemonDto": {
+        "type": "object",
+        "properties": {
+          "speciesId": {
+            "type": "number",
+            "example": 25
+          },
+          "level": {
+            "type": "number",
+            "example": 12
+          },
+          "currentHp": {
+            "type": "number",
+            "example": 18
+          },
+          "maxHp": {
+            "type": "number",
+            "example": 30
+          }
+        },
+        "required": ["speciesId", "level", "currentHp", "maxHp"]
+      },
+      "PokeLoungePartySnapshotDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Player A"
+          },
+          "representativePokemon": {
+            "$ref": "#/components/schemas/PokeLoungeRepresentativePokemonDto"
+          },
+          "partySize": {
+            "type": "number",
+            "example": 1,
+            "minimum": 0
+          },
+          "updatedAtMs": {
+            "type": "number",
+            "example": 1720000002000
+          }
+        },
+        "required": ["playerId", "representativePokemon", "partySize", "updatedAtMs"]
+      },
+      "CompetitiveMoveStateDto": {
+        "type": "object",
+        "properties": {
+          "moveId": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 470
+          },
+          "pp": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": ["moveId", "pp"]
+      },
+      "CompetitiveBattleStatStagesDto": {
+        "type": "object",
+        "properties": {
+          "attack": {
+            "type": "number",
+            "minimum": -6,
+            "maximum": 6
+          },
+          "defense": {
+            "type": "number",
+            "minimum": -6,
+            "maximum": 6
+          },
+          "specialAttack": {
+            "type": "number",
+            "minimum": -6,
+            "maximum": 6
+          },
+          "specialDefense": {
+            "type": "number",
+            "minimum": -6,
+            "maximum": 6
+          },
+          "speed": {
+            "type": "number",
+            "minimum": -6,
+            "maximum": 6
+          },
+          "accuracy": {
+            "type": "number",
+            "minimum": -6,
+            "maximum": 6
+          },
+          "evasion": {
+            "type": "number",
+            "minimum": -6,
+            "maximum": 6
+          }
+        },
+        "required": [
+          "attack",
+          "defense",
+          "specialAttack",
+          "specialDefense",
+          "speed",
+          "accuracy",
+          "evasion"
+        ]
+      },
+      "CompetitiveCombatantStateDto": {
+        "type": "object",
+        "properties": {
+          "speciesId": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 493
+          },
+          "slotIndex": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "level": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "maxHp": {
+            "type": "number",
+            "minimum": 1
+          },
+          "currentHp": {
+            "type": "number",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": ["normal", "poisoned", "burned", "paralyzed", "fainted"]
+          },
+          "statStages": {
+            "$ref": "#/components/schemas/CompetitiveBattleStatStagesDto"
+          },
+          "moves": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompetitiveMoveStateDto"
+            }
+          }
+        },
+        "required": [
+          "speciesId",
+          "slotIndex",
+          "level",
+          "maxHp",
+          "currentHp",
+          "status",
+          "statStages",
+          "moves"
+        ]
+      },
+      "CompetitivePlayerStateDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string"
+          },
+          "activeSlotIndex": {
+            "type": "number",
+            "minimum": 0
+          },
+          "team": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompetitiveCombatantStateDto"
+            }
+          }
+        },
+        "required": ["playerId", "activeSlotIndex", "team"]
+      },
+      "CompetitiveTerminalResultDto": {
+        "type": "object",
+        "properties": {
+          "winnerPlayerId": {
+            "type": "string"
+          },
+          "loserPlayerId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": ["faint", "forfeit", "timeout"]
+          },
+          "scoreByPlayerId": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "enum": [50, 100]
+            }
+          }
+        },
+        "required": ["winnerPlayerId", "loserPlayerId", "reason", "scoreByPlayerId"]
+      },
+      "CompetitiveBattleStateDto": {
+        "type": "object",
+        "properties": {
+          "rulesetVersion": {
+            "type": "number",
+            "example": 2,
+            "enum": [2]
+          },
+          "turn": {
+            "type": "number",
+            "minimum": 0
+          },
+          "participantIds": {
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "playersById": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CompetitivePlayerStateDto"
+            }
+          },
+          "terminal": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CompetitiveTerminalResultDto"
+              }
+            ]
+          }
+        },
+        "required": ["rulesetVersion", "turn", "participantIds", "playersById", "terminal"]
+      },
+      "CompetitiveActionResponseDto": {
+        "type": "object",
+        "properties": {
+          "matchId": {
+            "type": "string"
+          },
+          "bracketMatchId": {
+            "type": "string",
+            "example": "game-round-1-bracket-1-match-1"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["ranked-head-to-head", "tournament-unranked"]
+          },
+          "assignmentRevision": {
+            "type": "number"
+          },
+          "rulesetVersion": {
+            "type": "number"
+          },
+          "rulesetHash": {
+            "type": "string"
+          },
+          "currentTurn": {
+            "type": "number"
+          },
+          "turnEndsAtMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "active", "completed"]
+          },
+          "terminalEventId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "terminalRoomRevision": {
+            "type": "number",
+            "minimum": 0,
+            "nullable": true
+          },
+          "playerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stateHash": {
+            "type": "string"
+          },
+          "currentState": {
+            "$ref": "#/components/schemas/CompetitiveBattleStateDto"
+          },
+          "submittedPlayerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "terminal": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CompetitiveTerminalResultDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "matchId",
+          "bracketMatchId",
+          "kind",
+          "assignmentRevision",
+          "rulesetVersion",
+          "rulesetHash",
+          "currentTurn",
+          "turnEndsAtMs",
+          "status",
+          "terminalEventId",
+          "terminalRoomRevision",
+          "playerIds",
+          "stateHash",
+          "currentState",
+          "submittedPlayerIds",
+          "terminal"
+        ]
+      },
+      "CompetitiveTerminalTransitionDto": {
+        "type": "object",
+        "properties": {
+          "terminalEventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "terminalRoomRevision": {
+            "type": "number",
+            "minimum": 0
+          },
+          "projection": {
+            "$ref": "#/components/schemas/CompetitiveActionResponseDto"
+          }
+        },
+        "required": ["terminalEventId", "terminalRoomRevision", "projection"]
+      },
+      "PokeLoungeRoomParticipantDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Player A"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["participant", "spectator"],
+            "example": "participant"
+          },
+          "ready": {
+            "type": "boolean",
+            "example": true
+          },
+          "connected": {
+            "type": "boolean",
+            "example": true
+          },
+          "joinedAtMs": {
+            "type": "number",
+            "example": 1720000000000
+          },
+          "leftAtMs": {
+            "type": "number",
+            "example": 1720000005000
+          }
+        },
+        "required": ["playerId", "displayName", "role", "ready", "connected", "joinedAtMs"]
+      },
+      "PokeLoungeRoundDto": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "number",
+            "example": 1
+          },
+          "phase": {
+            "type": "string",
+            "enum": ["waiting", "round-started", "tournament", "completed"],
+            "example": "waiting"
+          },
+          "durationMs": {
+            "type": "number",
+            "example": 60000
+          },
+          "startedAtMs": {
+            "type": "number",
+            "example": 1720000000000,
+            "nullable": true
+          },
+          "endsAtMs": {
+            "type": "number",
+            "example": 1720000060000,
+            "nullable": true
+          }
+        },
+        "required": ["index", "phase", "durationMs", "startedAtMs", "endsAtMs"]
+      },
+      "PokeLoungeTournamentParticipantDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Player A"
+          },
+          "seed": {
+            "type": "number",
+            "example": 1
+          }
+        },
+        "required": ["playerId", "displayName", "seed"]
+      },
+      "PokeLoungeTournamentMatchDto": {
+        "type": "object",
+        "properties": {
+          "matchId": {
+            "type": "string",
+            "example": "game-round-1-bracket-1-match-1"
+          },
+          "roundNumber": {
+            "type": "number",
+            "example": 1
+          },
+          "matchNumber": {
+            "type": "number",
+            "example": 1
+          },
+          "participantA": {
+            "$ref": "#/components/schemas/PokeLoungeTournamentParticipantDto"
+          },
+          "participantB": {
+            "$ref": "#/components/schemas/PokeLoungeTournamentParticipantDto"
+          },
+          "participantIds": {
+            "example": ["player-a", "player-b"],
+            "minItems": 2,
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ready", "completed"],
+            "example": "ready"
+          },
+          "winnerPlayerId": {
+            "type": "string",
+            "example": "player-a",
+            "nullable": true
+          },
+          "loserPlayerId": {
+            "type": "string",
+            "example": "player-b",
+            "nullable": true
+          },
+          "resultReason": {
+            "type": "string",
+            "enum": ["faint", "timeout", "forfeit", "run", "capture"],
+            "example": "faint",
+            "nullable": true
+          },
+          "completedAtMs": {
+            "type": "number",
+            "example": 1720000060000,
+            "nullable": true
+          }
+        },
+        "required": [
+          "matchId",
+          "roundNumber",
+          "matchNumber",
+          "participantA",
+          "participantB",
+          "participantIds",
+          "status",
+          "winnerPlayerId",
+          "loserPlayerId",
+          "resultReason",
+          "completedAtMs"
+        ]
+      },
+      "PokeLoungeTournamentByeDto": {
+        "type": "object",
+        "properties": {
+          "byeId": {
+            "type": "string",
+            "example": "game-round-1-bracket-1-bye-1"
+          },
+          "roundNumber": {
+            "type": "number",
+            "example": 1
+          },
+          "slotNumber": {
+            "type": "number",
+            "example": 1
+          },
+          "entrant": {
+            "$ref": "#/components/schemas/PokeLoungeTournamentParticipantDto"
+          }
+        },
+        "required": ["byeId", "roundNumber", "slotNumber", "entrant"]
+      },
+      "PokeLoungeTournamentRoundSlotDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["match", "bye"]
+          },
+          "matchId": {
+            "type": "string",
+            "example": "game-round-1-bracket-1-match-1"
+          },
+          "byeId": {
+            "type": "string",
+            "example": "game-round-1-bracket-1-bye-1"
+          }
+        },
+        "required": ["kind"]
+      },
+      "PokeLoungeTournamentRoundDto": {
+        "type": "object",
+        "properties": {
+          "roundNumber": {
+            "type": "number",
+            "example": 1
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PokeLoungeTournamentMatchDto"
+            }
+          },
+          "byes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PokeLoungeTournamentByeDto"
+            }
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PokeLoungeTournamentRoundSlotDto"
+            }
+          }
+        },
+        "required": ["roundNumber", "matches", "byes", "slots"]
+      },
+      "PokeLoungeTournamentEliminationDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-b"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Player B"
+          },
+          "seed": {
+            "type": "number",
+            "example": 2
+          },
+          "roundNumber": {
+            "type": "number",
+            "example": 1
+          },
+          "matchId": {
+            "type": "string",
+            "example": "game-round-1-bracket-1-match-1"
+          },
+          "order": {
+            "type": "number",
+            "example": 1
+          }
+        },
+        "required": ["playerId", "displayName", "seed", "roundNumber", "matchId", "order"]
+      },
+      "PokeLoungeTournamentBracketDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "example": 1,
+            "enum": [1]
+          },
+          "gameRoundIndex": {
+            "type": "number",
+            "example": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": ["in-progress", "completed"]
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PokeLoungeTournamentParticipantDto"
+            }
+          },
+          "currentRound": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PokeLoungeTournamentRoundDto"
+              }
+            ]
+          },
+          "completedRounds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PokeLoungeTournamentRoundDto"
+            }
+          },
+          "eliminations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PokeLoungeTournamentEliminationDto"
+            }
+          },
+          "championPlayerId": {
+            "type": "string",
+            "example": "player-a",
+            "nullable": true
+          }
+        },
+        "required": [
+          "version",
+          "gameRoundIndex",
+          "status",
+          "participants",
+          "currentRound",
+          "completedRounds",
+          "eliminations",
+          "championPlayerId"
+        ]
+      },
+      "PokeLoungeTournamentDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "example": 2,
+            "enum": [2]
+          },
+          "bracket": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PokeLoungeTournamentBracketDto"
+              }
+            ]
+          },
+          "activeMatchId": {
+            "type": "string",
+            "example": "game-round-1-bracket-1-match-1",
+            "nullable": true
+          },
+          "activeMatchAuthority": {
+            "type": "string",
+            "enum": ["casual", "server"],
+            "nullable": true
+          },
+          "cumulativeScores": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "example": {
+              "player-a": 100,
+              "player-b": 50
+            }
+          }
+        },
+        "required": [
+          "version",
+          "bracket",
+          "activeMatchId",
+          "activeMatchAuthority",
+          "cumulativeScores"
+        ]
+      },
+      "PokeLoungeFinalStandingDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Player A"
+          },
+          "rank": {
+            "type": "number",
+            "example": 1
+          },
+          "score": {
+            "type": "number",
+            "example": 100
+          }
+        },
+        "required": ["playerId", "displayName", "rank", "score"]
+      },
+      "PokeLoungeRoomResponseDto": {
+        "type": "object",
+        "properties": {
+          "roomCode": {
+            "type": "string",
+            "example": "ROOM01"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["waiting", "round-started", "tournament", "completed", "closed"],
+            "example": "waiting"
+          },
+          "closeReason": {
+            "type": "string",
+            "enum": ["legacy-room-restart-required", "competitive-party-not-ready"],
+            "example": "competitive-party-not-ready"
+          },
+          "createdAtMs": {
+            "type": "number",
+            "example": 1720000000000
+          },
+          "updatedAtMs": {
+            "type": "number",
+            "example": 1720000001000
+          },
+          "revision": {
+            "type": "number",
+            "example": 3,
+            "minimum": 0
+          },
+          "expiresAtMs": {
+            "type": "number",
+            "example": 1720001800000
+          },
+          "hostPlayerId": {
+            "type": "string",
+            "example": "player-a",
+            "nullable": true
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PokeLoungeRoomParticipantDto"
+            }
+          },
+          "partySnapshots": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PokeLoungePartySnapshotDto"
+            }
+          },
+          "round": {
+            "$ref": "#/components/schemas/PokeLoungeRoundDto"
+          },
+          "tournament": {
+            "$ref": "#/components/schemas/PokeLoungeTournamentDto"
+          },
+          "finalStandings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PokeLoungeFinalStandingDto"
+            }
+          },
+          "competitiveTransitions": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompetitiveTerminalTransitionDto"
+            }
+          },
+          "competitiveAssignments": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompetitiveActionResponseDto"
+            }
+          },
+          "competitive": {
+            "$ref": "#/components/schemas/CompetitiveActionResponseDto"
+          }
+        },
+        "required": [
+          "roomCode",
+          "status",
+          "createdAtMs",
+          "updatedAtMs",
+          "revision",
+          "expiresAtMs",
+          "hostPlayerId",
+          "participants",
+          "partySnapshots",
+          "round",
+          "tournament",
+          "finalStandings",
+          "competitiveTransitions",
+          "competitiveAssignments"
+        ]
+      },
+      "PokeLoungeRoomConflictResponseDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 409
+          },
+          "code": {
+            "type": "string",
+            "enum": ["POKE_LOUNGE_REVISION_CONFLICT", "POKE_LOUNGE_IDEMPOTENCY_CONFLICT"]
+          },
+          "message": {
+            "type": "string",
+            "example": "Poke Lounge room revision conflict"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+          }
+        },
+        "required": ["statusCode", "code", "message", "snapshot"]
+      },
+      "PokeLoungeRoomFullResponseDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 409
+          },
+          "code": {
+            "type": "string",
+            "enum": ["POKE_LOUNGE_ROOM_FULL"]
+          },
+          "message": {
+            "type": "string",
+            "example": "Poke Lounge room is full"
+          }
+        },
+        "required": ["statusCode", "code", "message"]
+      },
+      "CreatePokeLoungeRoomDto": {
+        "type": "object",
+        "properties": {
+          "roomCode": {
+            "type": "string",
+            "example": "ABC234"
+          },
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "session-a"
+          },
+          "userId": {
+            "type": "string",
+            "example": "user-123"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Player A"
+          },
+          "roundDurationMs": {
+            "type": "number",
+            "example": 180000,
+            "description": "Test-only override; production preparation is fixed at 180000ms"
+          }
+        },
+        "required": ["sessionId"]
+      },
+      "BindCompetitiveSeatDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "example": "session-a",
+            "maxLength": 256
+          }
+        },
+        "required": ["sessionId"]
+      },
+      "CompetitiveAssignmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "matchId": {
+            "type": "string"
+          },
+          "bracketMatchId": {
+            "type": "string",
+            "example": "game-round-1-bracket-1-match-1"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["ranked-head-to-head", "tournament-unranked"]
+          },
+          "assignmentRevision": {
+            "type": "number"
+          },
+          "rulesetVersion": {
+            "type": "number"
+          },
+          "rulesetHash": {
+            "type": "string"
+          },
+          "currentTurn": {
+            "type": "number"
+          },
+          "turnEndsAtMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "active", "completed"]
+          },
+          "terminalEventId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "terminalRoomRevision": {
+            "type": "number",
+            "minimum": 0,
+            "nullable": true
+          },
+          "playerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stateHash": {
+            "type": "string"
+          },
+          "currentState": {
+            "$ref": "#/components/schemas/CompetitiveBattleStateDto"
+          },
+          "submittedPlayerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "terminal": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CompetitiveTerminalResultDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "matchId",
+          "bracketMatchId",
+          "kind",
+          "assignmentRevision",
+          "rulesetVersion",
+          "rulesetHash",
+          "currentTurn",
+          "turnEndsAtMs",
+          "status",
+          "terminalEventId",
+          "terminalRoomRevision",
+          "playerIds",
+          "stateHash",
+          "currentState",
+          "submittedPlayerIds",
+          "terminal"
+        ]
+      },
+      "CompetitiveActionDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["move", "switch"]
+          },
+          "moveId": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "slotIndex": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": ["kind"]
+      },
+      "SubmitCompetitiveActionDto": {
+        "type": "object",
+        "properties": {
+          "assignmentRevision": {
+            "type": "number",
+            "minimum": 0
+          },
+          "turn": {
+            "type": "number",
+            "minimum": 0
+          },
+          "clientCommandId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "$ref": "#/components/schemas/CompetitiveActionDto"
+          }
+        },
+        "required": ["assignmentRevision", "turn", "clientCommandId", "action"]
+      },
+      "SubmitSessionCompetitiveActionDto": {
+        "type": "object",
+        "properties": {
+          "assignmentRevision": {
+            "type": "number",
+            "minimum": 0
+          },
+          "turn": {
+            "type": "number",
+            "minimum": 0
+          },
+          "clientCommandId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "$ref": "#/components/schemas/CompetitiveActionDto"
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": ["assignmentRevision", "turn", "clientCommandId", "action", "sessionId"]
+      },
+      "JoinPokeLoungeRoomDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-b"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "session-b"
+          },
+          "userId": {
+            "type": "string",
+            "example": "user-456"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Player B"
+          }
+        },
+        "required": ["sessionId"]
+      },
+      "SetPokeLoungeReadyDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "session-a"
+          },
+          "ready": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": ["playerId", "sessionId", "ready"]
+      },
+      "SetPokeLoungeRoundReadyDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "session-a"
+          },
+          "roundIndex": {
+            "type": "number",
+            "example": 1,
+            "minimum": 1
+          }
+        },
+        "required": ["playerId", "sessionId", "roundIndex"]
+      },
+      "StartPokeLoungeRoomDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "session-a"
+          }
+        },
+        "required": ["playerId", "sessionId"]
+      },
+      "CompetitiveIndividualValuesDto": {
+        "type": "object",
+        "properties": {
+          "hp": {
+            "type": "number",
+            "example": 31,
+            "minimum": 0,
+            "maximum": 31
+          },
+          "attack": {
+            "type": "number",
+            "example": 20,
+            "minimum": 0,
+            "maximum": 31
+          },
+          "defense": {
+            "type": "number",
+            "example": 25,
+            "minimum": 0,
+            "maximum": 31
+          },
+          "specialAttack": {
+            "type": "number",
+            "example": 17,
+            "minimum": 0,
+            "maximum": 31
+          },
+          "specialDefense": {
+            "type": "number",
+            "example": 23,
+            "minimum": 0,
+            "maximum": 31
+          },
+          "speed": {
+            "type": "number",
+            "example": 19,
+            "minimum": 0,
+            "maximum": 31
+          }
+        },
+        "required": ["hp", "attack", "defense", "specialAttack", "specialDefense", "speed"]
+      },
+      "CompetitivePartyMoveDto": {
+        "type": "object",
+        "properties": {
+          "moveId": {
+            "type": "number",
+            "example": 55,
+            "minimum": 1,
+            "maximum": 470
+          },
+          "pp": {
+            "type": "number",
+            "example": 25,
+            "minimum": 0
+          }
+        },
+        "required": ["moveId", "pp"]
+      },
+      "CompetitivePartyMemberDto": {
+        "type": "object",
+        "properties": {
+          "slotIndex": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "maximum": 5
+          },
+          "speciesId": {
+            "type": "number",
+            "example": 7,
+            "minimum": 1,
+            "maximum": 493
+          },
+          "level": {
+            "type": "number",
+            "example": 11,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "currentHp": {
+            "type": "number",
+            "example": 30,
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": ["normal", "poisoned", "burned", "paralyzed", "fainted"],
+            "example": "normal"
+          },
+          "individualValues": {
+            "$ref": "#/components/schemas/CompetitiveIndividualValuesDto"
+          },
+          "moves": {
+            "minItems": 1,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompetitivePartyMoveDto"
+            }
+          }
+        },
+        "required": [
+          "slotIndex",
+          "speciesId",
+          "level",
+          "currentHp",
+          "status",
+          "individualValues",
+          "moves"
+        ]
+      },
+      "CompetitivePartyDto": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "example": 2,
+            "enum": [2]
+          },
+          "activeSlotIndex": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0,
+            "maximum": 5
+          },
+          "members": {
+            "minItems": 1,
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompetitivePartyMemberDto"
+            }
+          }
+        },
+        "required": ["version", "activeSlotIndex", "members"]
+      },
+      "UpdatePokeLoungePartySnapshotDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "session-a"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Player A"
+          },
+          "competitiveParty": {
+            "$ref": "#/components/schemas/CompetitivePartyDto"
+          }
+        },
+        "required": ["playerId", "sessionId", "competitiveParty"]
+      },
+      "SubmitPokeLoungeMatchResultDto": {
+        "type": "object",
+        "properties": {
+          "reportingPlayerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "reportingSessionId": {
+            "type": "string",
+            "example": "session-a"
+          },
+          "matchId": {
+            "type": "string",
+            "example": "game-round-1-bracket-1-match-1"
+          },
+          "winnerPlayerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "loserPlayerId": {
+            "type": "string",
+            "example": "player-b"
+          },
+          "reason": {
+            "type": "string",
+            "enum": ["faint", "timeout", "forfeit"],
+            "example": "faint"
+          }
+        },
+        "required": [
+          "reportingPlayerId",
+          "reportingSessionId",
+          "matchId",
+          "winnerPlayerId",
+          "loserPlayerId",
+          "reason"
+        ]
+      },
+      "LeavePokeLoungeRoomDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "session-a"
+          }
+        },
+        "required": ["playerId", "sessionId"]
+      }
+    }
+  }
+}

@@ -1,0 +1,167 @@
+import type { DiceGamblePrediction } from "../gamble/diceGamble";
+import { PLAYER_PARTY_SLOT_COUNT, type PlayerPokemonSlot } from "../player/playerTypes";
+import type { PlayerPokemon } from "../state/gameStateStore";
+
+export const POKE_LOUNGE_MOBILE_WORLD_STATE_EVENT = "poke-lounge:mobile-world-state";
+export const POKE_LOUNGE_MOBILE_WORLD_ACTION_EVENT = "poke-lounge:mobile-world-action";
+export const POKE_LOUNGE_MOBILE_WORLD_STATE_REQUEST_EVENT =
+  "poke-lounge:mobile-world-state-request";
+
+export type MobileWorldUiScreen =
+  | "explore"
+  | "help"
+  | "inventory-items"
+  | "inventory-move-replace"
+  | "inventory-party"
+  | "shop"
+  | "pc"
+  | "dice"
+  | "party";
+
+export interface MobileWorldItemOption {
+  count: number;
+  description: string;
+  disabled: boolean;
+  id: string;
+  index: number;
+  name: string;
+  price: number | null;
+  selected: boolean;
+}
+
+export interface PokeLoungePartySlotSummary {
+  canSetAsLead: boolean;
+  currentHp: number | null;
+  isActive: boolean;
+  isEmpty: boolean;
+  level: number;
+  maxHp: number | null;
+  name: string;
+  slotIndex: number;
+  status: string | null;
+}
+
+export type MobileWorldPartyOption = PokeLoungePartySlotSummary;
+
+export interface MobileWorldMoveOption {
+  id: number;
+  index: number;
+  name: string;
+  selected: boolean;
+}
+
+export interface MobileWorldMoveReplacementState {
+  moves: MobileWorldMoveOption[];
+  newMoveName: string;
+  pokemonName: string;
+}
+
+export interface MobileWorldBoxOption {
+  boxIndex: number;
+  currentHp: number | null;
+  level: number;
+  maxHp: number | null;
+  name: string;
+  selected: boolean;
+  status: string | null;
+}
+
+export interface MobileWorldDiceOption {
+  disabled: boolean;
+  label: string;
+  prediction: DiceGamblePrediction;
+  rewardPokeDollars: number;
+  selected: boolean;
+  winningCaseCount: number;
+}
+
+export interface MobileWorldDiceState {
+  options: MobileWorldDiceOption[];
+  stakePokeDollars: number;
+  targetNumber: number;
+}
+
+export interface MobileWorldUiState {
+  box: MobileWorldBoxOption[];
+  items: MobileWorldItemOption[];
+  message: string;
+  moveReplacement: MobileWorldMoveReplacementState | null;
+  party: MobileWorldPartyOption[];
+  pcFocus: "party" | "box";
+  screen: MobileWorldUiScreen;
+  selectedItemDescription: string;
+  selectedItemName: string;
+  selectedPartySlotIndex: number;
+  title: string;
+  walletPokeDollars: number;
+  dice: MobileWorldDiceState | null;
+}
+
+export type MobileWorldUiAction =
+  | { type: "open-help" }
+  | { type: "open-inventory" }
+  | { type: "open-party" }
+  | { type: "close" }
+  | { type: "back" }
+  | { type: "select-inventory-item"; index: number }
+  | { type: "select-inventory-move"; index: number }
+  | { type: "use-inventory-item" }
+  | { type: "skip-inventory-move" }
+  | { type: "select-inventory-party"; slotIndex: number }
+  | { type: "select-shop-item"; index: number }
+  | { type: "purchase-shop-item" }
+  | { type: "select-pc-focus"; focus: "party" | "box" }
+  | { type: "select-pc-party"; slotIndex: number }
+  | { type: "select-pc-box"; boxIndex: number }
+  | { type: "confirm-pc-selection" }
+  | { type: "select-dice-prediction"; prediction: DiceGamblePrediction }
+  | { type: "confirm-dice-selection" }
+  | { type: "set-party-lead"; slotIndex: number };
+
+export function createPokeLoungePartySlotSummaries({
+  activePartySlotIndex,
+  party,
+}: {
+  activePartySlotIndex: number;
+  party: Array<PlayerPokemonSlot<PlayerPokemon>>;
+}): PokeLoungePartySlotSummary[] {
+  return Array.from({ length: PLAYER_PARTY_SLOT_COUNT }, (_, slotIndex) => {
+    const pokemon = party.find(slot => slot.slotIndex === slotIndex)?.pokemon ?? null;
+
+    return {
+      canSetAsLead:
+        pokemon !== null && pokemon.status !== "fainted" && slotIndex !== activePartySlotIndex,
+      currentHp: pokemon?.currentHp ?? null,
+      isActive: slotIndex === activePartySlotIndex,
+      isEmpty: pokemon === null,
+      level: pokemon?.level ?? 0,
+      maxHp: pokemon?.maxHp ?? null,
+      name: pokemon?.name ?? "-",
+      slotIndex,
+      status: pokemon?.status ?? null,
+    };
+  });
+}
+
+export function dispatchMobileWorldUiState(documentRef: Document, state: MobileWorldUiState): void {
+  documentRef.dispatchEvent(
+    new CustomEvent<MobileWorldUiState>(POKE_LOUNGE_MOBILE_WORLD_STATE_EVENT, {
+      detail: state,
+    }),
+  );
+}
+
+export function dispatchMobileWorldUiAction(
+  documentRef: Document,
+  action: MobileWorldUiAction,
+): void {
+  documentRef.dispatchEvent(
+    new CustomEvent<MobileWorldUiAction>(POKE_LOUNGE_MOBILE_WORLD_ACTION_EVENT, {
+      detail: action,
+    }),
+  );
+}
+
+export function requestMobileWorldUiState(documentRef: Document): void {
+  documentRef.dispatchEvent(new CustomEvent(POKE_LOUNGE_MOBILE_WORLD_STATE_REQUEST_EVENT));
+}

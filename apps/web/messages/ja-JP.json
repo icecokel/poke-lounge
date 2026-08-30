@@ -1,0 +1,10 @@
+{
+  "Game": {
+    "pokeLoungeLoading": "Poke Loungeを読み込んでいます...",
+    "pokeLoungeDesc": "スターターを選び、ラウンジの世界とブラウザバトルを探索するファンゲームです。",
+    "backToGame": "ゲームへ戻る",
+    "playNow": "今すぐプレイ",
+    "signIn": "Googleでログイン",
+    "signOut": "ログアウト"
+  }
+}

@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.env.local
+.next*
+coverage
+dist
+logs
+node_modules
+output
+playwright-report
+test-results
+*.tsbuildinfo
+
+# Raw ROM and generated extraction inputs stay local.
+data/processed/
+data/roms/
+

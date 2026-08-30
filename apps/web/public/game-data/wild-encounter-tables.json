@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "defaultTableId": "starter-field",
+  "tables": [
+    {
+      "id": "starter-field",
+      "mapKeys": ["town"],
+      "encounterRate": 0.15,
+      "speciesRanges": [{ "startNationalDexId": 1, "endNationalDexId": 493 }]
+    },
+    {
+      "id": "town-west-field",
+      "mapKeys": ["town"],
+      "areaIds": ["town-west-field"],
+      "encounterRate": 0.15,
+      "speciesRanges": [{ "startNationalDexId": 1, "endNationalDexId": 151 }],
+      "commonNationalDexIds": [10, 13, 16, 19, 25, 43, 69, 74, 129, 133],
+      "rarePoolWeight": 2
+    },
+    {
+      "id": "town-plaza-field",
+      "mapKeys": ["town"],
+      "areaIds": ["town-plaza-field"],
+      "encounterRate": 0.15,
+      "speciesRanges": [{ "startNationalDexId": 152, "endNationalDexId": 251 }],
+      "commonNationalDexIds": [161, 163, 165, 167, 179, 183, 187, 194, 209, 231],
+      "rarePoolWeight": 2
+    },
+    {
+      "id": "town-south-field",
+      "mapKeys": ["town"],
+      "areaIds": ["town-south-field"],
+      "encounterRate": 0.15,
+      "speciesRanges": [{ "startNationalDexId": 252, "endNationalDexId": 493 }],
+      "commonNationalDexIds": [263, 265, 276, 285, 293, 304, 309, 396, 399, 403],
+      "rarePoolWeight": 2
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "spriteSheetRanges": [
+    {
+      "startSpeciesId": 1,
+      "endSpeciesId": 256,
+      "frameWidth": 80,
+      "frameHeight": 80,
+      "columns": 16,
+      "rows": 16,
+      "front": { "path": "/assets/pokemon/sheets/front-1-256.png" },
+      "back": { "path": "/assets/pokemon/sheets/back-1-256.png" }
+    },
+    {
+      "startSpeciesId": 257,
+      "endSpeciesId": 493,
+      "frameWidth": 80,
+      "frameHeight": 80,
+      "columns": 16,
+      "rows": 16,
+      "front": { "path": "/assets/pokemon/sheets/front-257-493.png" },
+      "back": { "path": "/assets/pokemon/sheets/back-257-493.png" }
+    }
+  ]
+}

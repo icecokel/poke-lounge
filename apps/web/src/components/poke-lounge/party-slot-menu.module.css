@@ -1,0 +1,59 @@
+.partySlots {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 2px solid #17231c;
+  border-radius: 12px;
+  background: rgba(248, 251, 240, 0.74);
+}
+
+.partySlots h3 {
+  margin: 0;
+  color: #35513a;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.partySlotList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.partySlot {
+  display: grid;
+  min-height: 66px;
+  align-content: center;
+  gap: 2px;
+  padding: 8px 9px;
+  border: 2px solid #607d6c;
+  border-radius: 8px;
+  background: #f8fbf0;
+}
+
+.partySlot[data-active="true"] {
+  border-color: #355c7d;
+  background: #fff4a3;
+}
+
+.partySlot[data-empty="true"] {
+  color: #607d6c;
+}
+
+.partySlot span,
+.partySlot small {
+  color: #4a5b4d;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.partySlot strong {
+  overflow: hidden;
+  color: #263238;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,103 @@
+{
+  "bgm": [
+    {
+      "defaultVolume": 0.24,
+      "durationMs": 30000,
+      "id": "field-day",
+      "sizeBytes": 300714,
+      "source": {
+        "sdatPath": "data/sound/gs_sound_data.sdat",
+        "sequenceIndex": 1028,
+        "sequenceName": "SEQ_GS_R_1_29"
+      },
+      "src": "/assets/poke-lounge/audio/bgm/field-day.mp3"
+    },
+    {
+      "defaultVolume": 0.28,
+      "durationMs": 30000,
+      "id": "wild-battle",
+      "sizeBytes": 300714,
+      "source": {
+        "sdatPath": "data/sound/gs_sound_data.sdat",
+        "sequenceIndex": 1116,
+        "sequenceName": "SEQ_GS_VS_NORAPOKE"
+      },
+      "src": "/assets/poke-lounge/audio/bgm/wild-battle.mp3"
+    }
+  ],
+  "sfx": [
+    {
+      "defaultVolume": 0.58,
+      "durationMs": 420,
+      "id": "button-confirm",
+      "sizeBytes": 4014,
+      "source": {
+        "sdatPath": "data/sound/gs_sound_data.sdat",
+        "sequenceIndex": 1394,
+        "sequenceName": "SEQ_SE_PL_BUTTON"
+      },
+      "src": "/assets/poke-lounge/audio/sfx/button-confirm.mp3"
+    },
+    {
+      "defaultVolume": 0.5,
+      "durationMs": 520,
+      "id": "button-cancel",
+      "sizeBytes": 4641,
+      "source": {
+        "sdatPath": "data/sound/gs_sound_data.sdat",
+        "sequenceIndex": 2368,
+        "sequenceName": "SEQ_SE_GS_GEARCANCEL"
+      },
+      "src": "/assets/poke-lounge/audio/sfx/button-cancel.mp3"
+    },
+    {
+      "defaultVolume": 0.55,
+      "durationMs": 1180,
+      "id": "battle-transition",
+      "sizeBytes": 12584,
+      "source": {
+        "sdatPath": "data/sound/gs_sound_data.sdat",
+        "sequenceIndex": 1390,
+        "sequenceName": "SEQ_SE_PL_WARP"
+      },
+      "src": "/assets/poke-lounge/audio/sfx/battle-transition.mp3"
+    },
+    {
+      "defaultVolume": 0.58,
+      "durationMs": 760,
+      "id": "battle-start",
+      "sizeBytes": 8404,
+      "source": {
+        "sdatPath": "data/sound/gs_sound_data.sdat",
+        "sequenceIndex": 1815,
+        "sequenceName": "SEQ_SE_DP_VSDEMO03"
+      },
+      "src": "/assets/poke-lounge/audio/sfx/battle-start.mp3"
+    },
+    {
+      "defaultVolume": 0.56,
+      "durationMs": 520,
+      "id": "battle-hit",
+      "sizeBytes": 4641,
+      "source": {
+        "sdatPath": "data/sound/gs_sound_data.sdat",
+        "sequenceIndex": 2256,
+        "sequenceName": "SEQ_SE_GS_TACKLEHIT"
+      },
+      "src": "/assets/poke-lounge/audio/sfx/battle-hit.mp3"
+    },
+    {
+      "defaultVolume": 0.5,
+      "durationMs": 760,
+      "id": "pokemon-faint",
+      "sizeBytes": 6731,
+      "source": {
+        "sdatPath": "data/sound/gs_sound_data.sdat",
+        "sequenceIndex": 1796,
+        "sequenceName": "SEQ_SE_DP_HINSI"
+      },
+      "src": "/assets/poke-lounge/audio/sfx/pokemon-faint.mp3"
+    }
+  ],
+  "version": 2
+}

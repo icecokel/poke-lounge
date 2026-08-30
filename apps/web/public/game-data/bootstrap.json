@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "maxPlayers": 6,
+  "starters": [
+    {
+      "id": "charmander",
+      "speciesId": 4,
+      "name": "Charmander",
+      "displayName": "파이리",
+      "type": "Fire",
+      "assetPath": "/assets/pokemon/front/4.png"
+    },
+    {
+      "id": "bulbasaur",
+      "speciesId": 1,
+      "name": "Bulbasaur",
+      "displayName": "이상해씨",
+      "type": "Grass",
+      "assetPath": "/assets/pokemon/front/1.png"
+    },
+    {
+      "id": "squirtle",
+      "speciesId": 7,
+      "name": "Squirtle",
+      "displayName": "꼬부기",
+      "type": "Water",
+      "assetPath": "/assets/pokemon/front/7.png"
+    },
+    {
+      "id": "chikorita",
+      "speciesId": 152,
+      "name": "Chikorita",
+      "displayName": "치코리타",
+      "type": "Grass",
+      "assetPath": "/assets/pokemon/front/152.png"
+    },
+    {
+      "id": "cyndaquil",
+      "speciesId": 155,
+      "name": "Cyndaquil",
+      "displayName": "브케인",
+      "type": "Fire",
+      "assetPath": "/assets/pokemon/front/155.png"
+    },
+    {
+      "id": "totodile",
+      "speciesId": 158,
+      "name": "Totodile",
+      "displayName": "리아코",
+      "type": "Water",
+      "assetPath": "/assets/pokemon/front/158.png"
+    }
+  ]
+}

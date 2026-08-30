@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "logicalSize": { "width": 256, "height": 192 },
+  "assets": [
+    {
+      "key": "battle-background-candidate",
+      "path": "/assets/poke-lounge/screens/pbr_b_plist_gra.narc/screen_0010_gfx_0022_pal_0023.png",
+      "role": "battle-background",
+      "sourceArchivePath": "pbr/b_plist_gra.narc",
+      "candidate": true,
+      "notes": ["Selected battle screen candidate from ROM extraction screen 0010."]
+    },
+    {
+      "key": "battle-window-frame-candidate",
+      "path": "/assets/poke-lounge/dump/pbr_winframe.narc/file_0000_pal_0024.png",
+      "role": "battle-window-frame-candidate",
+      "sourceArchivePath": "pbr/winframe.narc",
+      "candidate": true,
+      "notes": ["Candidate window frame tile from ROM extraction."]
+    },
+    {
+      "key": "battle-player-front",
+      "path": "/assets/pokemon/front/152.png",
+      "role": "pokemon-front",
+      "sourceArchivePath": "a/0/0/4",
+      "candidate": false,
+      "notes": ["Confirmed starter front output from ROM extraction."]
+    },
+    {
+      "key": "battle-player-back",
+      "path": "/assets/pokemon/battle/152/back-default-normal.png",
+      "role": "pokemon-back",
+      "sourceArchivePath": "a/0/0/4",
+      "candidate": false,
+      "notes": [
+        "Confirmed Chikorita back output from ROM slot 152 file 913 with normal palette 916."
+      ]
+    },
+    {
+      "key": "battle-opponent-front",
+      "path": "/assets/pokemon/battle/155/front-default-normal.png",
+      "role": "pokemon-front",
+      "sourceArchivePath": "a/0/0/4",
+      "candidate": false,
+      "notes": ["Materialized Cyndaquil front battle frame from the ROM front sprite strip."]
+    },
+    {
+      "key": "battle-opponent-back",
+      "path": "/assets/pokemon/battle/155/back-default-normal.png",
+      "role": "pokemon-back",
+      "sourceArchivePath": "a/0/0/4",
+      "candidate": false,
+      "notes": [
+        "Confirmed Cyndaquil back output from ROM slot 155 file 931 with normal palette 934."
+      ]
+    }
+  ]
+}

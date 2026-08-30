@@ -1,0 +1,42 @@
+{
+  "name": "poke-lounge",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm build:poke-lounge-battle && pnpm --parallel --filter @poke-lounge/battle --filter @poke-lounge/web --filter @poke-lounge/api dev",
+    "dev:web": "pnpm --filter @poke-lounge/web dev",
+    "dev:api": "pnpm build:poke-lounge-battle && pnpm --parallel --stream --filter @poke-lounge/battle --filter @poke-lounge/api dev",
+    "build": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/web build && pnpm --filter @poke-lounge/api build",
+    "build:poke-lounge-battle": "pnpm --filter @poke-lounge/battle build",
+    "build:web": "pnpm --filter @poke-lounge/web build",
+    "build:api": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/api build",
+    "lint": "pnpm --filter @poke-lounge/battle lint && pnpm --filter @poke-lounge/web lint && pnpm --filter @poke-lounge/api lint",
+    "lint:web": "pnpm --filter @poke-lounge/web lint",
+    "type:check:web": "pnpm --filter @poke-lounge/web type:check",
+    "test": "pnpm test:poke-lounge-battle && pnpm test:web && pnpm test:api",
+    "test:poke-lounge-battle": "pnpm --filter @poke-lounge/battle test -- --runInBand",
+    "test:web": "pnpm --filter @poke-lounge/web test:poke-lounge-unit",
+    "test:api": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/api test",
+    "test:api:e2e": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/api test:e2e",
+    "e2e:local-test-mode": "pnpm --filter @poke-lounge/web e2e:local-test-mode",
+    "e2e:integration": "pnpm --filter @poke-lounge/web e2e:integration",
+    "e2e:five-player": "pnpm --filter @poke-lounge/web e2e:five-player",
+    "generate:poke-lounge-competitive-catalog": "node scripts/poke-lounge/generate-competitive-catalog.mjs --write",
+    "check:poke-lounge-competitive-catalog": "node scripts/poke-lounge/generate-competitive-catalog.mjs --check",
+    "check:poke-lounge-battle-resolution": "node scripts/check-poke-lounge-battle-resolution.mjs types && pnpm build:poke-lounge-battle && node scripts/check-poke-lounge-battle-resolution.mjs runtime",
+    "poke-lounge:audio:verify": "node scripts/poke-lounge/verify-audio-assets.mjs",
+    "check:poke-lounge-provenance": "node scripts/poke-lounge/check-asset-provenance.mjs",
+    "generate:openapi": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/api openapi:generate",
+    "generate:types": "pnpm generate:openapi && prettier --write apps/api/openapi.json && pnpm --filter @poke-lounge/web generate:types && prettier --write apps/web/src/types/api.d.ts",
+    "check:api-contract": "node scripts/check-api-contract.mjs",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.8.4",
+    "prettier-plugin-tailwindcss": "^0.8.0"
+  }
+}
