@@ -1,0 +1,25 @@
+.theme {
+  --pl-color-ink: #24313b;
+  --pl-color-ink-muted: #52615e;
+  --pl-color-surface: #f5f2d8;
+  --pl-color-surface-raised: #fffdf0;
+  --pl-color-surface-muted: #dfe6d2;
+  --pl-color-shadow: #8a958b;
+  --pl-color-johto: #5f8f70;
+  --pl-color-johto-deep: #315d4b;
+  --pl-color-gold: #f4cf58;
+  --pl-color-gold-soft: #fff1a8;
+  --pl-color-blue: #5b87a7;
+  --pl-color-red: #c9534c;
+  --pl-color-hp: #58a957;
+  --pl-color-warning: #dda83f;
+  --pl-color-danger: #c84c45;
+  --pl-color-focus: #2f6b78;
+  --pl-panel-border: 3px;
+  --pl-panel-radius: 5px;
+  --pl-panel-shadow: 0 5px 0 rgb(36 49 59 / 72%);
+  --pl-motion-press: 90ms;
+  --pl-motion-panel: 160ms;
+  --pl-font-game:
+    ui-monospace, "SFMono-Regular", "Cascadia Mono", "Roboto Mono", "Noto Sans Mono", monospace;
+}

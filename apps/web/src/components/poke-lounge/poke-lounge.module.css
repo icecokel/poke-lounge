@@ -1,5 +1,5 @@
 .page {
-  --rom-screen-background: #4a4242;
+  --rom-screen-background: var(--pl-color-ink);
   --poke-lounge-container-width: 100vw;
   --poke-lounge-container-height: 100dvh;
   --poke-lounge-frame-available-height: var(--poke-lounge-container-height);
@@ -12,15 +12,8 @@
   margin: 0;
   overflow: hidden;
   background: var(--rom-screen-background);
-  color: #17201a;
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  color: var(--pl-color-ink);
+  font-family: var(--pl-font-game);
   place-items: center;
 }
 
@@ -130,7 +123,7 @@
   inset: 0;
   z-index: 40;
   overflow: hidden;
-  background: #d8e6d4;
+  background: var(--pl-color-surface-muted);
   container-type: size;
   image-rendering: pixelated;
 }
@@ -147,7 +140,7 @@
 
 .battleStage {
   overflow: hidden;
-  color: #17201a;
+  color: var(--pl-color-ink);
   font-size: clamp(8px, 3.125cqw, 44px);
 }
 
@@ -194,10 +187,10 @@
   gap: 0.15em 0.4em;
   padding: 1.5% 5%;
   overflow: hidden;
-  background: #f4f7e3;
-  border: max(1px, 0.18cqw) solid #2b3742;
+  background: var(--pl-color-surface-raised);
+  border: max(1px, 0.18cqw) solid var(--pl-color-ink);
   box-shadow:
-    0.7cqw 0.7cqw 0 rgb(139 149 136 / 86%),
+    0.7cqw 0.7cqw 0 rgb(138 149 139 / 86%),
     inset 0 0 0 max(1px, 0.08cqw) #fff;
   font-size: 0.8em;
   line-height: 1;
@@ -219,15 +212,6 @@
   width: 100%;
   height: max(3px, 0.55cqw);
   margin-top: 0.15em;
-  overflow: hidden;
-  background: #2b3742;
-}
-
-.battleHpTrack i {
-  display: block;
-  height: 100%;
-  background: #43b65c;
-  transition: none;
 }
 
 .battleWindow {
@@ -238,9 +222,9 @@
   height: 30.208333%;
   margin: 0;
   padding: 2.34375%;
-  color: #17201a;
-  background: #f4f7e3;
-  border: max(1px, 0.3cqw) solid #2b3742;
+  color: var(--pl-color-ink);
+  background: var(--pl-color-surface);
+  border: max(1px, 0.3cqw) solid var(--pl-color-ink);
   border-radius: 0;
   box-shadow:
     inset 0 0 0 max(1px, 0.12cqw) #fff,
@@ -249,14 +233,60 @@
 }
 
 .battleMessagePanel {
+  left: 1.171875%;
   z-index: 20;
   display: flex;
+  width: 97.65625%;
+  height: 27.083333%;
   align-items: flex-start;
   justify-content: flex-start;
-  padding: 4.6875% 3.90625%;
+  padding: 3.90625% 13.28125% 3.90625% 4.6875%;
+  color: var(--pl-color-ink);
+  background: #fffef4;
+  border: max(2px, 0.32cqw) solid #454d5b;
+  border-radius: max(2px, 0.35cqw);
+  box-shadow:
+    inset 0 0 0 max(2px, 0.28cqw) #858b96,
+    inset 0 0 0 max(4px, 0.62cqw) #f2f1e8,
+    0 max(2px, 0.28cqw) 0 var(--pl-color-gold);
   text-align: left;
-  line-height: 1.4;
+  line-height: 1.35;
   cursor: pointer;
+}
+
+.battleMessagePanel[data-poke-lounge-battle-surface="message"]::before,
+.battleMessagePanel[data-poke-lounge-battle-surface="message"]::after {
+  position: absolute;
+  right: 3.125%;
+  width: 6.25%;
+  height: 23.076923%;
+  border: max(1px, 0.16cqw) solid #d8d9d4;
+  border-radius: max(3px, 0.7cqw);
+  box-shadow: inset 0 0 0 max(1px, 0.12cqw) #f5f4ed;
+  content: "";
+}
+
+.battleMessagePanel[data-poke-lounge-battle-surface="message"]::before {
+  top: 20%;
+  background: #fffef4;
+}
+
+.battleMessagePanel[data-poke-lounge-battle-surface="message"]::after {
+  bottom: 20%;
+  background: #f7aeb7;
+  animation: battleMessageAdvance 720ms steps(2, end) infinite;
+}
+
+@keyframes battleMessageAdvance {
+  50% {
+    background: #fbd1d6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .battleMessagePanel[data-poke-lounge-battle-surface="message"]::after {
+    animation: none;
+  }
 }
 
 .battleMessagePanel:disabled {
@@ -281,9 +311,7 @@
   justify-content: space-between;
   gap: 0.4em;
   padding: 0.2em 0.75em;
-  color: #17201a;
-  background: #f4f7e3;
-  border: 0;
+  color: var(--pl-color-ink);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -291,7 +319,8 @@
 
 .battleOptionGrid > button[data-selected="true"],
 .battleReplacementGrid > button[data-selected="true"] {
-  box-shadow: inset max(2px, 0.75cqw) 0 #43b65c;
+  background: var(--pl-color-gold-soft);
+  box-shadow: inset max(2px, 0.75cqw) 0 var(--pl-color-johto);
 }
 
 .battleOptionGrid > button:disabled,
@@ -303,7 +332,7 @@
 
 .battleOptionGrid small,
 .battleReplacementGrid small {
-  color: #68736d;
+  color: var(--pl-color-ink-muted);
   font-size: 0.62em;
   white-space: nowrap;
 }
@@ -642,8 +671,8 @@
 
 .worldUiLayer {
   z-index: 20000;
-  color: #17201a;
-  font-family: monospace;
+  color: var(--pl-color-ink);
+  font-family: var(--pl-font-game);
   image-rendering: auto;
 }
 
@@ -652,9 +681,6 @@
   pointer-events: none;
 }
 
-.worldCurrencyHud,
-.worldRankHud,
-.worldRoundHud,
 .worldAreaAnnouncement,
 .worldNurseMessage,
 .worldInteractionPrompt,
@@ -670,6 +696,13 @@
     2px -2px #263238,
     -2px 2px #263238,
     2px 2px #263238;
+}
+
+.worldCurrencyHud,
+.worldRankHud,
+.worldRoundHud {
+  position: absolute;
+  white-space: pre-line;
 }
 
 .worldCurrencyHud {
@@ -698,61 +731,19 @@
 
   position: absolute;
   top: 50%;
-  left: 10px;
+  left: 12px;
   display: grid;
-  width: 132px;
-  gap: 9px;
+  width: clamp(150px, 14vw, 190px);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
   transform: translateY(-50%) scale(var(--poke-lounge-party-hud-scale));
   transform-origin: left center;
   pointer-events: auto;
 }
 
 .worldPartyHudSlot {
-  display: grid;
-  width: 132px;
-  height: 51px;
-  grid-template-columns: 42px minmax(0, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  align-items: center;
-  gap: 0 4.5px;
-  padding: 3px 6px;
-  border: 1.5px solid #263238;
-  border-radius: 3px;
-  background: rgba(248, 251, 240, 0.9);
-  color: #263238;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.worldPartyHudSlot[data-active="true"],
-.worldPartyHudSlot[data-selected="true"] {
-  background: #fff4a3;
-}
-
-.worldPartyHudSlot[data-selected="true"] {
-  outline: 3px solid #101820;
-}
-
-.worldPartyHudSlot:disabled {
-  cursor: default;
-  opacity: 0.72;
-}
-
-.worldPartyHudSlot > :first-child {
-  grid-row: 1 / -1;
-}
-
-.worldPartyHudSlot > span:not(:first-child) {
-  overflow: hidden;
-  font-size: 12px;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.worldPartyHudSlot small {
-  font-size: 12px;
+  min-height: 51px;
+  font-size: clamp(10px, 1.05vw, 14px);
 }
 
 .worldPokemonSprite {
@@ -772,10 +763,10 @@
   gap: 6px;
   padding: 16px 18px;
   transform: translateY(-50%);
-  border: 3px solid #263238;
-  border-radius: 5px;
-  background: rgba(248, 251, 240, 0.98);
-  box-shadow: 0 5px 0 rgba(23, 35, 28, 0.7);
+  border: var(--pl-panel-border) solid var(--pl-color-ink);
+  border-radius: var(--pl-panel-radius);
+  background: var(--pl-color-surface-raised);
+  box-shadow: var(--pl-panel-shadow);
   pointer-events: auto;
 }
 
@@ -809,15 +800,15 @@
 
 .worldPokemonPanel > button:not(.worldPanelClose) {
   min-height: 28px;
-  border: 2px solid #263238;
+  border: 2px solid var(--pl-color-ink);
   border-radius: 3px;
-  background: #fff4a3;
-  box-shadow: 0 2px 0 #263238;
+  background: var(--pl-color-gold-soft);
+  box-shadow: 0 2px 0 var(--pl-color-ink);
   font-weight: 900;
 }
 
 .worldPokemonPanel > button:disabled {
-  background: #e9eee1;
+  background: var(--pl-color-surface-muted);
   box-shadow: none;
 }
 
@@ -827,7 +818,7 @@
   right: 8px;
   border: 0;
   background: transparent;
-  color: #263238;
+  color: var(--pl-color-ink);
   cursor: pointer;
   font-size: 20px;
 }

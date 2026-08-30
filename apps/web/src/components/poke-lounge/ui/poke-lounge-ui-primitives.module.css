@@ -1,0 +1,247 @@
+.pixelPanel {
+  color: var(--pl-color-ink);
+  background: linear-gradient(180deg, var(--pl-color-surface-raised), var(--pl-color-surface));
+  border: var(--pl-panel-border) solid var(--pl-color-ink);
+  border-radius: var(--pl-panel-radius);
+  box-shadow:
+    var(--pl-panel-shadow),
+    inset 0 0 0 2px rgb(255 255 255 / 58%);
+}
+
+.pixelButton {
+  min-width: 0;
+  color: var(--pl-color-ink);
+  background: var(--pl-color-surface-raised);
+  border: 2px solid var(--pl-color-ink);
+  border-radius: 4px;
+  box-shadow:
+    0 3px 0 var(--pl-color-ink),
+    inset 0 0 0 1px rgb(255 255 255 / 72%);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  transition:
+    background var(--pl-motion-press) ease,
+    box-shadow var(--pl-motion-press) ease,
+    transform var(--pl-motion-press) ease;
+}
+
+.pixelButton:hover:not(:disabled) {
+  background: var(--pl-color-gold-soft);
+}
+
+.pixelButton:active:not(:disabled) {
+  box-shadow: 0 1px 0 var(--pl-color-ink);
+  transform: translateY(2px);
+}
+
+.pixelButton:focus-visible {
+  outline: 3px solid var(--pl-color-focus);
+  outline-offset: 2px;
+}
+
+.pixelButton[data-selected="true"] {
+  background: var(--pl-color-gold-soft);
+  box-shadow:
+    inset 5px 0 var(--pl-color-johto),
+    0 3px 0 var(--pl-color-ink);
+}
+
+.pixelButton:disabled {
+  color: var(--pl-color-ink-muted);
+  background: var(--pl-color-surface-muted);
+  box-shadow: none;
+  cursor: default;
+  opacity: 0.68;
+}
+
+.healthBar {
+  display: block;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  appearance: none;
+  background: var(--pl-color-ink);
+  border: 2px solid var(--pl-color-ink);
+  border-radius: 2px;
+}
+
+.healthBar::-webkit-meter-bar {
+  background: var(--pl-color-ink);
+  border: 0;
+  border-radius: 0;
+}
+
+.healthBar::-webkit-meter-optimum-value {
+  background: var(--pl-color-hp);
+}
+
+.healthBar::-webkit-meter-suboptimum-value {
+  background: var(--pl-color-warning);
+}
+
+.healthBar::-webkit-meter-even-less-good-value {
+  background: var(--pl-color-danger);
+}
+
+.healthBar::-moz-meter-bar {
+  background: var(--pl-color-hp);
+}
+
+.pokemonSlot {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  gap: 1px 6px;
+  padding: 5px 7px;
+  overflow: hidden;
+  color: var(--pl-color-ink);
+  background: linear-gradient(180deg, var(--pl-color-surface-raised), var(--pl-color-surface));
+  border: 2px solid var(--pl-color-ink);
+  border-radius: 4px;
+  box-shadow:
+    0 3px 0 rgb(36 49 59 / 72%),
+    inset 0 0 0 1px rgb(255 255 255 / 68%);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    background var(--pl-motion-press) ease,
+    transform var(--pl-motion-press) ease;
+}
+
+.pokemonSlot:hover:not(:disabled) {
+  background: var(--pl-color-gold-soft);
+}
+
+.pokemonSlot:active:not(:disabled) {
+  transform: translateY(2px);
+}
+
+.pokemonSlot:focus-visible {
+  outline: 3px solid var(--pl-color-focus);
+  outline-offset: 2px;
+}
+
+.pokemonSlot[data-active="true"]::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: var(--pl-color-gold);
+  content: "";
+}
+
+.pokemonSlot[data-selected="true"] {
+  background: var(--pl-color-gold-soft);
+  outline: 3px solid var(--pl-color-johto-deep);
+  outline-offset: -3px;
+}
+
+.pokemonSlot:disabled {
+  color: var(--pl-color-ink-muted);
+  cursor: default;
+  opacity: 0.66;
+}
+
+.pokemonSlotSprite {
+  position: relative;
+  display: grid;
+  grid-row: 1 / -1;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+}
+
+.pokemonSlotName {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.78em;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pokemonSlotLevel,
+.pokemonSlotHpText,
+.pokemonSlotStatus {
+  color: var(--pl-color-ink-muted);
+  font-size: 0.62em;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.pokemonSlotLevel {
+  justify-self: end;
+}
+
+.pokemonSlotHealth {
+  display: grid;
+  min-width: 0;
+  grid-column: 2 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.pokemonSlotHealth .healthBar {
+  height: 6px;
+}
+
+.pokemonSlotStatus {
+  grid-column: 2 / -1;
+  color: var(--pl-color-danger);
+}
+
+.messageBox {
+  color: var(--pl-color-ink);
+  background: linear-gradient(180deg, var(--pl-color-surface-raised), var(--pl-color-surface));
+  border: var(--pl-panel-border) solid var(--pl-color-ink);
+  border-radius: var(--pl-panel-radius);
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 62%),
+    inset 0 0 0 5px rgb(138 149 139 / 42%);
+  font: inherit;
+  text-align: left;
+}
+
+.messageBox:not(:disabled) {
+  cursor: pointer;
+}
+
+.messageBox:focus-visible {
+  outline: 3px solid var(--pl-color-focus);
+  outline-offset: -6px;
+}
+
+.statusBadge {
+  width: fit-content;
+  padding: 5px 8px;
+  color: var(--pl-color-ink);
+  background: rgb(255 253 240 / 92%);
+  border: 2px solid var(--pl-color-ink);
+  border-radius: 4px;
+  box-shadow: 0 3px 0 rgb(36 49 59 / 66%);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.statusBadge[data-tone="green"] {
+  border-bottom-color: var(--pl-color-johto);
+}
+
+.statusBadge[data-tone="gold"] {
+  border-bottom-color: var(--pl-color-gold);
+}
+
+.statusBadge[data-tone="blue"] {
+  border-bottom-color: var(--pl-color-blue);
+}
+
+.statusBadge[data-tone="danger"] {
+  color: #7d2b27;
+  background: #f8d5cd;
+  border-bottom-color: var(--pl-color-danger);
+}
