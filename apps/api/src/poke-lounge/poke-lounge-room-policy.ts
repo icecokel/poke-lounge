@@ -14,7 +14,7 @@ import type { PokeLoungeMatchResultReason } from './poke-lounge-room.types';
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 
-export const POKE_LOUNGE_ROOM_CAPACITY = 200;
+export const POKE_LOUNGE_ROOM_CAPACITY = 20;
 export const POKE_LOUNGE_CREATION_ADVISORY_LOCK = 742198451;
 export const POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS = 2 * HOUR_MS;
 export const POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS = 15_000;
