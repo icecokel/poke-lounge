@@ -57,13 +57,8 @@ writeFileSync(resolvedNextTsconfigPath, `${JSON.stringify(sanitizedTsconfig, nul
 
 const serverEnv = {
   ...process.env,
-  AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST ?? "true",
-  AUTH_URL: process.env.AUTH_URL ?? `http://${host}:${port}`,
-  AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-auth-secret",
   HOSTNAME: host,
   LOCAL_TEST_AUTH_TOKEN: localTestAuthToken,
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ?? "e2e-auth-secret",
-  NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? `http://${host}:${port}`,
   NEXT_DIST_DIR: nextDistDir,
   NEXT_TYPESCRIPT_CONFIG_PATH: nextTsconfigPath,
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:65535",

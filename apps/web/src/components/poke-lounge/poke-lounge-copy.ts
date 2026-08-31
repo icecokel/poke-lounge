@@ -69,15 +69,11 @@ export interface PokeLoungeCopy {
   resultEyebrow: string;
   resultPlayTime(seconds: number): string;
   resultUnranked: string;
-  resultSaving: string;
-  resultSave: string;
+  resultStarPrompt: string;
+  resultStar: string;
   resultRetry: string;
   resultRoomEntry: string;
   resultLobby: string;
-  resultAuthRequired: string;
-  resultSubmitting: string;
-  resultSaved: string;
-  resultSaveFailed: string;
   accessibleHelp: string;
   mobile: {
     exploreDeckLabel: string;
@@ -263,17 +259,12 @@ const KOREAN_COPY: PokeLoungeCopy = {
   leaveConfirm: "방 나가기",
   resultEyebrow: "플레이 결과",
   resultPlayTime: seconds => `플레이 시간 ${seconds}초`,
-  resultUnranked: "일반 플레이 기록 · 공개 검증 랭킹 미반영",
-  resultSaving: "기록 중",
-  resultSave: "일반 기록 저장",
+  resultUnranked: "일반 플레이 결과 · 공개 검증 랭킹 미반영",
+  resultStarPrompt: "친구와 즐거웠다면 GitHub Star로 Poke Lounge를 응원해 주세요.",
+  resultStar: "GitHub에서 Star",
   resultRetry: "다시 플레이",
   resultRoomEntry: "새 방 선택",
   resultLobby: "게임 로비로",
-  resultAuthRequired:
-    "로그인 상태를 확인할 수 없어 이 결과는 저장할 수 없습니다. 다음 기록을 저장하려면 플레이 전에 로그인해 주세요.",
-  resultSubmitting: "점수를 기록하는 중입니다.",
-  resultSaved: "Poke Lounge 점수가 기록되었습니다.",
-  resultSaveFailed: "점수 기록에 실패했습니다.",
   accessibleHelp: "게임 조작 도움말은 H 키 또는 물음표 버튼으로 열 수 있습니다.",
   mobile: {
     exploreDeckLabel: "필드 조작",
@@ -475,17 +466,12 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   leaveConfirm: "Leave room",
   resultEyebrow: "Play result",
   resultPlayTime: seconds => `Play time ${seconds}s`,
-  resultUnranked: "Standard play record · not included in the public verified ranking",
-  resultSaving: "Saving",
-  resultSave: "Save standard record",
+  resultUnranked: "Standard play result · not included in the public verified ranking",
+  resultStarPrompt: "Had fun with friends? Support Poke Lounge with a GitHub Star.",
+  resultStar: "Star on GitHub",
   resultRetry: "Play again",
   resultRoomEntry: "Choose another room",
   resultLobby: "Game lobby",
-  resultAuthRequired:
-    "This result cannot be saved because your sign-in could not be verified. Sign in before playing to save your next result.",
-  resultSubmitting: "Saving your score.",
-  resultSaved: "Your Poke Lounge score was saved.",
-  resultSaveFailed: "Could not save the score.",
   accessibleHelp: "Open the controls guide with H or the question-mark button.",
   mobile: {
     exploreDeckLabel: "Field controls",
@@ -689,17 +675,12 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   leaveConfirm: "ルームを退出",
   resultEyebrow: "プレイ結果",
   resultPlayTime: seconds => `プレイ時間 ${seconds}秒`,
-  resultUnranked: "通常プレイ記録・公開検証ランキング対象外",
-  resultSaving: "記録中",
-  resultSave: "通常記録を保存",
+  resultUnranked: "通常プレイ結果・公開検証ランキング対象外",
+  resultStarPrompt: "友達と楽しめたら、GitHub StarでPoke Loungeを応援してください。",
+  resultStar: "GitHubでStar",
   resultRetry: "もう一度プレイ",
   resultRoomEntry: "別のルームを選ぶ",
   resultLobby: "ゲームロビーへ",
-  resultAuthRequired:
-    "ログイン状態を確認できないため、この結果は保存できません。次の結果を保存するには、プレイ前にログインしてください。",
-  resultSubmitting: "スコアを記録しています。",
-  resultSaved: "ポケラウンジのスコアを記録しました。",
-  resultSaveFailed: "スコアを記録できませんでした。",
   accessibleHelp: "Hキーまたは「？」ボタンで操作ガイドを開けます。",
   mobile: {
     exploreDeckLabel: "フィールド操作",

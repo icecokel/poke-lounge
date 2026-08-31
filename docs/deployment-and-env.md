@@ -8,8 +8,8 @@ main -> icenux self-hosted runner -> Docker Compose
 
 ## 운영 주소
 
-운영 Web origin은 <https://poke-lounge.icecoke.kr>이다. `AUTH_URL`과 API의
-`CORS_ORIGINS` 허용값도 이 origin을 기준으로 설정한다.
+운영 Web origin은 <https://poke-lounge.icecoke.kr>이다. API의 `CORS_ORIGINS` 허용값도 이
+origin을 기준으로 설정한다.
 
 ## Web
 
@@ -18,12 +18,8 @@ main -> icenux self-hosted runner -> Docker Compose
 | 이름                  | 설명                              |
 | --------------------- | --------------------------------- |
 | `NEXT_PUBLIC_API_URL` | 브라우저가 호출할 공개 API origin |
-| `AUTH_GOOGLE_ID`      | Google OAuth client ID            |
-| `AUTH_GOOGLE_SECRET`  | Google OAuth client secret        |
-| `AUTH_SECRET`         | Auth.js 서명 secret               |
 
-`AUTH_URL`은 배포 Web origin으로 설정한다. 공개 배포를 권리 상태와 함께
-차단하려면 `POKE_LOUNGE_PROVENANCE_STRICT=1`을 설정한다.
+공개 배포를 권리 상태와 함께 차단하려면 `POKE_LOUNGE_PROVENANCE_STRICT=1`을 설정한다.
 
 ## API
 
@@ -36,7 +32,6 @@ GitHub Actions Variables와 Secrets에서 주입한다.
 | ----------------------------------------------------------------- | ------------------------------------------------ |
 | `PORT`                                                            | API 포트, 기본값 `3001`                          |
 | `CORS_ORIGINS`                                                    | 허용할 Web origin 목록                           |
-| `GOOGLE_CLIENT_ID`                                                | Google ID token 검증 client ID                   |
 | `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE` | PostgreSQL 연결                                  |
 | `DB_SYNCHRONIZE=false`                                            | 운영 schema 자동 변경 금지                       |
 | `REDIS_URL`                                                       | room, Socket fan-out, player state와 BullMQ 연결 |
@@ -52,10 +47,8 @@ Redis 연결에 실패하면 API와 worker는 시작하지 않으며 메모리 f
 | `API_PORT`            | 선택 | 기본 `3101`                  |
 | `NEXT_PUBLIC_API_URL` | 필수 | 브라우저가 호출할 API origin |
 | `CORS_ORIGINS`        | 필수 | 허용할 Web origin            |
-| `AUTH_URL`            | 필수 | 배포 Web origin              |
 
-Repository secrets에는 `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_SECRET`, `DB_PASSWORD`를
-등록한다.
+Repository secrets에는 `DB_PASSWORD`를 등록한다.
 
 ## Database migrations
 

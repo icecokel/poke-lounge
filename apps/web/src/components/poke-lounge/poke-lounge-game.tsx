@@ -11,7 +11,7 @@ import {
   isAuthSessionError,
   type ApiTokenSession,
 } from "@/lib/auth-token";
-import { getGameRanking, submitScore, type GameHistory } from "@/services/score-service";
+import { getGameRanking, type GameHistory } from "@/services/score-service";
 import { loadPokeLoungeState } from "@/services/poke-lounge-state-service";
 import {
   createPokeLoungeAutosaveLifecycle,
@@ -241,10 +241,6 @@ export function PokeLoungeGame() {
   const [volumeLevelIndex, setVolumeLevelIndex] = useState(POKE_LOUNGE_DEFAULT_VOLUME_LEVEL_INDEX);
   const [uiSize, setUiSize] = useState<PokeLoungeUiSize>("large");
   const [roomShareStatus, setRoomShareStatus] = useState<PokeLoungeRoomShareStatus>("idle");
-  const [submitStatus, setSubmitStatus] = useState<
-    "idle" | "submitting" | "success" | "auth" | "error"
-  >("idle");
-  const [submitMessage, setSubmitMessage] = useState<string>("");
   const [stateHydrationStatus, setStateHydrationStatus] =
     useState<PokeLoungeStateHydrationStatus>("pending");
   const [stateHydrationMessage, setStateHydrationMessage] = useState("");
@@ -326,8 +322,6 @@ export function PokeLoungeGame() {
     : stateHydrationRetrying
       ? copy.hydrationRetrying
       : copy.hydrationRetry;
-  const resultRequiresAuthentication =
-    status !== "authenticated" || !sessionToken || isAuthSessionError(apiSession?.error);
   const resultReturnsToRoomEntry =
     Boolean(finalResult) &&
     typeof window !== "undefined" &&
@@ -1052,8 +1046,6 @@ export function PokeLoungeGame() {
               score: result.score,
               playTime: Math.max(1, Math.floor((Date.now() - startedAtMsRef.current) / 1000)),
             });
-            setSubmitStatus("idle");
-            setSubmitMessage("");
           },
           onRoomLeaveRequest: setLeaveRequest,
           onRuntimeStateChange: setRuntimeState,
@@ -1093,44 +1085,6 @@ export function PokeLoungeGame() {
     touchGameDeviceResolved,
   ]);
 
-  const handleSubmitResult = useCallback(async () => {
-    if (!finalResult || submitStatus === "submitting" || submitStatus === "success") {
-      return;
-    }
-
-    const apiSession = session as ApiTokenSession | null;
-    const token = getSessionApiIdToken(apiSession, Date.now(), {
-      allowLocalTestMode: true,
-    });
-
-    if (status !== "authenticated" || !token || isAuthSessionError(apiSession?.error)) {
-      setSubmitStatus("auth");
-      setSubmitMessage(copy.resultAuthRequired);
-      return;
-    }
-
-    setSubmitStatus("submitting");
-    setSubmitMessage(copy.resultSubmitting);
-
-    const result = await submitScore(
-      {
-        gameName: "poke-lounge",
-        score: finalResult.score,
-        playTime: finalResult.playTime,
-      },
-      token,
-    );
-
-    if (result.success) {
-      setSubmitStatus("success");
-      setSubmitMessage(copy.resultSaved);
-      return;
-    }
-
-    setSubmitStatus(result.requiresAuth ? "auth" : "error");
-    setSubmitMessage(result.requiresAuth ? copy.resultAuthRequired : copy.resultSaveFailed);
-  }, [copy, finalResult, session, status, submitStatus]);
-
   const handleResultRetry = useCallback(() => {
     const currentUrl = new URL(window.location.href);
     const returnsToRoomEntry = isPokeLoungeMultiplayerResultUrl(currentUrl);
@@ -1148,8 +1102,6 @@ export function PokeLoungeGame() {
 
     getDefaultGameStateStore().resetCompetitiveSession();
     setFinalResult(null);
-    setSubmitStatus("idle");
-    setSubmitMessage("");
     if (returnsToRoomEntry) {
       setGameStartupAttempt(attempt => attempt + 1);
     }
@@ -1320,15 +1272,11 @@ export function PokeLoungeGame() {
         <PokeLoungeResultPanel
           copy={copy}
           playTime={finalResult.playTime}
-          requiresAuthentication={resultRequiresAuthentication}
           returnsToRoomEntry={resultReturnsToRoomEntry}
           score={finalResult.score}
-          status={submitStatus}
-          statusMessage={submitMessage}
           touchGameDevice={touchGameDevice}
           onLobby={handleResultLobby}
           onRetry={handleResultRetry}
-          onSubmit={handleSubmitResult}
         />
       ) : null}
       <div

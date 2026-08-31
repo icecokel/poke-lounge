@@ -63,9 +63,8 @@ apps/web
   local save, room adapter, UI와 입력
 
 apps/api
-  Redis TTL Poke account save와 일반 게임의 game history
   transient Poke Lounge room과 live position gateway
-  공개 session action과 선택적 account competitive seat
+  공개 session action과 서버 권위 competitive match
 
 packages/poke-lounge-battle
   솔로·경쟁 전투 규칙
@@ -114,11 +113,9 @@ terminal event와 match를 중복 제거한 뒤 결과를 먼저 적용하고, �
 | 서버 방       | Redis TTL                  | room aggregate, revision, TTL과 command receipt            |
 | 경쟁 매치     | Redis TTL                  | canonical battle state, action receipt와 terminal metadata |
 | 실시간 위치   | Redis                      | 방 수명 동안 map, 좌표, 방향과 worldSeq                    |
-| 로그인 진행   | Redis TTL                  | 계정별 진행 snapshot과 revision, 마지막 저장 후 2시간      |
 
-인증 GET이 실패하면 로컬 상태로 게임을 열되, 서버 상태를 오래된 로컬 값으로 덮어쓰지 않도록 복구
-전까지 원격 autosave를 시작하지 않는다. 멀티플레이 접속 상태와 선택적 로그인 계정 저장은 서로
-다른 경로다.
+플레이 진행은 로그인 없이 현재 브라우저 탭에 저장한다. 멀티플레이 접속 상태와 개인 진행 저장은
+서로 다른 경로다.
 
 ## 화면과 오디오
 
@@ -142,7 +139,7 @@ terminal event와 match를 중복 제거한 뒤 결과를 먼저 적용하고, �
 - 데스크톱 키보드와 모바일 터치 입력
 - shared world 참가와 닉네임·위치 실시간 중계
 - 서버 권위 대진·전투·결과와 Redis TTL room 복구
-- 브라우저 로컬 저장과 선택적 로그인 계정 저장
+- 브라우저 탭의 versioned `sessionStorage` 기반 익명 진행 저장
 - 방장·수동 ready·수동 시작 기반 멀티플레이 대기실과 시작 후 참가 잠금
 - Redis snapshot·worldSeq 기반 위치 누락 복구와 API 인스턴스 간 Socket fan-out
 

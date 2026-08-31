@@ -1,12 +1,10 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
 export default function GamePage() {
   const t = useTranslations("Game");
-  const { status } = useSession();
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
@@ -19,18 +17,6 @@ export default function GamePage() {
         >
           {t("playNow")}
         </Link>
-        {status === "authenticated" ? (
-          <button className="text-sm text-slate-300 underline" onClick={() => void signOut()}>
-            {t("signOut")}
-          </button>
-        ) : (
-          <button
-            className="text-sm text-slate-300 underline"
-            onClick={() => void signIn("google")}
-          >
-            {t("signIn")}
-          </button>
-        )}
       </section>
     </main>
   );

@@ -10,9 +10,6 @@ before(() => {
     NODE_ENV: "development",
     LOCAL_TEST_AUTH_TOKEN: "local_test_auth_token_0123456789abcdef",
     NEXT_PUBLIC_API_URL: "http://127.0.0.1:3001",
-    AUTH_SECRET: "local-route-test-secret",
-    AUTH_GOOGLE_ID: "local-route-test-google-id",
-    AUTH_GOOGLE_SECRET: "local-route-test-google-secret",
   });
 });
 
@@ -31,22 +28,6 @@ test("환경 변수만으로 Auth.js 세션을 로컬 테스트 계정으로 바
   assert.equal(response.status, 200);
   assert.notEqual(session?.user?.id, "poke-lounge-local-test-user");
   assert.notEqual(session?.idToken, process.env.LOCAL_TEST_AUTH_TOKEN);
-});
-
-test("AUTH_SECRET이 없는 로컬 테스트 준비 상태는 명시적 비로그인 세션을 반환한다", async () => {
-  const authSecret = process.env.AUTH_SECRET;
-  delete process.env.AUTH_SECRET;
-
-  try {
-    const { GET } = await import("@/app/api/auth/[...nextauth]/route");
-    const response = await GET(new NextRequest("http://localhost:3000/api/auth/session"));
-
-    assert.equal(response.status, 200);
-    assert.equal(await response.json(), null);
-    assert.equal(response.headers.get("cache-control"), "private, no-cache, no-store");
-  } finally {
-    process.env.AUTH_SECRET = authSecret;
-  }
 });
 
 test("로컬 테스트 모드 capability 조회는 세션을 활성화하지 않는다", async () => {
@@ -160,12 +141,10 @@ test("명시적 종료 요청은 활성화 쿠키를 제거한다", async () => 
   assert.match(response.headers.get("set-cookie") ?? "", /Path=\/api/i);
 });
 
-test("session 외 GET은 기존 Auth.js handler에 위임한다", async () => {
+test("session 외 auth GET은 제공하지 않는다", async () => {
   const { GET } = await import("@/app/api/auth/[...nextauth]/route");
   const response = await GET(new NextRequest("http://localhost:3000/api/auth/providers"));
-  const providers = (await response.json()) as Record<string, unknown>;
 
-  assert.equal(response.status, 200);
-  assert.equal(typeof providers.google, "object");
-  assert.equal(Object.hasOwn(providers, "user"), false);
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "Not found" });
 });

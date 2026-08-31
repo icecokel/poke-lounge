@@ -200,27 +200,19 @@ export function PokeLoungeNoticeBanner({
 export function PokeLoungeResultPanel({
   copy,
   playTime,
-  requiresAuthentication,
   returnsToRoomEntry,
   score,
-  status,
-  statusMessage,
   touchGameDevice,
   onLobby,
   onRetry,
-  onSubmit,
 }: {
   copy: PokeLoungeCopy;
   playTime: number;
-  requiresAuthentication: boolean;
   returnsToRoomEntry: boolean;
   score: number;
-  status: "idle" | "submitting" | "success" | "auth" | "error";
-  statusMessage: string;
   touchGameDevice: boolean;
   onLobby(): void;
   onRetry(): void;
-  onSubmit(): void;
 }) {
   return (
     <section
@@ -233,17 +225,12 @@ export function PokeLoungeResultPanel({
       </div>
       <p className={styles.resultMeta}>{copy.resultPlayTime(playTime)}</p>
       <p className={styles.resultStatus}>{copy.resultUnranked}</p>
-      <Button
-        type="button"
-        onClick={onSubmit}
-        disabled={requiresAuthentication || status === "submitting" || status === "success"}
-        data-testid="poke-lounge-result-submit"
-      >
-        {status === "submitting" ? copy.resultSaving : copy.resultSave}
+      <p className={styles.resultStatus}>{copy.resultStarPrompt}</p>
+      <Button asChild>
+        <a href="https://github.com/icecokel/poke-lounge" data-testid="poke-lounge-result-github">
+          {copy.resultStar}
+        </a>
       </Button>
-      <p className={styles.resultStatus} data-testid="poke-lounge-result-status" aria-live="polite">
-        {requiresAuthentication ? copy.resultAuthRequired : statusMessage}
-      </p>
       <div className={styles.resultActions}>
         <Button
           type="button"

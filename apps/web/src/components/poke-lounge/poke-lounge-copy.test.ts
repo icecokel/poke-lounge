@@ -51,19 +51,10 @@ test("모든 로케일에서 계정 저장 장애의 로컬 진행 보존과 재
   assert.match(getPokeLoungeCopy("ja-JP").hydrationLocalFallback, /ローカルデータ.*進行を維持/);
 });
 
-test("로그아웃 결과는 OAuth 뒤 저장을 약속하지 않고 플레이 전 로그인을 안내한다", () => {
-  assert.match(
-    getPokeLoungeCopy("ko-KR").resultAuthRequired,
-    /이 결과는 저장할 수 없습니다.*플레이 전에 로그인/,
-  );
-  assert.match(
-    getPokeLoungeCopy("en-US").resultAuthRequired,
-    /result cannot be saved.*before playing/,
-  );
-  assert.match(
-    getPokeLoungeCopy("ja-JP").resultAuthRequired,
-    /この結果は保存できません.*プレイ前にログイン/,
-  );
+test("모든 로케일에서 게임 종료 후 GitHub Star로 프로젝트 응원을 안내한다", () => {
+  assert.match(getPokeLoungeCopy("ko-KR").resultStarPrompt, /GitHub Star/);
+  assert.match(getPokeLoungeCopy("en-US").resultStarPrompt, /GitHub Star/);
+  assert.match(getPokeLoungeCopy("ja-JP").resultStarPrompt, /GitHub Star/);
 });
 
 test("멀티플레이 결과의 다음 행동은 방을 다시 선택한다고 명시한다", () => {

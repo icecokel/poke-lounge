@@ -29,11 +29,6 @@ jobs:
       API_PORT: ${{ vars.API_PORT || '3101' }}
       NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
       CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
-      AUTH_URL: ${{ vars.AUTH_URL }}
-      AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
-      AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
-      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-      GOOGLE_CLIENT_ID: ${{ secrets.AUTH_GOOGLE_ID }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       COMPOSE_BAKE: "false" # ponytail: Remove after docker-buildx is installed on the runner.
     steps:
@@ -43,10 +38,6 @@ jobs:
         run: |
           test -n "$NEXT_PUBLIC_API_URL"
           test -n "$CORS_ORIGINS"
-          test -n "$AUTH_URL"
-          test -n "$AUTH_GOOGLE_ID"
-          test -n "$AUTH_GOOGLE_SECRET"
-          test -n "$AUTH_SECRET"
           test -n "$DB_PASSWORD"
           command -v docker
           docker compose version
