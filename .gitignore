@@ -8,10 +8,10 @@ logs
 node_modules
 output
 playwright-report
+storybook-static
 test-results
 *.tsbuildinfo
 
 # Raw ROM and generated extraction inputs stay local.
 data/processed/
 data/roms/
-
