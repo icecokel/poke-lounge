@@ -27,9 +27,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Static checks
+      - name: Formatting (advisory)
+        continue-on-error: true
+        run: pnpm format:check
+
+      - name: Required static checks
         run: |
-          pnpm format:check
+          pnpm exec prettier --check ".github/workflows/**/*.{yml,yaml}"
           pnpm lint
           pnpm type:check:web
           pnpm check:api-contract

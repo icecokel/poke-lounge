@@ -127,6 +127,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/poke-lounge/shops/basic/items": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Poke Lounge 일반 상점 판매 목록 조회 */
+    get: operations["PokeLoungeController_getBasicShopItemIds"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/poke-lounge/shops/premium/items": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Poke Lounge 희귀 상점 판매 목록 조회 */
+    get: operations["PokeLoungeController_getPremiumShopItemIds"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/poke-lounge/rooms": {
     parameters: {
       query?: never;
@@ -1222,6 +1256,66 @@ export interface operations {
         };
       };
       /** @description 필수 ROM 문서가 없거나 무결하지 않음 */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  PokeLoungeController_getBasicShopItemIds: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true;
+            data: number[];
+          };
+        };
+      };
+      /** @description 일반 상점 판매 목록이 없거나 무결하지 않음 */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  PokeLoungeController_getPremiumShopItemIds: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true;
+            data: number[];
+          };
+        };
+      };
+      /** @description 희귀 상점 판매 목록이 없거나 무결하지 않음 */
       503: {
         headers: {
           [name: string]: unknown;

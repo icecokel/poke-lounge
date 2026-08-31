@@ -1,9 +1,13 @@
+import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from '@poke-lounge/battle';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import dataSource from '../src/data-source';
 
 const EXPECTED_ROM_SHA1 = '5834fb3a2d751c48501d47d6a56898d7af6ccf9e';
+const SUPPORTED_RUNTIME_ITEM_ROM_IDS = new Set<number>(
+  Object.values(POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS),
+);
 
 interface RomDocument {
   documentKey: string;
@@ -174,12 +178,38 @@ function validatePokemonData(payload: JsonObject): void {
 }
 
 function validateItemData(payload: JsonObject): void {
-  assertSequentialRecords(
-    asObject(payload.items, 'item-data.items'),
-    'id',
-    1,
-    513,
-  );
+  const items = asObject(payload.items, 'item-data.items');
+  assertSequentialRecords(items, 'id', 1, 513);
+
+  const shopCatalogs = asObject(payload.shopCatalogs, 'item-data.shopCatalogs');
+  const catalogItemIds = new Set<number>();
+
+  for (const shopKind of ['basic', 'premium']) {
+    const itemIds = asArray(
+      shopCatalogs[shopKind],
+      `item-data.shopCatalogs.${shopKind}`,
+    );
+    if (itemIds.length === 0) {
+      throw new Error(`item-data.shopCatalogs.${shopKind} must not be empty`);
+    }
+
+    for (const value of itemIds) {
+      const itemId = asInteger(
+        value,
+        `item-data.shopCatalogs.${shopKind} item`,
+      );
+      if (
+        !items[String(itemId)] ||
+        !SUPPORTED_RUNTIME_ITEM_ROM_IDS.has(itemId) ||
+        catalogItemIds.has(itemId)
+      ) {
+        throw new Error(
+          `item-data shop catalog item ${itemId} is invalid or duplicated`,
+        );
+      }
+      catalogItemIds.add(itemId);
+    }
+  }
 }
 
 function validateLevelUpMoves(

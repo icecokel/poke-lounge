@@ -5,7 +5,11 @@ import {
   type PlayerPosition,
 } from "../player/playerTypes";
 import { applyInventoryItemEffect } from "../items/inventoryItemEffects";
-import { getRuntimeGameItem } from "../items/runtime-items";
+import {
+  getRuntimeGameItem,
+  getRuntimeShopItemIds,
+  hasRuntimeShopItemIds,
+} from "../items/runtime-items";
 import type { PokemonIndividualValues } from "../battle/individual-values";
 import type { PokemonGender } from "../battle/pokemon-gender";
 import { isSupportedPokemonSpeciesId } from "../battle/pokemon-species";
@@ -264,28 +268,6 @@ export type ApplyTournamentRoomEventResult =
 
 export type ApplyTournamentSnapshotFromRoomResult =
   { ok: true } | { ok: false; reason: "invalid-projection" | "stale-revision" };
-
-export const SHOP_ITEM_IDS = ["potion", "pokeball", "antidote", "superPotion"] as const;
-
-export type ShopItemId = (typeof SHOP_ITEM_IDS)[number];
-
-export const PREMIUM_SHOP_ITEM_IDS = [
-  "sunStone",
-  "moonStone",
-  "fireStone",
-  "thunderStone",
-  "waterStone",
-  "leafStone",
-  "shinyStone",
-  "duskStone",
-  "dawnStone",
-  "hyperPotion",
-  "revive",
-  "ultraBall",
-  "rareCandy",
-] as const;
-
-export type PremiumShopItemId = (typeof PREMIUM_SHOP_ITEM_IDS)[number];
 
 export function getShopItemById(itemId: string): ShopItem | undefined {
   const item = getRuntimeGameItem(itemId);
@@ -572,10 +554,16 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
       });
     },
     buyShopItem(itemId, quantity) {
-      return buyItemFromCatalog(SHOP_ITEM_IDS, itemId, quantity);
+      if (!hasRuntimeShopItemIds("basic")) {
+        return { ok: false, reason: "unknown-item" };
+      }
+      return buyItemFromCatalog(getRuntimeShopItemIds("basic"), itemId, quantity);
     },
     buyPremiumShopItem(itemId, quantity) {
-      return buyItemFromCatalog(PREMIUM_SHOP_ITEM_IDS, itemId, quantity);
+      if (!hasRuntimeShopItemIds("premium")) {
+        return { ok: false, reason: "unknown-item" };
+      }
+      return buyItemFromCatalog(getRuntimeShopItemIds("premium"), itemId, quantity);
     },
     consumeInventoryItem(itemId, quantity) {
       if (!isPositiveInteger(quantity)) {

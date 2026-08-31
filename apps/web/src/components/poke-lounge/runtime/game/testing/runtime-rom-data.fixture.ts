@@ -14,7 +14,7 @@ const ROM_SHA1 = "5834fb3a2d751c48501d47d6a56898d7af6ccf9e";
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const CONTENT_SHA256_BY_KEY = {
   "pokemon-data": "dceedc4d12314fff37c80697dbd8ebb749a9dc8138687f08e18109c1acc49723",
-  "item-data": "b4e4dabce8f082769af115d03117a9412aee14b92e9d7c4ca2e9c20257b5cd6e",
+  "item-data": "9b4e6d64e10900571a47889142e86c7f8ee94dc1f315b3010ee25f9bfbf7a32d",
   "level-up-move-table": "2f499528dd71e5ceccb799f2d7f2d29c2f4970467d61eba6e27b5697664ba2b8",
   "growth-table": "c6052e967dcb8233a869ea791da98f803dce1e6a9c187323283d4f604f6e374a",
 } as const;

@@ -597,7 +597,7 @@
     },
     {
       "publicPath": "game-data/item-data.json",
-      "sha256": "b4e4dabce8f082769af115d03117a9412aee14b92e9d7c4ca2e9c20257b5cd6e",
+      "sha256": "9b4e6d64e10900571a47889142e86c7f8ee94dc1f315b3010ee25f9bfbf7a32d",
       "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source item records and Korean messages; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,

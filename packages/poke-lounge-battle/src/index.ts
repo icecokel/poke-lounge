@@ -85,6 +85,7 @@ export {
   type CompetitiveStruggleDefinition,
 } from "./ruleset";
 export { resolveTurn, validateCompetitiveAction, type ResolvedTurnV2 } from "./resolve-turn";
+export { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS, type PokeLoungeRuntimeItemId } from "./runtime-item-ids";
 export {
   createTournamentBracketState,
   getReadyTournamentMatches,
