@@ -266,30 +266,59 @@ function RoomEntryScreen({
                   data-room-entry-display-name
                 />
               </LabeledField>
-              <LabeledField
-                id="poke-lounge-temporary-password"
-                label={copy.roomEntry.temporaryPasswordLabel}
-                description={copy.roomEntry.temporaryPasswordDescription}
+              <section
+                className="room-entry-field"
+                aria-labelledby="poke-lounge-public-game-title"
+                data-room-entry-public-game
               >
-                <input
+                <h3 id="poke-lounge-public-game-title" className="room-entry-field-label">
+                  {copy.roomEntry.publicGameTitle}
+                </h3>
+                <p id="poke-lounge-public-game-description" className="room-entry-field-copy">
+                  {copy.roomEntry.publicGameDescription}
+                </p>
+                <button
+                  type="button"
+                  disabled
+                  aria-describedby="poke-lounge-public-game-description"
+                  data-room-entry-public-game-submit
+                >
+                  {copy.roomEntry.publicGameConnect}
+                </button>
+              </section>
+              <section
+                className="room-entry-field"
+                aria-labelledby="poke-lounge-private-game-title"
+                data-room-entry-private-game
+              >
+                <h3 id="poke-lounge-private-game-title" className="room-entry-field-label">
+                  {copy.roomEntry.privateGameTitle}
+                </h3>
+                <LabeledField
                   id="poke-lounge-temporary-password"
-                  type="password"
-                  inputMode="text"
-                  autoComplete="off"
-                  maxLength={64}
-                  placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
-                  value={temporaryPassword}
-                  disabled={pending}
-                  onChange={event => {
-                    setTemporaryPassword(event.currentTarget.value);
-                    setMessage("");
-                  }}
-                  data-room-entry-temporary-password
-                />
-              </LabeledField>
-              <button type="submit" disabled={pending} data-room-entry-multiplayer-submit>
-                {copy.roomEntry.multiplayerConnect}
-              </button>
+                  label={copy.roomEntry.temporaryPasswordLabel}
+                  description={copy.roomEntry.temporaryPasswordDescription}
+                >
+                  <input
+                    id="poke-lounge-temporary-password"
+                    type="password"
+                    inputMode="text"
+                    autoComplete="off"
+                    maxLength={64}
+                    placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
+                    value={temporaryPassword}
+                    disabled={pending}
+                    onChange={event => {
+                      setTemporaryPassword(event.currentTarget.value);
+                      setMessage("");
+                    }}
+                    data-room-entry-temporary-password
+                  />
+                </LabeledField>
+                <button type="submit" disabled={pending} data-room-entry-multiplayer-submit>
+                  {copy.roomEntry.multiplayerConnect}
+                </button>
+              </section>
             </form>
           </ModeGroup>
         )}

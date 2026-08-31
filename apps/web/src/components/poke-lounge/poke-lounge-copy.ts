@@ -171,6 +171,10 @@ export interface PokeLoungeCopy {
     localDescription: string;
     multiplayerTitle: string;
     multiplayerDescription: string;
+    publicGameTitle: string;
+    publicGameDescription: string;
+    publicGameConnect: string;
+    privateGameTitle: string;
     temporaryPasswordLabel: string;
     temporaryPasswordDescription: string;
     temporaryPasswordPlaceholder: string;
@@ -374,13 +378,17 @@ const KOREAN_COPY: PokeLoungeCopy = {
       "같은 기기의 같은 브라우저 프로필에서 연 다른 탭끼리만 연결됩니다. 다른 기기나 브라우저 프로필에서는 참가할 수 없습니다.",
     multiplayerTitle: "멀티플레이",
     multiplayerDescription:
-      "친구와 같은 임시 비밀번호를 입력하면 같은 월드에서 서로의 움직임을 볼 수 있습니다.",
+      "공개 게임에 빠르게 참가하거나 임시 비밀번호로 친구와 비공개 게임을 시작하세요.",
+    publicGameTitle: "공개 게임",
+    publicGameDescription: "대기 중인 다른 트레이너와 자동으로 연결됩니다.",
+    publicGameConnect: "빠른 참가 준비 중",
+    privateGameTitle: "비공개 게임",
     temporaryPasswordLabel: "임시 비밀번호",
     temporaryPasswordDescription:
       "함께 플레이할 친구끼리 같은 값을 입력하세요. 비밀번호 원문은 저장하거나 전송하지 않습니다.",
     temporaryPasswordPlaceholder: "임시 비밀번호 입력",
     temporaryPasswordRequired: "멀티플레이에 사용할 임시 비밀번호를 입력해 주세요.",
-    multiplayerConnect: "접속하고 즐기기",
+    multiplayerConnect: "비공개 게임 입장",
     multiplayerConnectFailed: "멀티플레이 접속 정보를 만들지 못했습니다. 다시 시도해 주세요.",
     preparing: "준비 중...",
     newGameTitle: "새 게임을 시작할까요?",
@@ -581,13 +589,17 @@ const ENGLISH_COPY: PokeLoungeCopy = {
       "Only tabs opened in the same browser profile on this device can connect. Other devices and browser profiles cannot join.",
     multiplayerTitle: "Multiplayer",
     multiplayerDescription:
-      "Enter the same temporary password as a friend to see each other move in the same world.",
+      "Quickly join a public game or start a private game with friends using a temporary password.",
+    publicGameTitle: "Public game",
+    publicGameDescription: "Automatically connect with another trainer who is waiting.",
+    publicGameConnect: "Quick play coming soon",
+    privateGameTitle: "Private game",
     temporaryPasswordLabel: "Temporary password",
     temporaryPasswordDescription:
       "Use the same value as the friends you want to play with. The original password is never stored or sent.",
     temporaryPasswordPlaceholder: "Enter a temporary password",
     temporaryPasswordRequired: "Enter a temporary password for multiplayer.",
-    multiplayerConnect: "Connect and play",
+    multiplayerConnect: "Join private game",
     multiplayerConnectFailed: "Could not prepare multiplayer access. Try again.",
     preparing: "Preparing...",
     newGameTitle: "Start a new game?",
@@ -790,13 +802,17 @@ const JAPANESE_COPY: PokeLoungeCopy = {
       "この端末の同じブラウザプロファイルで開いた別タブ同士だけが接続できます。他の端末やプロファイルからは参加できません。",
     multiplayerTitle: "マルチプレイ",
     multiplayerDescription:
-      "友達と同じ一時パスワードを入力すると、同じワールドでお互いの動きを確認できます。",
+      "公開ゲームにすぐ参加するか、一時パスワードを使って友達と非公開ゲームを始めましょう。",
+    publicGameTitle: "公開ゲーム",
+    publicGameDescription: "待機中のほかのトレーナーと自動的に接続します。",
+    publicGameConnect: "クイック参加は準備中",
+    privateGameTitle: "非公開ゲーム",
     temporaryPasswordLabel: "一時パスワード",
     temporaryPasswordDescription:
       "一緒に遊ぶ友達同士で同じ値を入力してください。パスワードの原文は保存も送信もしません。",
     temporaryPasswordPlaceholder: "一時パスワードを入力",
     temporaryPasswordRequired: "マルチプレイ用の一時パスワードを入力してください。",
-    multiplayerConnect: "接続して遊ぶ",
+    multiplayerConnect: "非公開ゲームに参加",
     multiplayerConnectFailed: "マルチプレイ接続を準備できませんでした。もう一度お試しください。",
     preparing: "準備中...",
     newGameTitle: "ニューゲームを始めますか？",
