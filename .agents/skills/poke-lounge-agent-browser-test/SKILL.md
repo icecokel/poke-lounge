@@ -44,6 +44,8 @@ them unless the user asks.
    of readiness, room revision, round, match, phase, or turn conditions.
 3. Drive every player through the public UI. Do not call internal APIs to force readiness, combat actions,
    results, rankings, or a winner.
+   The entry screen defaults to Solo, so select the Multiplayer tab before entering the nickname and temporary
+   password. Use a separate named session for each identity because same-profile tabs share localStorage identity.
 4. Store screenshots and diagnostic artifacts under `output/agent-browser/poke-lounge/<run-id>/`; include the
    MP role, environment, checkpoint, and timestamp in filenames. Never record raw passwords, session IDs,
    cookies, tokens, the internal room code, or full Socket payloads.
@@ -51,32 +53,37 @@ them unless the user asks.
    one-cycle test ends only after the server-confirmed winner and rankings converge across every player, each
    player leaves through the UI, and the room reaches the documented cleanup state. Do not add an overall test
    timeout that shortens product deadlines.
-6. Read authoritative room fields from browser-completed request/response detail as documented in the canonical
-   scenario. This is passive inspection: do not issue `fetch`, replay a request, or route/mock it. If the latest
-   projection is missing, reload the UI once within the reconnect grace and inspect the page's automatic room GET.
+6. Read only the documented room-field whitelist from the read-only E2E snapshot or another pre-redacted view.
+   Do not print a full request/response body, issue `fetch`, replay a request, or route/mock it. If a safe whitelist
+   view is unavailable, report `DOC-GAP` instead of collecting raw data. If the latest projection is missing,
+   reload the UI once within the 60-second reconnect grace and inspect the page's automatic room GET.
    When a visible, enabled result control still requires canonical confirmation, do not reload: capture and confirm
    it exactly once, wait for the stable post-transition scene, and only then use the one allowed reload if evidence
    is still missing. Report only the documented field whitelist; never save the full response or sensitive identity
    values.
 7. During the shared-world checkpoint, never send a direction input while a shortcut or mobile guide is open. Close
    the guide through its canonical control, verify the help is gone, and only then send the designated movement once.
-   For Desktop, focus the canvas and run
+   For Desktop, focus the `Poke Lounge 게임 화면` game surface and run
    `node .agents/skills/poke-lounge-agent-browser-test/scripts/desktop-arrow-hold.mjs <session> <Arrow>` once. The
    helper uses the official `agent-browser` stream input to hold and release a physical arrow for 50ms. Do not use
    CLI `keydown` for arrows in `agent-browser` 0.34.0 because it emits no physical key code, and do not use the
-   zero-hold `press` command for movement. Retry movement once only when no coordinate or direction change is
-   observed.
+   zero-hold `press` command for movement. On Mobile, pointer-down the chosen direction, verify active direction
+   and coordinate change, then pointer-up; do not assert a fixed hold duration. Retry movement once only when no
+   coordinate or direction change is observed.
 8. After each battle UI procedure, watch up to five seconds for its `session-actions` request. If no request appears,
    capture the current phase and focus, then repeat the complete UI procedure exactly once; do not wait passively for
    the turn deadline. If the retry also emits no request, report `CODE-FAIL`. After any 2xx, never retry that turn.
    For Desktop battle input, take a fresh interactive snapshot, focus the current
-   `Poke Lounge 대화형 게임 캔버스` ref, and then `press Enter`. Do not click the canvas merely to focus it because
+   `Poke Lounge 게임 화면` ref, verify the `싸운다` command, and then `press Enter`. Do not click the game surface merely to focus it because
    the pointer event also confirms the current option. After `command` rerenders to `move-select`, take another fresh
    snapshot and reacquire/focus the canvas ref before the move Enter. Do not capture screenshots or wait for another
    manager message between `ACTION-GO` and the first input.
 9. On `DOC-GAP`, `CODE-FAIL`, `TEST-RUNNER`, or `INFRA-BLOCKED`, preserve safe evidence and report the
    classification. Resume only from a documented safe checkpoint; never fabricate progress.
+10. Activate each in-game leave control once. A normal flow emits one POST; the client may retry once after a
+    revision conflict or network failure, but the runner must not click leave again. Require the final 2xx and
+    documented room cleanup state.
 
 Close only the named sessions created by the run after in-game cleanup is complete. Report environment
-assignments, checkpoints, winner and rankings, connection recovery, captured evidence, and defects as one final
-result.
+assignments, checkpoints, winner and rankings, captured evidence, and defects as one final result. Include
+connection recovery only when that scenario was actually exercised.

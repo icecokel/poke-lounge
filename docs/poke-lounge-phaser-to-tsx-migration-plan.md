@@ -446,7 +446,8 @@ input lock을 소유하는 별도 presentation state/hook을 둔다. 이 상태�
 - cursor regression이면 stale identity를 폐기한다.
 - 명시적 나가기만 서버 `/leave`를 한 번 호출한다. 단순 unmount/reload는 재개를 위해 leave하지
   않는다.
-- sessionStorage에는 계정별 room identity와 만료 정보만 저장하며 ID token은 저장하지 않는다.
+- localStorage에는 versioned 개인 진행과 계정별 room identity·만료 정보만 저장하며 임시 비밀번호
+  원문과 ID token은 저장하지 않는다.
 - 공개 방의 내부 room code와 임시 비밀번호를 URL, 화면, 로그와 접근성 요약에 노출하지 않는다.
 
 ### 5.13 모바일·viewport·접근성

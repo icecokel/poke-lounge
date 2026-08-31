@@ -1,6 +1,6 @@
 # Poke Lounge Game Concept
 
-확인 기준일: 2026-08-24
+확인 기준일: 2026-08-31
 구현 기준: `main`
 
 이 문서는 Poke Lounge의 제품 의도와 현재 구현 경계를 설명한다. 게임 진행 순서와 고정 수치는
@@ -107,15 +107,16 @@ terminal event와 match를 중복 제거한 뒤 결과를 먼저 적용하고, �
 
 ## 저장과 복구
 
-| 상태          | 저장 위치                  | 범위                                                       |
-| ------------- | -------------------------- | ---------------------------------------------------------- |
-| 익명 플레이어 | versioned `sessionStorage` | 현재 탭의 파티·박스·재화·위치와 UI 상태                    |
-| 서버 방       | Redis TTL                  | room aggregate, revision, TTL과 command receipt            |
-| 경쟁 매치     | Redis TTL                  | canonical battle state, action receipt와 terminal metadata |
-| 실시간 위치   | Redis                      | 방 수명 동안 map, 좌표, 방향과 worldSeq                    |
+| 상태             | 저장 위치                | 범위                                                       |
+| ---------------- | ------------------------ | ---------------------------------------------------------- |
+| 익명 플레이어    | versioned `localStorage` | 같은 브라우저 프로필의 파티·박스·재화·위치와 UI 상태       |
+| 방 재개 identity | `localStorage`           | 계정별 playerId·sessionId, 현재 방과 서버 만료 시각        |
+| 서버 방          | Redis TTL                | room aggregate, revision, TTL과 command receipt            |
+| 경쟁 매치        | Redis TTL                | canonical battle state, action receipt와 terminal metadata |
+| 실시간 위치      | Redis                    | 방 수명 동안 map, 좌표, 방향과 worldSeq                    |
 
-플레이 진행은 로그인 없이 현재 브라우저 탭에 저장한다. 멀티플레이 접속 상태와 개인 진행 저장은
-서로 다른 경로다.
+로그인 없는 플레이 진행과 방 재개 identity는 같은 브라우저 프로필에 저장한다. 임시 비밀번호 원문과
+ID token은 저장하지 않으며, 멀티플레이의 최종 상태는 서버 snapshot을 기준으로 복구한다.
 
 ## 화면과 오디오
 
@@ -139,7 +140,7 @@ terminal event와 match를 중복 제거한 뒤 결과를 먼저 적용하고, �
 - 데스크톱 키보드와 모바일 터치 입력
 - shared world 참가와 닉네임·위치 실시간 중계
 - 서버 권위 대진·전투·결과와 Redis TTL room 복구
-- 브라우저 탭의 versioned `sessionStorage` 기반 익명 진행 저장
+- 브라우저 프로필의 versioned `localStorage` 기반 익명 진행·방 재개 저장
 - 방장·수동 ready·수동 시작 기반 멀티플레이 대기실과 시작 후 참가 잠금
 - Redis snapshot·worldSeq 기반 위치 누락 복구와 API 인스턴스 간 Socket fan-out
 
