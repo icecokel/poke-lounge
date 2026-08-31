@@ -59,6 +59,28 @@ export function createWebStorageGameStateStorage({
   };
 }
 
+export function migrateGameStateStorageToLocalStorage(
+  sessionStorage: Storage,
+  localStorage: Storage,
+): void {
+  const keys = Array.from({ length: sessionStorage.length }, (_, index) =>
+    sessionStorage.key(index),
+  ).filter(
+    (key): key is string =>
+      key !== null &&
+      (key === DEFAULT_GAME_STATE_STORAGE_KEY ||
+        key.startsWith(`${DEFAULT_GAME_STATE_STORAGE_KEY}:`)),
+  );
+
+  for (const key of keys) {
+    const value = sessionStorage.getItem(key);
+    if (value !== null && localStorage.getItem(key) === null) {
+      localStorage.setItem(key, value);
+    }
+    sessionStorage.removeItem(key);
+  }
+}
+
 function readSavedPayload(
   storage: Storage,
   key: string,

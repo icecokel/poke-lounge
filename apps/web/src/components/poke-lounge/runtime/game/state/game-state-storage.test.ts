@@ -3,11 +3,13 @@ import test from "node:test";
 import {
   ANONYMOUS_GAME_STATE_STORAGE_SCOPE,
   createWebStorageGameStateStorage,
+  DEFAULT_GAME_STATE_STORAGE_KEY,
+  migrateGameStateStorageToLocalStorage,
 } from "./gameStateStorage";
 import { createAuthenticatedGameStateStorageScope } from "./defaultGameStateStore";
 import { createDefaultLocalPlayer } from "./gameStateStore";
 
-test("session storage save는 anonymous와 authenticated scope 사이에서 노출되지 않는다", () => {
+test("browser storage save는 anonymous와 authenticated scope 사이에서 노출되지 않는다", () => {
   const storage = createMemoryStorage();
   let scope = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
   const adapter = createWebStorageGameStateStorage({
@@ -49,6 +51,25 @@ test("session storage save는 anonymous와 authenticated scope 사이에서 노�
 
   scope = accountBScope;
   assert.equal(adapter.loadLocalPlayers()?.currentPlayerId, "account-b-player");
+});
+
+test("기존 sessionStorage 진행은 localStorage로 한 번 이전한다", () => {
+  const sessionStorage = createMemoryStorage();
+  const localStorage = createMemoryStorage();
+  const player = createDefaultLocalPlayer("saved-player");
+  createWebStorageGameStateStorage({ storage: sessionStorage }).saveLocalPlayers({
+    currentPlayerId: player.playerId,
+    playersById: { [player.playerId]: player },
+  });
+
+  migrateGameStateStorageToLocalStorage(sessionStorage, localStorage);
+
+  assert.equal(sessionStorage.length, 0);
+  assert.ok(localStorage.getItem(`${DEFAULT_GAME_STATE_STORAGE_KEY}:anonymous`));
+  assert.equal(
+    createWebStorageGameStateStorage({ storage: localStorage }).loadLocalPlayers()?.currentPlayerId,
+    "saved-player",
+  );
 });
 
 test("포켓몬 성별은 저장하고 구버전의 성별 없는 포켓몬도 그대로 복원한다", () => {

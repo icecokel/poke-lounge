@@ -1,8 +1,8 @@
 import { createGameStateStore, type GameStateStore } from "./gameStateStore";
 import {
-  DEFAULT_GAME_STATE_STORAGE_KEY,
   ANONYMOUS_GAME_STATE_STORAGE_SCOPE,
   createWebStorageGameStateStorage,
+  migrateGameStateStorageToLocalStorage,
 } from "./gameStateStorage";
 
 let defaultGameStateStore: GameStateStore | null = null;
@@ -41,14 +41,16 @@ function createBrowserStorageAdapter() {
     return undefined;
   }
 
-  window.localStorage?.removeItem(DEFAULT_GAME_STATE_STORAGE_KEY);
-
-  if (!window.sessionStorage) {
+  if (!window.localStorage) {
     return undefined;
   }
 
+  if (window.sessionStorage) {
+    migrateGameStateStorageToLocalStorage(window.sessionStorage, window.localStorage);
+  }
+
   return createWebStorageGameStateStorage({
-    storage: window.sessionStorage,
+    storage: window.localStorage,
     getScope: () => defaultGameStateStorageScope,
   });
 }

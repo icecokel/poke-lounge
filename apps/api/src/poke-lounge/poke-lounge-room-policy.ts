@@ -36,32 +36,11 @@ export function getPokeLoungeRoomHostPlayerId(
 }
 
 export function getPokeLoungeRoomExpiresAtMs(
-  room: Pick<PokeLoungeRoomState, 'status' | 'updatedAtMs'> &
-    Partial<Pick<PokeLoungeRoomState, 'participants'>>,
+  room: Pick<PokeLoungeRoomState, 'status' | 'updatedAtMs'>,
 ): number {
   switch (room.status) {
-    case 'waiting': {
-      const waitingExpiryMs = room.updatedAtMs + 30 * MINUTE_MS;
-      if (
-        !room.participants ||
-        room.participants.some(
-          (participant) =>
-            participant.connected &&
-            participant.presencePendingUntilMs === undefined,
-        )
-      ) {
-        return waitingExpiryMs;
-      }
-
-      const pendingExpiries = room.participants.flatMap((participant) =>
-        participant.presencePendingUntilMs === undefined
-          ? []
-          : [participant.presencePendingUntilMs],
-      );
-      return pendingExpiries.length > 0
-        ? Math.min(waitingExpiryMs, ...pendingExpiries)
-        : waitingExpiryMs;
-    }
+    case 'waiting':
+      return room.updatedAtMs + 30 * MINUTE_MS;
     case 'round-started':
     case 'tournament':
       return room.updatedAtMs + POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS;
@@ -189,17 +168,6 @@ export function expirePendingPokeLoungePresence(
 
   expired.updatedAtMs = nowMs;
   expired.revision = room.revision + 1;
-  if (
-    expired.status === 'waiting' &&
-    !expired.participants.some(
-      (participant) =>
-        participant.connected &&
-        participant.presencePendingUntilMs === undefined,
-    )
-  ) {
-    expired.status = 'closed';
-    expired.round.phase = 'completed';
-  }
   expired.expiresAtMs = getPokeLoungeRoomExpiresAtMs(expired);
   return expired;
 }

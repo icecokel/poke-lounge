@@ -285,6 +285,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let initialWorkflowRetryQueued = false;
   let initialWorkflowStage: InitialWorkflowStage = "open";
   let initialWorkflowSnapshot: PlayerSnapshot | null = null;
+  let resumeRejoinedParticipant = false;
   let latestSharedWorldSnapshot: PlayerSnapshot | null = null;
   let initialOpenIdempotencyKey = createIdempotencyKey();
   let initialPartyIdempotencyKey = createIdempotencyKey();
@@ -2002,15 +2003,35 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     ...(isE2eEnabled() ? { getRoomTransportDiagnosticsForE2e } : {}),
   };
 
-  function openServerRoom(snapshot: PlayerSnapshot): Promise<ServerRoomState> {
-    if (options.resumeRoom) {
-      return requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
-    }
-
-    const body = {
+  async function openServerRoom(snapshot: PlayerSnapshot): Promise<ServerRoomState> {
+    const participantBody = {
       playerId: serverPlayerId,
       sessionId,
       displayName: snapshot.displayName,
+    };
+
+    if (options.resumeRoom) {
+      const current = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
+      if (current.participants.some(participant => participant.playerId === serverPlayerId)) {
+        return current;
+      }
+      if (current.status !== "waiting") {
+        throw new ServerRoomRequestError(410, null);
+      }
+
+      applySnapshot(current);
+      const rejoined = await mutateRoom(
+        `/poke-lounge/rooms/${activeRoomId}/join`,
+        participantBody,
+        getLatestRevision,
+        initialOpenIdempotencyKey,
+      );
+      resumeRejoinedParticipant = true;
+      return rejoined;
+    }
+
+    const body = {
+      ...participantBody,
       ...(options.createRoom && activeRoomId !== PENDING_ROOM_ID ? { roomCode: activeRoomId } : {}),
       ...(options.createRoom && options.roundDurationMs
         ? { roundDurationMs: options.roundDurationMs }
@@ -2075,7 +2096,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         applySnapshot(opened);
         if (initialWorkflowStage === "open") {
           initialWorkflowStage =
-            options.resumeRoom || (options.sharedWorldOnly && !options.competitiveRoundsEnabled)
+            (options.resumeRoom && !resumeRejoinedParticipant) ||
+            (options.sharedWorldOnly && !options.competitiveRoundsEnabled)
               ? "complete"
               : readIdToken()
                 ? "competitive-seat"
@@ -2399,9 +2421,11 @@ export function clearStoredServerRoomSession(accountId?: string): void {
   }
 
   try {
-    window.sessionStorage.removeItem(getServerIdentityStorageKey(accountId));
-    if (accountId?.trim()) {
-      window.sessionStorage.removeItem(SERVER_IDENTITY_STORAGE_KEY);
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      storage?.removeItem(getServerIdentityStorageKey(accountId));
+      if (accountId?.trim()) {
+        storage?.removeItem(SERVER_IDENTITY_STORAGE_KEY);
+      }
     }
   } catch {
     // A fresh identity is still generated when storage is unavailable.
@@ -2989,14 +3013,24 @@ function readStoredIdentity(accountId?: string): StoredServerRoomIdentity | null
 
   try {
     const storageKey = getServerIdentityStorageKey(accountId);
-    let stored = window.sessionStorage.getItem(storageKey);
+    let stored = window.localStorage?.getItem(storageKey) ?? null;
 
-    if (!stored && accountId?.trim()) {
-      const legacy = window.sessionStorage.getItem(SERVER_IDENTITY_STORAGE_KEY);
-      if (legacy) {
-        window.sessionStorage.setItem(storageKey, legacy);
-        window.sessionStorage.removeItem(SERVER_IDENTITY_STORAGE_KEY);
-        stored = legacy;
+    if (!stored) {
+      stored =
+        window.sessionStorage?.getItem(storageKey) ??
+        (accountId?.trim()
+          ? (window.localStorage?.getItem(SERVER_IDENTITY_STORAGE_KEY) ?? null)
+          : null) ??
+        (accountId?.trim()
+          ? (window.sessionStorage?.getItem(SERVER_IDENTITY_STORAGE_KEY) ?? null)
+          : null);
+      if (stored) {
+        window.localStorage?.setItem(storageKey, stored);
+        window.sessionStorage?.removeItem(storageKey);
+        if (accountId?.trim()) {
+          window.localStorage?.removeItem(SERVER_IDENTITY_STORAGE_KEY);
+          window.sessionStorage?.removeItem(SERVER_IDENTITY_STORAGE_KEY);
+        }
       }
     }
 
@@ -3032,7 +3066,7 @@ function writeStoredIdentity(identity: StoredServerRoomIdentity, accountId?: str
   }
 
   try {
-    window.sessionStorage.setItem(getServerIdentityStorageKey(accountId), JSON.stringify(identity));
+    window.localStorage.setItem(getServerIdentityStorageKey(accountId), JSON.stringify(identity));
   } catch {
     // Ignore storage failures; generated identities still work for the current page lifetime.
   }

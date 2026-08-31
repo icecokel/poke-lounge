@@ -368,6 +368,7 @@ export class PokeLoungeRoomService {
             }
             return applyParticipantLeave(current, currentParticipant, nowMs, {
               preserveRoundParticipant: true,
+              keepRoomOpen: true,
             });
           },
         });
@@ -1131,7 +1132,10 @@ function applyParticipantLeave(
   room: PokeLoungeRoomSnapshot,
   participant: PokeLoungeRoomParticipant,
   nowMs: number,
-  options: { preserveRoundParticipant?: boolean } = {},
+  options: {
+    preserveRoundParticipant?: boolean;
+    keepRoomOpen?: boolean;
+  } = {},
 ): PokeLoungeRoomSnapshot {
   participant.connected = false;
   participant.ready = false;
@@ -1167,6 +1171,7 @@ function applyParticipantLeave(
 
   if (
     !room.participants.some((row) => row.connected) &&
+    !options.keepRoomOpen &&
     !(room.status === 'round-started' && options.preserveRoundParticipant)
   ) {
     room.status = 'closed';

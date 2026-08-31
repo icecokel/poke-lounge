@@ -359,6 +359,31 @@ function createRoundStartedRoomSnapshot(
   };
 }
 
+function createWaitingRoomSnapshot(
+  base: ReturnType<typeof createRoomSnapshots>["initial"],
+  participants = base.participants,
+) {
+  return {
+    ...base,
+    revision: 20,
+    status: "waiting" as const,
+    hostPlayerId: participants[0]?.playerId ?? null,
+    participants,
+    round: {
+      ...base.round,
+      phase: "waiting" as const,
+      startedAtMs: null,
+      endsAtMs: null,
+    },
+    tournament: {
+      ...base.tournament,
+      bracket: null,
+      activeMatchId: null,
+      activeMatchAuthority: null,
+    },
+  };
+}
+
 function createCompletedRoomSnapshot(
   base: ReturnType<typeof createRoundStartedRoomSnapshot>,
   revision: number,
@@ -622,10 +647,38 @@ async function flushAsyncWork(): Promise<void> {
   await new Promise<void>(resolve => setImmediate(resolve));
 }
 
-test("서버 방 신원은 기존 값을 현재 계정으로 이전하고 계정별로 격리한다", async () => {
+function createStorage(values: Map<string, string>): Storage {
+  return {
+    get length() {
+      return values.size;
+    },
+    clear() {
+      values.clear();
+    },
+    getItem(key) {
+      return values.get(key) ?? null;
+    },
+    key(index) {
+      return [...values.keys()][index] ?? null;
+    },
+    removeItem(key) {
+      values.delete(key);
+    },
+    setItem(key, value) {
+      values.set(key, value);
+    },
+  };
+}
+
+function createEmptyStorage(): Storage {
+  return createStorage(new Map());
+}
+
+test("서버 방 신원은 localStorage로 이전하고 계정별로 격리한다", async () => {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
-  const values = new Map<string, string>([
+  const localValues = new Map<string, string>();
+  const sessionValues = new Map<string, string>([
     [
       "poke-lounge:server-room-identity",
       JSON.stringify({ sessionId: "legacy-session", playerId: "legacy-player" }),
@@ -637,15 +690,26 @@ test("서버 방 신원은 기존 값을 현재 계정으로 이전하고 계정
       configurable: true,
       value: {
         location: { href: "http://web.test/game", search: "" },
-        sessionStorage: {
+        localStorage: {
           getItem(key: string) {
-            return values.get(key) ?? null;
+            return localValues.get(key) ?? null;
           },
           setItem(key: string, value: string) {
-            values.set(key, value);
+            localValues.set(key, value);
           },
           removeItem(key: string) {
-            values.delete(key);
+            localValues.delete(key);
+          },
+        },
+        sessionStorage: {
+          getItem(key: string) {
+            return sessionValues.get(key) ?? null;
+          },
+          setItem(key: string, value: string) {
+            sessionValues.set(key, value);
+          },
+          removeItem(key: string) {
+            sessionValues.delete(key);
           },
         },
       },
@@ -662,7 +726,8 @@ test("서버 방 신원은 기존 값을 현재 계정으로 이전하고 계정
     const restoredAccountARoom = createServerRoom({ roomId: "ROOM01", accountId: "account-a" });
     assert.equal(accountASessionId, "legacy-session");
     assert.equal(restoredAccountARoom.sessionId, accountASessionId);
-    assert.equal(values.has("poke-lounge:server-room-identity"), false);
+    assert.equal(sessionValues.has("poke-lounge:server-room-identity"), false);
+    assert.equal(localValues.has("poke-lounge:server-room-identity:account-a"), true);
     restoredAccountARoom.dispose();
   } finally {
     restoreWindow(originalWindow);
@@ -678,7 +743,7 @@ test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 �
     configurable: true,
     value: {
       ...timers.window,
-      sessionStorage: {
+      localStorage: {
         getItem(key: string) {
           return values.get(key) ?? null;
         },
@@ -689,6 +754,7 @@ test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 �
           values.delete(key);
         },
       },
+      sessionStorage: createEmptyStorage(),
     },
   });
   let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
@@ -720,6 +786,71 @@ test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 �
 
     assert.equal(readStoredServerRoomResume(), null);
     assert.equal(values.has("poke-lounge:server-room-identity"), false);
+  } finally {
+    room?.dispose();
+    restoreWindow(originalWindow);
+  }
+});
+
+test("브라우저 종료 뒤 대기실 자리가 만료돼도 저장 identity로 한 번 재입장한다", async () => {
+  process.env.NEXT_PUBLIC_API_URL = "http://api.test";
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const timers = createManualRecoveryTimers();
+  const values = new Map<string, string>([
+    [
+      "poke-lounge:server-room-identity",
+      JSON.stringify({
+        sessionId: "session-1",
+        playerId: "player-1",
+        activeRoom: { roomCode: "ROOM01", expiresAtMs: 253_402_300_799_999 },
+      }),
+    ],
+  ]);
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      ...timers.window,
+      localStorage: createStorage(values),
+      sessionStorage: createEmptyStorage(),
+    },
+  });
+  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+
+  try {
+    const { createServerRoom } = await import("./serverRoom");
+    const socket = createSocket();
+    const snapshots = createRoomSnapshots();
+    const waiting = createWaitingRoomSnapshot(snapshots.initial, []);
+    const rejoined = createWaitingRoomSnapshot(snapshots.initial, [
+      ...waiting.participants,
+      { ...snapshots.initial.participants[0], ready: false },
+    ]);
+    rejoined.revision = waiting.revision + 1;
+    const joinBodies: unknown[] = [];
+    let joined = false;
+    const fetchFixture: typeof fetch = async (input, init) => {
+      const url = new URL(typeof input === "string" ? input : input.toString());
+      if (url.pathname.endsWith("/join")) {
+        joinBodies.push(JSON.parse(String(init?.body)));
+        joined = true;
+        return jsonResponse(rejoined, 201);
+      }
+      return jsonResponse(joined ? rejoined : waiting);
+    };
+    room = createServerRoom({
+      roomId: "ROOM01",
+      resumeRoom: true,
+      sharedWorldOnly: true,
+      fetch: fetchFixture,
+      socketFactory: () => socket,
+    });
+    room.connect(createPlayerSnapshot());
+    await waitFor(() => joinBodies.length === 1 && socket.subscriptions().length > 0);
+
+    assert.deepEqual(joinBodies, [
+      { playerId: "player-1", sessionId: "session-1", displayName: "Player 1" },
+    ]);
+    assert.equal(room.sessionId, "session-1");
   } finally {
     room?.dispose();
     restoreWindow(originalWindow);
@@ -860,7 +991,7 @@ test("명시적 leave는 revision conflict의 최신 revision으로 한 번 재�
     configurable: true,
     value: {
       ...timers.window,
-      sessionStorage: {
+      localStorage: {
         getItem(key: string) {
           return values.get(key) ?? null;
         },
@@ -871,6 +1002,7 @@ test("명시적 leave는 revision conflict의 최신 revision으로 한 번 재�
           values.delete(key);
         },
       },
+      sessionStorage: createEmptyStorage(),
     },
   });
   let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;

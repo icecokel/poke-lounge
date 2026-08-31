@@ -354,7 +354,7 @@ describe('PokeLoungeRoomService', () => {
 
     currentTimeMs = 15_000;
     await expect(service.getRoom('ROOM01')).resolves.toMatchObject({
-      status: 'closed',
+      status: 'waiting',
       revision: 1,
       participants: [],
     });
@@ -381,7 +381,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('expires a still-connected participant through a revision-checked leave', async () => {
+  it('removes an expired participant but keeps the waiting room reclaimable', async () => {
     await createRoom();
     currentTimeMs = 42_000;
 
@@ -392,8 +392,24 @@ describe('PokeLoungeRoomService', () => {
     );
 
     expect(repository.snapshot('ROOM01')).toMatchObject({
-      status: 'closed',
+      status: 'waiting',
       revision: 1,
+      participants: [],
+      round: { phase: 'waiting' },
+    });
+  });
+
+  it('still closes the waiting room when the last participant explicitly leaves', async () => {
+    await createRoom();
+
+    const closed = await service.leaveRoom(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', nowMs: 42_000 },
+      command(0, 2),
+    );
+
+    expect(closed).toMatchObject({
+      status: 'closed',
       participants: [],
       round: { phase: 'completed' },
     });
@@ -434,7 +450,7 @@ describe('PokeLoungeRoomService', () => {
 
     currentTimeMs = 60_000;
     await expect(service.getRoom('ROOM01')).resolves.toMatchObject({
-      status: 'closed',
+      status: 'waiting',
       participants: [],
     });
   });
@@ -728,7 +744,7 @@ describe('PokeLoungeRoomService', () => {
 
     expect(room.roomCode).toBe('ROOM02');
 
-    for (let index = 3; index <= 200; index += 1) {
+    for (let index = 3; index <= 20; index += 1) {
       roomCodes = [`R${String(index).padStart(5, '0')}`];
       await service.createRoom(
         {
@@ -743,7 +759,7 @@ describe('PokeLoungeRoomService', () => {
     await expect(
       service.createRoom(
         { playerId: 'overflow', sessionId: 'overflow', nowMs: 1 },
-        command(0, 201),
+        command(0, 21),
       ),
     ).rejects.toThrow('Poke Lounge room capacity reached');
   });

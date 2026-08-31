@@ -63,7 +63,7 @@ describe('PokeLoungeRoomPolicy', () => {
     expect(POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS).toBeGreaterThan(60 * MINUTE_MS);
   });
 
-  it('expires a waiting room with only pending presence at the earliest lease', () => {
+  it('keeps the waiting room lease while every presence is pending', () => {
     const room = createSnapshot({
       updatedAtMs: 1_000,
       participants: [
@@ -78,16 +78,7 @@ describe('PokeLoungeRoomPolicy', () => {
       ],
     });
 
-    expect(getPokeLoungeRoomExpiresAtMs(room)).toBe(16_000);
-    expect(
-      getPokeLoungeRoomExpiresAtMs({
-        ...room,
-        participants: [
-          ...room.participants,
-          createParticipant('player-3', 1_002),
-        ],
-      }),
-    ).toBe(1_000 + 30 * MINUTE_MS);
+    expect(getPokeLoungeRoomExpiresAtMs(room)).toBe(1_000 + 30 * MINUTE_MS);
   });
 
   it('uses a strict expiry boundary', () => {
@@ -105,7 +96,7 @@ describe('PokeLoungeRoomPolicy', () => {
     ).toBe(true);
   });
 
-  it('removes an unacknowledged ready participant when its pending lease expires', () => {
+  it('keeps an empty waiting room reclaimable after a pending lease expires', () => {
     const pendingUntilMs = 1_000 + POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS;
     const room = createSnapshot({
       participants: [
@@ -121,10 +112,11 @@ describe('PokeLoungeRoomPolicy', () => {
     ).toBeNull();
     expect(expirePendingPokeLoungePresence(room, pendingUntilMs)).toMatchObject(
       {
-        status: 'closed',
+        status: 'waiting',
         revision: 1,
         participants: [],
-        round: { phase: 'completed' },
+        round: { phase: 'waiting' },
+        expiresAtMs: pendingUntilMs + 30 * MINUTE_MS,
       },
     );
   });
