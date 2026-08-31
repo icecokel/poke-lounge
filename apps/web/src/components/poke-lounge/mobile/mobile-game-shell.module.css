@@ -609,6 +609,89 @@
   align-content: start;
 }
 
+.inventoryLayout {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.inventoryGrid {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
+  gap: 9px;
+  padding: 3px 3px 6px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.worldSceneDesktop .inventoryGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.inventorySlot {
+  position: relative;
+  display: grid;
+  min-height: 104px;
+  grid-template-rows: minmax(42px, 1fr) auto;
+  place-items: center;
+  gap: 7px;
+  padding: 10px 7px 8px;
+  text-align: center;
+}
+
+.inventorySlotGlyph {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--pl-color-johto-deep);
+  background: var(--pl-color-surface-muted);
+  border: 2px solid var(--pl-color-ink);
+  border-radius: 50%;
+  font-size: 1rem;
+  transition:
+    background var(--pl-motion-panel) ease,
+    transform var(--pl-motion-panel) ease;
+}
+
+.inventorySlotName {
+  width: 100%;
+  max-height: 2.3em;
+  overflow: hidden;
+  font-size: 0.68rem;
+  line-height: 1.15;
+}
+
+.inventorySlotCount {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 24px;
+  padding: 2px 4px;
+  color: var(--pl-color-ink);
+  background: var(--pl-color-surface-raised);
+  border: 1px solid var(--pl-color-ink);
+  border-radius: 999px;
+  font-size: 0.58rem;
+  line-height: 1;
+}
+
+.inventorySlot[data-selected="true"] .inventorySlotGlyph {
+  background: var(--pl-color-gold);
+  transform: translateY(-2px);
+}
+
+.inventoryDetail {
+  display: grid;
+  gap: 5px;
+  padding-top: 10px;
+  border-top: 2px solid rgb(23 35 28 / 38%);
+}
+
 .listButton {
   display: grid;
   min-height: 54px;

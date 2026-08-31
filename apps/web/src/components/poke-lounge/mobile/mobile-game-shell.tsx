@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { PokeLoungePartySlotMenu } from "../party-slot-menu";
 import type { PokeLoungeCopy } from "../poke-lounge-copy";
+import { PixelButton } from "../ui/poke-lounge-ui-primitives";
 import { primePokeLoungeAudio } from "../runtime/game/audio/poke-lounge-audio";
 import {
   type MobileBattleUiAction,
@@ -579,27 +580,31 @@ export function MobileInventoryItemList({
   state: MobileWorldUiState;
 }) {
   return (
-    <>
-      <div className={styles.compactList}>
+    <div className={styles.inventoryLayout}>
+      <div className={styles.inventoryGrid}>
         {state.items.map(item => (
-          <button
+          <PixelButton
             key={item.id}
-            type="button"
-            className={styles.listButton}
+            className={styles.inventorySlot}
             data-poke-lounge-inventory-item={item.id}
-            data-selected={item.selected}
+            selected={item.selected}
             onClick={() => onAction({ type: "select-inventory-item", index: item.index })}
           >
-            <span>{item.name}</span>
-            <small>×{item.count}</small>
-          </button>
+            <span className={styles.inventorySlotGlyph} aria-hidden="true">
+              {item.name.slice(0, 1)}
+            </span>
+            <span className={styles.inventorySlotName}>{item.name}</span>
+            <small className={styles.inventorySlotCount}>×{item.count}</small>
+          </PixelButton>
         ))}
       </div>
-      <p className={styles.detailText}>
-        {state.selectedItemDescription || "사용할 아이템이 없습니다."}
-      </p>
-      <MobileWorldMessage message={state.message} />
-    </>
+      <div className={styles.inventoryDetail}>
+        <p className={styles.detailText}>
+          {state.selectedItemDescription || "사용할 아이템이 없습니다."}
+        </p>
+        <MobileWorldMessage message={state.message} />
+      </div>
+    </div>
   );
 }
 

@@ -1631,7 +1631,8 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private destroyInventoryUi(): void {}
 
   private getInventoryItemIds(): KnownShopItemId[] {
-    return this.getAllInventoryItemIds();
+    const inventory = this.gameStateStore.getCurrentLocalPlayer().inventory;
+    return this.getAllInventoryItemIds().filter(itemId => (inventory[itemId] ?? 0) > 0);
   }
 
   private getAllInventoryItemIds(): KnownShopItemId[] {
