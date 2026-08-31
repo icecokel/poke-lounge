@@ -17,15 +17,7 @@ import { PokeLoungeLiveStateService } from '../src/poke-lounge/poke-lounge-live-
 import { PokeLoungeRedisIoAdapter } from '../src/poke-lounge/poke-lounge-redis-io.adapter';
 
 const E2E_TOKEN_PATTERN = /^poke-lounge-e2e-token-([1-5])$/;
-const E2E_TABLES = [
-  'poke_lounge_competitive_action',
-  'poke_lounge_competitive_match',
-  'poke_lounge_competitive_seat',
-  'poke_lounge_room_command',
-  'poke_lounge_room',
-  'game_history',
-  'game_poke_lounge_state',
-] as const;
+const E2E_TABLES = ['game_history'] as const;
 const E2E_USER_COUNT = 5;
 
 type AuthenticatedRequest = Request & { user?: User };
