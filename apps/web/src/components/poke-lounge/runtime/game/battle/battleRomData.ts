@@ -18,6 +18,23 @@ export interface RomBattleMoveRecord {
   refined_candidate_fields?: Record<string, RomCandidateField>;
 }
 
+export interface ExtractedRomMoveRecord {
+  id: number;
+  rawHex: string;
+  name?: string;
+  effectCode: number;
+  effectChance: number;
+  priority: number;
+  category: Gen4MoveCategory;
+  power: number;
+  typeId: number;
+  typeName: string;
+  accuracy: number;
+  pp: number;
+}
+
+export type RuntimeRomMoveRecord = RomBattleMoveRecord | ExtractedRomMoveRecord;
+
 export interface RomBackedMoveDefinition {
   id: number;
   name: string;
@@ -66,9 +83,23 @@ const GEN4_CATEGORIES: Record<number, Gen4MoveCategory> = {
 };
 
 export function normalizeRomMoveRecord(
-  record: RomBattleMoveRecord,
-  name = `Move ${record.index}`,
+  record: RuntimeRomMoveRecord,
+  name?: string,
 ): RomBackedMoveDefinition {
+  const resolvedName =
+    name ??
+    ("name" in record ? record.name : undefined) ??
+    `Move ${"id" in record ? record.id : record.index}`;
+
+  if ("id" in record) {
+    return {
+      ...record,
+      name: resolvedName,
+      maxPp: record.pp,
+      rawHex: record.rawHex,
+    };
+  }
+
   const fields = record.refined_candidate_fields ?? record.candidate_fields ?? {};
   const effectCode = fields.effect?.value ?? 0;
   const categoryValue = fields.category?.value ?? 2;
@@ -79,7 +110,7 @@ export function normalizeRomMoveRecord(
 
   return {
     id: record.index,
-    name,
+    name: resolvedName,
     effectCode,
     effectChance,
     priority: priorityByte > 127 ? priorityByte - 256 : priorityByte,

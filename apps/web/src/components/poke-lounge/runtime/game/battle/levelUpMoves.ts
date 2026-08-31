@@ -4,7 +4,7 @@ import {
   getRuntimeMoveName,
   getRuntimePokemonMoveSummary,
 } from "../data/game-data-json";
-import { normalizeRomMoveRecord, type RomBattleMoveRecord } from "./battleRomData";
+import { normalizeRomMoveRecord, type RuntimeRomMoveRecord } from "./battleRomData";
 import type { BattleMove, BattlePokemon } from "./battleTypes";
 import type { RomRefinedMoveCollection } from "./wildBattleFactory";
 
@@ -53,95 +53,6 @@ interface ApplyMoveListLearningInput<TMove extends { id: number; name: string }>
   createMove(moveId: number): TMove;
 }
 
-const MOVE_NAMES: Record<number, string> = {
-  10: "할퀴기",
-  16: "바람일으키기",
-  22: "덩굴채찍",
-  28: "모래뿌리기",
-  33: "몸통박치기",
-  39: "꼬리흔들기",
-  43: "째려보기",
-  44: "물기",
-  45: "울음소리",
-  52: "불꽃세례",
-  55: "물대포",
-  73: "씨뿌리기",
-  75: "잎날가르기",
-  77: "독가루",
-  79: "수면가루",
-  81: "실뿜기",
-  98: "전광석화",
-  99: "분노",
-  108: "연막",
-  115: "리플렉터",
-  116: "기충전",
-  145: "거품",
-  172: "화염자동차",
-  184: "겁나는얼굴",
-  235: "광합성",
-  345: "매지컬리프",
-};
-
-export const DEFAULT_LEVEL_UP_MOVE_TABLE: Record<number, LevelUpMoveDefinition[]> = {
-  1: [
-    moveAtLevel(3, 45),
-    moveAtLevel(7, 73),
-    moveAtLevel(9, 22),
-    moveAtLevel(13, 77),
-    moveAtLevel(13, 79),
-  ],
-  2: [
-    moveAtLevel(3, 45),
-    moveAtLevel(7, 73),
-    moveAtLevel(9, 22),
-    moveAtLevel(13, 77),
-    moveAtLevel(13, 79),
-  ],
-  3: [
-    moveAtLevel(3, 45),
-    moveAtLevel(7, 73),
-    moveAtLevel(9, 22),
-    moveAtLevel(13, 77),
-    moveAtLevel(13, 79),
-  ],
-  4: [moveAtLevel(7, 52), moveAtLevel(10, 108)],
-  5: [moveAtLevel(7, 52), moveAtLevel(10, 108)],
-  6: [moveAtLevel(7, 52), moveAtLevel(10, 108)],
-  7: [moveAtLevel(7, 145), moveAtLevel(10, 55)],
-  8: [moveAtLevel(7, 145), moveAtLevel(10, 55)],
-  9: [moveAtLevel(7, 145), moveAtLevel(10, 55)],
-  10: [moveAtLevel(1, 33), moveAtLevel(1, 81)],
-  16: [moveAtLevel(5, 28), moveAtLevel(9, 16), moveAtLevel(13, 98)],
-  19: [moveAtLevel(4, 98), moveAtLevel(7, 39), moveAtLevel(13, 116)],
-  152: [
-    moveAtLevel(1, 33),
-    moveAtLevel(1, 45),
-    moveAtLevel(6, 75),
-    moveAtLevel(9, 77),
-    moveAtLevel(12, 235),
-    moveAtLevel(17, 115),
-    moveAtLevel(20, 345),
-  ],
-  155: [
-    moveAtLevel(1, 33),
-    moveAtLevel(1, 43),
-    moveAtLevel(6, 108),
-    moveAtLevel(10, 52),
-    moveAtLevel(13, 98),
-    moveAtLevel(19, 172),
-  ],
-  158: [
-    moveAtLevel(1, 10),
-    moveAtLevel(1, 43),
-    moveAtLevel(6, 55),
-    moveAtLevel(8, 99),
-    moveAtLevel(13, 44),
-    moveAtLevel(15, 184),
-  ],
-};
-
-export const LEVEL_UP_MOVE_TABLE = DEFAULT_LEVEL_UP_MOVE_TABLE;
-
 export function getLevelUpMovesForSpecies(
   speciesId: number,
   previousLevel: number,
@@ -151,7 +62,7 @@ export function getLevelUpMovesForSpecies(
     return [];
   }
 
-  const levelUpMoveTable = getRuntimeLevelUpMoveTable(DEFAULT_LEVEL_UP_MOVE_TABLE);
+  const levelUpMoveTable = getRuntimeLevelUpMoveTable();
 
   return (levelUpMoveTable[speciesId] ?? [])
     .filter(move => move.level > previousLevel && move.level <= currentLevel)
@@ -185,10 +96,9 @@ export function createBattleMoveFromRom(
   moveId: number,
   moveRecords: RomRefinedMoveCollection,
 ): BattleMove {
-  const fallbackName = MOVE_NAMES[moveId] ?? `Move ${moveId}`;
   const normalized = normalizeRomMoveRecord(
     findMoveRecord(moveRecords, moveId),
-    getRuntimeMoveName(moveId, fallbackName),
+    getRuntimeMoveName(moveId),
   );
 
   const move: BattleMove = {
@@ -432,19 +342,20 @@ function planMoveListLearning<TMove extends { id: number; name: string }>({
 }
 
 function moveAtLevel(level: number, moveId: number): LevelUpMoveDefinition {
-  const fallbackName = MOVE_NAMES[moveId] ?? `Move ${moveId}`;
-
   return {
     level,
     moveId,
-    name: getRuntimeMoveName(moveId, fallbackName),
+    name: getRuntimeMoveName(moveId),
   };
 }
 
-function findMoveRecord(collection: RomRefinedMoveCollection, moveId: number): RomBattleMoveRecord {
+function findMoveRecord(
+  collection: RomRefinedMoveCollection,
+  moveId: number,
+): RuntimeRomMoveRecord {
   const { moves } = collection;
   const record = Array.isArray(moves)
-    ? moves.find(candidate => candidate.index === moveId)
+    ? moves.find(candidate => ("id" in candidate ? candidate.id : candidate.index) === moveId)
     : moves[String(moveId)];
 
   if (!record) {

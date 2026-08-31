@@ -9,6 +9,7 @@ import { GameService } from './game/game.service';
 import { CompetitiveMatchService } from './poke-lounge/competitive/competitive-match.service';
 import { PokeLoungeController } from './poke-lounge/poke-lounge.controller';
 import { PokeLoungeRoomService } from './poke-lounge/poke-lounge-room.service';
+import { PokeLoungeRomDataService } from './poke-lounge/poke-lounge-rom-data.service';
 
 const stub = (provide: InjectionToken): Provider => ({ provide, useValue: {} });
 const guardStub = (provide: InjectionToken): Provider => ({
@@ -22,6 +23,7 @@ const guardStub = (provide: InjectionToken): Provider => ({
     AppService,
     stub(GameService),
     stub(PokeLoungeRoomService),
+    stub(PokeLoungeRomDataService),
     stub(CompetitiveMatchService),
     stub(getRepositoryToken(User)),
     guardStub(GoogleAuthGuard),

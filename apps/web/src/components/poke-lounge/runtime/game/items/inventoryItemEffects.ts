@@ -4,10 +4,7 @@ import { applyEvolutionStone, applyPlayerLevelUpStats } from "../battle/pokemon-
 import { getRuntimePokemonData, getRuntimePokemonSpeciesGrowthRate } from "../data/game-data-json";
 import type { PlayerPokemon, PlayerPokemonMove } from "../state/gameStateStore";
 import { isEvolutionStoneItemId, type EvolutionStoneItemId } from "./evolution-stones";
-
-export const POTION_HEAL_AMOUNT = 20;
-export const SUPER_POTION_HEAL_AMOUNT = 50;
-export const HYPER_POTION_HEAL_AMOUNT = 120;
+import { getRuntimeGameItem } from "./runtime-items";
 
 export type InventoryItemEffectId =
   | "potion"
@@ -46,46 +43,42 @@ export function applyInventoryItemEffect<TPokemon extends InventoryItemTarget>(
   itemId: string,
   pokemon: TPokemon,
 ): ApplyInventoryItemEffectResult<TPokemon> {
-  if (itemId === "potion") {
+  const item = getRuntimeGameItem(itemId);
+  if (!item) {
+    return {
+      ok: false,
+      itemId,
+      reason: "unsupported-item",
+      message: "지금은 쓸 수 없다.",
+    };
+  }
+
+  if (
+    (itemId === "potion" || itemId === "superPotion" || itemId === "hyperPotion") &&
+    item.partyUseEffects?.hpRestore &&
+    item.partyUseEffects.hpRestoreParam > 0
+  ) {
     return applyHealingItem({
       pokemon,
-      itemId: "potion",
-      displayName: "포션",
-      healAmount: POTION_HEAL_AMOUNT,
+      itemId,
+      displayName: item.name,
+      healAmount: item.partyUseEffects.hpRestoreParam,
     });
   }
 
-  if (itemId === "superPotion") {
-    return applyHealingItem({
-      pokemon,
-      itemId: "superPotion",
-      displayName: "좋은상처약",
-      healAmount: SUPER_POTION_HEAL_AMOUNT,
-    });
+  if (itemId === "antidote" && item.partyUseEffects?.poisonHeal) {
+    return applyAntidote(pokemon, item.name);
   }
 
-  if (itemId === "hyperPotion") {
-    return applyHealingItem({
-      pokemon,
-      itemId: "hyperPotion",
-      displayName: "고급상처약",
-      healAmount: HYPER_POTION_HEAL_AMOUNT,
-    });
+  if (itemId === "revive" && item.partyUseEffects?.revive) {
+    return applyRevive(pokemon, item.name);
   }
 
-  if (itemId === "antidote") {
-    return applyAntidote(pokemon);
+  if (itemId === "rareCandy" && item.partyUseEffects?.levelUp) {
+    return applyRareCandy(pokemon, item.name);
   }
 
-  if (itemId === "revive") {
-    return applyRevive(pokemon);
-  }
-
-  if (itemId === "rareCandy") {
-    return applyRareCandy(pokemon);
-  }
-
-  if (isEvolutionStoneItemId(itemId)) {
+  if (isEvolutionStoneItemId(itemId) && item.partyUseEffects?.evolve) {
     return applyEvolutionStoneItem(itemId, pokemon);
   }
 
@@ -207,6 +200,7 @@ function applyHealingItem<TPokemon extends InventoryItemTarget>({
 
 function applyRevive<TPokemon extends InventoryItemTarget>(
   pokemon: TPokemon,
+  displayName: string,
 ): ApplyInventoryItemEffectResult<TPokemon> {
   const maxHp = normalizeHp(pokemon.maxHp);
   const currentHp = normalizeHp(pokemon.currentHp);
@@ -223,7 +217,10 @@ function applyRevive<TPokemon extends InventoryItemTarget>(
   return {
     ok: true,
     itemId: "revive",
-    messages: [`${pokemon.name}에게 기력의조각을 사용했다!`, `${pokemon.name}는 다시 일어났다!`],
+    messages: [
+      `${pokemon.name}에게 ${displayName}을 사용했다!`,
+      `${pokemon.name}는 다시 일어났다!`,
+    ],
     pokemon: {
       ...pokemon,
       currentHp: Math.max(1, Math.floor(maxHp / 2)),
@@ -235,6 +232,7 @@ function applyRevive<TPokemon extends InventoryItemTarget>(
 
 function applyRareCandy<TPokemon extends InventoryItemTarget>(
   pokemon: TPokemon,
+  displayName: string,
 ): ApplyInventoryItemEffectResult<TPokemon> {
   const level = normalizeLevel(pokemon.level);
 
@@ -253,7 +251,7 @@ function applyRareCandy<TPokemon extends InventoryItemTarget>(
     level: nextLevel,
   };
   const baseMessages = [
-    `${pokemon.name}에게 이상한사탕을 사용했다!`,
+    `${pokemon.name}에게 ${displayName}을 사용했다!`,
     `${pokemon.name}의 레벨이 올랐다!`,
   ];
 
@@ -298,6 +296,7 @@ function applyRareCandy<TPokemon extends InventoryItemTarget>(
 
 function applyAntidote<TPokemon extends InventoryItemTarget>(
   pokemon: TPokemon,
+  displayName: string,
 ): ApplyInventoryItemEffectResult<TPokemon> {
   if (pokemon.status !== "poisoned") {
     return {
@@ -311,7 +310,10 @@ function applyAntidote<TPokemon extends InventoryItemTarget>(
   return {
     ok: true,
     itemId: "antidote",
-    messages: [`${pokemon.name}에게 해독제를 사용했다!`, `${pokemon.name}의 독이 사라졌다!`],
+    messages: [
+      `${pokemon.name}에게 ${displayName}를 사용했다!`,
+      `${pokemon.name}의 독이 사라졌다!`,
+    ],
     pokemon: {
       ...pokemon,
       status: "normal",

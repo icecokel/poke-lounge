@@ -271,6 +271,39 @@
         "tags": ["Game"]
       }
     },
+    "/poke-lounge/rom-data": {
+      "get": {
+        "operationId": "PokeLoungeController_getRomData",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRomDataResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "필수 ROM 문서가 없거나 무결하지 않음"
+          }
+        },
+        "summary": "ROM에서 추출한 Poke Lounge 게임 데이터 조회",
+        "tags": ["poke-lounge"]
+      }
+    },
     "/poke-lounge/rooms": {
       "post": {
         "operationId": "PokeLoungeController_createRoom",
@@ -2189,6 +2222,47 @@
           }
         },
         "required": ["statusCode", "code", "message"]
+      },
+      "PokeLoungeRomDocumentDto": {
+        "type": "object",
+        "properties": {
+          "documentKey": {
+            "type": "string",
+            "enum": ["pokemon-data", "item-data", "level-up-move-table", "growth-table"]
+          },
+          "schemaVersion": {
+            "type": "number",
+            "example": 1,
+            "enum": [1]
+          },
+          "romSha1": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "contentSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": ["documentKey", "schemaVersion", "romSha1", "contentSha256", "payload"]
+      },
+      "PokeLoungeRomDataResponseDto": {
+        "type": "object",
+        "properties": {
+          "documents": {
+            "minItems": 4,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PokeLoungeRomDocumentDto"
+            }
+          }
+        },
+        "required": ["documents"]
       },
       "CreatePokeLoungeRoomDto": {
         "type": "object",

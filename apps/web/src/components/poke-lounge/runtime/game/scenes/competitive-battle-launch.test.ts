@@ -10,12 +10,13 @@ import {
 } from "../battle/authoritative-battle-adapter";
 import {
   BATTLE_POKEMON_ASSETS_JSON_PATH,
+  ITEM_DATA_JSON_PATH,
   LEVEL_UP_MOVE_TABLE_JSON_PATH,
-  loadRuntimeGameDataJson,
   POKEMON_DATA_JSON_PATH,
   resetRuntimeGameDataJsonStateForTest,
   WILD_BATTLE_MOVE_SETS_JSON_PATH,
 } from "../data/game-data-json";
+import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 import type {
   CompetitiveProjection,
   CompetitiveRoomProjectionEvent,
@@ -39,6 +40,7 @@ test.before(async () => {
     if (
       ![
         POKEMON_DATA_JSON_PATH,
+        ITEM_DATA_JSON_PATH,
         LEVEL_UP_MOVE_TABLE_JSON_PATH,
         WILD_BATTLE_MOVE_SETS_JSON_PATH,
         BATTLE_POKEMON_ASSETS_JSON_PATH,

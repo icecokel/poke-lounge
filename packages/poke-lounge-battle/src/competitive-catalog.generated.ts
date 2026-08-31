@@ -6984,7 +6984,7 @@ export const COMPETITIVE_MOVE_CATALOG: Readonly<Record<number, CompetitiveMoveDe
     typeId: 14,
     category: "status",
     power: 0,
-    accuracy: 70,
+    accuracy: 60,
     effectCode: 1,
     effectChance: 0,
     priority: 0,
@@ -11082,40 +11082,7 @@ export const COMPETITIVE_MOVE_CATALOG: Readonly<Record<number, CompetitiveMoveDe
     priority: 0,
     maxPp: 5,
   },
-  "468": {
-    moveId: 468,
-    typeId: 0,
-    category: "special",
-    power: 100,
-    accuracy: 100,
-    effectCode: 0,
-    effectChance: 0,
-    priority: 0,
-    maxPp: 10,
-  },
-  "469": {
-    moveId: 469,
-    typeId: 0,
-    category: "special",
-    power: 100,
-    accuracy: 100,
-    effectCode: 0,
-    effectChance: 0,
-    priority: 0,
-    maxPp: 10,
-  },
-  "470": {
-    moveId: 470,
-    typeId: 0,
-    category: "special",
-    power: 100,
-    accuracy: 100,
-    effectCode: 0,
-    effectChance: 0,
-    priority: 0,
-    maxPp: 10,
-  },
 };
 
 export const COMPETITIVE_CATALOG_HASH =
-  "4dfc61095841284f2d0db2ffe9ed373bb5a3f963d21edb5d1bb53e69dd50480a";
+  "29ef3804084c8ebbc2014c0799835f71667db37f3d1b620b1007b3014a78e952";

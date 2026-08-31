@@ -596,8 +596,17 @@
       "approvedAt": null
     },
     {
+      "publicPath": "game-data/item-data.json",
+      "sha256": "b4e4dabce8f082769af115d03117a9412aee14b92e9d7c4ca2e9c20257b5cd6e",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source item records and Korean messages; distribution rights unresolved",
+      "rightsStatus": "blocked",
+      "attribution": null,
+      "reviewer": null,
+      "approvedAt": null
+    },
+    {
       "publicPath": "game-data/level-up-move-table.json",
-      "sha256": "74215ab79c86eaefac91cfed3e21e4984f04ebc9b0852b58e3c4e0423c49a561",
+      "sha256": "2f499528dd71e5ceccb799f2d7f2d29c2f4970467d61eba6e27b5697664ba2b8",
       "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
@@ -606,7 +615,7 @@
     },
     {
       "publicPath": "game-data/pokemon-data.json",
-      "sha256": "dc112ab3b24ebfd76aecbad0f6db5fa5fbb27ea5d5a8e1eda739bb88ad8f792d",
+      "sha256": "dceedc4d12314fff37c80697dbd8ebb749a9dc8138687f08e18109c1acc49723",
       "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source records and Korean messages; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,

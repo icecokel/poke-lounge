@@ -2,7 +2,7 @@ import type { WildEncounterCandidate } from "../world/wildEncounters";
 import type { PlayerPokemon, PlayerPokemonMove } from "../state/gameStateStore";
 import type { PlayerPokemonSlot } from "../player/playerTypes";
 import { getRuntimeWildBattleMoveSets } from "../data/game-data-json";
-import type { RomBattleMoveRecord } from "./battleRomData";
+import type { RuntimeRomMoveRecord } from "./battleRomData";
 import { createDefaultBattleStatStages } from "./battle-stat-stages";
 import { BATTLE_PARTY_SLOT_COUNT, createBattleParty } from "./battleParty";
 import { getBattlePokemonAssets } from "./battlePokemonAssets";
@@ -37,11 +37,12 @@ export interface RomPersonalRecord {
 }
 
 export interface RomPersonalRecordCollection {
-  records: RomPersonalRecord[];
+  records?: RomPersonalRecord[];
+  species?: Record<string, unknown>;
 }
 
 export interface RomRefinedMoveCollection {
-  moves: Record<string, RomBattleMoveRecord> | RomBattleMoveRecord[];
+  moves: Record<string, RuntimeRomMoveRecord> | RuntimeRomMoveRecord[];
 }
 
 export interface CreateWildBattleStateInput {
@@ -57,24 +58,6 @@ export interface CreateWildBattleStateInput {
 const PLAYER_SPECIES_ID = 152;
 const PLAYER_NAME = "치코리타";
 const PLAYER_LEVEL = 10;
-
-const DEFAULT_SPECIES_MOVE_SETS: Record<number, number[]> = {
-  1: [33, 45, 22],
-  2: [33, 45, 22],
-  3: [33, 45, 22],
-  4: [10, 45, 52],
-  5: [10, 45, 52],
-  6: [10, 45, 52],
-  7: [33, 39, 55],
-  8: [33, 39, 55],
-  9: [33, 39, 55],
-  10: [33, 81],
-  16: [33, 28, 16],
-  19: [33, 39, 98],
-  152: [33, 45],
-  155: [52, 43],
-  158: [10, 43],
-};
 
 export function createWildBattleState({
   encounter,
@@ -280,7 +263,10 @@ function createBattlePokemon({
   speciesId: number;
   status?: PlayerPokemon["status"];
 }): BattlePokemon {
-  const personalRecord = findPersonalRecord(personalRecords, speciesId);
+  const personalRecord = findRomPersonalRecord(personalRecords, speciesId);
+  if (!personalRecord) {
+    throw new Error(`Missing ROM personal record for species ${speciesId}`);
+  }
   const individualValues = normalizeIndividualValues(storedIndividualValues);
   const stats = calculateGen4BattleStats(personalRecord.base_stats, level, individualValues);
   const assets = getBattlePokemonAssets(speciesId);
@@ -404,20 +390,90 @@ function resolveWildBattleMoveIds(speciesId: number, level: number): number[] {
 }
 
 function resolveDefaultBattleMoveIds(speciesId: number): number[] {
-  return getRuntimeWildBattleMoveSets(DEFAULT_SPECIES_MOVE_SETS)[speciesId] ?? [];
+  return getRuntimeWildBattleMoveSets()[speciesId] ?? [];
 }
 
-function findPersonalRecord(
+export function findRomPersonalRecord(
   collection: RomPersonalRecordCollection,
   speciesId: number,
-): RomPersonalRecord {
-  const record = collection.records.find(candidate => candidate.index === speciesId);
-
-  if (!record) {
-    throw new Error(`Missing ROM personal record for species ${speciesId}`);
+): RomPersonalRecord | null {
+  const legacyRecord = collection.records?.find(candidate => candidate.index === speciesId);
+  if (legacyRecord) {
+    return legacyRecord;
   }
 
-  return record;
+  const record = collection.species?.[String(speciesId)];
+  if (!isRecord(record) || !isRecord(record.baseStats) || !isRecord(record.types)) {
+    return null;
+  }
+
+  const baseStats = record.baseStats;
+  const primaryType = readNonNegativeInteger(record.types.primary);
+  const secondaryType = readOptionalNonNegativeInteger(record.types.secondary);
+  const catchRate = readNonNegativeInteger(record.catchRate);
+  const baseExp = readNonNegativeInteger(record.baseExpYield);
+  const growthRate = readNonNegativeInteger(record.growthRate);
+  const genderRatio = readNonNegativeInteger(record.genderRatio);
+  const hp = readPositiveInteger(baseStats.hp);
+  const attack = readPositiveInteger(baseStats.attack);
+  const defense = readPositiveInteger(baseStats.defense);
+  const specialAttack = readPositiveInteger(baseStats.specialAttack);
+  const specialDefense = readPositiveInteger(baseStats.specialDefense);
+  const speed = readPositiveInteger(baseStats.speed);
+
+  if (
+    readPositiveInteger(record.speciesId) !== speciesId ||
+    primaryType === null ||
+    secondaryType === undefined ||
+    catchRate === null ||
+    baseExp === null ||
+    growthRate === null ||
+    genderRatio === null ||
+    !hp ||
+    !attack ||
+    !defense ||
+    !specialAttack ||
+    !specialDefense ||
+    !speed
+  ) {
+    return null;
+  }
+
+  return {
+    index: speciesId,
+    catch_rate: catchRate,
+    base_exp: baseExp,
+    growth_rate: growthRate,
+    gender_ratio: genderRatio,
+    base_stats: {
+      hp,
+      attack,
+      defense,
+      special_attack: specialAttack,
+      special_defense: specialDefense,
+      speed,
+    },
+    types: {
+      primary: primaryType,
+      secondary: secondaryType,
+    },
+  };
+}
+
+function readPositiveInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function readNonNegativeInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+function readOptionalNonNegativeInteger(value: unknown): number | null | undefined {
+  return value === null ? null : (readNonNegativeInteger(value) ?? undefined);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function formatWildAppearedMessage(name: string): string {

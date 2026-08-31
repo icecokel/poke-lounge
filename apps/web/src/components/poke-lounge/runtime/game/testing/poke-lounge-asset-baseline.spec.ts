@@ -9,12 +9,12 @@ import { FIELD_MAP } from "../world/fieldMap";
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../..");
 
-test("이식 기준 public asset 71개는 경로와 바이트가 바뀌지 않는다", () => {
+test("이식 기준 public asset 72개는 경로와 바이트가 바뀌지 않는다", () => {
   const manifest = JSON.parse(
     fs.readFileSync(path.join(repoRoot, "docs/poke-lounge-asset-provenance.json"), "utf8"),
   ) as { assets: Array<{ publicPath: string; sha256: string }> };
 
-  assert.equal(manifest.assets.length, 71);
+  assert.equal(manifest.assets.length, 72);
   for (const asset of manifest.assets) {
     const contents = fs.readFileSync(path.join(webRoot, "public", asset.publicPath));
     assert.equal(

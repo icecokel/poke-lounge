@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getExperienceForLevel } from "../battle/experience";
+import { resetRuntimeGameDataJsonStateForTest } from "../data/game-data-json";
 import { createGameStateStore } from "../state/gameStateStore";
+import { loadPublicRuntimeGameDataFixture } from "../testing/runtime-rom-data.fixture";
 import { createWorldUiStore } from "../world/world-ui-store";
 import {
   createWorldSceneHud,
@@ -10,6 +12,9 @@ import {
   getPokemonExperienceProgress,
   getPokemonHpRatio,
 } from "./world-scene-hud";
+
+test.before(loadPublicRuntimeGameDataFixture);
+test.after(resetRuntimeGameDataJsonStateForTest);
 
 test("포켓몬 HP와 현재 레벨 경험치 진행률을 상태 패널용 값으로 변환한다", () => {
   const levelStart = getExperienceForLevel(10, 0);

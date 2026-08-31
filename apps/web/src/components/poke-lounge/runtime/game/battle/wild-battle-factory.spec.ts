@@ -5,12 +5,13 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   BATTLE_POKEMON_ASSETS_JSON_PATH,
+  ITEM_DATA_JSON_PATH,
   LEVEL_UP_MOVE_TABLE_JSON_PATH,
-  loadRuntimeGameDataJson,
   POKEMON_DATA_JSON_PATH,
   resetRuntimeGameDataJsonStateForTest,
   WILD_BATTLE_MOVE_SETS_JSON_PATH,
 } from "../data/game-data-json";
+import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 import type { PlayerPokemon } from "../state/gameStateStore";
 import {
   createWildBattleState,
@@ -19,12 +20,9 @@ import {
 } from "./wildBattleFactory";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
-const personalRecords = readPublicJson(
-  "/assets/poke-lounge/extraction/personal-data.json",
-) as RomPersonalRecordCollection;
-const moveRecords = readPublicJson(
-  "/assets/poke-lounge/extraction/refined-battle-records.json",
-) as RomRefinedMoveCollection;
+const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
+const personalRecords = pokemonData as RomPersonalRecordCollection;
+const moveRecords = pokemonData as RomRefinedMoveCollection;
 
 test("Lv.10 세 스타터는 레벨업표 기준 최근 기술 4개로 전투를 시작한다", async () => {
   await loadRuntimeGameData();
@@ -247,7 +245,8 @@ function createBattleState(playerPokemon: PlayerPokemon) {
 
 async function loadRuntimeGameData(): Promise<void> {
   const runtimeJsonByPath = new Map<string, unknown>([
-    [POKEMON_DATA_JSON_PATH, readPublicJson(POKEMON_DATA_JSON_PATH)],
+    [POKEMON_DATA_JSON_PATH, pokemonData],
+    [ITEM_DATA_JSON_PATH, readPublicJson(ITEM_DATA_JSON_PATH)],
     [LEVEL_UP_MOVE_TABLE_JSON_PATH, readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH)],
     [WILD_BATTLE_MOVE_SETS_JSON_PATH, readPublicJson(WILD_BATTLE_MOVE_SETS_JSON_PATH)],
     [BATTLE_POKEMON_ASSETS_JSON_PATH, readPublicJson(BATTLE_POKEMON_ASSETS_JSON_PATH)],

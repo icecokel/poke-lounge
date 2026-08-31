@@ -50,7 +50,12 @@ services:
 
   migrate:
     <<: *app
-    command: ["pnpm", "--filter", "@poke-lounge/api", "migration:run"]
+    command:
+      [
+        "sh",
+        "-lc",
+        "pnpm --filter @poke-lounge/api migration:run && pnpm --filter @poke-lounge/api rom-data:import",
+      ]
     environment: *api-environment
     depends_on:
       postgres:

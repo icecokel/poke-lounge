@@ -15,6 +15,8 @@
     "migration:show": "typeorm -d dist/src/data-source.js migration:show",
     "migration:run": "typeorm -d dist/src/data-source.js migration:run",
     "migration:revert": "typeorm -d dist/src/data-source.js migration:revert",
+    "rom-data:check": "ts-node scripts/import-poke-lounge-rom-data.ts --check",
+    "rom-data:import": "node dist/scripts/import-poke-lounge-rom-data.js",
     "migration:show:test": "pnpm build && typeorm -d dist/src/test-data-source.js migration:show",
     "migration:run:test": "pnpm build && typeorm -d dist/src/test-data-source.js migration:run",
     "test": "jest",

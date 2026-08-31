@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { resetRuntimeGameDataJsonStateForTest } from "../data/game-data-json";
+import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 import {
   BATTLE_END_CONFIRM_MESSAGE,
   chooseBattleBagItem,
@@ -13,6 +18,25 @@ import {
 import { createSampleBattleState } from "./battleSampleState";
 import type { BattlePokemon, BattleScreenState } from "./battleTypes";
 import { getExperienceForLevel } from "./experience";
+
+const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
+
+test.before(async () => {
+  await loadRuntimeGameDataJson(async input => {
+    const requestPath =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.pathname
+          : new URL(input.url).pathname;
+    return new Response(
+      fs.readFileSync(path.join(webRoot, "public", requestPath.replace(/^\//, "")), "utf8"),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  });
+});
+
+test.after(() => resetRuntimeGameDataJsonStateForTest());
 
 test("야생 전투 경험치와 돈 보상은 한 문구로 안내한다", () => {
   assert.equal(
@@ -104,6 +128,7 @@ test("포획 판정은 애니메이션용 볼 종류와 실제 흔들림 횟수�
     caught: true,
     shakes: 4,
   });
+  assert.equal(caughtState.messageQueue[0], "몬스터볼을 던졌다!");
   assert.deepEqual(escapedState.captureAttempt, {
     ballItemId: "pokeball",
     caught: false,

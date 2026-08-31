@@ -41,7 +41,14 @@ const species = Object.fromEntries(
 );
 const moves = Object.fromEntries(
   Object.values(source.moves)
-    .filter(entry => Number.isSafeInteger(entry.id) && entry.id >= 1 && entry.id <= 470)
+    .filter(
+      entry =>
+        Number.isSafeInteger(entry.id) &&
+        entry.id >= 1 &&
+        entry.id <= 470 &&
+        typeof entry.name === "string" &&
+        entry.name.trim().length > 0,
+    )
     .sort((left, right) => left.id - right.id)
     .map(entry => [
       entry.id,

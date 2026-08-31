@@ -3,13 +3,17 @@
   "source": {
     "romPath": "data/roms/포켓몬스터 하트골드(K).nds",
     "romSha1": "5834fb3a2d751c48501d47d6a56898d7af6ccf9e",
-    "personalPath": "pbr/personal.narc",
-    "movePath": "pbr/waza_tbl.narc",
+    "personalPath": "a/0/0/2",
+    "movePath": "a/0/1/1",
+    "itemPath": "a/0/1/7",
+    "growthPath": "a/0/0/3",
     "learnsetPath": "a/0/3/3",
     "evolutionPath": "a/0/3/4",
     "messagePath": "a/0/2/7",
     "pokemonNameMessageIndex": 233,
     "moveNameMessageIndex": 743,
+    "itemDescriptionMessageIndex": 219,
+    "itemNameMessageIndex": 220,
     "characterMapPath": "data/str2uni.bin",
     "battleSpritePath": "a/0/0/4",
     "evolutionPresentationPath": "a/1/1/5",
@@ -27738,6 +27742,356 @@
       {
         "level": 47,
         "moveId": 442
+      }
+    ],
+    "501": [
+      {
+        "level": 1,
+        "moveId": 225
+      },
+      {
+        "level": 1,
+        "moveId": 184
+      },
+      {
+        "level": 6,
+        "moveId": 466
+      },
+      {
+        "level": 10,
+        "moveId": 246
+      },
+      {
+        "level": 15,
+        "moveId": 163
+      },
+      {
+        "level": 19,
+        "moveId": 425
+      },
+      {
+        "level": 24,
+        "moveId": 194
+      },
+      {
+        "level": 28,
+        "moveId": 337
+      },
+      {
+        "level": 33,
+        "moveId": 414
+      },
+      {
+        "level": 37,
+        "moveId": 396
+      },
+      {
+        "level": 42,
+        "moveId": 421
+      },
+      {
+        "level": 46,
+        "moveId": 467
+      }
+    ],
+    "502": [
+      {
+        "level": 1,
+        "moveId": 74
+      },
+      {
+        "level": 10,
+        "moveId": 345
+      },
+      {
+        "level": 19,
+        "moveId": 73
+      },
+      {
+        "level": 28,
+        "moveId": 98
+      },
+      {
+        "level": 37,
+        "moveId": 230
+      },
+      {
+        "level": 46,
+        "moveId": 363
+      },
+      {
+        "level": 55,
+        "moveId": 388
+      },
+      {
+        "level": 64,
+        "moveId": 403
+      },
+      {
+        "level": 73,
+        "moveId": 412
+      },
+      {
+        "level": 82,
+        "moveId": 186
+      },
+      {
+        "level": 91,
+        "moveId": 437
+      },
+      {
+        "level": 100,
+        "moveId": 465
+      }
+    ],
+    "503": [
+      {
+        "level": 1,
+        "moveId": 271
+      },
+      {
+        "level": 1,
+        "moveId": 310
+      },
+      {
+        "level": 1,
+        "moveId": 86
+      },
+      {
+        "level": 1,
+        "moveId": 84
+      },
+      {
+        "level": 1,
+        "moveId": 109
+      },
+      {
+        "level": 8,
+        "moveId": 253
+      },
+      {
+        "level": 15,
+        "moveId": 104
+      },
+      {
+        "level": 22,
+        "moveId": 351
+      },
+      {
+        "level": 29,
+        "moveId": 466
+      },
+      {
+        "level": 36,
+        "moveId": 164
+      },
+      {
+        "level": 43,
+        "moveId": 268
+      },
+      {
+        "level": 50,
+        "moveId": 435
+      }
+    ],
+    "504": [
+      {
+        "level": 1,
+        "moveId": 271
+      },
+      {
+        "level": 1,
+        "moveId": 310
+      },
+      {
+        "level": 1,
+        "moveId": 86
+      },
+      {
+        "level": 1,
+        "moveId": 84
+      },
+      {
+        "level": 1,
+        "moveId": 109
+      },
+      {
+        "level": 8,
+        "moveId": 253
+      },
+      {
+        "level": 15,
+        "moveId": 104
+      },
+      {
+        "level": 22,
+        "moveId": 351
+      },
+      {
+        "level": 29,
+        "moveId": 466
+      },
+      {
+        "level": 36,
+        "moveId": 164
+      },
+      {
+        "level": 43,
+        "moveId": 268
+      },
+      {
+        "level": 50,
+        "moveId": 435
+      }
+    ],
+    "505": [
+      {
+        "level": 1,
+        "moveId": 271
+      },
+      {
+        "level": 1,
+        "moveId": 310
+      },
+      {
+        "level": 1,
+        "moveId": 86
+      },
+      {
+        "level": 1,
+        "moveId": 84
+      },
+      {
+        "level": 1,
+        "moveId": 109
+      },
+      {
+        "level": 8,
+        "moveId": 253
+      },
+      {
+        "level": 15,
+        "moveId": 104
+      },
+      {
+        "level": 22,
+        "moveId": 351
+      },
+      {
+        "level": 29,
+        "moveId": 466
+      },
+      {
+        "level": 36,
+        "moveId": 164
+      },
+      {
+        "level": 43,
+        "moveId": 268
+      },
+      {
+        "level": 50,
+        "moveId": 435
+      }
+    ],
+    "506": [
+      {
+        "level": 1,
+        "moveId": 271
+      },
+      {
+        "level": 1,
+        "moveId": 310
+      },
+      {
+        "level": 1,
+        "moveId": 86
+      },
+      {
+        "level": 1,
+        "moveId": 84
+      },
+      {
+        "level": 1,
+        "moveId": 109
+      },
+      {
+        "level": 8,
+        "moveId": 253
+      },
+      {
+        "level": 15,
+        "moveId": 104
+      },
+      {
+        "level": 22,
+        "moveId": 351
+      },
+      {
+        "level": 29,
+        "moveId": 466
+      },
+      {
+        "level": 36,
+        "moveId": 164
+      },
+      {
+        "level": 43,
+        "moveId": 268
+      },
+      {
+        "level": 50,
+        "moveId": 435
+      }
+    ],
+    "507": [
+      {
+        "level": 1,
+        "moveId": 271
+      },
+      {
+        "level": 1,
+        "moveId": 310
+      },
+      {
+        "level": 1,
+        "moveId": 86
+      },
+      {
+        "level": 1,
+        "moveId": 84
+      },
+      {
+        "level": 1,
+        "moveId": 109
+      },
+      {
+        "level": 8,
+        "moveId": 253
+      },
+      {
+        "level": 15,
+        "moveId": 104
+      },
+      {
+        "level": 22,
+        "moveId": 351
+      },
+      {
+        "level": 29,
+        "moveId": 466
+      },
+      {
+        "level": 36,
+        "moveId": 164
+      },
+      {
+        "level": 43,
+        "moveId": 268
+      },
+      {
+        "level": 50,
+        "moveId": 435
       }
     ]
   }

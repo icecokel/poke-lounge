@@ -9,6 +9,7 @@ import { POKE_LOUNGE_ROOM_REPOSITORY } from './poke-lounge-room.repository';
 import { PokeLoungeGateway } from './poke-lounge.gateway';
 import { PokeLoungeController } from './poke-lounge.controller';
 import { PokeLoungeRoomService } from './poke-lounge-room.service';
+import { PokeLoungeRomDataService } from './poke-lounge-rom-data.service';
 import { CompetitiveProjectionService } from './competitive/competitive-projection.service';
 import { RedisPokeLoungeRepository } from './redis-poke-lounge.repository';
 import { PokeLoungeRedisModule } from './poke-lounge-redis.module';
@@ -39,6 +40,7 @@ import { COMPETITIVE_TURN_QUEUE } from './competitive/competitive-turn-queue';
       useExisting: PokeLoungeRoomEventsService,
     },
     PokeLoungeRoomService,
+    PokeLoungeRomDataService,
     CompetitiveTurnQueueService,
     {
       provide: COMPETITIVE_TURN_QUEUE,

@@ -19,6 +19,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
+  ApiServiceUnavailableResponse,
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
@@ -37,6 +38,7 @@ import { CreatePokeLoungeRoomDto } from './dto/create-poke-lounge-room.dto';
 import { JoinPokeLoungeRoomDto } from './dto/join-poke-lounge-room.dto';
 import { LeavePokeLoungeRoomDto } from './dto/leave-poke-lounge-room.dto';
 import { PokeLoungeRoomResponseDto } from './dto/poke-lounge-room-response.dto';
+import { PokeLoungeRomDataResponseDto } from './dto/poke-lounge-rom-data-response.dto';
 import { SetPokeLoungeReadyDto } from './dto/set-poke-lounge-ready.dto';
 import { SetPokeLoungeRoundReadyDto } from './dto/set-poke-lounge-round-ready.dto';
 import { StartPokeLoungeRoomDto } from './dto/start-poke-lounge-room.dto';
@@ -52,6 +54,7 @@ import {
   toPokeLoungePublicRoomState,
 } from './poke-lounge-room-conflict';
 import { PokeLoungeRoomService } from './poke-lounge-room.service';
+import { PokeLoungeRomDataService } from './poke-lounge-rom-data.service';
 
 const IDEMPOTENCY_HEADER = 'X-Idempotency-Key';
 const REVISION_HEADER = 'If-Match-Revision';
@@ -71,7 +74,18 @@ export class PokeLoungeController {
   constructor(
     private readonly roomService: PokeLoungeRoomService,
     private readonly competitiveMatchService: CompetitiveMatchService,
+    private readonly romDataService: PokeLoungeRomDataService,
   ) {}
+
+  @Get('rom-data')
+  @ApiOperation({ summary: 'ROM에서 추출한 Poke Lounge 게임 데이터 조회' })
+  @ApiOkResponse({ type: PokeLoungeRomDataResponseDto })
+  @ApiServiceUnavailableResponse({
+    description: '필수 ROM 문서가 없거나 무결하지 않음',
+  })
+  getRomData(): Promise<PokeLoungeRomDataResponseDto> {
+    return this.romDataService.getRuntimeData();
+  }
 
   @Post('rooms')
   @ApiHeader({ name: IDEMPOTENCY_HEADER, required: true })

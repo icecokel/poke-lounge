@@ -7,10 +7,25 @@ export const LEVEL_UP_MOVE_TABLE_JSON_PATH = "/game-data/level-up-move-table.jso
 export const WILD_BATTLE_MOVE_SETS_JSON_PATH = "/game-data/wild-battle-move-sets.json";
 export const BATTLE_POKEMON_ASSETS_JSON_PATH = "/game-data/battle-pokemon-assets.json";
 export const POKEMON_DATA_JSON_PATH = "/game-data/pokemon-data.json";
+export const ITEM_DATA_JSON_PATH = "/game-data/item-data.json";
+export const POKE_LOUNGE_ROM_DATA_API_PATH = "/poke-lounge/rom-data";
 export const BATTLE_POKEMON_SPRITE_FRAME_SIZE = 80;
 export const BATTLE_POKEMON_SPRITE_SHEET_GRID_SIZE = 16;
 
 const BATTLE_POKEMON_ASSET_MANIFEST_VERSION = 2;
+const HGSS_ITEM_RECORD_COUNT = 513;
+const HGSS_GROWTH_TABLE_COUNT = 8;
+const HGSS_GROWTH_TABLE_LEVEL_COUNT = 101;
+const EXPECTED_ROM_SHA1 = "5834fb3a2d751c48501d47d6a56898d7af6ccf9e";
+const CONTENT_SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const ROM_DOCUMENT_KEYS = [
+  "pokemon-data",
+  "item-data",
+  "level-up-move-table",
+  "growth-table",
+] as const;
+
+type RomDocumentKey = (typeof ROM_DOCUMENT_KEYS)[number];
 
 export interface LevelUpMoveRow {
   level: number;
@@ -26,6 +41,10 @@ export interface RuntimePokemonMoveSummary {
 export interface RuntimePokemonSpeciesSummary {
   id: number;
   name: string;
+  catchRate: number;
+  baseExpYield: number;
+  growthRate: number;
+  genderRatio: number;
   baseStats: {
     hp: number;
     attack: number;
@@ -41,10 +60,27 @@ export interface RuntimePokemonMoveDetails extends RuntimePokemonMoveSummary {
   power: number;
   accuracy: number;
   typeId: number;
+  typeName: string;
   category: "physical" | "special" | "status";
   effectCode: number;
   effectChance: number;
   priority: number;
+}
+
+export interface RuntimeItemDetails {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  partyUse: boolean;
+  partyUseEffects?: {
+    poisonHeal: boolean;
+    revive: boolean;
+    levelUp: boolean;
+    evolve: boolean;
+    hpRestore: boolean;
+    hpRestoreParam: number;
+  };
 }
 
 export interface BattlePokemonSpriteSheetAssetRecord {
@@ -64,61 +100,93 @@ export interface BattlePokemonSpriteSheetRangeRecord {
 
 interface RuntimeGameDataJsonState {
   pokemonData: unknown | null;
+  itemData: unknown | null;
   pokemonDataRecordCount: number | null;
   moveNames: Record<number, string> | null;
   levelUpMoveTable: Record<number, LevelUpMoveRow[]> | null;
+  growthExperienceTables: Map<number, readonly number[]> | null;
   wildBattleMoveSets: Record<number, number[]> | null;
   battlePokemonAssets: { spriteSheetRanges: BattlePokemonSpriteSheetRangeRecord[] } | null;
 }
 
 export interface RuntimeGameDataJson {
   pokemonData: unknown;
+  itemData: unknown;
   levelUpMoveTable: unknown;
+  growthTable: unknown;
   wildBattleMoveSets: unknown;
   battlePokemonAssets: unknown;
 }
 
 const runtimeGameDataJsonState: RuntimeGameDataJsonState = {
   pokemonData: null,
+  itemData: null,
   pokemonDataRecordCount: null,
   moveNames: null,
   levelUpMoveTable: null,
+  growthExperienceTables: null,
   wildBattleMoveSets: null,
   battlePokemonAssets: null,
 };
 
 export async function loadRuntimeGameDataJson(
   fetcher: typeof fetch = fetch,
+  loadRomData: () => Promise<unknown> = () =>
+    import("@/lib/api-client").then(({ apiClient }) =>
+      apiClient.get<unknown>(POKE_LOUNGE_ROM_DATA_API_PATH),
+    ),
 ): Promise<RuntimeGameDataJson> {
-  const [pokemonData, levelUpMoveTable, wildBattleMoveSets, battlePokemonAssets] =
-    await Promise.all([
-      fetchJson(fetcher, POKEMON_DATA_JSON_PATH),
-      fetchJson(fetcher, LEVEL_UP_MOVE_TABLE_JSON_PATH),
-      fetchJson(fetcher, WILD_BATTLE_MOVE_SETS_JSON_PATH),
-      fetchJson(fetcher, BATTLE_POKEMON_ASSETS_JSON_PATH),
+  try {
+    const [romData, wildBattleMoveSets, battlePokemonAssets] = await Promise.all([
+      loadRomData(),
+      fetchRequiredJson(fetcher, WILD_BATTLE_MOVE_SETS_JSON_PATH),
+      fetchRequiredJson(fetcher, BATTLE_POKEMON_ASSETS_JSON_PATH),
     ]);
+    const { pokemonData, itemData, levelUpMoveTable, growthTable } = readRomDataResponse(romData);
 
-  const data = { pokemonData, levelUpMoveTable, wildBattleMoveSets, battlePokemonAssets };
+    const data = {
+      pokemonData,
+      itemData,
+      levelUpMoveTable,
+      growthTable,
+      wildBattleMoveSets,
+      battlePokemonAssets,
+    };
 
-  registerRuntimeGameDataJson(data);
+    registerRuntimeGameDataJson(data);
 
-  return data;
+    return data;
+  } catch (error) {
+    resetRuntimeGameDataJsonState();
+    throw error;
+  }
 }
 
 export function registerRuntimeGameDataJson(data: RuntimeGameDataJson): void {
-  const { pokemonData, levelUpMoveTable, wildBattleMoveSets, battlePokemonAssets } = data;
+  const {
+    pokemonData,
+    itemData,
+    levelUpMoveTable,
+    growthTable,
+    wildBattleMoveSets,
+    battlePokemonAssets,
+  } = data;
   const normalizedPokemonData = isPokemonDataJson(pokemonData) ? pokemonData : null;
+  const normalizedItemData = hasCompleteItemCoverage(itemData) ? itemData : null;
   const pokemonDataRecordCount = normalizePokemonDataRecordCount(pokemonData);
   const moveNames = normalizePokemonMoveNames(pokemonData);
   const normalizedLevelUpMoveTable = normalizeLevelUpMoveTable(levelUpMoveTable);
+  const growthExperienceTables = normalizeGrowthExperienceTables(growthTable);
   const normalizedWildBattleMoveSets = normalizeWildBattleMoveSets(wildBattleMoveSets);
   const normalizedBattlePokemonAssets = normalizeBattlePokemonAssetManifest(battlePokemonAssets);
 
   if (
     !normalizedPokemonData ||
+    !normalizedItemData ||
     !pokemonDataRecordCount ||
     !moveNames ||
     !normalizedLevelUpMoveTable ||
+    !growthExperienceTables ||
     !normalizedWildBattleMoveSets ||
     !normalizedBattlePokemonAssets ||
     !hasCompleteSupportedPokemonCoverage(normalizedPokemonData) ||
@@ -129,33 +197,30 @@ export function registerRuntimeGameDataJson(data: RuntimeGameDataJson): void {
   }
 
   runtimeGameDataJsonState.pokemonData = normalizedPokemonData;
+  runtimeGameDataJsonState.itemData = normalizedItemData;
   runtimeGameDataJsonState.pokemonDataRecordCount = pokemonDataRecordCount;
   runtimeGameDataJsonState.moveNames = moveNames;
   runtimeGameDataJsonState.levelUpMoveTable = normalizedLevelUpMoveTable;
+  runtimeGameDataJsonState.growthExperienceTables = growthExperienceTables;
   runtimeGameDataJsonState.wildBattleMoveSets = normalizedWildBattleMoveSets;
   runtimeGameDataJsonState.battlePokemonAssets = normalizedBattlePokemonAssets;
 }
 
-export function getRuntimeLevelUpMoveTable(
-  fallbackTable: Record<number, LevelUpMoveRow[]>,
-): Record<number, LevelUpMoveRow[]> {
-  return runtimeGameDataJsonState.levelUpMoveTable
-    ? {
-        ...fallbackTable,
-        ...runtimeGameDataJsonState.levelUpMoveTable,
-      }
-    : fallbackTable;
+export function getRuntimeLevelUpMoveTable(): Record<number, LevelUpMoveRow[]> {
+  return runtimeGameDataJsonState.levelUpMoveTable ?? {};
 }
 
-export function getRuntimeWildBattleMoveSets(
-  fallbackMoveSets: Record<number, number[]>,
-): Record<number, number[]> {
-  return runtimeGameDataJsonState.wildBattleMoveSets
-    ? {
-        ...fallbackMoveSets,
-        ...runtimeGameDataJsonState.wildBattleMoveSets,
-      }
-    : fallbackMoveSets;
+export function getRuntimeWildBattleMoveSets(): Record<number, number[]> {
+  return runtimeGameDataJsonState.wildBattleMoveSets ?? {};
+}
+
+export function getRuntimeGrowthExperienceTable(growthRate: number): readonly number[] {
+  const tables = runtimeGameDataJsonState.growthExperienceTables;
+  if (!tables) {
+    throw new Error("Required Poke Lounge growth data is not loaded.");
+  }
+
+  return tables.get(growthRate) ?? tables.get(0)!;
 }
 
 export function getRuntimeBattlePokemonSpriteSheetRanges(
@@ -174,6 +239,63 @@ export function getRuntimePokemonDataRecordCountForTest(): number | null {
 
 export function getRuntimePokemonData(): unknown | null {
   return runtimeGameDataJsonState.pokemonData;
+}
+
+export function getRuntimeItemDetails(itemId: number): RuntimeItemDetails | null {
+  const itemData = runtimeGameDataJsonState.itemData;
+  if (!isRecord(itemData) || !isRecord(itemData.items)) {
+    return null;
+  }
+
+  const item = itemData.items[String(itemId)];
+  if (!isRecord(item)) {
+    return null;
+  }
+
+  const id = readPositiveInteger(item.id);
+  const name = typeof item.name === "string" ? item.name.trim() : "";
+  const description = typeof item.description === "string" ? item.description.trim() : "";
+  const price = readNonNegativeInteger(item.price);
+  const partyUse = item.partyUse;
+  if (id !== itemId || !name || !description || price === null || typeof partyUse !== "boolean") {
+    return null;
+  }
+
+  if (!partyUse) {
+    return { id, name, description, price, partyUse };
+  }
+
+  const effects = item.partyUseEffects;
+  if (
+    !isRecord(effects) ||
+    typeof effects.poisonHeal !== "boolean" ||
+    typeof effects.revive !== "boolean" ||
+    typeof effects.levelUp !== "boolean" ||
+    typeof effects.evolve !== "boolean" ||
+    typeof effects.hpRestore !== "boolean"
+  ) {
+    return null;
+  }
+  const hpRestoreParam = readNonNegativeInteger(effects.hpRestoreParam);
+  if (hpRestoreParam === null) {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    description,
+    price,
+    partyUse,
+    partyUseEffects: {
+      poisonHeal: effects.poisonHeal,
+      revive: effects.revive,
+      levelUp: effects.levelUp,
+      evolve: effects.evolve,
+      hpRestore: effects.hpRestore,
+      hpRestoreParam,
+    },
+  };
 }
 
 export function getRuntimePokemonMoveSummary(moveId: number): RuntimePokemonMoveSummary | null {
@@ -217,6 +339,10 @@ export function getRuntimePokemonSpeciesSummary(
   }
   const baseStats = species.baseStats;
   const typeIds = species.types.ids;
+  const catchRate = readNonNegativeInteger(species.catchRate);
+  const baseExpYield = readNonNegativeInteger(species.baseExpYield);
+  const growthRate = readNonNegativeInteger(species.growthRate);
+  const genderRatio = readNonNegativeInteger(species.genderRatio);
   if (
     !Number.isInteger(species.speciesId) ||
     typeof species.name !== "string" ||
@@ -228,13 +354,21 @@ export function getRuntimePokemonSpeciesSummary(
     !Number.isInteger(baseStats.specialAttack) ||
     !Number.isInteger(baseStats.specialDefense) ||
     !Array.isArray(typeIds) ||
-    !typeIds.every(typeId => Number.isInteger(typeId))
+    !typeIds.every(typeId => Number.isInteger(typeId)) ||
+    catchRate === null ||
+    baseExpYield === null ||
+    growthRate === null ||
+    genderRatio === null
   ) {
     return null;
   }
   return {
     id: species.speciesId as number,
     name: species.name,
+    catchRate,
+    baseExpYield,
+    growthRate,
+    genderRatio,
     baseStats: {
       hp: baseStats.hp as number,
       attack: baseStats.attack as number,
@@ -263,6 +397,7 @@ export function getRuntimePokemonMoveDetails(moveId: number): RuntimePokemonMove
   const accuracy =
     typeof move.accuracy === "number" && Number.isInteger(move.accuracy) ? move.accuracy : 0;
   const typeId = typeof move.typeId === "number" && Number.isInteger(move.typeId) ? move.typeId : 0;
+  const typeName = typeof move.typeName === "string" ? move.typeName.trim() : "";
   const effectCode =
     typeof move.effectCode === "number" && Number.isInteger(move.effectCode) ? move.effectCode : 0;
   const effectChance =
@@ -275,6 +410,7 @@ export function getRuntimePokemonMoveDetails(moveId: number): RuntimePokemonMove
   if (
     id !== moveId ||
     !name ||
+    !typeName ||
     !pp ||
     typeof category !== "string" ||
     !["physical", "special", "status"].includes(category)
@@ -288,6 +424,7 @@ export function getRuntimePokemonMoveDetails(moveId: number): RuntimePokemonMove
     power,
     accuracy,
     typeId,
+    typeName,
     effectCode,
     effectChance,
     priority,
@@ -338,8 +475,12 @@ export function getRuntimePokemonSpeciesGenderRatio(speciesId: number): number |
     : null;
 }
 
-export function getRuntimeMoveName(moveId: number, fallbackName: string): string {
-  return runtimeGameDataJsonState.moveNames?.[moveId] ?? fallbackName;
+export function getRuntimeMoveName(moveId: number): string {
+  const name = runtimeGameDataJsonState.moveNames?.[moveId];
+  if (!name) {
+    throw new Error(`Missing runtime move name for move ${moveId}`);
+  }
+  return name;
 }
 
 export function resetRuntimeGameDataJsonStateForTest(): void {
@@ -348,9 +489,11 @@ export function resetRuntimeGameDataJsonStateForTest(): void {
 
 function resetRuntimeGameDataJsonState(): void {
   runtimeGameDataJsonState.pokemonData = null;
+  runtimeGameDataJsonState.itemData = null;
   runtimeGameDataJsonState.pokemonDataRecordCount = null;
   runtimeGameDataJsonState.moveNames = null;
   runtimeGameDataJsonState.levelUpMoveTable = null;
+  runtimeGameDataJsonState.growthExperienceTables = null;
   runtimeGameDataJsonState.wildBattleMoveSets = null;
   runtimeGameDataJsonState.battlePokemonAssets = null;
 }
@@ -525,6 +668,31 @@ function hasCompleteSupportedPokemonCoverage(data: unknown): boolean {
   return true;
 }
 
+function hasCompleteItemCoverage(data: unknown): boolean {
+  if (!isRecord(data) || data.version !== 1 || !isRecord(data.items)) {
+    return false;
+  }
+
+  for (let itemId = 1; itemId <= HGSS_ITEM_RECORD_COUNT; itemId += 1) {
+    const item = data.items[String(itemId)];
+    if (
+      !isRecord(item) ||
+      readPositiveInteger(item.id) !== itemId ||
+      typeof item.name !== "string" ||
+      !item.name.trim() ||
+      typeof item.description !== "string" ||
+      !item.description.trim() ||
+      readNonNegativeInteger(item.price) === null ||
+      typeof item.partyUse !== "boolean" ||
+      (item.partyUse && !isRecord(item.partyUseEffects))
+    ) {
+      return false;
+    }
+  }
+
+  return Object.keys(data.items).length === HGSS_ITEM_RECORD_COUNT;
+}
+
 function hasCompleteLevelUpMoveCoverage(
   levelUpMoveTable: Record<number, LevelUpMoveRow[]>,
   moveNames: Record<number, string>,
@@ -542,6 +710,37 @@ function hasCompleteLevelUpMoveCoverage(
   }
 
   return true;
+}
+
+function normalizeGrowthExperienceTables(data: unknown): Map<number, readonly number[]> | null {
+  if (
+    !isRecord(data) ||
+    data.version !== 1 ||
+    !Array.isArray(data.tables) ||
+    data.tables.length !== HGSS_GROWTH_TABLE_COUNT
+  ) {
+    return null;
+  }
+
+  const tables = new Map<number, readonly number[]>();
+  for (let growthRate = 0; growthRate < HGSS_GROWTH_TABLE_COUNT; growthRate += 1) {
+    const table = data.tables[growthRate];
+    if (
+      !isRecord(table) ||
+      table.growth_rate !== growthRate ||
+      !Array.isArray(table.experience) ||
+      table.experience.length !== HGSS_GROWTH_TABLE_LEVEL_COUNT ||
+      !table.experience.every(
+        value => typeof value === "number" && Number.isInteger(value) && value >= 0,
+      )
+    ) {
+      return null;
+    }
+
+    tables.set(growthRate, table.experience as number[]);
+  }
+
+  return tables;
 }
 
 function normalizeWildBattleMoveSet(data: unknown): number[] {
@@ -642,6 +841,15 @@ function readPositiveInteger(value: unknown): number | null {
     : null;
 }
 
+function readNonNegativeInteger(value: unknown): number | null {
+  const candidate =
+    typeof value === "string" && value.trim().length > 0 ? Number.parseInt(value, 10) : value;
+
+  return typeof candidate === "number" && Number.isInteger(candidate) && candidate >= 0
+    ? candidate
+    : null;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -661,16 +869,66 @@ function hasCompleteBattlePokemonSpriteSheetCoverage(
   );
 }
 
-async function fetchJson(fetcher: typeof fetch, path: string): Promise<unknown> {
-  try {
-    const response = await fetcher(path);
+function readRomDataResponse(
+  data: unknown,
+): Pick<RuntimeGameDataJson, "pokemonData" | "itemData" | "levelUpMoveTable" | "growthTable"> {
+  if (!isRecord(data) || !Array.isArray(data.documents) || data.documents.length !== 4) {
+    throw invalidRomDataResponse();
+  }
 
-    if (!response.ok) {
-      return null;
+  const documents = new Map<RomDocumentKey, Record<string, unknown>>();
+  for (const candidate of data.documents) {
+    if (
+      !isRecord(candidate) ||
+      typeof candidate.documentKey !== "string" ||
+      !ROM_DOCUMENT_KEYS.includes(candidate.documentKey as RomDocumentKey) ||
+      documents.has(candidate.documentKey as RomDocumentKey) ||
+      candidate.schemaVersion !== 1 ||
+      candidate.romSha1 !== EXPECTED_ROM_SHA1 ||
+      typeof candidate.contentSha256 !== "string" ||
+      !CONTENT_SHA256_PATTERN.test(candidate.contentSha256) ||
+      !isRecord(candidate.payload) ||
+      candidate.payload.version !== 1 ||
+      !isRecord(candidate.payload.source) ||
+      candidate.payload.source.romSha1 !== EXPECTED_ROM_SHA1
+    ) {
+      throw invalidRomDataResponse();
     }
 
+    documents.set(candidate.documentKey as RomDocumentKey, candidate.payload);
+  }
+
+  if (ROM_DOCUMENT_KEYS.some(key => !documents.has(key))) {
+    throw invalidRomDataResponse();
+  }
+
+  return {
+    pokemonData: documents.get("pokemon-data")!,
+    itemData: documents.get("item-data")!,
+    levelUpMoveTable: documents.get("level-up-move-table")!,
+    growthTable: documents.get("growth-table")!,
+  };
+}
+
+function invalidRomDataResponse(): Error {
+  return new Error("Required Poke Lounge ROM data response is invalid.");
+}
+
+async function fetchRequiredJson(fetcher: typeof fetch, path: string): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetcher(path);
+  } catch (cause) {
+    throw new Error(`Failed to load required Poke Lounge data ${path}.`, { cause });
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to load required Poke Lounge data ${path}: ${response.status}`);
+  }
+
+  try {
     return await response.json();
-  } catch {
-    return null;
+  } catch (cause) {
+    throw new Error(`Required Poke Lounge data ${path} is not valid JSON.`, { cause });
   }
 }

@@ -5,14 +5,15 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   BATTLE_POKEMON_ASSETS_JSON_PATH,
+  ITEM_DATA_JSON_PATH,
   LEVEL_UP_MOVE_TABLE_JSON_PATH,
-  loadRuntimeGameDataJson,
   normalizeLevelUpMoveTable,
   POKEMON_DATA_JSON_PATH,
   resetRuntimeGameDataJsonStateForTest,
   WILD_BATTLE_MOVE_SETS_JSON_PATH,
   type LevelUpMoveRow,
 } from "../data/game-data-json";
+import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 import { MAX_SUPPORTED_POKEMON_SPECIES_ID } from "./pokemon-species";
 import { createSampleBattleState } from "./battleSampleState";
 import { planLevelUpBattleProgression } from "./level-up-progression";
@@ -24,9 +25,7 @@ const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 
 test("ROM 한국어 기술명은 코드형 fallback 대신 상대 기술명에 사용한다", async () => {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH) as PokemonDataJson;
-  const moveRecords = readPublicJson(
-    "/assets/poke-lounge/extraction/refined-battle-records.json",
-  ) as RomRefinedMoveCollection;
+  const moveRecords = pokemonData as unknown as RomRefinedMoveCollection;
 
   await loadRuntimeGameDataJson(
     createRuntimeGameDataFetcher(new Map([[POKEMON_DATA_JSON_PATH, pokemonData]])),
@@ -51,6 +50,7 @@ test("ROM 한국어 기술명은 코드형 fallback 대신 상대 기술명에 �
     });
     assert.equal(createBattleMoveFromRom(34, moveRecords).effectChance, 30);
     assert.equal(createBattleMoveFromRom(18, moveRecords).priority, -6);
+    assert.equal(createBattleMoveFromRom(95, moveRecords).accuracy, 60);
     assert.equal(pokemonData.moves["111"]?.range, 16);
     assert.equal(
       createBattleMoveFromRom(97, moveRecords).competitiveEffectSupport,
@@ -64,12 +64,10 @@ test("ROM 한국어 기술명은 코드형 fallback 대신 상대 기술명에 �
 test("전국도감 1~493의 레벨업 기술표와 기술 참조가 완전하다", () => {
   const levelUpMoveTable = readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH) as LevelUpMoveTableJson;
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH) as PokemonDataJson;
-  const moveRecords = readPublicJson(
-    "/assets/poke-lounge/extraction/refined-battle-records.json",
-  ) as RomRefinedMoveCollection;
+  const moveRecords = pokemonData as unknown as RomRefinedMoveCollection;
   const romMoveIds = new Set(
     Array.isArray(moveRecords.moves)
-      ? moveRecords.moves.map(move => move.index)
+      ? moveRecords.moves.map(move => ("id" in move ? move.id : move.index))
       : Object.keys(moveRecords.moves).map(Number),
   );
   const missingSpeciesIds: number[] = [];
@@ -123,29 +121,31 @@ test("전국도감 1~493의 레벨업 기술표와 기술 참조가 완전하다
   assert.deepEqual(mismatchedPokemonDataSpeciesIds, []);
 });
 
-test("필수 레벨업 기술표를 불러오지 못하면 런타임 데이터 로딩을 완료하지 않는다", async () => {
-  resetRuntimeGameDataJsonStateForTest();
+test("필수 ROM 게임 데이터를 불러오지 못하면 런타임 데이터 로딩을 완료하지 않는다", async () => {
+  for (const missingPath of [LEVEL_UP_MOVE_TABLE_JSON_PATH, ITEM_DATA_JSON_PATH]) {
+    resetRuntimeGameDataJsonStateForTest();
 
-  await assert.rejects(
-    loadRuntimeGameDataJson(async input => {
-      const requestPath =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.pathname
-            : new URL(input.url).pathname;
+    await assert.rejects(
+      loadRuntimeGameDataJson(async input => {
+        const requestPath =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.pathname
+              : new URL(input.url).pathname;
 
-      if (requestPath === LEVEL_UP_MOVE_TABLE_JSON_PATH) {
-        return new Response(null, { status: 503 });
-      }
+        if (requestPath === missingPath) {
+          return new Response(null, { status: 503 });
+        }
 
-      return new Response(JSON.stringify(readPublicJson(requestPath)), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }),
-    /runtime game data is incomplete/,
-  );
+        return new Response(JSON.stringify(readPublicJson(requestPath)), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+      /Test ROM document .* failed: 503/,
+    );
+  }
 });
 
 test("레벨업 기술 정규화는 같은 레벨의 원본 기술 순서를 유지한다", () => {
@@ -176,9 +176,7 @@ test("레벨업 기술 정규화는 같은 레벨의 원본 기술 순서를 유
 test("여러 레벨에서 같은 기술을 만나도 교체 대기열에는 한 번만 추가한다", async () => {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   const levelUpMoveTable = readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH);
-  const moveRecords = readPublicJson(
-    "/assets/poke-lounge/extraction/refined-battle-records.json",
-  ) as RomRefinedMoveCollection;
+  const moveRecords = pokemonData as RomRefinedMoveCollection;
 
   await loadRuntimeGameDataJson(
     createRuntimeGameDataFetcher(
@@ -213,12 +211,8 @@ test("여러 레벨에서 같은 기술을 만나도 교체 대기열에는 한 
 
 test("캐터피가 Lv.6에서 Lv.11이 되면 레벨별 기술 습득과 두 번의 진화를 순서대로 처리한다", async () => {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
-  const moveRecords = readPublicJson(
-    "/assets/poke-lounge/extraction/refined-battle-records.json",
-  ) as RomRefinedMoveCollection;
-  const personalRecords = readPublicJson(
-    "/assets/poke-lounge/extraction/personal-data.json",
-  ) as RomPersonalRecordCollection;
+  const moveRecords = pokemonData as RomRefinedMoveCollection;
+  const personalRecords = pokemonData as RomPersonalRecordCollection;
 
   await loadRuntimeGameDataJson(createRuntimeGameDataFetcher(new Map()));
 
@@ -261,12 +255,8 @@ test("캐터피가 Lv.6에서 Lv.11이 되면 레벨별 기술 습득과 두 번
 
 test("이상해씨가 Lv.15에서 Lv.20이 되면 진화 후 이상해풀 기술표를 사용한다", async () => {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
-  const moveRecords = readPublicJson(
-    "/assets/poke-lounge/extraction/refined-battle-records.json",
-  ) as RomRefinedMoveCollection;
-  const personalRecords = readPublicJson(
-    "/assets/poke-lounge/extraction/personal-data.json",
-  ) as RomPersonalRecordCollection;
+  const moveRecords = pokemonData as RomRefinedMoveCollection;
+  const personalRecords = pokemonData as RomPersonalRecordCollection;
 
   await loadRuntimeGameDataJson(createRuntimeGameDataFetcher(new Map()));
 
@@ -335,6 +325,7 @@ const createRuntimeGameDataFetcher =
       runtimeJsonByPath.get(requestPath) ??
       ([
         POKEMON_DATA_JSON_PATH,
+        ITEM_DATA_JSON_PATH,
         LEVEL_UP_MOVE_TABLE_JSON_PATH,
         WILD_BATTLE_MOVE_SETS_JSON_PATH,
         BATTLE_POKEMON_ASSETS_JSON_PATH,

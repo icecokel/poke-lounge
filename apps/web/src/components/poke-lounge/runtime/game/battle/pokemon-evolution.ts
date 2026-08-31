@@ -3,8 +3,9 @@ import type { BattlePokemon, BattleSpriteRef } from "./battleTypes";
 import { calculateGen4BattleStats, type Gen4BaseStats } from "./gen4PokemonStats";
 import { normalizeIndividualValues } from "./individual-values";
 import { EVOLUTION_STONE_CATALOG, type EvolutionStoneItemId } from "../items/evolution-stones";
+import { getRuntimeGameItem } from "../items/runtime-items";
 import type { PlayerPokemon } from "../state/gameStateStore";
-import type { RomPersonalRecord, RomPersonalRecordCollection } from "./wildBattleFactory";
+import { findRomPersonalRecord, type RomPersonalRecordCollection } from "./wildBattleFactory";
 import { createRomEvolutionMessages } from "./evolution-presentation";
 
 export const LEVEL_UP_EVOLUTION_METHOD = 4;
@@ -123,7 +124,7 @@ export function applyLevelUpEvolution({
     return { pokemon, messages: [], evolved: false };
   }
 
-  const targetRecord = findPersonalRecord(personalRecords, rule.targetSpeciesId);
+  const targetRecord = findRomPersonalRecord(personalRecords, rule.targetSpeciesId);
 
   if (!targetRecord) {
     return { pokemon, messages: [], evolved: false };
@@ -169,6 +170,10 @@ export function applyEvolutionStone<TPokemon extends PlayerPokemon>({
   pokemonData,
 }: ApplyEvolutionStoneInput<TPokemon>): ApplyEvolutionStoneResult<TPokemon> {
   const stone = EVOLUTION_STONE_CATALOG[itemId];
+  const item = getRuntimeGameItem(itemId);
+  if (!item) {
+    return { pokemon, messages: [], evolved: false };
+  }
   const evolutionTable = normalizePokemonEvolutionTable(pokemonData);
   const rule =
     (evolutionTable[pokemon.speciesId] ?? []).find(
@@ -187,7 +192,7 @@ export function applyEvolutionStone<TPokemon extends PlayerPokemon>({
     pokemonData,
     rule,
     createMessages: evolvedName => [
-      `${pokemon.name}에게 ${stone.displayName}을 사용했다!`,
+      `${pokemon.name}에게 ${item.name}을 사용했다!`,
       ...createRomEvolutionMessages(pokemon.name, evolvedName),
     ],
   });
@@ -373,13 +378,6 @@ function findLevelUpEvolutionRule(
       )
       .sort((left, right) => left.parameter - right.parameter)[0] ?? null
   );
-}
-
-function findPersonalRecord(
-  collection: RomPersonalRecordCollection,
-  speciesId: number,
-): RomPersonalRecord | null {
-  return collection.records.find(record => record.index === speciesId) ?? null;
 }
 
 function getPokemonSpeciesDisplayName(rule: PokemonEvolutionRule): string {

@@ -7,10 +7,8 @@ import {
   loadPokeLoungeRuntimeAssets,
   type PokeLoungeAssetLoadProgress,
 } from "./poke-lounge-runtime-assets";
-import {
-  loadRuntimeGameDataJson,
-  resetRuntimeGameDataJsonStateForTest,
-} from "../data/game-data-json";
+import { resetRuntimeGameDataJsonStateForTest } from "../data/game-data-json";
+import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 import { FIELD_MAP } from "../world/fieldMap";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));

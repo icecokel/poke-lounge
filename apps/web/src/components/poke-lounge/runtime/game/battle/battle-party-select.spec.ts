@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resetRuntimeGameDataJsonStateForTest } from "../data/game-data-json";
+import { loadPublicRuntimeGameDataFixture } from "../testing/runtime-rom-data.fixture";
 import { createSampleBattleState } from "./battleSampleState";
 import { BATTLE_LAYOUT } from "./battleLayout";
 import {
@@ -11,6 +13,9 @@ import {
   resolveBattlePartySlotRects,
   type BattlePartySelectionDirection,
 } from "./battle-party-select";
+
+test.before(loadPublicRuntimeGameDataFixture);
+test.after(resetRuntimeGameDataJsonStateForTest);
 
 test("HGSS 파티 트레이는 여섯 슬롯의 선택·출전·기절·빈 상태를 만든다", () => {
   const state = createSampleBattleState();

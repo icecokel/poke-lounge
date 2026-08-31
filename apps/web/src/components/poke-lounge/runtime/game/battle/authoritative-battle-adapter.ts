@@ -5,8 +5,8 @@ import {
 } from "@poke-lounge/battle";
 import type { CompetitiveAction, CompetitiveProjection } from "../network/localPreviewRoom";
 import { getBattlePokemonAssets } from "./battlePokemonAssets";
-import { getGen4TypeName } from "./battleRomData";
 import { calculateGen4BattleStats } from "./gen4PokemonStats";
+import { getExperienceForLevel } from "./experience";
 import { createMaxIndividualValues } from "./individual-values";
 import {
   getRuntimePokemonMoveDetails,
@@ -167,10 +167,10 @@ function toBattlePokemon(pokemon: CompetitivePokemon): BattlePokemon {
     speciesId,
     name: species.name,
     level: pokemon.level,
-    catchRate: 0,
-    baseExpYield: 0,
-    growthRate: 1_000_000,
-    experience: 0,
+    catchRate: species.catchRate,
+    baseExpYield: species.baseExpYield,
+    growthRate: species.growthRate,
+    experience: getExperienceForLevel(pokemon.level, species.growthRate),
     baseStats: {
       hp: species.baseStats.hp,
       attack: species.baseStats.attack,
@@ -208,7 +208,7 @@ function toBattleMove(move: CompetitivePokemon["moves"][number]): BattleMove {
     name: view.name,
     pp: move.pp,
     maxPp: view.pp,
-    type: getGen4TypeName(view.typeId),
+    type: view.typeName,
     typeId: view.typeId,
     category: view.category,
     effectCode: view.effectCode,

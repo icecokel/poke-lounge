@@ -7,6 +7,7 @@ import type {
   BattleScreenState,
 } from "./battleTypes";
 import { applyInventoryItemEffect } from "../items/inventoryItemEffects";
+import { getRuntimeGameItem } from "../items/runtime-items";
 import { BATTLE_PARTY_SLOT_COUNT, syncActivePartyPokemon } from "./battleParty";
 import { calculateWildBattlePokeDollarReward, formatBattlePokeDollars } from "./battleRewards";
 import { resolveGen4CaptureAttempt } from "./captureLogic";
@@ -214,7 +215,7 @@ export function chooseBattleBagItem(
   if (itemId === "pokeball") {
     return chooseCaptureBallItem(state, itemCount, options, {
       itemId: "pokeball",
-      displayName: "몬스터볼",
+      displayName: battleItemDisplayName("pokeball"),
       ballBonus: 1,
     });
   }
@@ -222,7 +223,7 @@ export function chooseBattleBagItem(
   if (itemId === "ultraBall") {
     return chooseCaptureBallItem(state, itemCount, options, {
       itemId: "ultraBall",
-      displayName: "하이퍼볼",
+      displayName: battleItemDisplayName("ultraBall"),
       ballBonus: ULTRA_BALL_BONUS,
     });
   }
@@ -1163,35 +1164,7 @@ function normalizeInventoryCount(count: number): number {
 }
 
 function battleItemDisplayName(itemId: string): string {
-  if (itemId === "potion") {
-    return "포션";
-  }
-
-  if (itemId === "superPotion") {
-    return "좋은상처약";
-  }
-
-  if (itemId === "pokeball") {
-    return "몬스터볼";
-  }
-
-  if (itemId === "antidote") {
-    return "해독제";
-  }
-
-  if (itemId === "hyperPotion") {
-    return "고급상처약";
-  }
-
-  if (itemId === "revive") {
-    return "기력의조각";
-  }
-
-  if (itemId === "ultraBall") {
-    return "하이퍼볼";
-  }
-
-  return "아이템";
+  return getRuntimeGameItem(itemId)?.name ?? "아이템";
 }
 
 function isBattleEffectItemId(itemId: string): itemId is (typeof BATTLE_EFFECT_ITEM_IDS)[number] {

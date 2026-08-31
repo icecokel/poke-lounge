@@ -1,4 +1,4 @@
-import growthTableData from "./growthTable.json";
+import { getRuntimeGrowthExperienceTable } from "../data/game-data-json";
 
 export const WILD_BATTLE_EXPERIENCE_MULTIPLIER = 5;
 
@@ -19,17 +19,6 @@ export interface ApplyExperienceGainResult {
   level: number;
   levelsGained: number;
 }
-
-interface GrowthTableData {
-  tables: Array<{
-    growth_rate: number;
-    experience: number[];
-  }>;
-}
-
-const ROM_GROWTH_EXPERIENCE_TABLES = new Map<number, readonly number[]>(
-  (growthTableData as GrowthTableData).tables.map(table => [table.growth_rate, table.experience]),
-);
 
 export function calculateWildBattleExpGain({
   baseExpYield,
@@ -52,11 +41,9 @@ export function calculateWildBattleExpGain({
 
 export function getExperienceForLevel(level: number, growthRate: number): number {
   const normalizedLevel = clampLevel(level);
-  const table =
-    ROM_GROWTH_EXPERIENCE_TABLES.get(normalizeGrowthRate(growthRate)) ??
-    ROM_GROWTH_EXPERIENCE_TABLES.get(0);
+  const table = getRuntimeGrowthExperienceTable(normalizeGrowthRate(growthRate));
 
-  return table?.[normalizedLevel] ?? 0;
+  return table[normalizedLevel] ?? 0;
 }
 
 export function applyExperienceGain(input: ApplyExperienceGainInput): ApplyExperienceGainResult {
@@ -84,7 +71,7 @@ function normalizeGrowthRate(growthRate: number): number {
 
   const normalizedGrowthRate = Math.trunc(growthRate);
 
-  return ROM_GROWTH_EXPERIENCE_TABLES.has(normalizedGrowthRate) ? normalizedGrowthRate : 0;
+  return normalizedGrowthRate >= 0 && normalizedGrowthRate < 8 ? normalizedGrowthRate : 0;
 }
 
 function clampLevel(level: number): number {

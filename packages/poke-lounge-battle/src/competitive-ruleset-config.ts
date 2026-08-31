@@ -66,4 +66,4 @@ export function isCompetitiveMoveEffectSelectable(move: CompetitiveMoveEffectDes
 
 // canonical JSON({ catalogHash, ruleset: COMPETITIVE_RULESET_V2 })의 SHA-256이다.
 export const COMPETITIVE_RULESET_HASH =
-  "fdaae85f7b124d72ce1e7220db0db336038cf2d48110eef5aa5dcad19594779e";
+  "011a0f940d36c676d61345d10068a55ab979446f6a9f49063e489b73954bb152";

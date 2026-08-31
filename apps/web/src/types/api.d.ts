@@ -110,6 +110,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/poke-lounge/rom-data": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** ROM에서 추출한 Poke Lounge 게임 데이터 조회 */
+    get: operations["PokeLoungeController_getRomData"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/poke-lounge/rooms": {
     parameters: {
       query?: never;
@@ -797,6 +814,23 @@ export interface components {
       /** @example Poke Lounge room is full */
       message: string;
     };
+    PokeLoungeRomDocumentDto: {
+      /** @enum {string} */
+      documentKey: "pokemon-data" | "item-data" | "level-up-move-table" | "growth-table";
+      /**
+       * @example 1
+       * @enum {number}
+       */
+      schemaVersion: 1;
+      romSha1: string;
+      contentSha256: string;
+      payload: {
+        [key: string]: unknown;
+      };
+    };
+    PokeLoungeRomDataResponseDto: {
+      documents: components["schemas"]["PokeLoungeRomDocumentDto"][];
+    };
     CreatePokeLoungeRoomDto: {
       /** @example ABC234 */
       roomCode?: string;
@@ -1163,6 +1197,36 @@ export interface operations {
             data: components["schemas"]["GameHistoryResponseDto"];
           };
         };
+      };
+    };
+  };
+  PokeLoungeController_getRomData: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PokeLoungeRomDataResponseDto"];
+          };
+        };
+      };
+      /** @description 필수 ROM 문서가 없거나 무결하지 않음 */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

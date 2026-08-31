@@ -16,6 +16,7 @@ import {
 } from "../battle/battlePokemonAssets";
 import {
   BATTLE_POKEMON_ASSETS_JSON_PATH,
+  ITEM_DATA_JSON_PATH,
   LEVEL_UP_MOVE_TABLE_JSON_PATH,
   POKEMON_DATA_JSON_PATH,
   WILD_BATTLE_MOVE_SETS_JSON_PATH,
@@ -24,20 +25,16 @@ import {
 import { FIELD_MAP } from "../world/fieldMap";
 import { WILD_ENCOUNTER_TABLES_JSON_ASSET } from "../world/wildEncounterTables";
 
-export const ROM_BATTLE_DATA_JSON_ASSETS = [
-  ["romPersonalData", "/assets/poke-lounge/extraction/personal-data.json"],
-  ["romGrowthTable", "/assets/poke-lounge/extraction/growth-table.json"],
-  ["romRefinedBattleRecords", "/assets/poke-lounge/extraction/refined-battle-records.json"],
-] as const;
-
 const JSON_CACHE_ASSETS = [
   ["battleAssetManifest", BATTLE_ASSET_MANIFEST_PATH],
-  ...ROM_BATTLE_DATA_JSON_ASSETS,
   WILD_ENCOUNTER_TABLES_JSON_ASSET,
 ] as const;
 
 const GAME_DATA_JSON_CACHE_ASSETS = [
   ["pokemonData", POKEMON_DATA_JSON_PATH, "pokemonData"],
+  ["itemData", ITEM_DATA_JSON_PATH, "itemData"],
+  ["romPersonalData", POKEMON_DATA_JSON_PATH, "pokemonData"],
+  ["romRefinedBattleRecords", POKEMON_DATA_JSON_PATH, "pokemonData"],
   ["levelUpMoveTable", LEVEL_UP_MOVE_TABLE_JSON_PATH, "levelUpMoveTable"],
   ["wildBattleMoveSets", WILD_BATTLE_MOVE_SETS_JSON_PATH, "wildBattleMoveSets"],
   ["battlePokemonAssets", BATTLE_POKEMON_ASSETS_JSON_PATH, "battlePokemonAssets"],

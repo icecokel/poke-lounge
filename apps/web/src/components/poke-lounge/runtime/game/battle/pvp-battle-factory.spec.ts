@@ -3,17 +3,36 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import {
+  POKEMON_DATA_JSON_PATH,
+  resetRuntimeGameDataJsonStateForTest,
+} from "../data/game-data-json";
+import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 import { createDefaultLocalPlayer, type PlayerPokemon } from "../state/gameStateStore";
 import { createPvpBattleState } from "./pvpBattleFactory";
 import type { RomPersonalRecordCollection, RomRefinedMoveCollection } from "./wildBattleFactory";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
-const personalRecords = readPublicJson(
-  "/assets/poke-lounge/extraction/personal-data.json",
-) as RomPersonalRecordCollection;
-const moveRecords = readPublicJson(
-  "/assets/poke-lounge/extraction/refined-battle-records.json",
-) as RomRefinedMoveCollection;
+const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
+const personalRecords = pokemonData as RomPersonalRecordCollection;
+const moveRecords = pokemonData as RomRefinedMoveCollection;
+
+test.before(async () => {
+  await loadRuntimeGameDataJson(async input => {
+    const requestPath =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.pathname
+          : new URL(input.url).pathname;
+    return new Response(JSON.stringify(readPublicJson(requestPath)), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+});
+
+test.after(() => resetRuntimeGameDataJsonStateForTest());
 
 test("로컬 PvP도 ROM 종족값, 타입과 기술 데이터를 사용한다", () => {
   const player = createDefaultLocalPlayer("player-1");

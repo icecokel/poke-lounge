@@ -2927,7 +2927,7 @@ function isRomRefinedMoveCollection(value: unknown): value is RomRefinedMoveColl
 }
 
 function isRomPersonalRecordCollection(value: unknown): value is RomPersonalRecordCollection {
-  return isRecord(value) && Array.isArray(value.records);
+  return isRecord(value) && (Array.isArray(value.records) || isRecord(value.species));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

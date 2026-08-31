@@ -5,16 +5,18 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   BATTLE_POKEMON_ASSETS_JSON_PATH,
+  ITEM_DATA_JSON_PATH,
   LEVEL_UP_MOVE_TABLE_JSON_PATH,
   POKEMON_DATA_JSON_PATH,
   WILD_BATTLE_MOVE_SETS_JSON_PATH,
-  loadRuntimeGameDataJson,
   resetRuntimeGameDataJsonStateForTest,
 } from "../data/game-data-json";
+import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 import {
   createDefaultGameState,
   createDefaultLocalPlayer,
   createGameStateStore,
+  getShopItemById,
   type PlayerPokemon,
 } from "./gameStateStore";
 
@@ -42,27 +44,35 @@ test("새 플레이어는 몬스터볼 10개를 기본 지급받는다", () => {
   });
 });
 
-test("상점은 랭크와 무관하게 일반·희귀 품목을 판매한다", () => {
-  const localPlayer = createDefaultLocalPlayer();
-  localPlayer.wallet.pokeDollars = 15_000;
-  const defaultState = createDefaultGameState();
-  const store = createGameStateStore({
-    initialState: {
-      ...defaultState,
-      currentPlayerId: localPlayer.playerId,
-      playersById: { [localPlayer.playerId]: localPlayer },
-    },
-  });
+test("상점은 랭크와 무관하게 ROM의 일반·희귀 품목을 판매한다", async () => {
+  const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
+  await loadRuntimeGameDataJson(createPokemonDataFetcher(pokemonData));
 
-  assert.deepEqual(store.buyPremiumShopItem("dawnStone", 1), { ok: true });
-  assert.deepEqual(store.buyPremiumShopItem("thunderStone", 1), { ok: true });
-  assert.deepEqual(store.buyShopItem("antidote", 1), { ok: true });
-  assert.deepEqual(store.buyPremiumShopItem("rareCandy", 1), { ok: true });
-  assert.equal(store.getCurrentLocalPlayer().wallet.pokeDollars, 2_700);
-  assert.equal(store.getCurrentLocalPlayer().inventory.dawnStone, 1);
-  assert.equal(store.getCurrentLocalPlayer().inventory.thunderStone, 1);
-  assert.equal(store.getCurrentLocalPlayer().inventory.antidote, 1);
-  assert.equal(store.getCurrentLocalPlayer().inventory.rareCandy, 1);
+  try {
+    const localPlayer = createDefaultLocalPlayer();
+    localPlayer.wallet.pokeDollars = 15_000;
+    const defaultState = createDefaultGameState();
+    const store = createGameStateStore({
+      initialState: {
+        ...defaultState,
+        currentPlayerId: localPlayer.playerId,
+        playersById: { [localPlayer.playerId]: localPlayer },
+      },
+    });
+
+    assert.equal(getShopItemById("potion")?.displayName, "상처약");
+    assert.deepEqual(store.buyPremiumShopItem("dawnStone", 1), { ok: true });
+    assert.deepEqual(store.buyPremiumShopItem("thunderStone", 1), { ok: true });
+    assert.deepEqual(store.buyShopItem("antidote", 1), { ok: true });
+    assert.deepEqual(store.buyPremiumShopItem("rareCandy", 1), { ok: true });
+    assert.equal(store.getCurrentLocalPlayer().wallet.pokeDollars, 5_900);
+    assert.equal(store.getCurrentLocalPlayer().inventory.dawnStone, 1);
+    assert.equal(store.getCurrentLocalPlayer().inventory.thunderStone, 1);
+    assert.equal(store.getCurrentLocalPlayer().inventory.antidote, 1);
+    assert.equal(store.getCurrentLocalPlayer().inventory.rareCandy, 1);
+  } finally {
+    resetRuntimeGameDataJsonStateForTest();
+  }
 });
 
 test("솔로 챌린지 완료는 공개 경쟁 점수와 분리된 일반 결과를 만든다", () => {
@@ -456,7 +466,8 @@ const createPokemonDataFetcher =
         ? pokemonData
         : requestPath === LEVEL_UP_MOVE_TABLE_JSON_PATH
           ? (levelUpMoveTable ?? readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH))
-          : requestPath === WILD_BATTLE_MOVE_SETS_JSON_PATH ||
+          : requestPath === ITEM_DATA_JSON_PATH ||
+              requestPath === WILD_BATTLE_MOVE_SETS_JSON_PATH ||
               requestPath === BATTLE_POKEMON_ASSETS_JSON_PATH
             ? readPublicJson(requestPath)
             : undefined;

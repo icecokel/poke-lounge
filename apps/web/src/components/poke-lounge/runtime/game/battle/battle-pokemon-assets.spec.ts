@@ -12,15 +12,16 @@ import {
 } from "./battlePokemonAssets";
 import {
   BATTLE_POKEMON_ASSETS_JSON_PATH,
+  ITEM_DATA_JSON_PATH,
   LEVEL_UP_MOVE_TABLE_JSON_PATH,
   POKEMON_DATA_JSON_PATH,
   WILD_BATTLE_MOVE_SETS_JSON_PATH,
   getRuntimeBattlePokemonSpriteSheetRanges,
-  loadRuntimeGameDataJson,
   normalizeBattlePokemonAssetManifest,
   resetRuntimeGameDataJsonStateForTest,
   type BattlePokemonSpriteSheetRangeRecord,
 } from "../data/game-data-json";
+import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const manifestPath = path.join(webRoot, "public/game-data/battle-pokemon-assets.json");
@@ -221,6 +222,7 @@ const createRuntimeGameDataFetcher =
     if (
       requestPath !== BATTLE_POKEMON_ASSETS_JSON_PATH &&
       requestPath !== POKEMON_DATA_JSON_PATH &&
+      requestPath !== ITEM_DATA_JSON_PATH &&
       requestPath !== LEVEL_UP_MOVE_TABLE_JSON_PATH &&
       requestPath !== WILD_BATTLE_MOVE_SETS_JSON_PATH
     ) {

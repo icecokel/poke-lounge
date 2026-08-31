@@ -6,16 +6,40 @@ import { fileURLToPath } from "node:url";
 import { getExperienceForLevel } from "../battle/experience";
 import {
   BATTLE_POKEMON_ASSETS_JSON_PATH,
+  ITEM_DATA_JSON_PATH,
   LEVEL_UP_MOVE_TABLE_JSON_PATH,
   POKEMON_DATA_JSON_PATH,
   WILD_BATTLE_MOVE_SETS_JSON_PATH,
-  loadRuntimeGameDataJson,
   resetRuntimeGameDataJsonStateForTest,
 } from "../data/game-data-json";
+import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 import type { PlayerPokemon } from "../state/gameStateStore";
 import { applyInventoryItemEffect } from "./inventoryItemEffects";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
+
+test("고급상처약은 ROM 이름과 회복량 200을 사용한다", async () => {
+  const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
+  const levelUpMoveTable = readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH);
+  await loadRuntimeGameDataJson(createGameDataFetcher(pokemonData, levelUpMoveTable));
+
+  try {
+    const result = applyInventoryItemEffect("hyperPotion", {
+      name: "치코리타",
+      currentHp: 10,
+      maxHp: 300,
+      status: "normal" as const,
+    });
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.pokemon.currentHp, 210);
+      assert.equal(result.messages[0], "치코리타에게 고급상처약을 사용했다!");
+    }
+  } finally {
+    resetRuntimeGameDataJsonStateForTest();
+  }
+});
 
 test("이상한사탕 레벨업은 경험치를 보정하고 레벨 진화를 적용한다", async () => {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
@@ -156,7 +180,8 @@ const createGameDataFetcher =
         ? pokemonData
         : requestPath === LEVEL_UP_MOVE_TABLE_JSON_PATH
           ? levelUpMoveTable
-          : requestPath === WILD_BATTLE_MOVE_SETS_JSON_PATH ||
+          : requestPath === ITEM_DATA_JSON_PATH ||
+              requestPath === WILD_BATTLE_MOVE_SETS_JSON_PATH ||
               requestPath === BATTLE_POKEMON_ASSETS_JSON_PATH
             ? readPublicJson(requestPath)
             : undefined;

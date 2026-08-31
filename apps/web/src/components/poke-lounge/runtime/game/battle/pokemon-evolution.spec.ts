@@ -3,6 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import {
+  BATTLE_POKEMON_ASSETS_JSON_PATH,
+  ITEM_DATA_JSON_PATH,
+  LEVEL_UP_MOVE_TABLE_JSON_PATH,
+  POKEMON_DATA_JSON_PATH,
+  WILD_BATTLE_MOVE_SETS_JSON_PATH,
+  resetRuntimeGameDataJsonStateForTest,
+} from "../data/game-data-json";
+import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 import { EVOLUTION_STONE_CATALOG, EVOLUTION_STONE_ITEM_IDS } from "../items/evolution-stones";
 import {
   applyEvolutionStone,
@@ -13,9 +22,19 @@ import {
 } from "./pokemon-evolution";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
-const pokemonData = JSON.parse(
-  fs.readFileSync(path.join(webRoot, "public/game-data/pokemon-data.json"), "utf8"),
-) as unknown;
+const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
+
+test.before(async () => {
+  await loadRuntimeGameDataJson(async input => {
+    const requestPath = readRequestPath(input);
+    return new Response(JSON.stringify(readPublicJson(requestPath)), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+});
+
+test.after(() => resetRuntimeGameDataJsonStateForTest());
 
 test("진화 대상 이름은 포켓몬 데이터의 한국어 종 이름을 사용한다", () => {
   const evolutionTable = normalizePokemonEvolutionTable({
@@ -246,3 +265,29 @@ test("호환되지 않는 돌은 진화시키지 않고 전투불능 포켓몬�
   assert.equal(compatibleResult.pokemon.currentHp, 0);
   assert.equal(compatibleResult.pokemon.status, "fainted");
 });
+
+function readPublicJson(publicPath: string): unknown {
+  if (
+    ![
+      POKEMON_DATA_JSON_PATH,
+      ITEM_DATA_JSON_PATH,
+      LEVEL_UP_MOVE_TABLE_JSON_PATH,
+      WILD_BATTLE_MOVE_SETS_JSON_PATH,
+      BATTLE_POKEMON_ASSETS_JSON_PATH,
+    ].includes(publicPath)
+  ) {
+    throw new Error(`Unexpected runtime data path: ${publicPath}`);
+  }
+
+  return JSON.parse(
+    fs.readFileSync(path.join(webRoot, "public", publicPath.replace(/^\//, "")), "utf8"),
+  );
+}
+
+function readRequestPath(input: RequestInfo | URL): string {
+  return typeof input === "string"
+    ? input
+    : input instanceof URL
+      ? input.pathname
+      : new URL(input.url).pathname;
+}

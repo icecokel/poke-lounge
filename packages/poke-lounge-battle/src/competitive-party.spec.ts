@@ -43,16 +43,17 @@ function input(overrides: Partial<CompetitivePartyInput> = {}): CompetitiveParty
 describe("competitive party normalization", () => {
   it("keeps the generated catalog boundaries, counts and hash stable", () => {
     expect(Object.keys(COMPETITIVE_SPECIES_CATALOG)).toHaveLength(493);
-    expect(Object.keys(COMPETITIVE_MOVE_CATALOG)).toHaveLength(470);
+    expect(Object.keys(COMPETITIVE_MOVE_CATALOG)).toHaveLength(467);
     expect(COMPETITIVE_CATALOG_SPECIES_COUNT).toBe(493);
-    expect(COMPETITIVE_CATALOG_MOVE_COUNT).toBe(470);
+    expect(COMPETITIVE_CATALOG_MOVE_COUNT).toBe(467);
     expect(COMPETITIVE_CATALOG_HASH).toBe(
-      "4dfc61095841284f2d0db2ffe9ed373bb5a3f963d21edb5d1bb53e69dd50480a",
+      "29ef3804084c8ebbc2014c0799835f71667db37f3d1b620b1007b3014a78e952",
     );
     expect(COMPETITIVE_SPECIES_CATALOG[1]?.speciesId).toBe(1);
     expect(COMPETITIVE_SPECIES_CATALOG[493]?.speciesId).toBe(493);
     expect(COMPETITIVE_MOVE_CATALOG[1]?.moveId).toBe(1);
-    expect(COMPETITIVE_MOVE_CATALOG[470]?.moveId).toBe(470);
+    expect(COMPETITIVE_MOVE_CATALOG[467]?.moveId).toBe(467);
+    expect(COMPETITIVE_MOVE_CATALOG[95]?.accuracy).toBe(60);
   });
 
   it("derives stats, types and move limits from the generated server catalog", () => {

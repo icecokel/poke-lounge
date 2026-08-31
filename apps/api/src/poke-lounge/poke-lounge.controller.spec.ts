@@ -7,12 +7,14 @@ import type { PokeLoungeRoomSnapshot } from './poke-lounge-room.repository';
 import type { PokeLoungeRoomService } from './poke-lounge-room.service';
 import type { CompetitiveMatchService } from './competitive/competitive-match.service';
 import { PokeLoungeController } from './poke-lounge.controller';
+import type { PokeLoungeRomDataService } from './poke-lounge-rom-data.service';
 
 const IDEMPOTENCY_KEY = '00000000-0000-4000-8000-000000000001';
 
 describe('PokeLoungeController', () => {
   let service: jest.Mocked<PokeLoungeRoomService>;
   let competitiveService: jest.Mocked<CompetitiveMatchService>;
+  let romDataService: jest.Mocked<PokeLoungeRomDataService>;
   let controller: PokeLoungeController;
 
   beforeEach(() => {
@@ -32,7 +34,27 @@ describe('PokeLoungeController', () => {
       submitAction: jest.fn().mockResolvedValue({ matchId: 'match-1' }),
       submitSessionAction: jest.fn().mockResolvedValue({ matchId: 'match-1' }),
     } as unknown as jest.Mocked<CompetitiveMatchService>;
-    controller = new PokeLoungeController(service, competitiveService);
+    romDataService = {
+      getRuntimeData: jest.fn().mockResolvedValue({ documents: [] }),
+    } as unknown as jest.Mocked<PokeLoungeRomDataService>;
+    controller = new PokeLoungeController(
+      service,
+      competitiveService,
+      romDataService,
+    );
+  });
+
+  it('serves ROM data without an authentication guard', async () => {
+    await expect(controller.getRomData()).resolves.toEqual({ documents: [] });
+    expect(romDataService.getRuntimeData.mock.calls).toHaveLength(1);
+
+    const descriptor = Object.getOwnPropertyDescriptor(
+      PokeLoungeController.prototype,
+      'getRomData',
+    );
+    expect(
+      Reflect.getMetadata(GUARDS_METADATA, descriptor?.value as object),
+    ).toBeUndefined();
   });
 
   it('requires one canonical UUID v4 and one non-negative safe revision on revision-controlled POSTs', async () => {

@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resetRuntimeGameDataJsonStateForTest } from "../data/game-data-json";
 import { createSampleBattleState } from "./battleSampleState";
+import { loadPublicRuntimeGameDataFixture } from "../testing/runtime-rom-data.fixture";
 import {
   persistBattlePartyToWorld,
   persistCapturedPokemonToWorld,
   toPlayerPokemon,
 } from "./battle-world-persistence";
 import { createGameStateStore } from "../state/gameStateStore";
+
+test.before(loadPublicRuntimeGameDataFixture);
+test.after(resetRuntimeGameDataJsonStateForTest);
 
 test("서버 권위 PvP 결과의 HP, PP, 상태를 월드 파티에 기록하지 않는다", () => {
   const gameStateStore = createGameStateStore();

@@ -5,7 +5,7 @@ import {
   type PlayerPosition,
 } from "../player/playerTypes";
 import { applyInventoryItemEffect } from "../items/inventoryItemEffects";
-import { EVOLUTION_STONE_CATALOG } from "../items/evolution-stones";
+import { getRuntimeGameItem } from "../items/runtime-items";
 import type { PokemonIndividualValues } from "../battle/individual-values";
 import type { PokemonGender } from "../battle/pokemon-gender";
 import { isSupportedPokemonSpeciesId } from "../battle/pokemon-species";
@@ -265,99 +265,9 @@ export type ApplyTournamentRoomEventResult =
 export type ApplyTournamentSnapshotFromRoomResult =
   { ok: true } | { ok: false; reason: "invalid-projection" | "stale-revision" };
 
-export const SHOP_ITEM_CATALOG = {
-  potion: {
-    id: "potion",
-    displayName: "포션",
-    price: 300,
-    description: "포켓몬 1마리의 HP를 20 회복한다.",
-  },
-  pokeball: {
-    id: "pokeball",
-    displayName: "몬스터볼",
-    price: 200,
-    description: "야생 포켓몬을 잡기 위한 볼이다.",
-  },
-  antidote: {
-    id: "antidote",
-    displayName: "해독제",
-    price: 100,
-    description: "독 상태를 회복한다.",
-  },
-  superPotion: {
-    id: "superPotion",
-    displayName: "좋은상처약",
-    price: 700,
-    description: "포켓몬 1마리의 HP를 50 회복한다.",
-  },
-} as const satisfies Record<string, ShopItem>;
-
 export const SHOP_ITEM_IDS = ["potion", "pokeball", "antidote", "superPotion"] as const;
 
 export type ShopItemId = (typeof SHOP_ITEM_IDS)[number];
-
-export const PREMIUM_SHOP_ITEM_CATALOG = {
-  sunStone: {
-    ...EVOLUTION_STONE_CATALOG.sunStone,
-    price: 2100,
-  },
-  moonStone: {
-    ...EVOLUTION_STONE_CATALOG.moonStone,
-    price: 2100,
-  },
-  fireStone: {
-    ...EVOLUTION_STONE_CATALOG.fireStone,
-    price: 2100,
-  },
-  thunderStone: {
-    ...EVOLUTION_STONE_CATALOG.thunderStone,
-    price: 2100,
-  },
-  waterStone: {
-    ...EVOLUTION_STONE_CATALOG.waterStone,
-    price: 2100,
-  },
-  leafStone: {
-    ...EVOLUTION_STONE_CATALOG.leafStone,
-    price: 2100,
-  },
-  shinyStone: {
-    ...EVOLUTION_STONE_CATALOG.shinyStone,
-    price: 2100,
-  },
-  duskStone: {
-    ...EVOLUTION_STONE_CATALOG.duskStone,
-    price: 2100,
-  },
-  dawnStone: {
-    ...EVOLUTION_STONE_CATALOG.dawnStone,
-    price: 2100,
-  },
-  hyperPotion: {
-    id: "hyperPotion",
-    displayName: "고급상처약",
-    price: 1500,
-    description: "포켓몬 1마리의 HP를 120 회복한다.",
-  },
-  revive: {
-    id: "revive",
-    displayName: "기력의조각",
-    price: 3000,
-    description: "쓰러진 포켓몬 1마리의 HP를 절반 회복한다.",
-  },
-  ultraBall: {
-    id: "ultraBall",
-    displayName: "하이퍼볼",
-    price: 2500,
-    description: "몬스터볼보다 포획률이 높은 고성능 볼이다.",
-  },
-  rareCandy: {
-    id: "rareCandy",
-    displayName: "이상한사탕",
-    price: 8000,
-    description: "포켓몬 1마리의 레벨을 1 올린다.",
-  },
-} as const satisfies Record<string, ShopItem>;
 
 export const PREMIUM_SHOP_ITEM_IDS = [
   "sunStone",
@@ -378,10 +288,15 @@ export const PREMIUM_SHOP_ITEM_IDS = [
 export type PremiumShopItemId = (typeof PREMIUM_SHOP_ITEM_IDS)[number];
 
 export function getShopItemById(itemId: string): ShopItem | undefined {
-  return (
-    (SHOP_ITEM_CATALOG as Record<string, ShopItem>)[itemId] ??
-    (PREMIUM_SHOP_ITEM_CATALOG as Record<string, ShopItem>)[itemId]
-  );
+  const item = getRuntimeGameItem(itemId);
+  return item
+    ? {
+        id: itemId,
+        displayName: item.name,
+        price: item.price,
+        description: item.description,
+      }
+    : undefined;
 }
 
 export interface GameStateStore {
@@ -544,11 +459,11 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
   };
 
   const buyItemFromCatalog = (
-    catalog: Record<string, ShopItem>,
+    itemIds: readonly string[],
     itemId: string,
     quantity: number,
   ): BuyShopItemResult => {
-    const item = catalog[itemId];
+    const item = itemIds.includes(itemId) ? getShopItemById(itemId) : undefined;
 
     if (!item) {
       return { ok: false, reason: "unknown-item" };
@@ -657,14 +572,10 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
       });
     },
     buyShopItem(itemId, quantity) {
-      return buyItemFromCatalog(SHOP_ITEM_CATALOG as Record<string, ShopItem>, itemId, quantity);
+      return buyItemFromCatalog(SHOP_ITEM_IDS, itemId, quantity);
     },
     buyPremiumShopItem(itemId, quantity) {
-      return buyItemFromCatalog(
-        PREMIUM_SHOP_ITEM_CATALOG as Record<string, ShopItem>,
-        itemId,
-        quantity,
-      );
+      return buyItemFromCatalog(PREMIUM_SHOP_ITEM_IDS, itemId, quantity);
     },
     consumeInventoryItem(itemId, quantity) {
       if (!isPositiveInteger(quantity)) {

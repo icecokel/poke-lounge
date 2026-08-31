@@ -10,6 +10,7 @@ import {
   type PokeLoungeRuntimeAssets,
 } from "./assets/poke-lounge-runtime-assets";
 import { createPokemonGenderFromRatio } from "./battle/pokemon-gender";
+import { getExperienceForLevel } from "./battle/experience";
 import { createPlayerPokemonMovesForLevel } from "./battle/levelUpMoves";
 import { createPokeLoungeGame, type PokeLoungeGameResult } from "./createPokeLoungeGame";
 import {
@@ -453,6 +454,7 @@ export async function startGamePage(
   };
   const showStarterSelection = async (afterSelection: () => void) => {
     const requestId = (starterSelectionRequestId += 1);
+    emitRuntimeState({ phase: "loading", progress: { loaded: 0, total: 1, ratio: 0 } });
     const [bootstrap] = await Promise.all([
       (dependencies.loadBootstrapData ?? loadBootstrapData)(),
       loadRuntimeGameData(),
@@ -802,8 +804,10 @@ export function createStarterPlayerPokemon(
 
   return {
     speciesId: starter.speciesId,
-    name: starter.displayName,
+    name: species.name,
     level,
+    growthRate: species.growthRate,
+    experience: getExperienceForLevel(level, species.growthRate),
     ...(gender ? { gender } : {}),
     individualValues,
     currentHp: stats.maxHp,
