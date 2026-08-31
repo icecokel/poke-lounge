@@ -576,19 +576,21 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   await expect
     .poll(async () => (await readAudioPlaybackSnapshot(page))?.isActiveBgmUsingMasterGain ?? false)
     .toBe(true);
-  await expect(volumeButton).toHaveText("소리 30%");
+  await expect(volumeButton).toHaveText("소리 20%");
   await volumeButton.click();
-  await expect(volumeButton).toHaveText("소리 75%");
+  await expect(volumeButton).toHaveText("소리 40%");
   await expect
     .poll(async () => (await readAudioPlaybackSnapshot(page))?.activeBgmVolume)
-    .toBeCloseTo(0.18);
+    .toBeCloseTo(0.04);
+  await volumeButton.click();
+  await expect(volumeButton).toHaveText("소리 60%");
   await volumeButton.click();
   await expect(volumeButton).toHaveText("소리 80%");
   await volumeButton.click();
   await expect(volumeButton).toHaveText("소리 100%");
   await expect
     .poll(async () => (await readAudioPlaybackSnapshot(page))?.activeBgmVolume)
-    .toBeCloseTo(0.24);
+    .toBeCloseTo(0.1);
   await volumeButton.click();
   await expect(volumeButton).toHaveText("소리 꺼짐");
   await expect(volumeButton).toHaveAccessibleName("소리 음소거");

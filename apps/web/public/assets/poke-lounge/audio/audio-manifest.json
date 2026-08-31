@@ -1,7 +1,7 @@
 {
   "bgm": [
     {
-      "defaultVolume": 0.24,
+      "defaultVolume": 0.1,
       "durationMs": 30000,
       "id": "field-day",
       "sizeBytes": 300714,
@@ -13,7 +13,7 @@
       "src": "/assets/poke-lounge/audio/bgm/field-day.mp3"
     },
     {
-      "defaultVolume": 0.28,
+      "defaultVolume": 0.2,
       "durationMs": 30000,
       "id": "wild-battle",
       "sizeBytes": 300714,

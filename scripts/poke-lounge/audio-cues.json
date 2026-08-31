@@ -74,7 +74,7 @@
       "durationMs": 30000,
       "fadeOutMs": 0,
       "gain": 0.34,
-      "defaultVolume": 0.24,
+      "defaultVolume": 0.1,
       "bitrate": "80k"
     },
     {
@@ -84,7 +84,7 @@
       "durationMs": 30000,
       "fadeOutMs": 0,
       "gain": 0.38,
-      "defaultVolume": 0.28,
+      "defaultVolume": 0.2,
       "bitrate": "80k"
     }
   ]
