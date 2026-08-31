@@ -10,13 +10,13 @@
 
 ## 렌더링 경로
 
-- ROM 입력: `data/roms/포켓몬스터 하트골드(K).nds` (무시되는 로컬 파일)
+- 로컬 게임 원본 입력: ignored 데이터 영역의 HeartGold 한국어 원본 파일
 - SDAT 입력: `data/sound/gs_sound_data.sdat`
 - 큐 정의: `scripts/poke-lounge/audio-cues.json`
 - 렌더러: `scripts/poke-lounge/render-audio-cues.py`
 - 공개 출력: `apps/web/public/assets/poke-lounge/audio/`
 
-로컬 ROM, `ndspy`, `ffmpeg`가 준비된 환경에서만 다음 명령으로 전체 파이프라인을 다시
+로컬 게임 원본, 원본 데이터 파서, `ffmpeg`가 준비된 환경에서만 다음 명령으로 전체 파이프라인을 다시
 실행할 수 있습니다.
 
 ```bash

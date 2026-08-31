@@ -734,7 +734,7 @@ Unchanged domain and infrastructure
 | Entry         | `RoomEntryScreen`, `SoloEntrySection`, `LocalTestModeSection`, `MultiplayerEntryForm`                                                                     | 이어하기, 새 게임, local test, server room과 validation               |
 | Direct entry  | `DirectMultiplayerEntryScreen`, `TrainerNameField`                                                                                                        | direct URL의 닉네임 확인과 독립 identity                              |
 | New game      | `NewGameConfirmationDialog`                                                                                                                               | 확인 전 저장 초기화 금지                                              |
-| Starter       | `StarterSelectionScreen`, `StarterPreview`, `StarterGrid`, `StarterCard`, `StarterSprite`, `RomAssetBrowser`, `RomWebConversionPanel`, `SampleMapPreview` | 기본 선택, preview, confirm, asset 오류, 진단 UI와 stale request 차단 |
+| Starter       | `StarterSelectionScreen`, `StarterPreview`, `StarterGrid`, `StarterCard`, `StarterSprite`, asset browser, source-data conversion panel, `SampleMapPreview` | 기본 선택, preview, confirm, asset 오류, 진단 UI와 stale request 차단 |
 | Lobby         | `RoomLobbyScreen`, `LobbyParticipantList`, `LobbyParticipantRow`, `LobbyActions`, `LobbyStatus`                                                           | 참가자, badge, ready/start, disabled reason, mutation error           |
 | Room leave    | `RoomLeaveButton`, `RoomLeaveConfirmationDialog`                                                                                                          | 명시적 leave와 dispose 구분                                           |
 | WebRTC        | `WebRtcSignalingPanel`, `WebRtcSignalField`, `WebRtcActions`                                                                                              | offer 생성, offer/answer 적용, 진행·실패·나가기                       |
@@ -945,7 +945,7 @@ BattleScreen
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `BootScene.createLoadingView`, preload progress/error                                                                                                                          | `RuntimeLoadingScreen`, `RuntimeStartupErrorScreen`                                                                                                                    | `PokeLoungeRuntimeController`, 기존 asset/audio manifest                                    | asset baseline, Mobile load/success/failure E2E                    |
 | `roomEntryScreen.ts`의 direct/normal entry, field, button, new-game dialog                                                                                                     | `RoomEntryScreen`, `DirectMultiplayerEntryScreen`, `SoloEntrySection`, `LocalTestModeSection`, `MultiplayerEntryForm`, `TrainerNameField`, `NewGameConfirmationDialog` | `roomEntry.ts`, `local-test-mode.ts`, startup request generation guard                      | `room-entry.test.ts`, entry/local-test E2E                         |
-| `starter-selection.ts`, `rom-asset-browser.ts`, `rom-web-conversion.ts`, `map-sample.ts`                                                                                       | `StarterSelectionScreen`, `StarterPreview`, `StarterGrid`, `StarterCard`, `StarterSprite`, `RomAssetBrowser`, `RomWebConversionPanel`, `SampleMapPreview`              | 기존 starter/manifest/conversion model; 진단 UI도 starter에서 도달 가능하므로 삭제하지 않음 | starter/mobile E2E, manifest·asset baseline                        |
+| Starter selection, legacy asset-browser/source-data conversion modules, `map-sample.ts`                                                                                     | `StarterSelectionScreen`, `StarterPreview`, `StarterGrid`, `StarterCard`, `StarterSprite`, asset browser, source-data conversion panel, `SampleMapPreview`             | 기존 starter/manifest/conversion model; 진단 UI도 starter에서 도달 가능하므로 삭제하지 않음 | starter/mobile E2E, manifest·asset baseline                        |
 | `gamePageStartup.ts`의 leave/startup/server error, `webRtcSignalingPanel.ts`, `room-lobby-screen.ts`                                                                           | `RoomLeaveButton`, `RoomLeaveConfirmationDialog`, `RuntimeStartupErrorScreen`, `ServerRoomErrorOverlay`, `WebRtcSignalingPanel`, `RoomLobbyScreen`과 lobby leaf        | 기존 room factory, entry/startup controller, lobby view model                               | lobby/WebRTC unit, multiplayer E2E                                 |
 | `settings-toggle.ts`, `mobileTouchControls.ts`                                                                                                                                 | `DesktopSettingsTrigger`, `MobileUtilityBar`, `MobileDirectionalJoystick`, `TouchHoldButton`                                                                           | `SettingsController`, `virtualGamepad.ts`                                                   | mobile touch unit/E2E                                              |
 | `WorldScene` map/layer/player/remote/NPC/camera/effect 생성                                                                                                                    | `WorldViewport`, `WorldMap`, `WorldTileLayer`, grass layer, actor components, `NurseHealingEffect`, `WorldBattleTransition`                                            | `WorldRuntime`, `fieldMap.ts`, spawn/motion/tile-step/encounter helper                      | map/atlas baseline, motion/spawn/encounter unit, desktop world E2E |
@@ -966,7 +966,7 @@ BattleScreen
   feature component로 구현한다.
 - `MobileGameShell`, `PartySlotMenu`, 결과·설정 component의 현재 접근성 계약은 유지하되 8절의 leaf로
   분리한다. 새 범용 renderer interface나 별도 React game store는 만들지 않는다.
-- starter에서 실제로 연결된 ROM asset/map 진단 UI는 삭제 대상이 아니며 위 표의 세 TSX component로
+- starter에서 실제로 연결된 원본 asset/map 진단 UI는 삭제 대상이 아니며 위 표의 세 TSX component로
   이식한다.
 
 P0 기준선 증거는 다음과 같다.
@@ -990,7 +990,7 @@ P0 기준선 증거는 다음과 같다.
    TSX로 전환한다.
 4. 기존 startup의 entry, starter와 room 분기·validation·stale request 차단은 controller action으로
    유지한다.
-5. BootScene이 로드하던 모든 JSON, ROM-derived record, map, sprite, battle image와 audio를 기존
+5. BootScene이 로드하던 모든 JSON, local-source-derived record, map, sprite, battle image와 audio를 기존
    경로·manifest 그대로 browser-native loader로 옮긴다.
 6. progress, ready, error와 retry를 React component에 제공한다.
 7. 실패·retry·unmount에서 room, audio, timer와 listener를 정리한다.
@@ -1009,7 +1009,7 @@ P0 기준선 증거는 다음과 같다.
   lobby, result와 error를 연결했다. startup request generation과 starter stale request 차단은 기존
   controller에 유지했다.
 - entry/direct entry, starter, loading/error, hydration, settings, result/dialog, room leave,
-  WebRTC와 room lobby를 React component로 옮겼다. ROM asset browser, web conversion panel과 sample
+  WebRTC와 room lobby를 React component로 옮겼다. Source asset browser, web conversion panel과 sample
   map 진단 화면도 TSX component로 보존했다.
 - BootScene과 Phaser loader를 제거했다. browser-native loader가 기존 manifest와 경로의 JSON,
   map, atlas/sheet, battle image와 6 SFX·2 BGM을 모두 준비한 뒤 React runtime state가 world 또는
@@ -1129,7 +1129,7 @@ P0 기준선 증거는 다음과 같다.
   `BattleScreen`과 named 하위 component만 사용자 표시를 렌더한다.
 - 배경, 양측 Pokémon, HP/status, message, command, move, move replacement, party, bag, waiting,
   shortcut, entrance, capture와 evolution을 각각 named component로 분리했다. 기존 PNG sprite sheet,
-  battle/evolution background와 ROM timing resolver를 그대로 사용한다.
+  battle/evolution background와 원본 데이터 timing resolver를 그대로 사용한다.
 - `MobileBattleDeck`도 help, message, command, move, party, bag와 waiting component로 분리했다.
   desktop pointer와 mobile button은 모두 `BattleUiStore.dispatch`를 통해 같은
   `BattleScene.handleBattleUiAction`에 도달하며 mobile battle CustomEvent bridge는 제거됐다.
@@ -1326,7 +1326,7 @@ rect, Pokémon range 경계 1/256/257/493과 전 종 front/back alpha bounds를 
 ja-JP에서는 computed game font, 외부 font 요청 0건, HUD outline·wrap과 전투 text clipping도
 비교한다.
 
-컴포넌트화와 Phaser 제거 직전에는 다음 검색도 0건이어야 한다. 연결되지 않은 ROM/map 진단 UI를
+컴포넌트화와 Phaser 제거 직전에는 다음 검색도 0건이어야 한다. 연결되지 않은 원본 데이터/map 진단 UI를
 계속 유지한다면 TSX로 전환하고, 사용하지 않는다면 call site 0건을 확인한 뒤 제거한다.
 
 ```bash
@@ -1422,7 +1422,7 @@ rg -n 'MOBILE_(WORLD|BATTLE)_STATE_EVENT|GAME_SETTINGS_OPEN_EVENT|querySelector.
 - API, DB, Redis와 저장 schema 재설계
 - 새 게임 엔진, Canvas framework, 전역 상태관리와 animation library 도입
 - 다중 맵을 가정한 범용 월드 엔진
-- 새 에셋 제작, ROM 재추출, 기존 PNG·MP3 재인코딩과 atlas/sheet 재패킹
+- 새 에셋 제작, 원본 데이터 재추출, 기존 PNG·MP3 재인코딩과 atlas/sheet 재패킹
 
 ## 13. 구현 원칙
 

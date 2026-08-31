@@ -2,31 +2,31 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans or superpowers:subagent-driven-development to implement this plan task-by-task. Use superpowers:verification-before-completion before claiming extraction, conversion, browser playback, merge, or deployment is complete.
 
-**Goal:** 롬파일에서 포케라운지에 필요한 효과음을 추출하고, 모든 주요 브라우저에서 재생 가능한 가벼운 포맷으로 변환한 뒤, 포케라운지 전투/조작 이벤트에 효과음을 적용한다.
+**Goal:** 로컬 게임 원본에서 포케라운지에 필요한 효과음을 추출하고, 모든 주요 브라우저에서 재생 가능한 가벼운 포맷으로 변환한 뒤, 포케라운지 전투/조작 이벤트에 효과음을 적용한다.
 
-**Architecture:** ROM/SDAT/raw subfile은 로컬 ignored 영역에서만 다룬다. 추출 파이프라인은 `data/roms`의 NDS 롬을 입력으로 SDAT catalog/subfile을 만들고, 선택된 cue만 WAV로 렌더링한 뒤 MP3로 변환한다. 웹 앱은 public audio manifest와 MP3 파일만 로드하며, 사용자 입력 이후 오디오 컨텍스트를 prime하고 이벤트별 SFX를 fire-and-forget 방식으로 재생한다.
+**Architecture:** 로컬 게임 원본/SDAT/raw subfile은 ignored 영역에서만 다룬다. 추출 파이프라인은 로컬 게임 원본을 입력으로 SDAT catalog/subfile을 만들고, 선택된 cue만 WAV로 렌더링한 뒤 MP3로 변환한다. 웹 앱은 public audio manifest와 MP3 파일만 로드하며, 사용자 입력 이후 오디오 컨텍스트를 prime하고 이벤트별 SFX를 fire-and-forget 방식으로 재생한다.
 
-**Tech Stack:** Python extraction scripts, external NDS SDAT/SSEQ decoder, ffmpeg, Next.js app router, TypeScript, Playwright E2E.
+**Tech Stack:** Python extraction scripts, external SDAT/SSEQ decoder, ffmpeg, Next.js app router, TypeScript, Playwright E2E.
 
 ## Current Local Context
 
-- ROM path: `data/roms/포켓몬스터 하트골드(K).nds`
-- ROM/raw extraction directories must stay ignored: `data/roms/`, `data/processed/rom-sound/`, `data/processed/rom-extraction/`, `data/processed/poke-lounge-audio/`
+- Local game-source input: ignored HeartGold Korean source file
+- Local-source/raw extraction directories must stay ignored, including processed sound, extraction, and browser-audio workspaces.
 - Original project reference: `/Users/smlee/Documents/poke-lounge`
 - Existing reference tools:
-  - `/Users/smlee/Documents/poke-lounge/tools/rom_extract_sdat_catalog.py`
-  - `/Users/smlee/Documents/poke-lounge/tools/rom_export_sdat_subfiles.py`
+  - Local SDAT catalog helper
+  - Local SDAT subfile export helper
 - Existing app audio bridge:
   - `apps/web/src/components/poke-lounge/runtime/game/battle/battleAudio.ts`
-  - `apps/web/src/components/poke-lounge/runtime/game/rom-web-conversion.ts`
+  - Legacy runtime source-data conversion helper
 - `ffmpeg` is available locally.
-- A real NDS SDAT/SSEQ decoder is still required. The current Python tools can extract SDAT metadata and raw subfiles, but raw `.bin`/SDAT/SSEQ data is not browser-playable audio.
+- A real SDAT/SSEQ decoder is still required. The current Python tools can extract SDAT metadata and raw subfiles, but raw `.bin`/SDAT/SSEQ data is not browser-playable audio.
 
 ## Global Constraints
 
-- Do not ship the ROM, SDAT archives, raw extracted subfiles, or intermediate WAV files.
+- Do not ship the local game source, SDAT archives, raw extracted subfiles, or intermediate WAV files.
 - Commit only app code, manifests, scripts, docs, and final approved lightweight browser audio assets.
-- Before committing extracted audio assets, confirm distribution rights. If rights are not acceptable, keep ROM-derived assets local and replace committed SFX with generated or original project-owned effects.
+- Before committing extracted audio assets, confirm distribution rights. If rights are not acceptable, keep assets derived from a local game source local and replace committed SFX with generated or original project-owned effects.
 - Use MP3 as the first-pass committed format for maximum browser compatibility and small size.
 - Target mono MP3 at 44.1 kHz, 64-96 kbps depending on cue length and quality.
 - Keep first-pass Poke Lounge SFX budget below 500 KB total.
@@ -47,7 +47,7 @@
 
 **Interfaces:**
 
-- `audio-cues.json` maps stable app SFX ids to ROM cue metadata:
+- `audio-cues.json` maps stable app SFX ids to source cue metadata:
   - `id`
   - `sourceArchive`
   - `sequenceName`
@@ -62,7 +62,7 @@
 
 - [ ] Port the two original SDAT extraction scripts into this repo with no dependency on `/Users/smlee/Documents/poke-lounge`.
 - [ ] Add a package script such as `poke-lounge:audio:extract`.
-- [ ] Verify the script fails clearly when `data/roms/포켓몬스터 하트골드(K).nds` is missing.
+- [ ] Verify the script fails clearly when the ignored local game-source file is missing.
 - [ ] Generate local catalog/subfile outputs under `data/processed/poke-lounge-audio/raw`.
 - [ ] Seed `audio-cues.json` with first-pass cues:
   - `button-confirm`
@@ -88,7 +88,7 @@
 - Public output: `apps/web/public/assets/poke-lounge/audio/sfx/*.mp3`
 - Public manifest: `apps/web/public/assets/poke-lounge/audio/audio-manifest.json`
 
-- [ ] Select and install/prepare one local NDS SDAT/SSEQ decoder, preferably VGMTrans or an equivalent tool that can render selected sequence cues to WAV.
+- [ ] Select and install/prepare one local SDAT/SSEQ decoder, preferably VGMTrans or an equivalent tool that can render selected sequence cues to WAV.
 - [ ] Make `render-audio-cues.mjs` fail fast with a clear setup message if the decoder binary is unavailable.
 - [ ] Render only the cue ids listed in `audio-cues.json`.
 - [ ] Convert rendered WAV files with ffmpeg using mono MP3 output:

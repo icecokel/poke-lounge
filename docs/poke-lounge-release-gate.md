@@ -10,7 +10,7 @@ Provenance status: UNRESOLVED
 
 The `/[locale]/game/poke-lounge` route has 71 public asset records without verified distribution rights. This is an explicit release risk. The standalone Web build only blocks on it when `POKE_LOUNGE_PROVENANCE_STRICT=1` is set.
 
-`pnpm check:poke-lounge-provenance` still fails because all 71 manifest rows remain `"rightsStatus": "blocked"`. The first nine rows cover the ROM-derived audio manifest and eight runtime files. Set `POKE_LOUNGE_PROVENANCE_STRICT=1` only in an environment where unresolved provenance should block the build.
+`pnpm check:poke-lounge-provenance` still fails because all 71 manifest rows remain `"rightsStatus": "blocked"`. The first nine rows cover the source-derived audio manifest and eight runtime files. Set `POKE_LOUNGE_PROVENANCE_STRICT=1` only in an environment where unresolved provenance should block the build.
 
 Persistence, Socket recovery, deterministic server competition, verified-only ranking, migration, CI, test, or documentation completion does not change this decision. The technical implementation is recorded in the server stabilization and Redis plans, but it does not establish ownership, permission, license compatibility, trademark clearance, or any other legal conclusion. A human owner and appropriate legal reviewer must review the unresolved items and record the release decision.
 
@@ -35,7 +35,7 @@ Run `pnpm check:poke-lounge-competitive-catalog`, `pnpm check:poke-lounge-battle
 
 No legal clearance or signed approval is recorded. Default deployment continuing must not be interpreted as asset-rights approval.
 
-## ROM-derived runtime audio
+## Runtime audio derived from a local game source
 
 - `apps/web/public/assets/poke-lounge/audio/sfx/button-confirm.mp3`
 - `apps/web/public/assets/poke-lounge/audio/sfx/button-cancel.mp3`
@@ -46,7 +46,7 @@ No legal clearance or signed approval is recorded. Default deployment continuing
 - `apps/web/public/assets/poke-lounge/audio/bgm/field-day.mp3`
 - `apps/web/public/assets/poke-lounge/audio/bgm/wild-battle.mp3`
 
-The files above are rendered from `data/sound/gs_sound_data.sdat` in the ignored local HeartGold Korean ROM. `scripts/poke-lounge/audio-cues.json` records the SDAT sequence IDs and `scripts/poke-lounge/render-audio-cues.py` renders the MP3 files and their runtime manifest. This proves technical origin, not permission to use or distribute the files. The nine corresponding provenance rows remain `"rightsStatus": "blocked"` until a release owner records an appropriate rights decision. See [Poke Lounge Audio Sources](./poke-lounge-audio-sources.md).
+The files above are rendered from `data/sound/gs_sound_data.sdat` in the ignored local HeartGold Korean game source. `scripts/poke-lounge/audio-cues.json` records the SDAT sequence IDs and `scripts/poke-lounge/render-audio-cues.py` renders the MP3 files and their runtime manifest. This proves technical origin, not permission to use or distribute the files. The nine corresponding provenance rows remain `"rightsStatus": "blocked"` until a release owner records an appropriate rights decision. See [Poke Lounge Audio Sources](./poke-lounge-audio-sources.md).
 
 ## Unknown or unresolved public assets
 
@@ -57,7 +57,7 @@ All entries below are blocked. The full per-file inventory and SHA-256 values ar
 - Map material: `apps/web/public/assets/pokemmo-reference/tilesets/tuxmon-sample-32px-extruded.png` and `apps/web/public/maps/pokemmo-reference/town.json`.
 - Game and extracted data: every file below `apps/web/public/assets/poke-lounge/extraction/` and `apps/web/public/game-data/`.
 
-`scripts/poke-lounge/extract-rom-game-data.py` provides ROM-extraction evidence for the extracted records and four sprite sheets. The generated sheets also match all 30 unique legacy front/back frames byte-for-byte. This confirms technical origin but does not provide distribution rights. The audit found no local license, permission, or attribution proof for the sprite, map, texture, atlas, or gameplay-data assets.
+The game-data extractor under `scripts/poke-lounge/` provides local extraction evidence for the extracted records and four sprite sheets. The generated sheets also match all 30 unique legacy front/back frames byte-for-byte. This confirms technical origin but does not provide distribution rights. The audit found no local license, permission, or attribution proof for the sprite, map, texture, atlas, or gameplay-data assets.
 
 ## Approval table
 
@@ -65,7 +65,7 @@ All entries below are blocked. The full per-file inventory and SHA-256 values ar
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------- |
 | Pokémon name/marks and gameplay data                  | Owner/legal distribution decision                                                   | Pending       |
 | Runtime audio                                         | Distribution authorization or replacement/removal record, hash, and reviewer record | Pending       |
-| ROM-derived extracted data                            | Written authorization or replacement/removal record                                 | Pending       |
+| Extracted data derived from a local game source       | Written authorization or replacement/removal record                                 | Pending       |
 | Sprites, textures, atlas, PokeMMO/Tuxmon map material | Original source, license/permission, required attribution                           | Pending       |
 | Poke Lounge ported code                               | Owner/contributor authorization and outbound code-license decision                  | Pending       |
 

@@ -4,7 +4,7 @@
     {
       "publicPath": "assets/poke-lounge/audio/audio-manifest.json",
       "sha256": "975e738fd0a0985b86d56c9484a17306dba8f1a238e60d4699deb796ca8677cc",
-      "source": "scripts/poke-lounge/render-audio-cues.py; scripts/poke-lounge/audio-cues.json; local HeartGold Korean ROM SDAT provenance; distribution rights unresolved",
+      "source": "scripts/poke-lounge/render-audio-cues.py; scripts/poke-lounge/audio-cues.json; local HeartGold Korean game source SDAT provenance; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -13,7 +13,7 @@
     {
       "publicPath": "assets/poke-lounge/audio/bgm/field-day.mp3",
       "sha256": "63279e23a558d0335e0bfe4607c8840fc818153359e195ef3d80e3e67261b073",
-      "source": "local HeartGold Korean ROM data/sound/gs_sound_data.sdat; sequence 1028 SEQ_GS_R_1_29; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
+      "source": "local HeartGold Korean game source data/sound/gs_sound_data.sdat; sequence 1028 SEQ_GS_R_1_29; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -22,7 +22,7 @@
     {
       "publicPath": "assets/poke-lounge/audio/bgm/wild-battle.mp3",
       "sha256": "80657198e8efa5671567683fe5ec84952faef3bc9a0f76428836df1490b8a9d2",
-      "source": "local HeartGold Korean ROM data/sound/gs_sound_data.sdat; sequence 1116 SEQ_GS_VS_NORAPOKE; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
+      "source": "local HeartGold Korean game source data/sound/gs_sound_data.sdat; sequence 1116 SEQ_GS_VS_NORAPOKE; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -31,7 +31,7 @@
     {
       "publicPath": "assets/poke-lounge/audio/sfx/battle-hit.mp3",
       "sha256": "1e010bf6e34faa0c5eafcecdfd6603f4b4909ac97ea26e5fe22062c7e95cba2e",
-      "source": "local HeartGold Korean ROM data/sound/gs_sound_data.sdat; sequence 2256 SEQ_SE_GS_TACKLEHIT; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
+      "source": "local HeartGold Korean game source data/sound/gs_sound_data.sdat; sequence 2256 SEQ_SE_GS_TACKLEHIT; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -40,7 +40,7 @@
     {
       "publicPath": "assets/poke-lounge/audio/sfx/battle-start.mp3",
       "sha256": "ad3ee035b2ab8db28bd7a92a6686c9504a6fa2aebce5f4ef9d084cdb0adf4812",
-      "source": "local HeartGold Korean ROM data/sound/gs_sound_data.sdat; sequence 1815 SEQ_SE_DP_VSDEMO03; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
+      "source": "local HeartGold Korean game source data/sound/gs_sound_data.sdat; sequence 1815 SEQ_SE_DP_VSDEMO03; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -49,7 +49,7 @@
     {
       "publicPath": "assets/poke-lounge/audio/sfx/battle-transition.mp3",
       "sha256": "e7f01e99ccd0a8de76608181b3b195782ec387b268675ddcc3900deabd696420",
-      "source": "local HeartGold Korean ROM data/sound/gs_sound_data.sdat; sequence 1390 SEQ_SE_PL_WARP; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
+      "source": "local HeartGold Korean game source data/sound/gs_sound_data.sdat; sequence 1390 SEQ_SE_PL_WARP; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -58,7 +58,7 @@
     {
       "publicPath": "assets/poke-lounge/audio/sfx/button-cancel.mp3",
       "sha256": "4b59ebf707e10234e30824d93fc1cba4ef971ef9e770f24505cb5af188df0c0c",
-      "source": "local HeartGold Korean ROM data/sound/gs_sound_data.sdat; sequence 2368 SEQ_SE_GS_GEARCANCEL; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
+      "source": "local HeartGold Korean game source data/sound/gs_sound_data.sdat; sequence 2368 SEQ_SE_GS_GEARCANCEL; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -67,7 +67,7 @@
     {
       "publicPath": "assets/poke-lounge/audio/sfx/button-confirm.mp3",
       "sha256": "4f03f47311f7f6c4e8966ada33c3a76bc89ac5e5594fa5f656db7b72a2d9c7d4",
-      "source": "local HeartGold Korean ROM data/sound/gs_sound_data.sdat; sequence 1394 SEQ_SE_PL_BUTTON; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
+      "source": "local HeartGold Korean game source data/sound/gs_sound_data.sdat; sequence 1394 SEQ_SE_PL_BUTTON; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -76,7 +76,7 @@
     {
       "publicPath": "assets/poke-lounge/audio/sfx/pokemon-faint.mp3",
       "sha256": "f853d5ee8b3a0dff5f9d75ce2ebcb2bf3cb43a6aa27914d0ba5278a0ca8dc533",
-      "source": "local HeartGold Korean ROM data/sound/gs_sound_data.sdat; sequence 1796 SEQ_SE_DP_HINSI; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
+      "source": "local HeartGold Korean game source data/sound/gs_sound_data.sdat; sequence 1796 SEQ_SE_DP_HINSI; rendered by scripts/poke-lounge/render-audio-cues.py; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -94,7 +94,7 @@
     {
       "publicPath": "assets/poke-lounge/extraction/growth-table.json",
       "sha256": "6f1fa407f87bcdaeae2528d4f43accd95bce9ae130326aaf61db32c979d41a25",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; no distribution-rights record",
+      "source": "game-data extractor under scripts/poke-lounge/; no distribution-rights record",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -103,7 +103,7 @@
     {
       "publicPath": "assets/poke-lounge/extraction/personal-data.json",
       "sha256": "9af179c6cacc5abfd0ab577af95a708a04b787ed0f52769d3506eff5fc358500",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; no distribution-rights record",
+      "source": "game-data extractor under scripts/poke-lounge/; no distribution-rights record",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -112,7 +112,7 @@
     {
       "publicPath": "assets/poke-lounge/extraction/refined-battle-records.json",
       "sha256": "547e3b42fc1639dbf7d2642d752e96ac40924a2450980f1e5d66a607afdce844",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; no distribution-rights record",
+      "source": "game-data extractor under scripts/poke-lounge/; no distribution-rights record",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -202,7 +202,7 @@
     {
       "publicPath": "assets/pokemon/back/1.png",
       "sha256": "c5a47936e687b215c83b01855c2b007055ab1cabba6039f5a80ebaa55380d0f6",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -211,7 +211,7 @@
     {
       "publicPath": "assets/pokemon/back/10.png",
       "sha256": "421d92763ba73d4405e97983bde40e6b3750cf043edb7fc0cb753c37f24ab721",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -220,7 +220,7 @@
     {
       "publicPath": "assets/pokemon/back/152.png",
       "sha256": "1c3dd4c8fe8347b198e01cd7d7f3f12e16a35afad795832490b2a05798e26236",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -229,7 +229,7 @@
     {
       "publicPath": "assets/pokemon/back/155.png",
       "sha256": "22d192fba135371ee701ce852b21987b89e241fb4aaebcf281869ceacce9654c",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -238,7 +238,7 @@
     {
       "publicPath": "assets/pokemon/back/158.png",
       "sha256": "125c4cab5f2ca29c24e224ab432d88e797edd53bf7e85a38c8c9e257ea2bcf33",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -247,7 +247,7 @@
     {
       "publicPath": "assets/pokemon/back/16.png",
       "sha256": "2055f734582234feedeb596d2fdb7985960bc149c24818e41e154cb50f157ef0",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -256,7 +256,7 @@
     {
       "publicPath": "assets/pokemon/back/19.png",
       "sha256": "e1e47d14ce7e7614e9bdf735db10d3c66fc22aba58595e67b5420e6c85ec09f5",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -265,7 +265,7 @@
     {
       "publicPath": "assets/pokemon/back/2.png",
       "sha256": "7e248ba55c0fbb0dd3d63bf5cba6698f288cdc52092f986123c1731e020ddcc3",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -274,7 +274,7 @@
     {
       "publicPath": "assets/pokemon/back/3.png",
       "sha256": "ba73ef8fbde57b417a4bcd6c88bb0afb1d1c711fc2f72deb50b12947a3c3c273",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -283,7 +283,7 @@
     {
       "publicPath": "assets/pokemon/back/4.png",
       "sha256": "a0db8ec16c366f7ce3fb3b0e46be36f00f2f81dba0c15d93dfab434149e665f0",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -292,7 +292,7 @@
     {
       "publicPath": "assets/pokemon/back/5.png",
       "sha256": "78cf105bb03c3e3a0ed7ad8162f5fb36175e0b97c940c96ca41331865b77b49d",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -301,7 +301,7 @@
     {
       "publicPath": "assets/pokemon/back/6.png",
       "sha256": "cdad515ebc49345a97ce077c049c16a79558259f6bba50de6a98b3fe554544be",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -310,7 +310,7 @@
     {
       "publicPath": "assets/pokemon/back/7.png",
       "sha256": "0878dc36d04257c835533077c5d3f929ab6e8947b5122f473b663b40171a8b71",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -319,7 +319,7 @@
     {
       "publicPath": "assets/pokemon/back/8.png",
       "sha256": "70a03423d43be5bad8c5509567d94bf1a0af0684d486197532fba8c84d07a042",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -328,7 +328,7 @@
     {
       "publicPath": "assets/pokemon/back/9.png",
       "sha256": "f2d9350dad9c755ba09f34b4d5f8e77105e51bded4ce7f9e6df19918e82257a9",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -337,7 +337,7 @@
     {
       "publicPath": "assets/pokemon/battle/152/back-default-normal.png",
       "sha256": "1c3dd4c8fe8347b198e01cd7d7f3f12e16a35afad795832490b2a05798e26236",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -346,7 +346,7 @@
     {
       "publicPath": "assets/pokemon/battle/155/back-default-normal.png",
       "sha256": "22d192fba135371ee701ce852b21987b89e241fb4aaebcf281869ceacce9654c",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -355,7 +355,7 @@
     {
       "publicPath": "assets/pokemon/battle/155/front-default-normal.png",
       "sha256": "cb42894f3dbfc0f80831fed9ceab5b8d19994bdc770ff2d9a689e7d274c9688a",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -364,7 +364,7 @@
     {
       "publicPath": "assets/pokemon/battle/evolution-background.png",
       "sha256": "4adbc1c17e33178a3a8d089e22c9c58c9de9d6932647feef652900e315dcfd58",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/1/1/5; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/1/1/5; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -373,7 +373,7 @@
     {
       "publicPath": "assets/pokemon/cataloged/front/152.png",
       "sha256": "f9092cdbf943187eb67324ae54b4679434c36e19a9dc3136bcdcd946628dc58c",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -382,7 +382,7 @@
     {
       "publicPath": "assets/pokemon/cataloged/front/155.png",
       "sha256": "cf507f6ac9c83a624046ced080ec11cb5f8e7804dd0ff4d29c7ed07bf4133124",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -391,7 +391,7 @@
     {
       "publicPath": "assets/pokemon/cataloged/front/158.png",
       "sha256": "9b5ca8eeab076dac7292a5d139aaaaa86dc2ca78463293cc125b7fb2149e43e8",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -400,7 +400,7 @@
     {
       "publicPath": "assets/pokemon/front/1.png",
       "sha256": "b0088729b9fc92a57324f398ff7f0f4acaf9c126ec525ce8197ac32c9e0a2c19",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -409,7 +409,7 @@
     {
       "publicPath": "assets/pokemon/front/10.png",
       "sha256": "b1408d7a94ce950d83bbb4338640f1186a5dda4e47baa2e87ec9c5beb6e03c51",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -418,7 +418,7 @@
     {
       "publicPath": "assets/pokemon/front/152.png",
       "sha256": "f9092cdbf943187eb67324ae54b4679434c36e19a9dc3136bcdcd946628dc58c",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -427,7 +427,7 @@
     {
       "publicPath": "assets/pokemon/front/155.png",
       "sha256": "cf507f6ac9c83a624046ced080ec11cb5f8e7804dd0ff4d29c7ed07bf4133124",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -436,7 +436,7 @@
     {
       "publicPath": "assets/pokemon/front/158.png",
       "sha256": "9b5ca8eeab076dac7292a5d139aaaaa86dc2ca78463293cc125b7fb2149e43e8",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -445,7 +445,7 @@
     {
       "publicPath": "assets/pokemon/front/16.png",
       "sha256": "ed6c1ac4fcb5e7c1c37dd1afe41bf48ba001f89a8750e802fe64e88e13695746",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -454,7 +454,7 @@
     {
       "publicPath": "assets/pokemon/front/19.png",
       "sha256": "b02bc5c99a24e87f99cccd0e4684a46dd2d34b41079ec812de0c7c39017aca60",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -463,7 +463,7 @@
     {
       "publicPath": "assets/pokemon/front/2.png",
       "sha256": "7130619591234e70b1c3074aa147588d0260dac22d71afe8cd26b02c13812bec",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -472,7 +472,7 @@
     {
       "publicPath": "assets/pokemon/front/3.png",
       "sha256": "dabecd691b514a98f909e9435fb471c77e557727762be5e782e37d413c795fe9",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -481,7 +481,7 @@
     {
       "publicPath": "assets/pokemon/front/4.png",
       "sha256": "c3f65e619b5c2abbaf91f1c6d674eb34a7d67dd0f98c6bb11d3a6a6f0021f670",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -490,7 +490,7 @@
     {
       "publicPath": "assets/pokemon/front/5.png",
       "sha256": "7084646497d9daf1b92f7551155448b894c1a59368c95c1f37e961999a39dce0",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -499,7 +499,7 @@
     {
       "publicPath": "assets/pokemon/front/6.png",
       "sha256": "1e4d5434dd4d4900425a8fde3a80bb4835e7abcd9b2b6bac874cd35a84a0f6fa",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -508,7 +508,7 @@
     {
       "publicPath": "assets/pokemon/front/7.png",
       "sha256": "731bf195dbfb403814805607912cfda129b502ab54433a8fd403ad0985bd9a2b",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -517,7 +517,7 @@
     {
       "publicPath": "assets/pokemon/front/8.png",
       "sha256": "57baee062f4ddccbe32530554e95c934cb131fef1d3652db183ba45a02f6544b",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -526,7 +526,7 @@
     {
       "publicPath": "assets/pokemon/front/9.png",
       "sha256": "3275221d5ce567cfd661992313f1eba1d30a9b77a1c6529f16042f32c5d64951",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -535,7 +535,7 @@
     {
       "publicPath": "assets/pokemon/sheets/back-1-256.png",
       "sha256": "2ba2486fc04f899d38853de9d110f7d85a15917da658ba3f62aca50cfc4d29ad",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -544,7 +544,7 @@
     {
       "publicPath": "assets/pokemon/sheets/back-257-493.png",
       "sha256": "abdca90dc8e94a4fc2019ffdb740e9b05f042bbf3b4e10363e66104f4958e2d9",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -553,7 +553,7 @@
     {
       "publicPath": "assets/pokemon/sheets/front-1-256.png",
       "sha256": "2ac8d5845c7156a30af1d82b5f8162492e3764eaacd2ae3e63c1fee65539a9ff",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -562,7 +562,7 @@
     {
       "publicPath": "assets/pokemon/sheets/front-257-493.png",
       "sha256": "1601c216e316baeaa79d1ea0176ba6e322dd68c0fb51d3c50d6e6024390a5b6c",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM a/0/0/4; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/0/0/4; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -598,7 +598,7 @@
     {
       "publicPath": "game-data/level-up-move-table.json",
       "sha256": "74215ab79c86eaefac91cfed3e21e4984f04ebc9b0852b58e3c4e0423c49a561",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -607,7 +607,7 @@
     {
       "publicPath": "game-data/pokemon-data.json",
       "sha256": "dc112ab3b24ebfd76aecbad0f6db5fa5fbb27ea5d5a8e1eda739bb88ad8f792d",
-      "source": "scripts/poke-lounge/extract-rom-game-data.py; local HeartGold ROM records and Korean messages; distribution rights unresolved",
+      "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source records and Korean messages; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,
@@ -625,7 +625,7 @@
     {
       "publicPath": "game-data/wild-encounter-tables.json",
       "sha256": "6949149c15b21dcc8cba716549408a8429ff3930b41b9be98a6a34fb91c25295",
-      "source": "National Dex encounter ranges 1-493 with common and rare pool weights backed by ROM-derived pokemon-data; distribution rights unresolved",
+      "source": "National Dex encounter ranges 1-493 with common and rare pool weights backed by pokemon data derived from a local game source; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
       "reviewer": null,

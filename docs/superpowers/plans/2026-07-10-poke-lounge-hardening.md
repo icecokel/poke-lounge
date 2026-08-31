@@ -98,7 +98,7 @@ Expected: FAIL because `check-asset-provenance.mjs` does not exist.
 
 - [ ] **Step 3: Implement the release evidence and checker**
 
-Create `docs/poke-lounge-release-gate.md` with the audit date, the eight explicitly ROM-derived MP3 paths, all currently unknown sprite/map/data paths, and this required decision:
+Create `docs/poke-lounge-release-gate.md` with the audit date, the eight explicitly source-derived MP3 paths, all currently unknown sprite/map/data paths, and this required decision:
 
 ```md
 ## Release Decision

@@ -4,7 +4,7 @@
 
 **Goal:** Bring `/Users/smlee/Documents/poke-lounge` into VSCoke as a playable locale-aware web game at `/:locale/game/poke-lounge`.
 
-**Architecture:** Keep Poke Lounge as a browser-only game module under the existing VSCoke Next app. Use a thin VSCoke route/client wrapper, copy the source-compatible runtime into a contained feature directory, and copy only the minimal static assets required for starter selection, room entry, world boot, and battle smoke. Leave backend ranking, ROM conversion, and full asset browsing out of the first port.
+**Architecture:** Keep Poke Lounge as a browser-only game module under the existing VSCoke Next app. Use a thin VSCoke route/client wrapper, copy the source-compatible runtime into a contained feature directory, and copy only the minimal static assets required for starter selection, room entry, world boot, and battle smoke. Leave backend ranking, source-data conversion, and full asset browsing out of the first port.
 
 **Tech Stack:** VSCoke pnpm monorepo, `apps/web` Next 15 App Router, React 19, next-intl, Tailwind v4, Playwright E2E.
 
@@ -29,9 +29,9 @@
 
 ### Out Of Scope For First Port
 
-- Poke Lounge `/` ROM conversion page.
+- Poke Lounge `/` source-data conversion page.
 - Full `public` copy from the source project. Source `public` is about 171MB and 14,715 files.
-- Raw ROM files and raw/processed extraction workspaces.
+- Raw local game-source files and raw/processed extraction workspaces.
 - Backend game result/ranking integration. Current API `GameType` only supports `SKY_DROP`.
 - WebRTC production hardening and 4-6 player stress testing.
 - Next 16 upgrade.
@@ -56,16 +56,16 @@ Reason: the source runtime has many relative imports across class-named files. R
 - `apps/web/src/components/poke-lounge/runtime/starter-selection.ts`: copied starter selection DOM renderer.
 - `apps/web/src/components/poke-lounge/runtime/types.ts`: copied runtime data types.
 - `apps/web/src/components/poke-lounge/runtime/runtimeEnvironment.ts`: copied browser/runtime helper.
-- `apps/web/src/components/poke-lounge/runtime/rom-asset-browser.ts`: copied because `starter-selection.ts` imports it at module top level.
-- `apps/web/src/components/poke-lounge/runtime/rom-web-conversion.ts`: copied because `starter-selection.ts` imports it at module top level.
-- `apps/web/src/components/poke-lounge/runtime/ui-assets.ts`: copied because starter/ROM helper modules import it.
-- `apps/web/src/components/poke-lounge/runtime/map-sample.ts`: copied because `rom-web-conversion.ts` imports it.
+- The legacy asset-browser module: copied because `starter-selection.ts` imports it at module top level.
+- The legacy source-data conversion module: copied because `starter-selection.ts` imports it at module top level.
+- `apps/web/src/components/poke-lounge/runtime/ui-assets.ts`: copied because starter/source helper modules import it.
+- `apps/web/src/components/poke-lounge/runtime/map-sample.ts`: copied because the source-data conversion module imports it.
 - `apps/web/tests/e2e/poke-lounge.spec.ts`: focused route/game smoke test.
 - Static asset directories under `apps/web/public/assets`, `apps/web/public/game-data`, and `apps/web/public/maps`.
 
 ### Modify
 
-- `.gitignore`: add ROM/raw extraction ignore rules before any asset copy.
+- `.gitignore`: add local-source/raw extraction ignore rules before any asset copy.
 - `apps/web/messages/ko-KR.json`: add `Game.pokeLoungeTitle` and `Game.pokeLoungeDesc`.
 - `apps/web/messages/en-US.json`: add matching keys.
 - `apps/web/messages/ja-JP.json`: add matching keys.
@@ -98,14 +98,13 @@ Expected:
 ## feature/poke-lounge
 ```
 
-- [ ] **Step 2: Add ROM/raw extraction ignore rules**
+- [ ] **Step 2: Add local-source/raw extraction ignore rules**
 
 Append this block to `.gitignore` after the existing `# misc` or asset-related section:
 
 ```gitignore
 
-# Poke Lounge local ROM and extraction workspaces
-*.nds
+# Poke Lounge local game-source and extraction workspaces
 *.gba
 *.gbc
 *.gb
@@ -123,19 +122,19 @@ apps/web/public/assets/raw/
 apps/web/public/assets/processed/
 ```
 
-- [ ] **Step 3: Verify ignore rules catch ROM/raw paths**
+- [ ] **Step 3: Verify ignore rules catch local-source/raw paths**
 
 Run:
 
 ```bash
-git check-ignore -v 'data/포켓몬스터 하트골드(K).nds'
+git check-ignore -v 'data/local-source/sample.bin'
 git check-ignore -v 'apps/web/data/raw/sample.bin'
 git check-ignore -v 'apps/web/assets/processed/sample.png'
 ```
 
 Expected: each command prints a matching `.gitignore` rule and exits `0`.
 
-- [ ] **Step 4: Check no ROM/archive files are already tracked**
+- [ ] **Step 4: Check no local-source/archive files are already tracked**
 
 Run:
 
@@ -149,7 +148,7 @@ Expected: no output.
 
 ```bash
 git add .gitignore
-git commit -m "chore(poke-lounge):ROM 제외 규칙 추가"
+git commit -m "chore(poke-lounge): 원본 데이터 제외 규칙 추가"
 ```
 
 ---
@@ -378,8 +377,7 @@ install -m 0644 /Users/smlee/Documents/poke-lounge/src/bootstrap.ts apps/web/src
 install -m 0644 /Users/smlee/Documents/poke-lounge/src/starter-selection.ts apps/web/src/components/poke-lounge/runtime/starter-selection.ts
 install -m 0644 /Users/smlee/Documents/poke-lounge/src/types.ts apps/web/src/components/poke-lounge/runtime/types.ts
 install -m 0644 /Users/smlee/Documents/poke-lounge/src/runtimeEnvironment.ts apps/web/src/components/poke-lounge/runtime/runtimeEnvironment.ts
-install -m 0644 /Users/smlee/Documents/poke-lounge/src/rom-asset-browser.ts apps/web/src/components/poke-lounge/runtime/rom-asset-browser.ts
-install -m 0644 /Users/smlee/Documents/poke-lounge/src/rom-web-conversion.ts apps/web/src/components/poke-lounge/runtime/rom-web-conversion.ts
+# Copy the legacy asset-browser and source-data conversion helpers into the runtime directory.
 install -m 0644 /Users/smlee/Documents/poke-lounge/src/ui-assets.ts apps/web/src/components/poke-lounge/runtime/ui-assets.ts
 install -m 0644 /Users/smlee/Documents/poke-lounge/src/map-sample.ts apps/web/src/components/poke-lounge/runtime/map-sample.ts
 ```
@@ -399,11 +397,11 @@ Create `apps/web/src/components/poke-lounge/poke-lounge.module.css` by adapting 
 
 ```css
 .page {
-  --rom-screen-background: #4a4242;
+  --game-screen-background: #4a4242;
   display: grid;
   min-height: 100vh;
   margin: 0;
-  background: var(--rom-screen-background);
+  background: var(--game-screen-background);
   color: #17201a;
   font-family:
     Inter,
@@ -454,7 +452,7 @@ Create `apps/web/src/components/poke-lounge/poke-lounge.module.css` by adapting 
   position: relative;
   width: min(100vw, calc(100vh * 4 / 3), 1024px);
   aspect-ratio: 4 / 3;
-  background: var(--rom-screen-background);
+  background: var(--game-screen-background);
 }
 
 .page:fullscreen :global(#game-root),
@@ -488,7 +486,7 @@ Examples:
   position: absolute;
 }
 
-.page :global([data-rom-asset-role="contact-sheet"]) {
+.page :global([data-game-asset-role="contact-sheet"]) {
   display: grid;
 }
 ```
@@ -816,7 +814,7 @@ du -sh apps/web/public/assets apps/web/public/game-data apps/web/public/maps
 Expected:
 
 - First command prints no forbidden tracked paths.
-- Second command prints no ROM/archive files.
+- Second command prints no local-source/archive files.
 - Size output stays near the minimal copied subset, not the 171MB source `public`.
 
 - [ ] **Step 7: Record final status**
@@ -835,5 +833,5 @@ Expected: branch is `feature/poke-lounge`; status is clean after all commits.
 ## Follow-Up Plans After First Port
 
 - Add a separate backend/API plan only if Poke Lounge needs ranking or shareable score results. That plan must update `apps/api`, generated Swagger types, `apps/web/src/services/score-service.ts`, and API tests.
-- Add a separate ROM diagnostic plan if `/` conversion/browser UI is still wanted inside VSCoke. That work needs asset-size policy first because the full source `public` payload is too large for the first game port.
+- Add a separate source-data diagnostic plan if `/` conversion/browser UI is still wanted inside VSCoke. That work needs asset-size policy first because the full source `public` payload is too large for the first game port.
 - Add a separate test migration plan for Vitest/jsdom source tests. Do not add `vitest` and `jsdom` to `apps/web` during the first playable port unless Playwright smoke cannot cover the risk.

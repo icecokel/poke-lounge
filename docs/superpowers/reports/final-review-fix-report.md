@@ -18,9 +18,9 @@ Branch: `feature/poke-lounge`
 - Added class-validator decorators to Poke Lounge request DTOs and applied the production `ValidationPipe` to API e2e coverage.
 - Added a production cleanup handle so React unmount destroys the game runtime and disposes server rooms without relying on dev/E2E globals.
 - Added in-memory server room cleanup via stale-room pruning, a process room cap, and waiting-room party snapshot deletion on leave.
-- Moved tracked runtime assets from `apps/web/public/assets/rom-*` to curated `apps/web/public/assets/poke-lounge/...` paths.
-- Updated runtime references, public manifests, and source metadata so old public `rom-*` URLs are not referenced.
-- Added final forbidden asset checks for `apps/web/public/assets/rom-*`.
+- Moved tracked runtime assets from legacy extraction-prefixed paths to curated `apps/web/public/assets/poke-lounge/...` paths.
+- Updated runtime references, public manifests, and source metadata so old extraction-prefixed URLs are not referenced.
+- Added final forbidden asset checks for legacy extraction-prefixed public paths.
 
 ## Verification Commands
 
@@ -43,8 +43,8 @@ Branch: `feature/poke-lounge`
 - PASS: `pnpm type:check:web`
 - PASS: `pnpm lint`
 - PASS: `pnpm --filter @vscoke/web e2e -- tests/e2e/poke-lounge-multiplayer.spec.ts --project=chromium` - 5 tests.
-- PASS: `rg -n 'rom-(extraction|dump|screens|textures|player)' apps/web/src apps/web/public docs/superpowers/plans/2026-07-07-poke-lounge-remaining-work-plan.md docs/superpowers/plans/2026-07-06-poke-lounge-three-phase-roadmap.md` - no matches.
-- PASS: `git ls-files 'apps/web/public/assets/rom-*'` - no output.
+- PASS: searched source, public assets, and migration plans for legacy extraction directory prefixes - no matches.
+- PASS: checked tracked public assets for legacy extraction-prefixed paths - no output.
 - PASS: `git diff --check`
 
 ## Remaining Risk

@@ -37,7 +37,7 @@
 - `roundMs=1000`로 라운드 타이머가 tournament phase로 넘어가는지 검증
 - canvas desktop/mobile framing과 fullscreen fallback 확인
 - Poke Lounge runtime을 VSCoke 전용 wrapper 밖에서 import하지 않는지 점검
-- ROM/raw 파일과 전체 source `public` payload가 유입되지 않았는지 반복 확인
+- 로컬 게임 원본/raw 파일과 전체 source `public` payload가 유입되지 않았는지 반복 확인
 - Poke Lounge 현재 상태를 VSCoke docs에 반영할지 결정
 
 **명시적 제외:**
@@ -47,7 +47,7 @@
 - 서버 room state
 - WebSocket gateway
 - WebRTC 운영화
-- 전체 ROM 진단 화면 이식
+- 전체 원본 데이터 진단 화면 이식
 
 **완료 기준:**
 
