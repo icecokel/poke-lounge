@@ -1840,6 +1840,19 @@
   border-top: 2px solid rgba(96, 125, 108, 0.42);
 }
 
+.page :global(.room-entry-tabs) {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 8px;
+}
+
+.page :global(.room-entry-tabs button[aria-selected="true"]) {
+  transform: translateY(2px);
+  background: #fff9dd;
+  box-shadow: 0 2px 0 #17231c;
+}
+
 .page :global(.room-entry-mode-heading) {
   margin: 0;
   color: #17201a;

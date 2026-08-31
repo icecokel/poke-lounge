@@ -77,6 +77,8 @@ function RoomEntryScreen({
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const [newGameOpen, setNewGameOpen] = useState(false);
+  const [activeMode, setActiveMode] = useState<"solo" | "multiplayer">("solo");
+  const selectedMode = state.localTestMode?.active ? "solo" : activeMode;
 
   const selectSolo = (resetSession = false) => {
     playConfirmSound();
@@ -131,58 +133,77 @@ function RoomEntryScreen({
       <div className="room-entry-panel">
         <h1>{copy.roomEntry.title}</h1>
         <FanNotice copy={copy} />
-        <ModeGroup
-          mode="solo"
-          title={copy.roomEntry.soloTitle}
-          description={copy.roomEntry.soloDescription}
-        >
-          <div className="room-entry-mode-actions">
+        <div className="room-entry-tabs" role="tablist" aria-label={copy.roomEntry.title}>
+          <button
+            id="room-entry-solo-tab"
+            type="button"
+            role="tab"
+            aria-selected={selectedMode === "solo"}
+            aria-controls="room-entry-solo-panel"
+            disabled={pending}
+            onClick={() => {
+              setActiveMode("solo");
+              setMessage("");
+            }}
+            data-room-entry-tab="solo"
+          >
+            {copy.roomEntry.soloTitle}
+          </button>
+          {!state.localTestMode?.active ? (
             <button
+              id="room-entry-multiplayer-tab"
               type="button"
-              disabled={pending}
-              onClick={() => selectSolo()}
-              data-room-entry-solo
-            >
-              {copy.roomEntry.continue}
-            </button>
-            <button
-              type="button"
-              className="room-entry-new-game-button"
+              role="tab"
+              aria-selected={selectedMode === "multiplayer"}
+              aria-controls="room-entry-multiplayer-panel"
               disabled={pending}
               onClick={() => {
-                playConfirmSound();
-                setNewGameOpen(true);
+                setActiveMode("multiplayer");
+                setMessage("");
               }}
-              data-room-entry-new-start
+              data-room-entry-tab="multiplayer"
             >
-              {copy.roomEntry.newGame}
+              {copy.roomEntry.multiplayerTitle}
             </button>
-          </div>
-          {state.localTestMode ? (
-            <section
-              className="room-entry-local-test"
-              data-room-entry-local-test="true"
-              data-local-test-mode-active={state.localTestMode.active || undefined}
-            >
-              <h3 className="room-entry-field-label">{copy.roomEntry.localTestTitle}</h3>
-              <p className="room-entry-field-copy">{copy.roomEntry.localTestDescription}</p>
-              <div className="room-entry-local-test-actions">
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => {
-                    playConfirmSound();
-                    setPending(true);
-                    setMessage(copy.roomEntry.preparing);
-                    state.localTestMode?.onStart();
-                  }}
-                  data-room-entry-local-test-start
-                >
-                  {state.localTestMode.active
-                    ? copy.roomEntry.localTestContinue
-                    : copy.roomEntry.localTestStart}
-                </button>
-                {state.localTestMode.active ? (
+          ) : null}
+        </div>
+        {selectedMode === "solo" ? (
+          <ModeGroup
+            mode="solo"
+            title={copy.roomEntry.soloTitle}
+            description={copy.roomEntry.soloDescription}
+          >
+            <div className="room-entry-mode-actions">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => selectSolo()}
+                data-room-entry-solo
+              >
+                {copy.roomEntry.continue}
+              </button>
+              <button
+                type="button"
+                className="room-entry-new-game-button"
+                disabled={pending}
+                onClick={() => {
+                  playConfirmSound();
+                  setNewGameOpen(true);
+                }}
+                data-room-entry-new-start
+              >
+                {copy.roomEntry.newGame}
+              </button>
+            </div>
+            {state.localTestMode ? (
+              <section
+                className="room-entry-local-test"
+                data-room-entry-local-test="true"
+                data-local-test-mode-active={state.localTestMode.active || undefined}
+              >
+                <h3 className="room-entry-field-label">{copy.roomEntry.localTestTitle}</h3>
+                <p className="room-entry-field-copy">{copy.roomEntry.localTestDescription}</p>
+                <div className="room-entry-local-test-actions">
                   <button
                     type="button"
                     disabled={pending}
@@ -190,18 +211,34 @@ function RoomEntryScreen({
                       playConfirmSound();
                       setPending(true);
                       setMessage(copy.roomEntry.preparing);
-                      state.localTestMode?.onExit();
+                      state.localTestMode?.onStart();
                     }}
-                    data-room-entry-local-test-exit
+                    data-room-entry-local-test-start
                   >
-                    {copy.roomEntry.localTestExit}
+                    {state.localTestMode.active
+                      ? copy.roomEntry.localTestContinue
+                      : copy.roomEntry.localTestStart}
                   </button>
-                ) : null}
-              </div>
-            </section>
-          ) : null}
-        </ModeGroup>
-        {!state.localTestMode?.active ? (
+                  {state.localTestMode.active ? (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        playConfirmSound();
+                        setPending(true);
+                        setMessage(copy.roomEntry.preparing);
+                        state.localTestMode?.onExit();
+                      }}
+                      data-room-entry-local-test-exit
+                    >
+                      {copy.roomEntry.localTestExit}
+                    </button>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+          </ModeGroup>
+        ) : (
           <ModeGroup
             mode="multiplayer"
             title={copy.roomEntry.multiplayerTitle}
@@ -255,7 +292,7 @@ function RoomEntryScreen({
               </button>
             </form>
           </ModeGroup>
-        ) : null}
+        )}
         <p
           className="room-entry-message"
           role="alert"
@@ -934,7 +971,13 @@ function ModeGroup({
   children: React.ReactNode;
 }) {
   return (
-    <section className="room-entry-mode-group" data-room-entry-mode={mode}>
+    <section
+      id={`room-entry-${mode}-panel`}
+      className="room-entry-mode-group"
+      role="tabpanel"
+      aria-labelledby={`room-entry-${mode}-tab`}
+      data-room-entry-mode={mode}
+    >
       <h2 className="room-entry-mode-heading">{title}</h2>
       <p className="room-entry-mode-copy">{description}</p>
       <div className="room-entry-mode-content">{children}</div>

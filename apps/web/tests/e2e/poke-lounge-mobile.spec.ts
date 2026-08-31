@@ -33,6 +33,9 @@ test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 �
 
   const screen = page.locator("[data-room-entry-screen='true']");
   await expect(screen).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-room-entry-mode='solo']")).toBeVisible();
+  await expect(page.locator("[data-room-entry-mode='multiplayer']")).toHaveCount(0);
+  await page.locator("[data-room-entry-tab='multiplayer']").click();
   await expect(page.locator("[data-room-entry-display-name]")).toBeVisible();
   await expect(page.locator("[data-room-entry-temporary-password]")).toBeVisible();
   await expect(page.locator("[data-room-entry-multiplayer-submit]")).toBeVisible();
