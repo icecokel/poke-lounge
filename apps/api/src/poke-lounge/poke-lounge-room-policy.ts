@@ -1,12 +1,14 @@
 import {
   accumulateTournamentScores,
+  rankCumulativeTournamentScores,
+  scoreRemainingHpPercentage,
+} from '@poke-lounge/battle/tournament-scoring';
+import {
   createTournamentBracketState,
   getReadyTournamentMatches,
-  rankCumulativeTournamentScores,
   recordTournamentMatchResult,
-  restoreCompetitiveParty,
-  scoreRemainingHpPercentage,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/tournament-bracket';
+import { restoreCompetitiveParty } from '@poke-lounge/battle/competitive-party';
 import type { PokeLoungeRoomSnapshot } from './poke-lounge-room.repository';
 import type { PokeLoungeRoomState } from './poke-lounge-room.types';
 import type { PokeLoungeMatchResultReason } from './poke-lounge-room.types';
@@ -26,12 +28,15 @@ export function getPokeLoungeRoomHostPlayerId(
 ): string | null {
   return (
     room.participants
-      .filter((participant) => participant.role === 'participant')
-      .sort(
-        (left, right) =>
+      .filter(function filterItem(participant) {
+        return participant.role === 'participant';
+      })
+      .sort(function compareItems(left, right) {
+        return (
           left.joinedAtMs - right.joinedAtMs ||
-          left.playerId.localeCompare(right.playerId),
-      )[0]?.playerId ?? null
+          left.playerId.localeCompare(right.playerId)
+        );
+      })[0]?.playerId ?? null
   );
 }
 
@@ -72,8 +77,9 @@ export function advancePokeLoungeRoomClock(
 
   const advanced = structuredClone(room);
   const participants = advanced.participants.filter(
-    (participant) =>
-      participant.role === 'participant' && participant.connected,
+    function filterItem(participant) {
+      return participant.role === 'participant' && participant.connected;
+    },
   );
   if (participants.length < 2) {
     resetPokeLoungeRoundPreparation(advanced);
@@ -83,12 +89,12 @@ export function advancePokeLoungeRoomClock(
     return advanced;
   }
 
-  const participantsReady = participants.every((participant) =>
-    Boolean(
+  const participantsReady = participants.every(function testItem(participant) {
+    return Boolean(
       advanced.partySnapshots[participant.playerId]?.competitiveParty.members
         .length,
-    ),
-  );
+    );
+  });
   if (!participantsReady) {
     advanced.status = 'closed';
     advanced.closeReason = 'competitive-party-not-ready';
@@ -101,7 +107,11 @@ export function advancePokeLoungeRoomClock(
     advanced.expiresAtMs = getPokeLoungeRoomExpiresAtMs(advanced);
     return advanced;
   }
-  if (participants.some((participant) => !participant.ready)) {
+  if (
+    participants.some(function testItem(participant) {
+      return !participant.ready;
+    })
+  ) {
     return null;
   }
   for (const participant of participants) {
@@ -127,13 +137,15 @@ export function expirePendingPokeLoungePresence(
 ): PokeLoungeRoomSnapshot | null {
   const expiredPlayerIds = new Set(
     room.participants
-      .filter((participant) => {
+      .filter(function filterItem(participant) {
         const pendingUntilMs =
           participant.presencePendingUntilMs ??
           participant.disconnectPendingUntilMs;
         return pendingUntilMs !== undefined && pendingUntilMs <= nowMs;
       })
-      .map((participant) => participant.playerId),
+      .map(function mapItem(participant) {
+        return participant.playerId;
+      }),
   );
   if (expiredPlayerIds.size === 0) {
     return null;
@@ -142,7 +154,9 @@ export function expirePendingPokeLoungePresence(
   const expired = structuredClone(room);
   if (expired.status === 'waiting') {
     expired.participants = expired.participants.filter(
-      (participant) => !expiredPlayerIds.has(participant.playerId),
+      function filterItem(participant) {
+        return !expiredPlayerIds.has(participant.playerId);
+      },
     );
     for (const playerId of expiredPlayerIds) {
       delete expired.partySnapshots[playerId];
@@ -176,7 +190,7 @@ export function createTournamentState(
   room: PokeLoungeRoomState,
 ): PokeLoungeRoomState['tournament'] {
   const participants = room.participants
-    .filter((participant) => {
+    .filter(function filterItem(participant) {
       return (
         participant.role === 'participant' &&
         participant.connected &&
@@ -186,17 +200,19 @@ export function createTournamentState(
         )
       );
     })
-    .sort((left, right) => {
+    .sort(function compareItems(left, right) {
       return (
         left.joinedAtMs - right.joinedAtMs ||
         left.playerId.localeCompare(right.playerId)
       );
     });
   const bracket = createTournamentBracketState(
-    participants.map(({ playerId, displayName }) => ({
-      playerId,
-      displayName,
-    })),
+    participants.map(function mapItem({ playerId, displayName }) {
+      return {
+        playerId,
+        displayName,
+      };
+    }),
     room.round.index,
   );
 
@@ -249,7 +265,9 @@ export function normalizeLegacyPokeLoungeRoomSnapshot(
 
   const canRestartDeterministically =
     (room.status === 'waiting' || room.status === 'round-started') &&
-    !(tournament.matches ?? []).some((match) => match.status === 'completed');
+    !(tournament.matches ?? []).some(function testItem(match) {
+      return match.status === 'completed';
+    });
 
   if (!canRestartDeterministically) {
     normalized.status = 'closed';
@@ -275,11 +293,13 @@ export function completePokeLoungeTournamentMatch(
     throw new Error('Tournament bracket is not initialized');
   }
   const match = bracket.currentRound?.matches.find(
-    (candidate) => candidate.matchId === matchId,
+    function findItem(candidate) {
+      return candidate.matchId === matchId;
+    },
   );
-  const loserPlayerId = match?.participantIds.find(
-    (playerId) => playerId !== winnerPlayerId,
-  );
+  const loserPlayerId = match?.participantIds.find(function findItem(playerId) {
+    return playerId !== winnerPlayerId;
+  });
   if (!match || !loserPlayerId) {
     throw new Error('Tournament match participants are invalid');
   }
@@ -307,13 +327,15 @@ export function completePokeLoungeTournamentMatch(
       );
     }
     const scoreRows = room.tournament.bracket.participants.map(
-      (participant) => ({
-        ...participant,
-        rank: participant.seed,
-        score:
-          roundScores[participant.playerId] ??
-          scoreFrozenParty(room, participant.playerId),
-      }),
+      function mapItem(participant) {
+        return {
+          ...participant,
+          rank: participant.seed,
+          score:
+            roundScores[participant.playerId] ??
+            scoreFrozenParty(room, participant.playerId),
+        };
+      },
     );
     room.tournament.cumulativeScores = accumulateTournamentScores(
       room.tournament.cumulativeScores,
@@ -328,10 +350,9 @@ export function completePokeLoungeTournamentMatch(
       room.tournament.bracket = null;
       room.finalStandings = [];
       if (
-        room.participants.filter(
-          (participant) =>
-            participant.role === 'participant' && participant.connected,
-        ).length < 2
+        room.participants.filter(function filterItem(participant) {
+          return participant.role === 'participant' && participant.connected;
+        }).length < 2
       ) {
         resetPokeLoungeRoundPreparation(room);
       } else {
@@ -352,12 +373,14 @@ export function completePokeLoungeTournamentMatch(
     room.finalStandings = rankCumulativeTournamentScores(
       room.tournament.cumulativeScores,
       room.tournament.bracket.participants,
-    ).map(({ playerId, displayName, score, rank }) => ({
-      playerId,
-      displayName,
-      score,
-      rank,
-    }));
+    ).map(function mapItem({ playerId, displayName, score, rank }) {
+      return {
+        playerId,
+        displayName,
+        score,
+        rank,
+      };
+    });
     return;
   }
 
@@ -388,23 +411,28 @@ export function convergeOfflinePokeLoungeTournamentMatches(
       return completed;
     }
     const match = getReadyTournamentMatches(room.tournament.bracket).find(
-      (candidate) =>
-        (!targetMatchId || candidate.matchId === targetMatchId) &&
-        candidate.participantIds.some((playerId) => {
-          const participant = room.participants.find(
-            (row) => row.playerId === playerId,
-          );
-          return !isParticipantPresenceActive(participant);
-        }),
+      function findItem(candidate) {
+        return (
+          (!targetMatchId || candidate.matchId === targetMatchId) &&
+          candidate.participantIds.some(function testItem(playerId) {
+            const participant = room.participants.find(function findItem(row) {
+              return row.playerId === playerId;
+            });
+            return !isParticipantPresenceActive(participant);
+          })
+        );
+      },
     );
     if (!match) {
       return completed;
     }
 
-    const [participantA, participantB] = match.participantIds.map((playerId) =>
-      room.participants.find(
-        (participant) => participant.playerId === playerId,
-      ),
+    const [participantA, participantB] = match.participantIds.map(
+      function mapItem(playerId) {
+        return room.participants.find(function findItem(participant) {
+          return participant.playerId === playerId;
+        });
+      },
     );
     if (
       isParticipantPresenceActive(participantA) &&
@@ -419,7 +447,9 @@ export function convergeOfflinePokeLoungeTournamentMatches(
       participantB,
     );
     const loserPlayerId = match.participantIds.find(
-      (playerId) => playerId !== winnerPlayerId,
+      function findItem(playerId) {
+        return playerId !== winnerPlayerId;
+      },
     );
     if (!loserPlayerId) {
       return completed;
@@ -447,7 +477,9 @@ function createFrozenMatchHpScores(
   playerIds: readonly string[],
 ): Record<string, number> {
   return Object.fromEntries(
-    playerIds.map((playerId) => [playerId, scoreFrozenParty(room, playerId)]),
+    playerIds.map(function mapItem(playerId) {
+      return [playerId, scoreFrozenParty(room, playerId)];
+    }),
   );
 }
 
@@ -489,9 +521,9 @@ function selectWalkoverWinner(
   if (leftAtA !== leftAtB) {
     return leftAtA > leftAtB ? participantIds[0] : participantIds[1];
   }
-  return [...participantIds].sort((left, right) =>
-    left.localeCompare(right),
-  )[0];
+  return [...participantIds].sort(function compareItems(left, right) {
+    return left.localeCompare(right);
+  })[0];
 }
 
 function isParticipantPresenceActive(

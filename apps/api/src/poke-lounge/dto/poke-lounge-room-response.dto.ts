@@ -10,7 +10,7 @@ import type {
   TournamentMatch,
   TournamentParticipant,
   TournamentRound,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/tournament-bracket';
 import type {
   CompetitiveTerminalTransition,
   PokeLoungeFinalStanding,
@@ -24,7 +24,7 @@ import type {
   PokeLoungeRoomStatus,
   PokeLoungeRoundPhase,
   PokeLoungeTournamentMatch,
-} from './../poke-lounge-room.types';
+} from '../poke-lounge-room.types';
 import { CompetitiveActionResponseDto } from './competitive-action-response.dto';
 
 const participantRoles: PokeLoungeParticipantRole[] = [

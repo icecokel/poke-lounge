@@ -116,7 +116,7 @@ export function normalizeCompetitiveParty(
   }
 
   const seenSlots = new Set<number>();
-  const members = party.members.map(member => {
+  const members = party.members.map(function mapItem(member) {
     if (!isPartySlot(member.slotIndex)) {
       throw new CompetitivePartyValidationError("slot-out-of-range");
     }
@@ -160,7 +160,7 @@ export function normalizeCompetitiveParty(
     }
 
     const seenMoveIds = new Set<number>();
-    const moves = member.moves.map(move => {
+    const moves = member.moves.map(function mapItem(move) {
       if (seenMoveIds.has(move.moveId)) {
         throw new CompetitivePartyValidationError("duplicate-move");
       }
@@ -189,21 +189,29 @@ export function normalizeCompetitiveParty(
     };
   });
 
-  const active = members.find(member => member.slotIndex === party.activeSlotIndex);
+  const active = members.find(function findItem(member) {
+    return member.slotIndex === party.activeSlotIndex;
+  });
   if (!active) {
     throw new CompetitivePartyValidationError("active-slot-missing");
   }
   if (active.currentHp === 0) {
     throw new CompetitivePartyValidationError("active-pokemon-fainted");
   }
-  if (!members.some(member => member.currentHp > 0)) {
+  if (
+    !members.some(function testItem(member) {
+      return member.currentHp > 0;
+    })
+  ) {
     throw new CompetitivePartyValidationError("no-battle-ready-pokemon");
   }
 
   return {
     version: COMPETITIVE_PARTY_SNAPSHOT_VERSION,
     activeSlotIndex: party.activeSlotIndex,
-    members: members.sort((left, right) => left.slotIndex - right.slotIndex),
+    members: members.sort(function compareItems(left, right) {
+      return left.slotIndex - right.slotIndex;
+    }),
   };
 }
 
@@ -212,15 +220,19 @@ export function restoreCompetitiveParty(
 ): NormalizedCompetitiveParty {
   return {
     ...party,
-    members: party.members.map(member => ({
-      ...member,
-      currentHp: member.maxHp,
-      status: "normal",
-      moves: member.moves.map(move => ({
-        ...move,
-        pp: getCompetitiveMoveMaxPp(move.moveId),
-      })),
-    })),
+    members: party.members.map(function mapItem(member) {
+      return {
+        ...member,
+        currentHp: member.maxHp,
+        status: "normal",
+        moves: member.moves.map(function mapItem(move) {
+          return {
+            ...move,
+            pp: getCompetitiveMoveMaxPp(move.moveId),
+          };
+        }),
+      };
+    }),
   };
 }
 
@@ -241,7 +253,9 @@ export function isCompetitiveMoveSelectable(moveId: number): boolean {
 export function canUseCompetitiveStruggle(
   moves: readonly { moveId: number; pp: number }[],
 ): boolean {
-  return moves.every(move => move.pp === 0 || !isCompetitiveMoveSelectable(move.moveId));
+  return moves.every(function testItem(move) {
+    return move.pp === 0 || !isCompetitiveMoveSelectable(move.moveId);
+  });
 }
 
 function isPartySlot(value: number): boolean {
@@ -249,9 +263,9 @@ function isPartySlot(value: number): boolean {
 }
 
 function isValidIndividualValues(values: CompetitiveIndividualValues): boolean {
-  return Object.values(values).every(
-    value => Number.isSafeInteger(value) && value >= 0 && value <= 31,
-  );
+  return Object.values(values).every(function testItem(value) {
+    return Number.isSafeInteger(value) && value >= 0 && value <= 31;
+  });
 }
 
 function hasMatchingStatusAndHp(status: CompetitivePersistentStatus, currentHp: number): boolean {

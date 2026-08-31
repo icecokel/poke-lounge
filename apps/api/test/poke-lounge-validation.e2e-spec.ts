@@ -2,12 +2,12 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Server } from 'node:http';
 import request from 'supertest';
-import { GoogleAuthGuard } from './../src/auth/google-auth.guard';
-import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
-import { CompetitiveMatchService } from './../src/poke-lounge/competitive/competitive-match.service';
-import { PokeLoungeController } from './../src/poke-lounge/poke-lounge.controller';
-import type { PokeLoungeRoomSnapshot } from './../src/poke-lounge/poke-lounge-room.repository';
-import { PokeLoungeRoomService } from './../src/poke-lounge/poke-lounge-room.service';
+import { GoogleAuthGuard } from '../src/auth/google-auth.guard';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { CompetitiveMatchService } from '../src/poke-lounge/competitive/competitive-match.service';
+import { PokeLoungeController } from '../src/poke-lounge/poke-lounge.controller';
+import type { PokeLoungeRoomSnapshot } from '../src/poke-lounge/poke-lounge-room.repository';
+import { PokeLoungeRoomService } from '../src/poke-lounge/poke-lounge-room.service';
 import { createTestCompetitivePartyInput } from './support/competitive-party.fixture';
 
 const idempotencyKey = '00000000-0000-4000-8000-000000000001';
@@ -70,10 +70,14 @@ const invalidMutations = [
       sessionId: 'session-a',
       competitiveParty: {
         ...createTestCompetitivePartyInput(),
-        members: createTestCompetitivePartyInput().members.map((member) => ({
-          ...member,
-          maxHp: 999,
-        })),
+        members: createTestCompetitivePartyInput().members.map(
+          function mapItem(member) {
+            return {
+              ...member,
+              maxHp: 999,
+            };
+          },
+        ),
       },
     },
   },
@@ -114,12 +118,12 @@ type ValidationErrorResponse = {
   success?: boolean;
 };
 
-describe('Poke Lounge request validation (e2e)', () => {
+describe('Poke Lounge request validation (e2e)', function testSuite() {
   let app: INestApplication;
   let httpServer: Server;
   let roomService: ReturnType<typeof createRoomServiceMock>;
 
-  beforeEach(async () => {
+  beforeEach(async function setUpTest() {
     roomService = createRoomServiceMock();
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [PokeLoungeController],
@@ -151,13 +155,13 @@ describe('Poke Lounge request validation (e2e)', () => {
     httpServer = app.getHttpServer() as Server;
   });
 
-  afterEach(async () => {
+  afterEach(async function tearDownTest() {
     await app.close();
   });
 
   it.each(invalidMutations)(
     'rejects malformed $name bodies before calling room services',
-    async ({ path, body }) => {
+    async function callback({ path, body }) {
       const response = await request(httpServer)
         .post(path)
         .set(commandHeaders(0))
@@ -186,7 +190,7 @@ describe('Poke Lounge request validation (e2e)', () => {
     },
   );
 
-  it('passes a valid false ready value to the service without coercion', async () => {
+  it('passes a valid false ready value to the service without coercion', async function testCase() {
     await request(httpServer)
       .post('/poke-lounge/rooms/ROOM01/ready')
       .set(commandHeaders(3))

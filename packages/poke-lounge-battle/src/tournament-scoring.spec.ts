@@ -6,8 +6,8 @@ import {
   scoreTournamentStandings,
 } from "./tournament-scoring";
 
-describe("tournament scoring", () => {
-  it("uses the documented rank score table", () => {
+describe("tournament scoring", function testSuite() {
+  it("uses the documented rank score table", function testCase() {
     expect(DEFAULT_TOURNAMENT_SCORE_BY_RANK).toEqual({
       1: 100,
       2: 70,
@@ -18,7 +18,7 @@ describe("tournament scoring", () => {
     });
   });
 
-  it("scores, accumulates, and ranks tournament standings", () => {
+  it("scores, accumulates, and ranks tournament standings", function testCase() {
     const roundScores = scoreTournamentStandings([
       standing("player-1", 1, 1),
       standing("player-2", 2, 2),
@@ -36,7 +36,9 @@ describe("tournament scoring", () => {
         participant("player-1", 1),
         participant("player-2", 2),
         participant("player-3", 3),
-      ]).map(({ playerId, rank }) => ({ playerId, rank })),
+      ]).map(function mapItem({ playerId, rank }) {
+        return { playerId, rank };
+      }),
     ).toEqual([
       { playerId: "player-1", rank: 1 },
       { playerId: "player-2", rank: 1 },
@@ -44,7 +46,7 @@ describe("tournament scoring", () => {
     ]);
   });
 
-  it("sums each party member remaining HP percentage without placement points", () => {
+  it("sums each party member remaining HP percentage without placement points", function testCase() {
     expect(
       scoreRemainingHpPercentage([
         { currentHp: 39, maxHp: 39 },

@@ -24,13 +24,13 @@ import {
   type PokeLoungePartySlotSummary,
 } from "../runtime/game/ui/mobile-world-ui";
 import type { WorldUiStore } from "../runtime/game/world/world-ui-store";
-import { createShortcutGuideRows } from "../runtime/game/ui/shortcutGuide";
+import { createShortcutGuideRows } from "../runtime/game/ui/shortcut-guide";
 import {
   resetVirtualGamepad,
   virtualGamepadController,
   type VirtualGamepadButton,
   type VirtualGamepadController,
-} from "../runtime/game/input/virtualGamepad";
+} from "../runtime/game/input/virtual-gamepad";
 import styles from "./mobile-game-shell.module.css";
 
 type MobileScene = "battle" | "world" | null;
@@ -48,7 +48,7 @@ type MobileJoystickOffset = {
 const mobileJoystickDeadZoneRatio = 0.24;
 const mobileJoystickMaximumThumbOffsetRatio = 0.46;
 const emptyMobileJoystickOffset: MobileJoystickOffset = { x: 0, y: 0 };
-const subscribeToNothing = () => () => {};
+const subscribeToNothing = () => function callback() {};
 
 const resolveMobileJoystickDirections = (
   offset: MobileJoystickOffset,
@@ -168,8 +168,12 @@ export function MobileGameShell({
 }: MobileGameShellProps) {
   const worldState = useSyncExternalStore(
     worldUiStore?.subscribe ?? subscribeToNothing,
-    () => worldUiStore?.getSnapshot().mobile ?? null,
-    () => null,
+    function callback() {
+      return worldUiStore?.getSnapshot().mobile ?? null;
+    },
+    function callback() {
+      return null;
+    },
   );
 
   const dispatchWorldAction = (action: MobileWorldUiAction) => {
@@ -194,7 +198,7 @@ export function MobileGameShell({
             <button
               type="button"
               className={styles.utilityButton}
-              onClick={() => {
+              onClick={function handleClick() {
                 if (activeScene === "world") worldInput.reset();
                 else resetVirtualGamepad();
                 onOpenSettings();
@@ -208,7 +212,7 @@ export function MobileGameShell({
               <button
                 type="button"
                 className={styles.utilityButton}
-                onClick={() => {
+                onClick={function handleClick() {
                   if (activeScene === "world") {
                     dispatchWorldAction({ type: "open-help" });
                     return;
@@ -256,7 +260,9 @@ function MobileExploreDeck({
   onAction(action: MobileWorldUiAction): void;
   worldState: MobileWorldUiState | null;
 }) {
-  const activePokemon = worldState?.party.find(pokemon => pokemon.isActive && !pokemon.isEmpty);
+  const activePokemon = worldState?.party.find(function findItem(pokemon) {
+    return pokemon.isActive && !pokemon.isEmpty;
+  });
   const hasActivePokemonHp = activePokemon?.currentHp !== null && activePokemon?.maxHp !== null;
 
   return (
@@ -298,7 +304,9 @@ function MobileExploreDeck({
           <button
             type="button"
             className={styles.partyAction}
-            onClick={() => onAction({ type: "open-party" })}
+            onClick={function handleClick() {
+              return onAction({ type: "open-party" });
+            }}
             data-poke-lounge-mobile-party="true"
           >
             <span>P</span>
@@ -323,20 +331,25 @@ function MobileDirectionalJoystick({
   const activeDirectionsRef = useRef(new Set<MobileJoystickDirection>());
   const activePointerId = useRef<number | null>(null);
 
-  useEffect(() => {
-    return () => {
-      for (const direction of activeDirectionsRef.current) {
-        input.setHeld(direction, false);
-      }
-    };
-  }, [input]);
+  useEffect(
+    function runEffect() {
+      return function callback() {
+        for (const direction of activeDirectionsRef.current) {
+          input.setHeld(direction, false);
+        }
+      };
+    },
+    [input],
+  );
 
   const holdDirections = (directions: ReadonlyArray<MobileJoystickDirection>) => {
     const nextDirections = new Set(directions);
 
     if (
       activeDirectionsRef.current.size === nextDirections.size &&
-      [...nextDirections].every(direction => activeDirectionsRef.current.has(direction))
+      [...nextDirections].every(function testItem(direction) {
+        return activeDirectionsRef.current.has(direction);
+      })
     ) {
       return;
     }
@@ -349,7 +362,9 @@ function MobileDirectionalJoystick({
 
     activeDirectionsRef.current = nextDirections;
     setActiveDirections(
-      mobileJoystickDirectionOrder.filter(direction => nextDirections.has(direction)),
+      mobileJoystickDirectionOrder.filter(function filterItem(direction) {
+        return nextDirections.has(direction);
+      }),
     );
   };
 
@@ -385,7 +400,7 @@ function MobileDirectionalJoystick({
       data-active={isActive || undefined}
       data-direction={activeDirections.length > 0 ? activeDirections.join("-") : undefined}
       data-poke-lounge-mobile-joystick="true"
-      onPointerDown={event => {
+      onPointerDown={function handlePointerDown(event) {
         event.preventDefault();
         activePointerId.current = event.pointerId;
         try {
@@ -397,16 +412,24 @@ function MobileDirectionalJoystick({
         void primePokeLoungeAudio();
         updateFromPointer(event.currentTarget, event);
       }}
-      onPointerMove={event => {
+      onPointerMove={function handlePointerMove(event) {
         if (activePointerId.current === event.pointerId) {
           updateFromPointer(event.currentTarget, event);
         }
       }}
-      onPointerUp={event => release(event.pointerId)}
-      onPointerCancel={event => release(event.pointerId)}
-      onLostPointerCapture={() => release()}
-      onBlur={() => release()}
-      onKeyDown={event => {
+      onPointerUp={function handlePointerUp(event) {
+        return release(event.pointerId);
+      }}
+      onPointerCancel={function handlePointerCancel(event) {
+        return release(event.pointerId);
+      }}
+      onLostPointerCapture={function handleLostPointerCapture() {
+        return release();
+      }}
+      onBlur={function handleBlur() {
+        return release();
+      }}
+      onKeyDown={function handleKeyDown(event) {
         const direction = getMobileJoystickKeyboardDirection(event.key);
 
         if (!direction) {
@@ -414,15 +437,15 @@ function MobileDirectionalJoystick({
         }
 
         event.preventDefault();
-        const directions = mobileJoystickDirectionOrder.filter(
-          candidate => activeDirectionsRef.current.has(candidate) || candidate === direction,
-        );
+        const directions = mobileJoystickDirectionOrder.filter(function filterItem(candidate) {
+          return activeDirectionsRef.current.has(candidate) || candidate === direction;
+        });
 
         setIsActive(true);
         setThumbOffset(getMobileJoystickKeyboardOffset(directions));
         holdDirections(directions);
       }}
-      onKeyUp={event => {
+      onKeyUp={function handleKeyUp(event) {
         const direction = getMobileJoystickKeyboardDirection(event.key);
 
         if (!direction) {
@@ -430,9 +453,9 @@ function MobileDirectionalJoystick({
         }
 
         event.preventDefault();
-        const directions = mobileJoystickDirectionOrder.filter(
-          candidate => candidate !== direction && activeDirectionsRef.current.has(candidate),
-        );
+        const directions = mobileJoystickDirectionOrder.filter(function filterItem(candidate) {
+          return candidate !== direction && activeDirectionsRef.current.has(candidate);
+        });
 
         if (directions.length === 0) {
           release();
@@ -478,7 +501,9 @@ export function MobileWorldScreen({
       <MobileWorldSceneFooter
         copy={copy}
         onBack={back}
-        onConfirm={() => onAction({ type: "use-inventory-item" })}
+        onConfirm={function handleConfirm() {
+          return onAction({ type: "use-inventory-item" });
+        }}
         confirmLabel={copy.mobile.use}
       />
     );
@@ -488,7 +513,9 @@ export function MobileWorldScreen({
       <MobileWorldSceneFooter
         copy={copy}
         onBack={back}
-        onConfirm={() => onAction({ type: "use-inventory-item" })}
+        onConfirm={function handleConfirm() {
+          return onAction({ type: "use-inventory-item" });
+        }}
         confirmLabel={copy.mobile.use}
       />
     );
@@ -498,8 +525,12 @@ export function MobileWorldScreen({
       <MobileWorldSceneFooter
         backLabel={copy.mobile.doNotLearnMove}
         copy={copy}
-        onBack={() => onAction({ type: "skip-inventory-move" })}
-        onConfirm={() => onAction({ type: "use-inventory-item" })}
+        onBack={function handleBack() {
+          return onAction({ type: "skip-inventory-move" });
+        }}
+        onConfirm={function handleConfirm() {
+          return onAction({ type: "use-inventory-item" });
+        }}
         confirmLabel={copy.mobile.confirmMoveReplacement}
       />
     );
@@ -509,7 +540,9 @@ export function MobileWorldScreen({
       <MobileWorldSceneFooter
         copy={copy}
         onBack={back}
-        onConfirm={() => onAction({ type: "purchase-shop-item" })}
+        onConfirm={function handleConfirm() {
+          return onAction({ type: "purchase-shop-item" });
+        }}
         confirmLabel={copy.mobile.buy}
         confirmDisabled={state.items.length === 0}
       />
@@ -521,7 +554,9 @@ export function MobileWorldScreen({
       <MobileWorldSceneFooter
         copy={copy}
         onBack={back}
-        onConfirm={() => onAction({ type: "confirm-pc-selection" })}
+        onConfirm={function handleConfirm() {
+          return onAction({ type: "confirm-pc-selection" });
+        }}
         confirmLabel={confirmLabel}
       />
     );
@@ -531,7 +566,9 @@ export function MobileWorldScreen({
       <MobileWorldSceneFooter
         copy={copy}
         onBack={back}
-        onConfirm={() => onAction({ type: "confirm-dice-selection" })}
+        onConfirm={function handleConfirm() {
+          return onAction({ type: "confirm-dice-selection" });
+        }}
         confirmLabel={copy.mobile.roll}
       />
     );
@@ -563,12 +600,14 @@ export function MobileWorldScreen({
 export function MobileWorldHelpScreen({ state }: { state: MobileWorldUiState }) {
   return (
     <ul className={styles.helpList}>
-      {createShortcutGuideRows("world", state.inputMode).map(row => (
-        <li key={row.action}>
-          <b>{row.action}</b>
-          <span>{row.keys}</span>
-        </li>
-      ))}
+      {createShortcutGuideRows("world", state.inputMode).map(function mapItem(row) {
+        return (
+          <li key={row.action}>
+            <b>{row.action}</b>
+            <span>{row.keys}</span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -583,21 +622,25 @@ export function MobileInventoryItemList({
   return (
     <div className={styles.inventoryLayout}>
       <div className={styles.inventoryGrid}>
-        {state.items.map(item => (
-          <PixelButton
-            key={item.id}
-            className={styles.inventorySlot}
-            data-poke-lounge-inventory-item={item.id}
-            selected={item.selected}
-            onClick={() => onAction({ type: "select-inventory-item", index: item.index })}
-          >
-            <span className={styles.inventorySlotGlyph} aria-hidden="true">
-              {item.name.slice(0, 1)}
-            </span>
-            <span className={styles.inventorySlotName}>{item.name}</span>
-            <small className={styles.inventorySlotCount}>×{item.count}</small>
-          </PixelButton>
-        ))}
+        {state.items.map(function mapItem(item) {
+          return (
+            <PixelButton
+              key={item.id}
+              className={styles.inventorySlot}
+              data-poke-lounge-inventory-item={item.id}
+              selected={item.selected}
+              onClick={function handleClick() {
+                return onAction({ type: "select-inventory-item", index: item.index });
+              }}
+            >
+              <span className={styles.inventorySlotGlyph} aria-hidden="true">
+                {item.name.slice(0, 1)}
+              </span>
+              <span className={styles.inventorySlotName}>{item.name}</span>
+              <small className={styles.inventorySlotCount}>×{item.count}</small>
+            </PixelButton>
+          );
+        })}
       </div>
       <div className={styles.inventoryDetail}>
         <p className={styles.detailText}>
@@ -621,22 +664,26 @@ export function MobileInventoryPartyTarget({
       <p className={styles.detailText}>{state.selectedItemName}</p>
       <div className={styles.compactList}>
         {state.party
-          .filter(pokemon => !pokemon.isEmpty)
-          .map(pokemon => (
-            <button
-              key={pokemon.slotIndex}
-              type="button"
-              className={styles.listButton}
-              data-poke-lounge-inventory-party-slot={pokemon.slotIndex}
-              data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
-              onClick={() =>
-                onAction({ type: "select-inventory-party", slotIndex: pokemon.slotIndex })
-              }
-            >
-              <span>{pokemon.name}</span>
-              <small>{formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}</small>
-            </button>
-          ))}
+          .filter(function filterItem(pokemon) {
+            return !pokemon.isEmpty;
+          })
+          .map(function mapItem(pokemon) {
+            return (
+              <button
+                key={pokemon.slotIndex}
+                type="button"
+                className={styles.listButton}
+                data-poke-lounge-inventory-party-slot={pokemon.slotIndex}
+                data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
+                onClick={function handleClick() {
+                  return onAction({ type: "select-inventory-party", slotIndex: pokemon.slotIndex });
+                }}
+              >
+                <span>{pokemon.name}</span>
+                <small>{formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}</small>
+              </button>
+            );
+          })}
       </div>
       <MobileWorldMessage message={state.message} />
     </>
@@ -665,19 +712,23 @@ export function MobileInventoryMoveReplacement({
         )}
       </p>
       <div className={styles.compactList}>
-        {state.moveReplacement.moves.map(move => (
-          <button
-            key={move.id}
-            type="button"
-            className={styles.listButton}
-            data-poke-lounge-move-replacement={move.id}
-            data-selected={move.selected}
-            onClick={() => onAction({ type: "select-inventory-move", index: move.index })}
-          >
-            <span>{move.name}</span>
-            <small>{move.selected ? copy.mobile.forgetMove : ""}</small>
-          </button>
-        ))}
+        {state.moveReplacement.moves.map(function mapItem(move) {
+          return (
+            <button
+              key={move.id}
+              type="button"
+              className={styles.listButton}
+              data-poke-lounge-move-replacement={move.id}
+              data-selected={move.selected}
+              onClick={function handleClick() {
+                return onAction({ type: "select-inventory-move", index: move.index });
+              }}
+            >
+              <span>{move.name}</span>
+              <small>{move.selected ? copy.mobile.forgetMove : ""}</small>
+            </button>
+          );
+        })}
       </div>
       <MobileWorldMessage message={state.message} />
     </>
@@ -694,21 +745,25 @@ export function MobileShopPanel({
   return (
     <>
       <div className={styles.compactList}>
-        {state.items.map(item => (
-          <button
-            key={item.id}
-            type="button"
-            className={styles.listButton}
-            data-poke-lounge-shop-item={item.id}
-            data-selected={item.selected}
-            onClick={() => onAction({ type: "select-shop-item", index: item.index })}
-          >
-            <span>{item.name}</span>
-            <small>
-              {formatMobilePokeDollars(item.price ?? 0)} · ×{item.count}
-            </small>
-          </button>
-        ))}
+        {state.items.map(function mapItem(item) {
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={styles.listButton}
+              data-poke-lounge-shop-item={item.id}
+              data-selected={item.selected}
+              onClick={function handleClick() {
+                return onAction({ type: "select-shop-item", index: item.index });
+              }}
+            >
+              <span>{item.name}</span>
+              <small>
+                {formatMobilePokeDollars(item.price ?? 0)} · ×{item.count}
+              </small>
+            </button>
+          );
+        })}
       </div>
       <p className={styles.detailText}>{state.selectedItemDescription}</p>
       <MobileWorldMessage message={state.message} />
@@ -734,7 +789,9 @@ export function MobilePcPanel({
           type="button"
           className={styles.panelAction}
           data-selected={isPartyFocused}
-          onClick={() => onAction({ type: "select-pc-focus", focus: "party" })}
+          onClick={function handleClick() {
+            return onAction({ type: "select-pc-focus", focus: "party" });
+          }}
         >
           {copy.mobile.pcParty}
         </button>
@@ -742,44 +799,54 @@ export function MobilePcPanel({
           type="button"
           className={styles.panelAction}
           data-selected={!isPartyFocused}
-          onClick={() => onAction({ type: "select-pc-focus", focus: "box" })}
+          onClick={function handleClick() {
+            return onAction({ type: "select-pc-focus", focus: "box" });
+          }}
         >
           {copy.mobile.pcBox}
         </button>
       </div>
       <div className={styles.compactList}>
         {isPartyFocused ? (
-          state.party.map(pokemon => (
-            <button
-              key={pokemon.slotIndex}
-              type="button"
-              className={styles.listButton}
-              data-poke-lounge-pc-party-slot={pokemon.slotIndex}
-              data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
-              onClick={() => onAction({ type: "select-pc-party", slotIndex: pokemon.slotIndex })}
-            >
-              <span>{pokemon.isEmpty ? "-" : pokemon.name}</span>
-              <small>
-                {pokemon.isEmpty
-                  ? ""
-                  : formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}
-              </small>
-            </button>
-          ))
+          state.party.map(function mapItem(pokemon) {
+            return (
+              <button
+                key={pokemon.slotIndex}
+                type="button"
+                className={styles.listButton}
+                data-poke-lounge-pc-party-slot={pokemon.slotIndex}
+                data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
+                onClick={function handleClick() {
+                  return onAction({ type: "select-pc-party", slotIndex: pokemon.slotIndex });
+                }}
+              >
+                <span>{pokemon.isEmpty ? "-" : pokemon.name}</span>
+                <small>
+                  {pokemon.isEmpty
+                    ? ""
+                    : formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}
+                </small>
+              </button>
+            );
+          })
         ) : state.box.length > 0 ? (
-          state.box.map(pokemon => (
-            <button
-              key={pokemon.boxIndex}
-              type="button"
-              className={styles.listButton}
-              data-poke-lounge-pc-box-slot={pokemon.boxIndex}
-              data-selected={pokemon.selected}
-              onClick={() => onAction({ type: "select-pc-box", boxIndex: pokemon.boxIndex })}
-            >
-              <span>{pokemon.name}</span>
-              <small>{formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}</small>
-            </button>
-          ))
+          state.box.map(function mapItem(pokemon) {
+            return (
+              <button
+                key={pokemon.boxIndex}
+                type="button"
+                className={styles.listButton}
+                data-poke-lounge-pc-box-slot={pokemon.boxIndex}
+                data-selected={pokemon.selected}
+                onClick={function handleClick() {
+                  return onAction({ type: "select-pc-box", boxIndex: pokemon.boxIndex });
+                }}
+              >
+                <span>{pokemon.name}</span>
+                <small>{formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}</small>
+              </button>
+            );
+          })
         ) : (
           <p className={styles.emptyList}>비어 있음</p>
         )}
@@ -805,24 +872,30 @@ export function MobileDicePanel({
             {formatMobilePokeDollars(state.dice.stakePokeDollars)}
           </p>
           <div className={styles.compactList}>
-            {state.dice.options.map(option => (
-              <button
-                key={option.prediction}
-                type="button"
-                className={styles.listButton}
-                data-poke-lounge-dice-option={option.prediction}
-                data-selected={option.selected}
-                disabled={option.disabled}
-                onClick={() =>
-                  onAction({ type: "select-dice-prediction", prediction: option.prediction })
-                }
-              >
-                <span>{option.label}</span>
-                <small>
-                  {option.winningCaseCount}/6 · {formatMobilePokeDollars(option.rewardPokeDollars)}
-                </small>
-              </button>
-            ))}
+            {state.dice.options.map(function mapItem(option) {
+              return (
+                <button
+                  key={option.prediction}
+                  type="button"
+                  className={styles.listButton}
+                  data-poke-lounge-dice-option={option.prediction}
+                  data-selected={option.selected}
+                  disabled={option.disabled}
+                  onClick={function handleClick() {
+                    return onAction({
+                      type: "select-dice-prediction",
+                      prediction: option.prediction,
+                    });
+                  }}
+                >
+                  <span>{option.label}</span>
+                  <small>
+                    {option.winningCaseCount}/6 ·{" "}
+                    {formatMobilePokeDollars(option.rewardPokeDollars)}
+                  </small>
+                </button>
+              );
+            })}
           </div>
         </>
       ) : null}
@@ -842,29 +915,35 @@ export function MobilePartyPanel({
 }) {
   return (
     <div className={styles.compactList}>
-      {state.party.map(pokemon => (
-        <button
-          key={pokemon.slotIndex}
-          type="button"
-          className={styles.listButton}
-          data-poke-lounge-mobile-party-slot={pokemon.slotIndex}
-          data-selected={pokemon.isActive}
-          data-empty={pokemon.isEmpty || undefined}
-          disabled={pokemon.isEmpty || !pokemon.canSetAsLead}
-          onClick={() => onAction({ type: "set-party-lead", slotIndex: pokemon.slotIndex })}
-        >
-          <span>{pokemon.isEmpty ? copy.partySlotLabel(pokemon.slotIndex + 1) : pokemon.name}</span>
-          <small>
-            {pokemon.isEmpty
-              ? copy.partySlotEmpty
-              : pokemon.isActive
-                ? copy.partySlotLead
-                : pokemon.canSetAsLead
-                  ? copy.mobile.setLead
-                  : formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}
-          </small>
-        </button>
-      ))}
+      {state.party.map(function mapItem(pokemon) {
+        return (
+          <button
+            key={pokemon.slotIndex}
+            type="button"
+            className={styles.listButton}
+            data-poke-lounge-mobile-party-slot={pokemon.slotIndex}
+            data-selected={pokemon.isActive}
+            data-empty={pokemon.isEmpty || undefined}
+            disabled={pokemon.isEmpty || !pokemon.canSetAsLead}
+            onClick={function handleClick() {
+              return onAction({ type: "set-party-lead", slotIndex: pokemon.slotIndex });
+            }}
+          >
+            <span>
+              {pokemon.isEmpty ? copy.partySlotLabel(pokemon.slotIndex + 1) : pokemon.name}
+            </span>
+            <small>
+              {pokemon.isEmpty
+                ? copy.partySlotEmpty
+                : pokemon.isActive
+                  ? copy.partySlotLead
+                  : pokemon.canSetAsLead
+                    ? copy.mobile.setLead
+                    : formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}
+            </small>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -977,8 +1056,12 @@ export function MobileBattleDeck({
 }) {
   const battleState = useSyncExternalStore(
     uiStore?.subscribe ?? subscribeToNothing,
-    () => uiStore?.getSnapshot().controls ?? null,
-    () => null,
+    function callback() {
+      return uiStore?.getSnapshot().controls ?? null;
+    },
+    function callback() {
+      return null;
+    },
   );
 
   const dispatchAction = (action: MobileBattleUiAction) => {
@@ -1037,7 +1120,9 @@ function MobileBattleBackButton({
     <button
       type="button"
       className={styles.backButton}
-      onClick={() => onAction({ type: "go-back" })}
+      onClick={function handleClick() {
+        return onAction({ type: "go-back" });
+      }}
       aria-label={label}
     >
       ‹ {label}
@@ -1062,17 +1147,21 @@ export function MobileBattleCommandDeck({
   };
   return (
     <div className={styles.commandDeck} data-poke-lounge-mobile-deck="battle-command">
-      {state.commands.map((command, index) => (
-        <button
-          key={command.id}
-          type="button"
-          className={styles.commandButton}
-          data-selected={command.selected}
-          onClick={() => onAction({ type: "select-command", index })}
-        >
-          {labels[command.id]}
-        </button>
-      ))}
+      {state.commands.map(function mapItem(command, index) {
+        return (
+          <button
+            key={command.id}
+            type="button"
+            className={styles.commandButton}
+            data-selected={command.selected}
+            onClick={function handleClick() {
+              return onAction({ type: "select-command", index });
+            }}
+          >
+            {labels[command.id]}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -1109,28 +1198,32 @@ export function MobileBattleMoveDeck({
         <MobileBattleBackButton copy={copy} onAction={onAction} state={state} />
       </div>
       <div className={styles.optionGrid} data-poke-lounge-mobile-option-grid="moves">
-        {state.moves.map(move => (
-          <button
-            key={move.index}
-            type="button"
-            className={styles.moveButton}
-            data-selected={move.selected}
-            disabled={move.disabled}
-            aria-label={
-              moveReplacement
-                ? `${move.name} · ${copy.mobile.forgetMove} → ${moveReplacement.newMoveName}`
-                : undefined
-            }
-            onClick={() => onAction({ type: actionType, index: move.index })}
-          >
-            <span>{move.name}</span>
-            <small>
-              PP {move.pp}/{move.maxPp} · {move.type}
-              {move.effectNotice ? ` · ${move.effectNotice}` : ""}
-              {moveReplacement ? ` · ${copy.mobile.forgetMove}` : ""}
-            </small>
-          </button>
-        ))}
+        {state.moves.map(function mapItem(move) {
+          return (
+            <button
+              key={move.index}
+              type="button"
+              className={styles.moveButton}
+              data-selected={move.selected}
+              disabled={move.disabled}
+              aria-label={
+                moveReplacement
+                  ? `${move.name} · ${copy.mobile.forgetMove} → ${moveReplacement.newMoveName}`
+                  : undefined
+              }
+              onClick={function handleClick() {
+                return onAction({ type: actionType, index: move.index });
+              }}
+            >
+              <span>{move.name}</span>
+              <small>
+                PP {move.pp}/{move.maxPp} · {move.type}
+                {move.effectNotice ? ` · ${move.effectNotice}` : ""}
+                {moveReplacement ? ` · ${copy.mobile.forgetMove}` : ""}
+              </small>
+            </button>
+          );
+        })}
         <MobileBattleEmptySlots occupiedSlotCount={state.moves.length} />
       </div>
     </div>
@@ -1153,26 +1246,30 @@ export function MobileBattlePartyDeck({
         <MobileBattleBackButton copy={copy} onAction={onAction} state={state} />
       </div>
       <div className={styles.partyList}>
-        {state.party.map(pokemon => (
-          <button
-            key={pokemon.slotIndex}
-            type="button"
-            className={styles.partyButton}
-            data-current={pokemon.isCurrent}
-            data-selected={pokemon.selected}
-            disabled={!pokemon.canSwitch}
-            onClick={() => onAction({ type: "select-party", index: pokemon.slotIndex })}
-          >
-            <span>
-              {pokemon.name} <small>Lv.{pokemon.level}</small>
-            </span>
-            <small>
-              {pokemon.isCurrent
-                ? "ON FIELD"
-                : `${pokemon.currentHp}/${pokemon.maxHp}${pokemon.status ? ` · ${pokemon.status}` : ""}`}
-            </small>
-          </button>
-        ))}
+        {state.party.map(function mapItem(pokemon) {
+          return (
+            <button
+              key={pokemon.slotIndex}
+              type="button"
+              className={styles.partyButton}
+              data-current={pokemon.isCurrent}
+              data-selected={pokemon.selected}
+              disabled={!pokemon.canSwitch}
+              onClick={function handleClick() {
+                return onAction({ type: "select-party", index: pokemon.slotIndex });
+              }}
+            >
+              <span>
+                {pokemon.name} <small>Lv.{pokemon.level}</small>
+              </span>
+              <small>
+                {pokemon.isCurrent
+                  ? "ON FIELD"
+                  : `${pokemon.currentHp}/${pokemon.maxHp}${pokemon.status ? ` · ${pokemon.status}` : ""}`}
+              </small>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1194,19 +1291,23 @@ export function MobileBattleBagDeck({
         <MobileBattleBackButton copy={copy} onAction={onAction} state={state} />
       </div>
       <div className={styles.itemList} data-poke-lounge-mobile-option-grid="items">
-        {state.items.map(item => (
-          <button
-            key={item.id}
-            type="button"
-            className={styles.itemButton}
-            data-selected={item.selected}
-            disabled={item.disabled}
-            onClick={() => onAction({ type: "select-item", index: item.index })}
-          >
-            <span>{item.name}</span>
-            <small>×{item.count}</small>
-          </button>
-        ))}
+        {state.items.map(function mapItem(item) {
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={styles.itemButton}
+              data-selected={item.selected}
+              disabled={item.disabled}
+              onClick={function handleClick() {
+                return onAction({ type: "select-item", index: item.index });
+              }}
+            >
+              <span>{item.name}</span>
+              <small>×{item.count}</small>
+            </button>
+          );
+        })}
         <MobileBattleEmptySlots occupiedSlotCount={state.items.length} />
       </div>
     </div>
@@ -1227,7 +1328,9 @@ export function MobileBattleHelpDeck({
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => onAction({ type: "toggle-help" })}
+          onClick={function handleClick() {
+            return onAction({ type: "toggle-help" });
+          }}
           data-poke-lounge-mobile-battle-help-close="true"
         >
           {copy.settingsClose}
@@ -1268,7 +1371,9 @@ export function MobileBattleMessageDeck({
         type="button"
         className={styles.nextButton}
         aria-label={`${state.message} ${copy.mobile.next}`}
-        onClick={() => onAction({ type: "confirm-message" })}
+        onClick={function handleClick() {
+          return onAction({ type: "confirm-message" });
+        }}
         disabled={state.isInputLocked}
       >
         {copy.mobile.next} <span>›</span>
@@ -1284,14 +1389,16 @@ export function MobileBattleWaitingDeck({ copy }: { copy: PokeLoungeCopy }) {
 function MobileBattleEmptySlots({ occupiedSlotCount }: { occupiedSlotCount: number }) {
   return Array.from(
     { length: Math.max(0, mobileBattleGridSlotCount - occupiedSlotCount) },
-    (_, index) => (
-      <div
-        key={`empty-battle-slot-${index}`}
-        aria-hidden="true"
-        className={styles.emptyOptionSlot}
-        data-poke-lounge-mobile-empty-slot="true"
-      />
-    ),
+    function callback(_, index) {
+      return (
+        <div
+          key={`empty-battle-slot-${index}`}
+          aria-hidden="true"
+          className={styles.emptyOptionSlot}
+          data-poke-lounge-mobile-empty-slot="true"
+        />
+      );
+    },
   );
 }
 
@@ -1416,13 +1523,15 @@ function MobileSettingsScreen({
         ) : null}
         {rankingStatus === "ready" && ranking.length > 0 ? (
           <ol className={styles.rankingList}>
-            {ranking.map(entry => (
-              <li key={entry.id}>
-                <span>#{entry.rank}</span>
-                <strong>{entry.name}</strong>
-                <b>{entry.score.toLocaleString(copy.locale)}</b>
-              </li>
-            ))}
+            {ranking.map(function mapItem(entry) {
+              return (
+                <li key={entry.id}>
+                  <span>#{entry.rank}</span>
+                  <strong>{entry.name}</strong>
+                  <b>{entry.score.toLocaleString(copy.locale)}</b>
+                </li>
+              );
+            })}
           </ol>
         ) : null}
       </section>
@@ -1446,11 +1555,14 @@ function TouchHoldButton({
   const [pressed, setPressed] = useState(false);
   const activePointerId = useRef<number | null>(null);
 
-  useEffect(() => {
-    return () => {
-      input.release(control);
-    };
-  }, [control, input]);
+  useEffect(
+    function runEffect() {
+      return function callback() {
+        input.release(control);
+      };
+    },
+    [control, input],
+  );
 
   const release = (pointerId?: number) => {
     if (pointerId !== undefined && activePointerId.current !== pointerId) {
@@ -1469,7 +1581,7 @@ function TouchHoldButton({
       aria-label={ariaLabel}
       data-mobile-control={control}
       data-pressed={pressed || undefined}
-      onPointerDown={event => {
+      onPointerDown={function handlePointerDown(event) {
         event.preventDefault();
         activePointerId.current = event.pointerId;
         try {
@@ -1481,17 +1593,23 @@ function TouchHoldButton({
         void primePokeLoungeAudio();
         input.press(control);
       }}
-      onPointerUp={event => release(event.pointerId)}
-      onPointerCancel={event => release(event.pointerId)}
-      onPointerLeave={() => release()}
-      onKeyDown={event => {
+      onPointerUp={function handlePointerUp(event) {
+        return release(event.pointerId);
+      }}
+      onPointerCancel={function handlePointerCancel(event) {
+        return release(event.pointerId);
+      }}
+      onPointerLeave={function handlePointerLeave() {
+        return release();
+      }}
+      onKeyDown={function handleKeyDown(event) {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           setPressed(true);
           input.press(control);
         }
       }}
-      onKeyUp={event => {
+      onKeyUp={function handleKeyUp(event) {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           release();

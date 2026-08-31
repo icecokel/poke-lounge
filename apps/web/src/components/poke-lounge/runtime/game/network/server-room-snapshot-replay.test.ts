@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { COMPETITIVE_RULESET_HASH } from "@poke-lounge/battle/competitive-ruleset-config";
 import {
-  COMPETITIVE_RULESET_HASH,
   createTournamentBracketState,
   getReadyTournamentMatches,
   recordTournamentMatchResult,
-} from "@poke-lounge/battle";
-import { createGameStateStore } from "../state/gameStateStore";
+} from "@poke-lounge/battle/tournament-bracket";
+import { createGameStateStore } from "../state/game-state-store";
 import { selectCompetitiveAssignment } from "./competitive-projection";
-import type { CompetitiveProjection, RoomEvent } from "./localPreviewRoom";
+import type { CompetitiveProjection, RoomEvent } from "./local-preview-room";
 
-test("동시 경기 선택은 본인 경기를 우선하고 비전투자는 같은 경기를 안정적으로 관전한다", () => {
+test("동시 경기 선택은 본인 경기를 우선하고 비전투자는 같은 경기를 안정적으로 관전한다", function testCase() {
   const assignments = [
     {
       matchId: "match-1",
@@ -220,16 +220,20 @@ function createVisibilityDocument(initialState: DocumentVisibilityState) {
 }
 
 function createRoomSnapshots() {
-  const participants = Array.from({ length: 5 }, (_, index) => ({
-    playerId: `player-${index + 1}`,
-    displayName: `Player ${index + 1}`,
-    role: "participant",
-    ready: true,
-    connected: true,
-    joinedAtMs: index + 1,
-  }));
+  const participants = Array.from({ length: 5 }, function callback(_, index) {
+    return {
+      playerId: `player-${index + 1}`,
+      displayName: `Player ${index + 1}`,
+      role: "participant",
+      ready: true,
+      connected: true,
+      joinedAtMs: index + 1,
+    };
+  });
   const firstBracket = createTournamentBracketState(
-    participants.map(({ playerId, displayName }) => ({ playerId, displayName })),
+    participants.map(function mapItem({ playerId, displayName }) {
+      return { playerId, displayName };
+    }),
     1,
   );
   const firstMatch = getReadyTournamentMatches(firstBracket)[0];
@@ -408,7 +412,9 @@ function reverseNestedObjectKeyOrder<T>(value: T): T {
     return Object.fromEntries(
       Object.entries(value)
         .reverse()
-        .map(([key, nestedValue]) => [key, reverseNestedObjectKeyOrder(nestedValue)]),
+        .map(function mapItem([key, nestedValue]) {
+          return [key, reverseNestedObjectKeyOrder(nestedValue)];
+        }),
     ) as T;
   }
 
@@ -416,16 +422,20 @@ function reverseNestedObjectKeyOrder<T>(value: T): T {
 }
 
 function createEightTerminalTransitionPage() {
-  const participants = Array.from({ length: 6 }, (_, index) => ({
-    playerId: `player-${index + 1}`,
-    displayName: `Player ${index + 1}`,
-    role: "participant",
-    ready: true,
-    connected: true,
-    joinedAtMs: index + 1,
-  }));
+  const participants = Array.from({ length: 6 }, function callback(_, index) {
+    return {
+      playerId: `player-${index + 1}`,
+      displayName: `Player ${index + 1}`,
+      role: "participant",
+      ready: true,
+      connected: true,
+      joinedAtMs: index + 1,
+    };
+  });
   let bracket = createTournamentBracketState(
-    participants.map(({ playerId, displayName }) => ({ playerId, displayName })),
+    participants.map(function mapItem({ playerId, displayName }) {
+      return { playerId, displayName };
+    }),
     1,
   );
 
@@ -486,16 +496,20 @@ function createEightTerminalTransitionPage() {
         roundNumber: 4,
         matches: fourthRoundMatches,
         byes: [],
-        slots: fourthRoundMatches.map(match => ({
-          kind: "match" as const,
-          matchId: match.matchId,
-        })),
+        slots: fourthRoundMatches.map(function mapItem(match) {
+          return {
+            kind: "match" as const,
+            matchId: match.matchId,
+          };
+        }),
       },
     ],
   };
   const competitiveTransitions = pagedBracket.completedRounds
-    .flatMap(round => round.matches)
-    .map((match, index) => {
+    .flatMap(function mapItem(round) {
+      return round.matches;
+    })
+    .map(function mapItem(match, index) {
       const terminal = createTerminal(match.participantIds);
       const terminalRoomRevision = 16 + index;
       const projection = {
@@ -576,33 +590,35 @@ function createCompetitiveProjection(
       turn: 0,
       participantIds: playerIds,
       playersById: Object.fromEntries(
-        playerIds.map(playerId => [
-          playerId,
-          {
+        playerIds.map(function mapItem(playerId) {
+          return [
             playerId,
-            activeSlotIndex: 0,
-            team: [
-              {
-                slotIndex: 0,
-                speciesId: playerId === playerIds[0] ? 7 : 158,
-                level: playerId === playerIds[0] ? 11 : 13,
-                maxHp: 34,
-                currentHp: 34,
-                status: "normal",
-                statStages: {
-                  attack: 0,
-                  defense: 0,
-                  specialAttack: 0,
-                  specialDefense: 0,
-                  speed: 0,
-                  accuracy: 0,
-                  evasion: 0,
+            {
+              playerId,
+              activeSlotIndex: 0,
+              team: [
+                {
+                  slotIndex: 0,
+                  speciesId: playerId === playerIds[0] ? 7 : 158,
+                  level: playerId === playerIds[0] ? 11 : 13,
+                  maxHp: 34,
+                  currentHp: 34,
+                  status: "normal",
+                  statStages: {
+                    attack: 0,
+                    defense: 0,
+                    specialAttack: 0,
+                    specialDefense: 0,
+                    speed: 0,
+                    accuracy: 0,
+                    evasion: 0,
+                  },
+                  moves: [{ moveId: 55, pp: 25 }],
                 },
-                moves: [{ moveId: 55, pp: 25 }],
-              },
-            ],
-          },
-        ]),
+              ],
+            },
+          ];
+        }),
       ),
       terminal: null,
     },
@@ -638,13 +654,17 @@ async function waitFor(predicate: () => boolean): Promise<void> {
       throw new Error("Timed out waiting for server room state");
     }
 
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise(function resolvePromise(resolve) {
+      return setTimeout(resolve, 10);
+    });
   }
 }
 
 async function flushAsyncWork(): Promise<void> {
   await Promise.resolve();
-  await new Promise<void>(resolve => setImmediate(resolve));
+  await new Promise<void>(function resolvePromise(resolve) {
+    return setImmediate(resolve);
+  });
 }
 
 function createStorage(values: Map<string, string>): Storage {
@@ -674,7 +694,7 @@ function createEmptyStorage(): Storage {
   return createStorage(new Map());
 }
 
-test("서버 방 신원은 localStorage로 이전하고 계정별로 격리한다", async () => {
+test("서버 방 신원은 localStorage로 이전하고 계정별로 격리한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const localValues = new Map<string, string>();
@@ -714,7 +734,7 @@ test("서버 방 신원은 localStorage로 이전하고 계정별로 격리한�
         },
       },
     });
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const accountARoom = createServerRoom({ roomId: "ROOM01", accountId: "account-a" });
     const accountASessionId = accountARoom.sessionId;
     accountARoom.dispose();
@@ -734,7 +754,7 @@ test("서버 방 신원은 localStorage로 이전하고 계정별로 격리한�
   }
 });
 
-test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 제거한다", async () => {
+test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 제거한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -757,10 +777,10 @@ test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 �
       sessionStorage: createEmptyStorage(),
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom, readStoredServerRoomResume } = await import("./serverRoom");
+    const { createServerRoom, readStoredServerRoomResume } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     room = createServerRoom({
@@ -771,7 +791,9 @@ test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 �
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => readStoredServerRoomResume()?.roomCode === "ROOM01");
+    await waitFor(function waitForCondition() {
+      return readStoredServerRoomResume()?.roomCode === "ROOM01";
+    });
 
     const completed = createCompletedRoomSnapshot(
       createRoundStartedRoomSnapshot(snapshots.initial, 16, 301_000),
@@ -792,7 +814,7 @@ test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 �
   }
 });
 
-test("브라우저 종료 뒤 대기실 자리가 만료돼도 저장 identity로 한 번 재입장한다", async () => {
+test("브라우저 종료 뒤 대기실 자리가 만료돼도 저장 identity로 한 번 재입장한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -814,10 +836,10 @@ test("브라우저 종료 뒤 대기실 자리가 만료돼도 저장 identity�
       sessionStorage: createEmptyStorage(),
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const waiting = createWaitingRoomSnapshot(snapshots.initial, []);
@@ -845,7 +867,9 @@ test("브라우저 종료 뒤 대기실 자리가 만료돼도 저장 identity�
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => joinBodies.length === 1 && socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return joinBodies.length === 1 && socket.subscriptions().length > 0;
+    });
 
     assert.deepEqual(joinBodies, [
       { playerId: "player-1", sessionId: "session-1", displayName: "Player 1" },
@@ -857,7 +881,7 @@ test("브라우저 종료 뒤 대기실 자리가 만료돼도 저장 identity�
   }
 });
 
-test("이전 게임 라운드 terminal은 다음 라운드 bracket 초기화 뒤에도 적용한다", async () => {
+test("이전 게임 라운드 terminal은 다음 라운드 bracket 초기화 뒤에도 적용한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {
@@ -868,10 +892,10 @@ test("이전 게임 라운드 terminal은 다음 라운드 bracket 초기화 뒤
       clearTimeout,
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     let ready = false;
@@ -889,10 +913,16 @@ test("이전 게임 라운드 terminal은 다음 라운드 bracket 초기화 뒤
     });
     const competitiveStates: RoomEvent["COMPETITIVE_STATE"][] = [];
     const tournamentStates: RoomEvent["TOURNAMENT_STATE"][] = [];
-    room.on("COMPETITIVE_STATE", payload => competitiveStates.push(payload));
-    room.on("TOURNAMENT_STATE", payload => tournamentStates.push(payload));
+    room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+      return competitiveStates.push(payload);
+    });
+    room.on("TOURNAMENT_STATE", function handleEvent(payload) {
+      return tournamentStates.push(payload);
+    });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready);
+    await waitFor(function waitForCondition() {
+      return ready;
+    });
 
     socket.pushSnapshot({
       roomCode: "ROOM01",
@@ -929,7 +959,7 @@ test("이전 게임 라운드 terminal은 다음 라운드 bracket 초기화 뒤
   }
 });
 
-test("전투 중 WorldScene 재연결은 잠긴 party snapshot을 다시 제출하지 않는다", async () => {
+test("전투 중 WorldScene 재연결은 잠긴 party snapshot을 다시 제출하지 않는다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {
@@ -940,10 +970,10 @@ test("전투 중 WorldScene 재연결은 잠긴 party snapshot을 다시 제출�
       clearTimeout,
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     let partyRequests = 0;
@@ -965,7 +995,9 @@ test("전투 중 WorldScene 재연결은 잠긴 party snapshot을 다시 제출�
     });
     const snapshot = createPlayerSnapshot();
     room.connect(snapshot);
-    await waitFor(() => partyRequests === 1);
+    await waitFor(function waitForCondition() {
+      return partyRequests === 1;
+    });
 
     room.connect(snapshot);
     await flushAsyncWork();
@@ -977,7 +1009,7 @@ test("전투 중 WorldScene 재연결은 잠긴 party snapshot을 다시 제출�
   }
 });
 
-test("명시적 leave는 revision conflict의 최신 revision으로 한 번 재시도한다", async () => {
+test("명시적 leave는 revision conflict의 최신 revision으로 한 번 재시도한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -1005,10 +1037,10 @@ test("명시적 leave는 revision conflict의 최신 revision으로 한 번 재�
       sessionStorage: createEmptyStorage(),
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const leaveRequests: Array<{ idempotencyKey: string; revision: string }> = [];
@@ -1045,15 +1077,26 @@ test("명시적 leave는 revision conflict의 최신 revision으로 한 번 재�
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready);
+    await waitFor(function waitForCondition() {
+      return ready;
+    });
 
     await room.leave?.();
 
     assert.deepEqual(
-      leaveRequests.map(request => request.revision),
+      leaveRequests.map(function mapItem(request) {
+        return request.revision;
+      }),
       ["15", "16"],
     );
-    assert.equal(new Set(leaveRequests.map(request => request.idempotencyKey)).size, 2);
+    assert.equal(
+      new Set(
+        leaveRequests.map(function mapItem(request) {
+          return request.idempotencyKey;
+        }),
+      ).size,
+      2,
+    );
     assert.equal(values.has("poke-lounge:server-room-identity"), false);
   } finally {
     room?.dispose();
@@ -1061,14 +1104,14 @@ test("명시적 leave는 revision conflict의 최신 revision으로 한 번 재�
   }
 });
 
-test("E2E socket transport diagnostics는 query guard와 sanitized state transition을 유지한다", async () => {
+test("E2E socket transport diagnostics는 query guard와 sanitized state transition을 유지한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
     const { createServerRoom, getServerRoomTransportDiagnosticsForE2e } =
-      await import("./serverRoom");
+      await import("./server-room");
     const nonE2eTimers = createManualRecoveryTimers();
     Object.defineProperty(globalThis, "window", {
       configurable: true,
@@ -1121,7 +1164,7 @@ test("E2E socket transport diagnostics는 query guard와 sanitized state transit
       connectionStatus: "connecting",
     });
     const connectionStatuses: RoomEvent["CONNECTION_STATUS"]["connectionStatus"][] = [];
-    room.on("CONNECTION_STATUS", ({ connectionStatus }) => {
+    room.on("CONNECTION_STATUS", function handleEvent({ connectionStatus }) {
       connectionStatuses.push(connectionStatus);
       connectionStore.setSession({
         sessionId: room?.sessionId ?? null,
@@ -1131,10 +1174,12 @@ test("E2E socket transport diagnostics는 query guard와 sanitized state transit
     });
     assert.equal(getServerRoomTransportDiagnosticsForE2e(room)?.lastAppliedTerminalRevision, null);
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready && socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return ready && socket.subscriptions().length > 0;
+    });
     assert.deepEqual(configuredTransports, ["polling", "websocket"]);
     assert.equal(tryAllTransports, true);
-    await waitFor(() => {
+    await waitFor(function waitForCondition() {
       const diagnostics = getServerRoomTransportDiagnosticsForE2e(room ?? undefined);
       return diagnostics?.socketConnected === true && diagnostics.recoveryInFlight === false;
     });
@@ -1193,7 +1238,7 @@ test("E2E socket transport diagnostics는 query guard와 sanitized state transit
 
     socket.setActiveTransport("polling");
     socket.reconnectFromServer();
-    await waitFor(() => {
+    await waitFor(function waitForCondition() {
       const diagnostics = getServerRoomTransportDiagnosticsForE2e(room ?? undefined);
       return diagnostics?.socketConnected === true && diagnostics.recoveryInFlight === false;
     });
@@ -1231,7 +1276,7 @@ test("E2E socket transport diagnostics는 query guard와 sanitized state transit
         expected,
       );
       socket.reconnectFromServer();
-      await waitFor(() => {
+      await waitFor(function waitForCondition() {
         const diagnostics = getServerRoomTransportDiagnosticsForE2e(room ?? undefined);
         return diagnostics?.socketConnected === true && diagnostics.recoveryInFlight === false;
       });
@@ -1303,7 +1348,7 @@ test("E2E socket transport diagnostics는 query guard와 sanitized state transit
   }
 });
 
-test("round 종료 시각이 되면 authoritative GET으로 완료 상태를 반영한다", async () => {
+test("round 종료 시각이 되면 authoritative GET으로 완료 상태를 반영한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -1311,10 +1356,10 @@ test("round 종료 시각이 되면 authoritative GET으로 완료 상태를 반
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const deadline = Date.now() + 10_000;
@@ -1344,11 +1389,13 @@ test("round 종료 시각이 되면 authoritative GET으로 완료 상태를 반
       fetch: fetchFixture,
       socketFactory: () => socket,
     });
-    room.on("TOURNAMENT_STATE", ({ roomRound }) => {
+    room.on("TOURNAMENT_STATE", function handleEvent({ roomRound }) {
       latestRoundPhase = roomRound.phase;
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready && socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return ready && socket.subscriptions().length > 0;
+    });
     await flushAsyncWork();
 
     clockArmed = true;
@@ -1368,7 +1415,7 @@ test("round 종료 시각이 되면 authoritative GET으로 완료 상태를 반
   }
 });
 
-test("round 종료 GET이 같은 상태를 반환하면 bounded backoff로 다시 확인한다", async () => {
+test("round 종료 GET이 같은 상태를 반환하면 bounded backoff로 다시 확인한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -1376,10 +1423,10 @@ test("round 종료 GET이 같은 상태를 반환하면 bounded backoff로 다�
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const roundStarted = createRoundStartedRoomSnapshot(snapshots.initial, 16, Date.now());
@@ -1407,7 +1454,9 @@ test("round 종료 GET이 같은 상태를 반환하면 bounded backoff로 다�
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready && socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return ready && socket.subscriptions().length > 0;
+    });
     await flushAsyncWork();
 
     clockArmed = true;
@@ -1426,7 +1475,7 @@ test("round 종료 GET이 같은 상태를 반환하면 bounded backoff로 다�
   }
 });
 
-test("round 종료 상태를 받은 참가자는 준비 확인을 서버에 보낸다", async () => {
+test("round 종료 상태를 받은 참가자는 준비 확인을 서버에 보낸다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -1434,26 +1483,30 @@ test("round 종료 상태를 받은 참가자는 준비 확인을 서버에 보�
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const roundStarted = {
       ...createRoundStartedRoomSnapshot(snapshots.initial, 16, Date.now()),
-      participants: snapshots.initial.participants.map(participant => ({
-        ...participant,
-        ready: false,
-      })),
+      participants: snapshots.initial.participants.map(function mapItem(participant) {
+        return {
+          ...participant,
+          ready: false,
+        };
+      }),
     };
     const ownReady = {
       ...roundStarted,
       revision: 17,
-      participants: roundStarted.participants.map(participant => ({
-        ...participant,
-        ready: participant.playerId === "player-1",
-      })),
+      participants: roundStarted.participants.map(function mapItem(participant) {
+        return {
+          ...participant,
+          ready: participant.playerId === "player-1",
+        };
+      }),
     };
     let initialPartySynced = false;
     let clockArmed = false;
@@ -1481,7 +1534,9 @@ test("round 종료 상태를 받은 참가자는 준비 확인을 서버에 보�
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => initialPartySynced && socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return initialPartySynced && socket.subscriptions().length > 0;
+    });
     await flushAsyncWork();
 
     clockArmed = true;
@@ -1499,7 +1554,7 @@ test("round 종료 상태를 받은 참가자는 준비 확인을 서버에 보�
   }
 });
 
-test("round-ready 뒤 socket 전환을 놓치면 같은 상태를 반복 확인한다", async () => {
+test("round-ready 뒤 socket 전환을 놓치면 같은 상태를 반복 확인한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
@@ -1509,26 +1564,30 @@ test("round-ready 뒤 socket 전환을 놓치면 같은 상태를 반복 확인�
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const roundStarted = {
       ...createRoundStartedRoomSnapshot(snapshots.initial, 16, Date.now()),
-      participants: snapshots.initial.participants.map(participant => ({
-        ...participant,
-        ready: false,
-      })),
+      participants: snapshots.initial.participants.map(function mapItem(participant) {
+        return {
+          ...participant,
+          ready: false,
+        };
+      }),
     };
     const ownReady = {
       ...roundStarted,
       revision: 17,
-      participants: roundStarted.participants.map(participant => ({
-        ...participant,
-        ready: participant.playerId === "player-1",
-      })),
+      participants: roundStarted.participants.map(function mapItem(participant) {
+        return {
+          ...participant,
+          ready: participant.playerId === "player-1",
+        };
+      }),
     };
     let initialPartySynced = false;
     let clockArmed = false;
@@ -1558,7 +1617,9 @@ test("round-ready 뒤 socket 전환을 놓치면 같은 상태를 반복 확인�
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => initialPartySynced && socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return initialPartySynced && socket.subscriptions().length > 0;
+    });
     await flushAsyncWork();
 
     Object.defineProperty(globalThis, "document", {
@@ -1581,7 +1642,7 @@ test("round-ready 뒤 socket 전환을 놓치면 같은 상태를 반복 확인�
   }
 });
 
-test("긴 round 대기는 30초로 제한되고 dispose는 stale callback도 무시한다", async () => {
+test("긴 round 대기는 30초로 제한되고 dispose는 stale callback도 무시한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -1589,10 +1650,10 @@ test("긴 round 대기는 30초로 제한되고 dispose는 stale callback도 무
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const roundStarted = createRoundStartedRoomSnapshot(
@@ -1623,7 +1684,9 @@ test("긴 round 대기는 30초로 제한되고 dispose는 stale callback도 무
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready && socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return ready && socket.subscriptions().length > 0;
+    });
     await flushAsyncWork();
 
     clockArmed = true;
@@ -1642,7 +1705,7 @@ test("긴 round 대기는 30초로 제한되고 dispose는 stale callback도 무
   }
 });
 
-test("응답 없는 server room fetch는 제한 시간 뒤 중단되고 재시도 대기 상태가 된다", async () => {
+test("응답 없는 server room fetch는 제한 시간 뒤 중단되고 재시도 대기 상태가 된다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -1650,14 +1713,14 @@ test("응답 없는 server room fetch는 제한 시간 뒤 중단되고 재시�
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const request = { signal: null as AbortSignal | null };
     const fetchFixture: typeof fetch = async (_input, init) => {
       request.signal = init?.signal ?? null;
-      return await new Promise<Response>(() => {});
+      return await new Promise<Response>(function resolvePromise() {});
     };
     room = createServerRoom({
       roomId: "ROOM01",
@@ -1669,7 +1732,9 @@ test("응답 없는 server room fetch는 제한 시간 뒤 중단되고 재시�
     });
     room.connect(createPlayerSnapshot());
 
-    await waitFor(() => timers.nextDelay() === 25);
+    await waitFor(function waitForCondition() {
+      return timers.nextDelay() === 25;
+    });
     await timers.runNext();
 
     assert.equal(request.signal?.aborted, true);
@@ -1682,7 +1747,7 @@ test("응답 없는 server room fetch는 제한 시간 뒤 중단되고 재시�
   }
 });
 
-test("header 뒤 멈춘 response body도 같은 제한 시간으로 중단한다", async () => {
+test("header 뒤 멈춘 response body도 같은 제한 시간으로 중단한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -1690,10 +1755,10 @@ test("header 뒤 멈춘 response body도 같은 제한 시간으로 중단한다
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const request = { signal: null as AbortSignal | null };
     let bodyReadStarted = false;
     const stalledResponse = new Response(null, {
@@ -1704,7 +1769,7 @@ test("header 뒤 멈춘 response body도 같은 제한 시간으로 중단한다
       configurable: true,
       value: () => {
         bodyReadStarted = true;
-        return new Promise<string>(() => {});
+        return new Promise<string>(function resolvePromise() {});
       },
     });
     const fetchFixture: typeof fetch = async (_input, init) => {
@@ -1721,7 +1786,9 @@ test("header 뒤 멈춘 response body도 같은 제한 시간으로 중단한다
     });
     room.connect(createPlayerSnapshot());
 
-    await waitFor(() => bodyReadStarted && timers.nextDelay() === 25);
+    await waitFor(function waitForCondition() {
+      return bodyReadStarted && timers.nextDelay() === 25;
+    });
     await timers.runNext();
 
     assert.equal(request.signal?.aborted, true);
@@ -1734,7 +1801,7 @@ test("header 뒤 멈춘 response body도 같은 제한 시간으로 중단한다
   }
 });
 
-test("reconnect 뒤 clear된 queued recovery timer는 추가 GET을 dispatch하지 않는다", async () => {
+test("reconnect 뒤 clear된 queued recovery timer는 추가 GET을 dispatch하지 않는다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -1742,10 +1809,10 @@ test("reconnect 뒤 clear된 queued recovery timer는 추가 GET을 dispatch하�
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     let ready = false;
@@ -1766,7 +1833,9 @@ test("reconnect 뒤 clear된 queued recovery timer는 추가 GET을 dispatch하�
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready && socket.subscriptions().length > 0 && recoveryRequests > 0);
+    await waitFor(function waitForCondition() {
+      return ready && socket.subscriptions().length > 0 && recoveryRequests > 0;
+    });
     await flushAsyncWork();
 
     socket.disconnectFromServer();
@@ -1775,7 +1844,9 @@ test("reconnect 뒤 clear된 queued recovery timer는 추가 GET을 dispatch하�
     const recoveryCountBeforeReconnect = recoveryRequests;
 
     socket.reconnectFromServer();
-    await waitFor(() => recoveryRequests === recoveryCountBeforeReconnect + 1);
+    await waitFor(function waitForCondition() {
+      return recoveryRequests === recoveryCountBeforeReconnect + 1;
+    });
     await flushAsyncWork();
     const recoveryCountAfterReconnect = recoveryRequests;
 
@@ -1788,7 +1859,7 @@ test("reconnect 뒤 clear된 queued recovery timer는 추가 GET을 dispatch하�
   }
 });
 
-test("online action stale watchdog은 GET 실패를 socket failure로 승격하지 않고 backoff한다", async () => {
+test("online action stale watchdog은 GET 실패를 socket failure로 승격하지 않고 backoff한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
@@ -1802,10 +1873,10 @@ test("online action stale watchdog은 GET 실패를 socket failure로 승격하�
     configurable: true,
     value: visibility.document,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const initialProjection = {
@@ -1859,12 +1930,14 @@ test("online action stale watchdog은 GET 실패를 socket failure로 승격하�
     });
     const receivedTurns: number[] = [];
     let actionApplied = false;
-    room.on("COMPETITIVE_STATE", ({ projection }) => {
+    room.on("COMPETITIVE_STATE", function handleEvent({ projection }) {
       receivedTurns.push(projection.currentTurn);
       actionApplied ||= projection.submittedPlayerIds.includes(actionPlayerId);
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => partySynced && receivedTurns.includes(0));
+    await waitFor(function waitForCondition() {
+      return partySynced && receivedTurns.includes(0);
+    });
     await flushAsyncWork();
     const recoveryRequestsBeforeAction = recoveryRequests;
     recoveryFailuresRemaining = 1;
@@ -1876,21 +1949,29 @@ test("online action stale watchdog은 GET 실패를 socket failure로 승격하�
       clientCommandId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
       action: { kind: "move", moveId: 55 },
     });
-    await waitFor(() => actionRequests === 1 && actionApplied);
+    await waitFor(function waitForCondition() {
+      return actionRequests === 1 && actionApplied;
+    });
     await flushAsyncWork();
 
     assert.equal(timers.nextDelay(), 3_000);
     await timers.runNext();
-    await waitFor(() => recoveryRequests === recoveryRequestsBeforeAction + 1);
+    await waitFor(function waitForCondition() {
+      return recoveryRequests === recoveryRequestsBeforeAction + 1;
+    });
     assert.equal(timers.nextDelay(), 5_000);
 
     await timers.runNext();
-    await waitFor(() => recoveryRequests === recoveryRequestsBeforeAction + 2);
+    await waitFor(function waitForCondition() {
+      return recoveryRequests === recoveryRequestsBeforeAction + 2;
+    });
     assert.equal(timers.nextDelay(), 5_000);
 
     recoveryRoom = nextRoom;
     await timers.runNext();
-    await waitFor(() => receivedTurns.includes(1));
+    await waitFor(function waitForCondition() {
+      return receivedTurns.includes(1);
+    });
     assert.ok((timers.nextDelay() ?? 0) > 30_000);
 
     visibility.setVisibility("hidden");
@@ -1917,7 +1998,7 @@ test("online action stale watchdog은 GET 실패를 socket failure로 승격하�
   }
 });
 
-test("만료된 competitive turn 행동은 전송하지 않고 최신 room으로 복구한다", async () => {
+test("만료된 competitive turn 행동은 전송하지 않고 최신 room으로 복구한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {
@@ -1928,10 +2009,10 @@ test("만료된 competitive turn 행동은 전송하지 않고 최신 room으로
       clearTimeout,
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const expiredProjection = {
@@ -1961,10 +2042,14 @@ test("만료된 competitive turn 행동은 전송하지 않고 최신 room으로
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => partySynced);
+    await waitFor(function waitForCondition() {
+      return partySynced;
+    });
     socket.pushSnapshot(expiredRoom);
     const failures: RoomEvent["COMPETITIVE_ACTION_FAILED"][] = [];
-    room.on("COMPETITIVE_ACTION_FAILED", failure => failures.push(failure));
+    room.on("COMPETITIVE_ACTION_FAILED", function handleEvent(failure) {
+      return failures.push(failure);
+    });
     const recoveryRequestsBeforeAction = recoveryRequests;
 
     room.send("COMPETITIVE_ACTION", {
@@ -1975,7 +2060,9 @@ test("만료된 competitive turn 행동은 전송하지 않고 최신 room으로
       action: { kind: "move", moveId: 55 },
     });
 
-    await waitFor(() => recoveryRequests > recoveryRequestsBeforeAction);
+    await waitFor(function waitForCondition() {
+      return recoveryRequests > recoveryRequestsBeforeAction;
+    });
     assert.equal(actionRequests, 0);
     assert.deepEqual(failures, [
       {
@@ -1990,7 +2077,7 @@ test("만료된 competitive turn 행동은 전송하지 않고 최신 room으로
   }
 });
 
-test("visibility 복귀 recovery는 중복 trigger를 합치고 새 revision에서 종료한다", async () => {
+test("visibility 복귀 recovery는 중복 trigger를 합치고 새 revision에서 종료한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
@@ -2004,10 +2091,10 @@ test("visibility 복귀 recovery는 중복 trigger를 합치고 새 revision에�
     configurable: true,
     value: visibility.document,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     let recoverySnapshot = snapshots.initial;
@@ -2031,7 +2118,9 @@ test("visibility 복귀 recovery는 중복 trigger를 합치고 새 revision에�
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => partySynced && recoveryRequests > 0);
+    await waitFor(function waitForCondition() {
+      return partySynced && recoveryRequests > 0;
+    });
     const recoveryRequestsBeforeVisibility = recoveryRequests;
     recoverySnapshot = { ...snapshots.initial, revision: 16 };
 
@@ -2039,7 +2128,9 @@ test("visibility 복귀 recovery는 중복 trigger를 합치고 새 revision에�
     visibility.setVisibility("visible");
     assert.equal(timers.nextDelay(), 0);
     await timers.runNext();
-    await waitFor(() => recoveryRequests === recoveryRequestsBeforeVisibility + 1);
+    await waitFor(function waitForCondition() {
+      return recoveryRequests === recoveryRequestsBeforeVisibility + 1;
+    });
 
     assert.equal(timers.nextDelay(), null);
     assert.equal(visibility.listenerCount(), 1);
@@ -2053,7 +2144,7 @@ test("visibility 복귀 recovery는 중복 trigger를 합치고 새 revision에�
   }
 });
 
-test("socket 미연결 recovery 성공은 polling backoff를 초기화하지 않는다", async () => {
+test("socket 미연결 recovery 성공은 polling backoff를 초기화하지 않는다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -2061,10 +2152,10 @@ test("socket 미연결 recovery 성공은 polling backoff를 초기화하지 않
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket(false);
     const snapshots = createRoomSnapshots();
     let ready = false;
@@ -2085,14 +2176,18 @@ test("socket 미연결 recovery 성공은 polling backoff를 초기화하지 않
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready);
+    await waitFor(function waitForCondition() {
+      return ready;
+    });
 
     socket.failConnection();
     const expectedDelays = [250, 500, 1_000, 2_000, 4_000, 5_000];
     for (const [index, expectedDelay] of expectedDelays.entries()) {
       assert.equal(timers.nextDelay(), expectedDelay);
       await timers.runNext();
-      await waitFor(() => recoveryRequests === index + 1);
+      await waitFor(function waitForCondition() {
+        return recoveryRequests === index + 1;
+      });
     }
     assert.equal(recoveryRequests, expectedDelays.length);
     assert.equal(timers.nextDelay(), 5_000);
@@ -2102,7 +2197,7 @@ test("socket 미연결 recovery 성공은 polling backoff를 초기화하지 않
   }
 });
 
-test("8개 terminal transition 페이지는 cursor 전진 시 즉시 다음 페이지를 요청한다", async () => {
+test("8개 terminal transition 페이지는 cursor 전진 시 즉시 다음 페이지를 요청한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -2110,10 +2205,10 @@ test("8개 terminal transition 페이지는 cursor 전진 시 즉시 다음 페�
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket(false);
     const snapshots = createRoomSnapshots();
     const pagedTransitions = createEightTerminalTransitionPage();
@@ -2131,7 +2226,7 @@ test("8개 terminal transition 페이지는 cursor 전진 시 즉시 다음 페�
         return jsonResponse(pagedTransitions);
       }
 
-      return new Promise<Response>(() => {});
+      return new Promise<Response>(function resolvePromise() {});
     };
     room = createServerRoom({
       roomId: "ROOM01",
@@ -2141,12 +2236,16 @@ test("8개 terminal transition 페이지는 cursor 전진 시 즉시 다음 페�
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready);
+    await waitFor(function waitForCondition() {
+      return ready;
+    });
 
     socket.failConnection();
     assert.equal(timers.nextDelay(), 250);
     await timers.runNext();
-    await waitFor(() => recoveryRequests === 2);
+    await waitFor(function waitForCondition() {
+      return recoveryRequests === 2;
+    });
     assert.equal(timers.nextDelay(), 10_000);
   } finally {
     room?.dispose();
@@ -2154,7 +2253,7 @@ test("8개 terminal transition 페이지는 cursor 전진 시 즉시 다음 페�
   }
 });
 
-test("외부 terminal recovery가 대기 중이면 8개 페이지도 backoff로 재시도한다", async () => {
+test("외부 terminal recovery가 대기 중이면 8개 페이지도 backoff로 재시도한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -2162,18 +2261,18 @@ test("외부 terminal recovery가 대기 중이면 8개 페이지도 backoff로 
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket(false);
     const snapshots = createRoomSnapshots();
     const pagedTransitions = createEightTerminalTransitionPage();
     const mismatchedInitial = {
       ...snapshots.initial,
-      participants: snapshots.initial.participants.map((participant, index) =>
-        index === 0 ? { ...participant, connected: false } : participant,
-      ),
+      participants: snapshots.initial.participants.map(function mapItem(participant, index) {
+        return index === 0 ? { ...participant, connected: false } : participant;
+      }),
     };
     let ready = false;
     let recoveryRequests = 0;
@@ -2187,8 +2286,10 @@ test("외부 terminal recovery가 대기 중이면 8개 페이지도 backoff로 
 
       recoveryRequests += 1;
       if (recoveryRequests === 1) {
-        return new Promise<Response>(resolve => {
-          releaseFirstRecovery = () => resolve(jsonResponse(pagedTransitions));
+        return new Promise<Response>(function resolvePromise(resolve) {
+          releaseFirstRecovery = function callback() {
+            return resolve(jsonResponse(pagedTransitions));
+          };
         });
       }
 
@@ -2202,15 +2303,21 @@ test("외부 terminal recovery가 대기 중이면 8개 페이지도 backoff로 
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready);
+    await waitFor(function waitForCondition() {
+      return ready;
+    });
 
     socket.failConnection();
     await timers.runNext();
-    await waitFor(() => releaseFirstRecovery !== undefined);
+    await waitFor(function waitForCondition() {
+      return releaseFirstRecovery !== undefined;
+    });
     socket.pushSnapshot(mismatchedInitial);
     releaseFirstRecovery?.();
     await flushAsyncWork();
-    await waitFor(() => timers.nextDelay() === 500);
+    await waitFor(function waitForCondition() {
+      return timers.nextDelay() === 500;
+    });
 
     assert.equal(recoveryRequests, 1);
     assert.equal(timers.nextDelay(), 500);
@@ -2220,7 +2327,7 @@ test("외부 terminal recovery가 대기 중이면 8개 페이지도 backoff로 
   }
 });
 
-test("persistent same-revision mismatch recovery는 즉시 재귀하지 않는다", async () => {
+test("persistent same-revision mismatch recovery는 즉시 재귀하지 않는다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -2228,17 +2335,17 @@ test("persistent same-revision mismatch recovery는 즉시 재귀하지 않는�
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const mismatched = {
       ...snapshots.initial,
-      participants: snapshots.initial.participants.map((participant, index) =>
-        index === 0 ? { ...participant, connected: false } : participant,
-      ),
+      participants: snapshots.initial.participants.map(function mapItem(participant, index) {
+        return index === 0 ? { ...participant, connected: false } : participant;
+      }),
     };
     let ready = false;
     let initialRecoveryCompleted = false;
@@ -2259,7 +2366,7 @@ test("persistent same-revision mismatch recovery는 즉시 재귀하지 않는�
       if (mismatchRecoveryRequests === 1) {
         return jsonResponse(mismatched);
       }
-      return new Promise<Response>(() => {});
+      return new Promise<Response>(function resolvePromise() {});
     };
     room = createServerRoom({
       roomId: "ROOM01",
@@ -2269,12 +2376,16 @@ test("persistent same-revision mismatch recovery는 즉시 재귀하지 않는�
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready && initialRecoveryCompleted);
+    await waitFor(function waitForCondition() {
+      return ready && initialRecoveryCompleted;
+    });
     await flushAsyncWork();
 
     persistentMismatchEnabled = true;
     socket.pushSnapshot(mismatched);
-    await waitFor(() => mismatchRecoveryRequests >= 1);
+    await waitFor(function waitForCondition() {
+      return mismatchRecoveryRequests >= 1;
+    });
     await flushAsyncWork();
 
     assert.equal(mismatchRecoveryRequests, 1);
@@ -2285,7 +2396,7 @@ test("persistent same-revision mismatch recovery는 즉시 재귀하지 않는�
   }
 });
 
-test("E2E recovery failure diagnostics는 원인을 분류하고 안정화 시 초기화한다", async () => {
+test("E2E recovery failure diagnostics는 원인을 분류하고 안정화 시 초기화한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers("?e2e=1");
@@ -2293,18 +2404,18 @@ test("E2E recovery failure diagnostics는 원인을 분류하고 안정화 시 �
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
     const { createServerRoom, getServerRoomTransportDiagnosticsForE2e } =
-      await import("./serverRoom");
+      await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const mismatched = {
       ...snapshots.initial,
-      participants: snapshots.initial.participants.map((participant, index) =>
-        index === 0 ? { ...participant, connected: false } : participant,
-      ),
+      participants: snapshots.initial.participants.map(function mapItem(participant, index) {
+        return index === 0 ? { ...participant, connected: false } : participant;
+      }),
     };
     let recoveryMode: "valid" | "hold" | "malformed" | "server-error" = "valid";
     let releaseRecovery: ((response: Response) => void) | undefined;
@@ -2316,7 +2427,7 @@ test("E2E recovery failure diagnostics는 원인을 분류하고 안정화 시 �
         return jsonResponse(snapshots.initial);
       }
       if (recoveryMode === "hold") {
-        return new Promise<Response>(resolve => {
+        return new Promise<Response>(function resolvePromise(resolve) {
           releaseRecovery = resolve;
         });
       }
@@ -2336,23 +2447,26 @@ test("E2E recovery failure diagnostics는 원인을 분류하고 안정화 시 �
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready && socket.subscriptions().length > 0);
-    await waitFor(() => {
+    await waitFor(function waitForCondition() {
+      return ready && socket.subscriptions().length > 0;
+    });
+    await waitFor(function waitForCondition() {
       const diagnostics = getServerRoomTransportDiagnosticsForE2e(room ?? undefined);
       return diagnostics?.recoveryInFlight === false;
     });
 
     recoveryMode = "hold";
     socket.pushSnapshot(mismatched);
-    await waitFor(
-      () =>
+    await waitFor(function waitForCondition() {
+      return (
         getServerRoomTransportDiagnosticsForE2e(room ?? undefined)?.lastRecoveryFailureKind ===
-        "canonical_mismatch",
-    );
+        "canonical_mismatch"
+      );
+    });
     assert.equal(getServerRoomTransportDiagnosticsForE2e(room)?.subscriptionFailed, true);
     releaseRecovery?.(jsonResponse(snapshots.initial));
     recoveryMode = "valid";
-    await waitFor(() => {
+    await waitFor(function waitForCondition() {
       const diagnostics = getServerRoomTransportDiagnosticsForE2e(room ?? undefined);
       return (
         diagnostics?.recoveryInFlight === false && diagnostics.lastRecoveryFailureKind === null
@@ -2361,47 +2475,50 @@ test("E2E recovery failure diagnostics는 원인을 분류하고 안정화 시 �
 
     recoveryMode = "malformed";
     socket.pushSnapshot(mismatched);
-    await waitFor(
-      () =>
+    await waitFor(function waitForCondition() {
+      return (
         getServerRoomTransportDiagnosticsForE2e(room ?? undefined)?.lastRecoveryFailureKind ===
-        "recovery_parse",
-    );
+        "recovery_parse"
+      );
+    });
     assert.equal(getServerRoomTransportDiagnosticsForE2e(room)?.subscriptionFailed, true);
     socket.pushSnapshot(snapshots.initial);
-    await waitFor(
-      () =>
-        getServerRoomTransportDiagnosticsForE2e(room ?? undefined)?.lastRecoveryFailureKind ===
-        null,
-    );
+    await waitFor(function waitForCondition() {
+      return (
+        getServerRoomTransportDiagnosticsForE2e(room ?? undefined)?.lastRecoveryFailureKind === null
+      );
+    });
 
     recoveryMode = "server-error";
     socket.pushSnapshot(mismatched);
-    await waitFor(
-      () =>
+    await waitFor(function waitForCondition() {
+      return (
         getServerRoomTransportDiagnosticsForE2e(room ?? undefined)?.lastRecoveryFailureKind ===
-        "unknown",
-    );
+        "unknown"
+      );
+    });
     socket.pushSnapshot(snapshots.initial);
-    await waitFor(
-      () =>
-        getServerRoomTransportDiagnosticsForE2e(room ?? undefined)?.lastRecoveryFailureKind ===
-        null,
-    );
+    await waitFor(function waitForCondition() {
+      return (
+        getServerRoomTransportDiagnosticsForE2e(room ?? undefined)?.lastRecoveryFailureKind === null
+      );
+    });
 
-    const unsubscribe = room.on("COMPETITIVE_STATE", () => {
+    const unsubscribe = room.on("COMPETITIVE_STATE", function handleEvent() {
       throw new Error("forced-transition-failure");
     });
     recoveryMode = "hold";
     socket.pushSnapshot(snapshots.transitionLatest);
-    await waitFor(
-      () =>
+    await waitFor(function waitForCondition() {
+      return (
         getServerRoomTransportDiagnosticsForE2e(room ?? undefined)?.lastRecoveryFailureKind ===
-        "transition_merge",
-    );
+        "transition_merge"
+      );
+    });
     unsubscribe();
     releaseRecovery?.(jsonResponse(snapshots.initial));
     recoveryMode = "valid";
-    await waitFor(() => {
+    await waitFor(function waitForCondition() {
       const diagnostics = getServerRoomTransportDiagnosticsForE2e(room ?? undefined);
       return (
         diagnostics?.recoveryInFlight === false && diagnostics.lastRecoveryFailureKind === null
@@ -2424,7 +2541,7 @@ test("E2E recovery failure diagnostics는 원인을 분류하고 안정화 시 �
   }
 });
 
-test("same-revision 중첩 record key 순서 차이는 recovery를 시작하지 않는다", async () => {
+test("same-revision 중첩 record key 순서 차이는 recovery를 시작하지 않는다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers("?e2e=1");
@@ -2432,11 +2549,11 @@ test("same-revision 중첩 record key 순서 차이는 recovery를 시작하지 
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
     const { createServerRoom, getServerRoomTransportDiagnosticsForE2e } =
-      await import("./serverRoom");
+      await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const initial = {
@@ -2478,8 +2595,10 @@ test("same-revision 중첩 record key 순서 차이는 recovery를 시작하지 
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => socket.subscriptions().length > 0 && recoveryRequests > 0);
-    await waitFor(() => {
+    await waitFor(function waitForCondition() {
+      return socket.subscriptions().length > 0 && recoveryRequests > 0;
+    });
+    await waitFor(function waitForCondition() {
       const diagnostics = getServerRoomTransportDiagnosticsForE2e(room ?? undefined);
       return diagnostics?.recoveryInFlight === false;
     });
@@ -2499,7 +2618,7 @@ test("same-revision 중첩 record key 순서 차이는 recovery를 시작하지 
   }
 });
 
-test("같은 room revision의 경쟁전 제출과 turn 전진을 정상 적용한다", async () => {
+test("같은 room revision의 경쟁전 제출과 turn 전진을 정상 적용한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {
@@ -2510,10 +2629,10 @@ test("같은 room revision의 경쟁전 제출과 turn 전진을 정상 적용�
       clearTimeout,
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     let ready = false;
@@ -2534,9 +2653,13 @@ test("같은 room revision의 경쟁전 제출과 turn 전진을 정상 적용�
       socketFactory: () => socket,
     });
     const received: RoomEvent["COMPETITIVE_STATE"][] = [];
-    room.on("COMPETITIVE_STATE", payload => received.push(payload));
+    room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+      return received.push(payload);
+    });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready && socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return ready && socket.subscriptions().length > 0;
+    });
     await flushAsyncWork();
 
     socket.pushSnapshot(snapshots.activeOld);
@@ -2563,7 +2686,9 @@ test("같은 room revision의 경쟁전 제출과 turn 전진을 정상 적용�
     await flushAsyncWork();
 
     assert.deepEqual(
-      received.map(({ projection }) => [projection.currentTurn, projection.submittedPlayerIds]),
+      received.map(function mapItem({ projection }) {
+        return [projection.currentTurn, projection.submittedPlayerIds];
+      }),
       [
         [0, []],
         [0, [submittedPlayerId]],
@@ -2577,7 +2702,7 @@ test("같은 room revision의 경쟁전 제출과 turn 전진을 정상 적용�
   }
 });
 
-test("지연된 경쟁전 projection은 최신 assignment와 turn 및 제출 상태를 덮지 않는다", async () => {
+test("지연된 경쟁전 projection은 최신 assignment와 turn 및 제출 상태를 덮지 않는다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {
@@ -2588,10 +2713,10 @@ test("지연된 경쟁전 projection은 최신 assignment와 turn 및 제출 상
       clearTimeout,
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     let ready = false;
@@ -2608,7 +2733,9 @@ test("지연된 경쟁전 projection은 최신 assignment와 turn 및 제출 상
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready && socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return ready && socket.subscriptions().length > 0;
+    });
 
     const turnOne = {
       ...snapshots.activeOld,
@@ -2631,7 +2758,9 @@ test("지연된 경쟁전 projection은 최신 assignment와 turn 및 제출 상
     socket.pushSnapshot(turnOneSubmitted);
 
     const received: RoomEvent["COMPETITIVE_STATE"][] = [];
-    const unsubscribe = room.on("COMPETITIVE_STATE", payload => received.push(payload));
+    const unsubscribe = room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+      return received.push(payload);
+    });
     received.length = 0;
 
     const withoutCompetitive: Record<string, unknown> = { ...turnOneSubmitted };
@@ -2675,25 +2804,27 @@ test("지연된 경쟁전 projection은 최신 assignment와 turn 및 제출 상
     });
 
     assert.deepEqual(
-      received.map(({ projection }) => [
-        projection.matchId,
-        projection.assignmentRevision,
-        projection.currentTurn,
-        projection.status,
-        projection.submittedPlayerIds,
-      ]),
+      received.map(function mapItem({ projection }) {
+        return [
+          projection.matchId,
+          projection.assignmentRevision,
+          projection.currentTurn,
+          projection.status,
+          projection.submittedPlayerIds,
+        ];
+      }),
       [[nextAssignment.competitive.matchId, 2, 0, "pending", []]],
     );
     unsubscribe();
 
     const replayed: RoomEvent["COMPETITIVE_STATE"][] = [];
-    room.on("COMPETITIVE_STATE", payload => replayed.push(payload));
+    room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+      return replayed.push(payload);
+    });
     assert.deepEqual(
-      replayed.map(({ projection }) => [
-        projection.matchId,
-        projection.assignmentRevision,
-        projection.currentTurn,
-      ]),
+      replayed.map(function mapItem({ projection }) {
+        return [projection.matchId, projection.assignmentRevision, projection.currentTurn];
+      }),
       [[nextAssignment.competitive.matchId, 2, 0]],
     );
   } finally {
@@ -2702,7 +2833,7 @@ test("지연된 경쟁전 projection은 최신 assignment와 turn 및 제출 상
   }
 });
 
-test("BattleScene은 최신 snapshot을 적용하고 WorldScene 재구독에도 replay한다", async () => {
+test("BattleScene은 최신 snapshot을 적용하고 WorldScene 재구독에도 replay한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {
@@ -2713,10 +2844,10 @@ test("BattleScene은 최신 snapshot을 적용하고 WorldScene 재구독에도 
       clearTimeout,
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const calls: string[] = [];
@@ -2745,7 +2876,11 @@ test("BattleScene은 최신 snapshot을 적용하고 WorldScene 재구독에도 
     room.connect({
       ...createPlayerSnapshot(),
     });
-    await waitFor(() => calls.some(path => path.endsWith("/party-snapshot")));
+    await waitFor(function waitForCondition() {
+      return calls.some(function testItem(path) {
+        return path.endsWith("/party-snapshot");
+      });
+    });
     assert.equal(store.getState().tournament.serverProjection?.revision, 15);
     assert.equal(store.getState().tournament.serverProjection?.roomCode, "ROOM01");
     assert.deepEqual(store.getState().tournament.serverProjection?.roomRound, {
@@ -2767,7 +2902,7 @@ test("BattleScene은 최신 snapshot을 적용하고 WorldScene 재구독에도 
     assert.equal(store.getState().tournament.serverProjection?.competitionKind, "casual-unranked");
 
     const battleStore = createGameStateStore();
-    const unsubscribeBattle = room.on("TOURNAMENT_STATE", payload => {
+    const unsubscribeBattle = room.on("TOURNAMENT_STATE", function handleEvent(payload) {
       battleStore.applyTournamentSnapshotFromRoom(payload, Date.now());
     });
     assert.equal(battleStore.getState().tournament.serverProjection?.revision, 15);
@@ -2791,7 +2926,7 @@ test("BattleScene은 최신 snapshot을 적용하고 WorldScene 재구독에도 
     );
 
     const assignments: RoomEvent["COMPETITIVE_ASSIGNMENT"][] = [];
-    const unsubscribeAssignment = room.on("COMPETITIVE_ASSIGNMENT", payload => {
+    const unsubscribeAssignment = room.on("COMPETITIVE_ASSIGNMENT", function handleEvent(payload) {
       assignments.push(payload);
     });
     assert.equal(assignments.length, 1);
@@ -2803,7 +2938,7 @@ test("BattleScene은 최신 snapshot을 적용하고 WorldScene 재구독에도 
     unsubscribeAssignment();
     socket.pushSnapshot(snapshots.completedLatest);
     const staleAssignments: RoomEvent["COMPETITIVE_ASSIGNMENT"][] = [];
-    room.on("COMPETITIVE_ASSIGNMENT", payload => {
+    room.on("COMPETITIVE_ASSIGNMENT", function handleEvent(payload) {
       staleAssignments.push(payload);
     });
     assert.equal(staleAssignments.length, 1);
@@ -2818,7 +2953,7 @@ test("BattleScene은 최신 snapshot을 적용하고 WorldScene 재구독에도 
   }
 });
 
-test("listener가 없는 동안 terminal을 cache하고 terminal에서 current 순서로 replay한다", async () => {
+test("listener가 없는 동안 terminal을 cache하고 terminal에서 current 순서로 replay한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {
@@ -2829,10 +2964,10 @@ test("listener가 없는 동안 terminal을 cache하고 terminal에서 current �
       clearTimeout,
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     let ready = false;
@@ -2853,15 +2988,21 @@ test("listener가 없는 동안 terminal을 cache하고 terminal에서 current �
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready);
+    await waitFor(function waitForCondition() {
+      return ready;
+    });
 
     socket.pushSnapshot(snapshots.transitionLatest);
 
     const replayed: RoomEvent["COMPETITIVE_STATE"][] = [];
-    room.on("COMPETITIVE_STATE", payload => replayed.push(payload));
+    room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+      return replayed.push(payload);
+    });
 
     assert.deepEqual(
-      replayed.map(({ projection }) => [projection.matchId, projection.status]),
+      replayed.map(function mapItem({ projection }) {
+        return [projection.matchId, projection.status];
+      }),
       [
         [snapshots.completedOldCompetitive.matchId, "completed"],
         [snapshots.latest.competitive?.matchId, "active"],
@@ -2873,7 +3014,7 @@ test("listener가 없는 동안 terminal을 cache하고 terminal에서 current �
   }
 });
 
-test("completed bracket grace는 terminal cursor로 복구하고 lower snapshot terminal만 적용한다", async () => {
+test("completed bracket grace는 terminal cursor로 복구하고 lower snapshot terminal만 적용한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {
@@ -2884,10 +3025,10 @@ test("completed bracket grace는 terminal cursor로 복구하고 lower snapshot 
       clearTimeout,
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const recoveryAfterRevisions: number[] = [];
@@ -2910,17 +3051,25 @@ test("completed bracket grace는 terminal cursor로 복구하고 lower snapshot 
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready);
-    await waitFor(() => socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return ready;
+    });
+    await waitFor(function waitForCondition() {
+      return socket.subscriptions().length > 0;
+    });
 
     socket.pushSnapshot(snapshots.activeOld);
     const recoveryCountBeforeGrace = recoveryAfterRevisions.length;
     socket.pushSnapshot(snapshots.latest);
-    await waitFor(() => recoveryAfterRevisions.length > recoveryCountBeforeGrace);
+    await waitFor(function waitForCondition() {
+      return recoveryAfterRevisions.length > recoveryCountBeforeGrace;
+    });
     assert.equal(recoveryAfterRevisions.at(-1), 15);
 
     const received: RoomEvent["COMPETITIVE_STATE"][] = [];
-    room.on("COMPETITIVE_STATE", payload => received.push(payload));
+    room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+      return received.push(payload);
+    });
     assert.equal(received.at(-1)?.projection.matchId, snapshots.latest.competitive?.matchId);
     received.length = 0;
 
@@ -2941,7 +3090,9 @@ test("completed bracket grace는 terminal cursor로 복구하고 lower snapshot 
       ],
     });
     assert.deepEqual(
-      received.map(({ projection }) => [projection.matchId, projection.status]),
+      received.map(function mapItem({ projection }) {
+        return [projection.matchId, projection.status];
+      }),
       [[snapshots.completedOldCompetitive.matchId, "completed"]],
     );
 
@@ -2963,9 +3114,13 @@ test("completed bracket grace는 terminal cursor로 복구하고 lower snapshot 
     });
 
     const replayed: RoomEvent["COMPETITIVE_STATE"][] = [];
-    room.on("COMPETITIVE_STATE", payload => replayed.push(payload));
+    room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+      return replayed.push(payload);
+    });
     assert.deepEqual(
-      replayed.map(({ projection }) => [projection.matchId, projection.status]),
+      replayed.map(function mapItem({ projection }) {
+        return [projection.matchId, projection.status];
+      }),
       [
         [snapshots.completedOldCompetitive.matchId, "completed"],
         [snapshots.latest.competitive?.matchId, "active"],
@@ -2996,7 +3151,7 @@ test("completed bracket grace는 terminal cursor로 복구하고 lower snapshot 
 });
 
 for (const deliveryOrder of ["rest-first", "socket-first"] as const) {
-  test(`${deliveryOrder} terminal delivery는 event ID로 dedup하고 current assignment를 보존한다`, async () => {
+  test(`${deliveryOrder} terminal delivery는 event ID로 dedup하고 current assignment를 보존한다`, async function testCase() {
     process.env.NEXT_PUBLIC_API_URL = "http://api.test";
     const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
     Object.defineProperty(globalThis, "window", {
@@ -3007,10 +3162,10 @@ for (const deliveryOrder of ["rest-first", "socket-first"] as const) {
         clearTimeout,
       },
     });
-    let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+    let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
     try {
-      const { createServerRoom } = await import("./serverRoom");
+      const { createServerRoom } = await import("./server-room");
       const socket = createSocket();
       const snapshots = createRoomSnapshots();
       let actionRequests = 0;
@@ -3037,9 +3192,13 @@ for (const deliveryOrder of ["rest-first", "socket-first"] as const) {
         socketFactory: () => socket,
       });
       const received: RoomEvent["COMPETITIVE_STATE"][] = [];
-      room.on("COMPETITIVE_STATE", payload => received.push(payload));
+      room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+        return received.push(payload);
+      });
       room.connect(createPlayerSnapshot());
-      await waitFor(() => ready);
+      await waitFor(function waitForCondition() {
+        return ready;
+      });
 
       const submit = () =>
         room?.send("COMPETITIVE_ACTION", {
@@ -3052,18 +3211,28 @@ for (const deliveryOrder of ["rest-first", "socket-first"] as const) {
 
       if (deliveryOrder === "rest-first") {
         submit();
-        await waitFor(() => actionRequests === 1);
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await waitFor(function waitForCondition() {
+          return actionRequests === 1;
+        });
+        await new Promise(function resolvePromise(resolve) {
+          return setTimeout(resolve, 0);
+        });
         socket.pushSnapshot(snapshots.transitionLatest);
       } else {
         socket.pushSnapshot(snapshots.transitionLatest);
         submit();
-        await waitFor(() => actionRequests === 1);
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await waitFor(function waitForCondition() {
+          return actionRequests === 1;
+        });
+        await new Promise(function resolvePromise(resolve) {
+          return setTimeout(resolve, 0);
+        });
       }
 
       assert.deepEqual(
-        received.map(({ projection }) => projection.matchId),
+        received.map(function mapItem({ projection }) {
+          return projection.matchId;
+        }),
         [snapshots.completedOldCompetitive.matchId, snapshots.latest.competitive?.matchId],
       );
     } finally {
@@ -3074,7 +3243,7 @@ for (const deliveryOrder of ["rest-first", "socket-first"] as const) {
 }
 
 for (const delayedSource of ["action", "seat"] as const) {
-  test(`Socket next assignment 이후 지연된 old ${delayedSource} projection은 current를 덮지 않는다`, async () => {
+  test(`Socket next assignment 이후 지연된 old ${delayedSource} projection은 current를 덮지 않는다`, async function testCase() {
     process.env.NEXT_PUBLIC_API_URL = "http://api.test";
     const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
     Object.defineProperty(globalThis, "window", {
@@ -3085,10 +3254,10 @@ for (const delayedSource of ["action", "seat"] as const) {
         clearTimeout,
       },
     });
-    let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+    let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
     try {
-      const { createServerRoom } = await import("./serverRoom");
+      const { createServerRoom } = await import("./server-room");
       const socket = createSocket();
       const snapshots = createRoomSnapshots();
       let delayedRequestStarted = false;
@@ -3101,18 +3270,20 @@ for (const delayedSource of ["action", "seat"] as const) {
         if (url.pathname.endsWith("/competitive-seat")) {
           if (delayedSource === "seat") {
             delayedRequestStarted = true;
-            return new Promise<Response>(resolve => {
-              delayedResponseGate.release = () =>
-                resolve(jsonResponse(snapshots.activeOld.competitive, 201));
+            return new Promise<Response>(function resolvePromise(resolve) {
+              delayedResponseGate.release = function callback() {
+                return resolve(jsonResponse(snapshots.activeOld.competitive, 201));
+              };
             });
           }
           return jsonResponse(null, 201);
         }
         if (url.pathname.includes("/actions")) {
           delayedRequestStarted = true;
-          return new Promise<Response>(resolve => {
-            delayedResponseGate.release = () =>
-              resolve(jsonResponse(snapshots.activeOld.competitive, 201));
+          return new Promise<Response>(function resolvePromise(resolve) {
+            delayedResponseGate.release = function callback() {
+              return resolve(jsonResponse(snapshots.activeOld.competitive, 201));
+            };
           });
         }
 
@@ -3129,7 +3300,9 @@ for (const delayedSource of ["action", "seat"] as const) {
       room.connect(createPlayerSnapshot());
 
       if (delayedSource === "action") {
-        await waitFor(() => ready);
+        await waitFor(function waitForCondition() {
+          return ready;
+        });
         socket.pushSnapshot(snapshots.activeOld);
         room.send("COMPETITIVE_ACTION", {
           matchId: snapshots.activeOld.competitive!.matchId,
@@ -3140,15 +3313,23 @@ for (const delayedSource of ["action", "seat"] as const) {
         });
       }
 
-      await waitFor(() => delayedRequestStarted && delayedResponseGate.release !== undefined);
+      await waitFor(function waitForCondition() {
+        return delayedRequestStarted && delayedResponseGate.release !== undefined;
+      });
       socket.pushSnapshot(snapshots.transitionLatest);
       delayedResponseGate.release?.();
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(function resolvePromise(resolve) {
+        return setTimeout(resolve, 10);
+      });
 
       const replayed: RoomEvent["COMPETITIVE_STATE"][] = [];
-      room.on("COMPETITIVE_STATE", payload => replayed.push(payload));
+      room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+        return replayed.push(payload);
+      });
       assert.deepEqual(
-        replayed.map(({ projection }) => [projection.matchId, projection.status]),
+        replayed.map(function mapItem({ projection }) {
+          return [projection.matchId, projection.status];
+        }),
         [
           [snapshots.completedOldCompetitive.matchId, "completed"],
           [snapshots.latest.competitive?.matchId, "active"],
@@ -3161,7 +3342,7 @@ for (const delayedSource of ["action", "seat"] as const) {
   });
 }
 
-test("legacy terminal metadata 응답은 current cache를 덮지 않고 room recovery로 수렴한다", async () => {
+test("legacy terminal metadata 응답은 current cache를 덮지 않고 room recovery로 수렴한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {
@@ -3172,10 +3353,10 @@ test("legacy terminal metadata 응답은 current cache를 덮지 않고 room rec
       clearTimeout,
     },
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     let actionRequests = 0;
@@ -3200,8 +3381,10 @@ test("legacy terminal metadata 응답은 current cache를 덮지 않고 room rec
       if (url.searchParams.has("afterRevision")) {
         recoveryRequests += 1;
         if (legacyActionReturned) {
-          return new Promise<Response>(resolve => {
-            metadataRecoveryGate.release = () => resolve(jsonResponse(snapshots.transitionLatest));
+          return new Promise<Response>(function resolvePromise(resolve) {
+            metadataRecoveryGate.release = function callback() {
+              return resolve(jsonResponse(snapshots.transitionLatest));
+            };
           });
         }
         return jsonResponse(snapshots.initial);
@@ -3218,14 +3401,22 @@ test("legacy terminal metadata 응답은 current cache를 덮지 않고 room rec
       socketFactory: () => socket,
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready);
-    await waitFor(() => recoveryRequests > 0);
+    await waitFor(function waitForCondition() {
+      return ready;
+    });
+    await waitFor(function waitForCondition() {
+      return recoveryRequests > 0;
+    });
     const recoveryRequestsBeforeAction = recoveryRequests;
     socket.pushSnapshot(snapshots.latest);
     const received: RoomEvent["COMPETITIVE_STATE"][] = [];
-    room.on("COMPETITIVE_STATE", payload => received.push(payload));
+    room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+      return received.push(payload);
+    });
     assert.deepEqual(
-      received.map(({ projection }) => [projection.matchId, projection.status]),
+      received.map(function mapItem({ projection }) {
+        return [projection.matchId, projection.status];
+      }),
       [[snapshots.latest.competitive?.matchId, "active"]],
     );
     received.length = 0;
@@ -3237,25 +3428,35 @@ test("legacy terminal metadata 응답은 current cache를 덮지 않고 room rec
       clientCommandId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       action: { kind: "move", moveId: 55 },
     });
-    await waitFor(() => actionRequests === 1);
-    await waitFor(() => metadataRecoveryGate.release !== undefined);
+    await waitFor(function waitForCondition() {
+      return actionRequests === 1;
+    });
+    await waitFor(function waitForCondition() {
+      return metadataRecoveryGate.release !== undefined;
+    });
     assert.equal(recoveryRequests, recoveryRequestsBeforeAction + 1);
     assert.equal(received.length, 0);
 
     const cachedBeforeRecovery: RoomEvent["COMPETITIVE_STATE"][] = [];
-    const unsubscribeCacheProbe = room.on("COMPETITIVE_STATE", payload =>
-      cachedBeforeRecovery.push(payload),
-    );
+    const unsubscribeCacheProbe = room.on("COMPETITIVE_STATE", function handleEvent(payload) {
+      return cachedBeforeRecovery.push(payload);
+    });
     assert.deepEqual(
-      cachedBeforeRecovery.map(({ projection }) => [projection.matchId, projection.status]),
+      cachedBeforeRecovery.map(function mapItem({ projection }) {
+        return [projection.matchId, projection.status];
+      }),
       [[snapshots.latest.competitive?.matchId, "active"]],
     );
     unsubscribeCacheProbe();
 
     metadataRecoveryGate.release?.();
-    await waitFor(() => received.length === 2);
+    await waitFor(function waitForCondition() {
+      return received.length === 2;
+    });
     assert.deepEqual(
-      received.map(({ projection }) => [projection.matchId, projection.status]),
+      received.map(function mapItem({ projection }) {
+        return [projection.matchId, projection.status];
+      }),
       [
         [snapshots.completedOldCompetitive.matchId, "completed"],
         [snapshots.latest.competitive?.matchId, "active"],
@@ -3267,7 +3468,7 @@ test("legacy terminal metadata 응답은 current cache를 덮지 않고 room rec
   }
 });
 
-test("수동 ready revision conflict는 최신 snapshot을 반영하고 자동 재시도하지 않는다", async () => {
+test("수동 ready revision conflict는 최신 snapshot을 반영하고 자동 재시도하지 않는다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -3275,10 +3476,10 @@ test("수동 ready revision conflict는 최신 snapshot을 반영하고 자동 �
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const readyIdempotencyKeys: string[] = [];
@@ -3324,7 +3525,9 @@ test("수동 ready revision conflict는 최신 snapshot을 반영하고 자동 �
     });
 
     room.connect(createPlayerSnapshot());
-    await waitFor(() => partySynced);
+    await waitFor(function waitForCondition() {
+      return partySynced;
+    });
     await assert.rejects(room.setLobbyReady(true));
     assert.equal(readyRequests, 1);
     assert.equal(timers.nextDelay(), null);
@@ -3348,7 +3551,7 @@ test("수동 ready revision conflict는 최신 snapshot을 반영하고 자동 �
   }
 });
 
-test("create 응답 전 transport 실패는 같은 idempotency key로 방 생성을 복구한다", async () => {
+test("create 응답 전 transport 실패는 같은 idempotency key로 방 생성을 복구한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers("?create=1&network=server");
@@ -3367,10 +3570,10 @@ test("create 응답 전 transport 실패는 같은 idempotency key로 방 생성
     configurable: true,
     value: fixtureWindow,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const createIdempotencyKeys: string[] = [];
@@ -3397,11 +3600,15 @@ test("create 응답 전 transport 실패는 같은 idempotency key로 방 생성
     });
 
     room.connect(createPlayerSnapshot());
-    await waitFor(() => createRequests === 2);
+    await waitFor(function waitForCondition() {
+      return createRequests === 2;
+    });
     assert.equal(timers.nextDelay(), 250);
 
     await timers.runNext();
-    await waitFor(() => createRequests === 3 && ready);
+    await waitFor(function waitForCondition() {
+      return createRequests === 3 && ready;
+    });
 
     assert.equal(new Set(createIdempotencyKeys).size, 1);
     assert.notEqual(createIdempotencyKeys[0], "");
@@ -3412,7 +3619,7 @@ test("create 응답 전 transport 실패는 같은 idempotency key로 방 생성
   }
 });
 
-test("7번째 신규 사용자는 정원 초과 안내를 받고 자동 재시도하지 않는다", async () => {
+test("7번째 신규 사용자는 정원 초과 안내를 받고 자동 재시도하지 않는다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers("?create=1&network=server");
@@ -3435,10 +3642,10 @@ test("7번째 신규 사용자는 정원 초과 안내를 받고 자동 재시�
     configurable: true,
     value: fixtureWindow,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom, POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT } = await import("./serverRoom");
+    const { createServerRoom, POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT } = await import("./server-room");
     type CapturedErrorDetail = {
       code: string;
       message: string;
@@ -3447,9 +3654,12 @@ test("7번째 신규 사용자는 정원 초과 안내를 받고 자동 재시�
       cancel: () => void;
     };
     const errorDetails: CapturedErrorDetail[] = [];
-    fixtureWindow.addEventListener(POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT, event => {
-      errorDetails.push((event as CustomEvent<CapturedErrorDetail>).detail);
-    });
+    fixtureWindow.addEventListener(
+      POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT,
+      function handleEvent(event) {
+        errorDetails.push((event as CustomEvent<CapturedErrorDetail>).detail);
+      },
+    );
     room = createServerRoom({
       createRoom: true,
       roomId: "ROOM01",
@@ -3470,7 +3680,9 @@ test("7번째 신규 사용자는 정원 초과 안내를 받고 자동 재시�
     });
 
     room.connect(createPlayerSnapshot());
-    await waitFor(() => errorDetails.length > 0);
+    await waitFor(function waitForCondition() {
+      return errorDetails.length > 0;
+    });
 
     const errorDetail = errorDetails[0];
     assert.ok(errorDetail);
@@ -3485,7 +3697,7 @@ test("7번째 신규 사용자는 정원 초과 안내를 받고 자동 재시�
   }
 });
 
-test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준비 상태를 동기화한다", async () => {
+test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준비 상태를 동기화한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers("?create=1&network=server");
@@ -3504,10 +3716,10 @@ test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준�
     configurable: true,
     value: fixtureWindow,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     let createBody: unknown;
@@ -3540,13 +3752,18 @@ test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준�
     });
 
     room.connect(createPlayerSnapshot());
-    await waitFor(() => socket.subscriptions().length > 0);
+    await waitFor(function waitForCondition() {
+      return socket.subscriptions().length > 0;
+    });
     socket.pushSnapshot(snapshots.initial);
-    await waitFor(
-      () =>
+    await waitFor(function waitForCondition() {
+      return (
         socket.emissions("room.player-event").length > 0 &&
-        requestedPaths.some(path => path.endsWith("/party-snapshot")),
-    );
+        requestedPaths.some(function testItem(path) {
+          return path.endsWith("/party-snapshot");
+        })
+      );
+    });
 
     assert.deepEqual(createBody, {
       playerId: "player-1",
@@ -3556,11 +3773,15 @@ test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준�
     });
     assert.equal(fixtureWindow.location.href.includes("room="), false);
     assert.equal(
-      requestedPaths.some(path => path.endsWith("/party-snapshot")),
+      requestedPaths.some(function testItem(path) {
+        return path.endsWith("/party-snapshot");
+      }),
       true,
     );
     assert.equal(
-      requestedPaths.some(path => path.endsWith("/ready")),
+      requestedPaths.some(function testItem(path) {
+        return path.endsWith("/ready");
+      }),
       false,
     );
 
@@ -3579,7 +3800,9 @@ test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준�
       clientCommandId: "00000000-0000-4000-8000-000000000011",
       action: { kind: "move", moveId: 55 },
     });
-    await waitFor(() => sessionActionRequest !== null);
+    await waitFor(function waitForCondition() {
+      return sessionActionRequest !== null;
+    });
     assert.deepEqual(sessionActionRequest, {
       body: {
         assignmentRevision: 1,
@@ -3594,9 +3817,15 @@ test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준�
     const received: RoomEvent["PLAYER_MOVED"][] = [];
     const changed: RoomEvent["PLAYER_CHANGED_MAP"][] = [];
     const leftSessionIds: string[] = [];
-    room.on("PLAYER_MOVED", snapshot => received.push(snapshot));
-    room.on("PLAYER_CHANGED_MAP", snapshot => changed.push(snapshot));
-    room.on("PLAYER_LEFT", ({ sessionId }) => leftSessionIds.push(sessionId));
+    room.on("PLAYER_MOVED", function handleEvent(snapshot) {
+      return received.push(snapshot);
+    });
+    room.on("PLAYER_CHANGED_MAP", function handleEvent(snapshot) {
+      return changed.push(snapshot);
+    });
+    room.on("PLAYER_LEFT", function handleEvent({ sessionId }) {
+      return leftSessionIds.push(sessionId);
+    });
     socket.pushWorldSnapshot({
       roomCode: "ROOM01",
       worldEpoch: "world-1",
@@ -3682,9 +3911,9 @@ test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준�
 
     const afterLeave = structuredClone(snapshots.initial);
     afterLeave.revision += 1;
-    const disconnected = afterLeave.participants.find(
-      participant => participant.playerId === "player-2",
-    );
+    const disconnected = afterLeave.participants.find(function findItem(participant) {
+      return participant.playerId === "player-2";
+    });
     assert.ok(disconnected);
     disconnected.connected = false;
     socket.pushSnapshot(afterLeave);
@@ -3695,7 +3924,7 @@ test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준�
   }
 });
 
-test("casual result 복구 재전송은 최초 body와 idempotency key를 그대로 재사용한다", async () => {
+test("casual result 복구 재전송은 최초 body와 idempotency key를 그대로 재사용한다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -3703,10 +3932,10 @@ test("casual result 복구 재전송은 최초 body와 idempotency key를 그대
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const socket = createSocket();
     const snapshots = createRoomSnapshots();
     const activeMatch = getReadyTournamentMatches(snapshots.initial.tournament.bracket)[0];
@@ -3745,7 +3974,9 @@ test("casual result 복구 재전송은 최초 body와 idempotency key를 그대
       playerId: winnerPlayerId,
       sessionId: `session-${winnerPlayerId}`,
     });
-    await waitFor(() => ready);
+    await waitFor(function waitForCondition() {
+      return ready;
+    });
 
     room.send("TOURNAMENT_MATCH_RESULT", {
       roundIndex: snapshots.initial.round.index,
@@ -3753,10 +3984,26 @@ test("casual result 복구 재전송은 최초 body와 idempotency key를 그대
       winnerPlayerId,
       reason: "faint",
     });
-    await waitFor(() => resultRequests.length === 3);
+    await waitFor(function waitForCondition() {
+      return resultRequests.length === 3;
+    });
 
-    assert.equal(new Set(resultRequests.map(request => request.body)).size, 1);
-    assert.equal(new Set(resultRequests.map(request => request.idempotencyKey)).size, 1);
+    assert.equal(
+      new Set(
+        resultRequests.map(function mapItem(request) {
+          return request.body;
+        }),
+      ).size,
+      1,
+    );
+    assert.equal(
+      new Set(
+        resultRequests.map(function mapItem(request) {
+          return request.idempotencyKey;
+        }),
+      ).size,
+      1,
+    );
     assert.notEqual(resultRequests[0]?.idempotencyKey, "");
   } finally {
     room?.dispose();
@@ -3764,7 +4011,7 @@ test("casual result 복구 재전송은 최초 body와 idempotency key를 그대
   }
 });
 
-test("room GET은 불필요한 JSON CORS preflight 헤더를 보내지 않는다", async () => {
+test("room GET은 불필요한 JSON CORS preflight 헤더를 보내지 않는다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
@@ -3772,10 +4019,10 @@ test("room GET은 불필요한 JSON CORS preflight 헤더를 보내지 않는다
     configurable: true,
     value: timers.window,
   });
-  let room: ReturnType<(typeof import("./serverRoom"))["createServerRoom"]> | null = null;
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
 
   try {
-    const { createServerRoom } = await import("./serverRoom");
+    const { createServerRoom } = await import("./server-room");
     const snapshots = createRoomSnapshots();
     const requests: Array<{ method: string; contentType: string | null }> = [];
     let ready = false;
@@ -3797,16 +4044,32 @@ test("room GET은 불필요한 JSON CORS preflight 헤더를 보내지 않는다
       socketFactory: () => createSocket(),
     });
     room.connect(createPlayerSnapshot());
-    await waitFor(() => ready);
+    await waitFor(function waitForCondition() {
+      return ready;
+    });
 
-    assert.ok(requests.some(request => request.method === "GET"));
     assert.ok(
-      requests.filter(request => request.method === "GET").every(request => !request.contentType),
+      requests.some(function testItem(request) {
+        return request.method === "GET";
+      }),
     );
     assert.ok(
       requests
-        .filter(request => request.method === "POST")
-        .every(request => request.contentType === "application/json"),
+        .filter(function filterItem(request) {
+          return request.method === "GET";
+        })
+        .every(function testItem(request) {
+          return !request.contentType;
+        }),
+    );
+    assert.ok(
+      requests
+        .filter(function filterItem(request) {
+          return request.method === "POST";
+        })
+        .every(function testItem(request) {
+          return request.contentType === "application/json";
+        }),
     );
   } finally {
     room?.dispose();

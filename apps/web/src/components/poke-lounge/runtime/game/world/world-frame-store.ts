@@ -1,5 +1,5 @@
-import type { PlayerFacing } from "../network/localPreviewRoom";
-import { FIELD_MAP } from "./fieldMap";
+import type { PlayerFacing } from "../network/local-preview-room";
+import { FIELD_MAP } from "./field-map";
 
 export interface WorldActorFrame {
   displayName: string;
@@ -44,13 +44,17 @@ export function createWorldFrameStore(): WorldFrameStore {
 
   const publishActorsIfChanged = (remotePlayers: readonly WorldActorFrame[]) => {
     const nextActorsKey = remotePlayers
-      .map(player => `${player.sessionId}\u0000${player.displayName}`)
+      .map(function mapItem(player) {
+        return `${player.sessionId}\u0000${player.displayName}`;
+      })
       .sort()
       .join("\u0001");
     if (nextActorsKey === actorsKey) return;
     actorsKey = nextActorsKey;
     actorsRevision += 1;
-    listeners.forEach(listener => listener());
+    listeners.forEach(function visitItem(listener) {
+      return listener();
+    });
   };
 
   return {
@@ -66,7 +70,9 @@ export function createWorldFrameStore(): WorldFrameStore {
     read: () => frame,
     subscribe(listener) {
       listeners.add(listener);
-      return () => listeners.delete(listener);
+      return function callback() {
+        return listeners.delete(listener);
+      };
     },
   };
 }

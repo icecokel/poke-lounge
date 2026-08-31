@@ -1,8 +1,8 @@
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
-  hashCanonicalState,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/competitive-ruleset-config';
+import { hashCanonicalState } from '@poke-lounge/battle/canonical-state';
 import {
   createTestInitialBattleState,
   createTestPartySnapshots,
@@ -14,8 +14,8 @@ import type {
 import type { PokeLoungeRoomSnapshot } from './poke-lounge-room.repository';
 import { RedisPokeLoungeRepository } from './redis-poke-lounge.repository';
 
-describe('RedisPokeLoungeRepository', () => {
-  it('commits a room revision once and replays the same command', async () => {
+describe('RedisPokeLoungeRepository', function testSuite() {
+  it('commits a room revision once and replays the same command', async function testCase() {
     const redis = new InMemoryRedisRoomState();
     const repository = new RedisPokeLoungeRepository(redis as never);
     const room = roomSnapshot();
@@ -41,10 +41,12 @@ describe('RedisPokeLoungeRepository', () => {
       apply: (current: PokeLoungeRoomSnapshot) => ({
         ...current,
         updatedAtMs: 1,
-        participants: current.participants.map((participant) => ({
-          ...participant,
-          ready: true,
-        })),
+        participants: current.participants.map(function mapItem(participant) {
+          return {
+            ...participant,
+            ready: true,
+          };
+        }),
       }),
     };
     const committed = await repository.mutate(input);
@@ -63,7 +65,7 @@ describe('RedisPokeLoungeRepository', () => {
     expect(redis.compareAndSetCalls).toBe(1);
   });
 
-  it('restores and resolves a competitive turn even when nobody acts', async () => {
+  it('restores and resolves a competitive turn even when nobody acts', async function testCase() {
     const redis = new InMemoryRedisRoomState();
     const repository = new RedisPokeLoungeRepository(redis as never);
     const room = roomSnapshot();
@@ -131,7 +133,7 @@ describe('RedisPokeLoungeRepository', () => {
     ]);
   });
 
-  it('creates every ready bracket match in the same stage concurrently', async () => {
+  it('creates every ready bracket match in the same stage concurrently', async function testCase() {
     const redis = new InMemoryRedisRoomState();
     const repository = new RedisPokeLoungeRepository(redis as never);
     const room = sixPlayerRoundSnapshot();
@@ -152,10 +154,18 @@ describe('RedisPokeLoungeRepository', () => {
     });
     expect(assignments).toHaveLength(2);
     expect(
-      new Set(assignments.map((assignment) => assignment.bracketMatchId)),
+      new Set(
+        assignments.map(function mapItem(assignment) {
+          return assignment.bracketMatchId;
+        }),
+      ),
     ).toHaveProperty('size', 2);
     expect(
-      new Set(assignments.flatMap((assignment) => assignment.playerIds)),
+      new Set(
+        assignments.flatMap(function mapItem(assignment) {
+          return assignment.playerIds;
+        }),
+      ),
     ).toHaveProperty('size', 4);
     await expect(repository.findPendingTurns()).resolves.toHaveLength(2);
   });
@@ -298,22 +308,23 @@ function roomSnapshot(): PokeLoungeRoomSnapshot {
 }
 
 function sixPlayerRoundSnapshot(): PokeLoungeRoomSnapshot {
-  const playerIds = Array.from(
-    { length: 6 },
-    (_, index) => `player-${index + 1}`,
-  );
+  const playerIds = Array.from({ length: 6 }, function callback(_, index) {
+    return `player-${index + 1}`;
+  });
   return {
     ...roomSnapshot(),
     status: 'round-started',
-    participants: playerIds.map((playerId, index) => ({
-      sessionId: `session-${index + 1}`,
-      playerId,
-      displayName: `Player ${index + 1}`,
-      role: 'participant',
-      ready: true,
-      connected: true,
-      joinedAtMs: index,
-    })),
+    participants: playerIds.map(function mapItem(playerId, index) {
+      return {
+        sessionId: `session-${index + 1}`,
+        playerId,
+        displayName: `Player ${index + 1}`,
+        role: 'participant',
+        ready: true,
+        connected: true,
+        joinedAtMs: index,
+      };
+    }),
     partySnapshots: createTestPartySnapshots(playerIds),
     round: {
       index: 1,

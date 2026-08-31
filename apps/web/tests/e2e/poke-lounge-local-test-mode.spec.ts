@@ -3,11 +3,13 @@ import { expect, test } from "@playwright/test";
 const pokeLoungePath = "/ko-KR/game/poke-lounge";
 const stateApiUrl = "http://127.0.0.1:65535/game/poke-lounge/state";
 
-test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 입력을 차단한다", async ({ page }) => {
+test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 입력을 차단한다", async function testCase({
+  page,
+}) {
   let savedRevision = 0;
   let stateSaveCount = 0;
 
-  await page.route(stateApiUrl, async route => {
+  await page.route(stateApiUrl, async function callback(route) {
     const request = route.request();
     const origin = request.headers().origin ?? "http://127.0.0.1";
     const headers = {
@@ -50,17 +52,17 @@ test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 �
   await expect(page.locator("[data-room-entry-mode='solo']")).toBeVisible();
   await expect(page.locator("[data-room-entry-mode='multiplayer']")).toBeVisible();
 
-  const initialSession = await page.evaluate(async () =>
-    (await fetch("/api/auth/session", { cache: "no-store" })).json(),
-  );
+  const initialSession = await page.evaluate(async function evaluatePage() {
+    return (await fetch("/api/auth/session", { cache: "no-store" })).json();
+  });
   expect(initialSession).toBeNull();
 
   await page.locator("[data-room-entry-local-test-start]").click();
   await expect(page.locator("[data-screen='starter-selection']")).toBeVisible({ timeout: 30_000 });
 
-  const activeSession = (await page.evaluate(async () =>
-    (await fetch("/api/auth/session", { cache: "no-store" })).json(),
-  )) as { localTestMode?: boolean; user?: { id?: string } };
+  const activeSession = (await page.evaluate(async function evaluatePage() {
+    return (await fetch("/api/auth/session", { cache: "no-store" })).json();
+  })) as { localTestMode?: boolean; user?: { id?: string } };
   expect(activeSession.localTestMode).toBe(true);
   expect(activeSession.user?.id).toBe("poke-lounge-local-test-user");
 
@@ -68,7 +70,14 @@ test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 �
   await expect(page.locator('#game-root[data-poke-lounge-game-surface="ready"]')).toBeVisible({
     timeout: 30_000,
   });
-  await expect.poll(() => stateSaveCount, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect
+    .poll(
+      function pollExpectation() {
+        return stateSaveCount;
+      },
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
 
   await page.goto(
     `${pokeLoungePath}?localTest=1&network=webrtc&room=ABC123&serverPlayerId=player-1&serverSessionId=session-1&e2e=1`,
@@ -89,8 +98,8 @@ test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 �
   await expect(page.locator("[data-room-entry-mode='solo']")).toBeVisible();
   await expect(page.locator("[data-room-entry-mode='multiplayer']")).toBeVisible();
 
-  const exitedSession = await page.evaluate(async () =>
-    (await fetch("/api/auth/session", { cache: "no-store" })).json(),
-  );
+  const exitedSession = await page.evaluate(async function evaluatePage() {
+    return (await fetch("/api/auth/session", { cache: "no-store" })).json();
+  });
   expect(exitedSession).toBeNull();
 });

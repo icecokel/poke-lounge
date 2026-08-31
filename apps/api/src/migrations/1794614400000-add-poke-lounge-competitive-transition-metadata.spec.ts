@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { AddPokeLoungeCompetitiveTransitionMetadata1794614400000 } from './1794614400000-add-poke-lounge-competitive-transition-metadata';
 
-describe('AddPokeLoungeCompetitiveTransitionMetadata1794614400000', () => {
-  it('adds nullable paired terminal metadata with durable uniqueness and recovery indexes', async () => {
+describe('AddPokeLoungeCompetitiveTransitionMetadata1794614400000', function testSuite() {
+  it('adds nullable paired terminal metadata with durable uniqueness and recovery indexes', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
     const migration =
       new AddPokeLoungeCompetitiveTransitionMetadata1794614400000();
@@ -28,7 +28,7 @@ describe('AddPokeLoungeCompetitiveTransitionMetadata1794614400000', () => {
     );
   });
 
-  it('drops only the transition indexes, pair constraint, and nullable metadata columns', async () => {
+  it('drops only the transition indexes, pair constraint, and nullable metadata columns', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
 
     await new AddPokeLoungeCompetitiveTransitionMetadata1794614400000().down({

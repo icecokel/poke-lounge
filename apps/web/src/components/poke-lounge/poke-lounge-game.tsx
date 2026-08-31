@@ -25,25 +25,25 @@ import {
   createAuthenticatedGameStateStorageScope,
   getDefaultGameStateStore,
   setDefaultGameStateStorageScope,
-} from "./runtime/game/state/defaultGameStateStore";
-import { ANONYMOUS_GAME_STATE_STORAGE_SCOPE } from "./runtime/game/state/gameStateStorage";
+} from "./runtime/game/state/default-game-state-store";
+import { ANONYMOUS_GAME_STATE_STORAGE_SCOPE } from "./runtime/game/state/game-state-storage";
 import {
   buildPokeLoungeSaveSnapshot,
   type PokeLoungeSaveSnapshot,
 } from "./runtime/game/state/poke-lounge-save-snapshot";
 import { hasSamePokeLoungeLocalProgress } from "./runtime/game/state/poke-lounge-save-conflict";
-import { detectTouchGameDevice } from "./runtime/game/input/mobileTouchControls";
+import { detectTouchGameDevice } from "./runtime/game/input/mobile-touch-controls";
 import {
   pressVirtualGamepadButton,
   releaseVirtualGamepadButton,
   resetVirtualGamepad,
-} from "./runtime/game/input/virtualGamepad";
+} from "./runtime/game/input/virtual-gamepad";
 import {
   GAME_VIEWPORT_SIZE_PRESETS,
   MOBILE_GAME_VIEWPORT_SIZE,
   type GameViewportDisplaySize,
   type GameViewportSizePreset,
-} from "./runtime/game/gameViewport";
+} from "./runtime/game/game-viewport";
 import {
   GAME_FULLSCREEN_STATE_EVENT,
   isGameFullscreenActive,
@@ -327,31 +327,34 @@ export function PokeLoungeGame() {
     typeof window !== "undefined" &&
     isPokeLoungeMultiplayerResultUrl(new URL(window.location.href));
 
-  const syncFullscreenState = useCallback(() => {
+  const syncFullscreenState = useCallback(function memoizedCallback() {
     const page = pageRef.current;
     setFullscreenActive(page ? isGameFullscreenActive(page) : false);
   }, []);
 
-  const handleFullscreenToggle = useCallback(() => {
-    const page = pageRef.current;
-    if (!page) {
-      return;
-    }
+  const handleFullscreenToggle = useCallback(
+    function memoizedCallback() {
+      const page = pageRef.current;
+      if (!page) {
+        return;
+      }
 
-    void toggleGameFullscreen(page).finally(syncFullscreenState);
-  }, [syncFullscreenState]);
+      void toggleGameFullscreen(page).finally(syncFullscreenState);
+    },
+    [syncFullscreenState],
+  );
 
-  const handleMobileSettingsOpen = useCallback(() => {
+  const handleMobileSettingsOpen = useCallback(function memoizedCallback() {
     resetVirtualGamepad();
     setSettingsOpen(true);
   }, []);
 
-  const handleMobileSettingsClose = useCallback(() => {
+  const handleMobileSettingsClose = useCallback(function memoizedCallback() {
     resetVirtualGamepad();
     setSettingsOpen(false);
   }, []);
 
-  const handleGameExitRequest = useCallback(() => {
+  const handleGameExitRequest = useCallback(function memoizedCallback() {
     resetVirtualGamepad();
     setSettingsOpen(false);
 
@@ -362,126 +365,148 @@ export function PokeLoungeGame() {
     setExitConfirmationOpen(true);
   }, []);
 
-  const handleVolumeCycle = useCallback(() => {
-    setVolumeLevelIndex(currentIndex => (currentIndex + 1) % POKE_LOUNGE_VOLUME_STEPS.length);
+  const handleVolumeCycle = useCallback(function memoizedCallback() {
+    setVolumeLevelIndex(function callback(currentIndex) {
+      return (currentIndex + 1) % POKE_LOUNGE_VOLUME_STEPS.length;
+    });
   }, []);
 
-  const handleUiSizeToggle = useCallback(() => {
-    setUiSize(currentSize => (currentSize === "large" ? "normal" : "large"));
+  const handleUiSizeToggle = useCallback(function memoizedCallback() {
+    setUiSize(function callback(currentSize) {
+      return currentSize === "large" ? "normal" : "large";
+    });
   }, []);
 
-  const handleStateHydrationRetry = useCallback(() => {
-    if (stateHydrationStatus !== "local-ready") {
-      setStateHydrationAttempt(attempt => attempt + 1);
-      return;
-    }
+  const handleStateHydrationRetry = useCallback(
+    function memoizedCallback() {
+      if (stateHydrationStatus !== "local-ready") {
+        setStateHydrationAttempt(function callback(attempt) {
+          return attempt + 1;
+        });
+        return;
+      }
 
-    if (multiplayerRoomId) {
-      return;
-    }
+      if (multiplayerRoomId) {
+        return;
+      }
 
-    const retryAccountId = accountId;
-    const token = retryAccountId ? accountTokensRef.current.get(retryAccountId) : undefined;
-    if (
-      status !== "authenticated" ||
-      !retryAccountId ||
-      !token ||
-      isAuthSessionError(apiSession?.error)
-    ) {
-      setStateHydrationAttempt(attempt => attempt + 1);
-      return;
-    }
+      const retryAccountId = accountId;
+      const token = retryAccountId ? accountTokensRef.current.get(retryAccountId) : undefined;
+      if (
+        status !== "authenticated" ||
+        !retryAccountId ||
+        !token ||
+        isAuthSessionError(apiSession?.error)
+      ) {
+        setStateHydrationAttempt(function callback(attempt) {
+          return attempt + 1;
+        });
+        return;
+      }
 
-    const retryStorageScope = createAuthenticatedGameStateStorageScope(retryAccountId);
-    setStateHydrationRetrying(true);
-    void tokenLifecycle
-      .runHydration(() => loadPokeLoungeState(token))
-      .then(result => {
-        if (
-          latestAccountIdRef.current !== retryAccountId ||
-          gameStateStorageScopeRef.current !== retryStorageScope
-        ) {
-          return;
-        }
+      const retryStorageScope = createAuthenticatedGameStateStorageScope(retryAccountId);
+      setStateHydrationRetrying(true);
+      void tokenLifecycle
+        .runHydration(function callback() {
+          return loadPokeLoungeState(token);
+        })
+        .then(function handleResolved(result) {
+          if (
+            latestAccountIdRef.current !== retryAccountId ||
+            gameStateStorageScopeRef.current !== retryStorageScope
+          ) {
+            return;
+          }
 
-        if (!result.success) {
-          setStateHydrationMessage(copy.hydrationLocalFallback);
-          return;
-        }
+          if (!result.success) {
+            setStateHydrationMessage(copy.hydrationLocalFallback);
+            return;
+          }
 
-        const localSnapshot = buildPokeLoungeSaveSnapshot(getDefaultGameStateStore());
-        if (result.snapshot && !hasSamePokeLoungeLocalProgress(localSnapshot, result.snapshot)) {
-          setPendingHydrationResolution({
-            accountId: retryAccountId,
-            revision: result.revision,
-            snapshot: result.snapshot,
-          });
-          return;
-        }
+          const localSnapshot = buildPokeLoungeSaveSnapshot(getDefaultGameStateStore());
+          if (result.snapshot && !hasSamePokeLoungeLocalProgress(localSnapshot, result.snapshot)) {
+            setPendingHydrationResolution({
+              accountId: retryAccountId,
+              revision: result.revision,
+              snapshot: result.snapshot,
+            });
+            return;
+          }
 
-        flushRecoveredLocalStateRef.current = true;
-        setHydratedAccountId(retryAccountId);
-        setHydratedRevision(result.revision);
-        setStateHydrationMessage("");
-        setStateHydrationStatus("ready");
-      })
-      .finally(() => {
-        if (latestAccountIdRef.current === retryAccountId) {
-          setStateHydrationRetrying(false);
-        }
-      });
-  }, [
-    accountId,
-    apiSession?.error,
-    copy.hydrationLocalFallback,
-    multiplayerRoomId,
-    stateHydrationStatus,
-    status,
-    tokenLifecycle,
-  ]);
+          flushRecoveredLocalStateRef.current = true;
+          setHydratedAccountId(retryAccountId);
+          setHydratedRevision(result.revision);
+          setStateHydrationMessage("");
+          setStateHydrationStatus("ready");
+        })
+        .finally(function handleSettled() {
+          if (latestAccountIdRef.current === retryAccountId) {
+            setStateHydrationRetrying(false);
+          }
+        });
+    },
+    [
+      accountId,
+      apiSession?.error,
+      copy.hydrationLocalFallback,
+      multiplayerRoomId,
+      stateHydrationStatus,
+      status,
+      tokenLifecycle,
+    ],
+  );
 
-  const handleUseServerHydration = useCallback(() => {
-    if (
-      !pendingHydrationResolution ||
-      latestAccountIdRef.current !== pendingHydrationResolution.accountId
-    ) {
+  const handleUseServerHydration = useCallback(
+    function memoizedCallback() {
+      if (
+        !pendingHydrationResolution ||
+        latestAccountIdRef.current !== pendingHydrationResolution.accountId
+      ) {
+        setPendingHydrationResolution(null);
+        return;
+      }
+
+      getDefaultGameStateStore().hydrateLocalPlayers(pendingHydrationResolution.snapshot.state);
+      flushRecoveredLocalStateRef.current = false;
+      setHydratedAccountId(pendingHydrationResolution.accountId);
+      setHydratedRevision(pendingHydrationResolution.revision);
+      setStateHydrationMessage("");
+      setStateHydrationStatus("ready");
       setPendingHydrationResolution(null);
-      return;
-    }
+    },
+    [pendingHydrationResolution],
+  );
 
-    getDefaultGameStateStore().hydrateLocalPlayers(pendingHydrationResolution.snapshot.state);
-    flushRecoveredLocalStateRef.current = false;
-    setHydratedAccountId(pendingHydrationResolution.accountId);
-    setHydratedRevision(pendingHydrationResolution.revision);
-    setStateHydrationMessage("");
-    setStateHydrationStatus("ready");
-    setPendingHydrationResolution(null);
-  }, [pendingHydrationResolution]);
+  const handleUseLocalHydration = useCallback(
+    function memoizedCallback() {
+      if (
+        !pendingHydrationResolution ||
+        latestAccountIdRef.current !== pendingHydrationResolution.accountId
+      ) {
+        setPendingHydrationResolution(null);
+        return;
+      }
 
-  const handleUseLocalHydration = useCallback(() => {
-    if (
-      !pendingHydrationResolution ||
-      latestAccountIdRef.current !== pendingHydrationResolution.accountId
-    ) {
+      flushRecoveredLocalStateRef.current = true;
+      setHydratedAccountId(pendingHydrationResolution.accountId);
+      setHydratedRevision(pendingHydrationResolution.revision);
+      setStateHydrationMessage("");
+      setStateHydrationStatus("ready");
       setPendingHydrationResolution(null);
-      return;
-    }
+    },
+    [pendingHydrationResolution],
+  );
 
-    flushRecoveredLocalStateRef.current = true;
-    setHydratedAccountId(pendingHydrationResolution.accountId);
-    setHydratedRevision(pendingHydrationResolution.revision);
-    setStateHydrationMessage("");
-    setStateHydrationStatus("ready");
-    setPendingHydrationResolution(null);
-  }, [pendingHydrationResolution]);
+  const handleDeferHydrationResolution = useCallback(
+    function memoizedCallback() {
+      setPendingHydrationResolution(null);
+      setStateHydrationMessage(copy.hydrationLocalFallback);
+      setStateHydrationStatus("local-ready");
+    },
+    [copy.hydrationLocalFallback],
+  );
 
-  const handleDeferHydrationResolution = useCallback(() => {
-    setPendingHydrationResolution(null);
-    setStateHydrationMessage(copy.hydrationLocalFallback);
-    setStateHydrationStatus("local-ready");
-  }, [copy.hydrationLocalFallback]);
-
-  const handleRoomShare = useCallback(async () => {
+  const handleRoomShare = useCallback(async function memoizedCallback() {
     const shareUrl = createPokeLoungeRoomShareUrlFromLocation();
 
     if (!shareUrl || !navigator.clipboard?.writeText) {
@@ -497,13 +522,16 @@ export function PokeLoungeGame() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!settingsOpen) {
-      setRoomShareStatus("idle");
-    }
-  }, [settingsOpen]);
+  useEffect(
+    function runEffect() {
+      if (!settingsOpen) {
+        setRoomShareStatus("idle");
+      }
+    },
+    [settingsOpen],
+  );
 
-  useEffect(() => {
+  useEffect(function runEffect() {
     const storedVolumeLevelIndex = readStoredVolumeLevelIndex();
     const storedUiSize = readStoredUiSize();
 
@@ -515,13 +543,16 @@ export function PokeLoungeGame() {
     }
   }, []);
 
-  useEffect(() => {
-    setPokeLoungeMasterVolume(POKE_LOUNGE_VOLUME_STEPS[volumeLevelIndex]);
-    window.localStorage.setItem(POKE_LOUNGE_VOLUME_STORAGE_KEY, String(volumeLevelIndex));
-  }, [volumeLevelIndex]);
+  useEffect(
+    function runEffect() {
+      setPokeLoungeMasterVolume(POKE_LOUNGE_VOLUME_STEPS[volumeLevelIndex]);
+      window.localStorage.setItem(POKE_LOUNGE_VOLUME_STORAGE_KEY, String(volumeLevelIndex));
+    },
+    [volumeLevelIndex],
+  );
 
-  useEffect(() => {
-    return () => {
+  useEffect(function runEffect() {
+    return function callback() {
       setPokeLoungeMasterVolume(1);
     };
   }, []);
@@ -530,18 +561,21 @@ export function PokeLoungeGame() {
     ? MOBILE_GAME_VIEWPORT_SIZE
     : GAME_VIEWPORT_SIZE_PRESETS[uiSize];
 
-  useEffect(() => {
-    if (touchGameDeviceResolved) {
-      gamePageHandleRef.current?.setViewportSize(gameViewportSize);
-    }
-    window.sessionStorage.setItem(POKE_LOUNGE_UI_SIZE_STORAGE_KEY, uiSize);
-  }, [gameViewportSize, touchGameDeviceResolved, uiSize]);
+  useEffect(
+    function runEffect() {
+      if (touchGameDeviceResolved) {
+        gamePageHandleRef.current?.setViewportSize(gameViewportSize);
+      }
+      window.sessionStorage.setItem(POKE_LOUNGE_UI_SIZE_STORAGE_KEY, uiSize);
+    },
+    [gameViewportSize, touchGameDeviceResolved, uiSize],
+  );
 
-  useEffect(() => {
+  useEffect(function runEffect() {
     const store = getDefaultGameStateStore();
     const syncConnectionSummary = () => {
       const sessionState = store.getState().session;
-      setConnectionSummary(current => {
+      setConnectionSummary(function callback(current) {
         if (
           current.connectionStatus === sessionState.connectionStatus &&
           current.roomId === sessionState.roomId
@@ -560,62 +594,68 @@ export function PokeLoungeGame() {
     return store.subscribe(syncConnectionSummary);
   }, []);
 
-  useEffect(() => {
-    if (!settingsOpen) {
-      return;
-    }
+  useEffect(
+    function runEffect() {
+      if (!settingsOpen) {
+        return;
+      }
 
-    const store = getDefaultGameStateStore();
-    const syncSettingsPartySlots = () => {
-      const localPlayer = store.getCurrentLocalPlayer();
-      setSettingsPartySlots(createPokeLoungePartySlotSummaries(localPlayer));
-    };
+      const store = getDefaultGameStateStore();
+      const syncSettingsPartySlots = () => {
+        const localPlayer = store.getCurrentLocalPlayer();
+        setSettingsPartySlots(createPokeLoungePartySlotSummaries(localPlayer));
+      };
 
-    syncSettingsPartySlots();
-    return store.subscribe(syncSettingsPartySlots);
-  }, [settingsOpen]);
+      syncSettingsPartySlots();
+      return store.subscribe(syncSettingsPartySlots);
+    },
+    [settingsOpen],
+  );
 
-  useEffect(() => {
+  useEffect(function runEffect() {
     const handleNotice = (event: Event) => {
       setNotice((event as CustomEvent<PokeLoungeNoticeDetail>).detail);
     };
 
     document.addEventListener(POKE_LOUNGE_NOTICE_EVENT, handleNotice);
 
-    return () => {
+    return function callback() {
       document.removeEventListener(POKE_LOUNGE_NOTICE_EVENT, handleNotice);
     };
   }, []);
 
-  useEffect(() => {
-    if (!settingsOpen) {
-      return;
-    }
+  useEffect(
+    function runEffect() {
+      if (!settingsOpen) {
+        return;
+      }
 
-    let cancelled = false;
-    setRankingStatus("loading");
-    void getGameRanking("POKE_LOUNGE")
-      .then(rows => {
-        if (cancelled) {
-          return;
-        }
+      let cancelled = false;
+      setRankingStatus("loading");
+      void getGameRanking("POKE_LOUNGE")
+        .then(function handleResolved(rows) {
+          if (cancelled) {
+            return;
+          }
 
-        setRanking(rows.slice(0, 5));
-        setRankingStatus("ready");
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setRanking([]);
-          setRankingStatus("error");
-        }
-      });
+          setRanking(rows.slice(0, 5));
+          setRankingStatus("ready");
+        })
+        .catch(function handleRejected() {
+          if (!cancelled) {
+            setRanking([]);
+            setRankingStatus("error");
+          }
+        });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [rankingAttempt, settingsOpen]);
+      return function callback() {
+        cancelled = true;
+      };
+    },
+    [rankingAttempt, settingsOpen],
+  );
 
-  useEffect(() => {
+  useEffect(function runEffect() {
     setTouchGameDevice(
       detectTouchGameDevice({
         maxTouchPoints: navigator.maxTouchPoints ?? 0,
@@ -627,50 +667,53 @@ export function PokeLoungeGame() {
     setTouchGameDeviceResolved(true);
   }, []);
 
-  useEffect(() => {
-    const gameRoot = pageRef.current?.querySelector<HTMLElement>("#game-root");
+  useEffect(
+    function runEffect() {
+      const gameRoot = pageRef.current?.querySelector<HTMLElement>("#game-root");
 
-    if (!gameRoot) {
-      return;
-    }
-
-    const syncGameRuntimeState = () => {
-      const resourceStatus = gameRoot.dataset.pokeLoungeResourceStatus;
-      const isGameReady = resourceStatus === "ready";
-      const nextActiveScene = isGameReady
-        ? gameRoot.dataset.pokeLoungeActiveScene === "battle"
-          ? "battle"
-          : "world"
-        : null;
-      setGameRuntimeMounted(isGameReady);
-      setActiveGameScene(nextActiveScene);
-      if (nextActiveScene) {
-        setRuntimeState(current =>
-          current.phase === "world" || current.phase === "battle"
-            ? { ...current, phase: nextActiveScene }
-            : current,
-        );
+      if (!gameRoot) {
+        return;
       }
 
-      if (resourceStatus === "error") {
-        setGamePlaying(false);
-      }
-    };
+      const syncGameRuntimeState = () => {
+        const resourceStatus = gameRoot.dataset.pokeLoungeResourceStatus;
+        const isGameReady = resourceStatus === "ready";
+        const nextActiveScene = isGameReady
+          ? gameRoot.dataset.pokeLoungeActiveScene === "battle"
+            ? "battle"
+            : "world"
+          : null;
+        setGameRuntimeMounted(isGameReady);
+        setActiveGameScene(nextActiveScene);
+        if (nextActiveScene) {
+          setRuntimeState(function callback(current) {
+            return current.phase === "world" || current.phase === "battle"
+              ? { ...current, phase: nextActiveScene }
+              : current;
+          });
+        }
 
-    syncGameRuntimeState();
+        if (resourceStatus === "error") {
+          setGamePlaying(false);
+        }
+      };
 
-    const observer = new MutationObserver(syncGameRuntimeState);
-    observer.observe(gameRoot, {
-      attributes: true,
-      attributeFilter: ["data-poke-lounge-active-scene", "data-poke-lounge-resource-status"],
-    });
+      syncGameRuntimeState();
 
-    return () => {
-      observer.disconnect();
-    };
-  }, [setGamePlaying]);
+      const observer = new MutationObserver(syncGameRuntimeState);
+      observer.observe(gameRoot, {
+        attributes: true,
+        attributeFilter: ["data-poke-lounge-active-scene", "data-poke-lounge-resource-status"],
+      });
 
-  useEffect(() => {
+      return function callback() {
+        observer.disconnect();
+      };
+    },
+    [setGamePlaying],
+  );
+
+  useEffect(function runEffect() {
     const page = pageRef.current;
     const parent = page?.parentElement;
 
@@ -714,7 +757,7 @@ export function PokeLoungeGame() {
     document.addEventListener("fullscreenchange", updateContainerSize);
     document.addEventListener(GAME_FULLSCREEN_STATE_EVENT, updateContainerSize);
 
-    return () => {
+    return function callback() {
       resizeObserver.disconnect();
       window.removeEventListener("resize", updateContainerSize);
       window.visualViewport?.removeEventListener("resize", updateContainerSize);
@@ -725,367 +768,386 @@ export function PokeLoungeGame() {
     };
   }, []);
 
-  useEffect(() => {
-    const handleFullscreenStateChange = () => syncFullscreenState();
+  useEffect(
+    function runEffect() {
+      const handleFullscreenStateChange = () => syncFullscreenState();
 
-    document.addEventListener("fullscreenchange", handleFullscreenStateChange);
-    document.addEventListener(GAME_FULLSCREEN_STATE_EVENT, handleFullscreenStateChange);
-    syncFullscreenState();
+      document.addEventListener("fullscreenchange", handleFullscreenStateChange);
+      document.addEventListener(GAME_FULLSCREEN_STATE_EVENT, handleFullscreenStateChange);
+      syncFullscreenState();
 
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenStateChange);
-      document.removeEventListener(GAME_FULLSCREEN_STATE_EVENT, handleFullscreenStateChange);
-    };
-  }, [syncFullscreenState]);
+      return function callback() {
+        document.removeEventListener("fullscreenchange", handleFullscreenStateChange);
+        document.removeEventListener(GAME_FULLSCREEN_STATE_EVENT, handleFullscreenStateChange);
+      };
+    },
+    [syncFullscreenState],
+  );
 
-  useEffect(() => {
-    let pendingSettingsOpen: number | null = null;
+  useEffect(
+    function runEffect() {
+      let pendingSettingsOpen: number | null = null;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && touchGameDevice && settingsOpen) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        handleMobileSettingsClose();
-        return;
-      }
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape" && touchGameDevice && settingsOpen) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          handleMobileSettingsClose();
+          return;
+        }
 
-      if (
-        event.key === "Escape" &&
-        touchGameDevice &&
-        hasPokeLoungeMobileFullscreenScene(document)
-      ) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        resetVirtualGamepad();
-        worldUiStore?.dispatch({ type: "close" });
-        return;
-      }
-
-      if (event.key === "Escape" && isShortcutGuideOpen(document)) {
-        pressVirtualGamepadButton("back");
-        releaseVirtualGamepadButton("back");
-        return;
-      }
-
-      if (
-        event.key !== "Escape" ||
-        isEditableEventTarget(event.target) ||
-        hasOpenModalDialog(document) ||
-        pageRef.current?.querySelector<HTMLElement>("#game-root")?.dataset
-          .pokeLoungeResourceStatus !== "ready"
-      ) {
-        return;
-      }
-
-      // Radix dialogs also handle Escape during this event's bubble phase.
-      // Mounting the settings dialog synchronously here would let the same
-      // keydown immediately close the newly mounted dialog.
-      if (pendingSettingsOpen !== null) {
-        window.clearTimeout(pendingSettingsOpen);
-      }
-      pendingSettingsOpen = window.setTimeout(() => {
-        pendingSettingsOpen = null;
         if (
-          !hasOpenModalDialog(document) &&
-          pageRef.current?.querySelector<HTMLElement>("#game-root")?.dataset
-            .pokeLoungeResourceStatus === "ready"
+          event.key === "Escape" &&
+          touchGameDevice &&
+          hasPokeLoungeMobileFullscreenScene(document)
         ) {
-          setSettingsOpen(true);
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          resetVirtualGamepad();
+          worldUiStore?.dispatch({ type: "close" });
+          return;
         }
-      }, 0);
-    };
 
-    window.addEventListener("keydown", handleKeyDown, true);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-      if (pendingSettingsOpen !== null) {
-        window.clearTimeout(pendingSettingsOpen);
-      }
-    };
-  }, [handleMobileSettingsClose, settingsOpen, touchGameDevice, worldUiStore]);
-
-  useEffect(() => {
-    if (status === "loading") {
-      setStateHydrationStatus("pending");
-      setStateHydrationRetrying(false);
-      setHydratedAccountId(null);
-      setHydratedRevision(0);
-      return;
-    }
-
-    let cancelled = false;
-    setStateHydrationStatus("pending");
-    setStateHydrationMessage("");
-    setStateHydrationRetrying(false);
-    setPendingHydrationResolution(null);
-    setHydratedAccountId(null);
-    setHydratedRevision(0);
-
-    void tokenLifecycle.runHydration(async () => {
-      if (cancelled) {
-        return;
-      }
-
-      const authenticatedSession =
-        status === "authenticated" && !isAuthSessionError(apiSession?.error);
-      if (!authenticatedSession) {
-        setDefaultGameStateStorageScope(ANONYMOUS_GAME_STATE_STORAGE_SCOPE);
-        if (gameStateStorageScopeRef.current !== ANONYMOUS_GAME_STATE_STORAGE_SCOPE) {
-          getDefaultGameStateStore().reloadLocalPlayersFromStorage();
+        if (event.key === "Escape" && isShortcutGuideOpen(document)) {
+          pressVirtualGamepadButton("back");
+          releaseVirtualGamepadButton("back");
+          return;
         }
-        gameStateStorageScopeRef.current = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
-        activeGameStateStorageScope = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
-        setStateHydrationStatus("ready");
-        return;
-      }
 
-      const token = accountId ? accountTokensRef.current.get(accountId) : undefined;
-      if (!accountId || !token) {
-        setDefaultGameStateStorageScope(ANONYMOUS_GAME_STATE_STORAGE_SCOPE);
-        if (gameStateStorageScopeRef.current !== ANONYMOUS_GAME_STATE_STORAGE_SCOPE) {
-          getDefaultGameStateStore().reloadLocalPlayersFromStorage();
+        if (
+          event.key !== "Escape" ||
+          isEditableEventTarget(event.target) ||
+          hasOpenModalDialog(document) ||
+          pageRef.current?.querySelector<HTMLElement>("#game-root")?.dataset
+            .pokeLoungeResourceStatus !== "ready"
+        ) {
+          return;
         }
-        gameStateStorageScopeRef.current = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
-        activeGameStateStorageScope = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
-        setStateHydrationStatus("unavailable");
-        setStateHydrationMessage(copy.hydrationIdentityError);
-        return;
-      }
 
-      const authenticatedStorageScope = createAuthenticatedGameStateStorageScope(accountId);
-      const alreadyUsingAuthenticatedScope =
-        gameStateStorageScopeRef.current === authenticatedStorageScope;
-      setDefaultGameStateStorageScope(authenticatedStorageScope);
-      const store = getDefaultGameStateStore();
-      const restoredLocalProgress = alreadyUsingAuthenticatedScope
-        ? true
-        : store.reloadLocalPlayersFromStorage();
-      gameStateStorageScopeRef.current = authenticatedStorageScope;
-      activeGameStateStorageScope = authenticatedStorageScope;
+        // Radix dialogs also handle Escape during this event's bubble phase.
+        // Mounting the settings dialog synchronously here would let the same
+        // keydown immediately close the newly mounted dialog.
+        if (pendingSettingsOpen !== null) {
+          window.clearTimeout(pendingSettingsOpen);
+        }
+        pendingSettingsOpen = window.setTimeout(function handleTimeout() {
+          pendingSettingsOpen = null;
+          if (
+            !hasOpenModalDialog(document) &&
+            pageRef.current?.querySelector<HTMLElement>("#game-root")?.dataset
+              .pokeLoungeResourceStatus === "ready"
+          ) {
+            setSettingsOpen(true);
+          }
+        }, 0);
+      };
 
-      const result = await loadPokeLoungeState(token);
-      if (cancelled) {
-        return;
-      }
+      window.addEventListener("keydown", handleKeyDown, true);
 
-      if (!result.success) {
-        setStateHydrationStatus("local-ready");
-        setStateHydrationMessage(copy.hydrationLocalFallback);
+      return function callback() {
+        window.removeEventListener("keydown", handleKeyDown, true);
+        if (pendingSettingsOpen !== null) {
+          window.clearTimeout(pendingSettingsOpen);
+        }
+      };
+    },
+    [handleMobileSettingsClose, settingsOpen, touchGameDevice, worldUiStore],
+  );
+
+  useEffect(
+    function runEffect() {
+      if (status === "loading") {
+        setStateHydrationStatus("pending");
+        setStateHydrationRetrying(false);
         setHydratedAccountId(null);
         setHydratedRevision(0);
         return;
       }
 
-      if (result.snapshot) {
-        const localSnapshot = buildPokeLoungeSaveSnapshot(store);
-        if (
-          restoredLocalProgress &&
-          !hasSamePokeLoungeLocalProgress(localSnapshot, result.snapshot)
-        ) {
-          setPendingHydrationResolution({
-            accountId,
-            revision: result.revision,
-            snapshot: result.snapshot,
-          });
-          setStateHydrationStatus("conflict");
-          setStateHydrationMessage(copy.hydrationConflictDescription);
+      let cancelled = false;
+      setStateHydrationStatus("pending");
+      setStateHydrationMessage("");
+      setStateHydrationRetrying(false);
+      setPendingHydrationResolution(null);
+      setHydratedAccountId(null);
+      setHydratedRevision(0);
+
+      void tokenLifecycle.runHydration(async function callback() {
+        if (cancelled) {
           return;
         }
 
-        store.hydrateLocalPlayers(result.snapshot.state);
-      } else if (restoredLocalProgress) {
-        flushRecoveredLocalStateRef.current = true;
-      }
+        const authenticatedSession =
+          status === "authenticated" && !isAuthSessionError(apiSession?.error);
+        if (!authenticatedSession) {
+          setDefaultGameStateStorageScope(ANONYMOUS_GAME_STATE_STORAGE_SCOPE);
+          if (gameStateStorageScopeRef.current !== ANONYMOUS_GAME_STATE_STORAGE_SCOPE) {
+            getDefaultGameStateStore().reloadLocalPlayersFromStorage();
+          }
+          gameStateStorageScopeRef.current = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
+          activeGameStateStorageScope = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
+          setStateHydrationStatus("ready");
+          return;
+        }
 
-      setStateHydrationStatus("ready");
-      setHydratedAccountId(accountId);
-      setHydratedRevision(result.revision);
-    });
+        const token = accountId ? accountTokensRef.current.get(accountId) : undefined;
+        if (!accountId || !token) {
+          setDefaultGameStateStorageScope(ANONYMOUS_GAME_STATE_STORAGE_SCOPE);
+          if (gameStateStorageScopeRef.current !== ANONYMOUS_GAME_STATE_STORAGE_SCOPE) {
+            getDefaultGameStateStore().reloadLocalPlayersFromStorage();
+          }
+          gameStateStorageScopeRef.current = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
+          activeGameStateStorageScope = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
+          setStateHydrationStatus("unavailable");
+          setStateHydrationMessage(copy.hydrationIdentityError);
+          return;
+        }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    accountId,
-    apiSession?.error,
-    copy.hydrationIdentityError,
-    copy.hydrationConflictDescription,
-    copy.hydrationLocalFallback,
-    stateHydrationAttempt,
-    status,
-    tokenLifecycle,
-  ]);
+        const authenticatedStorageScope = createAuthenticatedGameStateStorageScope(accountId);
+        const alreadyUsingAuthenticatedScope =
+          gameStateStorageScopeRef.current === authenticatedStorageScope;
+        setDefaultGameStateStorageScope(authenticatedStorageScope);
+        const store = getDefaultGameStateStore();
+        const restoredLocalProgress = alreadyUsingAuthenticatedScope
+          ? true
+          : store.reloadLocalPlayersFromStorage();
+        gameStateStorageScopeRef.current = authenticatedStorageScope;
+        activeGameStateStorageScope = authenticatedStorageScope;
 
-  useEffect(() => {
+        const result = await loadPokeLoungeState(token);
+        if (cancelled) {
+          return;
+        }
+
+        if (!result.success) {
+          setStateHydrationStatus("local-ready");
+          setStateHydrationMessage(copy.hydrationLocalFallback);
+          setHydratedAccountId(null);
+          setHydratedRevision(0);
+          return;
+        }
+
+        if (result.snapshot) {
+          const localSnapshot = buildPokeLoungeSaveSnapshot(store);
+          if (
+            restoredLocalProgress &&
+            !hasSamePokeLoungeLocalProgress(localSnapshot, result.snapshot)
+          ) {
+            setPendingHydrationResolution({
+              accountId,
+              revision: result.revision,
+              snapshot: result.snapshot,
+            });
+            setStateHydrationStatus("conflict");
+            setStateHydrationMessage(copy.hydrationConflictDescription);
+            return;
+          }
+
+          store.hydrateLocalPlayers(result.snapshot.state);
+        } else if (restoredLocalProgress) {
+          flushRecoveredLocalStateRef.current = true;
+        }
+
+        setStateHydrationStatus("ready");
+        setHydratedAccountId(accountId);
+        setHydratedRevision(result.revision);
+      });
+
+      return function callback() {
+        cancelled = true;
+      };
+    },
+    [
+      accountId,
+      apiSession?.error,
+      copy.hydrationIdentityError,
+      copy.hydrationConflictDescription,
+      copy.hydrationLocalFallback,
+      stateHydrationAttempt,
+      status,
+      tokenLifecycle,
+    ],
+  );
+
+  useEffect(function runEffect() {
     isUnmountingRef.current = false;
 
-    return () => {
+    return function callback() {
       isUnmountingRef.current = true;
     };
   }, []);
 
-  useEffect(() => {
-    if (
-      stateHydrationStatus !== "ready" ||
-      hydratedAccountId !== accountId ||
-      status !== "authenticated" ||
-      !accountId ||
-      isAuthSessionError(apiSession?.error)
-    ) {
-      return;
-    }
-
-    const token = accountTokensRef.current.get(accountId);
-    if (!token) {
-      return;
-    }
-
-    const autosave = startPokeLoungeAutosave({
-      gameStateStore: getDefaultGameStateStore(),
-      token,
-      getToken: () => accountTokensRef.current.get(accountId) ?? token,
-      initialRevision: hydratedRevision,
-      onStatusChange: setAutosaveStatus,
-      onRevisionConflict: () => {
-        setHydratedAccountId(null);
-        setHydratedRevision(0);
-        setStateHydrationMessage(copy.hydrationLocalFallback);
-        setStateHydrationStatus("local-ready");
-      },
-    });
-    const autosaveLifecycle = createPokeLoungeAutosaveLifecycle(autosave);
-    tokenLifecycle.registerAutosave(autosaveLifecycle);
-    if (flushRecoveredLocalStateRef.current) {
-      flushRecoveredLocalStateRef.current = false;
-      void autosave.flush();
-    }
-    const flushForPageExit = () => {
-      void autosave.flush({ keepalive: true });
-    };
-    const flushWhenHidden = () => {
-      if (document.visibilityState === "hidden") {
-        flushForPageExit();
-      }
-    };
-    window.addEventListener("pagehide", flushForPageExit);
-    document.addEventListener("visibilitychange", flushWhenHidden);
-
-    return () => {
-      window.removeEventListener("pagehide", flushForPageExit);
-      document.removeEventListener("visibilitychange", flushWhenHidden);
-      if (isUnmountingRef.current) {
-        tokenLifecycle.disposeForUnmount(autosaveLifecycle);
-      } else {
-        tokenLifecycle.disposeForRehydration(autosaveLifecycle);
-      }
-    };
-  }, [
-    accountId,
-    apiSession?.error,
-    copy.hydrationLocalFallback,
-    hydratedAccountId,
-    hydratedRevision,
-    stateHydrationStatus,
-    status,
-    tokenLifecycle,
-  ]);
-
-  useEffect(() => {
-    if (!gameHydrationReady || !touchGameDeviceResolved) {
-      return;
-    }
-
-    let cancelled = false;
-    let cleanedUp = false;
-    let destroyGamePage: (() => void) | null = null;
-    const idToken = accountId ? accountTokensRef.current.get(accountId) : undefined;
-    setGameStartupError(false);
-    setGamePlaying(true);
-    startedAtMsRef.current = Date.now();
-    const pokeWindow = window as PokeLoungeWindow;
-    const cleanupGamePage = () => {
-      if (cleanedUp) {
+  useEffect(
+    function runEffect() {
+      if (
+        stateHydrationStatus !== "ready" ||
+        hydratedAccountId !== accountId ||
+        status !== "authenticated" ||
+        !accountId ||
+        isAuthSessionError(apiSession?.error)
+      ) {
         return;
       }
 
-      cleanedUp = true;
-      cancelled = true;
-      setGamePlaying(false);
-
-      destroyGamePage?.();
-      gamePageHandleRef.current = null;
-      delete pokeWindow.__POKE_LOUNGE_CLEANUP_FOR_TEST__;
-      delete pokeWindow.__POKE_LOUNGE_E2E__;
-      delete document.documentElement.dataset.pokeLoungeE2eBattle;
-      setGameRuntimeMounted(false);
-      pageRef.current?.classList.remove("is-game-fullscreen-fallback");
-      document.body.classList.remove("is-game-fullscreen-fallback-active");
-    };
-
-    if (new URLSearchParams(window.location.search).has("e2e")) {
-      pokeWindow.__POKE_LOUNGE_CLEANUP_FOR_TEST__ = cleanupGamePage;
-    }
-
-    void (async () => {
-      try {
-        const { startGamePageFromDocument } = await import("./runtime/game-page");
-        if (cancelled) {
-          return;
-        }
-
-        const gamePage = await startGamePageFromDocument(document, new URL(window.location.href), {
-          accountId: accountId ?? undefined,
-          idToken,
-          localTestModeActive,
-          getIdToken: () =>
-            accountId ? (accountTokensRef.current.get(accountId) ?? idToken) : undefined,
-          onGameResult: result => {
-            setRuntimeState({ phase: "result" });
-            setFinalResult({
-              score: result.score,
-              playTime: Math.max(1, Math.floor((Date.now() - startedAtMsRef.current) / 1000)),
-            });
-          },
-          onRoomLeaveRequest: setLeaveRequest,
-          onRuntimeStateChange: setRuntimeState,
-          viewportSize: touchGameDevice
-            ? MOBILE_GAME_VIEWPORT_SIZE
-            : GAME_VIEWPORT_SIZE_PRESETS.large,
-        });
-
-        if (cancelled) {
-          gamePage.destroy();
-          return;
-        }
-
-        gamePageHandleRef.current = gamePage;
-        destroyGamePage = () => {
-          if (gamePageHandleRef.current === gamePage) {
-            gamePageHandleRef.current = null;
-          }
-          gamePage.destroy();
-        };
-      } catch {
-        if (!cancelled) {
-          setGameStartupError(true);
-          setGamePlaying(false);
-        }
+      const token = accountTokensRef.current.get(accountId);
+      if (!token) {
+        return;
       }
-    })();
 
-    return cleanupGamePage;
-  }, [
-    accountId,
-    gameHydrationReady,
-    gameStartupAttempt,
-    localTestModeActive,
-    setGamePlaying,
-    touchGameDevice,
-    touchGameDeviceResolved,
-  ]);
+      const autosave = startPokeLoungeAutosave({
+        gameStateStore: getDefaultGameStateStore(),
+        token,
+        getToken: () => accountTokensRef.current.get(accountId) ?? token,
+        initialRevision: hydratedRevision,
+        onStatusChange: setAutosaveStatus,
+        onRevisionConflict: () => {
+          setHydratedAccountId(null);
+          setHydratedRevision(0);
+          setStateHydrationMessage(copy.hydrationLocalFallback);
+          setStateHydrationStatus("local-ready");
+        },
+      });
+      const autosaveLifecycle = createPokeLoungeAutosaveLifecycle(autosave);
+      tokenLifecycle.registerAutosave(autosaveLifecycle);
+      if (flushRecoveredLocalStateRef.current) {
+        flushRecoveredLocalStateRef.current = false;
+        void autosave.flush();
+      }
+      const flushForPageExit = () => {
+        void autosave.flush({ keepalive: true });
+      };
+      const flushWhenHidden = () => {
+        if (document.visibilityState === "hidden") {
+          flushForPageExit();
+        }
+      };
+      window.addEventListener("pagehide", flushForPageExit);
+      document.addEventListener("visibilitychange", flushWhenHidden);
 
-  const handleResultRetry = useCallback(() => {
+      return function callback() {
+        window.removeEventListener("pagehide", flushForPageExit);
+        document.removeEventListener("visibilitychange", flushWhenHidden);
+        if (isUnmountingRef.current) {
+          tokenLifecycle.disposeForUnmount(autosaveLifecycle);
+        } else {
+          tokenLifecycle.disposeForRehydration(autosaveLifecycle);
+        }
+      };
+    },
+    [
+      accountId,
+      apiSession?.error,
+      copy.hydrationLocalFallback,
+      hydratedAccountId,
+      hydratedRevision,
+      stateHydrationStatus,
+      status,
+      tokenLifecycle,
+    ],
+  );
+
+  useEffect(
+    function runEffect() {
+      if (!gameHydrationReady || !touchGameDeviceResolved) {
+        return;
+      }
+
+      let cancelled = false;
+      let cleanedUp = false;
+      let destroyGamePage: (() => void) | null = null;
+      const idToken = accountId ? accountTokensRef.current.get(accountId) : undefined;
+      setGameStartupError(false);
+      setGamePlaying(true);
+      startedAtMsRef.current = Date.now();
+      const pokeWindow = window as PokeLoungeWindow;
+      const cleanupGamePage = () => {
+        if (cleanedUp) {
+          return;
+        }
+
+        cleanedUp = true;
+        cancelled = true;
+        setGamePlaying(false);
+
+        destroyGamePage?.();
+        gamePageHandleRef.current = null;
+        delete pokeWindow.__POKE_LOUNGE_CLEANUP_FOR_TEST__;
+        delete pokeWindow.__POKE_LOUNGE_E2E__;
+        delete document.documentElement.dataset.pokeLoungeE2eBattle;
+        setGameRuntimeMounted(false);
+        pageRef.current?.classList.remove("is-game-fullscreen-fallback");
+        document.body.classList.remove("is-game-fullscreen-fallback-active");
+      };
+
+      if (new URLSearchParams(window.location.search).has("e2e")) {
+        pokeWindow.__POKE_LOUNGE_CLEANUP_FOR_TEST__ = cleanupGamePage;
+      }
+
+      void (async function callback() {
+        try {
+          const { startGamePageFromDocument } = await import("./runtime/game-page");
+          if (cancelled) {
+            return;
+          }
+
+          const gamePage = await startGamePageFromDocument(
+            document,
+            new URL(window.location.href),
+            {
+              accountId: accountId ?? undefined,
+              idToken,
+              localTestModeActive,
+              getIdToken: () =>
+                accountId ? (accountTokensRef.current.get(accountId) ?? idToken) : undefined,
+              onGameResult: result => {
+                setRuntimeState({ phase: "result" });
+                setFinalResult({
+                  score: result.score,
+                  playTime: Math.max(1, Math.floor((Date.now() - startedAtMsRef.current) / 1000)),
+                });
+              },
+              onRoomLeaveRequest: setLeaveRequest,
+              onRuntimeStateChange: setRuntimeState,
+              viewportSize: touchGameDevice
+                ? MOBILE_GAME_VIEWPORT_SIZE
+                : GAME_VIEWPORT_SIZE_PRESETS.large,
+            },
+          );
+
+          if (cancelled) {
+            gamePage.destroy();
+            return;
+          }
+
+          gamePageHandleRef.current = gamePage;
+          destroyGamePage = function callback() {
+            if (gamePageHandleRef.current === gamePage) {
+              gamePageHandleRef.current = null;
+            }
+            gamePage.destroy();
+          };
+        } catch {
+          if (!cancelled) {
+            setGameStartupError(true);
+            setGamePlaying(false);
+          }
+        }
+      })();
+
+      return cleanupGamePage;
+    },
+    [
+      accountId,
+      gameHydrationReady,
+      gameStartupAttempt,
+      localTestModeActive,
+      setGamePlaying,
+      touchGameDevice,
+      touchGameDeviceResolved,
+    ],
+  );
+
+  const handleResultRetry = useCallback(function memoizedCallback() {
     const currentUrl = new URL(window.location.href);
     const returnsToRoomEntry = isPokeLoungeMultiplayerResultUrl(currentUrl);
 
@@ -1103,19 +1165,27 @@ export function PokeLoungeGame() {
     getDefaultGameStateStore().resetCompetitiveSession();
     setFinalResult(null);
     if (returnsToRoomEntry) {
-      setGameStartupAttempt(attempt => attempt + 1);
+      setGameStartupAttempt(function callback(attempt) {
+        return attempt + 1;
+      });
     }
   }, []);
 
-  const handleResultLobby = useCallback(() => {
-    router.push("/game");
-  }, [router]);
+  const handleResultLobby = useCallback(
+    function memoizedCallback() {
+      router.push("/game");
+    },
+    [router],
+  );
 
-  const handleGameExitConfirm = useCallback(() => {
-    resetVirtualGamepad();
-    setExitConfirmationOpen(false);
-    handleResultLobby();
-  }, [handleResultLobby]);
+  const handleGameExitConfirm = useCallback(
+    function memoizedCallback() {
+      resetVirtualGamepad();
+      setExitConfirmationOpen(false);
+      handleResultLobby();
+    },
+    [handleResultLobby],
+  );
 
   return (
     <main
@@ -1131,7 +1201,9 @@ export function PokeLoungeGame() {
         gameRuntimeMounted={gameRuntimeMounted}
         runtimeState={runtimeState}
         touchGameDevice={touchGameDevice}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={function handleOpenSettings() {
+          return setSettingsOpen(true);
+        }}
       />
       {touchGameDevice && gameRuntimeMounted ? (
         <MobileGameShell
@@ -1155,17 +1227,22 @@ export function PokeLoungeGame() {
             onClose: handleMobileSettingsClose,
             onExit: handleGameExitRequest,
             onRetryHydration: handleStateHydrationRetry,
-            onRetryRanking: () => setRankingAttempt(attempt => attempt + 1),
+            onRetryRanking: () =>
+              setRankingAttempt(function callback(attempt) {
+                return attempt + 1;
+              }),
             onRoomShare: handleRoomShare,
             onVolumeCycle: handleVolumeCycle,
             open: settingsOpen,
             partySlots: settingsPartySlots,
-            ranking: ranking.map(entry => ({
-              id: `${entry.rank}-${entry.createdAt}`,
-              name: getRankingDisplayName(entry, copy.unknownTrainer),
-              rank: entry.rank,
-              score: entry.score,
-            })),
+            ranking: ranking.map(function mapItem(entry) {
+              return {
+                id: `${entry.rank}-${entry.createdAt}`,
+                name: getRankingDisplayName(entry, copy.unknownTrainer),
+                rank: entry.rank,
+                score: entry.score,
+              };
+            }),
             rankingStatus,
             roomShareAvailable: Boolean(roomShareUrl),
             roomShareStatus,
@@ -1185,7 +1262,11 @@ export function PokeLoungeGame() {
         <PokeLoungeStartupErrorScreen
           copy={copy}
           touchGameDevice={touchGameDevice}
-          onRetry={() => setGameStartupAttempt(attempt => attempt + 1)}
+          onRetry={function handleRetry() {
+            return setGameStartupAttempt(function callback(attempt) {
+              return attempt + 1;
+            });
+          }}
           onLobby={handleResultLobby}
         />
       ) : null}
@@ -1210,7 +1291,9 @@ export function PokeLoungeGame() {
           copy={copy}
           message={notice.message}
           tone={notice.tone}
-          onClose={() => setNotice(null)}
+          onClose={function handleClose() {
+            return setNotice(null);
+          }}
         />
       ) : null}
       {!touchGameDevice ? (
@@ -1223,12 +1306,14 @@ export function PokeLoungeGame() {
           multiplayer={Boolean(multiplayerRoomId)}
           open={settingsOpen}
           party={settingsPartySlots}
-          ranking={ranking.map(entry => ({
-            id: `${entry.rank}-${entry.createdAt}`,
-            name: getRankingDisplayName(entry, copy.unknownTrainer),
-            rank: entry.rank,
-            score: entry.score,
-          }))}
+          ranking={ranking.map(function mapItem(entry) {
+            return {
+              id: `${entry.rank}-${entry.createdAt}`,
+              name: getRankingDisplayName(entry, copy.unknownTrainer),
+              rank: entry.rank,
+              score: entry.score,
+            };
+          })}
           rankingStatus={rankingStatus}
           roomShareAvailable={Boolean(roomShareUrl)}
           roomShareStatus={roomShareStatus}
@@ -1240,7 +1325,11 @@ export function PokeLoungeGame() {
           onExit={handleGameExitRequest}
           onFullscreenToggle={handleFullscreenToggle}
           onOpenChange={setSettingsOpen}
-          onRankingRetry={() => setRankingAttempt(attempt => attempt + 1)}
+          onRankingRetry={function handleRankingRetry() {
+            return setRankingAttempt(function callback(attempt) {
+              return attempt + 1;
+            });
+          }}
           onRoomShare={handleRoomShare}
           onUiSizeToggle={handleUiSizeToggle}
           onVolumeCycle={handleVolumeCycle}
@@ -1255,12 +1344,12 @@ export function PokeLoungeGame() {
         onDeferHydration={handleDeferHydrationResolution}
         onExitConfirm={handleGameExitConfirm}
         onExitOpenChange={setExitConfirmationOpen}
-        onHydrationOpenChange={open => {
+        onHydrationOpenChange={function handleHydrationOpenChange(open) {
           if (!open) {
             handleDeferHydrationResolution();
           }
         }}
-        onLeaveOpenChange={open => {
+        onLeaveOpenChange={function handleLeaveOpenChange(open) {
           if (!open) {
             setLeaveRequest(null);
           }

@@ -1,13 +1,9 @@
 import { createHash } from "node:crypto";
-import {
-  canonicalize,
-  COMPETITIVE_CATALOG_HASH,
-  COMPETITIVE_RULESET_HASH,
-  COMPETITIVE_RULESET_V2,
-  createInitialBattleState,
-  normalizeCompetitiveParty,
-  type CompetitivePartyInput,
-} from "./index";
+import { canonicalize } from "./canonical-state";
+import { COMPETITIVE_CATALOG_HASH } from "./competitive-catalog.generated";
+import { COMPETITIVE_RULESET_HASH, COMPETITIVE_RULESET_V2 } from "./competitive-ruleset-config";
+import { createInitialBattleState } from "./ruleset";
+import { normalizeCompetitiveParty, type CompetitivePartyInput } from "./competitive-party";
 
 const IVS = {
   hp: 31,
@@ -28,18 +24,22 @@ function party(input: { slotIndex: number; speciesId: number; level: number; mov
         currentHp: 1,
         status: "normal",
         individualValues: IVS,
-        moves: input.moveIds.map(moveId => ({ moveId, pp: 1 })),
+        moves: input.moveIds.map(function mapItem(moveId) {
+          return { moveId, pp: 1 };
+        }),
       },
     ],
   } satisfies CompetitivePartyInput);
   return {
     ...normalized,
-    members: normalized.members.map(member => ({ ...member, currentHp: member.maxHp })),
+    members: normalized.members.map(function mapItem(member) {
+      return { ...member, currentHp: member.maxHp };
+    }),
   };
 }
 
-describe("competitive ruleset V2", () => {
-  it("preserves each normalized grown party with its original slots and levels", () => {
+describe("competitive ruleset V2", function testSuite() {
+  it("preserves each normalized grown party with its original slots and levels", function testCase() {
     const squirtle = party({ slotIndex: 0, speciesId: 7, level: 11, moveIds: [55] });
     const totodile = party({ slotIndex: 2, speciesId: 158, level: 13, moveIds: [55, 44] });
 
@@ -75,7 +75,7 @@ describe("competitive ruleset V2", () => {
     });
   });
 
-  it("binds the ruleset hash to the canonical V2 config and generated catalog hash", () => {
+  it("binds the ruleset hash to the canonical V2 config and generated catalog hash", function testCase() {
     const expected = createHash("sha256")
       .update(
         canonicalize({
@@ -93,13 +93,13 @@ describe("competitive ruleset V2", () => {
   it.each([
     ["blank", "", "player-b", "Initial-state participant IDs must be non-empty"],
     ["duplicate", "same", "same", "Initial-state participant IDs must be distinct"],
-  ])("rejects %s participant IDs", (_case, first, second, message) => {
+  ])("rejects %s participant IDs", function callback(_case, first, second, message) {
     const validParty = party({ slotIndex: 0, speciesId: 7, level: 11, moveIds: [55] });
-    expect(() =>
-      createInitialBattleState([
+    expect(function callback() {
+      return createInitialBattleState([
         { playerId: first, party: validParty },
         { playerId: second, party: validParty },
-      ]),
-    ).toThrow(message);
+      ]);
+    }).toThrow(message);
   });
 });

@@ -17,8 +17,8 @@ import type {
   CompetitiveIndividualValues,
   CompetitivePartyInput,
   CompetitivePartyMemberInput,
-} from '@poke-lounge/battle';
-import type { UpdatePokeLoungePartySnapshotInput } from './../poke-lounge-room.types';
+} from '@poke-lounge/battle/competitive-party';
+import type { UpdatePokeLoungePartySnapshotInput } from '../poke-lounge-room.types';
 
 const COMPETITIVE_STAT_EXAMPLES: CompetitiveIndividualValues = {
   hp: 31,
@@ -137,7 +137,9 @@ class CompetitivePartyMemberDto implements CompetitivePartyMemberInput {
 
   @ApiProperty({ type: CompetitiveIndividualValuesDto })
   @ValidateNested()
-  @Type(() => CompetitiveIndividualValuesDto)
+  @Type(function callback() {
+    return CompetitiveIndividualValuesDto;
+  })
   individualValues!: CompetitiveIndividualValuesDto;
 
   @ApiProperty({ type: [CompetitivePartyMoveDto], minItems: 1, maxItems: 4 })
@@ -145,7 +147,9 @@ class CompetitivePartyMemberDto implements CompetitivePartyMemberInput {
   @ArrayMinSize(1)
   @ArrayMaxSize(4)
   @ValidateNested({ each: true })
-  @Type(() => CompetitivePartyMoveDto)
+  @Type(function callback() {
+    return CompetitivePartyMoveDto;
+  })
   moves!: CompetitivePartyMoveDto[];
 }
 
@@ -165,7 +169,9 @@ class CompetitivePartyDto implements CompetitivePartyInput {
   @ArrayMinSize(1)
   @ArrayMaxSize(6)
   @ValidateNested({ each: true })
-  @Type(() => CompetitivePartyMemberDto)
+  @Type(function callback() {
+    return CompetitivePartyMemberDto;
+  })
   members!: CompetitivePartyMemberDto[];
 }
 
@@ -185,6 +191,8 @@ export class UpdatePokeLoungePartySnapshotDto implements UpdatePokeLoungePartySn
 
   @ApiProperty({ type: CompetitivePartyDto })
   @ValidateNested()
-  @Type(() => CompetitivePartyDto)
+  @Type(function callback() {
+    return CompetitivePartyDto;
+  })
   competitiveParty!: CompetitivePartyDto;
 }

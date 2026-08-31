@@ -15,15 +15,15 @@ import {
 } from "../data/game-data-json";
 import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
 import { MAX_SUPPORTED_POKEMON_SPECIES_ID } from "./pokemon-species";
-import { createSampleBattleState } from "./battleSampleState";
+import { createSampleBattleState } from "./battle-sample-state";
 import { planLevelUpBattleProgression } from "./level-up-progression";
-import { createBattleMoveFromRom, planLevelUpBattleMoves } from "./levelUpMoves";
+import { createBattleMoveFromRom, planLevelUpBattleMoves } from "./level-up-moves";
 import { normalizePokemonEvolutionTable } from "./pokemon-evolution";
-import type { RomPersonalRecordCollection, RomRefinedMoveCollection } from "./wildBattleFactory";
+import type { RomPersonalRecordCollection, RomRefinedMoveCollection } from "./wild-battle-factory";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 
-test("ROM 한국어 기술명은 코드형 fallback 대신 상대 기술명에 사용한다", async () => {
+test("ROM 한국어 기술명은 코드형 fallback 대신 상대 기술명에 사용한다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH) as PokemonDataJson;
   const moveRecords = pokemonData as unknown as RomRefinedMoveCollection;
 
@@ -61,13 +61,15 @@ test("ROM 한국어 기술명은 코드형 fallback 대신 상대 기술명에 �
   }
 });
 
-test("전국도감 1~493의 레벨업 기술표와 기술 참조가 완전하다", () => {
+test("전국도감 1~493의 레벨업 기술표와 기술 참조가 완전하다", function testCase() {
   const levelUpMoveTable = readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH) as LevelUpMoveTableJson;
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH) as PokemonDataJson;
   const moveRecords = pokemonData as unknown as RomRefinedMoveCollection;
   const romMoveIds = new Set(
     Array.isArray(moveRecords.moves)
-      ? moveRecords.moves.map(move => ("id" in move ? move.id : move.index))
+      ? moveRecords.moves.map(function mapItem(move) {
+          return "id" in move ? move.id : move.index;
+        })
       : Object.keys(moveRecords.moves).map(Number),
   );
   const missingSpeciesIds: number[] = [];
@@ -88,7 +90,7 @@ test("전국도감 1~493의 레벨업 기술표와 기술 참조가 완전하다
       emptyLearnsetSpeciesIds.push(speciesId);
     }
 
-    rows.forEach((row, rowIndex) => {
+    rows.forEach(function visitItem(row, rowIndex) {
       if (
         !Number.isInteger(row.level) ||
         row.level < 1 ||
@@ -121,12 +123,12 @@ test("전국도감 1~493의 레벨업 기술표와 기술 참조가 완전하다
   assert.deepEqual(mismatchedPokemonDataSpeciesIds, []);
 });
 
-test("필수 ROM 게임 데이터를 불러오지 못하면 런타임 데이터 로딩을 완료하지 않는다", async () => {
+test("필수 ROM 게임 데이터를 불러오지 못하면 런타임 데이터 로딩을 완료하지 않는다", async function testCase() {
   for (const missingPath of [LEVEL_UP_MOVE_TABLE_JSON_PATH, ITEM_DATA_JSON_PATH]) {
     resetRuntimeGameDataJsonStateForTest();
 
     await assert.rejects(
-      loadRuntimeGameDataJson(async input => {
+      loadRuntimeGameDataJson(async function callback(input) {
         const requestPath =
           typeof input === "string"
             ? input
@@ -148,7 +150,7 @@ test("필수 ROM 게임 데이터를 불러오지 못하면 런타임 데이터 
   }
 });
 
-test("레벨업 기술 정규화는 같은 레벨의 원본 기술 순서를 유지한다", () => {
+test("레벨업 기술 정규화는 같은 레벨의 원본 기술 순서를 유지한다", function testCase() {
   const normalized = normalizeLevelUpMoveTable({
     version: 1,
     species: {
@@ -173,7 +175,7 @@ test("레벨업 기술 정규화는 같은 레벨의 원본 기술 순서를 유
   ]);
 });
 
-test("여러 레벨에서 같은 기술을 만나도 교체 대기열에는 한 번만 추가한다", async () => {
+test("여러 레벨에서 같은 기술을 만나도 교체 대기열에는 한 번만 추가한다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   const levelUpMoveTable = readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH);
   const moveRecords = pokemonData as RomRefinedMoveCollection;
@@ -195,12 +197,16 @@ test("여러 레벨에서 같은 기술을 만나도 교체 대기열에는 한 
         speciesId: 96,
         name: "슬리프",
         level: 32,
-        moves: [33, 45, 52, 98].map(moveId => createBattleMoveFromRom(moveId, moveRecords)),
+        moves: [33, 45, 52, 98].map(function mapItem(moveId) {
+          return createBattleMoveFromRom(moveId, moveRecords);
+        }),
       },
       previousLevel: 14,
       moveRecords,
     });
-    const pendingMoveIds = planned.pendingMoves.map(move => move.id);
+    const pendingMoveIds = planned.pendingMoves.map(function mapItem(move) {
+      return move.id;
+    });
 
     assert.deepEqual(pendingMoveIds, [29, 139, 96, 60, 244]);
     assert.equal(new Set(pendingMoveIds).size, pendingMoveIds.length);
@@ -209,7 +215,7 @@ test("여러 레벨에서 같은 기술을 만나도 교체 대기열에는 한 
   }
 });
 
-test("캐터피가 Lv.6에서 Lv.11이 되면 레벨별 기술 습득과 두 번의 진화를 순서대로 처리한다", async () => {
+test("캐터피가 Lv.6에서 Lv.11이 되면 레벨별 기술 습득과 두 번의 진화를 순서대로 처리한다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   const moveRecords = pokemonData as RomRefinedMoveCollection;
   const personalRecords = pokemonData as RomPersonalRecordCollection;
@@ -227,7 +233,9 @@ test("캐터피가 Lv.6에서 Lv.11이 되면 레벨별 기술 습득과 두 번
         speciesId: 10,
         name: "캐터피",
         level: 11,
-        moves: [33, 81].map(moveId => createBattleMoveFromRom(moveId, moveRecords)),
+        moves: [33, 81].map(function mapItem(moveId) {
+          return createBattleMoveFromRom(moveId, moveRecords);
+        }),
       },
       previousLevel: 6,
     });
@@ -236,7 +244,9 @@ test("캐터피가 Lv.6에서 Lv.11이 되면 레벨별 기술 습득과 두 번
     assert.equal(progression.pokemon.speciesId, 12);
     assert.equal(progression.pokemon.name, "버터플");
     assert.deepEqual(
-      progression.pokemon.moves.map(move => move.id),
+      progression.pokemon.moves.map(function mapItem(move) {
+        return move.id;
+      }),
       [33, 81, 106, 93],
     );
     assert.deepEqual(progression.pendingMoveLearnings, []);
@@ -253,7 +263,7 @@ test("캐터피가 Lv.6에서 Lv.11이 되면 레벨별 기술 습득과 두 번
   }
 });
 
-test("이상해씨가 Lv.15에서 Lv.20이 되면 진화 후 이상해풀 기술표를 사용한다", async () => {
+test("이상해씨가 Lv.15에서 Lv.20이 되면 진화 후 이상해풀 기술표를 사용한다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   const moveRecords = pokemonData as RomRefinedMoveCollection;
   const personalRecords = pokemonData as RomPersonalRecordCollection;
@@ -271,7 +281,9 @@ test("이상해씨가 Lv.15에서 Lv.20이 되면 진화 후 이상해풀 기술
         speciesId: 1,
         name: "이상해씨",
         level: 20,
-        moves: [33].map(moveId => createBattleMoveFromRom(moveId, moveRecords)),
+        moves: [33].map(function mapItem(moveId) {
+          return createBattleMoveFromRom(moveId, moveRecords);
+        }),
       },
       previousLevel: 15,
     });
@@ -280,7 +292,9 @@ test("이상해씨가 Lv.15에서 Lv.20이 되면 진화 후 이상해풀 기술
     assert.equal(progression.pokemon.speciesId, 2);
     assert.equal(progression.pokemon.name, "이상해풀");
     assert.deepEqual(
-      progression.pokemon.moves.map(move => move.id),
+      progression.pokemon.moves.map(function mapItem(move) {
+        return move.id;
+      }),
       [33, 75],
     );
     assert.deepEqual(progression.pendingMoveLearnings, []);
@@ -312,9 +326,8 @@ interface PokemonDataJson {
   >;
 }
 
-const createRuntimeGameDataFetcher =
-  (runtimeJsonByPath: Map<string, unknown>): typeof fetch =>
-  async input => {
+const createRuntimeGameDataFetcher = (runtimeJsonByPath: Map<string, unknown>): typeof fetch =>
+  async function callback(input) {
     const requestPath =
       typeof input === "string"
         ? input

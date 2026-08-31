@@ -1,4 +1,4 @@
-import type { CompletedTileStep, TileCoordinate } from "./tileSteps";
+import type { CompletedTileStep, TileCoordinate } from "./tile-steps";
 
 export interface TallGrassTileRegion {
   tileX: number;
@@ -17,21 +17,23 @@ interface TallGrassRegionObject {
   y?: number;
 }
 
-export const isTallGrassStep = (
+export function isTallGrassStep(
   step: CompletedTileStep | null,
   hasTallGrassAt: TallGrassTileLookup,
-): step is CompletedTileStep => step !== null && hasTallGrassAt(step.to);
+): step is CompletedTileStep {
+  return step !== null && hasTallGrassAt(step.to);
+}
 
-export const resolveTallGrassTileRegions = (
+export function resolveTallGrassTileRegions(
   objects: ReadonlyArray<TallGrassRegionObject>,
   tileWidth: number,
   tileHeight: number,
-): TallGrassTileRegion[] => {
+): TallGrassTileRegion[] {
   if (tileWidth <= 0 || tileHeight <= 0) {
     throw new Error("Tall grass tile dimensions must be positive.");
   }
 
-  return objects.map(object => {
+  return objects.map(function mapItem(object) {
     const { x, y, width, height } = object;
 
     if (
@@ -60,4 +62,4 @@ export const resolveTallGrassTileRegions = (
       height: height / tileHeight,
     };
   });
-};
+}

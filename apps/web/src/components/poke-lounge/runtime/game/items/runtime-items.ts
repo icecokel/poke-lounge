@@ -1,7 +1,7 @@
 import {
   POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS,
   type PokeLoungeRuntimeItemId,
-} from "@poke-lounge/battle";
+} from "@poke-lounge/battle/runtime-item-ids";
 import {
   getRuntimeItemDetails,
   getRuntimeShopItemRomIds,
@@ -12,9 +12,9 @@ export const RUNTIME_ITEM_ROM_IDS = POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS;
 export type RuntimeItemId = PokeLoungeRuntimeItemId;
 
 const RUNTIME_ITEM_IDS_BY_ROM_ID = new Map<number, RuntimeItemId>(
-  Object.entries(RUNTIME_ITEM_ROM_IDS).map(
-    ([itemId, romItemId]) => [romItemId, itemId as RuntimeItemId] as const,
-  ),
+  Object.entries(RUNTIME_ITEM_ROM_IDS).map(function mapItem([itemId, romItemId]) {
+    return [romItemId, itemId as RuntimeItemId] as const;
+  }),
 );
 
 export function getRuntimeGameItem(itemId: string) {
@@ -27,7 +27,7 @@ export function getRuntimeItemIds(): RuntimeItemId[] {
 }
 
 export function getRuntimeShopItemIds(shopKind: RuntimeShopKind): RuntimeItemId[] {
-  return getRuntimeShopItemRomIds(shopKind).map(romItemId => {
+  return getRuntimeShopItemRomIds(shopKind).map(function mapItem(romItemId) {
     const itemId = RUNTIME_ITEM_IDS_BY_ROM_ID.get(romItemId);
     if (!itemId) {
       throw new Error(`Shop catalog ${shopKind} contains unsupported ROM item ${romItemId}.`);

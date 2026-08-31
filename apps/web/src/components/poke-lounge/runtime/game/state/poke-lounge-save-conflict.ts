@@ -17,7 +17,9 @@ function haveSameJsonValue(left: unknown, right: unknown): boolean {
       Array.isArray(left) &&
       Array.isArray(right) &&
       left.length === right.length &&
-      left.every((value, index) => haveSameJsonValue(value, right[index]))
+      left.every(function testItem(value, index) {
+        return haveSameJsonValue(value, right[index]);
+      })
     );
   }
 
@@ -29,9 +31,9 @@ function haveSameJsonValue(left: unknown, right: unknown): boolean {
   const rightKeys = Object.keys(right).sort();
   return (
     leftKeys.length === rightKeys.length &&
-    leftKeys.every(
-      (key, index) => key === rightKeys[index] && haveSameJsonValue(left[key], right[key]),
-    )
+    leftKeys.every(function testItem(key, index) {
+      return key === rightKeys[index] && haveSameJsonValue(left[key], right[key]);
+    })
   );
 }
 

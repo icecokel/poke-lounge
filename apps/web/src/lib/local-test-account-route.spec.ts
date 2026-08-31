@@ -5,7 +5,7 @@ import { NextRequest } from "next/server";
 const originalEnvironment = { ...process.env };
 const localTestModeUrl = "http://localhost:3000/api/local-test-mode";
 
-before(() => {
+before(function callback() {
   Object.assign(process.env, {
     NODE_ENV: "development",
     LOCAL_TEST_AUTH_TOKEN: "local_test_auth_token_0123456789abcdef",
@@ -13,11 +13,11 @@ before(() => {
   });
 });
 
-after(() => {
+after(function callback() {
   process.env = originalEnvironment;
 });
 
-test("환경 변수만으로 Auth.js 세션을 로컬 테스트 계정으로 바꾸지 않는다", async () => {
+test("환경 변수만으로 Auth.js 세션을 로컬 테스트 계정으로 바꾸지 않는다", async function testCase() {
   const { GET } = await import("@/app/api/auth/[...nextauth]/route");
   const response = await GET(new NextRequest("http://localhost:3000/api/auth/session"));
   const session = (await response.json()) as {
@@ -30,7 +30,7 @@ test("환경 변수만으로 Auth.js 세션을 로컬 테스트 계정으로 바
   assert.notEqual(session?.idToken, process.env.LOCAL_TEST_AUTH_TOKEN);
 });
 
-test("로컬 테스트 모드 capability 조회는 세션을 활성화하지 않는다", async () => {
+test("로컬 테스트 모드 capability 조회는 세션을 활성화하지 않는다", async function testCase() {
   const { GET } = await import("@/app/api/local-test-mode/route");
   const response = await GET(new NextRequest(localTestModeUrl));
 
@@ -42,7 +42,7 @@ test("로컬 테스트 모드 capability 조회는 세션을 활성화하지 않
   assert.equal(response.headers.get("cache-control"), "private, no-cache, no-store");
 });
 
-test("외부 Origin이나 전용 헤더가 없는 활성화 요청을 거부한다", async () => {
+test("외부 Origin이나 전용 헤더가 없는 활성화 요청을 거부한다", async function testCase() {
   const { POST } = await import("@/app/api/local-test-mode/route");
   const externalResponse = await POST(
     new NextRequest(localTestModeUrl, {
@@ -72,7 +72,7 @@ test("외부 Origin이나 전용 헤더가 없는 활성화 요청을 거부한�
   assert.equal(missingHeaderResponse.headers.get("set-cookie"), null);
 });
 
-test("명시적 활성화 후에만 고정 테스트 계정 세션을 제공한다", async () => {
+test("명시적 활성화 후에만 고정 테스트 계정 세션을 제공한다", async function testCase() {
   const localTestModeRoute = await import("@/app/api/local-test-mode/route");
   const authRoute = await import("@/app/api/auth/[...nextauth]/route");
   const activationResponse = await localTestModeRoute.POST(
@@ -121,7 +121,7 @@ test("명시적 활성화 후에만 고정 테스트 계정 세션을 제공한�
   });
 });
 
-test("명시적 종료 요청은 활성화 쿠키를 제거한다", async () => {
+test("명시적 종료 요청은 활성화 쿠키를 제거한다", async function testCase() {
   const { DELETE } = await import("@/app/api/local-test-mode/route");
   const response = await DELETE(
     new NextRequest(localTestModeUrl, {
@@ -141,7 +141,7 @@ test("명시적 종료 요청은 활성화 쿠키를 제거한다", async () => 
   assert.match(response.headers.get("set-cookie") ?? "", /Path=\/api/i);
 });
 
-test("session 외 auth GET은 제공하지 않는다", async () => {
+test("session 외 auth GET은 제공하지 않는다", async function testCase() {
   const { GET } = await import("@/app/api/auth/[...nextauth]/route");
   const response = await GET(new NextRequest("http://localhost:3000/api/auth/providers"));
 

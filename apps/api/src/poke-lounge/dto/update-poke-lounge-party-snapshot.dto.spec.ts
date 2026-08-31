@@ -1,20 +1,20 @@
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { UpdatePokeLoungePartySnapshotDto } from './update-poke-lounge-party-snapshot.dto';
 
-describe('UpdatePokeLoungePartySnapshotDto', () => {
+describe('UpdatePokeLoungePartySnapshotDto', function testSuite() {
   const pipe = new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
     transform: true,
   });
 
-  it('accepts only the minimal V2 grown-party input', async () => {
+  it('accepts only the minimal V2 grown-party input', async function testCase() {
     await expect(transform(validBody())).resolves.toMatchObject(validBody());
   });
 
   it.each(['name', 'maxHp', 'attack', 'defense', 'typeIds'])(
     'rejects client-derived member field %s',
-    async (field) => {
+    async function callback(field) {
       const body = validBody();
       Object.assign(body.competitiveParty.members[0], { [field]: 'forged' });
 
@@ -24,7 +24,7 @@ describe('UpdatePokeLoungePartySnapshotDto', () => {
 
   it.each(['name', 'power', 'accuracy', 'maxPp'])(
     'rejects client-derived move field %s',
-    async (field) => {
+    async function callback(field) {
       const body = validBody();
       Object.assign(body.competitiveParty.members[0].moves[0], {
         [field]: 'forged',
@@ -34,7 +34,7 @@ describe('UpdatePokeLoungePartySnapshotDto', () => {
     },
   );
 
-  it('rejects a legacy snapshot version', async () => {
+  it('rejects a legacy snapshot version', async function testCase() {
     const body = validBody();
     Object.assign(body.competitiveParty, { version: 1 });
 

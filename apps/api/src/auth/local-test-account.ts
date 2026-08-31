@@ -21,9 +21,9 @@ export interface LocalTestAccountRequest {
   path?: string;
 }
 
-export const resolveLocalTestAuthToken = (
+export function resolveLocalTestAuthToken(
   environment: LocalTestAccountEnvironment = process.env,
-): string | null => {
+): string | null {
   if (environment.NODE_ENV !== 'development') {
     return null;
   }
@@ -41,7 +41,7 @@ export const resolveLocalTestAuthToken = (
   }
 
   return token;
-};
+}
 
 const resolveRequestPath = (request: LocalTestAccountRequest): string => {
   const path = request.path ?? request.originalUrl ?? '';
@@ -56,9 +56,9 @@ const resolveRequestPath = (request: LocalTestAccountRequest): string => {
   }
 };
 
-export const isLocalTestAccountRequestAllowed = (
+export function isLocalTestAccountRequestAllowed(
   request: LocalTestAccountRequest,
-): boolean => {
+): boolean {
   const method = request.method?.toUpperCase();
   const path = resolveRequestPath(request);
 
@@ -76,4 +76,4 @@ export const isLocalTestAccountRequestAllowed = (
     'gameType' in request.body &&
     request.body.gameType === 'POKE_LOUNGE'
   );
-};
+}

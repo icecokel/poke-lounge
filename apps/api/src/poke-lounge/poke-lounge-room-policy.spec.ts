@@ -1,5 +1,5 @@
 import type { PokeLoungeRoomSnapshot } from './poke-lounge-room.repository';
-import { createTournamentBracketState } from '@poke-lounge/battle';
+import { createTournamentBracketState } from '@poke-lounge/battle/tournament-bracket';
 import {
   POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS,
   POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS,
@@ -15,8 +15,8 @@ import { createTestPartySnapshots } from '../../test/support/competitive-party.f
 
 const MINUTE_MS = 60_000;
 
-describe('PokeLoungeRoomPolicy', () => {
-  it('selects the current host by join time and then player id', () => {
+describe('PokeLoungeRoomPolicy', function testSuite() {
+  it('selects the current host by join time and then player id', function testCase() {
     const room = createSnapshot({
       participants: [
         createParticipant('player-c', 2),
@@ -27,7 +27,9 @@ describe('PokeLoungeRoomPolicy', () => {
 
     expect(getPokeLoungeRoomHostPlayerId(room)).toBe('player-a');
     room.participants = room.participants.filter(
-      (participant) => participant.playerId !== 'player-a',
+      function filterItem(participant) {
+        return participant.playerId !== 'player-a';
+      },
     );
     expect(getPokeLoungeRoomHostPlayerId(room)).toBe('player-b');
     expect(
@@ -41,7 +43,7 @@ describe('PokeLoungeRoomPolicy', () => {
     ['closed', 10 * MINUTE_MS],
   ] as const)(
     'expires %s rooms from their latest update',
-    (status, retentionMs) => {
+    function callback(status, retentionMs) {
       const room = createSnapshot({ status, updatedAtMs: 1_000 });
 
       expect(getPokeLoungeRoomExpiresAtMs(room)).toBe(1_000 + retentionMs);
@@ -50,7 +52,7 @@ describe('PokeLoungeRoomPolicy', () => {
 
   it.each(['round-started', 'tournament'] as const)(
     'expires inactive %s rooms after the active lease',
-    (status) => {
+    function callback(status) {
       expect(
         getPokeLoungeRoomExpiresAtMs(
           createSnapshot({ status, updatedAtMs: 1_000 }),
@@ -59,11 +61,11 @@ describe('PokeLoungeRoomPolicy', () => {
     },
   );
 
-  it('keeps the active lease longer than the maximum preparation round', () => {
+  it('keeps the active lease longer than the maximum preparation round', function testCase() {
     expect(POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS).toBeGreaterThan(60 * MINUTE_MS);
   });
 
-  it('keeps the waiting room lease while every presence is pending', () => {
+  it('keeps the waiting room lease while every presence is pending', function testCase() {
     const room = createSnapshot({
       updatedAtMs: 1_000,
       participants: [
@@ -81,7 +83,7 @@ describe('PokeLoungeRoomPolicy', () => {
     expect(getPokeLoungeRoomExpiresAtMs(room)).toBe(1_000 + 30 * MINUTE_MS);
   });
 
-  it('uses a strict expiry boundary', () => {
+  it('uses a strict expiry boundary', function testCase() {
     const room = createSnapshot({
       status: 'waiting',
       updatedAtMs: 1_000,
@@ -96,7 +98,7 @@ describe('PokeLoungeRoomPolicy', () => {
     ).toBe(true);
   });
 
-  it('keeps an empty waiting room reclaimable after a pending lease expires', () => {
+  it('keeps an empty waiting room reclaimable after a pending lease expires', function testCase() {
     const pendingUntilMs = 1_000 + POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS;
     const room = createSnapshot({
       participants: [
@@ -121,7 +123,7 @@ describe('PokeLoungeRoomPolicy', () => {
     );
   });
 
-  it('keeps an unacknowledged round resume reclaimable after its pending lease expires', () => {
+  it('keeps an unacknowledged round resume reclaimable after its pending lease expires', function testCase() {
     const pendingUntilMs = 2_000;
     const room = createSnapshot({
       status: 'round-started',
@@ -166,7 +168,7 @@ describe('PokeLoungeRoomPolicy', () => {
     expect(expired?.participants[0]).not.toHaveProperty('presenceEpoch');
   });
 
-  it('turns an expired tournament rejoin lease offline and converges its casual match', () => {
+  it('turns an expired tournament rejoin lease offline and converges its casual match', function testCase() {
     const pendingUntilMs = 2_000;
     const participants = [
       {
@@ -176,10 +178,12 @@ describe('PokeLoungeRoomPolicy', () => {
       createParticipant('player-2', 2),
     ];
     const bracket = createTournamentBracketState(
-      participants.map(({ playerId, displayName }) => ({
-        playerId,
-        displayName,
-      })),
+      participants.map(function mapItem({ playerId, displayName }) {
+        return {
+          playerId,
+          displayName,
+        };
+      }),
       1,
     );
     const room = createSnapshot({
@@ -223,7 +227,7 @@ describe('PokeLoungeRoomPolicy', () => {
     );
   });
 
-  it('completes three game rounds and ranks the champion by cumulative HP ratio', () => {
+  it('completes three game rounds and ranks the champion by cumulative HP ratio', function testCase() {
     let room = createSnapshot({
       status: 'round-started',
       participants: [
@@ -297,7 +301,7 @@ describe('PokeLoungeRoomPolicy', () => {
     });
   });
 
-  it('applies round ranking scores in the same transition that ends the round', () => {
+  it('applies round ranking scores in the same transition that ends the round', function testCase() {
     const room = createSnapshot({
       status: 'round-started',
       participants: [
@@ -332,7 +336,7 @@ describe('PokeLoungeRoomPolicy', () => {
     });
   });
 
-  it('advances an elapsed round once with deterministic tournament matches', () => {
+  it('advances an elapsed round once with deterministic tournament matches', function testCase() {
     const room = createSnapshot({
       status: 'round-started',
       revision: 7,
@@ -387,7 +391,7 @@ describe('PokeLoungeRoomPolicy', () => {
     });
   });
 
-  it('restores every participant party when the round enters tournament', () => {
+  it('restores every participant party when the round enters tournament', function testCase() {
     const room = createSnapshot({
       status: 'round-started',
       participants: [
@@ -405,12 +409,16 @@ describe('PokeLoungeRoomPolicy', () => {
     const damaged = room.partySnapshots['player-1'].competitiveParty;
     room.partySnapshots['player-1'].competitiveParty = {
       ...damaged,
-      members: damaged.members.map((member) => ({
-        ...member,
-        currentHp: 1,
-        status: 'burned' as const,
-        moves: member.moves.map((move) => ({ ...move, pp: 0 })),
-      })),
+      members: damaged.members.map(function mapItem(member) {
+        return {
+          ...member,
+          currentHp: 1,
+          status: 'burned' as const,
+          moves: member.moves.map(function mapItem(move) {
+            return { ...move, pp: 0 };
+          }),
+        };
+      }),
     };
 
     const advanced = advancePokeLoungeRoomClock(room, 1_000);
@@ -431,12 +439,12 @@ describe('PokeLoungeRoomPolicy', () => {
     });
   });
 
-  it('includes all five players as one match and three byes', () => {
+  it('includes all five players as one match and three byes', function testCase() {
     const room = createSnapshot({
       status: 'round-started',
-      participants: Array.from({ length: 5 }, (_, index) =>
-        createParticipant(`player-${index + 1}`, index + 1),
-      ),
+      participants: Array.from({ length: 5 }, function callback(_, index) {
+        return createParticipant(`player-${index + 1}`, index + 1);
+      }),
       round: {
         index: 1,
         phase: 'round-started',
@@ -453,12 +461,14 @@ describe('PokeLoungeRoomPolicy', () => {
     ]);
     expect(
       advanced?.tournament.bracket?.currentRound?.byes.map(
-        (bye) => bye.entrant.playerId,
+        function mapItem(bye) {
+          return bye.entrant.playerId;
+        },
       ),
     ).toEqual(['player-1', 'player-3', 'player-2']);
   });
 
-  it('closes at the exact deadline when an active participant has no committed party', () => {
+  it('closes at the exact deadline when an active participant has no committed party', function testCase() {
     const room = createSnapshot({
       status: 'round-started',
       participants: [
@@ -487,7 +497,7 @@ describe('PokeLoungeRoomPolicy', () => {
     });
   });
 
-  it('returns an undersized preparation round to waiting at its deadline', () => {
+  it('returns an undersized preparation round to waiting at its deadline', function testCase() {
     const room = createSnapshot({
       status: 'round-started',
       participants: [createParticipant('player-1', 1)],
@@ -510,7 +520,7 @@ describe('PokeLoungeRoomPolicy', () => {
     });
   });
 
-  it('closes progressed legacy rooms with a finite restart-required expiry', () => {
+  it('closes progressed legacy rooms with a finite restart-required expiry', function testCase() {
     const legacy = createSnapshot({ status: 'tournament' });
     (legacy as unknown as { tournament: unknown }).tournament = {
       matches: [{ status: 'completed' }],
@@ -533,7 +543,7 @@ describe('PokeLoungeRoomPolicy', () => {
     });
   });
 
-  it('does not advance before the round deadline or after advancement', () => {
+  it('does not advance before the round deadline or after advancement', function testCase() {
     const running = createSnapshot({
       status: 'round-started',
       round: {
@@ -554,7 +564,7 @@ describe('PokeLoungeRoomPolicy', () => {
     ).toBeNull();
   });
 
-  it('waits at the elapsed round boundary until every participant is ready', () => {
+  it('waits at the elapsed round boundary until every participant is ready', function testCase() {
     const room = createSnapshot({
       status: 'round-started',
       participants: [
@@ -610,7 +620,9 @@ function createSnapshot(
   };
   if (!Object.prototype.hasOwnProperty.call(overrides, 'partySnapshots')) {
     snapshot.partySnapshots = createTestPartySnapshots(
-      snapshot.participants.map((participant) => participant.playerId),
+      snapshot.participants.map(function mapItem(participant) {
+        return participant.playerId;
+      }),
     );
   }
   return snapshot;

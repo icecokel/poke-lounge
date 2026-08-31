@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { PlayerSnapshot } from "./localPreviewRoom";
+import type { PlayerSnapshot } from "./local-preview-room";
 import { createCompetitivePartySnapshot } from "./competitive-party-snapshot";
 
 function createPlayerSnapshot(): PlayerSnapshot {
@@ -63,7 +63,7 @@ function createPlayerSnapshot(): PlayerSnapshot {
   };
 }
 
-test("육성 파티를 서버가 신뢰하는 최소 V2 입력으로만 변환한다", () => {
+test("육성 파티를 서버가 신뢰하는 최소 V2 입력으로만 변환한다", function testCase() {
   const result = createCompetitivePartySnapshot(createPlayerSnapshot());
 
   assert.deepEqual(result, {
@@ -112,18 +112,22 @@ test("육성 파티를 서버가 신뢰하는 최소 V2 입력으로만 변환�
   assert.equal("maxPp" in result.members[0].moves[0], false);
 });
 
-test("전투 저장값이 빠진 파티는 조용히 대체하지 않고 거절한다", () => {
+test("전투 저장값이 빠진 파티는 조용히 대체하지 않고 거절한다", function testCase() {
   const snapshot = createPlayerSnapshot();
   const member = snapshot.party?.[0]?.pokemon;
   assert.ok(member);
   member.individualValues = undefined;
 
-  assert.throws(() => createCompetitivePartySnapshot(snapshot), /missing persisted battle state/);
+  assert.throws(function callback() {
+    return createCompetitivePartySnapshot(snapshot);
+  }, /missing persisted battle state/);
 });
 
-test("선두 슬롯이 없는 접속 스냅샷은 거절한다", () => {
+test("선두 슬롯이 없는 접속 스냅샷은 거절한다", function testCase() {
   const snapshot = createPlayerSnapshot();
   snapshot.activePartySlotIndex = undefined;
 
-  assert.throws(() => createCompetitivePartySnapshot(snapshot), /requires an active party slot/);
+  assert.throws(function callback() {
+    return createCompetitivePartySnapshot(snapshot);
+  }, /requires an active party slot/);
 });

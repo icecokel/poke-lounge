@@ -335,9 +335,11 @@ async function loadRomCatalogSummary(fetcher: typeof fetch): Promise<RomCatalogS
     loadedPaths,
     missingPaths: [
       ROM_EXTRACTION_ASSET_INDEX_PATH,
-      ...ROM_EXTRACTION_CATALOGS.map(catalog => catalog.path).filter(
-        path => !loadedPaths.includes(path),
-      ),
+      ...ROM_EXTRACTION_CATALOGS.map(function mapItem(catalog) {
+        return catalog.path;
+      }).filter(function filterItem(path) {
+        return !loadedPaths.includes(path);
+      }),
     ],
   };
 }
@@ -359,7 +361,11 @@ async function loadOptionalJson(fetcher: typeof fetch, path: string): Promise<un
 function normalizeAssetIndexCatalogs(value: unknown): RomCatalogSummaryCategory[] {
   const entries = readCatalogIndexEntries(value);
 
-  return entries.map((entry, index) => normalizeAssetIndexCatalog(entry, index)).filter(isPresent);
+  return entries
+    .map(function mapItem(entry, index) {
+      return normalizeAssetIndexCatalog(entry, index);
+    })
+    .filter(isPresent);
 }
 
 function readCatalogIndexEntries(value: unknown): unknown[] {
@@ -379,9 +385,9 @@ function readCatalogIndexEntries(value: unknown): unknown[] {
     const record = value[key];
 
     if (isRecord(record)) {
-      return Object.entries(record).map(([id, entry]) =>
-        isRecord(entry) ? { id, ...entry } : { id, value: entry },
-      );
+      return Object.entries(record).map(function mapItem([id, entry]) {
+        return isRecord(entry) ? { id, ...entry } : { id, value: entry };
+      });
     }
   }
 
@@ -408,9 +414,9 @@ function normalizeAssetIndexCatalog(
   }
 
   const id = rawId;
-  const fallbackCatalog = ROM_EXTRACTION_CATALOGS.find(
-    catalog => catalog.id === id || catalog.path === sourcePath,
-  );
+  const fallbackCatalog = ROM_EXTRACTION_CATALOGS.find(function findItem(catalog) {
+    return catalog.id === id || catalog.path === sourcePath;
+  });
   const count =
     readNumber(value, "count", "total", "asset_count", "assetCount") ??
     readStatsCount(value.stats, fallbackCatalog?.countKeys ?? ["count", "total"]) ??
@@ -561,19 +567,29 @@ function createSection(
 }
 
 function getCellPreviewCandidates(assets: UiAsset[]): UiAsset[] {
-  return assets.filter(asset => isCellPreviewCandidate(asset) && isPublicRomAsset(asset));
+  return assets.filter(function filterItem(asset) {
+    return isCellPreviewCandidate(asset) && isPublicRomAsset(asset);
+  });
 }
 
 function getScreenCandidates(assets: UiAsset[]): UiAsset[] {
   return assets
-    .filter(asset => isScreenCandidate(asset) && isPublicRomAsset(asset))
-    .sort((left, right) => getCandidatePriority(left) - getCandidatePriority(right));
+    .filter(function filterItem(asset) {
+      return isScreenCandidate(asset) && isPublicRomAsset(asset);
+    })
+    .sort(function compareItems(left, right) {
+      return getCandidatePriority(left) - getCandidatePriority(right);
+    });
 }
 
 function getUiCandidates(assets: UiAsset[]): UiAsset[] {
   return assets
-    .filter(asset => isUiCandidate(asset) && isPublicRomAsset(asset))
-    .sort((left, right) => getCandidatePriority(left) - getCandidatePriority(right));
+    .filter(function filterItem(asset) {
+      return isUiCandidate(asset) && isPublicRomAsset(asset);
+    })
+    .sort(function compareItems(left, right) {
+      return getCandidatePriority(left) - getCandidatePriority(right);
+    });
 }
 
 function isScreenCandidate(asset: UiAsset): boolean {
@@ -635,7 +651,9 @@ function getCandidatePriority(asset: UiAsset): number {
 
 function getAssetDescriptor(asset: UiAsset): string {
   return [asset.role, asset.category, asset.kind, asset.type, asset.name, asset.id, asset.path]
-    .filter((value): value is string => typeof value === "string")
+    .filter(function filterItem(value): value is string {
+      return typeof value === "string";
+    })
     .join(" ")
     .toLowerCase();
 }
@@ -692,6 +710,8 @@ function formatCatalogTitle(id: string): string {
   return id
     .split("-")
     .filter(Boolean)
-    .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .map(function mapItem(part) {
+      return `${part.charAt(0).toUpperCase()}${part.slice(1)}`;
+    })
     .join(" ");
 }

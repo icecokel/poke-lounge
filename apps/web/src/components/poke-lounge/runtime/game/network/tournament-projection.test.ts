@@ -4,7 +4,7 @@ import {
   createTournamentBracketState,
   getReadyTournamentMatches,
   recordTournamentMatchResult,
-} from "@poke-lounge/battle";
+} from "@poke-lounge/battle/tournament-bracket";
 import {
   isRoundReadinessDue,
   mapServerTournamentPlayerIds,
@@ -12,7 +12,7 @@ import {
   TournamentProjectionSchemaError,
 } from "./tournament-projection";
 
-test("라운드 준비 마감 시각부터 준비 확인이 필요하다", () => {
+test("라운드 준비 마감 시각부터 준비 확인이 필요하다", function testCase() {
   const round = {
     phase: "round-started" as const,
     endsAtMs: 10_000,
@@ -25,10 +25,12 @@ test("라운드 준비 마감 시각부터 준비 확인이 필요하다", () =>
 
 function createFivePlayerServerTournament() {
   const bracket = createTournamentBracketState(
-    Array.from({ length: 5 }, (_, index) => ({
-      playerId: `player-${index + 1}`,
-      displayName: `Player ${index + 1}`,
-    })),
+    Array.from({ length: 5 }, function callback(_, index) {
+      return {
+        playerId: `player-${index + 1}`,
+        displayName: `Player ${index + 1}`,
+      };
+    }),
     1,
   );
 
@@ -61,7 +63,7 @@ function createCompletedServerTournament(result?: { reason: "faint"; completedAt
   };
 }
 
-test("preparation의 null bracket과 null authority는 정상 lobby projection이다", () => {
+test("preparation의 null bracket과 null authority는 정상 lobby projection이다", function testCase() {
   assert.deepEqual(
     parseServerTournamentState(
       {
@@ -83,7 +85,7 @@ test("preparation의 null bracket과 null authority는 정상 lobby projection�
   );
 });
 
-test("남은 체력 비율 누적 점수의 유한한 소수 값을 보존한다", () => {
+test("남은 체력 비율 누적 점수의 유한한 소수 값을 보존한다", function testCase() {
   const tournament = parseServerTournamentState(
     {
       version: 2,
@@ -98,7 +100,7 @@ test("남은 체력 비율 누적 점수의 유한한 소수 값을 보존한다
   assert.equal(tournament.cumulativeScores["player-1"], 133.3333);
 });
 
-test("5인 canonical projection은 seed 4/5 match와 seed 1/3/2 bye를 보존한다", () => {
+test("5인 canonical projection은 seed 4/5 match와 seed 1/3/2 bye를 보존한다", function testCase() {
   const tournament = parseServerTournamentState(createFivePlayerServerTournament(), 1);
 
   assert.deepEqual(tournament.bracket?.currentRound?.matches[0]?.participantIds, [
@@ -106,12 +108,14 @@ test("5인 canonical projection은 seed 4/5 match와 seed 1/3/2 bye를 보존한
     "player-5",
   ]);
   assert.deepEqual(
-    tournament.bracket?.currentRound?.byes.map(bye => bye.entrant.playerId),
+    tournament.bracket?.currentRound?.byes.map(function mapItem(bye) {
+      return bye.entrant.playerId;
+    }),
     ["player-1", "player-3", "player-2"],
   );
 });
 
-test("ready match의 결과 metadata는 둘 다 null이어야 한다", () => {
+test("ready match의 결과 metadata는 둘 다 null이어야 한다", function testCase() {
   const tournament = structuredClone(createFivePlayerServerTournament());
   const match = tournament.bracket.currentRound?.matches[0];
 
@@ -121,10 +125,12 @@ test("ready match의 결과 metadata는 둘 다 null이어야 한다", () => {
   match.resultReason = "faint";
   match.completedAtMs = 1_000;
 
-  assert.throws(() => parseServerTournamentState(tournament, 1), TournamentProjectionSchemaError);
+  assert.throws(function callback() {
+    return parseServerTournamentState(tournament, 1);
+  }, TournamentProjectionSchemaError);
 });
 
-test("completed match는 legacy null metadata와 유효한 metadata pair를 모두 적용한다", () => {
+test("completed match는 legacy null metadata와 유효한 metadata pair를 모두 적용한다", function testCase() {
   const legacy = parseServerTournamentState(createCompletedServerTournament(), 1);
   const current = parseServerTournamentState(
     createCompletedServerTournament({ reason: "faint", completedAtMs: 1_000 }),
@@ -137,7 +143,7 @@ test("completed match는 legacy null metadata와 유효한 metadata pair를 모�
   assert.equal(current.bracket?.completedRounds[0]?.matches[0]?.completedAtMs, 1_000);
 });
 
-test("completed match의 한쪽만 있는 결과 metadata는 거부한다", () => {
+test("completed match의 한쪽만 있는 결과 metadata는 거부한다", function testCase() {
   for (const metadata of [
     { resultReason: "faint", completedAtMs: null },
     { resultReason: null, completedAtMs: 1_000 },
@@ -151,11 +157,13 @@ test("completed match의 한쪽만 있는 결과 metadata는 거부한다", () =
     match.resultReason = metadata.resultReason;
     match.completedAtMs = metadata.completedAtMs;
 
-    assert.throws(() => parseServerTournamentState(tournament, 1), TournamentProjectionSchemaError);
+    assert.throws(function callback() {
+      return parseServerTournamentState(tournament, 1);
+    }, TournamentProjectionSchemaError);
   }
 });
 
-test("slot이 match를 참조하지 않는 projection은 거부한다", () => {
+test("slot이 match를 참조하지 않는 projection은 거부한다", function testCase() {
   const tournament = structuredClone(createFivePlayerServerTournament());
   const firstSlot = tournament.bracket.currentRound?.slots[0];
 
@@ -163,27 +171,27 @@ test("slot이 match를 참조하지 않는 projection은 거부한다", () => {
     firstSlot.byeId = "unknown-bye";
   }
 
-  assert.throws(() => parseServerTournamentState(tournament, 1), TournamentProjectionSchemaError);
+  assert.throws(function callback() {
+    return parseServerTournamentState(tournament, 1);
+  }, TournamentProjectionSchemaError);
 });
 
-test("active match가 current round에 없는 projection은 거부한다", () => {
+test("active match가 current round에 없는 projection은 거부한다", function testCase() {
   const tournament = createFivePlayerServerTournament();
 
-  assert.throws(
-    () =>
-      parseServerTournamentState(
-        { ...tournament, activeMatchId: "game-round-1-bracket-1-match-999" },
-        1,
-      ),
-    TournamentProjectionSchemaError,
-  );
+  assert.throws(function callback() {
+    return parseServerTournamentState(
+      { ...tournament, activeMatchId: "game-round-1-bracket-1-match-999" },
+      1,
+    );
+  }, TournamentProjectionSchemaError);
 });
 
-test("local player ID mapping은 bracket의 모든 참가자 참조에 동일하게 적용된다", () => {
+test("local player ID mapping은 bracket의 모든 참가자 참조에 동일하게 적용된다", function testCase() {
   const parsed = parseServerTournamentState(createFivePlayerServerTournament(), 1);
-  const mapped = mapServerTournamentPlayerIds(parsed, playerId =>
-    playerId === "player-4" ? "local-player" : playerId,
-  );
+  const mapped = mapServerTournamentPlayerIds(parsed, function callback(playerId) {
+    return playerId === "player-4" ? "local-player" : playerId;
+  });
 
   assert.equal(mapped.bracket?.participants[3]?.playerId, "local-player");
   assert.deepEqual(mapped.bracket?.currentRound?.matches[0]?.participantIds, [

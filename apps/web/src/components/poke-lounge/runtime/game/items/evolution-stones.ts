@@ -54,5 +54,7 @@ export const EVOLUTION_STONE_ITEM_IDS = [
 export type EvolutionStoneItemId = (typeof EVOLUTION_STONE_ITEM_IDS)[number];
 
 export function isEvolutionStoneItemId(itemId: string): itemId is EvolutionStoneItemId {
-  return EVOLUTION_STONE_ITEM_IDS.some(candidate => candidate === itemId);
+  return EVOLUTION_STONE_ITEM_IDS.some(function testItem(candidate) {
+    return candidate === itemId;
+  });
 }

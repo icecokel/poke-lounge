@@ -1,4 +1,4 @@
-import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from '@poke-lounge/battle';
+import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from '@poke-lounge/battle/runtime-item-ids';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -21,7 +21,11 @@ type JsonObject = Record<string, unknown>;
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  if (args.some((arg) => arg !== '--check')) {
+  if (
+    args.some(function testItem(arg) {
+      return arg !== '--check';
+    })
+  ) {
     throw new Error(`Unknown argument: ${args.join(' ')}`);
   }
 
@@ -33,7 +37,7 @@ async function main(): Promise<void> {
 
   await dataSource.initialize();
   try {
-    await dataSource.transaction(async (manager) => {
+    await dataSource.transaction(async function callback(manager) {
       await manager.query(
         `
           INSERT INTO "poke_lounge_rom_document" (
@@ -67,13 +71,15 @@ async function main(): Promise<void> {
         `,
         [
           JSON.stringify(
-            documents.map((document) => ({
-              document_key: document.documentKey,
-              schema_version: document.schemaVersion,
-              rom_sha1: document.romSha1,
-              content_sha256: document.contentSha256,
-              payload: document.payload,
-            })),
+            documents.map(function mapItem(document) {
+              return {
+                document_key: document.documentKey,
+                schema_version: document.schemaVersion,
+                rom_sha1: document.romSha1,
+                content_sha256: document.contentSha256,
+                payload: document.payload,
+              };
+            }),
           ),
         ],
       );
@@ -82,7 +88,11 @@ async function main(): Promise<void> {
           DELETE FROM "poke_lounge_rom_document"
           WHERE NOT ("document_key" = ANY($1::varchar[]))
         `,
-        [documents.map((document) => document.documentKey)],
+        [
+          documents.map(function mapItem(document) {
+            return document.documentKey;
+          }),
+        ],
       );
 
       const imported = await manager.query<
@@ -162,13 +172,16 @@ function validatePokemonData(payload: JsonObject): void {
   assertSequentialRecords(species, 'speciesId', 1, 507);
   assertSequentialRecords(moves, 'id', 0, 470);
 
-  const moveNames = Object.values(moves).filter(
-    (move) => typeof asObject(move, 'move').name === 'string',
-  );
+  const moveNames = Object.values(moves).filter(function filterItem(move) {
+    return typeof asObject(move, 'move').name === 'string';
+  });
   const evolutionCount = Object.values(species).reduce<number>(
-    (count, record) =>
-      count +
-      asArray(asObject(record, 'species').evolutions, 'evolutions').length,
+    function reduceItems(count, record) {
+      return (
+        count +
+        asArray(asObject(record, 'species').evolutions, 'evolutions').length
+      );
+    },
     0,
   );
 
@@ -286,13 +299,17 @@ function assertImportedDocuments(
   }>,
 ): void {
   const expectedMetadata = expected
-    .map((document) => ({
-      document_key: document.documentKey,
-      schema_version: document.schemaVersion,
-      rom_sha1: document.romSha1,
-      content_sha256: document.contentSha256,
-    }))
-    .sort((left, right) => left.document_key.localeCompare(right.document_key));
+    .map(function mapItem(document) {
+      return {
+        document_key: document.documentKey,
+        schema_version: document.schemaVersion,
+        rom_sha1: document.romSha1,
+        content_sha256: document.contentSha256,
+      };
+    })
+    .sort(function compareItems(left, right) {
+      return left.document_key.localeCompare(right.document_key);
+    });
 
   if (JSON.stringify(actual) !== JSON.stringify(expectedMetadata)) {
     throw new Error(
@@ -329,7 +346,7 @@ function asString(value: unknown, label: string): string {
   return value;
 }
 
-void main().catch((error: unknown) => {
+void main().catch(function handleRejected(error: unknown) {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });

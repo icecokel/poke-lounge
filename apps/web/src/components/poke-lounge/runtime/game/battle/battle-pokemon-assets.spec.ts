@@ -9,7 +9,7 @@ import {
   getBattlePokemonAlphaBounds,
   getBattlePokemonAssets,
   toBattlePokemonPreloadAssets,
-} from "./battlePokemonAssets";
+} from "./battle-pokemon-assets";
 import {
   BATTLE_POKEMON_ASSETS_JSON_PATH,
   ITEM_DATA_JSON_PATH,
@@ -26,7 +26,7 @@ import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../te
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const manifestPath = path.join(webRoot, "public/game-data/battle-pokemon-assets.json");
 
-test("전투 포켓몬 sprite sheet fallback과 JSON 계약이 일치한다", () => {
+test("전투 포켓몬 sprite sheet fallback과 JSON 계약이 일치한다", function testCase() {
   const manifest = normalizeBattlePokemonAssetManifest(
     JSON.parse(fs.readFileSync(manifestPath, "utf8")),
   );
@@ -34,7 +34,7 @@ test("전투 포켓몬 sprite sheet fallback과 JSON 계약이 일치한다", ()
   assert.deepEqual(manifest?.spriteSheetRanges, DEFAULT_BATTLE_POKEMON_SPRITE_SHEET_RANGES);
 });
 
-test("sprite sheet manifest는 16x16 grid와 80px frame만 허용한다", () => {
+test("sprite sheet manifest는 16x16 grid와 80px frame만 허용한다", function testCase() {
   const invalidManifest = {
     version: 2,
     spriteSheetRanges: [
@@ -49,7 +49,7 @@ test("sprite sheet manifest는 16x16 grid와 80px frame만 허용한다", () => 
   assert.equal(normalizeBattlePokemonAssetManifest(invalidManifest), null);
 });
 
-test("sprite sheet manifest v2는 전국도감 1번부터 493번까지 빈틈없이 커버해야 한다", () => {
+test("sprite sheet manifest v2는 전국도감 1번부터 493번까지 빈틈없이 커버해야 한다", function testCase() {
   const [firstRange, secondRange] = DEFAULT_BATTLE_POKEMON_SPRITE_SHEET_RANGES;
   const invalidManifests = [
     {
@@ -75,7 +75,7 @@ test("sprite sheet manifest v2는 전국도감 1번부터 493번까지 빈틈없
   }
 });
 
-test("유효한 runtime sprite sheet range는 fallback을 대체해 중복 preload를 만들지 않는다", async () => {
+test("유효한 runtime sprite sheet range는 fallback을 대체해 중복 preload를 만들지 않는다", async function testCase() {
   const runtimeRanges = [
     createRuntimeSpriteSheetRange(1, 250),
     createRuntimeSpriteSheetRange(251, 493),
@@ -97,9 +97,18 @@ test("유효한 runtime sprite sheet range는 fallback을 대체해 중복 prelo
     const preloadAssets = toBattlePokemonPreloadAssets();
 
     assert.equal(preloadAssets.length, 4);
-    assert.equal(new Set(preloadAssets.map(asset => asset.assetKey)).size, 4);
+    assert.equal(
+      new Set(
+        preloadAssets.map(function mapItem(asset) {
+          return asset.assetKey;
+        }),
+      ).size,
+      4,
+    );
     assert.deepEqual(
-      preloadAssets.map(asset => asset.path),
+      preloadAssets.map(function mapItem(asset) {
+        return asset.path;
+      }),
       [
         "/assets/pokemon/sheets/front-1-250-runtime.png",
         "/assets/pokemon/sheets/back-1-250-runtime.png",
@@ -112,7 +121,7 @@ test("유효한 runtime sprite sheet range는 fallback을 대체해 중복 prelo
   }
 });
 
-test("전국도감 1번부터 493번까지 고유 sprite frame을 제공한다", () => {
+test("전국도감 1번부터 493번까지 고유 sprite frame을 제공한다", function testCase() {
   const first = getBattlePokemonAssets(1);
   const firstRangeEnd = getBattlePokemonAssets(256);
   const secondRangeStart = getBattlePokemonAssets(257);
@@ -148,17 +157,35 @@ test("전국도감 1번부터 493번까지 고유 sprite frame을 제공한다",
     }
   }
 
-  assert.throws(() => getBattlePokemonAssets(494), /Missing battle Pokemon assets/);
+  assert.throws(function callback() {
+    return getBattlePokemonAssets(494);
+  }, /Missing battle Pokemon assets/);
 });
 
-test("browser-native preload는 중복 없는 네 sprite sheet만 제공한다", () => {
+test("browser-native preload는 중복 없는 네 sprite sheet만 제공한다", function testCase() {
   const preloadAssets = toBattlePokemonPreloadAssets();
 
   assert.equal(preloadAssets.length, 4);
-  assert.equal(new Set(preloadAssets.map(asset => asset.assetKey)).size, 4);
-  assert.equal(new Set(preloadAssets.map(asset => asset.path)).size, 4);
+  assert.equal(
+    new Set(
+      preloadAssets.map(function mapItem(asset) {
+        return asset.assetKey;
+      }),
+    ).size,
+    4,
+  );
+  assert.equal(
+    new Set(
+      preloadAssets.map(function mapItem(asset) {
+        return asset.path;
+      }),
+    ).size,
+    4,
+  );
   assert.deepEqual(
-    preloadAssets.map(asset => asset.endFrame),
+    preloadAssets.map(function mapItem(asset) {
+      return asset.endFrame;
+    }),
     [255, 255, 236, 236],
   );
 
@@ -209,9 +236,8 @@ const createRuntimeSpriteSheetRange = (
   },
 });
 
-const createRuntimeGameDataFetcher =
-  (battlePokemonAssetManifest: unknown): typeof fetch =>
-  async input => {
+const createRuntimeGameDataFetcher = (battlePokemonAssetManifest: unknown): typeof fetch =>
+  async function callback(input) {
     const requestPath =
       typeof input === "string"
         ? input

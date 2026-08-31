@@ -29,45 +29,51 @@ export function RomAssetBrowser({ manifest }: { manifest?: UiAssetManifest | nul
         <p className="rom-browser-empty">ROM asset manifest unavailable</p>
       ) : (
         <div className="rom-archive-grid">
-          {archives.map(archive => (
-            <article key={archive.id} className="rom-archive-group" data-rom-archive={archive.id}>
-              <header className="rom-archive-header">
-                <h3>{archive.label}</h3>
-                <p>
-                  {[
-                    archive.fileCount === undefined ? null : `${archive.fileCount} files`,
-                    archive.assets.length === 1 ? "1 asset" : `${archive.assets.length} assets`,
-                  ]
-                    .filter((item): item is string => item !== null)
-                    .join(" / ")}
-                </p>
-              </header>
-              <div className="rom-asset-grid">
-                {getPrioritizedAssets(archive).map(asset => (
-                  <figure
-                    key={`${asset.id}-${asset.path}`}
-                    className="rom-browser-asset"
-                    data-rom-asset-role={asset.role ?? asset.category ?? "unknown"}
-                  >
-                    {/* The diagnostic browser intentionally renders arbitrary manifest images. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      className="rom-browser-image"
-                      src={asset.path}
-                      alt={asset.role ?? asset.name ?? asset.id}
-                      loading="lazy"
-                    />
-                    <figcaption className="rom-browser-caption">
-                      <span className="rom-browser-role">
-                        {asset.role ?? asset.category ?? "unknown"}
-                      </span>
-                      <span className="rom-browser-path">{asset.path}</span>
-                    </figcaption>
-                  </figure>
-                ))}
-              </div>
-            </article>
-          ))}
+          {archives.map(function mapItem(archive) {
+            return (
+              <article key={archive.id} className="rom-archive-group" data-rom-archive={archive.id}>
+                <header className="rom-archive-header">
+                  <h3>{archive.label}</h3>
+                  <p>
+                    {[
+                      archive.fileCount === undefined ? null : `${archive.fileCount} files`,
+                      archive.assets.length === 1 ? "1 asset" : `${archive.assets.length} assets`,
+                    ]
+                      .filter(function filterItem(item): item is string {
+                        return item !== null;
+                      })
+                      .join(" / ")}
+                  </p>
+                </header>
+                <div className="rom-asset-grid">
+                  {getPrioritizedAssets(archive).map(function mapItem(asset) {
+                    return (
+                      <figure
+                        key={`${asset.id}-${asset.path}`}
+                        className="rom-browser-asset"
+                        data-rom-asset-role={asset.role ?? asset.category ?? "unknown"}
+                      >
+                        {/* The diagnostic browser intentionally renders arbitrary manifest images. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          className="rom-browser-image"
+                          src={asset.path}
+                          alt={asset.role ?? asset.name ?? asset.id}
+                          loading="lazy"
+                        />
+                        <figcaption className="rom-browser-caption">
+                          <span className="rom-browser-role">
+                            {asset.role ?? asset.category ?? "unknown"}
+                          </span>
+                          <span className="rom-browser-path">{asset.path}</span>
+                        </figcaption>
+                      </figure>
+                    );
+                  })}
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
     </section>
@@ -77,8 +83,12 @@ export function RomAssetBrowser({ manifest }: { manifest?: UiAssetManifest | nul
 function getRenderableArchives(manifest: UiAssetManifest): UiAssetArchive[] {
   if (manifest.archives && manifest.archives.length > 0) {
     const renderableArchives = manifest.archives
-      .filter(archive => archive.contactSheet || archive.assets.length > 0)
-      .sort((left, right) => getArchivePriority(left) - getArchivePriority(right));
+      .filter(function filterItem(archive) {
+        return archive.contactSheet || archive.assets.length > 0;
+      })
+      .sort(function compareItems(left, right) {
+        return getArchivePriority(left) - getArchivePriority(right);
+      });
 
     if (renderableArchives.length > 0) {
       return renderableArchives;
@@ -93,12 +103,16 @@ function getArchivePriority(archive: UiAssetArchive): number {
     archive.sourceArchivePath ?? archive.label ?? "",
   );
   if (knownPriority >= 0) return knownPriority;
-  if (archive.assets.some(asset => asset.role === "item-icon"))
+  if (
+    archive.assets.some(function testItem(asset) {
+      return asset.role === "item-icon";
+    })
+  )
     return PRIORITY_ARCHIVE_PATHS.length;
   if (
-    archive.assets.some(asset =>
-      ["menu-background", "button-frame", "ui-fragment"].includes(asset.role ?? ""),
-    )
+    archive.assets.some(function testItem(asset) {
+      return ["menu-background", "button-frame", "ui-fragment"].includes(asset.role ?? "");
+    })
   ) {
     return PRIORITY_ARCHIVE_PATHS.length + 1;
   }
@@ -110,15 +124,21 @@ function getPrioritizedAssets(archive: UiAssetArchive): UiAsset[] {
     ? [archive.contactSheet, ...archive.assets]
     : [...archive.assets];
   return assets
-    .sort((left, right) => getRolePriority(left) - getRolePriority(right))
+    .sort(function compareItems(left, right) {
+      return getRolePriority(left) - getRolePriority(right);
+    })
     .slice(0, MAX_ASSETS_PER_ARCHIVE);
 }
 
 function getRolePriority(asset: UiAsset): number {
   const descriptor = [asset.role, asset.category, asset.kind, asset.type]
-    .filter((value): value is string => typeof value === "string")
+    .filter(function filterItem(value): value is string {
+      return typeof value === "string";
+    })
     .join(" ")
     .toLowerCase();
-  const priority = PRIORITY_ROLES.findIndex(role => descriptor.includes(role));
+  const priority = PRIORITY_ROLES.findIndex(function findItemIndex(role) {
+    return descriptor.includes(role);
+  });
   return priority === -1 ? PRIORITY_ROLES.length : priority;
 }

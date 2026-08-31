@@ -7,7 +7,7 @@ import type { PokeLoungePublicRoomState } from './poke-lounge-room.types';
 import { PokeLoungeGateway } from './poke-lounge.gateway';
 import type { PokeLoungeRoomService } from './poke-lounge-room.service';
 
-describe('PokeLoungeGateway', () => {
+describe('PokeLoungeGateway', function testSuite() {
   let roomService: jest.Mocked<
     Pick<
       PokeLoungeRoomService,
@@ -39,7 +39,7 @@ describe('PokeLoungeGateway', () => {
   let serverSideEmit: jest.Mock;
   let serverListeners: Map<string, (input: unknown) => void>;
 
-  beforeEach(() => {
+  beforeEach(function setUpTest() {
     roomService = {
       authorizeSubscription: jest.fn().mockResolvedValue(publicRoom()),
       acknowledgeParticipantPresence: jest.fn().mockResolvedValue(publicRoom()),
@@ -59,20 +59,17 @@ describe('PokeLoungeGateway', () => {
       getSnapshot: jest.fn().mockResolvedValue(worldSnapshot()),
       listRoomStateCodes: jest.fn().mockResolvedValue([]),
       removePlayer: jest.fn().mockResolvedValue(undefined),
-      upsertPlayer: jest
-        .fn()
-        .mockImplementation(
-          ({
-            roomCode,
-            player,
-          }: Parameters<PokeLoungeLiveStateService['upsertPlayer']>[0]) =>
-            Promise.resolve({
-              roomCode,
-              worldEpoch: 'world-1',
-              worldSeq: 1,
-              ...player,
-            }),
-        ),
+      upsertPlayer: jest.fn().mockImplementation(function mockImplementation({
+        roomCode,
+        player,
+      }: Parameters<PokeLoungeLiveStateService['upsertPlayer']>[0]) {
+        return Promise.resolve({
+          roomCode,
+          worldEpoch: 'world-1',
+          worldSeq: 1,
+          ...player,
+        });
+      }),
     };
     gateway = new PokeLoungeGateway(
       roomService as unknown as PokeLoungeRoomService,
@@ -81,14 +78,23 @@ describe('PokeLoungeGateway', () => {
     );
     namespaceEmit = jest.fn();
     namespaceFetchSockets = jest.fn().mockResolvedValue([]);
-    namespaceTo = jest.fn(() => ({ emit: namespaceEmit }));
-    namespaceLocalTo = jest.fn(() => ({ emit: namespaceEmit }));
+    namespaceTo = jest.fn(function mockFunction() {
+      return { emit: namespaceEmit };
+    });
+    namespaceLocalTo = jest.fn(function mockFunction() {
+      return { emit: namespaceEmit };
+    });
     serverSideEmit = jest.fn();
     serverListeners = new Map();
     gateway.afterInit({
       off: jest.fn(),
-      in: jest.fn(() => ({ fetchSockets: namespaceFetchSockets })),
-      on: jest.fn((eventName: string, listener: (input: unknown) => void) => {
+      in: jest.fn(function mockFunction() {
+        return { fetchSockets: namespaceFetchSockets };
+      }),
+      on: jest.fn(function mockFunction(
+        eventName: string,
+        listener: (input: unknown) => void,
+      ) {
         serverListeners.set(eventName, listener);
       }),
       local: { to: namespaceLocalTo },
@@ -97,12 +103,12 @@ describe('PokeLoungeGateway', () => {
     } as unknown as Namespace);
   });
 
-  afterEach(() => {
+  afterEach(function tearDownTest() {
     gateway.onModuleDestroy();
     jest.useRealTimers();
   });
 
-  it('authorizes, normalizes, and sends the same initial revision to two subscribers', async () => {
+  it('authorizes, normalizes, and sends the same initial revision to two subscribers', async function testCase() {
     const first = socket();
     const second = socket();
 
@@ -141,7 +147,7 @@ describe('PokeLoungeGateway', () => {
     expect(JSON.stringify(first.emit.mock.calls)).not.toContain('sessionId');
   });
 
-  it('accepts an initial subscription without a recovery cursor', async () => {
+  it('accepts an initial subscription without a recovery cursor', async function testCase() {
     const client = socket();
 
     await gateway.subscribe(client.value, {
@@ -160,7 +166,7 @@ describe('PokeLoungeGateway', () => {
     expect(client.join).toHaveBeenCalledWith('room:ROOM01');
   });
 
-  it('leaves a previous Poke Lounge room before joining the authorized room', async () => {
+  it('leaves a previous Poke Lounge room before joining the authorized room', async function testCase() {
     const client = socket({ pokeLoungeRoomName: 'room:OLD001' });
 
     await gateway.subscribe(client.value, validSubscription());
@@ -171,7 +177,7 @@ describe('PokeLoungeGateway', () => {
     );
   });
 
-  it('reloads the durable snapshot after join so a concurrent commit cannot be missed', async () => {
+  it('reloads the durable snapshot after join so a concurrent commit cannot be missed', async function testCase() {
     roomService.authorizeSubscription.mockResolvedValueOnce(
       publicRoom({ revision: 7 }),
     );
@@ -191,7 +197,7 @@ describe('PokeLoungeGateway', () => {
     });
   });
 
-  it('leaves the joined room when the durable identity changes during subscription', async () => {
+  it('leaves the joined room when the durable identity changes during subscription', async function testCase() {
     roomService.authorizeSubscription.mockResolvedValueOnce(
       publicRoom({ revision: 7 }),
     );
@@ -222,7 +228,7 @@ describe('PokeLoungeGateway', () => {
     { ...validSubscription(), afterRevision: Number.MAX_SAFE_INTEGER + 1 },
   ])(
     'rejects malformed subscriptions with one generic error',
-    async (input) => {
+    async function callback(input) {
       const client = socket();
 
       await gateway.subscribe(client.value, input);
@@ -238,7 +244,7 @@ describe('PokeLoungeGateway', () => {
     },
   );
 
-  it('uses the same generic error for unknown participants and wrong sessions', async () => {
+  it('uses the same generic error for unknown participants and wrong sessions', async function testCase() {
     roomService.authorizeSubscription.mockRejectedValue(
       new BadRequestException('Poke Lounge room subscription rejected'),
     );
@@ -255,7 +261,7 @@ describe('PokeLoungeGateway', () => {
     expect(JSON.stringify(client.emit.mock.calls)).not.toContain('ROOM01');
   });
 
-  it('leaves the previous room when an authorized socket re-subscription is rejected', async () => {
+  it('leaves the previous room when an authorized socket re-subscription is rejected', async function testCase() {
     jest.useFakeTimers();
     const client = socket();
     await gateway.subscribe(client.value, validSubscription());
@@ -278,7 +284,7 @@ describe('PokeLoungeGateway', () => {
     );
   });
 
-  it('broadcasts only committed public snapshots to the authorized room', () => {
+  it('broadcasts only committed public snapshots to the authorized room', function testCase() {
     const room = publicRoom({ revision: 8 });
 
     events.publishCommitted(room);
@@ -295,7 +301,7 @@ describe('PokeLoungeGateway', () => {
     expect(JSON.stringify(namespaceEmit.mock.calls)).not.toContain('sessionId');
   });
 
-  it('applies a closed room metadata event and ignores an older reopen', async () => {
+  it('applies a closed room metadata event and ignores an older reopen', async function testCase() {
     const client = socket();
     await gateway.subscribe(client.value, validSubscription());
     serverListeners.get('poke-lounge.room-metadata')?.({
@@ -319,7 +325,7 @@ describe('PokeLoungeGateway', () => {
     expect(liveState.upsertPlayer).not.toHaveBeenCalled();
   });
 
-  it('relays validated live movement with the subscribed participant identity', async () => {
+  it('relays validated live movement with the subscribed participant identity', async function testCase() {
     const client = socket();
     await gateway.subscribe(client.value, validSubscription());
 
@@ -374,7 +380,7 @@ describe('PokeLoungeGateway', () => {
     });
   });
 
-  it('ignores live movement before subscription and malformed coordinates', async () => {
+  it('ignores live movement before subscription and malformed coordinates', async function testCase() {
     const unsubscribed = socket();
 
     await gateway.relayPlayerEvent(unsubscribed.value, {
@@ -398,7 +404,7 @@ describe('PokeLoungeGateway', () => {
     expect(liveState.upsertPlayer).not.toHaveBeenCalled();
   });
 
-  it('reports cursor regression without joining or applying the lower snapshot', async () => {
+  it('reports cursor regression without joining or applying the lower snapshot', async function testCase() {
     roomService.authorizeSubscription.mockResolvedValue(
       publicRoom({ revision: 6 }),
     );
@@ -416,7 +422,7 @@ describe('PokeLoungeGateway', () => {
     });
   });
 
-  it('expires a disconnected participant only after the reconnect grace period', async () => {
+  it('expires a disconnected participant only after the reconnect grace period', async function testCase() {
     jest.useFakeTimers();
     const client = socket();
     await gateway.subscribe(client.value, validSubscription());
@@ -445,7 +451,7 @@ describe('PokeLoungeGateway', () => {
     );
   });
 
-  it('cancels pending expiry when the same participant reconnects', async () => {
+  it('cancels pending expiry when the same participant reconnects', async function testCase() {
     jest.useFakeTimers();
     const disconnected = socket();
     await gateway.subscribe(disconnected.value, validSubscription());
@@ -460,7 +466,7 @@ describe('PokeLoungeGateway', () => {
     expect(liveState.removePlayer).not.toHaveBeenCalled();
   });
 
-  it('keeps presence when the same identity reconnects to another API instance', async () => {
+  it('keeps presence when the same identity reconnects to another API instance', async function testCase() {
     jest.useFakeTimers();
     const disconnected = socket();
     await gateway.subscribe(disconnected.value, validSubscription());
@@ -481,7 +487,7 @@ describe('PokeLoungeGateway', () => {
     expect(liveState.removePlayer).not.toHaveBeenCalled();
   });
 
-  it('restores a persisted disconnect deadline after application restart', async () => {
+  it('restores a persisted disconnect deadline after application restart', async function testCase() {
     jest.useFakeTimers();
     jest.setSystemTime(1_000);
     liveState.listRoomStateCodes.mockResolvedValue(['ROOM01']);
@@ -511,7 +517,7 @@ describe('PokeLoungeGateway', () => {
     );
   });
 
-  it('persists grace for an acknowledged participant missing after restart', async () => {
+  it('persists grace for an acknowledged participant missing after restart', async function testCase() {
     jest.useFakeTimers();
     jest.setSystemTime(1_000);
     liveState.listRoomStateCodes.mockResolvedValue(['ROOM01']);
@@ -538,7 +544,7 @@ describe('PokeLoungeGateway', () => {
     );
   });
 
-  it('expires the durable presence when a reconnect acknowledgement is aborted', async () => {
+  it('expires the durable presence when a reconnect acknowledgement is aborted', async function testCase() {
     jest.useFakeTimers();
     const first = socket();
     await gateway.subscribe(first.value, validSubscription());
@@ -548,9 +554,16 @@ describe('PokeLoungeGateway', () => {
     let rejectReconnect: ((error: Error) => void) | undefined;
     let reconnectSignal: AbortSignal | undefined;
     roomService.acknowledgeParticipantPresence.mockImplementationOnce(
-      (_roomCode, _playerId, _sessionId, _afterRevision, _epoch, signal) => {
+      function callback(
+        _roomCode,
+        _playerId,
+        _sessionId,
+        _afterRevision,
+        _epoch,
+        signal,
+      ) {
         reconnectSignal = signal;
-        return new Promise((_resolve, reject) => {
+        return new Promise(function resolvePromise(_resolve, reject) {
           rejectReconnect = reject;
         });
       },
@@ -577,7 +590,7 @@ describe('PokeLoungeGateway', () => {
     );
   });
 
-  it('keeps a participant present while another socket with the same identity remains', async () => {
+  it('keeps a participant present while another socket with the same identity remains', async function testCase() {
     jest.useFakeTimers();
     const first = socket();
     const second = socket();
@@ -593,23 +606,21 @@ describe('PokeLoungeGateway', () => {
     expect(roomService.expireParticipantPresence).toHaveBeenCalledTimes(1);
   });
 
-  it('shares one epoch when same-identity acknowledgements finish in reverse order', async () => {
+  it('shares one epoch when same-identity acknowledgements finish in reverse order', async function testCase() {
     jest.useFakeTimers();
     let resolveFirst: ((room: PokeLoungePublicRoomState) => void) | undefined;
     let resolveSecond: ((room: PokeLoungePublicRoomState) => void) | undefined;
     roomService.acknowledgeParticipantPresence
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            resolveFirst = resolve;
-          }),
-      )
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            resolveSecond = resolve;
-          }),
-      );
+      .mockImplementationOnce(function callback() {
+        return new Promise(function resolvePromise(resolve) {
+          resolveFirst = resolve;
+        });
+      })
+      .mockImplementationOnce(function callback() {
+        return new Promise(function resolvePromise(resolve) {
+          resolveSecond = resolve;
+        });
+      });
     const first = socket();
     const firstSubscription = gateway.subscribe(
       first.value,
@@ -649,7 +660,7 @@ describe('PokeLoungeGateway', () => {
     );
   });
 
-  it('expires the previous identity when one socket switches identity in the same room', async () => {
+  it('expires the previous identity when one socket switches identity in the same room', async function testCase() {
     jest.useFakeTimers();
     const client = socket();
     await gateway.subscribe(client.value, validSubscription());
@@ -677,15 +688,16 @@ describe('PokeLoungeGateway', () => {
     );
   });
 
-  it('tracks a disconnect that races durable subscription acknowledgement', async () => {
+  it('tracks a disconnect that races durable subscription acknowledgement', async function testCase() {
     jest.useFakeTimers();
     let resolveAcknowledgement:
       ((room: PokeLoungePublicRoomState) => void) | undefined;
     roomService.acknowledgeParticipantPresence.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
+      function callback() {
+        return new Promise(function resolvePromise(resolve) {
           resolveAcknowledgement = resolve;
-        }),
+        });
+      },
     );
     const client = socket();
     const pending = gateway.subscribe(client.value, validSubscription());
@@ -707,16 +719,15 @@ describe('PokeLoungeGateway', () => {
     );
   });
 
-  it('tracks a disconnect that races joining the socket room', async () => {
+  it('tracks a disconnect that races joining the socket room', async function testCase() {
     jest.useFakeTimers();
     let resolveJoin: (() => void) | undefined;
     const client = socket();
-    client.join.mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveJoin = resolve;
-        }),
-    );
+    client.join.mockImplementationOnce(function callback() {
+      return new Promise<void>(function resolvePromise(resolve) {
+        resolveJoin = resolve;
+      });
+    });
     const pending = gateway.subscribe(client.value, validSubscription());
     await jest.advanceTimersByTimeAsync(0);
     expect(resolveJoin).toBeDefined();
@@ -737,14 +748,15 @@ describe('PokeLoungeGateway', () => {
     );
   });
 
-  it('rotates the durable epoch when reconnecting during an in-flight expiry', async () => {
+  it('rotates the durable epoch when reconnecting during an in-flight expiry', async function testCase() {
     jest.useFakeTimers();
     let resolveExpiry: (() => void) | undefined;
     roomService.expireParticipantPresence.mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
+      function callback() {
+        return new Promise<void>(function resolvePromise(resolve) {
           resolveExpiry = resolve;
-        }),
+        });
+      },
     );
     const disconnected = socket();
     await gateway.subscribe(disconnected.value, validSubscription());
@@ -792,7 +804,9 @@ function socket(data: Record<string, unknown> = {}) {
   const leave = jest.fn().mockResolvedValue(undefined);
   const emit = jest.fn();
   const broadcastEmit = jest.fn();
-  const to = jest.fn(() => ({ emit: broadcastEmit }));
+  const to = jest.fn(function mockFunction() {
+    return { emit: broadcastEmit };
+  });
 
   const value = { data, join, leave, emit, to, connected: true };
 

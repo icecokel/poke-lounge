@@ -1,7 +1,7 @@
-import { PLAYER_PARTY_SLOT_COUNT } from "../player/playerTypes";
-import { canPokemonBattle } from "./battleLogic";
-import { getBattleStatusTextView, hpRatio, type BattleRect } from "./battleLayout";
-import type { BattlePartySlot, BattlePokemon } from "./battleTypes";
+import { PLAYER_PARTY_SLOT_COUNT } from "../player/player-types";
+import { canPokemonBattle } from "./battle-logic";
+import { getBattleStatusTextView, hpRatio, type BattleRect } from "./battle-layout";
+import type { BattlePartySlot, BattlePokemon } from "./battle-types";
 
 export const BATTLE_PARTY_SELECT_GRID = {
   columns: 3,
@@ -36,12 +36,13 @@ export function getFirstSwitchableBattlePartySlotIndex(
   activePartySlotIndex: number,
 ): number {
   return (
-    party.find(
-      slot =>
+    party.find(function findItem(slot) {
+      return (
         slot.slotIndex !== activePartySlotIndex &&
         slot.pokemon !== null &&
-        canPokemonBattle(slot.pokemon),
-    )?.slotIndex ?? activePartySlotIndex
+        canPokemonBattle(slot.pokemon)
+      );
+    })?.slotIndex ?? activePartySlotIndex
   );
 }
 
@@ -57,7 +58,7 @@ export function resolveBattlePartySlotRects(panel: BattleRect): BattleRect[] {
     (gridHeight - BATTLE_PARTY_SELECT_GRID.rowGap * (BATTLE_PARTY_SELECT_GRID.rows - 1)) /
     BATTLE_PARTY_SELECT_GRID.rows;
 
-  return Array.from({ length: PLAYER_PARTY_SLOT_COUNT }, (_, slotIndex) => {
+  return Array.from({ length: PLAYER_PARTY_SLOT_COUNT }, function callback(_, slotIndex) {
     const column = slotIndex % BATTLE_PARTY_SELECT_GRID.columns;
     const row = Math.floor(slotIndex / BATTLE_PARTY_SELECT_GRID.columns);
 
@@ -89,8 +90,11 @@ export function createBattlePartySlotViews({
 }): BattlePartySlotView[] {
   const rects = resolveBattlePartySlotRects(panel);
 
-  return rects.map((rect, slotIndex) => {
-    const pokemon = party.find(slot => slot.slotIndex === slotIndex)?.pokemon ?? null;
+  return rects.map(function mapItem(rect, slotIndex) {
+    const pokemon =
+      party.find(function findItem(slot) {
+        return slot.slotIndex === slotIndex;
+      })?.pokemon ?? null;
     const isEmpty = pokemon === null;
     const isCurrent = slotIndex === activePartySlotIndex;
     const isFainted = pokemon !== null && !canPokemonBattle(pokemon);
@@ -116,13 +120,14 @@ export function getBattlePartySlotIndexAtPoint(
   point: Pick<BattleRect, "x" | "y">,
   panel: BattleRect,
 ): number | null {
-  const slotIndex = resolveBattlePartySlotRects(panel).findIndex(
-    rect =>
+  const slotIndex = resolveBattlePartySlotRects(panel).findIndex(function findItemIndex(rect) {
+    return (
       point.x >= rect.x &&
       point.x < rect.x + rect.width &&
       point.y >= rect.y &&
-      point.y < rect.y + rect.height,
-  );
+      point.y < rect.y + rect.height
+    );
+  });
 
   return slotIndex >= 0 ? slotIndex : null;
 }

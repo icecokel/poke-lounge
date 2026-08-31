@@ -1,14 +1,9 @@
-import {
-  createCanonicalIdRecord,
-  createInitialBattleState,
-  normalizeCompetitiveParty,
-  resolveTurn,
-  validateCompetitiveAction,
-  type CanonicalBattleState,
-  type CanonicalCompetitiveAction,
-  type CompetitivePartyInput,
-  type SeededRandom,
-} from "./index";
+import { createCanonicalIdRecord, type CanonicalBattleState } from "./canonical-state";
+import { createInitialBattleState } from "./ruleset";
+import { normalizeCompetitiveParty, type CompetitivePartyInput } from "./competitive-party";
+import { resolveTurn, validateCompetitiveAction } from "./resolve-turn";
+import { type CanonicalCompetitiveAction } from "./actions";
+import { type SeededRandom } from "./prng";
 
 const PLAYER_A = "player-a";
 const PLAYER_B = "player-b";
@@ -33,17 +28,23 @@ function normalizedParty(input: {
   const party = normalizeCompetitiveParty({
     version: 2,
     activeSlotIndex: input.activeSlotIndex ?? input.members[0]!.slotIndex,
-    members: input.members.map(member => ({
-      ...member,
-      currentHp: 1,
-      status: "normal",
-      individualValues: IVS,
-      moves: member.moveIds.map(moveId => ({ moveId, pp: 1 })),
-    })),
+    members: input.members.map(function mapItem(member) {
+      return {
+        ...member,
+        currentHp: 1,
+        status: "normal",
+        individualValues: IVS,
+        moves: member.moveIds.map(function mapItem(moveId) {
+          return { moveId, pp: 1 };
+        }),
+      };
+    }),
   } satisfies CompetitivePartyInput);
   return {
     ...party,
-    members: party.members.map(member => ({ ...member, currentHp: member.maxHp })),
+    members: party.members.map(function mapItem(member) {
+      return { ...member, currentHp: member.maxHp };
+    }),
   };
 }
 
@@ -81,8 +82,8 @@ function constantRandom(value: number): SeededRandom {
   return { next: () => value };
 }
 
-describe("competitive turn resolution V2", () => {
-  it("uses real move metadata, Gen 4 damage and decrements PP", () => {
+describe("competitive turn resolution V2", function testSuite() {
+  it("uses real move metadata, Gen 4 damage and decrements PP", function testCase() {
     const state = battleState();
     const defenderBefore = state.playersById[PLAYER_B]!.team[0]!.currentHp;
 
@@ -94,14 +95,18 @@ describe("competitive turn resolution V2", () => {
 
     const attacker = resolved.state.playersById[PLAYER_A]!.team[0]!;
     const defender = resolved.state.playersById[PLAYER_B]!.team[0]!;
-    expect(attacker.moves.find(move => move.moveId === 55)?.pp).toBe(0);
+    expect(
+      attacker.moves.find(function findItem(move) {
+        return move.moveId === 55;
+      })?.pp,
+    ).toBe(0);
     expect(defender.currentHp).toBeLessThan(defenderBefore);
     expect(resolved.turn).toBe(0);
     expect(resolved.state.turn).toBe(1);
     expect(resolved.stateHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("resolves one submitted action while the other participant skips the turn", () => {
+  it("resolves one submitted action while the other participant skips the turn", function testCase() {
     const state = battleState();
     const defenderBefore = state.playersById[PLAYER_B]!.team[0]!.currentHp;
 
@@ -117,7 +122,7 @@ describe("competitive turn resolution V2", () => {
     expect(resolved.terminal).toBeNull();
   });
 
-  it("advances an empty turn without declaring a winner", () => {
+  it("advances an empty turn without declaring a winner", function testCase() {
     const state = battleState();
 
     const resolved = resolveTurn({
@@ -131,7 +136,7 @@ describe("competitive turn resolution V2", () => {
     expect(resolved.terminal).toBeNull();
   });
 
-  it("does not end the match when only the active Pokemon faints", () => {
+  it("does not end the match when only the active Pokemon faints", function testCase() {
     const state = battleState();
     const defender = state.playersById[PLAYER_B]!.team[0]!;
     defender.currentHp = 1;
@@ -150,7 +155,7 @@ describe("competitive turn resolution V2", () => {
     expect(resolved.state.playersById[PLAYER_B]!.activeSlotIndex).toBe(2);
   });
 
-  it("applies supported status effects and participant-ordered residual damage", () => {
+  it("applies supported status effects and participant-ordered residual damage", function testCase() {
     const state = battleState();
     const attacker = state.playersById[PLAYER_A]!.team[0]!;
     attacker.status = "burned";
@@ -166,7 +171,7 @@ describe("competitive turn resolution V2", () => {
     expect(resolved.state.playersById[PLAYER_A]!.team[0]!.currentHp).toBeLessThan(before);
   });
 
-  it("uses the ROM secondary-effect chance", () => {
+  it("uses the ROM secondary-effect chance", function testCase() {
     const partyA = normalizedParty({
       members: [{ slotIndex: 0, speciesId: 7, level: 11, moveIds: [34] }],
     });
@@ -187,7 +192,7 @@ describe("competitive turn resolution V2", () => {
     expect(resolved.state.playersById[PLAYER_B]!.team[0]!.status).toBe("paralyzed");
   });
 
-  it("uses the ROM move priority before speed", () => {
+  it("uses the ROM move priority before speed", function testCase() {
     const partyA = normalizedParty({
       members: [{ slotIndex: 0, speciesId: 7, level: 11, moveIds: [252] }],
     });
@@ -210,7 +215,7 @@ describe("competitive turn resolution V2", () => {
     expect(resolved.terminal?.winnerPlayerId).toBe(PLAYER_A);
   });
 
-  it("applies Defense Curl to the user without damaging the opponent", () => {
+  it("applies Defense Curl to the user without damaging the opponent", function testCase() {
     const party = normalizedParty({
       members: [{ slotIndex: 0, speciesId: 7, level: 11, moveIds: [111] }],
     });
@@ -238,29 +243,29 @@ describe("competitive turn resolution V2", () => {
     });
   });
 
-  it("requires a manual switch after an active faint", () => {
+  it("requires a manual switch after an active faint", function testCase() {
     const state = battleState();
     const active = state.playersById[PLAYER_A]!.team[0]!;
     active.currentHp = 0;
     active.status = "fainted";
 
-    expect(() =>
-      validateCompetitiveAction({
+    expect(function callback() {
+      return validateCompetitiveAction({
         state,
         playerId: PLAYER_A,
         action: { kind: "move", moveId: 55 },
-      }),
-    ).toThrow("Cannot use a move while the active combatant is fainted");
-    expect(() =>
-      validateCompetitiveAction({
+      });
+    }).toThrow("Cannot use a move while the active combatant is fainted");
+    expect(function callback() {
+      return validateCompetitiveAction({
         state,
         playerId: PLAYER_A,
         action: { kind: "switch", slotIndex: 3 },
-      }),
-    ).not.toThrow();
+      });
+    }).not.toThrow();
   });
 
-  it("rejects unsupported status moves and permits struggle when they are all that remain", () => {
+  it("rejects unsupported status moves and permits struggle when they are all that remain", function testCase() {
     const party = normalizedParty({
       members: [{ slotIndex: 0, speciesId: 7, level: 11, moveIds: [97] }],
     });
@@ -269,23 +274,23 @@ describe("competitive turn resolution V2", () => {
       { playerId: PLAYER_B, party },
     ]);
 
-    expect(() =>
-      validateCompetitiveAction({
+    expect(function callback() {
+      return validateCompetitiveAction({
         state,
         playerId: PLAYER_A,
         action: { kind: "move", moveId: 97 },
-      }),
-    ).toThrow("Cannot use an invalid or unsupported move");
-    expect(() =>
-      validateCompetitiveAction({
+      });
+    }).toThrow("Cannot use an invalid or unsupported move");
+    expect(function callback() {
+      return validateCompetitiveAction({
         state,
         playerId: PLAYER_A,
         action: { kind: "move", moveId: "struggle" },
-      }),
-    ).not.toThrow();
+      });
+    }).not.toThrow();
   });
 
-  it("applies struggle recoil after the first team faints without replacing the winner", () => {
+  it("applies struggle recoil after the first team faints without replacing the winner", function testCase() {
     const party = normalizedParty({
       members: [{ slotIndex: 0, speciesId: 7, level: 11, moveIds: [97] }],
     });

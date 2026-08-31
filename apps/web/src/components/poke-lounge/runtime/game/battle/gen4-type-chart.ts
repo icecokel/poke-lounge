@@ -1,5 +1,3 @@
-export { calculateGen4TypeEffectiveness } from "@poke-lounge/battle";
-
 export function formatTypeEffectivenessMessage(effectiveness: number): string | null {
   if (effectiveness === 0) {
     return "효과가 없는 것 같다...";

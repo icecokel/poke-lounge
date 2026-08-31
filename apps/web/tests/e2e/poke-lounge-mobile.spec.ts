@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { MOBILE_GAME_VIEWPORT_SIZE } from "../../src/components/poke-lounge/runtime/game/gameViewport";
+import { MOBILE_GAME_VIEWPORT_SIZE } from "../../src/components/poke-lounge/runtime/game/game-viewport";
 import { gotoWithRetry } from "./test-helpers";
 
 type WorldSnapshot = {
@@ -28,7 +28,9 @@ type AudioPlaybackSnapshot = {
   lastSfxId: string | null;
 };
 
-test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 맞는다", async ({ page }) => {
+test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 맞는다", async function testCase({
+  page,
+}) {
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1");
 
   const screen = page.locator("[data-room-entry-screen='true']");
@@ -45,7 +47,7 @@ test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 �
   await expect(page.locator("[data-room-entry-code]")).toHaveCount(0);
   await expect(page.locator("[data-room-entry-settings]")).toHaveCount(0);
 
-  const layout = await page.evaluate(() => {
+  const layout = await page.evaluate(function evaluatePage() {
     const frame = document.querySelector<HTMLElement>("[data-poke-lounge-game-frame='true']");
     const entry = document.querySelector<HTMLElement>("[data-room-entry-screen='true']");
     if (!frame || !entry) {
@@ -67,17 +69,17 @@ test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 �
   expect(layout).toEqual({ documentFits: true, entryFits: true });
 });
 
-test("Poke Lounge 모바일 로딩이 멈춰도 런처로 이탈할 수 있다", async ({ page }) => {
+test("Poke Lounge 모바일 로딩이 멈춰도 런처로 이탈할 수 있다", async function testCase({ page }) {
   let releaseGameChunk: (() => void) | undefined;
-  const gameChunkGate = new Promise<void>(resolve => {
+  const gameChunkGate = new Promise<void>(function resolvePromise(resolve) {
     releaseGameChunk = resolve;
   });
   const gameChunkPattern =
     "**/_next/static/chunks/_app-pages-browser_src_components_poke-lounge_poke-lounge-game_tsx.js";
 
-  await page.route(gameChunkPattern, async route => {
+  await page.route(gameChunkPattern, async function callback(route) {
     await gameChunkGate;
-    await route.continue().catch(() => {});
+    await route.continue().catch(function handleRejected() {});
   });
 
   try {
@@ -95,19 +97,21 @@ test("Poke Lounge 모바일 로딩이 멈춰도 런처로 이탈할 수 있다",
   }
 });
 
-test("Poke Lounge는 계정 상태 hydration 뒤에만 런타임 에셋을 요청한다", async ({ page }) => {
+test("Poke Lounge는 계정 상태 hydration 뒤에만 런타임 에셋을 요청한다", async function testCase({
+  page,
+}) {
   const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(
     JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 60 * 60, sub: "poke-player" }),
   ).toString("base64url");
   let releaseState: (() => void) | undefined;
-  const stateGate = new Promise<void>(resolve => {
+  const stateGate = new Promise<void>(function resolvePromise(resolve) {
     releaseState = resolve;
   });
   let runtimeAssetRequests = 0;
 
-  await page.route("**/api/auth/session", route =>
-    route.fulfill({
+  await page.route("**/api/auth/session", function callback(route) {
+    return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
@@ -116,16 +120,19 @@ test("Poke Lounge는 계정 상태 hydration 뒤에만 런타임 에셋을 요�
         idToken: `${header}.${payload}.signature`,
         idTokenExpiresAt: Math.floor(Date.now() / 1000) + 60 * 60,
       }),
-    }),
-  );
-  await page.route("**/game/poke-lounge/state", async route => {
+    });
+  });
+  await page.route("**/game/poke-lounge/state", async function callback(route) {
     await stateGate;
     await route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
   });
-  await page.route("**/assets/poke-lounge/audio/audio-manifest.json", async route => {
-    runtimeAssetRequests += 1;
-    await route.continue();
-  });
+  await page.route(
+    "**/assets/poke-lounge/audio/audio-manifest.json",
+    async function callback(route) {
+      runtimeAssetRequests += 1;
+      await route.continue();
+    },
+  );
 
   try {
     await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
@@ -138,7 +145,11 @@ test("Poke Lounge는 계정 상태 hydration 뒤에만 런타임 에셋을 요�
 
     await page.locator("[data-room-entry-solo]").click();
     await chooseStarterIfNeeded(page, { dismissInitialHelp: false });
-    await expect.poll(() => runtimeAssetRequests).toBeGreaterThan(0);
+    await expect
+      .poll(function pollExpectation() {
+        return runtimeAssetRequests;
+      })
+      .toBeGreaterThan(0);
   } finally {
     releaseState?.();
     await page.unroute("**/api/auth/session");
@@ -147,16 +158,18 @@ test("Poke Lounge는 계정 상태 hydration 뒤에만 런타임 에셋을 요�
   }
 });
 
-test("Poke Lounge는 오디오 로딩이 끝난 뒤 모바일 메인 씬을 연다", async ({ page }) => {
+test("Poke Lounge는 오디오 로딩이 끝난 뒤 모바일 메인 씬을 연다", async function testCase({
+  page,
+}) {
   let releaseAudio: (() => void) | undefined;
-  const audioGate = new Promise<void>(resolve => {
+  const audioGate = new Promise<void>(function resolvePromise(resolve) {
     releaseAudio = resolve;
   });
   const fieldBgmPattern = "**/assets/poke-lounge/audio/bgm/field-day.mp3";
 
-  await page.route(fieldBgmPattern, async route => {
+  await page.route(fieldBgmPattern, async function callback(route) {
     await audioGate;
-    await route.continue().catch(() => {});
+    await route.continue().catch(function handleRejected() {});
   });
 
   try {
@@ -174,8 +187,8 @@ test("Poke Lounge는 오디오 로딩이 끝난 뒤 모바일 메인 씬을 연�
     await expect(page.locator("[data-poke-lounge-mobile-deck='explore']")).toHaveCount(0);
     await expect
       .poll(
-        () =>
-          page.evaluate(() => {
+        function pollExpectation() {
+          return page.evaluate(function evaluatePage() {
             const activeSceneKey =
               (
                 window as Window & {
@@ -184,7 +197,8 @@ test("Poke Lounge는 오디오 로딩이 끝난 뒤 모바일 메인 씬을 연�
               ).__POKE_LOUNGE_E2E__?.getActiveSceneKey() ?? null;
 
             return activeSceneKey === "world" || activeSceneKey === "battle";
-          }),
+          });
+        },
         { timeout: 30_000 },
       )
       .toBe(false);
@@ -204,7 +218,12 @@ test("Poke Lounge는 오디오 로딩이 끝난 뒤 모바일 메인 씬을 연�
       timeout: 30_000,
     });
     await expect
-      .poll(() => readAudioPlaybackSnapshot(page), { timeout: 30_000 })
+      .poll(
+        function pollExpectation() {
+          return readAudioPlaybackSnapshot(page);
+        },
+        { timeout: 30_000 },
+      )
       .toMatchObject({
         activeBgmId: "field-day",
         activeBgmPlayback: "html-audio",
@@ -217,12 +236,14 @@ test("Poke Lounge는 오디오 로딩이 끝난 뒤 모바일 메인 씬을 연�
   }
 });
 
-test("Poke Lounge는 오디오 로딩 실패 시 메인 씬 대신 재시도 화면을 연다", async ({ page }) => {
+test("Poke Lounge는 오디오 로딩 실패 시 메인 씬 대신 재시도 화면을 연다", async function testCase({
+  page,
+}) {
   const fieldBgmPattern = "**/assets/poke-lounge/audio/bgm/field-day.mp3";
   let failFieldBgm = true;
-  await page.route(fieldBgmPattern, route =>
-    failFieldBgm ? route.abort("failed") : route.continue(),
-  );
+  await page.route(fieldBgmPattern, function callback(route) {
+    return failFieldBgm ? route.abort("failed") : route.continue();
+  });
 
   try {
     await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
@@ -252,7 +273,9 @@ test("Poke Lounge는 오디오 로딩 실패 시 메인 씬 대신 재시도 화
   }
 });
 
-test("Poke Lounge 화면에서 이탈하면 재생 중인 모든 오디오를 종료한다", async ({ page }) => {
+test("Poke Lounge 화면에서 이탈하면 재생 중인 모든 오디오를 종료한다", async function testCase({
+  page,
+}) {
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
   await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
   await page.locator("[data-room-entry-solo]").click();
@@ -261,7 +284,11 @@ test("Poke Lounge 화면에서 이탈하면 재생 중인 모든 오디오를 �
     timeout: 30_000,
   });
   await expect
-    .poll(() => readAudioPlaybackSnapshot(page).then(snapshot => snapshot?.activeBgmId ?? null))
+    .poll(function pollExpectation() {
+      return readAudioPlaybackSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.activeBgmId ?? null;
+      });
+    })
     .toBe("field-day");
 
   expect(await startMobileWildBattleForTest(page)).toBe(true);
@@ -270,14 +297,19 @@ test("Poke Lounge 화면에서 이탈하면 재생 중인 모든 오디오를 �
     isBgmPlaying: false,
   });
   await expect
-    .poll(() => readAudioPlaybackSnapshot(page), { timeout: 10_000 })
+    .poll(
+      function pollExpectation() {
+        return readAudioPlaybackSnapshot(page);
+      },
+      { timeout: 10_000 },
+    )
     .toMatchObject({
       activeBgmId: "wild-battle",
       activeBgmPlayback: "html-audio",
       isBgmPlaying: true,
     });
 
-  const snapshots = await page.evaluate(async () => {
+  const snapshots = await page.evaluate(async function evaluatePage() {
     const pokeWindow = window as Window & {
       __POKE_LOUNGE_CLEANUP_FOR_TEST__?: () => void;
       __POKE_LOUNGE_E2E__?: {
@@ -293,7 +325,9 @@ test("Poke Lounge 화면에서 이탈하면 재생 중인 모든 오디오를 �
 
     const before = controller.getAudioPlaybackSnapshot();
     cleanup();
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise(function resolvePromise(resolve) {
+      return setTimeout(resolve, 0);
+    });
 
     return {
       before,
@@ -315,7 +349,9 @@ test("Poke Lounge 화면에서 이탈하면 재생 중인 모든 오디오를 �
   });
 });
 
-test("Poke Lounge 모바일 새 게임 확인 버튼은 가로와 세로 중앙에 정렬된다", async ({ page }) => {
+test("Poke Lounge 모바일 새 게임 확인 버튼은 가로와 세로 중앙에 정렬된다", async function testCase({
+  page,
+}) {
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1");
   await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
   await page.locator("[data-room-entry-new-start]").click();
@@ -330,7 +366,7 @@ test("Poke Lounge 모바일 새 게임 확인 버튼은 가로와 세로 중앙�
   }
 });
 
-test("Poke Lounge 모바일 메뉴에서 런처로 나간다", async ({ page }) => {
+test("Poke Lounge 모바일 메뉴에서 런처로 나간다", async function testCase({ page }) {
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
   await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
   await page.locator("[data-room-entry-solo]").click();
@@ -362,15 +398,15 @@ test("Poke Lounge 모바일 메뉴에서 런처로 나간다", async ({ page }) 
   await expect(page).toHaveURL(/\/ko-KR\/game$/);
 });
 
-test("Poke Lounge 모바일 설정에서 계정 저장을 다시 연결한다", async ({ page }) => {
+test("Poke Lounge 모바일 설정에서 계정 저장을 다시 연결한다", async function testCase({ page }) {
   const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(
     JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 60 * 60, sub: "poke-player" }),
   ).toString("base64url");
   let getAttempts = 0;
 
-  await page.route("**/api/auth/session", route =>
-    route.fulfill({
+  await page.route("**/api/auth/session", function callback(route) {
+    return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
@@ -379,9 +415,9 @@ test("Poke Lounge 모바일 설정에서 계정 저장을 다시 연결한다", 
         idToken: `${header}.${payload}.signature`,
         idTokenExpiresAt: Math.floor(Date.now() / 1000) + 60 * 60,
       }),
-    }),
-  );
-  await page.route("**/game/poke-lounge/state", route => {
+    });
+  });
+  await page.route("**/game/poke-lounge/state", function callback(route) {
     if (route.request().method() === "PUT") {
       return route.fulfill({
         status: 200,
@@ -412,12 +448,18 @@ test("Poke Lounge 모바일 설정에서 계정 저장을 다시 연결한다", 
   await expect(fallback).toContainText("현재 탭의 로컬 상태로 시작했습니다");
   await expect(retry).toHaveText("계정 저장 다시 연결");
   await retry.click();
-  await expect.poll(() => getAttempts).toBe(2);
+  await expect
+    .poll(function pollExpectation() {
+      return getAttempts;
+    })
+    .toBe(2);
   await expect(fallback).toHaveCount(0);
   await expect(retry).toHaveCount(0);
 });
 
-test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공한다", async ({ page }, testInfo) => {
+test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공한다", async function testCase({
+  page,
+}, testInfo) {
   const probe = await readMobileEnvironment(page);
   await testInfo.attach("mobile-environment.json", {
     body: Buffer.from(`${JSON.stringify(probe, null, 2)}\n`),
@@ -447,9 +489,16 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   });
   await expectMobileGameLogicalViewport(page);
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.partyHudVisible), {
-      timeout: 30_000,
-    })
+    .poll(
+      function pollExpectation() {
+        return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+          return snapshot?.partyHudVisible;
+        });
+      },
+      {
+        timeout: 30_000,
+      },
+    )
     .toBe(false);
 
   const controls = page.locator("[data-poke-lounge-mobile-deck='explore']");
@@ -464,21 +513,43 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   await expectPortraitFieldAndControlDock(page, controlDock);
 
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.player ?? null), {
-      timeout: 30_000,
-    })
+    .poll(
+      function pollExpectation() {
+        return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+          return snapshot?.player ?? null;
+        });
+      },
+      {
+        timeout: 30_000,
+      },
+    )
     .not.toBeNull();
   const initialHelp = page.locator("[data-poke-lounge-mobile-deck='world-help']");
   await expectMobileFullscreenScene(page, initialHelp);
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.shortcutGuideOpen), {
-      timeout: 30_000,
-    })
+    .poll(
+      function pollExpectation() {
+        return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+          return snapshot?.shortcutGuideOpen;
+        });
+      },
+      {
+        timeout: 30_000,
+      },
+    )
     .toBe(true);
-  await expect.poll(() => readShortcutGuideViewed(page)).toBe(false);
+  await expect
+    .poll(function pollExpectation() {
+      return readShortcutGuideViewed(page);
+    })
+    .toBe(false);
   await initialHelp.locator("[data-poke-lounge-mobile-deck-close='true']").click();
   await expect(initialHelp).toHaveCount(0);
-  await expect.poll(() => readShortcutGuideViewed(page)).toBe(true);
+  await expect
+    .poll(function pollExpectation() {
+      return readShortcutGuideViewed(page);
+    })
+    .toBe(true);
   const before = await readWorldSnapshot(page);
   const joystickBounds = await directionalJoystick.boundingBox();
 
@@ -516,7 +587,7 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   });
   await expect(directionalJoystick).toHaveAttribute("data-direction", "up-right");
   await expect
-    .poll(async () => {
+    .poll(async function pollExpectation() {
       const current = await readWorldSnapshot(page);
 
       return Boolean(
@@ -577,13 +648,17 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   );
   const volumeButton = settingsScreen.getByRole("button", { name: /소리/ });
   await expect
-    .poll(async () => (await readAudioPlaybackSnapshot(page))?.isActiveBgmUsingMasterGain ?? false)
+    .poll(async function pollExpectation() {
+      return (await readAudioPlaybackSnapshot(page))?.isActiveBgmUsingMasterGain ?? false;
+    })
     .toBe(true);
   await expect(volumeButton).toHaveText("소리 20%");
   await volumeButton.click();
   await expect(volumeButton).toHaveText("소리 40%");
   await expect
-    .poll(async () => (await readAudioPlaybackSnapshot(page))?.activeBgmVolume)
+    .poll(async function pollExpectation() {
+      return (await readAudioPlaybackSnapshot(page))?.activeBgmVolume;
+    })
     .toBeCloseTo(0.04);
   await volumeButton.click();
   await expect(volumeButton).toHaveText("소리 60%");
@@ -592,12 +667,18 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   await volumeButton.click();
   await expect(volumeButton).toHaveText("소리 100%");
   await expect
-    .poll(async () => (await readAudioPlaybackSnapshot(page))?.activeBgmVolume)
+    .poll(async function pollExpectation() {
+      return (await readAudioPlaybackSnapshot(page))?.activeBgmVolume;
+    })
     .toBeCloseTo(0.1);
   await volumeButton.click();
   await expect(volumeButton).toHaveText("소리 꺼짐");
   await expect(volumeButton).toHaveAccessibleName("소리 음소거");
-  await expect.poll(async () => (await readAudioPlaybackSnapshot(page))?.activeBgmVolume).toBe(0);
+  await expect
+    .poll(async function pollExpectation() {
+      return (await readAudioPlaybackSnapshot(page))?.activeBgmVolume;
+    })
+    .toBe(0);
   await expectSceneOccludesControl(settingsScreen, controls);
   await expectNoModalDialog(page);
   await expectWorldInputIsLocked(page);
@@ -605,7 +686,9 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   await expect(settingsScreen).toHaveCount(0);
 });
 
-test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고른다", async ({ page }) => {
+test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고른다", async function testCase({
+  page,
+}) {
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
   await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
   await page.locator("[data-room-entry-solo]").click();
@@ -646,7 +729,7 @@ test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고�
   await expect(battleHelp).toHaveCount(0);
   await expect(messageDeck).toBeVisible();
 
-  const singleActionLayout = await page.evaluate(() => {
+  const singleActionLayout = await page.evaluate(function evaluatePage() {
     const gamePage = document.querySelector<HTMLElement>("[data-testid='poke-lounge-page']");
     const gameFrame = document.querySelector<HTMLElement>("[data-poke-lounge-game-frame='true']");
     const controlDock = document.querySelector<HTMLElement>(
@@ -781,23 +864,27 @@ test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고�
   await expect(page.locator("[data-poke-lounge-battle-capture='true']")).toBeVisible();
   await expect
     .poll(
-      () =>
-        page.evaluate(
-          () =>
+      function pollExpectation() {
+        return page.evaluate(function evaluatePage() {
+          return (
             (
               window as Window & {
                 __POKE_LOUNGE_E2E__?: {
                   getBattleSnapshot(): { captureAnimationStartedCount: number } | null;
                 };
               }
-            ).__POKE_LOUNGE_E2E__?.getBattleSnapshot()?.captureAnimationStartedCount ?? 0,
-        ),
+            ).__POKE_LOUNGE_E2E__?.getBattleSnapshot()?.captureAnimationStartedCount ?? 0
+          );
+        });
+      },
       { timeout: 10_000 },
     )
     .toBe(1);
 });
 
-test("Poke Lounge 모바일은 새 기술 습득 결과를 조작 도크에 표시한다", async ({ page }) => {
+test("Poke Lounge 모바일은 새 기술 습득 결과를 조작 도크에 표시한다", async function testCase({
+  page,
+}) {
   await gotoWithRetry(
     page,
     "/ko-KR/game/poke-lounge?scene=battle&e2eBattle=wild-move-learning&e2e=1",
@@ -810,8 +897,8 @@ test("Poke Lounge 모바일은 새 기술 습득 결과를 조작 도크에 표�
   });
   await expect
     .poll(
-      () =>
-        page.evaluate(() => {
+      function pollExpectation() {
+        return page.evaluate(function evaluatePage() {
           const controller = (
             window as Window & {
               __POKE_LOUNGE_E2E__?: {
@@ -827,12 +914,13 @@ test("Poke Lounge 모바일은 새 기술 습득 결과를 조작 도크에 표�
             controller?.getActiveSceneKey() === "battle" &&
             controller.getBattleSnapshot()?.battleEntrancePlaying === false
           );
-        }),
+        });
+      },
       { timeout: 30_000 },
     )
     .toBe(true);
 
-  const reachedMoveReplacementWithoutEndMessage = await page.evaluate(() => {
+  const reachedMoveReplacementWithoutEndMessage = await page.evaluate(function evaluatePage() {
     type BattleSnapshot = {
       message: string | null;
       moveReplacement: { newMoveName: string } | null;
@@ -876,17 +964,19 @@ test("Poke Lounge 모바일은 새 기술 습득 결과를 조작 도크에 표�
 
   await expect
     .poll(
-      () =>
-        page.evaluate(
-          () =>
+      function pollExpectation() {
+        return page.evaluate(function evaluatePage() {
+          return (
             (
               window as Window & {
                 __POKE_LOUNGE_E2E__?: {
                   getBattleSnapshot(): { evolutionAnimationPlaying: boolean } | null;
                 };
               }
-            ).__POKE_LOUNGE_E2E__?.getBattleSnapshot()?.evolutionAnimationPlaying ?? true,
-        ),
+            ).__POKE_LOUNGE_E2E__?.getBattleSnapshot()?.evolutionAnimationPlaying ?? true
+          );
+        });
+      },
       { timeout: 10_000 },
     )
     .toBe(false);
@@ -907,7 +997,9 @@ test("Poke Lounge 모바일은 새 기술 습득 결과를 조작 도크에 표�
   );
 });
 
-test("Poke Lounge 모바일 진화는 한국판 ROM 문구의 줄바꿈을 유지한다", async ({ page }) => {
+test("Poke Lounge 모바일 진화는 한국판 ROM 문구의 줄바꿈을 유지한다", async function testCase({
+  page,
+}) {
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?scene=battle&e2eBattle=wild-evolution&e2e=1");
   await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
   await page.locator("[data-room-entry-solo]").click();
@@ -917,8 +1009,8 @@ test("Poke Lounge 모바일 진화는 한국판 ROM 문구의 줄바꿈을 유�
   });
   await expect
     .poll(
-      () =>
-        page.evaluate(() => {
+      function pollExpectation() {
+        return page.evaluate(function evaluatePage() {
           const controller = (
             window as Window & {
               __POKE_LOUNGE_E2E__?: {
@@ -930,7 +1022,8 @@ test("Poke Lounge 모바일 진화는 한국판 ROM 문구의 줄바꿈을 유�
           ).__POKE_LOUNGE_E2E__;
 
           return controller?.getBattleSnapshot()?.battleEntrancePlaying ?? true;
-        }),
+        });
+      },
       { timeout: 30_000 },
     )
     .toBe(false);
@@ -949,8 +1042,8 @@ test("Poke Lounge 모바일 진화는 한국판 ROM 문구의 줄바꿈을 유�
     .click();
   await expect
     .poll(
-      () =>
-        page.evaluate(() => {
+      function pollExpectation() {
+        return page.evaluate(function evaluatePage() {
           const controller = (
             window as Window & {
               __POKE_LOUNGE_E2E__?: {
@@ -962,12 +1055,13 @@ test("Poke Lounge 모바일 진화는 한국판 ROM 문구의 줄바꿈을 유�
           ).__POKE_LOUNGE_E2E__;
 
           return controller?.getBattleSnapshot()?.result ?? null;
-        }),
+        });
+      },
       { timeout: 30_000 },
     )
     .not.toBeNull();
 
-  const evolutionSnapshot = await page.evaluate(() => {
+  const evolutionSnapshot = await page.evaluate(function evaluatePage() {
     type BattleSnapshot = {
       evolutionAnimationPlaying: boolean;
       message: string | null;
@@ -994,12 +1088,16 @@ test("Poke Lounge 모바일 진화는 한국판 ROM 문구의 줄바꿈을 유�
   expect(evolutionSnapshot?.evolutionAnimationPlaying).toBe(true);
   await expect(page.locator("[data-poke-lounge-battle-evolution='true']")).toBeVisible();
   await expect(message).toHaveText("...오잉!?\n치코리타의 모습이...!");
-  expect(await message.evaluate(element => window.getComputedStyle(element).whiteSpace)).toBe(
-    "pre-line",
-  );
+  expect(
+    await message.evaluate(function evaluatePage(element) {
+      return window.getComputedStyle(element).whiteSpace;
+    }),
+  ).toBe("pre-line");
 });
 
-test("이상한사탕 레벨업은 모바일 가방에서 잊을 기술을 직접 선택한다", async ({ page }) => {
+test("이상한사탕 레벨업은 모바일 가방에서 잊을 기술을 직접 선택한다", async function testCase({
+  page,
+}) {
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
   await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
   await page.locator("[data-room-entry-solo]").click();
@@ -1008,7 +1106,7 @@ test("이상한사탕 레벨업은 모바일 가방에서 잊을 기술을 직�
     timeout: 30_000,
   });
 
-  await page.evaluate(() => {
+  await page.evaluate(function evaluatePage() {
     const controller = (
       window as Window & {
         __POKE_LOUNGE_E2E__?: {
@@ -1074,7 +1172,7 @@ test("이상한사탕 레벨업은 모바일 가방에서 잊을 기술을 직�
   await replacementScreen.getByRole("button", { name: "선택한 기술 잊기" }).click();
   await expect(itemScreen).toBeVisible();
 
-  const progress = await page.evaluate(() => {
+  const progress = await page.evaluate(function evaluatePage() {
     const controller = (
       window as Window & {
         __POKE_LOUNGE_E2E__?: {
@@ -1101,7 +1199,10 @@ test("이상한사탕 레벨업은 모바일 가방에서 잊을 기술을 직�
 
     return {
       level: currentPlayer?.party[0]?.pokemon?.level ?? null,
-      moveIds: currentPlayer?.party[0]?.pokemon?.moves?.map(move => move.id) ?? [],
+      moveIds:
+        currentPlayer?.party[0]?.pokemon?.moves?.map(function mapItem(move) {
+          return move.id;
+        }) ?? [],
       rareCandyCount: currentPlayer?.inventory.rareCandy ?? 0,
     };
   });
@@ -1113,7 +1214,7 @@ test("이상한사탕 레벨업은 모바일 가방에서 잊을 기술을 직�
   });
 });
 
-test("Poke Lounge 모바일 필드 시설은 전체 화면 씬에서 처리한다", async ({ page }) => {
+test("Poke Lounge 모바일 필드 시설은 전체 화면 씬에서 처리한다", async function testCase({ page }) {
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
   await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
   await page.locator("[data-room-entry-solo]").click();
@@ -1149,12 +1250,14 @@ async function readMobileEnvironment(page: Page): Promise<{
   platform: string;
 }> {
   await page.goto("about:blank");
-  return page.evaluate(() => ({
-    maxTouchPoints: navigator.maxTouchPoints ?? 0,
-    coarsePointer: window.matchMedia("(pointer: coarse)").matches,
-    userAgent: navigator.userAgent ?? "",
-    platform: navigator.platform ?? "",
-  }));
+  return page.evaluate(function evaluatePage() {
+    return {
+      maxTouchPoints: navigator.maxTouchPoints ?? 0,
+      coarsePointer: window.matchMedia("(pointer: coarse)").matches,
+      userAgent: navigator.userAgent ?? "",
+      platform: navigator.platform ?? "",
+    };
+  });
 }
 
 async function chooseStarterIfNeeded(
@@ -1166,16 +1269,30 @@ async function chooseStarterIfNeeded(
 
   await expect
     .poll(
-      async () => {
-        if (await starterSelection.isVisible().catch(() => false)) return "starter";
-        if (await gameSurface.isVisible().catch(() => false)) return "surface";
+      async function pollExpectation() {
+        if (
+          await starterSelection.isVisible().catch(function handleRejected() {
+            return false;
+          })
+        )
+          return "starter";
+        if (
+          await gameSurface.isVisible().catch(function handleRejected() {
+            return false;
+          })
+        )
+          return "surface";
         return null;
       },
       { timeout: 30_000 },
     )
     .not.toBeNull();
 
-  if (await starterSelection.isVisible().catch(() => false)) {
+  if (
+    await starterSelection.isVisible().catch(function handleRejected() {
+      return false;
+    })
+  ) {
     await page.locator("[data-starter-confirm]").click();
   }
 
@@ -1195,7 +1312,7 @@ async function expectStarterSelectionFitsMobileViewport(page: Page): Promise<voi
   const starterSelection = page.locator("[data-screen='starter-selection']");
   await expect(starterSelection).toBeVisible({ timeout: 30_000 });
 
-  const layout = await page.evaluate(() => {
+  const layout = await page.evaluate(function evaluatePage() {
     const screen = document.querySelector(
       "[data-screen='starter-selection']",
     ) as HTMLElement | null;
@@ -1206,7 +1323,14 @@ async function expectStarterSelectionFitsMobileViewport(page: Page): Promise<voi
       ...document.querySelectorAll("[data-starter-card]"),
     ];
 
-    if (!screen || !panel || !root || controls.some(control => !(control instanceof HTMLElement))) {
+    if (
+      !screen ||
+      !panel ||
+      !root ||
+      controls.some(function testItem(control) {
+        return !(control instanceof HTMLElement);
+      })
+    ) {
       return null;
     }
 
@@ -1218,7 +1342,7 @@ async function expectStarterSelectionFitsMobileViewport(page: Page): Promise<voi
       screenFits: screen.scrollHeight <= screen.clientHeight + 1,
       screenFitsRoot:
         screenRect.top >= rootRect.top - 1 && screenRect.bottom <= rootRect.bottom + 1,
-      controlsFit: controls.every(control => {
+      controlsFit: controls.every(function testItem(control) {
         const rect = (control as HTMLElement).getBoundingClientRect();
 
         return (
@@ -1240,18 +1364,19 @@ async function expectStarterSelectionFitsMobileViewport(page: Page): Promise<voi
 }
 
 async function readWorldSnapshot(page: Page): Promise<WorldSnapshot | null> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & {
           __POKE_LOUNGE_E2E__?: { getWorldSnapshot(): WorldSnapshot | null };
         }
-      ).__POKE_LOUNGE_E2E__?.getWorldSnapshot() ?? null,
-  );
+      ).__POKE_LOUNGE_E2E__?.getWorldSnapshot() ?? null
+    );
+  });
 }
 
 async function readShortcutGuideViewed(page: Page): Promise<boolean | null> {
-  return page.evaluate(() => {
+  return page.evaluate(function evaluatePage() {
     const state = (
       window as Window & {
         __POKE_LOUNGE_E2E__?: {
@@ -1268,33 +1393,35 @@ async function readShortcutGuideViewed(page: Page): Promise<boolean | null> {
 }
 
 async function readAudioPlaybackSnapshot(page: Page): Promise<AudioPlaybackSnapshot | null> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & {
           __POKE_LOUNGE_E2E__?: {
             getAudioPlaybackSnapshot(): AudioPlaybackSnapshot;
           };
         }
-      ).__POKE_LOUNGE_E2E__?.getAudioPlaybackSnapshot() ?? null,
-  );
+      ).__POKE_LOUNGE_E2E__?.getAudioPlaybackSnapshot() ?? null
+    );
+  });
 }
 
 async function readGameSurfaceSnapshot(page: Page): Promise<GameSurfaceSnapshot | null> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & {
           __POKE_LOUNGE_E2E__?: { getGameSurfaceSnapshot(): GameSurfaceSnapshot | null };
         }
-      ).__POKE_LOUNGE_E2E__?.getGameSurfaceSnapshot() ?? null,
-  );
+      ).__POKE_LOUNGE_E2E__?.getGameSurfaceSnapshot() ?? null
+    );
+  });
 }
 
 async function expectMobileGameLogicalViewport(page: Page): Promise<void> {
   await expect
     .poll(
-      async () => {
+      async function pollExpectation() {
         const surface = await readGameSurfaceSnapshot(page);
 
         return surface ? { width: surface.width, height: surface.height } : null;
@@ -1337,16 +1464,24 @@ async function expectBattleGrid(
     slotCount - optionCount,
   );
 
-  const layout = await grid.evaluate(element => {
-    const positions = Array.from(element.children).map(child => {
+  const layout = await grid.evaluate(function evaluatePage(element) {
+    const positions = Array.from(element.children).map(function mapItem(child) {
       const bounds = child.getBoundingClientRect();
 
       return { x: Math.round(bounds.x), y: Math.round(bounds.y) };
     });
 
     return {
-      columns: new Set(positions.map(position => position.x)).size,
-      rows: new Set(positions.map(position => position.y)).size,
+      columns: new Set(
+        positions.map(function mapItem(position) {
+          return position.x;
+        }),
+      ).size,
+      rows: new Set(
+        positions.map(function mapItem(position) {
+          return position.y;
+        }),
+      ).size,
     };
   });
 
@@ -1415,7 +1550,7 @@ async function expectMobileFullscreenScene(page: Page, scene: Locator): Promise<
 
   const [bounds, ownsViewportCenter, letterbox] = await Promise.all([
     scene.boundingBox(),
-    scene.evaluate(element => {
+    scene.evaluate(function evaluatePage(element) {
       const centerElement = document.elementFromPoint(
         window.innerWidth / 2,
         window.innerHeight / 2,
@@ -1440,7 +1575,7 @@ async function expectMobileFullscreenScene(page: Page, scene: Locator): Promise<
 }
 
 async function readMobileLetterbox(page: Page): Promise<{ top: number; bottom: number }> {
-  return page.getByTestId("poke-lounge-page").evaluate(element => {
+  return page.getByTestId("poke-lounge-page").evaluate(function evaluatePage(element) {
     const style = getComputedStyle(element);
 
     return {
@@ -1462,7 +1597,7 @@ async function expectSceneOccludesControl(scene: Locator, control: Locator): Pro
   }
 
   const ownsControlCenter = await scene.evaluate(
-    (element, point) => {
+    function evaluatePage(element, point) {
       const centerElement = document.elementFromPoint(point.x, point.y);
 
       return centerElement !== null && element.contains(centerElement);
@@ -1496,23 +1631,21 @@ async function openMobileWorldSurfaceForTest(
   page: Page,
   surface: "shop" | "pc" | "dice",
 ): Promise<boolean> {
-  return page.evaluate(
-    target =>
-      Boolean(
-        (
-          window as Window & {
-            __POKE_LOUNGE_E2E__?: {
-              openWorldSurfaceForTest(surface: "shop" | "pc" | "dice"): unknown;
-            };
-          }
-        ).__POKE_LOUNGE_E2E__?.openWorldSurfaceForTest(target),
-      ),
-    surface,
-  );
+  return page.evaluate(function evaluatePage(target) {
+    return Boolean(
+      (
+        window as Window & {
+          __POKE_LOUNGE_E2E__?: {
+            openWorldSurfaceForTest(surface: "shop" | "pc" | "dice"): unknown;
+          };
+        }
+      ).__POKE_LOUNGE_E2E__?.openWorldSurfaceForTest(target),
+    );
+  }, surface);
 }
 
 async function startMobileWildBattleForTest(page: Page): Promise<boolean> {
-  return page.evaluate(() => {
+  return page.evaluate(function evaluatePage() {
     const controller = (
       window as Window & {
         __POKE_LOUNGE_E2E__?: {

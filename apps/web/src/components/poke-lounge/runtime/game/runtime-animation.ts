@@ -44,7 +44,7 @@ export function animateRuntimeValue({
 
 export function scheduleRuntimeTask(delayMs: number, task: () => void): RuntimeAnimation {
   let stopped = false;
-  const timeout = window.setTimeout(() => {
+  const timeout = window.setTimeout(function handleTimeout() {
     if (stopped) return;
     stopped = true;
     task();

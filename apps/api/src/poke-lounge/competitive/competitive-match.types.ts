@@ -1,8 +1,8 @@
 import type {
   CanonicalBattleState,
   CanonicalTerminalResult,
-  NormalizedCompetitiveParty,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/canonical-state';
+import type { NormalizedCompetitiveParty } from '@poke-lounge/battle/competitive-party';
 import type { PublicCompetitiveBattleState } from './competitive-action.types';
 
 export type CompetitiveMatchStatus = 'pending' | 'active' | 'completed';

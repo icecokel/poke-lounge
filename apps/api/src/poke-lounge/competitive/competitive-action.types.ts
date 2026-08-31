@@ -1,9 +1,9 @@
 import type {
   CanonicalBattleStatus,
-  BattleStatStages,
-  CanonicalCompetitiveAction,
   CanonicalTerminalResult,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/canonical-state';
+import type { BattleStatStages } from '@poke-lounge/battle/battle-stat-stages';
+import type { CanonicalCompetitiveAction } from '@poke-lounge/battle/actions';
 import type {
   CompetitiveMatchKind,
   CompetitiveMatchStatus,

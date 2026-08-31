@@ -36,7 +36,9 @@ const serverEnv = {
   PORT: port,
 };
 
-const playwrightArgs = process.argv.slice(2).filter(argument => argument !== "--local-test-mode");
+const playwrightArgs = process.argv.slice(2).filter(function filterItem(argument) {
+  return argument !== "--local-test-mode";
+});
 if (playwrightArgs.length === 0) {
   playwrightArgs.push("test");
 }
@@ -84,7 +86,7 @@ const finish = code => {
   if (server?.exitCode === null && !server.killed) {
     const forceExitTimer = setTimeout(exit, 5_000);
     forceExitTimer.unref();
-    server.once("exit", () => {
+    server.once("exit", function handleEvent() {
       clearTimeout(forceExitTimer);
       exit();
     });
@@ -112,15 +114,21 @@ const waitForServer = async timeoutMs => {
       return;
     }
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(function resolvePromise(resolve) {
+      return setTimeout(resolve, 500);
+    });
   }
 
   throw new Error(`Timed out waiting for Playwright server at ${readyUrl}`);
 };
 
 const run = async () => {
-  process.on("SIGINT", () => finish(130));
-  process.on("SIGTERM", () => finish(143));
+  process.on("SIGINT", function handleEvent() {
+    return finish(130);
+  });
+  process.on("SIGTERM", function handleEvent() {
+    return finish(143);
+  });
 
   if (useExternalServer) {
     await waitForServer(120_000);
@@ -130,7 +138,7 @@ const run = async () => {
       stdio: ["ignore", "inherit", "inherit"],
     });
 
-    server.on("exit", code => {
+    server.on("exit", function handleEvent(code) {
       if (!finalizing && code !== 0) {
         finish(code ?? 1);
       }
@@ -144,12 +152,12 @@ const run = async () => {
     stdio: "inherit",
   });
 
-  playwright.on("exit", code => {
+  playwright.on("exit", function handleEvent(code) {
     finish(code ?? 1);
   });
 };
 
-run().catch(error => {
+run().catch(function handleRejected(error) {
   console.error(error);
   finish(1);
 });

@@ -7,7 +7,7 @@ import {
   Matches,
   Min,
 } from 'class-validator';
-import type { CreatePokeLoungeRoomInput } from './../poke-lounge-room.types';
+import type { CreatePokeLoungeRoomInput } from '../poke-lounge-room.types';
 
 export class CreatePokeLoungeRoomDto implements CreatePokeLoungeRoomInput {
   @ApiPropertyOptional({ example: 'ABC234' })

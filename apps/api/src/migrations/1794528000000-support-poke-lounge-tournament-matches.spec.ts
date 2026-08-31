@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { SupportPokeLoungeTournamentMatches1794528000000 } from './1794528000000-support-poke-lounge-tournament-matches';
 
-describe('SupportPokeLoungeTournamentMatches1794528000000', () => {
-  it('replaces room uniqueness with bracket uniqueness and match kind', async () => {
+describe('SupportPokeLoungeTournamentMatches1794528000000', function testSuite() {
+  it('replaces room uniqueness with bracket uniqueness and match kind', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
     const migration = new SupportPokeLoungeTournamentMatches1794528000000();
 
@@ -21,7 +21,7 @@ describe('SupportPokeLoungeTournamentMatches1794528000000', () => {
     expect(sql).toContain('UQ_poke_lounge_competitive_match_active_room');
   });
 
-  it('refuses down migration when tournament data exists', async () => {
+  it('refuses down migration when tournament data exists', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
     const migration = new SupportPokeLoungeTournamentMatches1794528000000();
 

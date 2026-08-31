@@ -3,8 +3,8 @@ import {
   hashPokeLoungeRoomCommand,
 } from './poke-lounge-room-command';
 
-describe('Poke Lounge room command hashing', () => {
-  it('sorts object keys recursively, preserves arrays, and omits undefined object fields', () => {
+describe('Poke Lounge room command hashing', function testSuite() {
+  it('sorts object keys recursively, preserves arrays, and omits undefined object fields', function testCase() {
     expect(
       canonicalizePokeLoungeCommand({
         zebra: 1,
@@ -16,7 +16,7 @@ describe('Poke Lounge room command hashing', () => {
     ).toBe('{"alpha":{"list":[{"alpha":1,"beta":2},3]},"zebra":1}');
   });
 
-  it('normalizes existing room codes and returns a SHA-256 request hash', () => {
+  it('normalizes existing room codes and returns a SHA-256 request hash', function testCase() {
     const first = hashPokeLoungeRoomCommand({
       operation: 'join',
       roomCode: ' room01 ',
@@ -32,7 +32,7 @@ describe('Poke Lounge room command hashing', () => {
     expect(reordered).toBe(first);
   });
 
-  it('changes when any domain or authorization field changes', () => {
+  it('changes when any domain or authorization field changes', function testCase() {
     const base = {
       operation: 'result' as const,
       roomCode: 'ROOM01',
@@ -61,7 +61,7 @@ describe('Poke Lounge room command hashing', () => {
     ).not.toBe(hashPokeLoungeRoomCommand(base));
   });
 
-  it('includes the host session identity in start command hashes', () => {
+  it('includes the host session identity in start command hashes', function testCase() {
     const first = hashPokeLoungeRoomCommand({
       operation: 'start',
       roomCode: 'ROOM01',

@@ -3,7 +3,7 @@ import { DelayedError, Worker } from 'bullmq';
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/competitive-ruleset-config';
 import { createTestInitialBattleState } from '../../../test/support/competitive-party.fixture';
 import type { PokeLoungeLiveStateService } from '../poke-lounge-live-state.service';
 import type {
@@ -13,7 +13,7 @@ import type {
 import type { CompetitiveTurnQueue } from './competitive-turn-queue';
 import { CompetitiveTurnWorkerService } from './competitive-turn-worker.service';
 
-jest.mock('bullmq', () => {
+jest.mock('bullmq', function callback() {
   const actual = jest.requireActual<typeof import('bullmq')>('bullmq');
   return {
     ...actual,
@@ -21,25 +21,24 @@ jest.mock('bullmq', () => {
   };
 });
 
-describe('CompetitiveTurnWorkerService', () => {
+describe('CompetitiveTurnWorkerService', function testSuite() {
   let workerOn: jest.MockedFunction<
     (event: string, listener: (...args: unknown[]) => void) => void
   >;
 
-  beforeEach(() => {
+  beforeEach(function setUpTest() {
     jest.mocked(Worker).mockClear();
     workerOn = jest.fn();
-    jest.mocked(Worker).mockImplementation(
-      () =>
-        ({
-          on: workerOn,
-          waitUntilReady: jest.fn().mockResolvedValue(undefined),
-          close: jest.fn().mockResolvedValue(undefined),
-        }) as never,
-    );
+    jest.mocked(Worker).mockImplementation(function mockImplementation() {
+      return {
+        on: workerOn,
+        waitUntilReady: jest.fn().mockResolvedValue(undefined),
+        close: jest.fn().mockResolvedValue(undefined),
+      } as never;
+    });
   });
 
-  it('schedules the next turn and publishes only the committed room cursor', async () => {
+  it('schedules the next turn and publishes only the committed room cursor', async function testCase() {
     const actionRepository = repository();
     const liveState = liveStateService();
     const turnQueue = queue();
@@ -68,7 +67,7 @@ describe('CompetitiveTurnWorkerService', () => {
     ).not.toContain('session-secret');
   });
 
-  it('still publishes the committed revision when next-turn scheduling fails', async () => {
+  it('still publishes the committed revision when next-turn scheduling fails', async function testCase() {
     const actionRepository = repository();
     const liveState = liveStateService();
     const turnQueue = queue();
@@ -96,7 +95,7 @@ describe('CompetitiveTurnWorkerService', () => {
     ).toBeLessThan(turnQueue.schedule.mock.invocationCallOrder[1]);
   });
 
-  it('returns an early job to its durable Redis deadline', async () => {
+  it('returns an early job to its durable Redis deadline', async function testCase() {
     const actionRepository = repository();
     actionRepository.expirePendingTurn.mockResolvedValue({
       outcome: 'not-due',
@@ -113,7 +112,7 @@ describe('CompetitiveTurnWorkerService', () => {
     expect(turnJob.moveToDelayed).toHaveBeenCalledWith(31_000, 'lock-token');
   });
 
-  it('reconciles missing turn jobs at startup and periodically', async () => {
+  it('reconciles missing turn jobs at startup and periodically', async function testCase() {
     jest.useFakeTimers();
     const actionRepository = repository();
     const liveState = liveStateService();
@@ -131,16 +130,21 @@ describe('CompetitiveTurnWorkerService', () => {
       expect(actionRepository.findPendingTurns.mock.calls).toHaveLength(1);
       expect(turnQueue.schedule.mock.calls).toContainEqual([pending]);
       expect(Worker).toHaveBeenCalledTimes(1);
-      expect(workerOn.mock.calls.map(([event]) => event)).toEqual([
-        'error',
-        'failed',
-      ]);
-      const failedListener = workerOn.mock.calls.find(
-        ([event]) => event === 'failed',
-      )?.[1];
+      expect(
+        workerOn.mock.calls.map(function mapItem([event]) {
+          return event;
+        }),
+      ).toEqual(['error', 'failed']);
+      const failedListener = workerOn.mock.calls.find(function findItem([
+        event,
+      ]) {
+        return event === 'failed';
+      })?.[1];
       const loggerError = jest
         .spyOn(Logger.prototype, 'error')
-        .mockImplementation(() => undefined);
+        .mockImplementation(function mockImplementation() {
+          return undefined;
+        });
       try {
         failedListener?.({ id: 'match-1-0' }, new Error('turn worker failure'));
         expect(loggerError.mock.calls).toContainEqual([
@@ -170,7 +174,9 @@ function createService(
 ): CompetitiveTurnWorkerService {
   return new CompetitiveTurnWorkerService(
     {
-      get: jest.fn((key: string) => config[key]),
+      get: jest.fn(function mockFunction(key: string) {
+        return config[key];
+      }),
     } as never,
     liveState,
     actionRepository,

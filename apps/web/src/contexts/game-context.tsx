@@ -13,28 +13,30 @@ interface GameProviderProps {
   children: ReactNode;
 }
 
-export const GameProvider = ({ children }: GameProviderProps) => {
+export function GameProvider({ children }: GameProviderProps) {
   const [isGamePlaying, setIsGamePlaying] = useState(false);
 
-  const setGamePlaying = useCallback((playing: boolean) => {
+  const setGamePlaying = useCallback(function memoizedCallback(playing: boolean) {
     setIsGamePlaying(playing);
   }, []);
 
   const value = useMemo(
-    () => ({
-      isGamePlaying,
-      setGamePlaying,
-    }),
+    function createMemoizedValue() {
+      return {
+        isGamePlaying,
+        setGamePlaying,
+      };
+    },
     [isGamePlaying, setGamePlaying],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
-};
+}
 
-export const useGame = () => {
+export function useGame() {
   const context = useContext(GameContext);
   if (context === undefined) {
     throw new Error("useGame must be used within a GameProvider");
   }
   return context;
-};
+}

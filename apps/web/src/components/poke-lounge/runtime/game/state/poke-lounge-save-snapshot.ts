@@ -1,4 +1,4 @@
-import { PLAYER_PARTY_SLOT_COUNT, type PlayerFacing } from "../player/playerTypes";
+import { PLAYER_PARTY_SLOT_COUNT, type PlayerFacing } from "../player/player-types";
 import {
   MAX_POKEMON_INDIVIDUAL_VALUE,
   MIN_POKEMON_INDIVIDUAL_VALUE,
@@ -13,7 +13,7 @@ import type {
   PlayerPokemon,
   PlayerPokemonMove,
   PlayerPokemonStatus,
-} from "./gameStateStore";
+} from "./game-state-store";
 
 export const POKE_LOUNGE_SAVE_SNAPSHOT_VERSION = 1;
 
@@ -189,8 +189,12 @@ function sanitizeParty(value: unknown[]): LocalPlayerState["party"] | null {
 }
 
 function sanitizePokemonCollection(value: unknown[]): PlayerPokemon[] | null {
-  const pokemon = value.map(candidate => (isRecord(candidate) ? sanitizePokemon(candidate) : null));
-  return pokemon.every((candidate): candidate is PlayerPokemon => candidate !== null)
+  const pokemon = value.map(function mapItem(candidate) {
+    return isRecord(candidate) ? sanitizePokemon(candidate) : null;
+  });
+  return pokemon.every(function testItem(candidate): candidate is PlayerPokemon {
+    return candidate !== null;
+  })
     ? pokemon
     : null;
 }
@@ -244,15 +248,16 @@ function isOptionalMoves(value: unknown): value is PlayerPokemonMove[] | undefin
     value === undefined ||
     (Array.isArray(value) &&
       value.length <= 4 &&
-      value.every(
-        move =>
+      value.every(function testItem(move) {
+        return (
           isRecord(move) &&
           isPositiveInteger(move.id) &&
           isNonEmptyString(move.name) &&
           isNonNegativeInteger(move.pp) &&
           isNonNegativeInteger(move.maxPp) &&
-          move.pp <= move.maxPp,
-      ))
+          move.pp <= move.maxPp
+        );
+      }))
   );
 }
 
@@ -340,14 +345,16 @@ function isOptionalIndividualValues(value: unknown): value is PokemonIndividualV
     return false;
   }
 
-  return ["hp", "attack", "defense", "specialAttack", "specialDefense", "speed"].every(key => {
-    const individualValue = value[key];
-    return (
-      isSafeInteger(individualValue) &&
-      individualValue >= MIN_POKEMON_INDIVIDUAL_VALUE &&
-      individualValue <= MAX_POKEMON_INDIVIDUAL_VALUE
-    );
-  });
+  return ["hp", "attack", "defense", "specialAttack", "specialDefense", "speed"].every(
+    function testItem(key) {
+      const individualValue = value[key];
+      return (
+        isSafeInteger(individualValue) &&
+        individualValue >= MIN_POKEMON_INDIVIDUAL_VALUE &&
+        individualValue <= MAX_POKEMON_INDIVIDUAL_VALUE
+      );
+    },
+  );
 }
 
 function isPlayerFacing(value: unknown): value is PlayerFacing {

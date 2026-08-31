@@ -38,13 +38,15 @@ export function scoreTournamentStandings(
   scoreByRank: TournamentScoreByRank = DEFAULT_TOURNAMENT_SCORE_BY_RANK,
 ): TournamentRoundScore[] {
   return standings
-    .map(standing => ({
-      playerId: standing.playerId,
-      displayName: standing.displayName,
-      seed: standing.seed,
-      rank: standing.rank,
-      score: normalizeScore(scoreByRank[standing.rank]),
-    }))
+    .map(function mapItem(standing) {
+      return {
+        playerId: standing.playerId,
+        displayName: standing.displayName,
+        seed: standing.seed,
+        rank: standing.rank,
+        score: normalizeScore(scoreByRank[standing.rank]),
+      };
+    })
     .sort(compareRankThenSeed);
 }
 
@@ -70,16 +72,20 @@ export function rankCumulativeTournamentScores(
   participants: ReadonlyArray<TournamentParticipant>,
 ): CumulativeTournamentScoreRank[] {
   const ranked = participants
-    .map(participant => ({
-      playerId: participant.playerId,
-      displayName: participant.displayName,
-      seed: participant.seed,
-      score: normalizeScore(cumulativeScores[participant.playerId]),
-      rank: 0,
-    }))
-    .sort((left, right) => right.score - left.score || left.seed - right.seed);
+    .map(function mapItem(participant) {
+      return {
+        playerId: participant.playerId,
+        displayName: participant.displayName,
+        seed: participant.seed,
+        score: normalizeScore(cumulativeScores[participant.playerId]),
+        rank: 0,
+      };
+    })
+    .sort(function compareItems(left, right) {
+      return right.score - left.score || left.seed - right.seed;
+    });
 
-  return ranked.map((row, index) => {
+  return ranked.map(function mapItem(row, index) {
     const previous = ranked[index - 1];
     row.rank = previous && previous.score === row.score ? previous.rank : index + 1;
     return row;
@@ -87,7 +93,7 @@ export function rankCumulativeTournamentScores(
 }
 
 export function scoreRemainingHpPercentage(members: ReadonlyArray<RemainingHpScoreMember>): number {
-  return members.reduce((score, member) => {
+  return members.reduce(function reduceItems(score, member) {
     if (
       !Number.isFinite(member.currentHp) ||
       !Number.isFinite(member.maxHp) ||

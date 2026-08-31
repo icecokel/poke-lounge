@@ -1,20 +1,22 @@
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
+} from '@poke-lounge/battle/competitive-ruleset-config';
+import {
   createCanonicalIdRecord,
   hashCanonicalState,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/canonical-state';
 import { createTestInitialBattleState } from '../../../test/support/competitive-party.fixture';
-import type { CanonicalTerminalResult } from '@poke-lounge/battle';
+import type { CanonicalTerminalResult } from '@poke-lounge/battle/canonical-state';
 import {
   toCompetitiveProjection,
   toCompetitiveTerminalTransition,
-} from './competitive-projection.service';
+} from './competitive-projection';
 import { CompetitiveProjectionService } from './competitive-projection.service';
 import type { RedisPokeLoungeRepository } from '../redis-poke-lounge.repository';
 
-describe('toCompetitiveProjection', () => {
-  it('exposes only the recoverable approved battle state and current submissions', () => {
+describe('toCompetitiveProjection', function testSuite() {
+  it('exposes only the recoverable approved battle state and current submissions', function testCase() {
     const state = createTestInitialBattleState(['player-a', 'player-b']);
 
     const projection = toCompetitiveProjection(
@@ -89,7 +91,7 @@ describe('toCompetitiveProjection', () => {
     expect(serialized).not.toContain('clientCommandId');
   });
 
-  it('projects completed terminal metadata and creates an exactly matching wrapper', () => {
+  it('projects completed terminal metadata and creates an exactly matching wrapper', function testCase() {
     const terminalEventId = '00000000-0000-4000-8000-000000000050';
     const terminalRoomRevision = 50;
     const match = terminalMatch({ terminalEventId, terminalRoomRevision });
@@ -114,20 +116,20 @@ describe('toCompetitiveProjection', () => {
     expect(transition.projection).toEqual(projection);
   });
 
-  it('rejects incomplete metadata pairs, active metadata, and inconsistent terminal state', () => {
-    expect(() =>
-      toCompetitiveProjection(
+  it('rejects incomplete metadata pairs, active metadata, and inconsistent terminal state', function testCase() {
+    expect(function callback() {
+      return toCompetitiveProjection(
         terminalMatch({
           terminalEventId: null,
           terminalRoomRevision: null,
         }),
         [],
-      ),
-    ).toThrow('requires terminal metadata');
+      );
+    }).toThrow('requires terminal metadata');
 
     const activeState = createTestInitialBattleState(['player-a', 'player-b']);
-    expect(() =>
-      toCompetitiveProjection(
+    expect(function callback() {
+      return toCompetitiveProjection(
         {
           matchId: 'match-active',
           bracketMatchId: 'game-round-1-bracket-1-match-1',
@@ -145,8 +147,8 @@ describe('toCompetitiveProjection', () => {
           terminalResult: null,
         },
         [],
-      ),
-    ).toThrow('cannot carry terminal metadata');
+      );
+    }).toThrow('cannot carry terminal metadata');
 
     const inconsistent = terminalMatch({
       terminalEventId: '00000000-0000-4000-8000-000000000052',
@@ -157,14 +159,14 @@ describe('toCompetitiveProjection', () => {
       winnerPlayerId: 'player-b',
       loserPlayerId: 'player-a',
     };
-    expect(() => toCompetitiveProjection(inconsistent, [])).toThrow(
-      'terminal projection state is inconsistent',
-    );
+    expect(function callback() {
+      return toCompetitiveProjection(inconsistent, []);
+    }).toThrow('terminal projection state is inconsistent');
   });
 });
 
-describe('CompetitiveProjectionService', () => {
-  it('delegates the consistent room snapshot read to Redis', async () => {
+describe('CompetitiveProjectionService', function testSuite() {
+  it('delegates the consistent room snapshot read to Redis', async function testCase() {
     const snapshot = {
       roomCode: 'ROOM01',
       revision: 12,

@@ -3,7 +3,7 @@ import { IsIn, IsNotEmpty, IsString } from 'class-validator';
 import type {
   PokeLoungeMatchResultReason,
   SubmitPokeLoungeMatchResultInput,
-} from './../poke-lounge-room.types';
+} from '../poke-lounge-room.types';
 
 const matchResultReasons: PokeLoungeMatchResultReason[] = [
   'faint',

@@ -1,5 +1,5 @@
 import { findCurrentMatch } from "../network/tournament-projection";
-import type { GameState, PlayerPokemon } from "../state/gameStateStore";
+import type { GameState, PlayerPokemon } from "../state/game-state-store";
 import { resolvePokeLoungeLocale, type PokeLoungeLocale } from "../../../poke-lounge-copy";
 
 interface AccessibleSummaryCopy {
@@ -150,10 +150,20 @@ export function createAccessibleGameSummary(state: GameState, locale?: string | 
   }
 
   const activePokemon =
-    player.party.find(slot => slot.slotIndex === player.activePartySlotIndex)?.pokemon ??
-    player.party.find(slot => slot.pokemon)?.pokemon;
+    player.party.find(function findItem(slot) {
+      return slot.slotIndex === player.activePartySlotIndex;
+    })?.pokemon ??
+    player.party.find(function findItem(slot) {
+      return slot.pokemon;
+    })?.pokemon;
   const partySummary = activePokemon
-    ? createPokemonSummary(activePokemon, player.party.filter(slot => slot.pokemon).length, copy)
+    ? createPokemonSummary(
+        activePokemon,
+        player.party.filter(function filterItem(slot) {
+          return slot.pokemon;
+        }).length,
+        copy,
+      )
     : copy.noParty;
   const projection = state.tournament.serverProjection;
 
@@ -170,20 +180,20 @@ export function createAccessibleGameSummary(state: GameState, locale?: string | 
     projection.tournament.bracket,
     projection.tournament.activeMatchId,
   );
-  const ownParticipant = projection.participants.find(
-    participant => participant.playerId === projection.ownPlayerId,
-  );
+  const ownParticipant = projection.participants.find(function findItem(participant) {
+    return participant.playerId === projection.ownPlayerId;
+  });
   const opponent = activeMatch?.participantIds.includes(projection.ownPlayerId)
-    ? [activeMatch.participantA, activeMatch.participantB].find(
-        participant => participant.playerId !== projection.ownPlayerId,
-      )
+    ? [activeMatch.participantA, activeMatch.participantB].find(function findItem(participant) {
+        return participant.playerId !== projection.ownPlayerId;
+      })
     : null;
-  const readyParticipants = projection.participants.filter(
-    participant => participant.role === "participant" && participant.ready,
-  ).length;
-  const totalParticipants = projection.participants.filter(
-    participant => participant.role === "participant",
-  ).length;
+  const readyParticipants = projection.participants.filter(function filterItem(participant) {
+    return participant.role === "participant" && participant.ready;
+  }).length;
+  const totalParticipants = projection.participants.filter(function filterItem(participant) {
+    return participant.role === "participant";
+  }).length;
   const stageSummary =
     projection.roomStatus === "waiting"
       ? copy.waiting(readyParticipants, totalParticipants)
@@ -370,7 +380,9 @@ function createPokemonSummary(
     ? copy.moves(
         pokemon.moves
           .slice(0, 4)
-          .map(move => `${move.name} PP ${move.pp}/${move.maxPp}`)
+          .map(function mapItem(move) {
+            return `${move.name} PP ${move.pp}/${move.maxPp}`;
+          })
           .join(", "),
       )
     : "";

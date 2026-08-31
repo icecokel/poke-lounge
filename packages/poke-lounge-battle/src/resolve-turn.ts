@@ -27,9 +27,9 @@ import {
   COMPETITIVE_RULESET_V2,
   COMPETITIVE_RULESET_VERSION,
   COMPETITIVE_STRUGGLE_MOVE_ID,
-  getCompetitiveMoveDefinition,
-  type CompetitiveResolvedMoveDefinition,
-} from "./ruleset";
+} from "./competitive-ruleset-config";
+import { type CompetitiveResolvedMoveDefinition } from "./ruleset-contract";
+import { getCompetitiveMoveDefinition } from "./ruleset";
 
 export interface ResolvedTurnV2 {
   turn: number;
@@ -64,7 +64,12 @@ function sortedParticipantIds(state: CanonicalBattleState): readonly [string, st
   }
 
   const statePlayerIds = Object.keys(state.playersById).sort();
-  if (statePlayerIds.length !== 2 || statePlayerIds.some((id, index) => id !== ids[index])) {
+  if (
+    statePlayerIds.length !== 2 ||
+    statePlayerIds.some(function testItem(id, index) {
+      return id !== ids[index];
+    })
+  ) {
     throw new Error("Canonical battle state requires exactly two participant players");
   }
 
@@ -92,9 +97,13 @@ function validateCombatant(combatant: CanonicalCombatantState): void {
       combatant.specialAttack,
       combatant.specialDefense,
       combatant.speed,
-    ].every(stat => Number.isSafeInteger(stat) && stat >= 1) ||
+    ].every(function testItem(stat) {
+      return Number.isSafeInteger(stat) && stat >= 1;
+    }) ||
     combatant.typeIds.length !== species.typeIds.length ||
-    combatant.typeIds.some((typeId, index) => typeId !== species.typeIds[index]) ||
+    combatant.typeIds.some(function testItem(typeId, index) {
+      return typeId !== species.typeIds[index];
+    }) ||
     combatant.moves.length < 1 ||
     combatant.moves.length > COMPETITIVE_RULESET_V2.moveCountMaximum ||
     !hasMatchingStatusAndHp(combatant)
@@ -103,7 +112,11 @@ function validateCombatant(combatant: CanonicalCombatantState): void {
   }
 
   const normalizedStages = normalizeBattleStatStages(combatant.statStages);
-  if (BATTLE_STAT_STAGE_KEYS.some(key => normalizedStages[key] !== combatant.statStages[key])) {
+  if (
+    BATTLE_STAT_STAGE_KEYS.some(function testItem(key) {
+      return normalizedStages[key] !== combatant.statStages[key];
+    })
+  ) {
     throw new Error("Invalid canonical combatant stat stages");
   }
 
@@ -124,7 +137,11 @@ function validateCombatant(combatant: CanonicalCombatantState): void {
 }
 
 function validatePlayer(playerId: string, player: CanonicalPlayerState): void {
-  const slots = new Set(player.team.map(member => member.slotIndex));
+  const slots = new Set(
+    player.team.map(function mapItem(member) {
+      return member.slotIndex;
+    }),
+  );
   if (
     player.playerId !== playerId ||
     !Number.isSafeInteger(player.activeSlotIndex) ||
@@ -145,19 +162,23 @@ function cloneState(
   participantIds: readonly [string, string],
 ): CanonicalBattleState {
   const playersById = createCanonicalIdRecord<CanonicalPlayerState>(
-    participantIds.map(playerId => {
+    participantIds.map(function mapItem(playerId) {
       const player = state.playersById[playerId]!;
       return [
         playerId,
         {
           playerId,
           activeSlotIndex: player.activeSlotIndex,
-          team: player.team.map(member => ({
-            ...member,
-            typeIds: [...member.typeIds] as [number] | [number, number],
-            statStages: { ...member.statStages },
-            moves: member.moves.map(move => ({ ...move })),
-          })),
+          team: player.team.map(function mapItem(member) {
+            return {
+              ...member,
+              typeIds: [...member.typeIds] as [number] | [number, number],
+              statStages: { ...member.statStages },
+              moves: member.moves.map(function mapItem(move) {
+                return { ...move };
+              }),
+            };
+          }),
         },
       ];
     }),
@@ -179,7 +200,9 @@ function cloneState(
 
 function activeCombatant(state: CanonicalBattleState, playerId: string): CanonicalCombatantState {
   const player = state.playersById[playerId]!;
-  const active = player.team.find(member => member.slotIndex === player.activeSlotIndex);
+  const active = player.team.find(function findItem(member) {
+    return member.slotIndex === player.activeSlotIndex;
+  });
   if (!active) {
     throw new Error("Canonical player active slot is missing");
   }
@@ -214,7 +237,9 @@ function validateAction(
         throw new Error("Cannot use an invalid move");
       }
 
-      const move = active.moves.find(candidate => candidate.moveId === action.moveId);
+      const move = active.moves.find(function findItem(candidate) {
+        return candidate.moveId === action.moveId;
+      });
       if (!move || !isCompetitiveMoveSelectable(action.moveId)) {
         throw new Error("Cannot use an invalid or unsupported move");
       }
@@ -234,7 +259,9 @@ function validateAction(
       if (action.slotIndex === player.activeSlotIndex) {
         throw new Error("Cannot switch to the active slot");
       }
-      const target = player.team.find(member => member.slotIndex === action.slotIndex);
+      const target = player.team.find(function findItem(member) {
+        return member.slotIndex === action.slotIndex;
+      });
       if (!target || target.currentHp === 0) {
         throw new Error("Cannot switch to a missing or fainted slot");
       }
@@ -255,12 +282,14 @@ function terminalForFaint(
   loserPlayerId: string,
 ): CanonicalTerminalResult {
   const scoreByPlayerId = createCanonicalIdRecord<50 | 100>(
-    participantIds.map(playerId => [
-      playerId,
-      playerId === winnerPlayerId
-        ? COMPETITIVE_RULESET_V2.scores.win
-        : COMPETITIVE_RULESET_V2.scores.loss,
-    ]),
+    participantIds.map(function mapItem(playerId) {
+      return [
+        playerId,
+        playerId === winnerPlayerId
+          ? COMPETITIVE_RULESET_V2.scores.win
+          : COMPETITIVE_RULESET_V2.scores.loss,
+      ];
+    }),
   );
   return {
     winnerPlayerId,
@@ -275,7 +304,11 @@ function setTerminalIfTeamFainted(
   participantIds: readonly [string, string],
   loserPlayerId: string,
 ): boolean {
-  if (state.playersById[loserPlayerId]!.team.some(member => member.currentHp > 0)) {
+  if (
+    state.playersById[loserPlayerId]!.team.some(function testItem(member) {
+      return member.currentHp > 0;
+    })
+  ) {
     return false;
   }
   state.terminal = terminalForFaint(
@@ -306,7 +339,11 @@ function executeMove(
   }
 
   const isStruggle = action.moveId === COMPETITIVE_STRUGGLE_MOVE_ID;
-  const moveState = isStruggle ? null : attacker.moves.find(move => move.moveId === action.moveId)!;
+  const moveState = isStruggle
+    ? null
+    : attacker.moves.find(function findItem(move) {
+        return move.moveId === action.moveId;
+      })!;
   const move = getCompetitiveMoveDefinition(action.moveId)!;
   if (moveState) {
     moveState.pp -= 1;
@@ -488,7 +525,9 @@ function orderedMoveActors(
   actionsByPlayerId: Readonly<Record<string, CanonicalCompetitiveAction>>,
   random: SeededRandom,
 ): string[] {
-  const actors = participantIds.filter(playerId => actionsByPlayerId[playerId]?.kind === "move");
+  const actors = participantIds.filter(function filterItem(playerId) {
+    return actionsByPlayerId[playerId]?.kind === "move";
+  });
   if (actors.length < 2) {
     return actors;
   }
@@ -609,7 +648,9 @@ export function resolveTurn(input: {
   const actionPlayerIds = Object.keys(actionsByPlayerId).sort();
   if (
     actionPlayerIds.length > 2 ||
-    actionPlayerIds.some(playerId => !participantIds.includes(playerId))
+    actionPlayerIds.some(function testItem(playerId) {
+      return !participantIds.includes(playerId);
+    })
   ) {
     throw new Error("A turn accepts at most one action from each participant");
   }

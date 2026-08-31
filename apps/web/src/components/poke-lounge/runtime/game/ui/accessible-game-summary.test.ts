@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createTournamentBracketState } from "@poke-lounge/battle";
+import { createTournamentBracketState } from "@poke-lounge/battle/tournament-bracket";
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
-import { createGameStateStore } from "../state/gameStateStore";
+import { createGameStateStore } from "../state/game-state-store";
 import {
   createAccessibleGameSummary,
   localizePokeLoungeAccessibleSceneStatus,
 } from "./accessible-game-summary";
 
-test("접근성 요약은 솔로 파티의 HP와 기술 PP 및 랭킹 제외를 설명한다", () => {
+test("접근성 요약은 솔로 파티의 HP와 기술 PP 및 랭킹 제외를 설명한다", function testCase() {
   const store = createGameStateStore();
   store.setStarterPokemon({
     speciesId: 155,
@@ -34,7 +34,7 @@ test("접근성 요약은 솔로 파티의 HP와 기술 PP 및 랭킹 제외를 
   assert.match(summary, /몸통박치기 PP 31\/35/);
 });
 
-test("접근성 요약은 영어와 일본어 경로에서 핵심 상태를 현지화한다", () => {
+test("접근성 요약은 영어와 일본어 경로에서 핵심 상태를 현지화한다", function testCase() {
   const store = createGameStateStore();
   store.setStarterPokemon({
     speciesId: 155,
@@ -53,7 +53,7 @@ test("접근성 요약은 영어와 일본어 경로에서 핵심 상태를 현�
   assert.match(japaneseSummary, /先頭 Cyndaquil、レベル 10/);
 });
 
-test("접근성 요약은 내부 멀티플레이 방 코드를 노출하지 않는다", () => {
+test("접근성 요약은 내부 멀티플레이 방 코드를 노출하지 않는다", function testCase() {
   const store = createGameStateStore();
   store.setSession({
     sessionId: "session-1",
@@ -67,12 +67,14 @@ test("접근성 요약은 내부 멀티플레이 방 코드를 노출하지 않�
   assert.doesNotMatch(summary, /SECRET/);
 });
 
-test("부전승 플레이어에게 다른 참가자의 현재 경기를 상대라고 안내하지 않는다", () => {
+test("부전승 플레이어에게 다른 참가자의 현재 경기를 상대라고 안내하지 않는다", function testCase() {
   const bracket = createTournamentBracketState(
-    Array.from({ length: 3 }, (_, index) => ({
-      playerId: `player-${index + 1}`,
-      displayName: `Player ${index + 1}`,
-    })),
+    Array.from({ length: 3 }, function callback(_, index) {
+      return {
+        playerId: `player-${index + 1}`,
+        displayName: `Player ${index + 1}`,
+      };
+    }),
     1,
   );
   const projection: TournamentStateRoomPayload = {
@@ -88,13 +90,15 @@ test("부전승 플레이어에게 다른 참가자의 현재 경기를 상대�
       startedAtMs: 1_000,
       endsAtMs: 181_000,
     },
-    participants: bracket.participants.map(participant => ({
-      ...participant,
-      role: "participant",
-      ready: true,
-      partyReady: true,
-      connected: true,
-    })),
+    participants: bracket.participants.map(function mapItem(participant) {
+      return {
+        ...participant,
+        role: "participant",
+        ready: true,
+        partyReady: true,
+        connected: true,
+      };
+    }),
     tournament: {
       version: 2,
       bracket,
@@ -117,7 +121,7 @@ test("부전승 플레이어에게 다른 참가자의 현재 경기를 상대�
   assert.doesNotMatch(summary, /현재 상대 Player/);
 });
 
-test("영어와 일본어 접근성 이벤트는 전투·가방 핵심 상태를 현지화한다", () => {
+test("영어와 일본어 접근성 이벤트는 전투·가방 핵심 상태를 현지화한다", function testCase() {
   const battleStatus =
     "내 브케인 HP 24/30. 상대 치코리타 HP 18/30. 기술 몸통박치기 선택. PP 31/35.";
   const englishBattle = localizePokeLoungeAccessibleSceneStatus(battleStatus, "en-US");
@@ -143,7 +147,7 @@ test("영어와 일본어 접근성 이벤트는 전투·가방 핵심 상태를
   );
 });
 
-test("알 수 없는 한국어 접근성 이벤트는 다른 로케일에 원문을 노출하지 않는다", () => {
+test("알 수 없는 한국어 접근성 이벤트는 다른 로케일에 원문을 노출하지 않는다", function testCase() {
   assert.equal(
     localizePokeLoungeAccessibleSceneStatus("새로운 한국어 상태", "en-US"),
     "Game status updated.",

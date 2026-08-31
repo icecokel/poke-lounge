@@ -1,7 +1,7 @@
 import { redactSensitiveValue } from './redact-sensitive';
 
-describe('redactSensitiveValue', () => {
-  it('redacts user input and auth-like fields', () => {
+describe('redactSensitiveValue', function testSuite() {
+  it('redacts user input and auth-like fields', function testCase() {
     expect(
       redactSensitiveValue({
         question: '내 이력 비공개 질문',

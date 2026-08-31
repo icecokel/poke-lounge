@@ -58,10 +58,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       );
 
       // 알림 전송 (Fire-and-forget)
-      this.sendNotification(request, exception).catch((err: unknown) => {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        this.logger.error(`Failed to send notification: ${errorMessage}`);
-      });
+      this.sendNotification(request, exception).catch(
+        function handleRejected(this: HttpExceptionFilter, err: unknown): void {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          this.logger.error(`Failed to send notification: ${errorMessage}`);
+        }.bind(this),
+      );
     } else {
       this.logger.warn(errorLog);
     }

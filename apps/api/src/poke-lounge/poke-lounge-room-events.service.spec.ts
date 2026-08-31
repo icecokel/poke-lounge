@@ -1,7 +1,7 @@
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/competitive-ruleset-config';
 import { createTestInitialBattleState } from '../../test/support/competitive-party.fixture';
 import type { CompetitiveProjectionService } from './competitive/competitive-projection.service';
 import type { PokeLoungeRoomCommittedEvent } from './poke-lounge-room-event.publisher';
@@ -18,8 +18,8 @@ import type { PokeLoungePublicRoomState } from './poke-lounge-room.types';
 
 const TEST_EXPIRES_AT_MS = 253_402_300_799_999;
 
-describe('PokeLoungeRoomEventsService', () => {
-  it('publishes only a Redis cursor and relays the canonical public snapshot', async () => {
+describe('PokeLoungeRoomEventsService', function testSuite() {
+  it('publishes only a Redis cursor and relays the canonical public snapshot', async function testCase() {
     const harness = createHarness();
     const listener = roomEventListener();
     harness.service.subscribe(listener);
@@ -45,10 +45,12 @@ describe('PokeLoungeRoomEventsService', () => {
     expect(JSON.stringify(listener.mock.calls)).not.toContain('sessionId');
   });
 
-  it('ignores duplicate and reverse notifications while retaining terminal transitions', async () => {
+  it('ignores duplicate and reverse notifications while retaining terminal transitions', async function testCase() {
     const harness = createHarness();
     const receivedEvents: PokeLoungeRoomTransportEvent[] = [];
-    const listener = jest.fn((event: PokeLoungeRoomTransportEvent) => {
+    const listener = jest.fn(function mockFunction(
+      event: PokeLoungeRoomTransportEvent,
+    ) {
       receivedEvents.push(event);
     });
     harness.service.subscribe(listener);
@@ -93,7 +95,7 @@ describe('PokeLoungeRoomEventsService', () => {
     });
   });
 
-  it('serializes same-room notifications and relays a terminal transition once', async () => {
+  it('serializes same-room notifications and relays a terminal transition once', async function testCase() {
     const harness = createHarness();
     const listener = roomEventListener();
     harness.service.subscribe(listener);
@@ -132,7 +134,7 @@ describe('PokeLoungeRoomEventsService', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
-  it('drops expired cursors before accepting a reused room code', async () => {
+  it('drops expired cursors before accepting a reused room code', async function testCase() {
     const now = jest.spyOn(Date, 'now').mockReturnValue(1_000);
     const harness = createHarness();
     const listener = roomEventListener();
@@ -159,7 +161,7 @@ describe('PokeLoungeRoomEventsService', () => {
     }
   });
 
-  it('stops delivering events and closes the Redis subscription', async () => {
+  it('stops delivering events and closes the Redis subscription', async function testCase() {
     const harness = createHarness();
     const listener = roomEventListener();
     const unsubscribe = harness.service.subscribe(listener);
@@ -182,12 +184,12 @@ function createHarness() {
   const unsubscribeFromRedis = jest.fn().mockResolvedValue(undefined);
   const liveState = {
     publishRoomCommit: jest.fn().mockResolvedValue(undefined),
-    subscribeRoomCommits: jest.fn(
-      (listener: (notification: PokeLoungeRoomCommitNotification) => void) => {
-        notify = listener;
-        return Promise.resolve(unsubscribeFromRedis);
-      },
-    ),
+    subscribeRoomCommits: jest.fn(function mockFunction(
+      listener: (notification: PokeLoungeRoomCommitNotification) => void,
+    ) {
+      notify = listener;
+      return Promise.resolve(unsubscribeFromRedis);
+    }),
   } as unknown as jest.Mocked<PokeLoungeLiveStateService>;
   const projection = {
     findRoomSnapshot: jest.fn(),
@@ -250,16 +252,23 @@ function publicRoom(): PokeLoungePublicRoomState {
   return {
     ...snapshot,
     hostPlayerId: 'player-1',
-    participants: participants.map(
-      ({ playerId, displayName, role, ready, connected, joinedAtMs }) => ({
+    participants: participants.map(function mapItem({
+      playerId,
+      displayName,
+      role,
+      ready,
+      connected,
+      joinedAtMs,
+    }) {
+      return {
         playerId,
         displayName,
         role,
         ready,
         connected,
         joinedAtMs,
-      }),
-    ),
+      };
+    }),
   };
 }
 
@@ -304,7 +313,9 @@ function emptyTournament() {
 }
 
 function flushCommit(): Promise<void> {
-  return new Promise((resolve) => setImmediate(resolve));
+  return new Promise(function resolvePromise(resolve) {
+    return setImmediate(resolve);
+  });
 }
 
 function roomEventListener() {
@@ -313,7 +324,7 @@ function roomEventListener() {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((complete) => {
+  const promise = new Promise<T>(function resolvePromise(complete) {
     resolve = complete;
   });
   return { promise, resolve };

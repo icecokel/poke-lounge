@@ -14,12 +14,12 @@ import styles from "../../../poke-lounge.module.css";
 import type { StarterPokemon } from "../../types";
 import { playPokeLoungeSfx, primePokeLoungeAudio } from "../audio/poke-lounge-audio";
 import type { PokeLoungeRuntimeState } from "../game-page-state";
-import { deriveTemporaryRoomCode, normalizeTemporaryPassword } from "../network/roomEntry";
+import { deriveTemporaryRoomCode, normalizeTemporaryPassword } from "../network/room-entry";
 import {
   normalizeMultiplayerDisplayName,
   resolveInitialMultiplayerDisplayName,
-} from "../network/roomEntryScreen";
-import { getWebRtcSignalingCopy } from "../network/webRtcSignalingPanel";
+} from "../network/room-entry-screen";
+import { getWebRtcSignalingCopy } from "../network/web-rtc-signaling-panel";
 import { createRoomLobbyViewState, type RoomLobbyMutation } from "./room-lobby-screen";
 
 export function PokeLoungeRuntimeScreen({ state }: { state: PokeLoungeRuntimeState }) {
@@ -66,13 +66,13 @@ function RoomEntryScreen({
   state: Extract<PokeLoungeRuntimeState, { phase: "entry"; screen: "room" }>;
 }) {
   const copy = getPokeLoungeCopyForUrl(state.currentUrl);
-  const [displayName, setDisplayName] = useState(() =>
-    resolveInitialMultiplayerDisplayName(
+  const [displayName, setDisplayName] = useState(function callback() {
+    return resolveInitialMultiplayerDisplayName(
       state.initialDisplayName,
       copy.roomEntry.multiplayerNameModifiers,
       copy.roomEntry.multiplayerNameNouns,
-    ),
-  );
+    );
+  });
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
@@ -141,7 +141,7 @@ function RoomEntryScreen({
             aria-selected={selectedMode === "solo"}
             aria-controls="room-entry-solo-panel"
             disabled={pending}
-            onClick={() => {
+            onClick={function handleClick() {
               setActiveMode("solo");
               setMessage("");
             }}
@@ -157,7 +157,7 @@ function RoomEntryScreen({
               aria-selected={selectedMode === "multiplayer"}
               aria-controls="room-entry-multiplayer-panel"
               disabled={pending}
-              onClick={() => {
+              onClick={function handleClick() {
                 setActiveMode("multiplayer");
                 setMessage("");
               }}
@@ -177,7 +177,9 @@ function RoomEntryScreen({
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => selectSolo()}
+                onClick={function handleClick() {
+                  return selectSolo();
+                }}
                 data-room-entry-solo
               >
                 {copy.roomEntry.continue}
@@ -186,7 +188,7 @@ function RoomEntryScreen({
                 type="button"
                 className="room-entry-new-game-button"
                 disabled={pending}
-                onClick={() => {
+                onClick={function handleClick() {
                   playConfirmSound();
                   setNewGameOpen(true);
                 }}
@@ -207,7 +209,7 @@ function RoomEntryScreen({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => {
+                    onClick={function handleClick() {
                       playConfirmSound();
                       setPending(true);
                       setMessage(copy.roomEntry.preparing);
@@ -223,7 +225,7 @@ function RoomEntryScreen({
                     <button
                       type="button"
                       disabled={pending}
-                      onClick={() => {
+                      onClick={function handleClick() {
                         playConfirmSound();
                         setPending(true);
                         setMessage(copy.roomEntry.preparing);
@@ -259,7 +261,7 @@ function RoomEntryScreen({
                   value={displayName}
                   disabled={pending}
                   aria-invalid={!displayName.trim() || undefined}
-                  onChange={event => {
+                  onChange={function handleChange(event) {
                     setDisplayName(event.currentTarget.value);
                     setMessage("");
                   }}
@@ -308,7 +310,7 @@ function RoomEntryScreen({
                     placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
                     value={temporaryPassword}
                     disabled={pending}
-                    onChange={event => {
+                    onChange={function handleChange(event) {
                       setTemporaryPassword(event.currentTarget.value);
                       setMessage("");
                     }}
@@ -349,7 +351,9 @@ function RoomEntryScreen({
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              onClick={() => selectSolo(true)}
+              onClick={function handleClick() {
+                return selectSolo(true);
+              }}
               data-room-entry-new-start-confirm
             >
               {copy.roomEntry.resetAndStart}
@@ -367,13 +371,13 @@ function DirectMultiplayerEntryScreen({
   state: Extract<PokeLoungeRuntimeState, { phase: "entry"; screen: "direct-multiplayer" }>;
 }) {
   const copy = getPokeLoungeCopyForUrl(state.currentUrl);
-  const [displayName, setDisplayName] = useState(() =>
-    resolveInitialMultiplayerDisplayName(
+  const [displayName, setDisplayName] = useState(function callback() {
+    return resolveInitialMultiplayerDisplayName(
       state.initialDisplayName,
       copy.roomEntry.multiplayerNameModifiers,
       copy.roomEntry.multiplayerNameNouns,
-    ),
-  );
+    );
+  });
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const submit = (event: FormEvent) => {
@@ -409,7 +413,7 @@ function DirectMultiplayerEntryScreen({
             placeholder={copy.roomEntry.multiplayerNamePlaceholder}
             value={displayName}
             disabled={pending}
-            onChange={event => {
+            onChange={function handleChange(event) {
               setDisplayName(event.currentTarget.value);
               setMessage("");
             }}
@@ -441,7 +445,9 @@ function StarterSelectionScreen({
 }) {
   const [selectedStarterId, setSelectedStarterId] = useState(state.bootstrap.starters[0]?.id ?? "");
   const selectedStarter =
-    state.bootstrap.starters.find(starter => starter.id === selectedStarterId) ??
+    state.bootstrap.starters.find(function findItem(starter) {
+      return starter.id === selectedStarterId;
+    }) ??
     state.bootstrap.starters[0] ??
     null;
 
@@ -461,18 +467,20 @@ function StarterSelectionScreen({
         <div className="selection-body">
           <StarterPreview starter={selectedStarter} onConfirm={state.onSelect} />
           <div className="starter-grid" aria-label="Starter Pokemon options">
-            {state.bootstrap.starters.map(starter => (
-              <StarterCard
-                key={starter.id}
-                starter={starter}
-                selected={starter.id === selectedStarter?.id}
-                onSelect={() => {
-                  void primePokeLoungeAudio();
-                  playPokeLoungeSfx("button-confirm", { volume: 0.4 });
-                  setSelectedStarterId(starter.id);
-                }}
-              />
-            ))}
+            {state.bootstrap.starters.map(function mapItem(starter) {
+              return (
+                <StarterCard
+                  key={starter.id}
+                  starter={starter}
+                  selected={starter.id === selectedStarter?.id}
+                  onSelect={function handleSelect() {
+                    void primePokeLoungeAudio();
+                    playPokeLoungeSfx("button-confirm", { volume: 0.4 });
+                    setSelectedStarterId(starter.id);
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
       </div>
@@ -517,7 +525,7 @@ function StarterPreview({
         <button
           type="button"
           className="starter-confirm-button"
-          onClick={() => {
+          onClick={function handleClick() {
             void primePokeLoungeAudio();
             playPokeLoungeSfx("button-confirm");
             onConfirm(starter);
@@ -558,7 +566,9 @@ function StarterCard({
         src={starter.assetPath}
         alt=""
         aria-hidden="true"
-        onError={() => setMissing(true)}
+        onError={function handleError() {
+          return setMissing(true);
+        }}
       />
       <span className="starter-asset-status" role="status" hidden={!missing}>
         {missing ? `ROM asset missing: ${starter.assetPath}` : ""}
@@ -644,7 +654,7 @@ function RuntimeErrorScreen({
             <button
               type="button"
               disabled={retrying}
-              onClick={() => {
+              onClick={function handleClick() {
                 setRetrying(true);
                 state.onRetry?.();
               }}
@@ -712,8 +722,14 @@ export function RoomLobbyScreen({
         <RoomLobbyParticipantList copy={copy} projection={state.projection} />
         <RoomLobbyActions
           copy={copy}
-          onReady={() => void runMutation("ready", () => state.onSetReady(!view.ownReady))}
-          onStart={() => void runMutation("start", state.onStart)}
+          onReady={function handleReady() {
+            return void runMutation("ready", function callback() {
+              return state.onSetReady(!view.ownReady);
+            });
+          }}
+          onStart={function handleStart() {
+            return void runMutation("start", state.onStart);
+          }}
           view={view}
         />
         <RoomLobbyStatus errorMessage={errorMessage} status={status} />
@@ -750,20 +766,22 @@ export function RoomLobbyParticipantList({
       data-room-lobby-participants="true"
       tabIndex={0}
       aria-label={copy.participantListLabel}
-      onKeyDown={event => {
+      onKeyDown={function handleKeyDown(event) {
         if (event.key !== "Home" && event.key !== "End") return;
         event.preventDefault();
         event.currentTarget.scrollTop = event.key === "Home" ? 0 : event.currentTarget.scrollHeight;
       }}
     >
-      {projection.participants.map(participant => (
-        <RoomLobbyParticipantRow
-          key={participant.playerId}
-          copy={copy}
-          hostPlayerId={projection.hostPlayerId}
-          participant={participant}
-        />
-      ))}
+      {projection.participants.map(function mapItem(participant) {
+        return (
+          <RoomLobbyParticipantRow
+            key={participant.playerId}
+            copy={copy}
+            hostPlayerId={projection.hostPlayerId}
+            participant={participant}
+          />
+        );
+      })}
     </ul>
   );
 }
@@ -785,7 +803,9 @@ export function RoomLobbyParticipantRow({
     participant.ready ? copy.ready : copy.notReady,
     participant.connected ? copy.connected : copy.disconnected,
     participant.partyReady ? copy.partyReady : copy.partyMissing,
-  ].filter((label): label is string => Boolean(label));
+  ].filter(function filterItem(label): label is string {
+    return Boolean(label);
+  });
 
   return (
     <li
@@ -795,9 +815,9 @@ export function RoomLobbyParticipantRow({
     >
       <strong>{participant.displayName}</strong>
       <span className="room-lobby-badges">
-        {badges.map(label => (
-          <RoomLobbyBadge key={label} label={label} />
-        ))}
+        {badges.map(function mapItem(label) {
+          return <RoomLobbyBadge key={label} label={label} />;
+        })}
       </span>
     </li>
   );
@@ -935,7 +955,9 @@ export function WebRtcSignalingPanel({
         value={remoteSignal}
         disabled={processing}
         placeholder={copy.remoteSignal}
-        onChange={event => setRemoteSignal(event.currentTarget.value)}
+        onChange={function handleChange(event) {
+          return setRemoteSignal(event.currentTarget.value);
+        }}
         data-webrtc-remote-signal="true"
       />
       <div className="webrtc-signaling-panel__actions">
@@ -943,7 +965,11 @@ export function WebRtcSignalingPanel({
           type="button"
           className="webrtc-signaling-panel__button"
           disabled={processing}
-          onClick={() => void run(() => room.createOfferSignal(), copy.offerCreated)}
+          onClick={function handleClick() {
+            return void run(function callback() {
+              return room.createOfferSignal();
+            }, copy.offerCreated);
+          }}
           data-webrtc-create-offer="true"
         >
           {copy.createOffer}
@@ -952,9 +978,11 @@ export function WebRtcSignalingPanel({
           type="button"
           className="webrtc-signaling-panel__button"
           disabled={processing}
-          onClick={() =>
-            void run(() => room.acceptOfferSignal(remoteSignal.trim()), copy.answerCreated)
-          }
+          onClick={function handleClick() {
+            return void run(function callback() {
+              return room.acceptOfferSignal(remoteSignal.trim());
+            }, copy.answerCreated);
+          }}
           data-webrtc-accept-offer="true"
         >
           {copy.acceptOffer}
@@ -963,9 +991,11 @@ export function WebRtcSignalingPanel({
           type="button"
           className="webrtc-signaling-panel__button"
           disabled={processing}
-          onClick={() =>
-            void run(() => room.acceptAnswerSignal(remoteSignal.trim()), copy.answerApplied)
-          }
+          onClick={function handleClick() {
+            return void run(function callback() {
+              return room.acceptAnswerSignal(remoteSignal.trim());
+            }, copy.answerApplied);
+          }}
           data-webrtc-accept-answer="true"
         >
           {copy.acceptAnswer}
@@ -974,7 +1004,7 @@ export function WebRtcSignalingPanel({
           type="button"
           className="webrtc-signaling-panel__button webrtc-signaling-panel__button--danger"
           disabled={processing}
-          onClick={() => {
+          onClick={function handleClick() {
             room.dispose();
             setStatus(copy.ended);
             onLeave();

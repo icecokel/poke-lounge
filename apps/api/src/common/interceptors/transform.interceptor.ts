@@ -31,10 +31,12 @@ export class TransformInterceptor<T> implements NestInterceptor<
     next: CallHandler<T>,
   ): Observable<Response<T>> {
     return next.handle().pipe(
-      map((data: T) => ({
-        success: true,
-        data,
-      })),
+      map(function mapItem(data: T) {
+        return {
+          success: true,
+          data,
+        };
+      }),
     );
   }
 }

@@ -12,7 +12,7 @@ type WorldSnapshot = {
   interactionPrompt: string | null;
 };
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async function setUpTest({ page }) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
   await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
@@ -29,9 +29,13 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("[data-poke-lounge-world-hud='true']")).toBeVisible();
   await expect(page.locator("[data-poke-lounge-world-party-hud='true']")).toBeVisible();
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.player != null))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.player != null;
+      });
+    })
     .toBe(true);
-  await page.evaluate(() => {
+  await page.evaluate(function evaluatePage() {
     (
       window as Window & {
         __POKE_LOUNGE_E2E__?: { closeWorldShortcutGuide(): void };
@@ -39,14 +43,20 @@ test.beforeEach(async ({ page }) => {
     ).__POKE_LOUNGE_E2E__?.closeWorldShortcutGuide();
   });
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.shortcutGuideOpen ?? true))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.shortcutGuideOpen ?? true;
+      });
+    })
     .toBe(false);
   await expect(page.locator("[data-poke-lounge-world-surface='help']")).toHaveCount(0);
   await page.locator('#game-root[data-poke-lounge-game-surface="ready"]').focus();
   await page.waitForTimeout(100);
 });
 
-test("desktop 월드는 키보드 이동, 맵 경계 충돌과 카메라 clamp를 유지한다", async ({ page }) => {
+test("desktop 월드는 키보드 이동, 맵 경계 충돌과 카메라 clamp를 유지한다", async function testCase({
+  page,
+}) {
   const before = await readWorldSnapshot(page);
   expect(before?.player).not.toBeNull();
 
@@ -67,24 +77,29 @@ test("desktop 월드는 키보드 이동, 맵 경계 충돌과 카메라 clamp�
   await setWorldPlayerPosition(page, { x: 12, y: 288, facing: "left" });
   await holdGameMovementKey(page, "ArrowLeft", 350);
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.camera.scrollX ?? -1))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.camera.scrollX ?? -1;
+      });
+    })
     .toBe(0);
   expect((await readWorldSnapshot(page))?.player?.x).toBeGreaterThanOrEqual(12);
 
   await setWorldPlayerPosition(page, { x: 1268, y: 564, facing: "right" });
   await expect
     .poll(
-      () =>
-        readWorldSnapshot(page).then(snapshot =>
-          snapshot
+      function pollExpectation() {
+        return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+          return snapshot
             ? {
                 x: snapshot.camera.scrollX,
                 y: snapshot.camera.scrollY,
                 maxX: 1280 - snapshot.camera.width,
                 maxY: 576 - snapshot.camera.height,
               }
-            : null,
-        ),
+            : null;
+        });
+      },
       { timeout: 10_000 },
     )
     .toMatchObject({ x: expect.any(Number), y: expect.any(Number) });
@@ -96,7 +111,7 @@ test("desktop 월드는 키보드 이동, 맵 경계 충돌과 카메라 clamp�
   expect(camera?.scrollY).toBeLessThanOrEqual(576 - (camera?.height ?? 0));
 });
 
-test("desktop 월드의 6개 NPC 시설은 근접 상호작용에서만 열린다", async ({ page }) => {
+test("desktop 월드의 6개 NPC 시설은 근접 상호작용에서만 열린다", async function testCase({ page }) {
   await setWorldPlayerPosition(page, { x: 64, y: 512, facing: "front" });
   await pressGameKey(page, "Enter");
   expect((await readWorldSnapshot(page))?.surface).toBeNull();
@@ -110,7 +125,11 @@ test("desktop 월드의 6개 NPC 시설은 근접 상호작용에서만 열린�
   await setWorldPlayerPosition(page, { x: 640, y: 300, facing: "back" });
   await pressGameKey(page, "Enter");
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.nurseHealing.effectCount ?? 0))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.nurseHealing.effectCount ?? 0;
+      });
+    })
     .toBe(nurseBefore + 1);
   await expect(page.locator("[data-poke-lounge-nurse-effect='true']")).toBeVisible();
   expect((await readWorldSnapshot(page))?.nurseMessage).toContain("회복");
@@ -118,31 +137,41 @@ test("desktop 월드의 6개 NPC 시설은 근접 상호작용에서만 열린�
   await setWorldPlayerPosition(page, { x: 1024, y: 360, facing: "back" });
   await pressGameKey(page, "Enter");
   await expect
-    .poll(() =>
-      page
+    .poll(function pollExpectation() {
+      return page
         .locator("[data-world-battle-transition='true']")
-        .evaluate(element => Number.parseFloat(getComputedStyle(element).opacity)),
-    )
+        .evaluate(function evaluatePage(element) {
+          return Number.parseFloat(getComputedStyle(element).opacity);
+        });
+    })
     .toBeGreaterThan(0);
-  await expect.poll(() => readActiveScene(page), { timeout: 30_000 }).toBe("battle");
+  await expect
+    .poll(
+      function pollExpectation() {
+        return readActiveScene(page);
+      },
+      { timeout: 30_000 },
+    )
+    .toBe("battle");
   const battleScreen = page.locator("[data-poke-lounge-battle-screen='true']");
   await expect(battleScreen).toBeVisible();
   await expect(battleScreen.locator("[data-poke-lounge-battle-pokemon]")).toHaveCount(2);
   await expect(battleScreen.locator("[data-poke-lounge-battle-hp-panel]")).toHaveCount(2);
   await expect(battleScreen.locator("[data-poke-lounge-battle-surface='message']")).toBeVisible();
   await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
+    .poll(function pollExpectation() {
+      return page.evaluate(function evaluatePage() {
+        return (
           (
             window as Window & {
               __POKE_LOUNGE_E2E__?: {
                 getBattleSnapshot(): { battleEntrancePlaying: boolean } | null;
               };
             }
-          ).__POKE_LOUNGE_E2E__?.getBattleSnapshot()?.battleEntrancePlaying ?? true,
-      ),
-    )
+          ).__POKE_LOUNGE_E2E__?.getBattleSnapshot()?.battleEntrancePlaying ?? true
+        );
+      });
+    })
     .toBe(false);
   await battleScreen.locator("[data-poke-lounge-battle-help='true']").click();
   const battleHelp = battleScreen.locator("[data-poke-lounge-battle-surface='help']");
@@ -157,37 +186,47 @@ test("desktop 월드의 6개 NPC 시설은 근접 상호작용에서만 열린�
 async function chooseStarterIfNeeded(page: Page): Promise<void> {
   const starter = page.locator("[data-screen='starter-selection']");
   await expect
-    .poll(
-      async () =>
-        (await starter.isVisible().catch(() => false)) ||
+    .poll(async function pollExpectation() {
+      return (
+        (await starter.isVisible().catch(function handleRejected() {
+          return false;
+        })) ||
         (await page
           .locator('#game-root[data-poke-lounge-game-surface="ready"]')
           .isVisible()
-          .catch(() => false)),
-    )
+          .catch(function handleRejected() {
+            return false;
+          }))
+      );
+    })
     .toBe(true);
 
-  if (await starter.isVisible().catch(() => false)) {
+  if (
+    await starter.isVisible().catch(function handleRejected() {
+      return false;
+    })
+  ) {
     await page.locator("[data-starter-confirm]").click();
   }
 }
 
 async function readWorldSnapshot(page: Page): Promise<WorldSnapshot | null> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & {
           __POKE_LOUNGE_E2E__?: { getWorldSnapshot(): WorldSnapshot | null };
         }
-      ).__POKE_LOUNGE_E2E__?.getWorldSnapshot() ?? null,
-  );
+      ).__POKE_LOUNGE_E2E__?.getWorldSnapshot() ?? null
+    );
+  });
 }
 
 async function setWorldPlayerPosition(
   page: Page,
   position: { x: number; y: number; facing: "front" | "back" | "left" | "right" },
 ): Promise<void> {
-  await page.evaluate(value => {
+  await page.evaluate(function evaluatePage(value) {
     (
       window as Window & {
         __POKE_LOUNGE_E2E__?: { setWorldPlayerPositionForTest(position: typeof value): unknown };
@@ -206,11 +245,19 @@ async function openNearbySurface(
 ): Promise<void> {
   await setWorldPlayerPosition(page, { ...position, facing: "back" });
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.interactionPrompt ?? ""))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.interactionPrompt ?? "";
+      });
+    })
     .not.toBe("");
   await pressGameKey(page, "Enter");
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.surface ?? null))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.surface ?? null;
+      });
+    })
     .toBe(surface);
   await expect(page.locator(`[data-poke-lounge-world-surface='${surface}']`)).toBeVisible();
   if (shopKind) {
@@ -221,20 +268,25 @@ async function openNearbySurface(
   }
   await pressGameKey(page, "Backspace");
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.surface ?? null))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.surface ?? null;
+      });
+    })
     .toBeNull();
   await expect(page.locator("[data-poke-lounge-world-surface]")).toHaveCount(0);
 }
 
 async function readActiveScene(page: Page): Promise<string | null> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & {
           __POKE_LOUNGE_E2E__?: { getActiveSceneKey(): string | null };
         }
-      ).__POKE_LOUNGE_E2E__?.getActiveSceneKey() ?? null,
-  );
+      ).__POKE_LOUNGE_E2E__?.getActiveSceneKey() ?? null
+    );
+  });
 }
 
 async function pressGameKey(page: Page, key: "Backspace" | "Enter"): Promise<void> {

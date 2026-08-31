@@ -2,8 +2,8 @@ import { createTestPartySnapshot } from '../../test/support/competitive-party.fi
 import { toPokeLoungePublicRoomState } from './poke-lounge-room-conflict';
 import type { PokeLoungeRoomSnapshot } from './poke-lounge-room.repository';
 
-describe('toPokeLoungePublicRoomState', () => {
-  it('exposes only the active representative summary before a match', () => {
+describe('toPokeLoungePublicRoomState', function testSuite() {
+  it('exposes only the active representative summary before a match', function testCase() {
     const snapshot = roomSnapshot();
     snapshot.participants = [
       {

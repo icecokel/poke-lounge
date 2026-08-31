@@ -1,4 +1,4 @@
-import { FIELD_MAP } from "./fieldMap";
+import { FIELD_MAP } from "./field-map";
 import type { WorldMapModel, WorldMapNpcModel } from "./world-map-model";
 
 export interface WorldPosition {
@@ -76,7 +76,9 @@ export function worldPlayerCollides(position: WorldPosition, model: WorldMapMode
     }
   }
 
-  return model.npcs.some(npc => rectanglesOverlap(player, getNpcHitbox(npc)));
+  return model.npcs.some(function testItem(npc) {
+    return rectanglesOverlap(player, getNpcHitbox(npc));
+  });
 }
 
 export function getPlayerHitbox(position: WorldPosition) {

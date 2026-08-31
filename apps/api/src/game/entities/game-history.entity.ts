@@ -39,6 +39,8 @@ export class GameHistory {
   @Column({ name: 'userId' })
   userId: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(function callback() {
+    return User;
+  })
   user: User;
 }

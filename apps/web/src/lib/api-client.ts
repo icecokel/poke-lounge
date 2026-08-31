@@ -85,7 +85,9 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
+      const errorData = await response.json().catch(function handleRejected() {
+        return null;
+      });
       throw new ApiError(
         response.status,
         errorData?.message || `API 요청 실패 (${response.status})`,

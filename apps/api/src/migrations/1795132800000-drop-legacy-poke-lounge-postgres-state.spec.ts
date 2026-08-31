@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { DropLegacyPokeLoungePostgresState1795132800000 } from './1795132800000-drop-legacy-poke-lounge-postgres-state';
 
-describe('DropLegacyPokeLoungePostgresState1795132800000 SQL contract', () => {
-  it('fails closed, locks the legacy tables, and drops them child first', async () => {
+describe('DropLegacyPokeLoungePostgresState1795132800000 SQL contract', function testSuite() {
+  it('fails closed, locks the legacy tables, and drops them child first', async function testCase() {
     const migration = new DropLegacyPokeLoungePostgresState1795132800000();
     const queries = await captureQueries(migration, 'up');
     const sql = queries.join('\n');
@@ -25,7 +25,7 @@ describe('DropLegacyPokeLoungePostgresState1795132800000 SQL contract', () => {
     expect(sql).not.toMatch(/\bCASCADE\b|\bIF EXISTS\b/);
   });
 
-  it('marks rollback as irreversible', async () => {
+  it('marks rollback as irreversible', async function testCase() {
     const queries = await captureQueries(
       new DropLegacyPokeLoungePostgresState1795132800000(),
       'down',

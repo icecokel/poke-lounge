@@ -11,21 +11,25 @@ const DOCUMENT_KEYS = [
   'growth-table',
 ] as const;
 
-describe('PokeLoungeRomDataService', () => {
-  it('returns the exact four validated ROM documents from one query', async () => {
-    const query = jest
-      .fn()
-      .mockResolvedValue(DOCUMENT_KEYS.map((key) => row(key)));
+describe('PokeLoungeRomDataService', function testSuite() {
+  it('returns the exact four validated ROM documents from one query', async function testCase() {
+    const query = jest.fn().mockResolvedValue(
+      DOCUMENT_KEYS.map(function mapItem(key) {
+        return row(key);
+      }),
+    );
     const service = new PokeLoungeRomDataService({ query } as never);
 
     await expect(service.getRuntimeData()).resolves.toEqual({
-      documents: DOCUMENT_KEYS.map((documentKey) => ({
-        documentKey,
-        schemaVersion: 1,
-        romSha1: ROM_SHA1,
-        contentSha256: CONTENT_SHA256,
-        payload: payload(documentKey),
-      })),
+      documents: DOCUMENT_KEYS.map(function mapItem(documentKey) {
+        return {
+          documentKey,
+          schemaVersion: 1,
+          romSha1: ROM_SHA1,
+          contentSha256: CONTENT_SHA256,
+          payload: payload(documentKey),
+        };
+      }),
     });
     expect(query).toHaveBeenCalledTimes(1);
   });
@@ -35,7 +39,7 @@ describe('PokeLoungeRomDataService', () => {
     ['premium', [80, 25]],
   ] as const)(
     'returns only the %s shop catalog',
-    async (shopKind, expected) => {
+    async function callback(shopKind, expected) {
       const query = jest
         .fn()
         .mockResolvedValue([row('item-data', shopPayload())]);
@@ -68,7 +72,7 @@ describe('PokeLoungeRomDataService', () => {
       'missing item record',
       [row('item-data', shopPayload({ basic: [2], premium: [80] }))],
     ],
-  ])('rejects %s shop catalog data', async (_label, rows) => {
+  ])('rejects %s shop catalog data', async function callback(_label, rows) {
     const service = new PokeLoungeRomDataService({
       query: jest.fn().mockResolvedValue(rows),
     } as unknown as DataSource);
@@ -80,32 +84,37 @@ describe('PokeLoungeRomDataService', () => {
 
   it.each([
     ['empty', []],
-    ['missing', DOCUMENT_KEYS.slice(0, 3).map((key) => row(key))],
+    [
+      'missing',
+      DOCUMENT_KEYS.slice(0, 3).map(function mapItem(key) {
+        return row(key);
+      }),
+    ],
     [
       'wrong ROM',
-      DOCUMENT_KEYS.map((key) =>
-        key === 'pokemon-data'
+      DOCUMENT_KEYS.map(function mapItem(key) {
+        return key === 'pokemon-data'
           ? { ...row(key), romSha1: 'b'.repeat(40) }
-          : row(key),
-      ),
+          : row(key);
+      }),
     ],
     [
       'wrong content hash',
-      DOCUMENT_KEYS.map((key) =>
-        key === 'growth-table'
+      DOCUMENT_KEYS.map(function mapItem(key) {
+        return key === 'growth-table'
           ? { ...row(key), contentSha256: 'x'.repeat(64) }
-          : row(key),
-      ),
+          : row(key);
+      }),
     ],
     [
       'malformed payload',
-      DOCUMENT_KEYS.map((key) =>
-        key === 'item-data' ? { ...row(key), payload: {} } : row(key),
-      ),
+      DOCUMENT_KEYS.map(function mapItem(key) {
+        return key === 'item-data' ? { ...row(key), payload: {} } : row(key);
+      }),
     ],
   ])(
     'rejects %s data instead of returning a partial bundle',
-    async (_label, rows) => {
+    async function callback(_label, rows) {
       const service = new PokeLoungeRomDataService({
         query: jest.fn().mockResolvedValue(rows),
       } as unknown as DataSource);

@@ -30,9 +30,9 @@ const publicGameUrl = "/ko-KR/game/poke-lounge?e2e=1";
 
 test.use({ trace: "off" });
 
-test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시 같은 3분을 받는다", async ({
+test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시 같은 3분을 받는다", async function testCase({
   browser,
-}) => {
+}) {
   test.setTimeout(120_000);
 
   expect(process.env.POKE_LOUNGE_E2E_ENV_ISOLATED).toBe("1");
@@ -48,7 +48,7 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
   const roomRequests: Array<{ authorization?: string; path: string }> = [];
 
   for (const page of [hostPage, guestPage]) {
-    page.on("request", request => {
+    page.on("request", function handleEvent(request) {
       const path = new URL(request.url()).pathname;
       if (path.includes("/poke-lounge/rooms")) {
         roomRequests.push({ authorization: request.headers().authorization, path });
@@ -72,15 +72,22 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
     await expect(hostPage.locator("[data-room-lobby-status='true']")).toBeVisible();
 
     expect(guestRoom.roomCode === hostRoom.roomCode).toBe(true);
-    expect(guestRoom.participants.map(participant => participant.displayName)).toEqual([
-      "빠른 레드",
-      "침착한 그린",
-    ]);
-    expect(new Set(guestRoom.participants.map(participant => participant.playerId)).size).toBe(2);
+    expect(
+      guestRoom.participants.map(function mapItem(participant) {
+        return participant.displayName;
+      }),
+    ).toEqual(["빠른 레드", "침착한 그린"]);
+    expect(
+      new Set(
+        guestRoom.participants.map(function mapItem(participant) {
+          return participant.playerId;
+        }),
+      ).size,
+    ).toBe(2);
     for (const page of [hostPage, guestPage]) {
       expect(new URL(page.url()).searchParams.has("room")).toBe(false);
       expect(
-        await page.locator("body").evaluate((body, roomCode) => {
+        await page.locator("body").evaluate(function evaluatePage(body, roomCode) {
           return !body.textContent?.includes(roomCode);
         }, hostRoom.roomCode),
       ).toBe(true);
@@ -95,7 +102,7 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
 
     const startButton = hostPage.locator("[data-room-lobby-start='true']");
     await expect(startButton).toBeEnabled();
-    const startResponse = hostPage.waitForResponse(response => {
+    const startResponse = hostPage.waitForResponse(function callback(response) {
       const url = new URL(response.url());
       return (
         response.request().method() === "POST" && url.pathname.endsWith("/start") && response.ok()
@@ -113,12 +120,27 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
       endsAtMs: startedRoom.round.endsAtMs,
     };
     for (const page of [hostPage, guestPage]) {
-      await expect.poll(() => getRoundClock(page), { timeout: 30_000 }).toEqual(expectedClock);
+      await expect
+        .poll(
+          function pollExpectation() {
+            return getRoundClock(page);
+          },
+          { timeout: 30_000 },
+        )
+        .toEqual(expectedClock);
       await expect(page.locator("[data-room-lobby='true']")).toBeHidden();
     }
 
-    expect(roomRequests.some(request => request.path.endsWith("/competitive-seat"))).toBe(false);
-    expect(roomRequests.every(request => request.authorization === undefined)).toBe(true);
+    expect(
+      roomRequests.some(function testItem(request) {
+        return request.path.endsWith("/competitive-seat");
+      }),
+    ).toBe(false);
+    expect(
+      roomRequests.every(function testItem(request) {
+        return request.authorization === undefined;
+      }),
+    ).toBe(true);
   } finally {
     await Promise.all([hostContext.close(), guestContext.close()]);
   }
@@ -140,13 +162,27 @@ async function enterPublicRoom(
   const starterSelection = page.locator("[data-screen='starter-selection']");
   const surface = page.locator('#game-root[data-poke-lounge-game-surface="ready"]');
   await expect
-    .poll(async () => {
-      if (await starterSelection.isVisible().catch(() => false)) return "starter";
-      if (await surface.isVisible().catch(() => false)) return "surface";
+    .poll(async function pollExpectation() {
+      if (
+        await starterSelection.isVisible().catch(function handleRejected() {
+          return false;
+        })
+      )
+        return "starter";
+      if (
+        await surface.isVisible().catch(function handleRejected() {
+          return false;
+        })
+      )
+        return "surface";
       return null;
     })
     .not.toBeNull();
-  if (await starterSelection.isVisible().catch(() => false)) {
+  if (
+    await starterSelection.isVisible().catch(function handleRejected() {
+      return false;
+    })
+  ) {
     await page.locator("[data-starter-confirm]").click();
   }
 }
@@ -165,7 +201,7 @@ function isRoomCreationResponse(response: {
 }
 
 async function getRoundClock(page: Page): Promise<PublicRoom["round"] | null> {
-  return page.evaluate(() => {
+  return page.evaluate(function evaluatePage() {
     const pokeWindow = window as PokeLoungeWindow;
     const roomRound =
       pokeWindow.__POKE_LOUNGE_E2E__?.getGameStateSnapshot().tournament.serverProjection?.roomRound;

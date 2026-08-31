@@ -9,11 +9,19 @@ export class RuntimeKeyboard {
   }
 
   isDown(...codes: string[]): boolean {
-    return codes.some(code => this.held.has(code));
+    return codes.some(
+      function testItem(this: RuntimeKeyboard, code: string): boolean {
+        return this.held.has(code);
+      }.bind(this),
+    );
   }
 
   consume(...codes: string[]): boolean {
-    const code = codes.find(candidate => this.pressed.has(candidate));
+    const code = codes.find(
+      function findItem(this: RuntimeKeyboard, candidate: string): boolean {
+        return this.pressed.has(candidate);
+      }.bind(this),
+    );
     if (!code) return false;
     this.pressed.delete(code);
     return true;

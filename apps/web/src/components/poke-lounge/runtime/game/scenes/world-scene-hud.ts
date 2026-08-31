@@ -4,12 +4,12 @@ import {
   formatRoundTimer,
   getRoundRemainingMs,
   type GameRoundState,
-} from "../round/roundState";
+} from "../round/round-state";
 import type {
   GameStateStore,
   PlayerCompetitiveStats,
   PlayerPokemon,
-} from "../state/gameStateStore";
+} from "../state/game-state-store";
 import { usesPokeLoungeMobileShell } from "../ui/mobile-ui-capability";
 import type { WorldUiStore } from "../world/world-ui-store";
 
@@ -96,7 +96,11 @@ class DefaultWorldSceneHud implements WorldSceneHudController {
     if (this.partyHudSubscribed) return;
     this.partyHudSubscribed = true;
     this.dependencies.addUnsubscriber(
-      this.dependencies.gameStateStore.subscribe(() => this.render()),
+      this.dependencies.gameStateStore.subscribe(
+        function callback(this: DefaultWorldSceneHud): void {
+          return this.render();
+        }.bind(this),
+      ),
     );
   }
 
@@ -164,9 +168,9 @@ class DefaultWorldSceneHud implements WorldSceneHudController {
 
   getPartyPokemonBySlotIndex(slotIndex: number): PlayerPokemon | null {
     return (
-      this.dependencies.gameStateStore
-        .getCurrentLocalPlayer()
-        .party.find(slot => slot.slotIndex === slotIndex)?.pokemon ?? null
+      this.dependencies.gameStateStore.getCurrentLocalPlayer().party.find(function findItem(slot) {
+        return slot.slotIndex === slotIndex;
+      })?.pokemon ?? null
     );
   }
 

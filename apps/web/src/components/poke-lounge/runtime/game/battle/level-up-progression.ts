@@ -1,12 +1,12 @@
-import type { PlayerPokemon, PlayerPokemonMove } from "../state/gameStateStore";
-import type { BattleMove, BattlePokemon } from "./battleTypes";
-import { planLevelUpBattleMoves, planLevelUpPlayerMoves } from "./levelUpMoves";
+import type { PlayerPokemon, PlayerPokemonMove } from "../state/game-state-store";
+import type { BattleMove, BattlePokemon } from "./battle-types";
+import { planLevelUpBattleMoves, planLevelUpPlayerMoves } from "./level-up-moves";
 import {
   applyLevelUpEvolution,
   applyPlayerLevelUpEvolution,
   type PokemonEvolutionTable,
 } from "./pokemon-evolution";
-import type { RomPersonalRecordCollection, RomRefinedMoveCollection } from "./wildBattleFactory";
+import type { RomPersonalRecordCollection, RomRefinedMoveCollection } from "./wild-battle-factory";
 
 export interface PendingBattleMoveLearning {
   pokemonName: string;
@@ -45,7 +45,11 @@ export function planLevelUpBattleProgression({
   let nextPokemon = pokemon;
   const pendingMoveLearnings: PendingBattleMoveLearning[] = [];
   const messages: string[] = [];
-  const knownMoveIds = new Set(pokemon.moves.map(move => move.id));
+  const knownMoveIds = new Set(
+    pokemon.moves.map(function mapItem(move) {
+      return move.id;
+    }),
+  );
   let evolved = false;
 
   for (let currentLevel = previousLevel + 1; currentLevel <= pokemon.level; currentLevel += 1) {
@@ -61,10 +65,12 @@ export function planLevelUpBattleProgression({
         moveRecords,
       });
       nextPokemon = moveLearningResult.pokemon;
-      nextPokemon.moves.forEach(move => knownMoveIds.add(move.id));
+      nextPokemon.moves.forEach(function visitItem(move) {
+        return knownMoveIds.add(move.id);
+      });
       messages.push(...moveLearningResult.messages);
 
-      moveLearningResult.pendingMoves.forEach(move => {
+      moveLearningResult.pendingMoves.forEach(function visitItem(move) {
         if (knownMoveIds.has(move.id)) {
           return;
         }
@@ -114,7 +120,11 @@ export function planLevelUpPlayerProgression<TPokemon extends PlayerPokemon>({
   let nextPokemon = pokemon;
   const pendingMoveReplacements: PlayerPokemonMove[] = [];
   const messages: string[] = [];
-  const knownMoveIds = new Set((pokemon.moves ?? []).map(move => move.id));
+  const knownMoveIds = new Set(
+    (pokemon.moves ?? []).map(function mapItem(move) {
+      return move.id;
+    }),
+  );
   let evolved = false;
 
   for (let currentLevel = previousLevel + 1; currentLevel <= pokemon.level; currentLevel += 1) {
@@ -129,10 +139,12 @@ export function planLevelUpPlayerProgression<TPokemon extends PlayerPokemon>({
         previousLevel: currentLevel - 1,
       });
       nextPokemon = moveLearningResult.pokemon;
-      nextPokemon.moves?.forEach(move => knownMoveIds.add(move.id));
+      nextPokemon.moves?.forEach(function visitItem(move) {
+        return knownMoveIds.add(move.id);
+      });
       messages.push(...moveLearningResult.messages);
 
-      moveLearningResult.pendingMoves.forEach(move => {
+      moveLearningResult.pendingMoves.forEach(function visitItem(move) {
         if (knownMoveIds.has(move.id)) {
           return;
         }

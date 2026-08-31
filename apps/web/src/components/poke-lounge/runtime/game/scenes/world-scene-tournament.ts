@@ -1,11 +1,11 @@
-import type { BattleResultReason } from "../battle/battleTypes";
+import type { BattleResultReason } from "../battle/battle-types";
 import {
   createRoundScoreUpdatedAuthorityPayloads,
   createTournamentCompletedAuthorityPayload,
   createTournamentMatchResultAuthorityPayload,
-} from "../network/tournamentAuthority";
-import type { PlayerSnapshot } from "../network/localPreviewRoom";
-import { ROUND_TOTAL_COUNT } from "../round/roundState";
+} from "../network/tournament-authority";
+import type { PlayerSnapshot } from "../network/local-preview-room";
+import { ROUND_TOTAL_COUNT } from "../round/round-state";
 import {
   findCurrentMatch,
   type TournamentCompetitionKind,
@@ -16,13 +16,13 @@ import {
   type GameState,
   type GameStateStore,
   type LocalPlayerState,
-} from "../state/gameStateStore";
-import type { TournamentMatch, TournamentStanding } from "../tournament/tournamentState";
-import type { TournamentSession } from "../tournament/tournamentSession";
+} from "../state/game-state-store";
+import type { TournamentMatch, TournamentStanding } from "@poke-lounge/battle/tournament-bracket";
+import type { TournamentSession } from "../tournament/tournament-session";
 import {
   createTournamentResultPanelViewModel,
   formatTournamentResultRow,
-} from "../tournament/tournamentResultViewModel";
+} from "../tournament/tournament-result-view-model";
 
 export interface WorldTournamentBattleResult {
   matchId: string;
@@ -173,11 +173,13 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       return;
     }
 
-    const standings = recorded.standings.map(standing => ({
-      playerId: standing.playerId,
-      rank: standing.rank,
-      score: standing.score,
-    }));
+    const standings = recorded.standings.map(function mapItem(standing) {
+      return {
+        playerId: standing.playerId,
+        rank: standing.rank,
+        score: standing.score,
+      };
+    });
     const completedPayload = createTournamentCompletedAuthorityPayload({
       hostPlayerId,
       session: recorded.session,
@@ -236,7 +238,9 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
         panel.rankingLabel,
         panel.nextActionLabel,
       ]
-        .filter((line): line is string => Boolean(line))
+        .filter(function filterItem(line): line is string {
+          return Boolean(line);
+        })
         .join("\n"),
       "14px",
     );
@@ -292,10 +296,12 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       }
 
       const started = gameStateStore.startTournamentSession(
-        tournamentPlayers.map(player => ({
-          playerId: player.playerId,
-          displayName: player.displayName,
-        })),
+        tournamentPlayers.map(function mapItem(player) {
+          return {
+            playerId: player.playerId,
+            displayName: player.displayName,
+          };
+        }),
       );
 
       if (!started.ok) {
@@ -338,17 +344,25 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
     const state = gameStateStore.getState();
     const currentPlayer = state.playersById[state.currentPlayerId];
     const otherPlayers = Object.values(state.playersById)
-      .filter(player => player.playerId !== state.currentPlayerId)
-      .sort((left, right) =>
-        left.playerId.localeCompare(right.playerId, undefined, { numeric: true }),
-      );
+      .filter(function filterItem(player) {
+        return player.playerId !== state.currentPlayerId;
+      })
+      .sort(function compareItems(left, right) {
+        return left.playerId.localeCompare(right.playerId, undefined, { numeric: true });
+      });
     const localPlayers = [currentPlayer, ...otherPlayers].filter(
-      (player): player is LocalPlayerState => Boolean(player),
+      function filterItem(player): player is LocalPlayerState {
+        return Boolean(player);
+      },
     );
-    const usedPlayerIds = new Set(localPlayers.map(player => player.playerId));
+    const usedPlayerIds = new Set(
+      localPlayers.map(function mapItem(player) {
+        return player.playerId;
+      }),
+    );
     const remotePlayers = this.dependencies
       .getRemotePlayerSnapshots()
-      .map(snapshot => {
+      .map(function mapItem(snapshot) {
         const preferredPlayerId = snapshot.playerId?.trim() || snapshot.sessionId;
         const playerId = usedPlayerIds.has(preferredPlayerId)
           ? snapshot.sessionId
@@ -361,16 +375,20 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
 
         return player;
       })
-      .filter((player): player is LocalPlayerState => Boolean(player))
-      .sort((left, right) =>
-        left.playerId.localeCompare(right.playerId, undefined, { numeric: true }),
-      );
+      .filter(function filterItem(player): player is LocalPlayerState {
+        return Boolean(player);
+      })
+      .sort(function compareItems(left, right) {
+        return left.playerId.localeCompare(right.playerId, undefined, { numeric: true });
+      });
 
     return [...localPlayers, ...remotePlayers].filter(hasActiveTournamentPokemon).slice(0, 6);
   }
 
   private getTournamentBattlePlayer(playerId: string): LocalPlayerState | undefined {
-    return this.getEligibleTournamentPlayers().find(player => player.playerId === playerId);
+    return this.getEligibleTournamentPlayers().find(function findItem(player) {
+      return player.playerId === playerId;
+    });
   }
 
   private tryStartServerTournamentBattle(): boolean {
@@ -388,9 +406,9 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       return false;
     }
 
-    const opponentPlayerId = getMatchParticipantIds(match).find(
-      playerId => playerId !== state.currentPlayerId,
-    );
+    const opponentPlayerId = getMatchParticipantIds(match).find(function findItem(playerId) {
+      return playerId !== state.currentPlayerId;
+    });
     const player = this.getTournamentBattlePlayer(state.currentPlayerId);
     const opponent = opponentPlayerId
       ? this.getTournamentBattlePlayer(opponentPlayerId)
@@ -455,12 +473,18 @@ export function createServerTournamentAnnouncementText({
   casualBattleAvailable,
 }: CreateServerTournamentAnnouncementTextInput): string {
   const participants = projection.participants;
-  const tournamentParticipants = participants.filter(
-    participant => participant.role === "participant",
-  );
-  const spectators = participants.filter(participant => participant.role === "spectator");
-  const readyCount = tournamentParticipants.filter(participant => participant.ready).length;
-  const connectedCount = participants.filter(participant => participant.connected).length;
+  const tournamentParticipants = participants.filter(function filterItem(participant) {
+    return participant.role === "participant";
+  });
+  const spectators = participants.filter(function filterItem(participant) {
+    return participant.role === "spectator";
+  });
+  const readyCount = tournamentParticipants.filter(function filterItem(participant) {
+    return participant.ready;
+  }).length;
+  const connectedCount = participants.filter(function filterItem(participant) {
+    return participant.connected;
+  }).length;
   const bracket = projection.tournament.bracket;
   const activeMatch = findCurrentMatch(bracket, projection.tournament.activeMatchId);
   const lines = [
@@ -534,21 +558,31 @@ function createOwnCumulativeStatusLabel(projection: TournamentStateRoomPayload):
   }
 
   const ranked = projection.participants
-    .filter(participant => participant.role === "participant")
-    .map((participant, index) => ({
-      playerId: participant.playerId,
-      score: projection.tournament.cumulativeScores[participant.playerId] ?? 0,
-      order: index,
-    }))
-    .sort((left, right) => right.score - left.score || left.order - right.order);
-  const ownIndex = ranked.findIndex(row => row.playerId === projection.ownPlayerId);
+    .filter(function filterItem(participant) {
+      return participant.role === "participant";
+    })
+    .map(function mapItem(participant, index) {
+      return {
+        playerId: participant.playerId,
+        score: projection.tournament.cumulativeScores[participant.playerId] ?? 0,
+        order: index,
+      };
+    })
+    .sort(function compareItems(left, right) {
+      return right.score - left.score || left.order - right.order;
+    });
+  const ownIndex = ranked.findIndex(function findItemIndex(row) {
+    return row.playerId === projection.ownPlayerId;
+  });
   if (ownIndex < 0) {
     return null;
   }
   const previous = ranked[ownIndex - 1];
   const rank =
     previous?.score === ranked[ownIndex]!.score
-      ? ranked.findIndex(row => row.score === ranked[ownIndex]!.score) + 1
+      ? ranked.findIndex(function findItemIndex(row) {
+          return row.score === ranked[ownIndex]!.score;
+        }) + 1
       : ownIndex + 1;
 
   return `내 누적 순위 · ${rank}위 · ${formatScore(ranked[ownIndex]!.score)}점`;
@@ -563,9 +597,9 @@ function createOwnTournamentStatusLabel(
   activeMatch: TournamentMatch | null,
 ): string | null {
   const ownPlayerId = projection.ownPlayerId;
-  const ownParticipant = projection.participants.find(
-    participant => participant.playerId === ownPlayerId,
-  );
+  const ownParticipant = projection.participants.find(function findItem(participant) {
+    return participant.playerId === ownPlayerId;
+  });
   const bracket = projection.tournament.bracket;
   const ownIdentity = ownParticipant
     ? `${ownParticipant.seed ? `#${ownParticipant.seed} ` : ""}${truncateDisplayName(ownParticipant.displayName)}`
@@ -587,14 +621,24 @@ function createOwnTournamentStatusLabel(
     return `내 상태 · ${ownIdentity} · 우승`;
   }
 
-  if (bracket.eliminations.some(elimination => elimination.playerId === ownPlayerId)) {
+  if (
+    bracket.eliminations.some(function testItem(elimination) {
+      return elimination.playerId === ownPlayerId;
+    })
+  ) {
     return `내 상태 · ${ownIdentity} · 탈락 · 최종 순위 확정 대기`;
   }
 
   const completedOwnMatches = [
-    ...bracket.completedRounds.flatMap(round => round.matches),
-    ...(bracket.currentRound?.matches.filter(match => match.status === "completed") ?? []),
-  ].filter(match => match.participantIds.includes(ownPlayerId));
+    ...bracket.completedRounds.flatMap(function mapItem(round) {
+      return round.matches;
+    }),
+    ...(bracket.currentRound?.matches.filter(function filterItem(match) {
+      return match.status === "completed";
+    }) ?? []),
+  ].filter(function filterItem(match) {
+    return match.participantIds.includes(ownPlayerId);
+  });
   const lastOwnMatch = completedOwnMatches.at(-1);
   const progressionLabel = lastOwnMatch?.winnerPlayerId === ownPlayerId ? "진출 · " : "";
 
@@ -602,15 +646,19 @@ function createOwnTournamentStatusLabel(
     return `내 상태 · ${ownIdentity} · ${progressionLabel}상대 ${formatOpponent(activeMatch, ownPlayerId)}`;
   }
 
-  const nextMatch = bracket.currentRound?.matches.find(
-    match => match.status === "ready" && match.participantIds.includes(ownPlayerId),
-  );
+  const nextMatch = bracket.currentRound?.matches.find(function findItem(match) {
+    return match.status === "ready" && match.participantIds.includes(ownPlayerId);
+  });
 
   if (nextMatch) {
     return `내 상태 · ${ownIdentity} · ${progressionLabel}다음 상대 ${formatOpponent(nextMatch, ownPlayerId)}`;
   }
 
-  if (bracket.currentRound?.byes.some(bye => bye.entrant.playerId === ownPlayerId)) {
+  if (
+    bracket.currentRound?.byes.some(function testItem(bye) {
+      return bye.entrant.playerId === ownPlayerId;
+    })
+  ) {
     return `내 상태 · ${ownIdentity} · 부전승 진출 · 다음 대진 대기`;
   }
 
@@ -667,20 +715,22 @@ function getMatchParticipantIds(match: TournamentMatch): [string, string] {
 }
 
 function createVisibleTournamentStandings(state: GameState): TournamentStanding[] {
-  return state.tournament.standings.map(standing => ({
-    playerId: standing.playerId,
-    displayName: standing.displayName,
-    seed: standing.seed,
-    rank: standing.rank,
-    champion: standing.rank === 1,
-    eliminatedRoundNumber: standing.rank === 1 ? null : state.round.roundIndex,
-  }));
+  return state.tournament.standings.map(function mapItem(standing) {
+    return {
+      playerId: standing.playerId,
+      displayName: standing.displayName,
+      seed: standing.seed,
+      rank: standing.rank,
+      champion: standing.rank === 1,
+      eliminatedRoundNumber: standing.rank === 1 ? null : state.round.roundIndex,
+    };
+  });
 }
 
 function hasActiveTournamentPokemon(player: LocalPlayerState): boolean {
-  const activePokemon = player.party.find(
-    slot => slot.slotIndex === player.activePartySlotIndex,
-  )?.pokemon;
+  const activePokemon = player.party.find(function findItem(slot) {
+    return slot.slotIndex === player.activePartySlotIndex;
+  })?.pokemon;
 
   if (!activePokemon || activePokemon.status === "fainted") {
     return false;
@@ -729,15 +779,19 @@ function cloneTournamentSnapshotParty(
   party: PlayerSnapshot["party"] | undefined,
 ): NonNullable<PlayerSnapshot["party"]> {
   return (
-    party?.map(slot => ({
-      slotIndex: slot.slotIndex,
-      pokemon: slot.pokemon
-        ? {
-            ...slot.pokemon,
-            moves: slot.pokemon.moves?.map(move => ({ ...move })),
-          }
-        : null,
-    })) ?? []
+    party?.map(function mapItem(slot) {
+      return {
+        slotIndex: slot.slotIndex,
+        pokemon: slot.pokemon
+          ? {
+              ...slot.pokemon,
+              moves: slot.pokemon.moves?.map(function mapItem(move) {
+                return { ...move };
+              }),
+            }
+          : null,
+      };
+    }) ?? []
   );
 }
 
@@ -750,11 +804,19 @@ function normalizeTournamentActivePartySlotIndex(
       ? activePartySlotIndex
       : 0;
 
-  if (party.some(slot => slot.slotIndex === requestedSlotIndex && slot.pokemon)) {
+  if (
+    party.some(function testItem(slot) {
+      return slot.slotIndex === requestedSlotIndex && slot.pokemon;
+    })
+  ) {
     return requestedSlotIndex;
   }
 
-  return party.find(slot => slot.pokemon)?.slotIndex ?? null;
+  return (
+    party.find(function findItem(slot) {
+      return slot.pokemon;
+    })?.slotIndex ?? null
+  );
 }
 
 export function isWorldTournamentBattleResult(

@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { AddGamePokeLoungeStateRevision1794700800000 } from './1794700800000-add-game-poke-lounge-state-revision';
 
-describe('AddGamePokeLoungeStateRevision1794700800000', () => {
-  it('adds a non-negative server-owned revision to existing saves', async () => {
+describe('AddGamePokeLoungeStateRevision1794700800000', function testSuite() {
+  it('adds a non-negative server-owned revision to existing saves', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
     const migration = new AddGamePokeLoungeStateRevision1794700800000();
 
@@ -14,7 +14,7 @@ describe('AddGamePokeLoungeStateRevision1794700800000', () => {
     expect(sql).toMatch(/CHECK \("revision" >= 0\)/);
   });
 
-  it('drops only the revision constraint and column', async () => {
+  it('drops only the revision constraint and column', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
 
     await new AddGamePokeLoungeStateRevision1794700800000().down({

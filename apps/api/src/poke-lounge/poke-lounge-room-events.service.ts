@@ -44,7 +44,12 @@ export class PokeLoungeRoomEventsService
 
   async onModuleInit(): Promise<void> {
     this.unsubscribeFromRedis = await this.liveState.subscribeRoomCommits(
-      (notification) => this.enqueueRoomCommit(notification),
+      function callback(
+        this: PokeLoungeRoomEventsService,
+        notification: PokeLoungeRoomCommitNotification,
+      ): void {
+        return this.enqueueRoomCommit(notification);
+      }.bind(this),
     );
   }
 
@@ -62,15 +67,15 @@ export class PokeLoungeRoomEventsService
   subscribe(listener: PokeLoungeRoomTransportListener): () => void {
     this.listeners.add(listener);
 
-    return () => {
+    return function callback(this: PokeLoungeRoomEventsService): void {
       this.listeners.delete(listener);
-    };
+    }.bind(this);
   }
 
   subscribeSnapshots(
     listener: (snapshot: PokeLoungePublicRoomState) => void,
   ): () => void {
-    return this.subscribe((event) => {
+    return this.subscribe(function callback(event) {
       if (event.type === 'room.snapshot') {
         listener(event.room);
       }
@@ -95,13 +100,21 @@ export class PokeLoungeRoomEventsService
   ): void {
     const previous =
       this.pendingCommits.get(notification.roomCode) ?? Promise.resolve();
-    const pending = previous.then(() => this.handleRoomCommit(notification));
+    const pending = previous.then(
+      function handleResolved(
+        this: PokeLoungeRoomEventsService,
+      ): Promise<void> {
+        return this.handleRoomCommit(notification);
+      }.bind(this),
+    );
     this.pendingCommits.set(notification.roomCode, pending);
-    void pending.then(() => {
-      if (this.pendingCommits.get(notification.roomCode) === pending) {
-        this.pendingCommits.delete(notification.roomCode);
-      }
-    });
+    void pending.then(
+      function handleResolved(this: PokeLoungeRoomEventsService): void {
+        if (this.pendingCommits.get(notification.roomCode) === pending) {
+          this.pendingCommits.delete(notification.roomCode);
+        }
+      }.bind(this),
+    );
   }
 
   private async handleRoomCommit(

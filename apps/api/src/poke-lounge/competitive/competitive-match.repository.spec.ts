@@ -1,9 +1,9 @@
 import type { PokeLoungeRoomState } from '../poke-lounge-room.types';
-import { createTournamentBracketState } from '@poke-lounge/battle';
+import { createTournamentBracketState } from '@poke-lounge/battle/tournament-bracket';
 import { planCompetitiveSeatBinding } from './competitive-match.repository';
 
-describe('planCompetitiveSeatBinding', () => {
-  it('rejects forged, anonymous, inactive, overwrite, and duplicate-account binding', () => {
+describe('planCompetitiveSeatBinding', function testSuite() {
+  it('rejects forged, anonymous, inactive, overwrite, and duplicate-account binding', function testCase() {
     const room = roomState();
 
     expect(plan(room, [], 'forged', 'account-a')).toEqual({
@@ -38,7 +38,7 @@ describe('planCompetitiveSeatBinding', () => {
     ).toEqual({ outcome: 'duplicate-account' });
   });
 
-  it('is idempotent and keeps lobby seat binding assignment-free', () => {
+  it('is idempotent and keeps lobby seat binding assignment-free', function testCase() {
     const room = roomState();
     const first = plan(room, [], 'session-a', 'account-a');
 
@@ -73,7 +73,7 @@ describe('planCompetitiveSeatBinding', () => {
     ).toBeNull();
   });
 
-  it('keeps rooms with more than two active participants casual', () => {
+  it('keeps rooms with more than two active participants casual', function testCase() {
     const room = roomState();
     room.participants.push({
       sessionId: 'session-c',
@@ -95,13 +95,15 @@ describe('planCompetitiveSeatBinding', () => {
     ).toMatchObject({ outcome: 'bind', assignmentPlayers: null });
   });
 
-  it('keeps an activated two-player dynamic-party bracket unranked', () => {
+  it('keeps an activated two-player dynamic-party bracket unranked', function testCase() {
     const room = roomState();
     const bracket = createTournamentBracketState(
-      room.participants.map(({ playerId, displayName }) => ({
-        playerId,
-        displayName,
-      })),
+      room.participants.map(function mapItem({ playerId, displayName }) {
+        return {
+          playerId,
+          displayName,
+        };
+      }),
       room.round.index,
     );
     room.status = 'tournament';
@@ -128,7 +130,7 @@ describe('planCompetitiveSeatBinding', () => {
     });
   });
 
-  it('assigns only the requested player active bracket pair when all five seats are bound', () => {
+  it('assigns only the requested player active bracket pair when all five seats are bound', function testCase() {
     const room = roomState();
     room.participants.push(
       participant('c'),
@@ -143,11 +145,13 @@ describe('planCompetitiveSeatBinding', () => {
         version: 1,
         gameRoundIndex: 1,
         status: 'in-progress',
-        participants: room.participants.map((row, index) => ({
-          playerId: row.playerId,
-          displayName: row.displayName,
-          seed: index + 1,
-        })),
+        participants: room.participants.map(function mapItem(row, index) {
+          return {
+            playerId: row.playerId,
+            displayName: row.displayName,
+            seed: index + 1,
+          };
+        }),
         currentRound: {
           roundNumber: 1,
           matches: [
@@ -176,9 +180,9 @@ describe('planCompetitiveSeatBinding', () => {
       activeMatchAuthority: 'casual',
       cumulativeScores: {},
     };
-    const seats = ['a', 'b', 'c', 'd', 'e'].map((suffix) =>
-      seat(`session-${suffix}`, `player-${suffix}`, `account-${suffix}`),
-    );
+    const seats = ['a', 'b', 'c', 'd', 'e'].map(function mapItem(suffix) {
+      return seat(`session-${suffix}`, `player-${suffix}`, `account-${suffix}`);
+    });
 
     expect(plan(room, seats, 'session-a', 'account-a')).toMatchObject({
       assignmentPlayers: null,

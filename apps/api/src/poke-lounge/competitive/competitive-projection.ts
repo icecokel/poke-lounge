@@ -1,4 +1,4 @@
-import type { CanonicalBattleState } from '@poke-lounge/battle';
+import type { CanonicalBattleState } from '@poke-lounge/battle/canonical-state';
 import type { CompetitiveTerminalTransition } from '../poke-lounge-room.types';
 import { COMPETITIVE_TURN_DEADLINE_MS } from './competitive-action.repository';
 import type {
@@ -155,23 +155,27 @@ function toPublicBattleState(
     turn: state.turn,
     participantIds: [...state.participantIds],
     playersById: Object.fromEntries(
-      state.participantIds.map((playerId) => {
+      state.participantIds.map(function mapItem(playerId) {
         const player = state.playersById[playerId];
         return [
           playerId,
           {
             playerId,
             activeSlotIndex: player.activeSlotIndex,
-            team: player.team.map((combatant) => ({
-              speciesId: combatant.speciesId,
-              slotIndex: combatant.slotIndex,
-              level: combatant.level,
-              maxHp: combatant.maxHp,
-              currentHp: combatant.currentHp,
-              status: combatant.status,
-              statStages: { ...combatant.statStages },
-              moves: combatant.moves.map(({ moveId, pp }) => ({ moveId, pp })),
-            })),
+            team: player.team.map(function mapItem(combatant) {
+              return {
+                speciesId: combatant.speciesId,
+                slotIndex: combatant.slotIndex,
+                level: combatant.level,
+                maxHp: combatant.maxHp,
+                currentHp: combatant.currentHp,
+                status: combatant.status,
+                statStages: { ...combatant.statStages },
+                moves: combatant.moves.map(function mapItem({ moveId, pp }) {
+                  return { moveId, pp };
+                }),
+              };
+            }),
           },
         ];
       }),

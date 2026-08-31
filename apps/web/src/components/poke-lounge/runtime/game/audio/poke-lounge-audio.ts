@@ -82,7 +82,7 @@ let activeBgm: ActivePokeLoungeBgm | null = null;
 
 export function bindPokeLoungeAudioPrimeListeners(target: HTMLElement): () => void {
   const prime = () => {
-    void primePokeLoungeAudio().then(() => {
+    void primePokeLoungeAudio().then(function handleResolved() {
       const isAppleMobileBgmReady = !shouldPreferAppleMobileHtmlAudio() || appleMobileBgmPrimed;
 
       if ((!audioContext || audioContext.state === "running") && isAppleMobileBgmReady) {
@@ -116,7 +116,11 @@ export async function primePokeLoungeAudio(): Promise<void> {
   const context = getAudioContext();
   if (context) {
     const resumePromise =
-      context.state === "suspended" ? context.resume().catch(() => undefined) : Promise.resolve();
+      context.state === "suspended"
+        ? context.resume().catch(function handleRejected() {
+            return undefined;
+          })
+        : Promise.resolve();
     startSilentAudioUnlock(context);
     await resumePromise;
     if (context.state === "running") {
@@ -124,17 +128,27 @@ export async function primePokeLoungeAudio(): Promise<void> {
     }
   }
 
-  const manifest = await loadAudioManifest().catch(() => null);
+  const manifest = await loadAudioManifest().catch(function handleRejected() {
+    return null;
+  });
   if (!manifest) {
     return;
   }
 
   const audioItems = [...manifest.sfx, ...manifest.bgm];
-  const totalBytes = audioItems.reduce((sum, item) => sum + item.sizeBytes, 0);
+  const totalBytes = audioItems.reduce(function reduceItems(sum, item) {
+    return sum + item.sizeBytes;
+  }, 0);
   if (context && totalBytes <= MAX_PRELOADED_BYTES) {
-    await Promise.all(audioItems.map(item => loadAudioBuffer(item))).catch(() => undefined);
+    await Promise.all(
+      audioItems.map(function mapItem(item) {
+        return loadAudioBuffer(item);
+      }),
+    ).catch(function handleRejected() {
+      return undefined;
+    });
   } else {
-    audioItems.forEach(item => {
+    audioItems.forEach(function visitItem(item) {
       getHtmlAudioElement(item);
     });
   }
@@ -171,7 +185,9 @@ export function playPokeLoungeBgm(id: PokeLoungeBgmId, options: { volume?: numbe
   const requestGeneration = (bgmRequestGeneration += 1);
   pendingBgmId = id;
   void playPokeLoungeBgmAsync(id, options, playbackGeneration, requestGeneration).catch(
-    () => undefined,
+    function handleRejected() {
+      return undefined;
+    },
   );
 }
 
@@ -298,11 +314,13 @@ export function parsePokeLoungeAudioManifest(value: unknown): PokeLoungeAudioMan
 export function getPokeLoungeAudioPreloadAssets(
   manifest: PokeLoungeAudioManifest,
 ): PokeLoungeAudioPreloadAsset[] {
-  return [...manifest.sfx, ...manifest.bgm].map(item => ({
-    id: item.id,
-    cacheKey: createPokeLoungeAudioPreloadCacheKey(item.id),
-    src: item.src,
-  }));
+  return [...manifest.sfx, ...manifest.bgm].map(function mapItem(item) {
+    return {
+      id: item.id,
+      cacheKey: createPokeLoungeAudioPreloadCacheKey(item.id),
+      src: item.src,
+    };
+  });
 }
 
 export function registerPreloadedPokeLoungeAudio(
@@ -346,7 +364,9 @@ async function playPokeLoungeSfxAsync(
   const context = getAudioContext();
   if (context) {
     const played = await playWithWebAudio(context, item, options.volume, generation).catch(
-      () => false,
+      function handleRejected() {
+        return false;
+      },
     );
     if (played) {
       return;
@@ -354,7 +374,9 @@ async function playPokeLoungeSfxAsync(
   }
 
   if (generation === playbackGeneration) {
-    await playWithHtmlAudio(item, options.volume, generation).catch(() => undefined);
+    await playWithHtmlAudio(item, options.volume, generation).catch(function handleRejected() {
+      return undefined;
+    });
   }
 }
 
@@ -376,7 +398,9 @@ async function playPokeLoungeBgmAsync(
 
   const context = getAudioContext();
   if (context?.state === "suspended") {
-    await context.resume().catch(() => undefined);
+    await context.resume().catch(function handleRejected() {
+      return undefined;
+    });
   }
   if (generation !== playbackGeneration || requestGeneration !== bgmRequestGeneration) {
     return;
@@ -419,7 +443,7 @@ async function playPokeLoungeBgmAsync(
     gain.connect(getMasterGain(context) ?? context.destination);
     activeBufferSources.add(source);
     activeBgm = { id, audio: null, baseVolume, gain, source };
-    source.onended = () => {
+    source.onended = function callback() {
       activeBufferSources.delete(source);
       source.disconnect();
       gain.disconnect();
@@ -601,7 +625,7 @@ function fadeAppleMobileBgmVolume(
   const startVolume = bgm.gain?.gain.value ?? audio.volume;
   const startedAt = performance.now();
 
-  return new Promise(resolve => {
+  return new Promise(function resolvePromise(resolve) {
     const update = (now: number) => {
       if (fadeGeneration !== appleMobileBgmFadeGeneration || audio.paused) {
         resolve(false);
@@ -690,20 +714,32 @@ function stopActiveBgmPlayback(bgm: ActivePokeLoungeBgm): void {
 }
 
 async function getManifestItem(id: PokeLoungeSfxId): Promise<PokeLoungeSfxManifestItem | null> {
-  const manifest = await loadAudioManifest().catch(() => null);
+  const manifest = await loadAudioManifest().catch(function handleRejected() {
+    return null;
+  });
 
-  return manifest?.sfx.find(item => item.id === id) ?? null;
+  return (
+    manifest?.sfx.find(function findItem(item) {
+      return item.id === id;
+    }) ?? null
+  );
 }
 
 async function getManifestBgmItem(id: PokeLoungeBgmId): Promise<PokeLoungeBgmManifestItem | null> {
-  const manifest = await loadAudioManifest().catch(() => null);
+  const manifest = await loadAudioManifest().catch(function handleRejected() {
+    return null;
+  });
 
-  return manifest?.bgm.find(item => item.id === id) ?? null;
+  return (
+    manifest?.bgm.find(function findItem(item) {
+      return item.id === id;
+    }) ?? null
+  );
 }
 
 function loadAudioManifest(): Promise<PokeLoungeAudioManifest> {
   manifestPromise ??= fetch(POKE_LOUNGE_AUDIO_MANIFEST_PATH, { cache: "force-cache" }).then(
-    async response => {
+    async function handleResolved(response) {
       if (!response.ok) {
         throw new Error(`Failed to load Poke Lounge audio manifest: ${response.status}`);
       }
@@ -727,7 +763,9 @@ async function playWithWebAudio(
   generation: number,
 ): Promise<boolean> {
   if (context.state === "suspended") {
-    await context.resume().catch(() => undefined);
+    await context.resume().catch(function handleRejected() {
+      return undefined;
+    });
   }
 
   if (context.state === "suspended") {
@@ -746,7 +784,7 @@ async function playWithWebAudio(
   source.connect(gain);
   gain.connect(getMasterGain(context) ?? context.destination);
   activeBufferSources.add(source);
-  source.onended = () => {
+  source.onended = function callback() {
     activeBufferSources.delete(source);
     source.disconnect();
   };
@@ -763,17 +801,23 @@ function loadAudioBuffer(item: PokeLoungeAudioManifestItem): Promise<AudioBuffer
 
   const preloadedBytes = preloadedAudioBytes.get(item.id);
   const promise = preloadedBytes
-    ? decodeAudioData(preloadedBytes.slice(0)).catch(() => null)
+    ? decodeAudioData(preloadedBytes.slice(0)).catch(function handleRejected() {
+        return null;
+      })
     : fetch(item.src, { cache: "force-cache" })
-        .then(async response => {
+        .then(async function handleResolved(response) {
           if (!response.ok) {
             throw new Error(`Failed to load Poke Lounge audio asset: ${item.src}`);
           }
 
           return response.arrayBuffer();
         })
-        .then(arrayBuffer => decodeAudioData(arrayBuffer))
-        .catch(() => null);
+        .then(function handleResolved(arrayBuffer) {
+          return decodeAudioData(arrayBuffer);
+        })
+        .catch(function handleRejected() {
+          return null;
+        });
 
   bufferPromises.set(item.id, promise);
 
@@ -798,7 +842,7 @@ function decodeAudioData(arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
     return Promise.reject(new Error("AudioContext is unavailable"));
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise(function resolvePromise(resolve, reject) {
     const maybePromise = context.decodeAudioData(arrayBuffer, resolve, reject);
 
     if (maybePromise) {
@@ -825,7 +869,7 @@ async function playWithHtmlAudio(
     await audio.play();
     audio.addEventListener(
       "ended",
-      () => {
+      function handleEvent() {
         activeHtmlAudioElements.delete(audio);
       },
       { once: true },
@@ -873,12 +917,14 @@ function primeAppleMobileBgmFromUserGesture(): void {
   setHtmlAudioElementVolume(audio, 0);
   void audio
     .play()
-    .then(() => {
+    .then(function handleResolved() {
       if (primeGeneration === appleMobileBgmPrimeGeneration && !audio.paused) {
         appleMobileBgmPrimed = true;
       }
     })
-    .catch(() => undefined);
+    .catch(function handleRejected() {
+      return undefined;
+    });
 }
 
 function getAppleMobileBgmAudio(src: string): HTMLAudioElement {
@@ -905,7 +951,9 @@ function startSilentAudioUnlock(context: AudioContext): void {
     const source = context.createBufferSource();
     source.buffer = context.createBuffer(1, 1, context.sampleRate);
     source.connect(context.destination);
-    source.onended = () => source.disconnect();
+    source.onended = function callback() {
+      return source.disconnect();
+    };
     source.start();
   } catch {
     // 일부 모바일 브라우저는 사용자 제스처 밖의 unlock source 생성을 거부한다.
@@ -1058,11 +1106,21 @@ function createPokeLoungeAudioPreloadCacheKey(id: PokeLoungeAudioItemId): string
 }
 
 function isPokeLoungeSfxManifestItem(value: unknown): value is PokeLoungeSfxManifestItem {
-  return isPokeLoungeAudioManifestItem(value) && POKE_LOUNGE_SFX_IDS.some(id => id === value.id);
+  return (
+    isPokeLoungeAudioManifestItem(value) &&
+    POKE_LOUNGE_SFX_IDS.some(function testItem(id) {
+      return id === value.id;
+    })
+  );
 }
 
 function isPokeLoungeBgmManifestItem(value: unknown): value is PokeLoungeBgmManifestItem {
-  return isPokeLoungeAudioManifestItem(value) && POKE_LOUNGE_BGM_IDS.some(id => id === value.id);
+  return (
+    isPokeLoungeAudioManifestItem(value) &&
+    POKE_LOUNGE_BGM_IDS.some(function testItem(id) {
+      return id === value.id;
+    })
+  );
 }
 
 function isPokeLoungeAudioManifestItem(value: unknown): value is PokeLoungeAudioManifestItem {
@@ -1109,10 +1167,17 @@ function hasExactAudioItemIds(
   items: readonly PokeLoungeAudioManifestItem[],
   expectedIds: readonly PokeLoungeAudioItemId[],
 ): boolean {
-  const itemIds = new Set(items.map(item => item.id));
+  const itemIds = new Set(
+    items.map(function mapItem(item) {
+      return item.id;
+    }),
+  );
 
   return (
-    itemIds.size === expectedIds.length && expectedIds.every(expectedId => itemIds.has(expectedId))
+    itemIds.size === expectedIds.length &&
+    expectedIds.every(function testItem(expectedId) {
+      return itemIds.has(expectedId);
+    })
   );
 }
 

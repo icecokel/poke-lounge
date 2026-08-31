@@ -5,7 +5,7 @@ import DailyRotateFile from 'winston-daily-rotate-file';
 /**
  * Winston 로거 설정 객체
  */
-export const createWinstonConfig = () => {
+export function createWinstonConfig() {
   const logLevel =
     process.env.LOG_LEVEL ??
     (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
@@ -56,6 +56,6 @@ export const createWinstonConfig = () => {
       }),
     ],
   };
-};
+}
 
 export const winstonConfig = createWinstonConfig();

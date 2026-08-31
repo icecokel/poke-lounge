@@ -22,7 +22,7 @@ const main = async () => {
   process.stdout.write(`OpenAPI contract written to ${outputPath}\n`);
 };
 
-void main().catch((error: unknown) => {
+void main().catch(function handleRejected(error: unknown) {
   const message =
     error instanceof Error ? error.stack || error.message : String(error);
   process.stderr.write(`${message}\n`);

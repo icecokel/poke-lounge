@@ -5,7 +5,7 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const monorepoRoot = path.resolve(process.cwd(), "../..");
 
-export const normalizeConnectSource = (value: string | undefined) => {
+export function normalizeConnectSource(value: string | undefined) {
   if (!value) return undefined;
 
   try {
@@ -14,23 +14,25 @@ export const normalizeConnectSource = (value: string | undefined) => {
   } catch {
     return undefined;
   }
-};
+}
 
-export const toWebSocketConnectSource = (value: string | undefined) => {
+export function toWebSocketConnectSource(value: string | undefined) {
   const origin = normalizeConnectSource(value);
   if (!origin) return undefined;
 
   const url = new URL(origin);
   url.protocol = url.protocol === "http:" ? "ws:" : "wss:";
   return url.origin;
-};
+}
 
-export const createConnectSources = (apiUrl: string | undefined) => {
+export function createConnectSources(apiUrl: string | undefined) {
   const apiOrigin = normalizeConnectSource(apiUrl);
   return ["'self'", apiOrigin, toWebSocketConnectSource(apiOrigin)].filter(
-    (source): source is string => Boolean(source),
+    function filterItem(source): source is string {
+      return Boolean(source);
+    },
   );
-};
+}
 
 const connectSources = createConnectSources(process.env.NEXT_PUBLIC_API_URL);
 
@@ -42,13 +44,6 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingRoot: monorepoRoot,
   transpilePackages: ["@poke-lounge/battle"],
-  webpack(config) {
-    config.resolve.alias["@poke-lounge/battle"] = path.join(
-      monorepoRoot,
-      "packages/poke-lounge-battle/src/browser.ts",
-    );
-    return config;
-  },
   async headers() {
     return [
       {

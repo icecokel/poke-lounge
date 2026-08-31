@@ -1,13 +1,13 @@
 import { createLocalOpenApiDocument } from '../../api-contract';
 
-describe('CompetitiveActionResponseDto contract', () => {
+describe('CompetitiveActionResponseDto contract', function testSuite() {
   let document: unknown;
 
-  beforeAll(async () => {
+  beforeAll(async function setUpTests() {
     document = await createLocalOpenApiDocument();
   });
 
-  it('requires the server turn deadline and nullable terminal metadata', () => {
+  it('requires the server turn deadline and nullable terminal metadata', function testCase() {
     const schema = getSchema('CompetitiveActionResponseDto');
     const properties = requireRecord(
       schema.properties,
@@ -44,7 +44,7 @@ describe('CompetitiveActionResponseDto contract', () => {
     });
   });
 
-  it('keeps the ranked score and terminal result schema unchanged', () => {
+  it('keeps the ranked score and terminal result schema unchanged', function testCase() {
     const terminal = getSchema('CompetitiveTerminalResultDto');
     const scoreByPlayerId = requireSchema(
       requireRecord(

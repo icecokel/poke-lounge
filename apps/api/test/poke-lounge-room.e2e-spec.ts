@@ -5,13 +5,13 @@ import { Server } from 'node:http';
 import { createClient } from 'redis';
 import request from 'supertest';
 import { io, type Socket as ClientSocket } from 'socket.io-client';
-import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
-import { PokeLoungeModule } from './../src/poke-lounge/poke-lounge.module';
-import { POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS } from './../src/poke-lounge/poke-lounge-room-policy';
+import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { PokeLoungeModule } from '../src/poke-lounge/poke-lounge.module';
+import { POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS } from '../src/poke-lounge/poke-lounge-room-policy';
 import type {
   PokeLoungePublicRoomState,
   PokeLoungeRoomState,
-} from './../src/poke-lounge/poke-lounge-room.types';
+} from '../src/poke-lounge/poke-lounge-room.types';
 import { getPokeLoungeTestTypeOrmOptions } from './support/poke-lounge-test-database';
 import { createTestCompetitivePartyInput } from './support/competitive-party.fixture';
 
@@ -22,24 +22,26 @@ type ConflictBody = {
   snapshot: PokeLoungePublicRoomState;
 };
 
-describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
+describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', function testSuite() {
   let app: INestApplication;
   let httpServer: Server;
   let baseUrl: string;
   let sockets: ClientSocket[];
 
-  beforeEach(async () => {
+  beforeEach(async function setUpTest() {
     sockets = [];
     await flushTestRedis();
     ({ app, httpServer, baseUrl } = await createTestApplication());
   });
 
-  afterEach(async () => {
-    sockets?.forEach((socket) => socket.disconnect());
+  afterEach(async function tearDownTest() {
+    sockets?.forEach(function visitItem(socket) {
+      return socket.disconnect();
+    });
     await app?.close();
   });
 
-  it('requires valid command headers on every mutating route', async () => {
+  it('requires valid command headers on every mutating route', async function testCase() {
     await request(httpServer)
       .post('/poke-lounge/rooms')
       .send(createBody())
@@ -113,7 +115,7 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
     }
   });
 
-  it('returns revisions and expiry, redacts sessions, and replays exact commands', async () => {
+  it('returns revisions and expiry, redacts sessions, and replays exact commands', async function testCase() {
     const body = createBody();
     const earliestExpiryMs = Date.now() + POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS;
     const createdResponse = await request(httpServer)
@@ -168,7 +170,7 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
     expect(joinedReplay.body).toEqual(joined);
   });
 
-  it('creates or joins a requested temporary room code through one route', async () => {
+  it('creates or joins a requested temporary room code through one route', async function testCase() {
     const hostResponse = await request(httpServer)
       .post('/poke-lounge/rooms')
       .set(commandHeaders(10, 0))
@@ -219,7 +221,7 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
       .expect(400);
   });
 
-  it('returns complete redacted snapshots for idempotency and revision conflicts', async () => {
+  it('returns complete redacted snapshots for idempotency and revision conflicts', async function testCase() {
     const created = await createRoom(1);
 
     const changedPayload = await request(httpServer)
@@ -239,9 +241,9 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
     });
     expect(typeof changedBody.snapshot.expiresAtMs).toBe('number');
     expect(
-      changedBody.snapshot.participants.some(
-        (participant) => participant.playerId === 'player-a',
-      ),
+      changedBody.snapshot.participants.some(function testItem(participant) {
+        return participant.playerId === 'player-a';
+      }),
     ).toBe(true);
     expect(JSON.stringify(changedBody)).not.toContain('sessionId');
     expect(JSON.stringify(changedBody)).not.toContain('session-a');
@@ -267,14 +269,14 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
     });
     expect(typeof staleBody.snapshot.expiresAtMs).toBe('number');
     expect(
-      staleBody.snapshot.participants.some(
-        (participant) => participant.playerId === 'player-a',
-      ),
+      staleBody.snapshot.participants.some(function testItem(participant) {
+        return participant.playerId === 'player-a';
+      }),
     ).toBe(true);
     expect(JSON.stringify(staleBody)).not.toContain('sessionId');
   });
 
-  it('broadcasts one committed public revision to two authorized subscribers', async () => {
+  it('broadcasts one committed public revision to two authorized subscribers', async function testCase() {
     const created = await createRoom(1);
     const joinedResponse = await request(httpServer)
       .post(`/poke-lounge/rooms/${created.roomCode}/join`)
@@ -349,7 +351,7 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
     await noSnapshot;
   });
 
-  it('rejects a wrong subscription session without disclosing room credentials', async () => {
+  it('rejects a wrong subscription session without disclosing room credentials', async function testCase() {
     const created = await createRoom(1);
     const socket = await connectSocket();
     const rejection = waitForSocketEvent<{
@@ -373,7 +375,7 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
     expect(JSON.stringify(error)).not.toContain('wrong-session');
   });
 
-  it('keeps HTTP-only ready participants out of the tournament and expires their pending leases', async () => {
+  it('keeps HTTP-only ready participants out of the tournament and expires their pending leases', async function testCase() {
     const created = await createRoom(40);
     expect(created.participants).toEqual([
       expect.objectContaining({ playerId: 'player-a', connected: false }),
@@ -427,8 +429,8 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
       tournament: { bracket: null },
     });
 
-    await mutateTestRoom(created.roomCode, (room) => {
-      room.participants.forEach((participant) => {
+    await mutateTestRoom(created.roomCode, function callback(room) {
+      room.participants.forEach(function visitItem(participant) {
         participant.presencePendingUntilMs = Date.now() - 1;
       });
     });
@@ -444,7 +446,7 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
     });
   });
 
-  it('starts five ready players together, rejects late joins, and supports tournament reconnect', async () => {
+  it('starts five ready players together, rejects late joins, and supports tournament reconnect', async function testCase() {
     const roundDurationMs = 2_000;
     const created = await createRoom(20, roundDurationMs);
     const joinedSecond = await request(httpServer)
@@ -547,7 +549,7 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
       .send({ playerId: 'player-f', sessionId: 'session-f' })
       .expect(400);
 
-    await mutateTestRoom(created.roomCode, (room) => {
+    await mutateTestRoom(created.roomCode, function callback(room) {
       room.round.endsAtMs = Date.now() - 1;
     });
     let tournament = startedRoom;
@@ -584,7 +586,7 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', () => {
     expect(rejoinedRoom).toMatchObject({ status: 'tournament' });
   });
 
-  it('persists a room after closing and recreating the Nest application', async () => {
+  it('persists a room after closing and recreating the Nest application', async function testCase() {
     const created = await createRoom(1);
 
     await app.close();
@@ -739,8 +741,8 @@ function waitForSnapshot(
   socket: ClientSocket,
   revision: number,
 ): Promise<PokeLoungePublicRoomState> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
+  return new Promise(function resolvePromise(resolve, reject) {
+    const timeout = setTimeout(function handleTimeout() {
       socket.off('room.snapshot', handleSnapshot);
       reject(new Error(`Timed out waiting for room revision ${revision}`));
     }, 5000);
@@ -762,8 +764,8 @@ function waitForSocketEvent<T = void>(
   socket: ClientSocket,
   eventName: string,
 ): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
+  return new Promise(function resolvePromise(resolve, reject) {
+    const timeout = setTimeout(function handleTimeout() {
       socket.off(eventName, handleEvent);
       reject(new Error(`Timed out waiting for ${eventName}`));
     }, 5000);
@@ -781,13 +783,13 @@ function expectNoSnapshot(
   socket: ClientSocket,
   durationMs: number,
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
+  return new Promise(function resolvePromise(resolve, reject) {
     const handleSnapshot = (event: unknown) => {
       clearTimeout(timeout);
       socket.off('room.snapshot', handleSnapshot);
       reject(new Error(`Unexpected room snapshot: ${JSON.stringify(event)}`));
     };
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout(function handleTimeout() {
       socket.off('room.snapshot', handleSnapshot);
       resolve();
     }, durationMs);

@@ -24,22 +24,27 @@ const normalizeOrigin = (origin: string): string | undefined => {
   }
 };
 
-export const resolveCorsOrigins = (rawOrigins?: string): string[] =>
-  Array.from(
+export function resolveCorsOrigins(rawOrigins?: string): string[] {
+  return Array.from(
     new Set(
       [...DEFAULT_CORS_ORIGINS, ...(rawOrigins?.split(',') ?? [])]
         .map(normalizeOrigin)
-        .filter((origin): origin is string => Boolean(origin)),
+        .filter(function filterItem(origin): origin is string {
+          return Boolean(origin);
+        }),
     ),
   );
+}
 
-export const getCorsOptions = (rawOrigins?: string): CorsOptions => ({
-  origin: resolveCorsOrigins(rawOrigins),
-  credentials: true,
-  exposedHeaders: [
-    'X-Request-Id',
-    'X-RateLimit-Limit',
-    'X-RateLimit-Remaining',
-    'X-RateLimit-Reset',
-  ],
-});
+export function getCorsOptions(rawOrigins?: string): CorsOptions {
+  return {
+    origin: resolveCorsOrigins(rawOrigins),
+    credentials: true,
+    exposedHeaders: [
+      'X-Request-Id',
+      'X-RateLimit-Limit',
+      'X-RateLimit-Remaining',
+      'X-RateLimit-Reset',
+    ],
+  };
+}

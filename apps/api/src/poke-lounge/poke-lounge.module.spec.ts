@@ -11,8 +11,8 @@ import { RedisPokeLoungeRepository } from './redis-poke-lounge.repository';
 import { CompetitiveTurnQueueService } from './competitive/competitive-turn-queue.service';
 import { COMPETITIVE_TURN_QUEUE } from './competitive/competitive-turn-queue';
 
-describe('PokeLoungeModule', () => {
-  it('imports the shared Redis connection module', () => {
+describe('PokeLoungeModule', function testSuite() {
+  it('imports the shared Redis connection module', function testCase() {
     const imports = Reflect.getMetadata(
       'imports',
       PokeLoungeModule,
@@ -21,7 +21,7 @@ describe('PokeLoungeModule', () => {
     expect(imports).toContain(PokeLoungeRedisModule);
   });
 
-  it('binds all transient repositories to one Redis implementation', () => {
+  it('binds all transient repositories to one Redis implementation', function testCase() {
     const providers = Reflect.getMetadata(
       'providers',
       PokeLoungeModule,

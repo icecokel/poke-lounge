@@ -1,4 +1,4 @@
-import { FIELD_MAP } from "./fieldMap";
+import { FIELD_MAP } from "./field-map";
 
 export interface WorldMapTile {
   gid: number;
@@ -117,7 +117,7 @@ export function createWorldMapModel(value: unknown): WorldMapModel {
     tileWidth: readPositiveInteger(tileset.tilewidth, "world map tileset tile width"),
   };
 
-  const tileLayers = TILE_LAYER_NAMES.map(name => {
+  const tileLayers = TILE_LAYER_NAMES.map(function mapItem(name) {
     const layer = findLayer(layers, name, "tilelayer");
     const data = readArray<unknown>(layer.data, `${name} tile data`);
     if (data.length !== width * height) {
@@ -125,7 +125,7 @@ export function createWorldMapModel(value: unknown): WorldMapModel {
     }
     return {
       name,
-      tiles: data.flatMap((rawGid, index) => {
+      tiles: data.flatMap(function mapItem(rawGid, index) {
         const gid = readNonNegativeInteger(rawGid, `${name} tile GID`);
         return gid === 0
           ? []
@@ -152,37 +152,41 @@ export function createWorldMapModel(value: unknown): WorldMapModel {
     }
   }
   const createGrassTiles = (gid: number, layer: string) =>
-    [...tallGrassCoordinates].map(coordinate => {
+    [...tallGrassCoordinates].map(function mapItem(coordinate) {
       const [x, y] = coordinate.split(",").map(Number) as [number, number];
       return { gid, key: `${layer}-${coordinate}`, x, y };
     });
 
   const npcLayer = findLayer(layers, "Npcs", "objectgroup");
-  const npcs = readArray<TiledObject>(npcLayer.objects, "world NPC objects").map(object => {
-    const name = readString(object.name, "world NPC name");
-    if (!Object.hasOwn(FIELD_MAP.npcs, name)) {
-      throw new Error(`Unsupported world NPC: ${name}`);
-    }
-    const properties = readProperties(object.properties);
-    return {
-      displayName: readOptionalProperty(properties, "displayName") ?? name,
-      imageUrl: FIELD_MAP.npcs[name as keyof typeof FIELD_MAP.npcs].imageUrl,
-      name: name as keyof typeof FIELD_MAP.npcs,
-      role: readOptionalProperty(properties, "role") ?? readString(object.type, `${name} role`),
-      x: readFiniteNumber(object.x, `${name} x`),
-      y: readFiniteNumber(object.y, `${name} y`),
-    };
-  });
+  const npcs = readArray<TiledObject>(npcLayer.objects, "world NPC objects").map(
+    function mapItem(object) {
+      const name = readString(object.name, "world NPC name");
+      if (!Object.hasOwn(FIELD_MAP.npcs, name)) {
+        throw new Error(`Unsupported world NPC: ${name}`);
+      }
+      const properties = readProperties(object.properties);
+      return {
+        displayName: readOptionalProperty(properties, "displayName") ?? name,
+        imageUrl: FIELD_MAP.npcs[name as keyof typeof FIELD_MAP.npcs].imageUrl,
+        name: name as keyof typeof FIELD_MAP.npcs,
+        role: readOptionalProperty(properties, "role") ?? readString(object.type, `${name} role`),
+        x: readFiniteNumber(object.x, `${name} x`),
+        y: readFiniteNumber(object.y, `${name} y`),
+      };
+    },
+  );
 
   const spawnLayer = findLayer(layers, "SpawnPoints", "objectgroup");
   const spawnPoints = new Map(
-    readArray<TiledObject>(spawnLayer.objects, "world spawn objects").map(object => [
-      readString(object.name, "world spawn name"),
-      {
-        x: readFiniteNumber(object.x, "world spawn x"),
-        y: readFiniteNumber(object.y, "world spawn y"),
-      },
-    ]),
+    readArray<TiledObject>(spawnLayer.objects, "world spawn objects").map(function mapItem(object) {
+      return [
+        readString(object.name, "world spawn name"),
+        {
+          x: readFiniteNumber(object.x, "world spawn x"),
+          y: readFiniteNumber(object.y, "world spawn y"),
+        },
+      ];
+    }),
   );
   const collisionGids = new Set<number>();
   for (const tile of readArray<Record<string, unknown>>(tileset.tiles, "world tileset tiles")) {
@@ -191,11 +195,17 @@ export function createWorldMapModel(value: unknown): WorldMapModel {
       collisionGids.add(firstGid + readNonNegativeInteger(tile.id, "world tileset tile id"));
     }
   }
-  const worldLayer = tileLayers.find(layer => layer.name === "World");
+  const worldLayer = tileLayers.find(function findItem(layer) {
+    return layer.name === "World";
+  });
   const collisionCoordinates = new Set(
     worldLayer?.tiles
-      .filter(tile => collisionGids.has(tile.gid))
-      .map(tile => `${tile.x},${tile.y}`) ?? [],
+      .filter(function filterItem(tile) {
+        return collisionGids.has(tile.gid);
+      })
+      .map(function mapItem(tile) {
+        return `${tile.x},${tile.y}`;
+      }) ?? [],
   );
 
   return {
@@ -242,7 +252,7 @@ export function createWorldPlayerAtlasModel(value: unknown): WorldPlayerAtlasMod
 
   return {
     frames: new Map(
-      Object.entries(frames).map(([name, rawFrame]) => {
+      Object.entries(frames).map(function mapItem([name, rawFrame]) {
         const entry = asRecord(rawFrame, `${name} atlas entry`);
         const frame = asRecord(entry.frame, `${name} atlas frame`);
         return [
@@ -263,17 +273,18 @@ export function createWorldPlayerAtlasModel(value: unknown): WorldPlayerAtlasMod
 }
 
 function findLayer(layers: TiledLayer[], name: string, type: string): TiledLayer {
-  const layer = layers.find(candidate => candidate.name === name && candidate.type === type);
+  const layer = layers.find(function findItem(candidate) {
+    return candidate.name === name && candidate.type === type;
+  });
   if (!layer) throw new Error(`Missing ${type} layer: ${name}`);
   return layer;
 }
 
 function readProperties(value: unknown): Map<string, unknown> {
   return new Map(
-    readArray<TiledProperty>(value ?? [], "Tiled properties").map(property => [
-      readString(property.name, "Tiled property name"),
-      property.value,
-    ]),
+    readArray<TiledProperty>(value ?? [], "Tiled properties").map(function mapItem(property) {
+      return [readString(property.name, "Tiled property name"), property.value];
+    }),
   );
 }
 

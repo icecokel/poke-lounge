@@ -1,11 +1,11 @@
 import type { PokeLoungeAudioPlaybackSnapshot } from "../audio/poke-lounge-audio";
-import type { BattleRect } from "../battle/battleLayout";
-import type { BattleCommand, BattlePokemonStatus, BattleScreenState } from "../battle/battleTypes";
-import type { VirtualGamepadButton } from "../input/virtualGamepad";
-import type { PlayerFacing, PlayerSnapshot } from "../network/localPreviewRoom";
-import type { ServerRoomTransportDiagnostics } from "../network/serverRoom";
-import type { GameState, LocalPlayerState, PlayerPokemon } from "../state/gameStateStore";
-import type { WildBattleStartInput } from "../world/wildEncounters";
+import type { BattleRect } from "../battle/battle-layout";
+import type { BattleCommand, BattlePokemonStatus, BattleScreenState } from "../battle/battle-types";
+import type { VirtualGamepadButton } from "../input/virtual-gamepad";
+import type { PlayerFacing, PlayerSnapshot } from "../network/local-preview-room";
+import type { ServerRoomTransportDiagnostics } from "../network/server-room";
+import type { GameState, LocalPlayerState, PlayerPokemon } from "../state/game-state-store";
+import type { WildBattleStartInput } from "../world/wild-encounters";
 
 export type BattleE2eScenario =
   | "wild-victory"

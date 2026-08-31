@@ -4,12 +4,12 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { FIELD_MAP } from "../world/fieldMap";
+import { FIELD_MAP } from "../world/field-map";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../..");
 
-test("이식 기준 public asset 72개는 경로와 바이트가 바뀌지 않는다", () => {
+test("이식 기준 public asset 72개는 경로와 바이트가 바뀌지 않는다", function testCase() {
   const manifest = JSON.parse(
     fs.readFileSync(path.join(repoRoot, "docs/poke-lounge-asset-provenance.json"), "utf8"),
   ) as { assets: Array<{ publicPath: string; sha256: string }> };
@@ -25,7 +25,7 @@ test("이식 기준 public asset 72개는 경로와 바이트가 바뀌지 않�
   }
 });
 
-test("town map과 hero atlas의 DOM 이식 좌표 계약을 고정한다", () => {
+test("town map과 hero atlas의 DOM 이식 좌표 계약을 고정한다", function testCase() {
   const map = JSON.parse(
     fs.readFileSync(path.join(webRoot, "public", FIELD_MAP.mapUrl), "utf8"),
   ) as {
@@ -52,7 +52,9 @@ test("town map과 hero atlas의 DOM 이식 좌표 계약을 고정한다", () =>
     { width: 40, height: 18, tilewidth: 32, tileheight: 32 },
   );
   assert.deepEqual(
-    map.layers.map(layer => layer.name),
+    map.layers.map(function mapItem(layer) {
+      return layer.name;
+    }),
     [
       "Below Player",
       "World",
@@ -76,7 +78,15 @@ test("town map과 hero atlas의 DOM 이식 좌표 계약을 고정한다", () =>
     margin: 1,
     spacing: 2,
   });
-  assert.ok(map.layers.flatMap(layer => layer.data ?? []).every(gid => (gid & 0xe0000000) === 0));
+  assert.ok(
+    map.layers
+      .flatMap(function mapItem(layer) {
+        return layer.data ?? [];
+      })
+      .every(function testItem(gid) {
+        return (gid & 0xe0000000) === 0;
+      }),
+  );
 
   const atlas = JSON.parse(
     fs.readFileSync(path.join(webRoot, "public", FIELD_MAP.player.atlasJsonUrl), "utf8"),
@@ -84,19 +94,24 @@ test("town map과 hero atlas의 DOM 이식 좌표 계약을 고정한다", () =>
     frames: Record<string, { frame: { x: number; y: number; w: number; h: number } }>;
     meta: { size: { w: number; h: number } };
   };
-  const expectedFrameNames = Object.entries(FIELD_MAP.player.frameNames).flatMap(
-    ([direction, idleFrame]) => [
+  const expectedFrameNames = Object.entries(FIELD_MAP.player.frameNames).flatMap(function mapItem([
+    direction,
+    idleFrame,
+  ]) {
+    return [
       `${FIELD_MAP.player.walkAnimationKeys[direction as keyof typeof FIELD_MAP.player.walkAnimationKeys]}.000`,
       `${FIELD_MAP.player.walkAnimationKeys[direction as keyof typeof FIELD_MAP.player.walkAnimationKeys]}.001`,
       `${FIELD_MAP.player.walkAnimationKeys[direction as keyof typeof FIELD_MAP.player.walkAnimationKeys]}.002`,
       `${FIELD_MAP.player.walkAnimationKeys[direction as keyof typeof FIELD_MAP.player.walkAnimationKeys]}.003`,
       idleFrame,
-    ],
-  );
+    ];
+  });
 
   assert.deepEqual(atlas.meta.size, { w: 128, h: 128 });
   assert.deepEqual(Object.keys(atlas.frames).sort(), expectedFrameNames.sort());
   assert.ok(
-    Object.values(atlas.frames).every(frame => frame.frame.w === 32 && frame.frame.h === 32),
+    Object.values(atlas.frames).every(function testItem(frame) {
+      return frame.frame.w === 32 && frame.frame.h === 32;
+    }),
   );
 });

@@ -54,11 +54,12 @@ export function isCompetitiveAssignmentMember(
   assignment: Pick<CompetitiveMatchAssignment, 'playerAccounts'>,
   identity: CompetitivePlayerAccount,
 ): boolean {
-  return assignment.playerAccounts.some(
-    (member) =>
+  return assignment.playerAccounts.some(function testItem(member) {
+    return (
       member.playerId === identity.playerId &&
-      member.accountId === identity.accountId,
-  );
+      member.accountId === identity.accountId
+    );
+  });
 }
 
 export function createSessionCompetitiveAccountId(
@@ -90,7 +91,9 @@ export function planCompetitiveSeatBinding(input: {
   accountId: string;
 }): CompetitiveSeatBindingPlan {
   const participant = input.room.participants.find(
-    (candidate) => candidate.sessionId === input.sessionId,
+    function findItem(candidate) {
+      return candidate.sessionId === input.sessionId;
+    },
   );
 
   if (!participant) {
@@ -100,20 +103,22 @@ export function planCompetitiveSeatBinding(input: {
     return { outcome: 'inactive-seat' };
   }
 
-  const existingSeat = input.seats.find(
-    (seat) =>
+  const existingSeat = input.seats.find(function findItem(seat) {
+    return (
       seat.sessionId === input.sessionId ||
-      seat.playerId === participant.playerId,
-  );
+      seat.playerId === participant.playerId
+    );
+  });
   if (existingSeat && existingSeat.accountId !== input.accountId) {
     return { outcome: 'seat-account-conflict' };
   }
   if (
-    input.seats.some(
-      (seat) =>
+    input.seats.some(function testItem(seat) {
+      return (
         seat.accountId === input.accountId &&
-        seat.playerId !== participant.playerId,
-    )
+        seat.playerId !== participant.playerId
+      );
+    })
   ) {
     return { outcome: 'duplicate-account' };
   }
@@ -128,22 +133,29 @@ export function planCompetitiveSeatBinding(input: {
     : [...input.seats, seat];
   const activeBracketMatch =
     input.room.tournament.bracket?.currentRound?.matches.find(
-      (match) =>
-        match.status === 'ready' &&
-        match.participantIds.includes(participant.playerId),
+      function findItem(match) {
+        return (
+          match.status === 'ready' &&
+          match.participantIds.includes(participant.playerId)
+        );
+      },
     );
   const tournamentPlayers = activeBracketMatch
-    ? activeBracketMatch.participantIds.map((playerId) =>
-        resultingSeats.find((seat) => seat.playerId === playerId),
-      )
+    ? activeBracketMatch.participantIds.map(function mapItem(playerId) {
+        return resultingSeats.find(function findItem(seat) {
+          return seat.playerId === playerId;
+        });
+      })
     : [];
   const hasTournamentPlayers =
     tournamentPlayers.length === 2 && tournamentPlayers.every(Boolean);
   const assignmentPlayers = hasTournamentPlayers
-    ? (tournamentPlayers.map((seat) => ({
-        playerId: seat!.playerId,
-        accountId: seat!.accountId,
-      })) as [CompetitivePlayerAccount, CompetitivePlayerAccount])
+    ? (tournamentPlayers.map(function mapItem(seat) {
+        return {
+          playerId: seat!.playerId,
+          accountId: seat!.accountId,
+        };
+      }) as [CompetitivePlayerAccount, CompetitivePlayerAccount])
     : null;
   const assignmentBracketMatchId = hasTournamentPlayers
     ? activeBracketMatch!.matchId

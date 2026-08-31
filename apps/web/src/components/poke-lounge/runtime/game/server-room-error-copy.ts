@@ -1,5 +1,5 @@
 import type { PokeLoungeLocale } from "../../poke-lounge-copy";
-import type { PokeLoungeServerRoomErrorDetail } from "./network/serverRoom";
+import type { PokeLoungeServerRoomErrorDetail } from "./network/server-room";
 
 type ServerRoomErrorCode = PokeLoungeServerRoomErrorDetail["code"];
 

@@ -5,9 +5,9 @@ import {
   isVirtualGamepadPressed,
   resetVirtualGamepad,
   setVirtualGamepadButtonHeld,
-} from "./virtualGamepad";
+} from "./virtual-gamepad";
 
-test("필드 조이스틱의 방향 전환은 메뉴용 단발 입력을 남기지 않는다", () => {
+test("필드 조이스틱의 방향 전환은 메뉴용 단발 입력을 남기지 않는다", function testCase() {
   resetVirtualGamepad();
 
   setVirtualGamepadButtonHeld("up", true);

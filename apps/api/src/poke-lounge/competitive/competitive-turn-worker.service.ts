@@ -51,28 +51,48 @@ export class CompetitiveTurnWorkerService
     await this.liveState.connect();
     this.worker = new Worker<CompetitiveTurnJobData, CompetitiveTurnJobResult>(
       COMPETITIVE_TURN_QUEUE_NAME,
-      (job) => this.process(job),
+      function callback(
+        this: CompetitiveTurnWorkerService,
+        job: Job<CompetitiveTurnJobData, CompetitiveTurnJobResult>,
+      ): Promise<CompetitiveTurnJobResult> {
+        return this.process(job);
+      }.bind(this),
       {
         connection: { url: redisUrl, maxRetriesPerRequest: null },
         concurrency: 4,
       },
     );
-    this.worker.on('error', (error) => {
-      this.logger.error(
-        'Competitive turn worker error',
-        error instanceof Error ? error.stack : String(error),
-      );
-    });
-    this.worker.on('failed', (job, error) => {
-      this.logger.error(
-        `Competitive turn job ${job?.id ?? 'unknown'} failed`,
-        error.stack,
-      );
-    });
+    this.worker.on(
+      'error',
+      function handleEvent(
+        this: CompetitiveTurnWorkerService,
+        error: Error,
+      ): void {
+        this.logger.error(
+          'Competitive turn worker error',
+          error instanceof Error ? error.stack : String(error),
+        );
+      }.bind(this),
+    );
+    this.worker.on(
+      'failed',
+      function handleEvent(
+        this: CompetitiveTurnWorkerService,
+        job: Job<CompetitiveTurnJobData, CompetitiveTurnJobResult> | undefined,
+        error: Error,
+      ): void {
+        this.logger.error(
+          `Competitive turn job ${job?.id ?? 'unknown'} failed`,
+          error.stack,
+        );
+      }.bind(this),
+    );
     await this.worker.waitUntilReady();
     await this.reconcilePendingTurns();
     this.reconciliationTimer = setInterval(
-      () => void this.reconcilePendingTurns(),
+      function handleInterval(this: CompetitiveTurnWorkerService): undefined {
+        return void this.reconcilePendingTurns();
+      }.bind(this),
       TURN_RECONCILIATION_INTERVAL_MS,
     );
     this.reconciliationTimer.unref();
@@ -166,7 +186,14 @@ export class CompetitiveTurnWorkerService
     }
     const pendingTurns = await this.actionRepository.findPendingTurns();
     await Promise.all(
-      pendingTurns.map((pending) => this.turnQueue.schedule(pending)),
+      pendingTurns.map(
+        function mapItem(
+          this: CompetitiveTurnWorkerService,
+          pending: CompetitiveTurnJobData,
+        ): Promise<void> {
+          return this.turnQueue.schedule(pending);
+        }.bind(this),
+      ),
     );
   }
 }

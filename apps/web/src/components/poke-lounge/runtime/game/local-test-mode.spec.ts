@@ -10,11 +10,11 @@ import {
   resolveLocalTestModeState,
 } from "./local-test-mode";
 
-test("loopback URL에서만 로컬 테스트 모드 capability를 조회한다", async () => {
+test("loopback URL에서만 로컬 테스트 모드 capability를 조회한다", async function testCase() {
   let requestCount = 0;
   const remoteState = await loadLocalTestModeState(
     new URL("https://poke-lounge.example/game/poke-lounge"),
-    async () => {
+    async function callback() {
       requestCount += 1;
       return Response.json({ available: true, active: true });
     },
@@ -29,21 +29,22 @@ test("loopback URL에서만 로컬 테스트 모드 capability를 조회한다",
   assert.equal(requestCount, 0);
 });
 
-test("로컬 테스트 모드 capability 응답을 검증해 읽는다", async () => {
+test("로컬 테스트 모드 capability 응답을 검증해 읽는다", async function testCase() {
   const currentUrl = new URL("http://localhost:3000/ko-KR/game/poke-lounge");
-  const activeState = await loadLocalTestModeState(currentUrl, async input => {
+  const activeState = await loadLocalTestModeState(currentUrl, async function callback(input) {
     assert.equal(String(input), "http://localhost:3000/api/local-test-mode");
     return Response.json({ available: true, active: true });
   });
-  const invalidState = await loadLocalTestModeState(currentUrl, async () =>
-    Response.json({ available: "yes", active: true }),
-  );
-  const emptyState = await loadLocalTestModeState(currentUrl, async () => Response.json({}));
-  const errorState = await loadLocalTestModeState(
-    currentUrl,
-    async () => new Response(null, { status: 503 }),
-  );
-  const networkErrorState = await loadLocalTestModeState(currentUrl, async () => {
+  const invalidState = await loadLocalTestModeState(currentUrl, async function callback() {
+    return Response.json({ available: "yes", active: true });
+  });
+  const emptyState = await loadLocalTestModeState(currentUrl, async function callback() {
+    return Response.json({});
+  });
+  const errorState = await loadLocalTestModeState(currentUrl, async function callback() {
+    return new Response(null, { status: 503 });
+  });
+  const networkErrorState = await loadLocalTestModeState(currentUrl, async function callback() {
     throw new Error("offline");
   });
 
@@ -54,7 +55,7 @@ test("로컬 테스트 모드 capability 응답을 검증해 읽는다", async (
   assert.deepEqual(networkErrorState, { available: false, active: false });
 });
 
-test("활성 테스트 세션은 capability 조회 실패에도 싱글 전용 상태를 유지한다", () => {
+test("활성 테스트 세션은 capability 조회 실패에도 싱글 전용 상태를 유지한다", function testCase() {
   assert.deepEqual(resolveLocalTestModeState({ available: false, active: false }, true), {
     available: true,
     active: true,
@@ -65,7 +66,7 @@ test("활성 테스트 세션은 capability 조회 실패에도 싱글 전용 �
   });
 });
 
-test("활성화와 종료 요청은 같은 로컬 endpoint에 명시적 JSON mutation으로 보낸다", async () => {
+test("활성화와 종료 요청은 같은 로컬 endpoint에 명시적 JSON mutation으로 보낸다", async function testCase() {
   const methods: string[] = [];
   const currentUrl = new URL("http://localhost:3000/ko-KR/game/poke-lounge");
   const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -82,16 +83,18 @@ test("활성화와 종료 요청은 같은 로컬 endpoint에 명시적 JSON mut
   assert.deepEqual(methods, ["POST", "DELETE"]);
 });
 
-test("로컬 테스트 모드 mutation 실패를 성공으로 처리하지 않는다", async () => {
+test("로컬 테스트 모드 mutation 실패를 성공으로 처리하지 않는다", async function testCase() {
   const currentUrl = new URL("http://localhost:3000/ko-KR/game/poke-lounge");
 
   await assert.rejects(
-    activateLocalTestMode(currentUrl, async () => new Response(null, { status: 403 })),
+    activateLocalTestMode(currentUrl, async function callback() {
+      return new Response(null, { status: 403 });
+    }),
     /status 403/,
   );
 });
 
-test("싱글 테스트 재진입 URL은 멀티플레이 선택만 제거한다", () => {
+test("싱글 테스트 재진입 URL은 멀티플레이 선택만 제거한다", function testCase() {
   const startUrl = createLocalTestModeStartUrl(
     new URL(
       "http://localhost:3000/ko-KR/game/poke-lounge?network=server&room=ABC123&create=1&roundMs=300000&serverPlayerId=player-1&serverSessionId=session-1&scene=world",
@@ -108,7 +111,7 @@ test("싱글 테스트 재진입 URL은 멀티플레이 선택만 제거한다",
   assert.equal(startUrl.searchParams.has("serverSessionId"), false);
 });
 
-test("활성 테스트 모드 진입 URL은 직접 조합한 멀티플레이 파라미터도 제거한다", () => {
+test("활성 테스트 모드 진입 URL은 직접 조합한 멀티플레이 파라미터도 제거한다", function testCase() {
   const soloUrl = createLocalTestModeSoloUrl(
     new URL(
       "http://localhost:3000/ko-KR/game/poke-lounge?localTest=1&network=webrtc&room=ABC123&create=1&roundMs=300000&serverPlayerId=player-1&serverSessionId=session-1&scene=world",

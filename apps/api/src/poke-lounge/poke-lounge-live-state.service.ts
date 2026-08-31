@@ -192,8 +192,11 @@ export class PokeLoungeLiveStateService implements OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     @Optional()
-    private readonly clientFactory: RedisClientFactory = (url) =>
-      createClient({ url, disableOfflineQueue: true }),
+    private readonly clientFactory: RedisClientFactory = function callback(
+      url,
+    ) {
+      return createClient({ url, disableOfflineQueue: true });
+    },
   ) {}
 
   async connect(): Promise<void> {
@@ -211,11 +214,23 @@ export class PokeLoungeLiveStateService implements OnModuleDestroy {
 
     const commandClient = this.clientFactory(redisUrl);
     const subscriberClient = commandClient.duplicate();
-    commandClient.on('error', (error) =>
-      this.logger.error('Poke Lounge Redis command client error', error),
+    commandClient.on(
+      'error',
+      function handleEvent(this: PokeLoungeLiveStateService, error: any): void {
+        return this.logger.error(
+          'Poke Lounge Redis command client error',
+          error,
+        );
+      }.bind(this),
     );
-    subscriberClient.on('error', (error) =>
-      this.logger.error('Poke Lounge Redis subscriber client error', error),
+    subscriberClient.on(
+      'error',
+      function handleEvent(this: PokeLoungeLiveStateService, error: any): void {
+        return this.logger.error(
+          'Poke Lounge Redis subscriber client error',
+          error,
+        );
+      }.bind(this),
     );
     this.commandClient = commandClient;
     this.subscriberClient = subscriberClient;
@@ -223,17 +238,26 @@ export class PokeLoungeLiveStateService implements OnModuleDestroy {
       commandClient.connect(),
       subscriberClient.connect(),
     ])
-      .then(() => undefined)
-      .catch((error: unknown) => {
-        commandClient.destroy();
-        subscriberClient.destroy();
-        this.commandClient = null;
-        this.subscriberClient = null;
-        throw error;
+      .then(function handleResolved() {
+        return undefined;
       })
-      .finally(() => {
-        this.connectPromise = null;
-      });
+      .catch(
+        function handleRejected(
+          this: PokeLoungeLiveStateService,
+          error: unknown,
+        ): never {
+          commandClient.destroy();
+          subscriberClient.destroy();
+          this.commandClient = null;
+          this.subscriberClient = null;
+          throw error;
+        }.bind(this),
+      )
+      .finally(
+        function handleSettled(this: PokeLoungeLiveStateService): void {
+          this.connectPromise = null;
+        }.bind(this),
+      );
 
     return this.connectPromise;
   }
@@ -278,7 +302,7 @@ export class PokeLoungeLiveStateService implements OnModuleDestroy {
     };
     await subscriber.subscribe(ROOM_COMMIT_CHANNEL, handleMessage);
 
-    return async () => {
+    return async function callback() {
       if (subscriber.isOpen) {
         await subscriber.unsubscribe(ROOM_COMMIT_CHANNEL, handleMessage);
       }
@@ -557,12 +581,14 @@ export class PokeLoungeLiveStateService implements OnModuleDestroy {
       this.roomCommitSubscriberClient,
       this.subscriberClient,
       this.commandClient,
-    ].filter((client): client is RedisClient => client !== null);
+    ].filter(function filterItem(client): client is RedisClient {
+      return client !== null;
+    });
     this.roomCommitSubscriberClient = null;
     this.subscriberClient = null;
     this.commandClient = null;
     await Promise.all(
-      clients.map(async (client) => {
+      clients.map(async function mapItem(client) {
         if (client.isOpen) {
           await client.close();
         }
@@ -583,24 +609,39 @@ export class PokeLoungeLiveStateService implements OnModuleDestroy {
     }
     if (!this.roomCommitConnectPromise) {
       const subscriber = this.requireCommandClient().duplicate();
-      subscriber.on('error', (error) =>
-        this.logger.error(
-          'Poke Lounge Redis room commit subscriber error',
-          error,
-        ),
+      subscriber.on(
+        'error',
+        function handleEvent(
+          this: PokeLoungeLiveStateService,
+          error: any,
+        ): void {
+          return this.logger.error(
+            'Poke Lounge Redis room commit subscriber error',
+            error,
+          );
+        }.bind(this),
       );
       this.roomCommitSubscriberClient = subscriber;
       this.roomCommitConnectPromise = subscriber
         .connect()
-        .then(() => undefined)
-        .catch((error: unknown) => {
-          subscriber.destroy();
-          this.roomCommitSubscriberClient = null;
-          throw error;
+        .then(function handleResolved() {
+          return undefined;
         })
-        .finally(() => {
-          this.roomCommitConnectPromise = null;
-        });
+        .catch(
+          function handleRejected(
+            this: PokeLoungeLiveStateService,
+            error: unknown,
+          ): never {
+            subscriber.destroy();
+            this.roomCommitSubscriberClient = null;
+            throw error;
+          }.bind(this),
+        )
+        .finally(
+          function handleSettled(this: PokeLoungeLiveStateService): void {
+            this.roomCommitConnectPromise = null;
+          }.bind(this),
+        );
     }
     await this.roomCommitConnectPromise;
     if (!this.roomCommitSubscriberClient?.isReady) {
@@ -723,12 +764,15 @@ function parseWorldSnapshot(
     throw new Error('Poke Lounge world epoch is missing');
   }
   const players = Object.entries(values)
-    .filter(
-      ([field]) =>
-        field !== WORLD_EPOCH_FIELD && field !== WORLD_SEQUENCE_FIELD,
-    )
-    .map(([playerId, value]) => parseWorldPlayer(playerId, value))
-    .sort((left, right) => left.playerId.localeCompare(right.playerId));
+    .filter(function filterItem([field]) {
+      return field !== WORLD_EPOCH_FIELD && field !== WORLD_SEQUENCE_FIELD;
+    })
+    .map(function mapItem([playerId, value]) {
+      return parseWorldPlayer(playerId, value);
+    })
+    .sort(function compareItems(left, right) {
+      return left.playerId.localeCompare(right.playerId);
+    });
 
   return {
     roomCode,

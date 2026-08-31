@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { CloseLegacyPokeLoungeCompetitiveRooms1794960000000 } from './1794960000000-close-legacy-poke-lounge-competitive-rooms';
 
-describe('CloseLegacyPokeLoungeCompetitiveRooms1794960000000', () => {
-  it('closes active rooms and removes only unfinished V1 matches', async () => {
+describe('CloseLegacyPokeLoungeCompetitiveRooms1794960000000', function testSuite() {
+  it('closes active rooms and removes only unfinished V1 matches', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
 
     await new CloseLegacyPokeLoungeCompetitiveRooms1794960000000().up({

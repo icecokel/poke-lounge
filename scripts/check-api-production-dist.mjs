@@ -19,7 +19,9 @@ if (!existsSync(apiDistRoot)) {
 const violations = [];
 for (const filePath of walkFiles(apiDistRoot)) {
   const relativePath = relative(apiDistRoot, filePath);
-  const pathMarker = forbiddenMarkers.find(marker => relativePath.includes(marker));
+  const pathMarker = forbiddenMarkers.find(function findItem(marker) {
+    return relativePath.includes(marker);
+  });
   if (pathMarker) {
     violations.push(`${relativePath}: path contains ${pathMarker}`);
     continue;
@@ -42,7 +44,7 @@ if (violations.length > 0) {
 console.log("API production dist excludes the Poke Lounge E2E bootstrap and credentials");
 
 function walkFiles(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+  return readdirSync(directory, { withFileTypes: true }).flatMap(function mapItem(entry) {
     const entryPath = resolve(directory, entry.name);
     if (entry.isDirectory()) return walkFiles(entryPath);
     return statSync(entryPath).isFile() ? [entryPath] : [];

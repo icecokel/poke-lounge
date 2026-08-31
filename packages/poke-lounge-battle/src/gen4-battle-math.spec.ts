@@ -1,14 +1,14 @@
 import {
   applyBattleStatStageDelta,
   calculateBattleStageModifiedStat,
-  calculateGen4BattleStats,
-  calculateGen4Damage,
-  calculateGen4TypeEffectiveness,
   createDefaultBattleStatStages,
-} from "./index";
+} from "./battle-stat-stages";
+import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
+import { calculateGen4Damage } from "./gen4-battle-math";
+import { calculateGen4TypeEffectiveness } from "./gen4-type-chart";
 
-describe("shared Gen 4 battle math", () => {
-  it("calculates the Lv.11 Squirtle IV fixture with zero EV", () => {
+describe("shared Gen 4 battle math", function testSuite() {
+  it("calculates the Lv.11 Squirtle IV fixture with zero EV", function testCase() {
     expect(
       calculateGen4BattleStats(
         {
@@ -39,7 +39,7 @@ describe("shared Gen 4 battle math", () => {
     });
   });
 
-  it("applies water STAB and fire weakness", () => {
+  it("applies water STAB and fire weakness", function testCase() {
     const effectiveness = calculateGen4TypeEffectiveness(11, [10]);
 
     expect(effectiveness).toBe(2);
@@ -59,7 +59,7 @@ describe("shared Gen 4 battle math", () => {
     ).toBe(18);
   });
 
-  it("clamps stat stages to -6 through +6", () => {
+  it("clamps stat stages to -6 through +6", function testCase() {
     const lowered = applyBattleStatStageDelta(createDefaultBattleStatStages(), "attack", -20);
     const raised = applyBattleStatStageDelta(lowered, "attack", 30);
 

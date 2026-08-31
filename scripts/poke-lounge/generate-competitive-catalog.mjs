@@ -18,52 +18,62 @@ if (mode !== "--write" && mode !== "--check") {
 const source = JSON.parse(await readFile(sourcePath, "utf8"));
 const species = Object.fromEntries(
   Object.values(source.species)
-    .filter(
-      entry =>
-        Number.isSafeInteger(entry.speciesId) && entry.speciesId >= 1 && entry.speciesId <= 493,
-    )
-    .sort((left, right) => left.speciesId - right.speciesId)
-    .map(entry => [
-      entry.speciesId,
-      {
-        speciesId: entry.speciesId,
-        baseStats: {
-          hp: entry.baseStats.hp,
-          attack: entry.baseStats.attack,
-          defense: entry.baseStats.defense,
-          specialAttack: entry.baseStats.specialAttack,
-          specialDefense: entry.baseStats.specialDefense,
-          speed: entry.baseStats.speed,
+    .filter(function filterItem(entry) {
+      return (
+        Number.isSafeInteger(entry.speciesId) && entry.speciesId >= 1 && entry.speciesId <= 493
+      );
+    })
+    .sort(function compareItems(left, right) {
+      return left.speciesId - right.speciesId;
+    })
+    .map(function mapItem(entry) {
+      return [
+        entry.speciesId,
+        {
+          speciesId: entry.speciesId,
+          baseStats: {
+            hp: entry.baseStats.hp,
+            attack: entry.baseStats.attack,
+            defense: entry.baseStats.defense,
+            specialAttack: entry.baseStats.specialAttack,
+            specialDefense: entry.baseStats.specialDefense,
+            speed: entry.baseStats.speed,
+          },
+          typeIds: entry.types.ids,
         },
-        typeIds: entry.types.ids,
-      },
-    ]),
+      ];
+    }),
 );
 const moves = Object.fromEntries(
   Object.values(source.moves)
-    .filter(
-      entry =>
+    .filter(function filterItem(entry) {
+      return (
         Number.isSafeInteger(entry.id) &&
         entry.id >= 1 &&
         entry.id <= 470 &&
         typeof entry.name === "string" &&
-        entry.name.trim().length > 0,
-    )
-    .sort((left, right) => left.id - right.id)
-    .map(entry => [
-      entry.id,
-      {
-        moveId: entry.id,
-        typeId: entry.typeId,
-        category: entry.category,
-        power: entry.power,
-        accuracy: entry.accuracy,
-        effectCode: entry.effectCode,
-        effectChance: entry.effectChance,
-        priority: entry.priority,
-        maxPp: entry.pp,
-      },
-    ]),
+        entry.name.trim().length > 0
+      );
+    })
+    .sort(function compareItems(left, right) {
+      return left.id - right.id;
+    })
+    .map(function mapItem(entry) {
+      return [
+        entry.id,
+        {
+          moveId: entry.id,
+          typeId: entry.typeId,
+          category: entry.category,
+          power: entry.power,
+          accuracy: entry.accuracy,
+          effectCode: entry.effectCode,
+          effectChance: entry.effectChance,
+          priority: entry.priority,
+          maxPp: entry.pp,
+        },
+      ];
+    }),
 );
 const canonicalCatalog = JSON.stringify({ moves, species });
 const catalogHash = createHash("sha256").update(canonicalCatalog, "utf8").digest("hex");
@@ -82,14 +92,26 @@ const outputs = [
 ];
 
 if (mode === "--write") {
-  await Promise.all(outputs.map(([filePath, content]) => writeFile(filePath, content)));
+  await Promise.all(
+    outputs.map(function mapItem([filePath, content]) {
+      return writeFile(filePath, content);
+    }),
+  );
 } else {
   const current = await Promise.all(
-    outputs.map(([filePath]) => readFile(filePath, "utf8").catch(() => "")),
+    outputs.map(function mapItem([filePath]) {
+      return readFile(filePath, "utf8").catch(function handleRejected() {
+        return "";
+      });
+    }),
   );
   const drifted = outputs
-    .filter(([, content], index) => current[index] !== content)
-    .map(([filePath]) => path.relative(root, filePath));
+    .filter(function filterItem([, content], index) {
+      return current[index] !== content;
+    })
+    .map(function mapItem([filePath]) {
+      return path.relative(root, filePath);
+    });
   if (drifted.length > 0) {
     throw new Error(`Competitive catalog is stale: ${drifted.join(", ")}`);
   }

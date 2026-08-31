@@ -5,7 +5,7 @@ import {
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-export const GET = async (request: NextRequest): Promise<Response> => {
+export async function GET(request: NextRequest): Promise<Response> {
   const noStoreHeaders = { "Cache-Control": "private, no-cache, no-store" };
   if (request.nextUrl.pathname !== "/api/auth/session") {
     return NextResponse.json({ error: "Not found" }, { status: 404, headers: noStoreHeaders });
@@ -18,4 +18,4 @@ export const GET = async (request: NextRequest): Promise<Response> => {
     ),
     { headers: noStoreHeaders },
   );
-};
+}

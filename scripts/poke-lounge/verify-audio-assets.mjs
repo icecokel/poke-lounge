@@ -75,8 +75,16 @@ if (!Array.isArray(manifest.bgm)) {
   fail("manifest.bgm must be an array");
 }
 
-const ids = new Set(manifest.sfx.map(item => item.id));
-const bgmIds = new Set(manifest.bgm.map(item => item.id));
+const ids = new Set(
+  manifest.sfx.map(function mapItem(item) {
+    return item.id;
+  }),
+);
+const bgmIds = new Set(
+  manifest.bgm.map(function mapItem(item) {
+    return item.id;
+  }),
+);
 
 for (const expectedId of expectedIds) {
   if (!ids.has(expectedId)) {
@@ -178,12 +186,16 @@ for (const item of manifest.bgm) {
   }
 }
 
-const totalBytes = manifest.sfx.reduce((sum, item) => sum + item.sizeBytes, 0);
+const totalBytes = manifest.sfx.reduce(function reduceItems(sum, item) {
+  return sum + item.sizeBytes;
+}, 0);
 if (totalBytes > 500_000) {
   fail(`total SFX payload ${totalBytes} exceeds 500000 bytes`);
 }
 
-const totalBgmBytes = manifest.bgm.reduce((sum, item) => sum + item.sizeBytes, 0);
+const totalBgmBytes = manifest.bgm.reduce(function reduceItems(sum, item) {
+  return sum + item.sizeBytes;
+}, 0);
 if (totalBgmBytes > 900_000) {
   fail(`total BGM payload ${totalBgmBytes} exceeds 900000 bytes`);
 }

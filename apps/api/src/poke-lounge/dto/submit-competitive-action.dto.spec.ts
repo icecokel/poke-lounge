@@ -1,11 +1,11 @@
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
-import { COMPETITIVE_STRUGGLE_MOVE_ID } from '@poke-lounge/battle';
+import { COMPETITIVE_STRUGGLE_MOVE_ID } from '@poke-lounge/battle/competitive-ruleset-config';
 import {
   SubmitCompetitiveActionDto,
   SubmitSessionCompetitiveActionDto,
 } from './submit-competitive-action.dto';
 
-describe('SubmitCompetitiveActionDto', () => {
+describe('SubmitCompetitiveActionDto', function testSuite() {
   const pipe = new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
@@ -16,7 +16,7 @@ describe('SubmitCompetitiveActionDto', () => {
     { kind: 'move', moveId: 55 },
     { kind: 'move', moveId: COMPETITIVE_STRUGGLE_MOVE_ID },
     { kind: 'switch', slotIndex: 1 },
-  ])('accepts a strict legal action shape', async (action) => {
+  ])('accepts a strict legal action shape', async function callback(action) {
     await expect(transform(validBody(action))).resolves.toMatchObject({
       assignmentRevision: 1,
       turn: 0,
@@ -37,11 +37,14 @@ describe('SubmitCompetitiveActionDto', () => {
     'userId',
     'actor',
     'nowMs',
-  ])('rejects forbidden client authority field %s', async (field) => {
-    await expectForbidden({ ...validBody(), [field]: 'forged' }, field);
-  });
+  ])(
+    'rejects forbidden client authority field %s',
+    async function callback(field) {
+      await expectForbidden({ ...validBody(), [field]: 'forged' }, field);
+    },
+  );
 
-  it('rejects unsafe turns, non-v4 command ids, and mixed action variants', async () => {
+  it('rejects unsafe turns, non-v4 command ids, and mixed action variants', async function testCase() {
     await expect(transform(validBody(undefined, { turn: -1 }))).rejects.toThrow(
       BadRequestException,
     );
@@ -67,7 +70,7 @@ describe('SubmitCompetitiveActionDto', () => {
     );
   });
 
-  it('requires a bounded non-blank session identity for password rooms', async () => {
+  it('requires a bounded non-blank session identity for password rooms', async function testCase() {
     await expect(
       pipe.transform(
         { ...validBody(), sessionId: 'session-a' },

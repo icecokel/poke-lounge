@@ -16,9 +16,9 @@ const SENSITIVE_KEYS = new Set([
 
 const isSensitiveKey = (key: string): boolean => {
   const normalized = key.toLowerCase();
-  return [...SENSITIVE_KEYS].some(
-    (sensitiveKey) => normalized === sensitiveKey.toLowerCase(),
-  );
+  return [...SENSITIVE_KEYS].some(function testItem(sensitiveKey) {
+    return normalized === sensitiveKey.toLowerCase();
+  });
 };
 
 const redactSensitiveString = (value: string): string =>
@@ -30,17 +30,21 @@ const redactSensitiveString = (value: string): string =>
     )
     .replace(/\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi, REDACTED);
 
-export const redactSensitiveValue = (value: unknown): unknown => {
+export function redactSensitiveValue(value: unknown): unknown {
   if (Array.isArray(value)) {
-    return value.map((item) => redactSensitiveValue(item));
+    return value.map(function mapItem(item) {
+      return redactSensitiveValue(item);
+    });
   }
 
   if (value && typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [
-        key,
-        isSensitiveKey(key) ? REDACTED : redactSensitiveValue(item),
-      ]),
+      Object.entries(value).map(function mapItem([key, item]) {
+        return [
+          key,
+          isSensitiveKey(key) ? REDACTED : redactSensitiveValue(item),
+        ];
+      }),
     );
   }
 
@@ -49,4 +53,4 @@ export const redactSensitiveValue = (value: unknown): unknown => {
   }
 
   return value;
-};
+}

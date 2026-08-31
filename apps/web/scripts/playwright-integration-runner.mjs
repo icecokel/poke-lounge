@@ -63,7 +63,7 @@ for (const name of Object.keys(playwrightEnv)) {
 }
 
 const runCommand = (command, args, options = {}) =>
-  new Promise((resolvePromise, reject) => {
+  new Promise(function resolvePromise(resolvePromise, reject) {
     const child = spawn(command, args, {
       cwd: repositoryRoot,
       env: apiEnv,
@@ -72,7 +72,7 @@ const runCommand = (command, args, options = {}) =>
     });
 
     child.once("error", reject);
-    child.once("exit", code => {
+    child.once("exit", function handleEvent(code) {
       if (code === 0) {
         resolvePromise();
         return;
@@ -91,7 +91,9 @@ const waitForApi = async () => {
       if (response.ok) return;
     } catch {}
 
-    await new Promise(resolvePromise => setTimeout(resolvePromise, 500));
+    await new Promise(function resolvePromise(resolvePromise) {
+      return setTimeout(resolvePromise, 500);
+    });
   }
 
   throw new Error(`Timed out waiting for integrated API at ${apiUrl}`);

@@ -95,11 +95,11 @@ const mockGameService = (): MockGameService => ({
   findPokeLoungeState: jest.fn(),
 });
 
-describe('GameController', () => {
+describe('GameController', function testSuite() {
   let controller: GameController;
   let service: MockGameService;
 
-  beforeEach(async () => {
+  beforeEach(async function setUpTest() {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [GameController],
       providers: [
@@ -124,15 +124,15 @@ describe('GameController', () => {
     service.isPublicRankingEligible.mockReturnValue(true);
   });
 
-  afterEach(() => {
+  afterEach(function tearDownTest() {
     jest.useRealTimers();
   });
 
-  it('should be defined', () => {
+  it('should be defined', function testCase() {
     expect(controller).toBeDefined();
   });
 
-  describe('createResult', () => {
+  describe('createResult', function testSuite() {
     it.each([
       {
         now: '2026-08-09T14:59:59.999Z',
@@ -156,7 +156,7 @@ describe('GameController', () => {
       },
     ])(
       'should query the KST week containing $now',
-      async ({ now, start, end }) => {
+      async function callback({ now, start, end }) {
         jest.useFakeTimers({ now: new Date(now) });
         const dto: CreateGameHistoryDto = {
           score: 100,
@@ -191,7 +191,7 @@ describe('GameController', () => {
       },
     );
 
-    it('should create a game result', async () => {
+    it('should create a game result', async function testCase() {
       const dto: CreateGameHistoryDto = {
         score: 100,
         gameType: GameType.SKY_DROP,
@@ -237,7 +237,7 @@ describe('GameController', () => {
       expect(result).toEqual(expectedResult);
     });
 
-    it('should create a game result with playTime', async () => {
+    it('should create a game result with playTime', async function testCase() {
       const dto: CreateGameHistoryDto = {
         score: 200,
         gameType: GameType.SKY_DROP,
@@ -277,7 +277,7 @@ describe('GameController', () => {
       expect(result).toEqual(expectedResult);
     });
 
-    it('should create a Poke Lounge game result without public ranking metadata', async () => {
+    it('should create a Poke Lounge game result without public ranking metadata', async function testCase() {
       const dto: CreateGameHistoryDto = {
         score: 300,
         gameType: GameType.POKE_LOUNGE,
@@ -320,7 +320,7 @@ describe('GameController', () => {
     });
 
     // Failure Case 1: Service throws an error (e.g., DB error)
-    it('should throw InternalServerErrorException if service fails', async () => {
+    it('should throw InternalServerErrorException if service fails', async function testCase() {
       const dto: CreateGameHistoryDto = {
         score: 100,
         gameType: GameType.SKY_DROP,
@@ -339,7 +339,7 @@ describe('GameController', () => {
 
     // Failure Case 2: DTO validation failure simulation (Mocking bad input reaching logic if DTO passed)
     // Note: DTO validation happens before controller, but logic might fail on business rules in service
-    it('should propagate service error for invalid logic', async () => {
+    it('should propagate service error for invalid logic', async function testCase() {
       const dto: CreateGameHistoryDto = {
         score: -50, // Assuming negative score is allowed by DTO but rejected by Service logic
         gameType: GameType.SKY_DROP,
@@ -357,8 +357,8 @@ describe('GameController', () => {
     });
   });
 
-  describe('getRanking', () => {
-    it('should return ranking list for required gameType', async () => {
+  describe('getRanking', function testSuite() {
+    it('should return ranking list for required gameType', async function testCase() {
       const expectedResult = [
         {
           score: 100,
@@ -375,7 +375,7 @@ describe('GameController', () => {
       expect(result).toEqual(expectedResult);
     });
 
-    it('should return ranking list filtered by gameType', async () => {
+    it('should return ranking list filtered by gameType', async function testCase() {
       const expectedResult = [
         {
           score: 200,
@@ -393,7 +393,7 @@ describe('GameController', () => {
     });
 
     // Failure Case 1: Service throws error
-    it('should throw error if service fails to get ranking', async () => {
+    it('should throw error if service fails to get ranking', async function testCase() {
       service.getRanking.mockRejectedValue(
         new InternalServerErrorException('DB Connection Fail'),
       );
@@ -403,13 +403,13 @@ describe('GameController', () => {
     });
 
     // Success Case 2 (Implicitly failure check for empty data): Should return empty array if no data
-    it('should return empty array if no ranking data exists', async () => {
+    it('should return empty array if no ranking data exists', async function testCase() {
       service.getRanking.mockResolvedValue([]);
       const result = await controller.getRanking(GameType.SKY_DROP);
       expect(result).toEqual([]);
     });
 
-    it('should preserve the plain empty-array contract for Poke Lounge rankings', async () => {
+    it('should preserve the plain empty-array contract for Poke Lounge rankings', async function testCase() {
       service.getRanking.mockResolvedValue([]);
 
       const result = await controller.getRanking(GameType.POKE_LOUNGE);
@@ -419,9 +419,9 @@ describe('GameController', () => {
     });
   });
 
-  describe('getGameResult', () => {
+  describe('getGameResult', function testSuite() {
     // Success Case 1
-    it('should return game result by id', async () => {
+    it('should return game result by id', async function testCase() {
       const id = 'test-uuid';
       const history = createGameHistory({
         id,
@@ -447,7 +447,7 @@ describe('GameController', () => {
     });
 
     // Success Case 2: Formatting check (checking displayName concatenation again)
-    it('should correctly format displayName in response', async () => {
+    it('should correctly format displayName in response', async function testCase() {
       const id = 'another-uuid';
       const history = createGameHistory({
         id,
@@ -464,7 +464,7 @@ describe('GameController', () => {
       expect(result.user.displayName).toBe('Hong Gildong');
     });
 
-    it('should return Poke Lounge game result by id', async () => {
+    it('should return Poke Lounge game result by id', async function testCase() {
       const id = 'poke-lounge-uuid';
       const history = createGameHistory({
         id,
@@ -490,7 +490,7 @@ describe('GameController', () => {
     });
 
     // Failure Case 1: ID not found (Service throws NotFoundException)
-    it('should throw NotFoundException if id not found', async () => {
+    it('should throw NotFoundException if id not found', async function testCase() {
       const id = 'invalid-uuid';
       service.findHistoryById.mockRejectedValue(
         new NotFoundException('Game history not found'),
@@ -502,7 +502,7 @@ describe('GameController', () => {
     });
 
     // Failure Case 2: Internal Server Error (DB Error)
-    it('should throw InternalServerErrorException on DB error', async () => {
+    it('should throw InternalServerErrorException on DB error', async function testCase() {
       const id = 'error-uuid';
       service.findHistoryById.mockRejectedValue(
         new InternalServerErrorException('DB Error'),
@@ -514,7 +514,7 @@ describe('GameController', () => {
     });
 
     // Failure Case 3: BadRequest (Invalid UUID format simulation)
-    it('should throw BadRequestException for invalid UUID format', async () => {
+    it('should throw BadRequestException for invalid UUID format', async function testCase() {
       const id = 'not-a-uuid';
       service.findHistoryById.mockRejectedValue(
         new BadRequestException('Invalid UUID'),
@@ -526,7 +526,7 @@ describe('GameController', () => {
     });
 
     // Failure Case 4: Unknown Error
-    it('should propagate unknown errors', async () => {
+    it('should propagate unknown errors', async function testCase() {
       const id = 'unknown-error-uuid';
       service.findHistoryById.mockRejectedValue(new Error('Unknown Error'));
 
@@ -536,8 +536,8 @@ describe('GameController', () => {
     });
   });
 
-  describe('poke lounge state', () => {
-    it('should save Poke Lounge state for the authenticated user', async () => {
+  describe('poke lounge state', function testSuite() {
+    it('should save Poke Lounge state for the authenticated user', async function testCase() {
       const req: TestRequest = {
         user: createUser({ id: 'poke-user' }),
       };
@@ -570,7 +570,7 @@ describe('GameController', () => {
       expect(result).toEqual(savedState);
     });
 
-    it('should return saved Poke Lounge state for the authenticated user', async () => {
+    it('should return saved Poke Lounge state for the authenticated user', async function testCase() {
       const req: TestRequest = {
         user: createUser({ id: 'poke-user' }),
       };
@@ -597,7 +597,7 @@ describe('GameController', () => {
       expect(result).toEqual(savedState);
     });
 
-    it('should propagate NotFoundException when the authenticated user has no saved state', async () => {
+    it('should propagate NotFoundException when the authenticated user has no saved state', async function testCase() {
       const req: TestRequest = {
         user: createUser({ id: 'poke-user' }),
       };

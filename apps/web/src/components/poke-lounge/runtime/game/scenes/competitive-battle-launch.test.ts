@@ -3,7 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { COMPETITIVE_RULESET_HASH, COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle";
+import {
+  COMPETITIVE_RULESET_HASH,
+  COMPETITIVE_STRUGGLE_MOVE_ID,
+} from "@poke-lounge/battle/competitive-ruleset-config";
 import {
   isLegalAuthoritativeAction,
   toAuthoritativeBattleState,
@@ -20,7 +23,7 @@ import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../te
 import type {
   CompetitiveProjection,
   CompetitiveRoomProjectionEvent,
-} from "../network/localPreviewRoom";
+} from "../network/local-preview-room";
 import {
   createCompetitiveBattleLaunchCache,
   isCompetitiveAssignmentForPlayer,
@@ -29,8 +32,8 @@ import {
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 
-test.before(async () => {
-  await loadRuntimeGameDataJson(async input => {
+test.before(async function callback() {
+  await loadRuntimeGameDataJson(async function callback(input) {
     const requestPath =
       typeof input === "string"
         ? input
@@ -55,7 +58,9 @@ test.before(async () => {
   });
 });
 
-test.after(() => resetRuntimeGameDataJsonStateForTest());
+test.after(function callback() {
+  return resetRuntimeGameDataJsonStateForTest();
+});
 
 function createProjection(
   matchId: string,
@@ -79,33 +84,35 @@ function createProjection(
       turn: 0,
       participantIds: playerIds,
       playersById: Object.fromEntries(
-        playerIds.map(playerId => [
-          playerId,
-          {
+        playerIds.map(function mapItem(playerId) {
+          return [
             playerId,
-            activeSlotIndex: 0,
-            team: [
-              {
-                slotIndex: 0,
-                speciesId: playerId === playerIds[0] ? 7 : 158,
-                level: playerId === playerIds[0] ? 11 : 13,
-                maxHp: 34,
-                currentHp: 34,
-                status: "normal" as const,
-                statStages: {
-                  attack: 0,
-                  defense: 0,
-                  specialAttack: 0,
-                  specialDefense: 0,
-                  speed: 0,
-                  accuracy: 0,
-                  evasion: 0,
+            {
+              playerId,
+              activeSlotIndex: 0,
+              team: [
+                {
+                  slotIndex: 0,
+                  speciesId: playerId === playerIds[0] ? 7 : 158,
+                  level: playerId === playerIds[0] ? 11 : 13,
+                  maxHp: 34,
+                  currentHp: 34,
+                  status: "normal" as const,
+                  statStages: {
+                    attack: 0,
+                    defense: 0,
+                    specialAttack: 0,
+                    specialDefense: 0,
+                    speed: 0,
+                    accuracy: 0,
+                    evasion: 0,
+                  },
+                  moves: [{ moveId: 55, pp: 25 }],
                 },
-                moves: [{ moveId: 55, pp: 25 }],
-              },
-            ],
-          },
-        ]),
+              ],
+            },
+          ];
+        }),
       ),
       terminal: null,
     },
@@ -114,7 +121,7 @@ function createProjection(
   };
 }
 
-test("authoritative terminal state는 기존 WorldScene 복귀 위치를 보존한다", () => {
+test("authoritative terminal state는 기존 WorldScene 복귀 위치를 보존한다", function testCase() {
   const projection = createProjection(
     "11111111-1111-4111-8111-111111111111",
     "game-round-1-bracket-1-match-1",
@@ -149,16 +156,18 @@ test("authoritative terminal state는 기존 WorldScene 복귀 위치를 보존�
   assert.equal(state.player.pokemon.level, 13);
   assert.equal(state.player.pokemon.attack, 25);
   assert.deepEqual(
-    state.player.pokemon.moves.map(move => ({
-      power: move.power,
-      accuracy: move.accuracy,
-      maxPp: move.maxPp,
-    })),
+    state.player.pokemon.moves.map(function mapItem(move) {
+      return {
+        power: move.power,
+        accuracy: move.accuracy,
+        maxPp: move.maxPp,
+      };
+    }),
     [{ power: 40, accuracy: 100, maxPp: 25 }],
   );
 });
 
-test("authoritative battle은 활성 포켓몬의 PP가 모두 0일 때만 발버둥을 허용한다", () => {
+test("authoritative battle은 활성 포켓몬의 PP가 모두 0일 때만 발버둥을 허용한다", function testCase() {
   const projection = createProjection(
     "11111111-1111-4111-8111-111111111111",
     "game-round-1-bracket-1-match-1",
@@ -166,7 +175,9 @@ test("authoritative battle은 활성 포켓몬의 PP가 모두 0일 때만 발�
   );
   const activePokemon = projection.currentState.playersById["seed-4"]?.team[0];
   assert.ok(activePokemon);
-  activePokemon.moves = activePokemon.moves.map(move => ({ ...move, pp: 0 }));
+  activePokemon.moves = activePokemon.moves.map(function mapItem(move) {
+    return { ...move, pp: 0 };
+  });
 
   assert.equal(
     isLegalAuthoritativeAction(projection, "seed-4", {
@@ -177,7 +188,7 @@ test("authoritative battle은 활성 포켓몬의 PP가 모두 0일 때만 발�
   );
 });
 
-test("같은 턴 상대 행동 갱신은 현재 기술 선택을 닫지 않는다", () => {
+test("같은 턴 상대 행동 갱신은 현재 기술 선택을 닫지 않는다", function testCase() {
   const projection = createProjection(
     "11111111-1111-4111-8111-111111111111",
     "game-round-1-bracket-1-match-1",
@@ -211,7 +222,7 @@ test("같은 턴 상대 행동 갱신은 현재 기술 선택을 닫지 않는�
   assert.equal(nextTurn.phase, "command");
 });
 
-test("미지원 상태 기술은 선택 불가로, 공격 기술의 미지원 부가 효과는 표시만 한다", () => {
+test("미지원 상태 기술은 선택 불가로, 공격 기술의 미지원 부가 효과는 표시만 한다", function testCase() {
   const projection = createProjection(
     "11111111-1111-4111-8111-111111111111",
     "game-round-1-bracket-1-match-1",
@@ -227,11 +238,13 @@ test("미지원 상태 기술은 선택 불가로, 공격 기술의 미지원 �
   const state = toAuthoritativeBattleState(projection, "seed-4");
 
   assert.deepEqual(
-    state.player.pokemon.moves.map(move => ({
-      moveId: move.id,
-      name: move.name,
-      support: move.competitiveEffectSupport,
-    })),
+    state.player.pokemon.moves.map(function mapItem(move) {
+      return {
+        moveId: move.id,
+        name: move.name,
+        support: move.competitiveEffectSupport,
+      };
+    }),
     [
       { moveId: 97, name: "고속이동", support: "unsupported-primary" },
       { moveId: 2, name: "태권당수", support: "unsupported-secondary" },
@@ -244,7 +257,7 @@ test("미지원 상태 기술은 선택 불가로, 공격 기술의 미지원 �
   assert.equal(isLegalAuthoritativeAction(projection, "seed-4", { kind: "move", moveId: 2 }), true);
 });
 
-test("WorldScene은 handed-off old key만 완료하고 next assignment를 한 번만 launch한다", () => {
+test("WorldScene은 handed-off old key만 완료하고 next assignment를 한 번만 launch한다", function testCase() {
   const cache = createCompetitiveBattleLaunchCache();
   const oldEvent: CompetitiveRoomProjectionEvent = {
     projection: createProjection(
@@ -282,7 +295,7 @@ test("WorldScene은 handed-off old key만 완료하고 next assignment를 한 �
   assert.equal(cache.begin(nextEvent), false);
 });
 
-test("공식 배정은 해당 플레이어의 진행 중인 로컬 전투만 선점한다", () => {
+test("공식 배정은 해당 플레이어의 진행 중인 로컬 전투만 선점한다", function testCase() {
   const event: CompetitiveRoomProjectionEvent = {
     projection: createProjection(
       "11111111-1111-4111-8111-111111111111",
@@ -312,7 +325,7 @@ test("공식 배정은 해당 플레이어의 진행 중인 로컬 전투만 선
   );
 });
 
-test("라운드 준비가 끝나면 로컬 전투를 월드로 돌려보낸다", () => {
+test("라운드 준비가 끝나면 로컬 전투를 월드로 돌려보낸다", function testCase() {
   const round = { phase: "round-started" as const, endsAtMs: 10_000 };
 
   assert.equal(shouldPreemptLocalBattleForRound("round-started", round, 10_000, false), true);

@@ -1,5 +1,5 @@
-import type { CompetitivePartyInput } from "@poke-lounge/battle";
-import type { PlayerSnapshot } from "./localPreviewRoom";
+import type { CompetitivePartyInput } from "@poke-lounge/battle/competitive-party";
+import type { PlayerSnapshot } from "./local-preview-room";
 
 export function createCompetitivePartySnapshot(snapshot: PlayerSnapshot): CompetitivePartyInput {
   if (snapshot.activePartySlotIndex === undefined) {
@@ -9,7 +9,7 @@ export function createCompetitivePartySnapshot(snapshot: PlayerSnapshot): Compet
   return {
     version: 2,
     activeSlotIndex: snapshot.activePartySlotIndex,
-    members: (snapshot.party ?? []).flatMap(slot => {
+    members: (snapshot.party ?? []).flatMap(function mapItem(slot) {
       const pokemon = slot.pokemon;
       if (!pokemon) {
         return [];
@@ -31,10 +31,12 @@ export function createCompetitivePartySnapshot(snapshot: PlayerSnapshot): Compet
           currentHp: pokemon.currentHp,
           status: pokemon.status,
           individualValues: { ...pokemon.individualValues },
-          moves: pokemon.moves.map(move => ({
-            moveId: move.id,
-            pp: move.pp,
-          })),
+          moves: pokemon.moves.map(function mapItem(move) {
+            return {
+              moveId: move.id,
+              pp: move.pp,
+            };
+          }),
         },
       ];
     }),

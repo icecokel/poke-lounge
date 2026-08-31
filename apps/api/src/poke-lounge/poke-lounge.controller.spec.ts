@@ -11,13 +11,13 @@ import type { PokeLoungeRomDataService } from './poke-lounge-rom-data.service';
 
 const IDEMPOTENCY_KEY = '00000000-0000-4000-8000-000000000001';
 
-describe('PokeLoungeController', () => {
+describe('PokeLoungeController', function testSuite() {
   let service: jest.Mocked<PokeLoungeRoomService>;
   let competitiveService: jest.Mocked<CompetitiveMatchService>;
   let romDataService: jest.Mocked<PokeLoungeRomDataService>;
   let controller: PokeLoungeController;
 
-  beforeEach(() => {
+  beforeEach(function setUpTest() {
     service = {
       createRoom: jest.fn().mockResolvedValue(snapshot()),
       getRoom: jest.fn().mockResolvedValue(snapshot()),
@@ -38,9 +38,9 @@ describe('PokeLoungeController', () => {
       getRuntimeData: jest.fn().mockResolvedValue({ documents: [] }),
       getShopItemIds: jest
         .fn()
-        .mockImplementation((shopKind) =>
-          Promise.resolve(shopKind === 'basic' ? [17] : [80]),
-        ),
+        .mockImplementation(function mockImplementation(shopKind) {
+          return Promise.resolve(shopKind === 'basic' ? [17] : [80]);
+        }),
     } as unknown as jest.Mocked<PokeLoungeRomDataService>;
     controller = new PokeLoungeController(
       service,
@@ -49,7 +49,7 @@ describe('PokeLoungeController', () => {
     );
   });
 
-  it('serves ROM data without an authentication guard', async () => {
+  it('serves ROM data without an authentication guard', async function testCase() {
     await expect(controller.getRomData()).resolves.toEqual({ documents: [] });
     expect(romDataService.getRuntimeData.mock.calls).toHaveLength(1);
 
@@ -65,19 +65,23 @@ describe('PokeLoungeController', () => {
   it.each([
     [
       'basic',
-      () => controller.getBasicShopItemIds(),
+      function callback() {
+        return controller.getBasicShopItemIds();
+      },
       'getBasicShopItemIds',
       [17],
     ],
     [
       'premium',
-      () => controller.getPremiumShopItemIds(),
+      function callback() {
+        return controller.getPremiumShopItemIds();
+      },
       'getPremiumShopItemIds',
       [80],
     ],
   ] as const)(
     'serves the %s shop catalog from its own route',
-    async (shopKind, requestShopItems, method, expected) => {
+    async function callback(shopKind, requestShopItems, method, expected) {
       await expect(requestShopItems()).resolves.toEqual(expected);
       expect(romDataService.getShopItemIds.mock.calls).toContainEqual([
         shopKind,
@@ -93,29 +97,34 @@ describe('PokeLoungeController', () => {
     },
   );
 
-  it('requires one canonical UUID v4 and one non-negative safe revision on revision-controlled POSTs', async () => {
+  it('requires one canonical UUID v4 and one non-negative safe revision on revision-controlled POSTs', async function testCase() {
     const cases = [
-      () => controller.createRoom({ sessionId: 'session-a' }, request()),
-      () =>
-        controller.joinRoom(
+      function callback() {
+        return controller.createRoom({ sessionId: 'session-a' }, request());
+      },
+      function callback() {
+        return controller.joinRoom(
           'ROOM01',
           { playerId: 'player-b', sessionId: 'session-b' },
           request(),
-        ),
-      () =>
-        controller.setReady(
+        );
+      },
+      function callback() {
+        return controller.setReady(
           'ROOM01',
           { playerId: 'player-a', sessionId: 'session-a', ready: true },
           request(),
-        ),
-      () =>
-        controller.startRoom(
+        );
+      },
+      function callback() {
+        return controller.startRoom(
           'ROOM01',
           { playerId: 'player-a', sessionId: 'session-a' },
           request(),
-        ),
-      () =>
-        controller.updatePartySnapshot(
+        );
+      },
+      function callback() {
+        return controller.updatePartySnapshot(
           'ROOM01',
           {
             playerId: 'player-a',
@@ -123,9 +132,10 @@ describe('PokeLoungeController', () => {
             competitiveParty: createTestCompetitivePartyInput(),
           },
           request(),
-        ),
-      () =>
-        controller.submitResult(
+        );
+      },
+      function callback() {
+        return controller.submitResult(
           'ROOM01',
           {
             reportingPlayerId: 'player-a',
@@ -136,13 +146,15 @@ describe('PokeLoungeController', () => {
             reason: 'faint',
           },
           request(),
-        ),
-      () =>
-        controller.leaveRoom(
+        );
+      },
+      function callback() {
+        return controller.leaveRoom(
           'ROOM01',
           { playerId: 'player-a', sessionId: 'session-a' },
           request(),
-        ),
+        );
+      },
     ];
 
     for (const invoke of cases) {
@@ -158,7 +170,7 @@ describe('PokeLoungeController', () => {
     expect(service.leaveRoom.mock.calls).toHaveLength(0);
   });
 
-  it('accepts round readiness with idempotency metadata and no revision header', async () => {
+  it('accepts round readiness with idempotency metadata and no revision header', async function testCase() {
     await controller.setRoundReady(
       'ROOM01',
       { playerId: 'player-a', sessionId: 'session-a', roundIndex: 1 },
@@ -182,17 +194,20 @@ describe('PokeLoungeController', () => {
     [IDEMPOTENCY_KEY, '1.0'],
     [IDEMPOTENCY_KEY, '01'],
     [IDEMPOTENCY_KEY, String(Number.MAX_SAFE_INTEGER + 1)],
-  ])('rejects malformed command headers (%s, %s)', async (key, revision) => {
-    await expect(
-      controller.joinRoom(
-        'ROOM01',
-        { playerId: 'player-b', sessionId: 'session-b' },
-        request(['X-Idempotency-Key', key, 'If-Match-Revision', revision]),
-      ),
-    ).rejects.toThrow(BadRequestException);
-  });
+  ])(
+    'rejects malformed command headers (%s, %s)',
+    async function callback(key, revision) {
+      await expect(
+        controller.joinRoom(
+          'ROOM01',
+          { playerId: 'player-b', sessionId: 'session-b' },
+          request(['X-Idempotency-Key', key, 'If-Match-Revision', revision]),
+        ),
+      ).rejects.toThrow(BadRequestException);
+    },
+  );
 
-  it('rejects duplicate raw command headers even when Node could join them', async () => {
+  it('rejects duplicate raw command headers even when Node could join them', async function testCase() {
     await expect(
       controller.joinRoom(
         'ROOM01',
@@ -224,7 +239,7 @@ describe('PokeLoungeController', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('requires creation revision zero and forwards validated command metadata', async () => {
+  it('requires creation revision zero and forwards validated command metadata', async function testCase() {
     await expect(
       controller.createRoom(
         { playerId: 'player-a', sessionId: 'session-a' },
@@ -244,7 +259,7 @@ describe('PokeLoungeController', () => {
     ]);
   });
 
-  it('forwards the latest revision metadata to all existing-room commands', async () => {
+  it('forwards the latest revision metadata to all existing-room commands', async function testCase() {
     const rawRequest = commandRequest(7);
 
     await controller.joinRoom(
@@ -305,7 +320,7 @@ describe('PokeLoungeController', () => {
     }
   });
 
-  it('preserves an omitted join playerId for the service to assign inside the locked room', async () => {
+  it('preserves an omitted join playerId for the service to assign inside the locked room', async function testCase() {
     await controller.joinRoom(
       'ROOM01',
       { sessionId: 'session-b' },
@@ -320,7 +335,7 @@ describe('PokeLoungeController', () => {
     ]);
   });
 
-  it('never forwards client-provided mutation clocks to the room service', async () => {
+  it('never forwards client-provided mutation clocks to the room service', async function testCase() {
     const clientNowMs = 253_402_300_800_000;
     const rawRequest = commandRequest(0);
 
@@ -408,7 +423,7 @@ describe('PokeLoungeController', () => {
     }
   });
 
-  it('redacts session ids while retaining revision and expiry in public responses', async () => {
+  it('redacts session ids while retaining revision and expiry in public responses', async function testCase() {
     const response = await controller.getRoom('ROOM01');
 
     expect(response).toMatchObject({
@@ -421,7 +436,7 @@ describe('PokeLoungeController', () => {
     expect(JSON.stringify(response)).not.toContain('sessionId');
   });
 
-  it('binds a competitive seat from req.user.id without accepting an actor id', async () => {
+  it('binds a competitive seat from req.user.id without accepting an actor id', async function testCase() {
     await controller.bindCompetitiveSeat('room01', { sessionId: 'session-a' }, {
       user: { id: 'account-a' },
     } as never);
@@ -433,7 +448,7 @@ describe('PokeLoungeController', () => {
     ]);
   });
 
-  it('guards competitive seat binding with GoogleAuthGuard', () => {
+  it('guards competitive seat binding with GoogleAuthGuard', function testCase() {
     const descriptor = Object.getOwnPropertyDescriptor(
       PokeLoungeController.prototype,
       'bindCompetitiveSeat',
@@ -446,7 +461,7 @@ describe('PokeLoungeController', () => {
     expect(guards).toContain(GoogleAuthGuard);
   });
 
-  it('submits a competitive action with req.user.id as the only actor source', async () => {
+  it('submits a competitive action with req.user.id as the only actor source', async function testCase() {
     await controller.submitCompetitiveAction(
       'room01',
       '00000000-0000-4000-8000-000000000010',
@@ -466,7 +481,7 @@ describe('PokeLoungeController', () => {
     });
   });
 
-  it('guards competitive action submission with GoogleAuthGuard', () => {
+  it('guards competitive action submission with GoogleAuthGuard', function testCase() {
     const descriptor = Object.getOwnPropertyDescriptor(
       PokeLoungeController.prototype,
       'submitCompetitiveAction',
@@ -478,7 +493,7 @@ describe('PokeLoungeController', () => {
     expect(guards).toContain(GoogleAuthGuard);
   });
 
-  it('submits a password-room action with only its private session identity', async () => {
+  it('submits a password-room action with only its private session identity', async function testCase() {
     await controller.submitSessionCompetitiveAction(
       'room01',
       '00000000-0000-4000-8000-000000000010',
@@ -500,7 +515,7 @@ describe('PokeLoungeController', () => {
     });
   });
 
-  it('rejects malformed competitive match ids before calling the service', async () => {
+  it('rejects malformed competitive match ids before calling the service', async function testCase() {
     await expect(
       controller.submitCompetitiveAction(
         ' room01 ',
@@ -517,7 +532,7 @@ describe('PokeLoungeController', () => {
     expect(competitiveService.submitAction.mock.calls).toHaveLength(0);
   });
 
-  it('documents the legacy room result endpoint as casual and unverified', () => {
+  it('documents the legacy room result endpoint as casual and unverified', function testCase() {
     const descriptor = Object.getOwnPropertyDescriptor(
       PokeLoungeController.prototype,
       'submitResult',
@@ -532,7 +547,7 @@ describe('PokeLoungeController', () => {
     expect(operation.description).toContain('ranking');
   });
 
-  it('validates the optional REST recovery revision cursor', async () => {
+  it('validates the optional REST recovery revision cursor', async function testCase() {
     const getRoom = (
       controller as unknown as {
         getRoom(roomCode: string, afterRevision?: string): Promise<unknown>;

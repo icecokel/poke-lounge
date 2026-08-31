@@ -24,15 +24,18 @@ const httpMethods = [
 ] as const;
 
 const wrapSuccessfulResponseSchemas = (document: OpenAPIObject): void => {
-  Object.values(document.paths).forEach((path) => {
-    httpMethods.forEach((method) => {
+  Object.values(document.paths).forEach(function visitItem(path) {
+    httpMethods.forEach(function visitItem(method) {
       const operation = path[method];
 
       if (!operation) {
         return;
       }
 
-      Object.entries(operation.responses).forEach(([statusCode, response]) => {
+      Object.entries(operation.responses).forEach(function visitItem([
+        statusCode,
+        response,
+      ]) {
         if (!response || !/^2\d\d$/.test(statusCode) || '$ref' in response) {
           return;
         }
@@ -56,7 +59,7 @@ const wrapSuccessfulResponseSchemas = (document: OpenAPIObject): void => {
   });
 };
 
-export const createApiDocument = (app: INestApplication): OpenAPIObject => {
+export function createApiDocument(app: INestApplication): OpenAPIObject {
   const config = new DocumentBuilder()
     .setTitle('Poke Lounge API')
     .setDescription('Poke Lounge API 문서입니다.')
@@ -68,12 +71,12 @@ export const createApiDocument = (app: INestApplication): OpenAPIObject => {
   wrapSuccessfulResponseSchemas(document);
 
   return document;
-};
+}
 
-export const setupApiDocumentation = (app: INestApplication): void => {
+export function setupApiDocumentation(app: INestApplication): void {
   app.use('/api', noCache);
   app.use('/api-json', noCache);
 
   const document = createApiDocument(app);
   SwaggerModule.setup('api', app, document);
-};
+}

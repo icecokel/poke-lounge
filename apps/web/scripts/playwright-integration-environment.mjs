@@ -1,9 +1,16 @@
 export function omitDatabaseEnvironment(environment, secretValues, exactSecretValues = []) {
   return Object.fromEntries(
-    Object.entries(environment).filter(([name, value]) => {
+    Object.entries(environment).filter(function filterItem([name, value]) {
       if (isDatabaseEnvironmentName(name)) return false;
-      if (secretValues.some(secret => secret && value?.includes(secret))) return false;
-      return !exactSecretValues.some(secret => secret && value === secret);
+      if (
+        secretValues.some(function testItem(secret) {
+          return secret && value?.includes(secret);
+        })
+      )
+        return false;
+      return !exactSecretValues.some(function testItem(secret) {
+        return secret && value === secret;
+      });
     }),
   );
 }
@@ -36,8 +43,12 @@ export function assertClientEnvironment(label, environment, testUrl, testPasswor
   for (const secret of [testUrl, testPassword]) {
     if (!secret) continue;
     const exposedNames = Object.entries(environment)
-      .filter(([, value]) => value?.includes(secret))
-      .map(([name]) => name);
+      .filter(function filterItem([, value]) {
+        return value?.includes(secret);
+      })
+      .map(function mapItem([name]) {
+        return name;
+      });
     if (exposedNames.length > 0) {
       throw new Error(
         `${label} environment exposes a test database secret through: ${exposedNames.join(", ")}`,
@@ -47,8 +58,12 @@ export function assertClientEnvironment(label, environment, testUrl, testPasswor
 
   if (testUsername) {
     const exposedNames = Object.entries(environment)
-      .filter(([, value]) => value === testUsername)
-      .map(([name]) => name);
+      .filter(function filterItem([, value]) {
+        return value === testUsername;
+      })
+      .map(function mapItem([name]) {
+        return name;
+      });
     if (exposedNames.length > 0) {
       throw new Error(
         `${label} environment exposes a test database username through: ${exposedNames.join(", ")}`,

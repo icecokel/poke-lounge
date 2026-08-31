@@ -27,7 +27,11 @@ const PokeLoungeLoadingScreen = () => {
 };
 
 const PokeLoungeGame = dynamic(
-  () => import("@/components/poke-lounge/poke-lounge-game").then(mod => mod.PokeLoungeGame),
+  function callback() {
+    return import("@/components/poke-lounge/poke-lounge-game").then(function handleResolved(mod) {
+      return mod.PokeLoungeGame;
+    });
+  },
   {
     ssr: false,
     loading: PokeLoungeLoadingScreen,

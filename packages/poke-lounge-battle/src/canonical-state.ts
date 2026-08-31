@@ -82,7 +82,7 @@ function canonicalizeValue(value: unknown, ancestors: WeakSet<object>): unknown 
 
   try {
     if (Array.isArray(value)) {
-      return Array.from({ length: value.length }, (_, index) => {
+      return Array.from({ length: value.length }, function callback(_, index) {
         if (!(index in value)) {
           throw new TypeError("Value is not valid canonical JSON: sparse array");
         }

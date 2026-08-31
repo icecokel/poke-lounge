@@ -15,7 +15,7 @@ import {
   type ValidatorConstraintInterface,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { CanonicalCompetitiveAction } from '@poke-lounge/battle';
+import type { CanonicalCompetitiveAction } from '@poke-lounge/battle/actions';
 
 const UUID_V4_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -42,12 +42,16 @@ export class CompetitiveActionDto {
   kind!: CanonicalCompetitiveAction['kind'];
 
   @ApiPropertyOptional({ oneOf: [{ type: 'number' }, { type: 'string' }] })
-  @ValidateIf((value: CompetitiveActionDto) => value.kind === 'move')
+  @ValidateIf(function callback(value: CompetitiveActionDto) {
+    return value.kind === 'move';
+  })
   @Validate(CompetitiveMoveIdConstraint)
   moveId?: number | 'struggle';
 
   @ApiPropertyOptional({ minimum: 0 })
-  @ValidateIf((value: CompetitiveActionDto) => value.kind === 'switch')
+  @ValidateIf(function callback(value: CompetitiveActionDto) {
+    return value.kind === 'switch';
+  })
   @IsInt()
   @Min(0)
   @Max(5)
@@ -62,8 +66,12 @@ class CompetitiveActionShapeConstraint implements ValidatorConstraintInterface {
     }
     const record = value as Record<string, unknown>;
     const keys = Object.entries(record)
-      .filter(([, entry]) => entry !== undefined)
-      .map(([key]) => key)
+      .filter(function filterItem([, entry]) {
+        return entry !== undefined;
+      })
+      .map(function mapItem([key]) {
+        return key;
+      })
       .sort();
 
     return record.kind === 'move'
@@ -97,7 +105,9 @@ export class SubmitCompetitiveActionDto {
   @ApiProperty({ type: CompetitiveActionDto })
   @Validate(CompetitiveActionShapeConstraint)
   @ValidateNested()
-  @Type(() => CompetitiveActionDto)
+  @Type(function callback() {
+    return CompetitiveActionDto;
+  })
   action!: CompetitiveActionDto;
 }
 

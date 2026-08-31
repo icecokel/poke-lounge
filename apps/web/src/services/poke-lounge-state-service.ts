@@ -58,12 +58,12 @@ export async function loadPokeLoungeState(
   try {
     const get =
       dependencies.get ??
-      ((endpoint: string, options?: { token?: string; signal?: AbortSignal }) =>
-        apiClient.get<unknown>(endpoint, options));
-    const response = await withRequestTimeout(
-      signal => get("/game/poke-lounge/state", { token, signal }),
-      dependencies.requestTimeoutMs,
-    );
+      function callback(endpoint: string, options?: { token?: string; signal?: AbortSignal }) {
+        return apiClient.get<unknown>(endpoint, options);
+      };
+    const response = await withRequestTimeout(function callback(signal) {
+      return get("/game/poke-lounge/state", { token, signal });
+    }, dependencies.requestTimeoutMs);
 
     const responseRecord = unwrapResponseRecord(response);
     const revision = parseRevision(responseRecord.revision);
@@ -133,21 +133,21 @@ export async function savePokeLoungeState(
   try {
     const put =
       dependencies.put ??
-      ((
+      function callback(
         endpoint: string,
         body?: unknown,
         requestOptions?: { token?: string; keepalive?: boolean; signal?: AbortSignal },
-      ) => apiClient.put<unknown>(endpoint, body, requestOptions));
+      ) {
+        return apiClient.put<unknown>(endpoint, body, requestOptions);
+      };
 
-    const response = await withRequestTimeout(
-      signal =>
-        put("/game/poke-lounge/state", request, {
-          token,
-          signal,
-          ...(options.keepalive ? { keepalive: true } : {}),
-        }),
-      dependencies.requestTimeoutMs,
-    );
+    const response = await withRequestTimeout(function callback(signal) {
+      return put("/game/poke-lounge/state", request, {
+        token,
+        signal,
+        ...(options.keepalive ? { keepalive: true } : {}),
+      });
+    }, dependencies.requestTimeoutMs);
     const revision = parseRevision(unwrapResponseRecord(response).revision);
     if (revision === null) {
       return {
@@ -198,8 +198,8 @@ async function withRequestTimeout<T>(
 ): Promise<T> {
   const controller = new AbortController();
   let timeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timeoutHandle = globalThis.setTimeout(() => {
+  const timeout = new Promise<never>(function resolvePromise(_resolve, reject) {
+    timeoutHandle = globalThis.setTimeout(function handleTimeout() {
       controller.abort();
       reject(new Error("Poke Lounge state request timed out"));
     }, timeoutMs);

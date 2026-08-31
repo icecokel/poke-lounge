@@ -32,12 +32,12 @@ export function RomWebConversionPanel({ data }: { data: RomWebConversionData }) 
           </p>
         </div>
         <ul className="rom-conversion-manifests" aria-label="ROM conversion manifest status">
-          {data.loadedPaths.map(path => (
-            <li key={`loaded-${path}`} className="is-loaded">{`${path} loaded`}</li>
-          ))}
-          {data.missingPaths.map(path => (
-            <li key={`missing-${path}`} className="is-missing">{`${path} missing`}</li>
-          ))}
+          {data.loadedPaths.map(function mapItem(path) {
+            return <li key={`loaded-${path}`} className="is-loaded">{`${path} loaded`}</li>;
+          })}
+          {data.missingPaths.map(function mapItem(path) {
+            return <li key={`missing-${path}`} className="is-missing">{`${path} missing`}</li>;
+          })}
         </ul>
       </header>
       <SampleMapPreview />
@@ -48,23 +48,25 @@ export function RomWebConversionPanel({ data }: { data: RomWebConversionData }) 
         </p>
       ) : (
         <div className="rom-conversion-section-grid">
-          {sections.map(section => (
-            <article
-              key={section.id}
-              className="rom-conversion-section"
-              data-rom-conversion-section={section.id}
-            >
-              <header className="rom-conversion-section-header">
-                <h3>{section.title}</h3>
-                <p>{section.sourcePath}</p>
-              </header>
-              <div className="rom-conversion-assets">
-                {section.assets.map(asset => (
-                  <RomConversionAsset key={`${asset.id}-${asset.path}`} asset={asset} />
-                ))}
-              </div>
-            </article>
-          ))}
+          {sections.map(function mapItem(section) {
+            return (
+              <article
+                key={section.id}
+                className="rom-conversion-section"
+                data-rom-conversion-section={section.id}
+              >
+                <header className="rom-conversion-section-header">
+                  <h3>{section.title}</h3>
+                  <p>{section.sourcePath}</p>
+                </header>
+                <div className="rom-conversion-assets">
+                  {section.assets.map(function mapItem(asset) {
+                    return <RomConversionAsset key={`${asset.id}-${asset.path}`} asset={asset} />;
+                  })}
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
     </section>
@@ -91,31 +93,33 @@ function RomCatalogSummarySection({ summary }: { summary?: RomCatalogSummary | n
         <p className="rom-catalog-summary-empty">Catalog counts unavailable.</p>
       ) : (
         <div className="rom-catalog-summary-grid">
-          {summary.categories.map(category => (
-            <article
-              key={category.id}
-              className="rom-catalog-summary-card"
-              data-rom-catalog-category={category.id}
-            >
-              <h4>{category.title}</h4>
-              <p className="rom-catalog-summary-count">
-                {`${new Intl.NumberFormat("en-US").format(category.count)} ${category.countLabel}`}
-              </p>
-              <p className="rom-catalog-summary-source">{category.sourcePath}</p>
-              {category.sampleAsset && isImageAssetPath(category.sampleAsset.path) ? (
-                <figure className="rom-catalog-summary-sample">
-                  {/* Diagnostics must accept arbitrary image paths from the extraction catalog. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={category.sampleAsset.path}
-                    alt={category.sampleAsset.role ?? `${category.title} sample`}
-                    loading="lazy"
-                  />
-                  <figcaption>{category.sampleAsset.role ?? "sample asset"}</figcaption>
-                </figure>
-              ) : null}
-            </article>
-          ))}
+          {summary.categories.map(function mapItem(category) {
+            return (
+              <article
+                key={category.id}
+                className="rom-catalog-summary-card"
+                data-rom-catalog-category={category.id}
+              >
+                <h4>{category.title}</h4>
+                <p className="rom-catalog-summary-count">
+                  {`${new Intl.NumberFormat("en-US").format(category.count)} ${category.countLabel}`}
+                </p>
+                <p className="rom-catalog-summary-source">{category.sourcePath}</p>
+                {category.sampleAsset && isImageAssetPath(category.sampleAsset.path) ? (
+                  <figure className="rom-catalog-summary-sample">
+                    {/* Diagnostics must accept arbitrary image paths from the extraction catalog. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={category.sampleAsset.path}
+                      alt={category.sampleAsset.role ?? `${category.title} sample`}
+                      loading="lazy"
+                    />
+                    <figcaption>{category.sampleAsset.role ?? "sample asset"}</figcaption>
+                  </figure>
+                ) : null}
+              </article>
+            );
+          })}
         </div>
       )}
     </section>

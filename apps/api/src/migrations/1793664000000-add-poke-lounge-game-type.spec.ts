@@ -2,8 +2,8 @@ import type { QueryRunner } from 'typeorm';
 import { GameType } from '../game/enums/game-type.enum';
 import { AddPokeLoungeGameType1793664000000 } from './1793664000000-add-poke-lounge-game-type';
 
-describe('AddPokeLoungeGameType1793664000000', () => {
-  it('creates the game enum with every current GameType value when it is missing', async () => {
+describe('AddPokeLoungeGameType1793664000000', function testSuite() {
+  it('creates the game enum with every current GameType value when it is missing', async function testCase() {
     const query = await captureUpQuery();
 
     expect(query).toMatch(
@@ -11,13 +11,15 @@ describe('AddPokeLoungeGameType1793664000000', () => {
         `CREATE TYPE public\\.game_history_gametype_enum AS ENUM \\(${Object.values(
           GameType,
         )
-          .map((value) => `'${value}'`)
+          .map(function mapItem(value) {
+            return `'${value}'`;
+          })
           .join(', ')}\\)`,
       ),
     );
   });
 
-  it('adds POKE_LOUNGE without recreating an existing game enum', async () => {
+  it('adds POKE_LOUNGE without recreating an existing game enum', async function testCase() {
     const query = await captureUpQuery();
 
     expect(query).toMatch(
@@ -25,7 +27,7 @@ describe('AddPokeLoungeGameType1793664000000', () => {
     );
   });
 
-  it('looks up only the public enum regardless of search_path', async () => {
+  it('looks up only the public enum regardless of search_path', async function testCase() {
     const query = await captureUpQuery();
 
     expect(query).toContain(

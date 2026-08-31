@@ -24,8 +24,8 @@ import {
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
 
-test.before(async () => {
-  await loadRuntimeGameDataJson(async input => {
+test.before(async function callback() {
+  await loadRuntimeGameDataJson(async function callback(input) {
     const requestPath = readRequestPath(input);
     return new Response(JSON.stringify(readPublicJson(requestPath)), {
       status: 200,
@@ -34,9 +34,11 @@ test.before(async () => {
   });
 });
 
-test.after(() => resetRuntimeGameDataJsonStateForTest());
+test.after(function callback() {
+  return resetRuntimeGameDataJsonStateForTest();
+});
 
-test("진화 대상 이름은 포켓몬 데이터의 한국어 종 이름을 사용한다", () => {
+test("진화 대상 이름은 포켓몬 데이터의 한국어 종 이름을 사용한다", function testCase() {
   const evolutionTable = normalizePokemonEvolutionTable({
     version: 1,
     species: {
@@ -56,7 +58,7 @@ test("진화 대상 이름은 포켓몬 데이터의 한국어 종 이름을 사
   assert.equal(evolutionTable[1]?.[0]?.targetSpeciesName, "이상해풀");
 });
 
-test("이름이 없는 구버전 데이터는 종 번호 fallback을 유지한다", () => {
+test("이름이 없는 구버전 데이터는 종 번호 fallback을 유지한다", function testCase() {
   const evolutionTable = normalizePokemonEvolutionTable({
     version: 1,
     species: {
@@ -70,27 +72,36 @@ test("이름이 없는 구버전 데이터는 종 번호 fallback을 유지한�
   assert.equal(evolutionTable[1]?.[0]?.targetSpeciesName, undefined);
 });
 
-test("진화의 돌 9종은 성별 전용 각성의돌을 포함한 진화 규칙 27개를 연결한다", () => {
+test("진화의 돌 9종은 성별 전용 각성의돌을 포함한 진화 규칙 27개를 연결한다", function testCase() {
   const evolutionTable = normalizePokemonEvolutionTable(pokemonData);
   const itemEvolutionMethods = new Set<number>(ITEM_EVOLUTION_METHODS);
   const itemEvolutionRules = Object.values(evolutionTable)
     .flat()
-    .filter(rule => itemEvolutionMethods.has(rule.method));
+    .filter(function filterItem(rule) {
+      return itemEvolutionMethods.has(rule.method);
+    });
 
   assert.equal(EVOLUTION_STONE_ITEM_IDS.length, 9);
   assert.equal(new Set(EVOLUTION_STONE_ITEM_IDS).size, 9);
   assert.equal(itemEvolutionRules.length, 27);
-  assert.ok(itemEvolutionRules.every(rule => rule.targetSpeciesName));
+  assert.ok(
+    itemEvolutionRules.every(function testItem(rule) {
+      return rule.targetSpeciesName;
+    }),
+  );
 
   for (const [speciesId, rules] of Object.entries(evolutionTable)) {
-    for (const rule of rules.filter(candidate => itemEvolutionMethods.has(candidate.method))) {
-      const itemId = EVOLUTION_STONE_ITEM_IDS.find(
-        candidate =>
+    for (const rule of rules.filter(function filterItem(candidate) {
+      return itemEvolutionMethods.has(candidate.method);
+    })) {
+      const itemId = EVOLUTION_STONE_ITEM_IDS.find(function findItem(candidate) {
+        return (
           EVOLUTION_STONE_CATALOG[candidate].evolutionParameter === rule.parameter &&
-          EVOLUTION_STONE_CATALOG[candidate].evolutionMethods.some(
-            method => method === rule.method,
-          ),
-      );
+          EVOLUTION_STONE_CATALOG[candidate].evolutionMethods.some(function testItem(method) {
+            return method === rule.method;
+          })
+        );
+      });
       assert.ok(itemId);
 
       const result = applyEvolutionStone({
@@ -117,7 +128,7 @@ test("진화의 돌 9종은 성별 전용 각성의돌을 포함한 진화 규�
   }
 });
 
-test("각성의돌은 수컷 킬리아만 엘레이드로 진화시킨다", () => {
+test("각성의돌은 수컷 킬리아만 엘레이드로 진화시킨다", function testCase() {
   const maleResult = applyEvolutionStone({
     itemId: "dawnStone",
     pokemon: {
@@ -158,7 +169,7 @@ test("각성의돌은 수컷 킬리아만 엘레이드로 진화시킨다", () =
   assert.equal(legacyResult.evolved, false);
 });
 
-test("각성의돌은 암컷 눈꼬마만 눈여아로 진화시킨다", () => {
+test("각성의돌은 암컷 눈꼬마만 눈여아로 진화시킨다", function testCase() {
   const femaleResult = applyEvolutionStone({
     itemId: "dawnStone",
     pokemon: {
@@ -188,7 +199,7 @@ test("각성의돌은 암컷 눈꼬마만 눈여아로 진화시킨다", () => {
   assert.equal(maleResult.evolved, false);
 });
 
-test("호환되는 진화의 돌은 종과 능력치를 바꾸고 기존 진행 상태를 유지한다", () => {
+test("호환되는 진화의 돌은 종과 능력치를 바꾸고 기존 진행 상태를 유지한다", function testCase() {
   const moves = [{ id: 98, name: "전광석화", pp: 29, maxPp: 30 }];
   const result = applyEvolutionStone({
     itemId: "thunderStone",
@@ -229,7 +240,7 @@ test("호환되는 진화의 돌은 종과 능력치를 바꾸고 기존 진행 
   ]);
 });
 
-test("호환되지 않는 돌은 진화시키지 않고 전투불능 포켓몬은 진화 후에도 HP 0을 유지한다", () => {
+test("호환되지 않는 돌은 진화시키지 않고 전투불능 포켓몬은 진화 후에도 HP 0을 유지한다", function testCase() {
   const pikachu = {
     speciesId: 25,
     name: "피카츄",

@@ -32,9 +32,9 @@ export interface LocalTestAccountSession {
   localTestMode: true;
 }
 
-export const resolveLocalTestAuthToken = (
+export function resolveLocalTestAuthToken(
   environment: LocalTestAccountEnvironment = process.env,
-): string | null => {
+): string | null {
   if (environment.NODE_ENV !== "development") {
     return null;
   }
@@ -52,7 +52,7 @@ export const resolveLocalTestAuthToken = (
   }
 
   return token;
-};
+}
 
 const isLocalTestWebUrl = (url: URL): boolean =>
   url.protocol === "http:" && localTestWebHostnames.has(url.hostname);
@@ -102,17 +102,19 @@ const signLocalTestModeCookiePayload = (token: string, payload: string): string 
     .update(`${localTestModeCookieMessage}.${payload}`)
     .digest("base64url");
 
-export const isLocalTestAccountAvailable = (
+export function isLocalTestAccountAvailable(
   requestUrl: URL,
   environment: LocalTestAccountEnvironment = process.env,
-): boolean => Boolean(resolveAvailableLocalTestAuthToken(requestUrl, environment));
+): boolean {
+  return Boolean(resolveAvailableLocalTestAuthToken(requestUrl, environment));
+}
 
-export const createLocalTestModeCookieValue = (
+export function createLocalTestModeCookieValue(
   requestUrl: URL,
   environment: LocalTestAccountEnvironment = process.env,
   nowMs: number = Date.now(),
   nonce: string = randomBytes(16).toString("base64url"),
-): string | null => {
+): string | null {
   const token = resolveAvailableLocalTestAuthToken(requestUrl, environment);
   if (!token) {
     return null;
@@ -120,14 +122,14 @@ export const createLocalTestModeCookieValue = (
 
   const payload = `${localTestModeCookieVersion}.${Math.trunc(nowMs)}.${nonce}`;
   return `${payload}.${signLocalTestModeCookiePayload(token, payload)}`;
-};
+}
 
-export const isLocalTestModeCookieValid = (
+export function isLocalTestModeCookieValid(
   requestUrl: URL,
   cookieValue: string | null | undefined,
   environment: LocalTestAccountEnvironment = process.env,
   nowMs: number = Date.now(),
-): boolean => {
+): boolean {
   if (!cookieValue) {
     return false;
   }
@@ -161,13 +163,13 @@ export const isLocalTestModeCookieValid = (
   }
 
   return timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
-};
+}
 
-export const createLocalTestAccountSession = (
+export function createLocalTestAccountSession(
   requestUrl: URL,
   cookieValue: string | null | undefined,
   environment: LocalTestAccountEnvironment = process.env,
-): LocalTestAccountSession | null => {
+): LocalTestAccountSession | null {
   if (
     requestUrl.pathname !== "/api/auth/session" ||
     !isLocalTestModeCookieValid(requestUrl, cookieValue, environment)
@@ -191,4 +193,4 @@ export const createLocalTestAccountSession = (
     idTokenExpiresAt: localTestTokenExpiresAt,
     localTestMode: true,
   };
-};
+}

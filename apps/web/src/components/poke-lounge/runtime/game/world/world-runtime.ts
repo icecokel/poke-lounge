@@ -1,11 +1,11 @@
-import type { PlayerFacing, PlayerSnapshot } from "../network/localPreviewRoom";
+import type { PlayerFacing, PlayerSnapshot } from "../network/local-preview-room";
 import {
   resolveLocalPlayerVelocity,
   resolveRemotePlayerMotion,
   shouldSnapRemotePlayer,
   type RemotePlayerMotion,
 } from "../scenes/world-scene-motion";
-import { FIELD_MAP } from "./fieldMap";
+import { FIELD_MAP } from "./field-map";
 import type { WorldActorFrame, WorldFrameStore } from "./world-frame-store";
 import type { WorldMapModel } from "./world-map-model";
 import { moveWorldPlayer, resolveWorldCamera, type WorldPosition } from "./world-runtime-motion";
@@ -14,7 +14,7 @@ import {
   createTileStepTracker,
   type CompletedTileStep,
   type TileStepTracker,
-} from "./tileSteps";
+} from "./tile-steps";
 
 export interface WorldMovementInput {
   down: boolean;

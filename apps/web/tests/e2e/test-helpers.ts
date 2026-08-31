@@ -1,6 +1,6 @@
 import { expect, Page } from "@playwright/test";
 
-export const gotoWithRetry = async (page: Page, routePath: string, attempts = 4, strict = true) => {
+export async function gotoWithRetry(page: Page, routePath: string, attempts = 4, strict = true) {
   let latest: Awaited<ReturnType<Page["goto"]>> | null = null;
   let lastError: unknown;
 
@@ -12,7 +12,7 @@ export const gotoWithRetry = async (page: Page, routePath: string, attempts = 4,
       lastError = error;
     }
 
-    await page.waitForLoadState("domcontentloaded").catch(() => {});
+    await page.waitForLoadState("domcontentloaded").catch(function handleRejected() {});
     await page.waitForTimeout(250 * (attempt + 1));
   }
 
@@ -22,4 +22,4 @@ export const gotoWithRetry = async (page: Page, routePath: string, attempts = 4,
   }
 
   return latest;
-};
+}

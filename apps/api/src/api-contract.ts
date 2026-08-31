@@ -3,7 +3,7 @@ import { OpenAPIObject } from '@nestjs/swagger';
 import { createApiDocument } from './api-documentation';
 import { ApiContractModule } from './api-contract.module';
 
-export const createLocalOpenApiDocument = async (): Promise<OpenAPIObject> => {
+export async function createLocalOpenApiDocument(): Promise<OpenAPIObject> {
   const app = await NestFactory.create(ApiContractModule, {
     abortOnError: false,
     logger: false,
@@ -14,4 +14,4 @@ export const createLocalOpenApiDocument = async (): Promise<OpenAPIObject> => {
   } finally {
     await app.close();
   }
-};
+}

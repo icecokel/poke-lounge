@@ -9,11 +9,11 @@ import {
 } from "./poke-lounge-runtime-assets";
 import { resetRuntimeGameDataJsonStateForTest } from "../data/game-data-json";
 import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
-import { FIELD_MAP } from "../world/fieldMap";
+import { FIELD_MAP } from "../world/field-map";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 
-test("browser-native loader는 런타임 시작 전에 필수 JSON, 이미지, 오디오를 모두 준비한다", async () => {
+test("browser-native loader는 런타임 시작 전에 필수 JSON, 이미지, 오디오를 모두 준비한다", async function testCase() {
   const fetcher = createPublicAssetFetcher();
   const runtimeGameData = await loadRuntimeGameDataJson(fetcher);
   const loadedImagePaths = new Set<string>();
@@ -48,7 +48,7 @@ test("browser-native loader는 런타임 시작 전에 필수 JSON, 이미지, �
   }
 });
 
-test("필수 map JSON이 실패하면 image 등록 전 로딩을 중단한다", async () => {
+test("필수 map JSON이 실패하면 image 등록 전 로딩을 중단한다", async function testCase() {
   const publicFetcher = createPublicAssetFetcher();
   const runtimeGameData = await loadRuntimeGameDataJson(publicFetcher);
   let imageLoadCount = 0;
@@ -75,7 +75,7 @@ test("필수 map JSON이 실패하면 image 등록 전 로딩을 중단한다", 
 });
 
 function createPublicAssetFetcher(): typeof fetch {
-  return async input => {
+  return async function callback(input) {
     const publicPath = readRequestPath(input);
     const filePath = path.join(webRoot, "public", publicPath.replace(/^\//, ""));
 

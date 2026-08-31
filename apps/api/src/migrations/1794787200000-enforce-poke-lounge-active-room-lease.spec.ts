@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { EnforcePokeLoungeActiveRoomLease1794787200000 } from './1794787200000-enforce-poke-lounge-active-room-lease';
 
-describe('EnforcePokeLoungeActiveRoomLease1794787200000', () => {
-  it('recomputes every room status lease from the server-owned database timestamp', async () => {
+describe('EnforcePokeLoungeActiveRoomLease1794787200000', function testSuite() {
+  it('recomputes every room status lease from the server-owned database timestamp', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
     const migration = new EnforcePokeLoungeActiveRoomLease1794787200000();
 
@@ -24,7 +24,7 @@ describe('EnforcePokeLoungeActiveRoomLease1794787200000', () => {
     expect(sql).not.toContain('DELETE FROM');
   });
 
-  it('restores the legacy sentinel only for active room statuses on rollback', async () => {
+  it('restores the legacy sentinel only for active room statuses on rollback', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
 
     await new EnforcePokeLoungeActiveRoomLease1794787200000().down({

@@ -1,8 +1,8 @@
 "use client";
 
 import { forwardRef, useEffect, useRef, useSyncExternalStore, type RefCallback } from "react";
-import { BATTLE_INTRO_TIMING, createBattleIntroStripes } from "../battle/battleIntro";
-import { FIELD_MAP } from "./fieldMap";
+import { BATTLE_INTRO_TIMING, createBattleIntroStripes } from "../battle/battle-intro";
+import { FIELD_MAP } from "./field-map";
 import type { WorldFrameStore } from "./world-frame-store";
 import {
   getWorldTileSourcePosition,
@@ -14,7 +14,7 @@ import {
 } from "./world-map-model";
 import styles from "../../../poke-lounge.module.css";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
-import type { GameStateStore } from "../state/gameStateStore";
+import type { GameStateStore } from "../state/game-state-store";
 import { WorldUiLayer } from "./world-ui";
 import type { WorldUiStore } from "./world-ui-store";
 
@@ -52,41 +52,46 @@ export function WorldScreen({
   );
   const remotePlayers = frameStore.read().remotePlayers;
 
-  useEffect(() => {
-    let animationFrame = 0;
-    const renderFrame = (now: number) => {
-      const viewport = viewportRef.current;
-      const stage = stageRef.current;
-      const map = mapRef.current;
-      const localPlayer = localPlayerRef.current;
-      const frame = frameStore.read();
-      if (viewport && stage && map && localPlayer) {
-        const scale = Math.min(
-          viewport.clientWidth / frame.camera.width,
-          viewport.clientHeight / frame.camera.height,
-        );
-        stage.style.width = `${frame.camera.width}px`;
-        stage.style.height = `${frame.camera.height}px`;
-        stage.style.transform = `scale(${scale})`;
-        map.style.transform = `translate3d(${-frame.camera.x}px, ${-frame.camera.y}px, 0)`;
-        updatePlayerStyle(localPlayer, frame.localPlayer, atlas);
-        for (const remote of frame.remotePlayers) {
-          const node = remotePlayerRefs.current.get(remote.sessionId);
-          if (node) updatePlayerStyle(node, remote, atlas);
+  useEffect(
+    function runEffect() {
+      let animationFrame = 0;
+      const renderFrame = (now: number) => {
+        const viewport = viewportRef.current;
+        const stage = stageRef.current;
+        const map = mapRef.current;
+        const localPlayer = localPlayerRef.current;
+        const frame = frameStore.read();
+        if (viewport && stage && map && localPlayer) {
+          const scale = Math.min(
+            viewport.clientWidth / frame.camera.width,
+            viewport.clientHeight / frame.camera.height,
+          );
+          stage.style.width = `${frame.camera.width}px`;
+          stage.style.height = `${frame.camera.height}px`;
+          stage.style.transform = `scale(${scale})`;
+          map.style.transform = `translate3d(${-frame.camera.x}px, ${-frame.camera.y}px, 0)`;
+          updatePlayerStyle(localPlayer, frame.localPlayer, atlas);
+          for (const remote of frame.remotePlayers) {
+            const node = remotePlayerRefs.current.get(remote.sessionId);
+            if (node) updatePlayerStyle(node, remote, atlas);
+          }
         }
-      }
-      renderBattleTransition(
-        now,
-        frame.battleIntroPlaying,
-        transitionRef.current,
-        transitionStripeRefs.current,
-        transitionStartedAtRef,
-      );
+        renderBattleTransition(
+          now,
+          frame.battleIntroPlaying,
+          transitionRef.current,
+          transitionStripeRefs.current,
+          transitionStartedAtRef,
+        );
+        animationFrame = requestAnimationFrame(renderFrame);
+      };
       animationFrame = requestAnimationFrame(renderFrame);
-    };
-    animationFrame = requestAnimationFrame(renderFrame);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [atlas, frameStore]);
+      return function callback() {
+        return cancelAnimationFrame(animationFrame);
+      };
+    },
+    [atlas, frameStore],
+  );
 
   return (
     <div className={styles.worldScreen} data-poke-lounge-world-screen="true">
@@ -97,17 +102,19 @@ export function WorldScreen({
             <WorldTileLayer model={model} layer={model.layers[1]} depth={10} />
             <TallGrassBaseLayer model={model} />
             <WorldActorLayer>
-              {model.npcs.map(npc => (
-                <NpcActor key={npc.name} npc={npc} />
-              ))}
+              {model.npcs.map(function mapItem(npc) {
+                return <NpcActor key={npc.name} npc={npc} />;
+              })}
               <LocalPlayerActor ref={localPlayerRef} />
-              {remotePlayers.map(player => (
-                <RemotePlayerActor
-                  key={player.sessionId}
-                  ref={registerMapRef(remotePlayerRefs.current, player.sessionId)}
-                  displayName={player.displayName}
-                />
-              ))}
+              {remotePlayers.map(function mapItem(player) {
+                return (
+                  <RemotePlayerActor
+                    key={player.sessionId}
+                    ref={registerMapRef(remotePlayerRefs.current, player.sessionId)}
+                    displayName={player.displayName}
+                  />
+                );
+              })}
             </WorldActorLayer>
             <TallGrassForegroundLayer model={model} />
             <WorldTileLayer model={model} layer={model.layers[2]} depth={40} />
@@ -116,7 +123,7 @@ export function WorldScreen({
             <WorldBattleTransition
               ref={transitionRef}
               viewport={frameStore.read().camera}
-              registerStripe={(index, node) => {
+              registerStripe={function handleEvent(index, node) {
                 if (node) transitionStripeRefs.current.set(index, node);
                 else transitionStripeRefs.current.delete(index);
               }}
@@ -173,9 +180,9 @@ export function WorldTileLayer({
   if (!layer) return null;
   return (
     <div className={styles.worldTileLayer} data-world-layer={layer.name} style={{ zIndex: depth }}>
-      {layer.tiles.map(tile => (
-        <WorldTile key={tile.key} model={model} tile={tile} />
-      ))}
+      {layer.tiles.map(function mapItem(tile) {
+        return <WorldTile key={tile.key} model={model} tile={tile} />;
+      })}
     </div>
   );
 }
@@ -208,9 +215,9 @@ function WorldGrassLayer({
 }) {
   return (
     <div className={styles.worldTileLayer} data-world-layer={name} style={{ zIndex: depth }}>
-      {tiles.map(tile => (
-        <WorldTile key={tile.key} model={model} tile={tile} />
-      ))}
+      {tiles.map(function mapItem(tile) {
+        return <WorldTile key={tile.key} model={model} tile={tile} />;
+      })}
     </div>
   );
 }
@@ -292,19 +299,23 @@ export const WorldBattleTransition = forwardRef<
         width: viewport.width,
         height: viewport.height,
         stripeCount: 8,
-      }).map((stripe, index) => (
-        <div
-          key={index}
-          ref={node => registerStripe(index, node)}
-          className={styles.worldBattleTransitionStripe}
-          style={{
-            height: stripe.height,
-            left: stripe.x,
-            top: stripe.y,
-            width: stripe.width,
-          }}
-        />
-      ))}
+      }).map(function mapItem(stripe, index) {
+        return (
+          <div
+            key={index}
+            ref={function handleEvent(node) {
+              return registerStripe(index, node);
+            }}
+            className={styles.worldBattleTransitionStripe}
+            style={{
+              height: stripe.height,
+              left: stripe.x,
+              top: stripe.y,
+              width: stripe.width,
+            }}
+          />
+        );
+      })}
     </div>
   );
 });
@@ -329,7 +340,7 @@ function registerMapRef(
   refs: Map<string, HTMLDivElement>,
   key: string,
 ): RefCallback<HTMLDivElement> {
-  return node => {
+  return function callback(node) {
     if (node) refs.set(key, node);
     else refs.delete(key);
   };
@@ -351,7 +362,7 @@ function renderBattleTransition(
   startedAt.current ??= now;
   const elapsed = now - startedAt.current;
   overlay.style.opacity = elapsed < BATTLE_INTRO_TIMING.flashMs ? "0.86" : "1";
-  stripes.forEach((stripe, index) => {
+  stripes.forEach(function visitItem(stripe, index) {
     const progress = Math.min(
       1,
       Math.max(

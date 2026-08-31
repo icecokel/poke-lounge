@@ -140,8 +140,12 @@ async function bootstrap(): Promise<void> {
     await app.close();
     process.exit(0);
   };
-  process.once('SIGINT', () => void shutdown());
-  process.once('SIGTERM', () => void shutdown());
+  process.once('SIGINT', function handleEvent() {
+    return void shutdown();
+  });
+  process.once('SIGTERM', function handleEvent() {
+    return void shutdown();
+  });
 }
 
 function assertE2eBoundary(): void {
@@ -167,8 +171,14 @@ async function resetE2eTables(dataSource: DataSource): Promise<void> {
         AND table_name = ANY($1::text[])`,
     [E2E_TABLES],
   );
-  const existingNames = new Set(existingTables.map((row) => row.table_name));
-  const missingTables = E2E_TABLES.filter((table) => !existingNames.has(table));
+  const existingNames = new Set(
+    existingTables.map(function mapItem(row) {
+      return row.table_name;
+    }),
+  );
+  const missingTables = E2E_TABLES.filter(function filterItem(table) {
+    return !existingNames.has(table);
+  });
 
   if (missingTables.length > 0) {
     throw new Error(
@@ -176,7 +186,9 @@ async function resetE2eTables(dataSource: DataSource): Promise<void> {
     );
   }
 
-  const quotedTables = E2E_TABLES.map((table) => `"${table}"`).join(', ');
+  const quotedTables = E2E_TABLES.map(function mapItem(table) {
+    return `"${table}"`;
+  }).join(', ');
   await dataSource.query(
     `TRUNCATE TABLE ${quotedTables} RESTART IDENTITY CASCADE`,
   );
@@ -204,24 +216,35 @@ function registerRedisAssertionEndpoint(
   expressApp: E2eHttpAdapter,
   liveState: PokeLoungeLiveStateService,
 ): void {
-  expressApp.get('/__e2e/poke-lounge/assertions', (request, response) => {
-    const roomCodeQuery = request.query.roomCode;
-    const roomCode = typeof roomCodeQuery === 'string' ? roomCodeQuery : '';
-    void Promise.all([
-      readRedisAssertions(liveState, roomCode),
-      liveState.getCursor(roomCode).then(
-        () => true,
-        () => false,
-      ),
-    ]).then(
-      ([assertions, worldStatePresent]) =>
-        response.status(200).json({ ...assertions, worldStatePresent }),
-      (error) =>
-        response.status(500).json({
-          message: error instanceof Error ? error.message : String(error),
-        }),
-    );
-  });
+  expressApp.get(
+    '/__e2e/poke-lounge/assertions',
+    function callback(request, response) {
+      const roomCodeQuery = request.query.roomCode;
+      const roomCode = typeof roomCodeQuery === 'string' ? roomCodeQuery : '';
+      void Promise.all([
+        readRedisAssertions(liveState, roomCode),
+        liveState.getCursor(roomCode).then(
+          function handleResolved() {
+            return true;
+          },
+          function handleResolved() {
+            return false;
+          },
+        ),
+      ]).then(
+        function handleResolved([assertions, worldStatePresent]) {
+          return response
+            .status(200)
+            .json({ ...assertions, worldStatePresent });
+        },
+        function handleResolved(error) {
+          return response.status(500).json({
+            message: error instanceof Error ? error.message : String(error),
+          });
+        },
+      );
+    },
+  );
 }
 
 async function readRedisAssertions(
@@ -242,10 +265,14 @@ function summarizeFrozenParties(
   snapshots: Record<string, unknown>,
 ): Record<string, E2ePartySummary> {
   return Object.fromEntries(
-    Object.entries(snapshots ?? {}).map(([playerId, snapshot]) => [
-      playerId,
-      summarizeParty(expectRecord(snapshot, 'party snapshot').competitiveParty),
-    ]),
+    Object.entries(snapshots ?? {}).map(function mapItem([playerId, snapshot]) {
+      return [
+        playerId,
+        summarizeParty(
+          expectRecord(snapshot, 'party snapshot').competitiveParty,
+        ),
+      ];
+    }),
   );
 }
 
@@ -253,13 +280,18 @@ function summarizeInitialParties(
   state: E2eInitialState,
 ): Record<string, E2ePartySummary> {
   return Object.fromEntries(
-    Object.entries(state.playersById ?? {}).map(([playerId, player]) => [
+    Object.entries(state.playersById ?? {}).map(function mapItem([
       playerId,
-      summarizeParty({
-        activeSlotIndex: player.activeSlotIndex,
-        members: player.team,
-      }),
-    ]),
+      player,
+    ]) {
+      return [
+        playerId,
+        summarizeParty({
+          activeSlotIndex: player.activeSlotIndex,
+          members: player.team,
+        }),
+      ];
+    }),
   );
 }
 
@@ -270,12 +302,16 @@ function summarizeParty(rawParty: unknown): E2ePartySummary {
   ) as E2ePartySummarySource;
   return {
     activeSlotIndex: Number(party?.activeSlotIndex),
-    members: (party?.members ?? []).map((member) => ({
-      slotIndex: Number(member.slotIndex),
-      speciesId: Number(member.speciesId),
-      level: Number(member.level),
-      moveIds: (member.moves ?? []).map((move) => Number(move.moveId)),
-    })),
+    members: (party?.members ?? []).map(function mapItem(member) {
+      return {
+        slotIndex: Number(member.slotIndex),
+        speciesId: Number(member.speciesId),
+        level: Number(member.level),
+        moveIds: (member.moves ?? []).map(function mapItem(move) {
+          return Number(move.moveId);
+        }),
+      };
+    }),
   };
 }
 
@@ -293,12 +329,14 @@ export function summarizeRedisAssertionDocument(
     throw new Error('Poke Lounge Redis room document is malformed');
   }
 
-  const seats = expectArray(document.seats, 'Redis seats').map((seat) =>
-    expectRecord(seat, 'Redis seat'),
+  const seats = expectArray(document.seats, 'Redis seats').map(
+    function mapItem(seat) {
+      return expectRecord(seat, 'Redis seat');
+    },
   );
   const matches = Object.values(
     expectRecord(document.matches, 'Redis matches'),
-  ).map((rawMatch) => {
+  ).map(function mapItem(rawMatch) {
     const match = expectRecord(rawMatch, 'Redis match');
     const initialState = expectRecord(
       match.initialState,
@@ -320,7 +358,7 @@ export function summarizeRedisAssertionDocument(
   });
   const actions = Object.values(
     expectRecord(document.actions, 'Redis actions'),
-  ).map((rawAction): E2eActionAssertion => {
+  ).map(function mapItem(rawAction): E2eActionAssertion {
     const action = expectRecord(rawAction, 'Redis action');
     const command = expectRecord(action.action, 'Redis action command');
     return {
@@ -340,7 +378,9 @@ export function summarizeRedisAssertionDocument(
     ),
     seatCount: seats.length,
     distinctAccountCount: new Set(
-      seats.map((seat) => expectString(seat.accountId, 'seat accountId')),
+      seats.map(function mapItem(seat) {
+        return expectString(seat.accountId, 'seat accountId');
+      }),
     ).size,
     matches,
     actionCount: actions.length,
@@ -399,7 +439,7 @@ export function summarizeActionEvidence(actions: E2eActionAssertion[]) {
 }
 
 if (require.main === module) {
-  void bootstrap().catch((error) => {
+  void bootstrap().catch(function handleRejected(error) {
     console.error(error);
     process.exit(1);
   });

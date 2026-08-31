@@ -8,11 +8,11 @@ const localTestSession = {
   localTestMode: true,
 };
 
-test("로컬 테스트 토큰은 공용 게임 API 토큰으로 노출하지 않는다", () => {
+test("로컬 테스트 토큰은 공용 게임 API 토큰으로 노출하지 않는다", function testCase() {
   assert.equal(getSessionApiIdToken(localTestSession, Date.now()), undefined);
 });
 
-test("Poke Lounge는 로컬 테스트 토큰 사용을 명시적으로 허용한다", () => {
+test("Poke Lounge는 로컬 테스트 토큰 사용을 명시적으로 허용한다", function testCase() {
   assert.equal(
     getSessionApiIdToken(localTestSession, Date.now(), { allowLocalTestMode: true }),
     localTestSession.idToken,

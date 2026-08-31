@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readPokeLoungeBattleLaunchSnapshot } from "./poke-lounge-e2e-controller";
 
-test("서버 권위 전투 시작만 renderer-neutral launch snapshot으로 기록한다", () => {
+test("서버 권위 전투 시작만 renderer-neutral launch snapshot으로 기록한다", function testCase() {
   assert.equal(readPokeLoungeBattleLaunchSnapshot({ battleKind: "wild", projection: {} }), null);
   assert.deepEqual(
     readPokeLoungeBattleLaunchSnapshot({

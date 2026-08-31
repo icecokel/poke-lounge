@@ -30,7 +30,9 @@ export function normalizeBattleStatStages(
   stages: Partial<BattleStatStages> = {},
 ): BattleStatStages {
   return Object.fromEntries(
-    BATTLE_STAT_STAGE_KEYS.map(key => [key, clampBattleStatStage(stages[key] ?? 0)]),
+    BATTLE_STAT_STAGE_KEYS.map(function mapItem(key) {
+      return [key, clampBattleStatStage(stages[key] ?? 0)];
+    }),
   ) as BattleStatStages;
 }
 

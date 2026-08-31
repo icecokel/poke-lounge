@@ -1,4 +1,4 @@
-import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from "@poke-lounge/battle";
+import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from "@poke-lounge/battle/runtime-item-ids";
 import {
   MAX_SUPPORTED_POKEMON_SPECIES_ID,
   MIN_SUPPORTED_POKEMON_SPECIES_ID,
@@ -143,10 +143,11 @@ const runtimeGameDataJsonState: RuntimeGameDataJsonState = {
 
 export async function loadRuntimeGameDataJson(
   fetcher: typeof fetch = fetch,
-  loadRomData: () => Promise<unknown> = () =>
-    import("@/lib/api-client").then(({ apiClient }) =>
-      apiClient.get<unknown>(POKE_LOUNGE_ROM_DATA_API_PATH),
-    ),
+  loadRomData: () => Promise<unknown> = function callback() {
+    return import("@/lib/api-client").then(function handleResolved({ apiClient }) {
+      return apiClient.get<unknown>(POKE_LOUNGE_ROM_DATA_API_PATH);
+    });
+  },
 ): Promise<RuntimeGameDataJson> {
   try {
     const [romData, wildBattleMoveSets, battlePokemonAssets] = await Promise.all([
@@ -327,8 +328,11 @@ export function hasRuntimeShopItemRomIds(shopKind: RuntimeShopKind): boolean {
 
 export async function loadRuntimeShopItemRomIds(
   shopKind: RuntimeShopKind,
-  loadShopItemIds: (path: string) => Promise<unknown> = path =>
-    import("@/lib/api-client").then(({ apiClient }) => apiClient.get<unknown>(path)),
+  loadShopItemIds: (path: string) => Promise<unknown> = function callback(path) {
+    return import("@/lib/api-client").then(function handleResolved({ apiClient }) {
+      return apiClient.get<unknown>(path);
+    });
+  },
 ): Promise<readonly number[]> {
   const itemIds = await loadShopItemIds(POKE_LOUNGE_SHOP_ITEMS_API_PATHS[shopKind]);
   const normalizedItemIds = normalizeRuntimeShopItemRomIds(
@@ -424,7 +428,9 @@ export function getRuntimePokemonSpeciesSummary(
     !Number.isInteger(baseStats.specialAttack) ||
     !Number.isInteger(baseStats.specialDefense) ||
     !Array.isArray(typeIds) ||
-    !typeIds.every(typeId => Number.isInteger(typeId)) ||
+    !typeIds.every(function testItem(typeId) {
+      return Number.isInteger(typeId);
+    }) ||
     catchRate === null ||
     baseExpYield === null ||
     growthRate === null ||
@@ -574,7 +580,7 @@ export function normalizePokemonDataRecordCount(data: unknown): number | null {
     return null;
   }
 
-  const recordCount = Object.values(data.species).filter(value => {
+  const recordCount = Object.values(data.species).filter(function filterItem(value) {
     if (!isRecord(value)) {
       return false;
     }
@@ -590,25 +596,25 @@ export function normalizePokemonMoveNames(data: unknown): Record<number, string>
     return null;
   }
 
-  const moveNames = Object.entries(data.moves).reduce<Record<number, string>>(
-    (accumulator, [moveIdKey, value]) => {
-      const moveId = readPositiveInteger(moveIdKey);
+  const moveNames = Object.entries(data.moves).reduce<Record<number, string>>(function reduceItems(
+    accumulator,
+    [moveIdKey, value],
+  ) {
+    const moveId = readPositiveInteger(moveIdKey);
 
-      if (!moveId || !isRecord(value) || readPositiveInteger(value.id) !== moveId) {
-        return accumulator;
-      }
-
-      const name = typeof value.name === "string" ? value.name.trim() : "";
-
-      if (!name) {
-        return accumulator;
-      }
-
-      accumulator[moveId] = name;
+    if (!moveId || !isRecord(value) || readPositiveInteger(value.id) !== moveId) {
       return accumulator;
-    },
-    {},
-  );
+    }
+
+    const name = typeof value.name === "string" ? value.name.trim() : "";
+
+    if (!name) {
+      return accumulator;
+    }
+
+    accumulator[moveId] = name;
+    return accumulator;
+  }, {});
 
   return Object.keys(moveNames).length > 0 ? moveNames : null;
 }
@@ -619,7 +625,7 @@ export function normalizeLevelUpMoveTable(data: unknown): Record<number, LevelUp
   }
 
   const species = Object.entries(data.species).reduce<Record<number, LevelUpMoveRow[]>>(
-    (accumulator, [speciesIdKey, value]) => {
+    function reduceItems(accumulator, [speciesIdKey, value]) {
       const speciesId = readPositiveInteger(speciesIdKey);
       const rows = normalizeLevelUpMoveRows(value);
 
@@ -642,7 +648,7 @@ export function normalizeWildBattleMoveSets(data: unknown): Record<number, numbe
   }
 
   const species = Object.entries(data.species).reduce<Record<number, number[]>>(
-    (accumulator, [speciesIdKey, value]) => {
+    function reduceItems(accumulator, [speciesIdKey, value]) {
       const speciesId = readPositiveInteger(speciesIdKey);
       const moveIds = normalizeWildBattleMoveSet(value);
 
@@ -672,8 +678,12 @@ export function normalizeBattlePokemonAssetManifest(
 
   const spriteSheetRanges = data.spriteSheetRanges
     .map(normalizeBattlePokemonSpriteSheetRangeRecord)
-    .filter((range): range is BattlePokemonSpriteSheetRangeRecord => range !== null)
-    .sort((left, right) => left.startSpeciesId - right.startSpeciesId);
+    .filter(function filterItem(range): range is BattlePokemonSpriteSheetRangeRecord {
+      return range !== null;
+    })
+    .sort(function compareItems(left, right) {
+      return left.startSpeciesId - right.startSpeciesId;
+    });
 
   if (
     spriteSheetRanges.length === 0 ||
@@ -708,7 +718,9 @@ function normalizeLevelUpMoveRows(data: unknown): LevelUpMoveRow[] {
     uniqueRows.set(`${level}:${moveId}`, { level, moveId });
   }
 
-  return [...uniqueRows.values()].sort((left, right) => left.level - right.level);
+  return [...uniqueRows.values()].sort(function compareItems(left, right) {
+    return left.level - right.level;
+  });
 }
 
 function isPokemonDataJson(data: unknown): boolean {
@@ -806,7 +818,12 @@ function hasCompleteLevelUpMoveCoverage(
   ) {
     const rows = levelUpMoveTable[speciesId];
 
-    if (!rows?.length || rows.some(row => !moveNames[row.moveId])) {
+    if (
+      !rows?.length ||
+      rows.some(function testItem(row) {
+        return !moveNames[row.moveId];
+      })
+    ) {
       return false;
     }
   }
@@ -832,9 +849,9 @@ function normalizeGrowthExperienceTables(data: unknown): Map<number, readonly nu
       table.growth_rate !== growthRate ||
       !Array.isArray(table.experience) ||
       table.experience.length !== HGSS_GROWTH_TABLE_LEVEL_COUNT ||
-      !table.experience.every(
-        value => typeof value === "number" && Number.isInteger(value) && value >= 0,
-      )
+      !table.experience.every(function testItem(value) {
+        return typeof value === "number" && Number.isInteger(value) && value >= 0;
+      })
     ) {
       return null;
     }
@@ -966,9 +983,9 @@ function hasCompleteBattlePokemonSpriteSheetCoverage(
     return false;
   }
 
-  return ranges.every(
-    (range, index) => index === 0 || range.startSpeciesId === ranges[index - 1].endSpeciesId + 1,
-  );
+  return ranges.every(function testItem(range, index) {
+    return index === 0 || range.startSpeciesId === ranges[index - 1].endSpeciesId + 1;
+  });
 }
 
 function readRomDataResponse(
@@ -1000,7 +1017,11 @@ function readRomDataResponse(
     documents.set(candidate.documentKey as RomDocumentKey, candidate.payload);
   }
 
-  if (ROM_DOCUMENT_KEYS.some(key => !documents.has(key))) {
+  if (
+    ROM_DOCUMENT_KEYS.some(function testItem(key) {
+      return !documents.has(key);
+    })
+  ) {
     throw invalidRomDataResponse();
   }
 

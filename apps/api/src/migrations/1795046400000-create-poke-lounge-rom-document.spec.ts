@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { CreatePokeLoungeRomDocument1795046400000 } from './1795046400000-create-poke-lounge-rom-document';
 
-describe('CreatePokeLoungeRomDocument1795046400000 SQL contract', () => {
-  it('creates a versioned and content-addressed ROM document table', async () => {
+describe('CreatePokeLoungeRomDocument1795046400000 SQL contract', function testSuite() {
+  it('creates a versioned and content-addressed ROM document table', async function testCase() {
     const migration = new CreatePokeLoungeRomDocument1795046400000();
     const queries = await captureQueries(migration, 'up');
     const query = queries.join('\n');
@@ -18,7 +18,7 @@ describe('CreatePokeLoungeRomDocument1795046400000 SQL contract', () => {
     expect(query).not.toContain('IF NOT EXISTS');
   });
 
-  it('drops only the ROM document table on rollback', async () => {
+  it('drops only the ROM document table on rollback', async function testCase() {
     const queries = await captureQueries(
       new CreatePokeLoungeRomDocument1795046400000(),
       'down',

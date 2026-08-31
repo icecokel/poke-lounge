@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getWebRtcSignalingCopy } from "./webRtcSignalingPanel";
+import { getWebRtcSignalingCopy } from "./web-rtc-signaling-panel";
 
 const HANGUL_PATTERN = /[\u3131-\u318e\uac00-\ud7a3]/;
 
-test("WebRTC 수동 연결 패널은 영어와 일본어 문구를 제공한다", () => {
+test("WebRTC 수동 연결 패널은 영어와 일본어 문구를 제공한다", function testCase() {
   const english = getWebRtcSignalingCopy("en-US");
   const japanese = getWebRtcSignalingCopy("ja-JP");
 

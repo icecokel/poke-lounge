@@ -12,19 +12,19 @@ import {
   WILD_BATTLE_MOVE_SETS_JSON_PATH,
 } from "../data/game-data-json";
 import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
-import type { PlayerPokemon } from "../state/gameStateStore";
+import type { PlayerPokemon } from "../state/game-state-store";
 import {
   createWildBattleState,
   type RomPersonalRecordCollection,
   type RomRefinedMoveCollection,
-} from "./wildBattleFactory";
+} from "./wild-battle-factory";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
 const personalRecords = pokemonData as RomPersonalRecordCollection;
 const moveRecords = pokemonData as RomRefinedMoveCollection;
 
-test("Lv.10 세 스타터는 레벨업표 기준 최근 기술 4개로 전투를 시작한다", async () => {
+test("Lv.10 세 스타터는 레벨업표 기준 최근 기술 4개로 전투를 시작한다", async function testCase() {
   await loadRuntimeGameData();
 
   try {
@@ -38,7 +38,9 @@ test("Lv.10 세 스타터는 레벨업표 기준 최근 기술 4개로 전투를
       const state = createBattleState(starter);
 
       assert.deepEqual(
-        state.player.pokemon.moves.map(move => move.id),
+        state.player.pokemon.moves.map(function mapItem(move) {
+          return move.id;
+        }),
         expectedMoveIds,
         `${starter.name}의 Lv.10 기술 구성이 올바르지 않습니다.`,
       );
@@ -48,7 +50,7 @@ test("Lv.10 세 스타터는 레벨업표 기준 최근 기술 4개로 전투를
   }
 });
 
-test("저장된 성별을 전투에 복원하고 신규 야생 포켓몬은 personal 성비로 성별을 만든다", async () => {
+test("저장된 성별을 전투에 복원하고 신규 야생 포켓몬은 personal 성비로 성별을 만든다", async function testCase() {
   await loadRuntimeGameData();
 
   try {
@@ -80,7 +82,7 @@ test("저장된 성별을 전투에 복원하고 신규 야생 포켓몬은 pers
   }
 });
 
-test("저장된 기술 구성과 소모 PP를 다음 전투에서도 복원한다", async () => {
+test("저장된 기술 구성과 소모 PP를 다음 전투에서도 복원한다", async function testCase() {
   await loadRuntimeGameData();
 
   try {
@@ -95,11 +97,13 @@ test("저장된 기술 구성과 소모 PP를 다음 전투에서도 복원한�
     });
 
     assert.deepEqual(
-      state.player.pokemon.moves.map(move => ({
-        id: move.id,
-        pp: move.pp,
-        maxPp: move.maxPp,
-      })),
+      state.player.pokemon.moves.map(function mapItem(move) {
+        return {
+          id: move.id,
+          pp: move.pp,
+          maxPp: move.maxPp,
+        };
+      }),
       [
         { id: 33, pp: 1, maxPp: 35 },
         { id: 43, pp: 2, maxPp: 30 },
@@ -112,7 +116,7 @@ test("저장된 기술 구성과 소모 PP를 다음 전투에서도 복원한�
   }
 });
 
-test("구형 2기술 스타터 저장은 정규 4기술로 보정하면서 기존 PP를 유지한다", async () => {
+test("구형 2기술 스타터 저장은 정규 4기술로 보정하면서 기존 PP를 유지한다", async function testCase() {
   await loadRuntimeGameData();
 
   try {
@@ -125,11 +129,13 @@ test("구형 2기술 스타터 저장은 정규 4기술로 보정하면서 기�
     });
 
     assert.deepEqual(
-      state.player.pokemon.moves.map(move => ({
-        id: move.id,
-        pp: move.pp,
-        maxPp: move.maxPp,
-      })),
+      state.player.pokemon.moves.map(function mapItem(move) {
+        return {
+          id: move.id,
+          pp: move.pp,
+          maxPp: move.maxPp,
+        };
+      }),
       [
         { id: 33, pp: 35, maxPp: 35 },
         { id: 43, pp: 8, maxPp: 30 },
@@ -142,7 +148,7 @@ test("구형 2기술 스타터 저장은 정규 4기술로 보정하면서 기�
   }
 });
 
-test("직접 구성한 3개 기술은 정규 기술표로 덮어쓰지 않는다", async () => {
+test("직접 구성한 3개 기술은 정규 기술표로 덮어쓰지 않는다", async function testCase() {
   await loadRuntimeGameData();
 
   try {
@@ -156,7 +162,9 @@ test("직접 구성한 3개 기술은 정규 기술표로 덮어쓰지 않는다
     });
 
     assert.deepEqual(
-      state.player.pokemon.moves.map(move => ({ id: move.id, pp: move.pp })),
+      state.player.pokemon.moves.map(function mapItem(move) {
+        return { id: move.id, pp: move.pp };
+      }),
       [
         { id: 33, pp: 12 },
         { id: 108, pp: 5 },
@@ -168,7 +176,7 @@ test("직접 구성한 3개 기술은 정규 기술표로 덮어쓰지 않는다
   }
 });
 
-test("화상·마비와 학습 기술을 보존하고 미지원 상태기술은 롬 데이터대로 비활성화한다", async () => {
+test("화상·마비와 학습 기술을 보존하고 미지원 상태기술은 롬 데이터대로 비활성화한다", async function testCase() {
   await loadRuntimeGameData();
 
   try {
@@ -185,7 +193,9 @@ test("화상·마비와 학습 기술을 보존하고 미지원 상태기술은 
     });
 
     assert.deepEqual(
-      dittoState.player.pokemon.moves.map(move => move.id),
+      dittoState.player.pokemon.moves.map(function mapItem(move) {
+        return move.id;
+      }),
       [144],
     );
     assert.equal(dittoState.player.pokemon.moves[0]?.category, "status");
@@ -204,7 +214,9 @@ test("화상·마비와 학습 기술을 보존하고 미지원 상태기술은 
     });
 
     assert.deepEqual(
-      mixedMoveState.player.pokemon.moves.map(move => move.id),
+      mixedMoveState.player.pokemon.moves.map(function mapItem(move) {
+        return move.id;
+      }),
       [33, 235],
     );
     assert.equal(
@@ -261,9 +273,8 @@ function readPublicJson(publicPath: string): unknown {
   );
 }
 
-const createRuntimeGameDataFetcher =
-  (runtimeJsonByPath: Map<string, unknown>): typeof fetch =>
-  async input => {
+const createRuntimeGameDataFetcher = (runtimeJsonByPath: Map<string, unknown>): typeof fetch =>
+  async function callback(input) {
     const requestPath =
       typeof input === "string"
         ? input

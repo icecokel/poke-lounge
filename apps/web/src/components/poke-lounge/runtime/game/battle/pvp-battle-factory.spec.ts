@@ -8,17 +8,17 @@ import {
   resetRuntimeGameDataJsonStateForTest,
 } from "../data/game-data-json";
 import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
-import { createDefaultLocalPlayer, type PlayerPokemon } from "../state/gameStateStore";
-import { createPvpBattleState } from "./pvpBattleFactory";
-import type { RomPersonalRecordCollection, RomRefinedMoveCollection } from "./wildBattleFactory";
+import { createDefaultLocalPlayer, type PlayerPokemon } from "../state/game-state-store";
+import { createPvpBattleState } from "./pvp-battle-factory";
+import type { RomPersonalRecordCollection, RomRefinedMoveCollection } from "./wild-battle-factory";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
 const personalRecords = pokemonData as RomPersonalRecordCollection;
 const moveRecords = pokemonData as RomRefinedMoveCollection;
 
-test.before(async () => {
-  await loadRuntimeGameDataJson(async input => {
+test.before(async function callback() {
+  await loadRuntimeGameDataJson(async function callback(input) {
     const requestPath =
       typeof input === "string"
         ? input
@@ -32,9 +32,11 @@ test.before(async () => {
   });
 });
 
-test.after(() => resetRuntimeGameDataJsonStateForTest());
+test.after(function callback() {
+  return resetRuntimeGameDataJsonStateForTest();
+});
 
-test("로컬 PvP도 ROM 종족값, 타입과 기술 데이터를 사용한다", () => {
+test("로컬 PvP도 ROM 종족값, 타입과 기술 데이터를 사용한다", function testCase() {
   const player = createDefaultLocalPlayer("player-1");
   const opponent = createDefaultLocalPlayer("player-2");
   player.party = [{ slotIndex: 0, pokemon: createPokemon(4, "파이리", 52, "불꽃세례") }];
@@ -53,19 +55,21 @@ test("로컬 PvP도 ROM 종족값, 타입과 기술 데이터를 사용한다", 
   assert.equal(state.player.pokemon.baseStats.attack, 52);
   assert.notEqual(state.player.pokemon.attack, state.player.pokemon.level);
   assert.deepEqual(
-    state.player.pokemon.moves.map(move => ({
-      id: move.id,
-      typeId: move.typeId,
-      category: move.category,
-      power: move.power,
-      effectCode: move.effectCode,
-    })),
+    state.player.pokemon.moves.map(function mapItem(move) {
+      return {
+        id: move.id,
+        typeId: move.typeId,
+        category: move.category,
+        power: move.power,
+        effectCode: move.effectCode,
+      };
+    }),
     [{ id: 52, typeId: 10, category: "special", power: 40, effectCode: 4 }],
   );
   assert.deepEqual(state.opponent.pokemon.typeIds, [11]);
 });
 
-test("IV가 없는 구버전 파티 미러전은 같은 능력치를 사용한다", () => {
+test("IV가 없는 구버전 파티 미러전은 같은 능력치를 사용한다", function testCase() {
   const player = createDefaultLocalPlayer("player-1");
   const opponent = createDefaultLocalPlayer("player-2");
   const legacyPokemon = createPokemon(152, "치코리타", 33, "몸통박치기");

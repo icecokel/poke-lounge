@@ -4,17 +4,17 @@ import {
   parsePokeLoungeSaveSnapshot,
   sanitizeLocalPlayersSaveState,
 } from "../../src/components/poke-lounge/runtime/game/state/poke-lounge-save-snapshot";
-import { createGameStateStore } from "../../src/components/poke-lounge/runtime/game/state/gameStateStore";
+import { createGameStateStore } from "../../src/components/poke-lounge/runtime/game/state/game-state-store";
 
-test.describe("Poke Lounge state hydration", () => {
-  test("unknown version and malformed player values are ignored", () => {
+test.describe("Poke Lounge state hydration", function testSuite() {
+  test("unknown version and malformed player values are ignored", function testCase() {
     expect(
       parsePokeLoungeSaveSnapshot({ version: 999, game: "poke-lounge", state: {} }),
     ).toBeNull();
     expect(sanitizeLocalPlayersSaveState({ currentPlayerId: 3, playersById: [] })).toBeNull();
   });
 
-  test("dangerous local player keys are rejected before record construction", () => {
+  test("dangerous local player keys are rejected before record construction", function testCase() {
     const state = buildPokeLoungeSaveSnapshot(createGameStateStore()).state;
     const player = state.playersById["player-1"];
 
@@ -29,7 +29,7 @@ test.describe("Poke Lounge state hydration", () => {
     }
   });
 
-  test("current player ID must exactly match an own player record key", () => {
+  test("current player ID must exactly match an own player record key", function testCase() {
     const state = buildPokeLoungeSaveSnapshot(createGameStateStore()).state;
 
     expect(
@@ -40,7 +40,7 @@ test.describe("Poke Lounge state hydration", () => {
     ).toBeNull();
   });
 
-  test("valid snapshots retain only local player state", () => {
+  test("valid snapshots retain only local player state", function testCase() {
     const store = createGameStateStore();
     store.setStarterPokemon({
       speciesId: 155,
@@ -79,7 +79,7 @@ test.describe("Poke Lounge state hydration", () => {
     expect(parsed?.state).not.toHaveProperty("tournament");
   });
 
-  test("valid local Pokemon individual values survive sanitization", () => {
+  test("valid local Pokemon individual values survive sanitization", function testCase() {
     const store = createGameStateStore();
     store.setStarterPokemon({
       speciesId: 155,
@@ -107,7 +107,7 @@ test.describe("Poke Lounge state hydration", () => {
     });
   });
 
-  test("local players hydrate with one storage write and one notification", () => {
+  test("local players hydrate with one storage write and one notification", function testCase() {
     const saved: unknown[] = [];
     const store = createGameStateStore({
       storage: {
@@ -125,7 +125,9 @@ test.describe("Poke Lounge state hydration", () => {
     });
     const snapshot = buildPokeLoungeSaveSnapshot(serverStore);
     const notifications: unknown[] = [];
-    store.subscribe(state => notifications.push(state));
+    store.subscribe(function callback(state) {
+      return notifications.push(state);
+    });
 
     store.hydrateLocalPlayers(snapshot.state);
 

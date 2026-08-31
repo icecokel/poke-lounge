@@ -21,12 +21,12 @@ const sessionUrl = new URL("http://localhost:3000/api/auth/session");
 const nowMs = 1_800_000_000_000;
 const nonce = "abcdefghijklmnopqrstuv";
 
-test("환경 변수만으로는 로컬 테스트 계정 세션을 만들지 않는다", () => {
+test("환경 변수만으로는 로컬 테스트 계정 세션을 만들지 않는다", function testCase() {
   assert.equal(createLocalTestAccountSession(sessionUrl, null, localEnvironment), null);
   assert.equal(createLocalTestAccountSession(sessionUrl, "active", localEnvironment), null);
 });
 
-test("명시적으로 발급한 로컬 테스트 모드 쿠키만 고정 계정 세션을 만든다", () => {
+test("명시적으로 발급한 로컬 테스트 모드 쿠키만 고정 계정 세션을 만든다", function testCase() {
   const issuedAtMs = Date.now();
   const cookieValue = createLocalTestModeCookieValue(
     sessionUrl,
@@ -53,7 +53,7 @@ test("명시적으로 발급한 로컬 테스트 모드 쿠키만 고정 계정 
   });
 });
 
-test("변조되거나 만료된 로컬 테스트 모드 쿠키를 거부한다", () => {
+test("변조되거나 만료된 로컬 테스트 모드 쿠키를 거부한다", function testCase() {
   const cookieValue = createLocalTestModeCookieValue(sessionUrl, localEnvironment, nowMs, nonce);
   assert.ok(cookieValue);
 
@@ -75,7 +75,7 @@ test("변조되거나 만료된 로컬 테스트 모드 쿠키를 거부한다",
   );
 });
 
-test("토큰이 없으면 로컬 테스트 모드를 제공하지 않는다", () => {
+test("토큰이 없으면 로컬 테스트 모드를 제공하지 않는다", function testCase() {
   const environment = {
     NODE_ENV: "development",
     NEXT_PUBLIC_API_URL: "http://localhost:3001",
@@ -85,7 +85,7 @@ test("토큰이 없으면 로컬 테스트 모드를 제공하지 않는다", ()
   assert.equal(createLocalTestModeCookieValue(sessionUrl, environment), null);
 });
 
-test("development 외 환경에서는 로컬 테스트 계정을 비활성화한다", () => {
+test("development 외 환경에서는 로컬 테스트 계정을 비활성화한다", function testCase() {
   for (const nodeEnvironment of ["production", "test", undefined]) {
     assert.equal(
       resolveLocalTestAuthToken({
@@ -97,14 +97,14 @@ test("development 외 환경에서는 로컬 테스트 계정을 비활성화한
   }
 });
 
-test("session 외 Auth.js 경로는 로컬 테스트 세션을 만들지 않는다", () => {
+test("session 외 Auth.js 경로는 로컬 테스트 세션을 만들지 않는다", function testCase() {
   const providersUrl = new URL("http://localhost:3000/api/auth/providers");
   const cookieValue = createLocalTestModeCookieValue(providersUrl, localEnvironment);
 
   assert.equal(createLocalTestAccountSession(providersUrl, cookieValue, localEnvironment), null);
 });
 
-test("loopback이 아닌 Web 요청에서는 로컬 테스트 계정을 비활성화한다", () => {
+test("loopback이 아닌 Web 요청에서는 로컬 테스트 계정을 비활성화한다", function testCase() {
   assert.equal(
     isLocalTestAccountAvailable(
       new URL("https://preview.example.com/api/auth/session"),
@@ -118,7 +118,7 @@ test("loopback이 아닌 Web 요청에서는 로컬 테스트 계정을 비활�
   );
 });
 
-test("IPv4 loopback이 아닌 API를 연결하면 로컬 테스트 계정을 비활성화한다", () => {
+test("IPv4 loopback이 아닌 API를 연결하면 로컬 테스트 계정을 비활성화한다", function testCase() {
   assert.equal(
     isLocalTestAccountAvailable(sessionUrl, {
       ...localEnvironment,
@@ -135,13 +135,11 @@ test("IPv4 loopback이 아닌 API를 연결하면 로컬 테스트 계정을 비
   );
 });
 
-test("잘못된 로컬 테스트 토큰은 설정 오류로 처리한다", () => {
-  assert.throws(
-    () =>
-      resolveLocalTestAuthToken({
-        ...localEnvironment,
-        LOCAL_TEST_AUTH_TOKEN: "too-short",
-      }),
-    /LOCAL_TEST_AUTH_TOKEN/,
-  );
+test("잘못된 로컬 테스트 토큰은 설정 오류로 처리한다", function testCase() {
+  assert.throws(function callback() {
+    return resolveLocalTestAuthToken({
+      ...localEnvironment,
+      LOCAL_TEST_AUTH_TOKEN: "too-short",
+    });
+  }, /LOCAL_TEST_AUTH_TOKEN/);
 });

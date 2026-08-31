@@ -6,8 +6,8 @@ import type {
   TournamentParticipant,
   TournamentRound,
   TournamentRoundSlot,
-  TournamentState,
-} from "../tournament/tournamentState";
+} from "@poke-lounge/battle/tournament-bracket";
+import type { TournamentState } from "../tournament/tournament-state";
 
 type ApiTournamentState = components["schemas"]["PokeLoungeTournamentDto"];
 type ApiRoomStatus = components["schemas"]["PokeLoungeRoomResponseDto"]["status"];
@@ -150,20 +150,23 @@ export function mapServerTournamentPlayerIds(
     return {
       ...tournament,
       cumulativeScores: Object.fromEntries(
-        Object.entries(tournament.cumulativeScores).map(([playerId, score]) => [
-          mapPlayerId(playerId),
-          score,
-        ]),
+        Object.entries(tournament.cumulativeScores).map(function mapItem([playerId, score]) {
+          return [mapPlayerId(playerId), score];
+        }),
       ),
     };
   }
 
-  const participants = bracket.participants.map(participant => ({
-    ...participant,
-    playerId: mapPlayerId(participant.playerId),
-  }));
+  const participants = bracket.participants.map(function mapItem(participant) {
+    return {
+      ...participant,
+      playerId: mapPlayerId(participant.playerId),
+    };
+  });
   const participantsById = new Map(
-    bracket.participants.map((participant, index) => [participant.playerId, participants[index]]),
+    bracket.participants.map(function mapItem(participant, index) {
+      return [participant.playerId, participants[index]];
+    }),
   );
   const mapParticipant = (participant: TournamentParticipant): TournamentParticipant => {
     const mapped = participantsById.get(participant.playerId);
@@ -176,19 +179,28 @@ export function mapServerTournamentPlayerIds(
   };
   const mapRound = (round: TournamentProjectionRound): TournamentProjectionRound => ({
     ...round,
-    matches: round.matches.map(match => ({
-      ...match,
-      participantA: mapParticipant(match.participantA),
-      participantB: mapParticipant(match.participantB),
-      participantIds: [mapPlayerId(match.participantIds[0]), mapPlayerId(match.participantIds[1])],
-      winnerPlayerId: match.winnerPlayerId ? mapPlayerId(match.winnerPlayerId) : null,
-      loserPlayerId: match.loserPlayerId ? mapPlayerId(match.loserPlayerId) : null,
-    })),
-    byes: round.byes.map(bye => ({
-      ...bye,
-      entrant: mapParticipant(bye.entrant),
-    })),
-    slots: round.slots.map(slot => ({ ...slot })),
+    matches: round.matches.map(function mapItem(match) {
+      return {
+        ...match,
+        participantA: mapParticipant(match.participantA),
+        participantB: mapParticipant(match.participantB),
+        participantIds: [
+          mapPlayerId(match.participantIds[0]),
+          mapPlayerId(match.participantIds[1]),
+        ],
+        winnerPlayerId: match.winnerPlayerId ? mapPlayerId(match.winnerPlayerId) : null,
+        loserPlayerId: match.loserPlayerId ? mapPlayerId(match.loserPlayerId) : null,
+      };
+    }),
+    byes: round.byes.map(function mapItem(bye) {
+      return {
+        ...bye,
+        entrant: mapParticipant(bye.entrant),
+      };
+    }),
+    slots: round.slots.map(function mapItem(slot) {
+      return { ...slot };
+    }),
   });
 
   return {
@@ -198,17 +210,18 @@ export function mapServerTournamentPlayerIds(
       participants,
       currentRound: bracket.currentRound ? mapRound(bracket.currentRound) : null,
       completedRounds: bracket.completedRounds.map(mapRound),
-      eliminations: bracket.eliminations.map(elimination => ({
-        ...elimination,
-        playerId: mapPlayerId(elimination.playerId),
-      })),
+      eliminations: bracket.eliminations.map(function mapItem(elimination) {
+        return {
+          ...elimination,
+          playerId: mapPlayerId(elimination.playerId),
+        };
+      }),
       championPlayerId: bracket.championPlayerId ? mapPlayerId(bracket.championPlayerId) : null,
     },
     cumulativeScores: Object.fromEntries(
-      Object.entries(tournament.cumulativeScores).map(([playerId, score]) => [
-        mapPlayerId(playerId),
-        score,
-      ]),
+      Object.entries(tournament.cumulativeScores).map(function mapItem([playerId, score]) {
+        return [mapPlayerId(playerId), score];
+      }),
     ),
   };
 }
@@ -221,7 +234,11 @@ export function findCurrentMatch(
     return null;
   }
 
-  return bracket.currentRound.matches.find(match => match.matchId === matchId) ?? null;
+  return (
+    bracket.currentRound.matches.find(function findItem(match) {
+      return match.matchId === matchId;
+    }) ?? null
+  );
 }
 
 function parseTournamentBracket(
@@ -240,7 +257,9 @@ function parseTournamentBracket(
 
   const participants = parseParticipants(bracket.participants);
   const participantsById = new Map(
-    participants.map(participant => [participant.playerId, participant]),
+    participants.map(function mapItem(participant) {
+      return [participant.playerId, participant];
+    }),
   );
   const currentRound =
     bracket.currentRound === null
@@ -254,14 +273,14 @@ function parseTournamentBracket(
     throw new TournamentProjectionSchemaError();
   }
 
-  const completedRounds = bracket.completedRounds.map(round =>
-    parseRound(round, participantsById, true),
-  );
+  const completedRounds = bracket.completedRounds.map(function mapItem(round) {
+    return parseRound(round, participantsById, true);
+  });
   const eliminations = parseEliminations(bracket.eliminations, participantsById);
   const championPlayerId = parseOptionalId(bracket.championPlayerId);
-  const completedRoundOrderValid = completedRounds.every(
-    (round, index) => round.roundNumber === index + 1,
-  );
+  const completedRoundOrderValid = completedRounds.every(function testItem(round, index) {
+    return round.roundNumber === index + 1;
+  });
 
   if (
     !completedRoundOrderValid ||
@@ -272,7 +291,9 @@ function parseTournamentBracket(
         !championPlayerId ||
         !participantsById.has(championPlayerId) ||
         eliminations.length !== participants.length - 1 ||
-        eliminations.some(elimination => elimination.playerId === championPlayerId)))
+        eliminations.some(function testItem(elimination) {
+          return elimination.playerId === championPlayerId;
+        })))
   ) {
     throw new TournamentProjectionSchemaError();
   }
@@ -297,7 +318,7 @@ function parseParticipants(value: unknown): TournamentParticipant[] {
   const playerIds = new Set<string>();
   const seeds = new Set<number>();
 
-  return value.map(item => {
+  return value.map(function mapItem(item) {
     const participant = requireRecord(item);
     const playerId = parseId(participant.playerId);
     const displayName = parseDisplayName(participant.displayName);
@@ -335,18 +356,40 @@ function parseRound(
     throw new TournamentProjectionSchemaError();
   }
 
-  const matches = round.matches.map(item =>
-    parseMatch(item, roundNumber, participantsById, requireCompleted),
-  );
-  const byes = round.byes.map(item => parseBye(item, roundNumber, participantsById));
+  const matches = round.matches.map(function mapItem(item) {
+    return parseMatch(item, roundNumber, participantsById, requireCompleted);
+  });
+  const byes = round.byes.map(function mapItem(item) {
+    return parseBye(item, roundNumber, participantsById);
+  });
   const slots = round.slots.map(parseSlot);
-  const matchIds = new Set(matches.map(match => match.matchId));
-  const byeIds = new Set(byes.map(bye => bye.byeId));
-  const matchNumbers = new Set(matches.map(match => match.matchNumber));
-  const byeSlotNumbers = new Set(byes.map(bye => bye.slotNumber));
+  const matchIds = new Set(
+    matches.map(function mapItem(match) {
+      return match.matchId;
+    }),
+  );
+  const byeIds = new Set(
+    byes.map(function mapItem(bye) {
+      return bye.byeId;
+    }),
+  );
+  const matchNumbers = new Set(
+    matches.map(function mapItem(match) {
+      return match.matchNumber;
+    }),
+  );
+  const byeSlotNumbers = new Set(
+    byes.map(function mapItem(bye) {
+      return bye.slotNumber;
+    }),
+  );
   const entrantPlayerIds = [
-    ...matches.flatMap(match => match.participantIds),
-    ...byes.map(bye => bye.entrant.playerId),
+    ...matches.flatMap(function mapItem(match) {
+      return match.participantIds;
+    }),
+    ...byes.map(function mapItem(bye) {
+      return bye.entrant.playerId;
+    }),
   ];
 
   if (
@@ -355,11 +398,14 @@ function parseRound(
     matchNumbers.size !== matches.length ||
     byeSlotNumbers.size !== byes.length ||
     new Set(entrantPlayerIds).size !== entrantPlayerIds.length ||
-    new Set(slots.map(slot => (slot.kind === "match" ? slot.matchId : slot.byeId))).size !==
-      slots.length ||
-    slots.some(slot =>
-      slot.kind === "match" ? !matchIds.has(slot.matchId) : !byeIds.has(slot.byeId),
-    )
+    new Set(
+      slots.map(function mapItem(slot) {
+        return slot.kind === "match" ? slot.matchId : slot.byeId;
+      }),
+    ).size !== slots.length ||
+    slots.some(function testItem(slot) {
+      return slot.kind === "match" ? !matchIds.has(slot.matchId) : !byeIds.has(slot.byeId);
+    })
   ) {
     throw new TournamentProjectionSchemaError();
   }
@@ -478,7 +524,7 @@ function parseEliminations(
 
   const eliminatedPlayerIds = new Set<string>();
 
-  return value.map(item => {
+  return value.map(function mapItem(item) {
     const elimination = requireRecord(item);
     const playerId = parseId(elimination.playerId);
     const participant = participantsById.get(playerId);
@@ -529,7 +575,11 @@ function parseCumulativeScores(
   bracket: TournamentBracketProjection | null,
 ): Record<string, number> {
   const scores = requireRecord(value);
-  const participantIds = new Set(bracket?.participants.map(participant => participant.playerId));
+  const participantIds = new Set(
+    bracket?.participants.map(function mapItem(participant) {
+      return participant.playerId;
+    }),
+  );
   const entries = Object.entries(scores);
 
   if (entries.length > MAX_PARTICIPANTS) {
@@ -537,7 +587,7 @@ function parseCumulativeScores(
   }
 
   return Object.fromEntries(
-    entries.map(([playerId, score]) => {
+    entries.map(function mapItem([playerId, score]) {
       if (
         !parseId(playerId) ||
         (bracket && !participantIds.has(playerId)) ||

@@ -15,7 +15,10 @@ import {
 } from '@nestjs/websockets';
 import type { Namespace, Socket } from 'socket.io';
 import { getCorsOptions } from '../common/utils/cors.util';
-import { PokeLoungeRoomEventsService } from './poke-lounge-room-events.service';
+import {
+  PokeLoungeRoomEventsService,
+  type PokeLoungeRoomTransportEvent,
+} from './poke-lounge-room-events.service';
 import { PokeLoungeLiveStateService } from './poke-lounge-live-state.service';
 import { POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS } from './poke-lounge-room-policy';
 import { PokeLoungeRoomService } from './poke-lounge-room.service';
@@ -128,24 +131,31 @@ export class PokeLoungeGateway
     if (this.worldCursorTimer) {
       clearInterval(this.worldCursorTimer);
     }
-    this.unsubscribeFromRoomEvents = this.roomEvents.subscribe((event) => {
-      if (event.type !== 'room.snapshot') {
-        return;
-      }
+    this.unsubscribeFromRoomEvents = this.roomEvents.subscribe(
+      function callback(
+        this: PokeLoungeGateway,
+        event: PokeLoungeRoomTransportEvent,
+      ): void {
+        if (event.type !== 'room.snapshot') {
+          return;
+        }
 
-      this.server.local
-        .to(roomName(event.room.roomCode))
-        .emit('room.snapshot', { room: event.room });
-      const metadata = {
-        roomCode: event.room.roomCode,
-        revision: event.room.revision,
-        expiresAtMs: event.room.expiresAtMs,
-        closed: event.room.status === 'closed',
-      };
-      this.applyRoomMetadata(metadata);
-    });
+        this.server.local
+          .to(roomName(event.room.roomCode))
+          .emit('room.snapshot', { room: event.room });
+        const metadata = {
+          roomCode: event.room.roomCode,
+          revision: event.room.revision,
+          expiresAtMs: event.room.expiresAtMs,
+          closed: event.room.status === 'closed',
+        };
+        this.applyRoomMetadata(metadata);
+      }.bind(this),
+    );
     this.worldCursorTimer = setInterval(
-      () => void this.publishWorldCursors(),
+      function handleInterval(this: PokeLoungeGateway): undefined {
+        return void this.publishWorldCursors();
+      }.bind(this),
       WORLD_CURSOR_INTERVAL_MS,
     );
     this.worldCursorTimer.unref();
@@ -302,7 +312,9 @@ export class PokeLoungeGateway
           presenceGroup.controller.signal,
         );
       const participant = committedRoom.participants.find(
-        (candidate) => candidate.playerId === subscription.playerId,
+        function findItem(candidate) {
+          return candidate.playerId === subscription.playerId;
+        },
       );
       socketData.pokeLoungeDisplayName =
         participant?.displayName ?? subscription.playerId;
@@ -319,7 +331,9 @@ export class PokeLoungeGateway
     } catch {
       for (const roomNameToLeave of new Set(
         [attemptedRoomName, previousRoomName].filter(
-          (value): value is string => value !== null,
+          function filterItem(value): value is string {
+            return value !== null;
+          },
         ),
       )) {
         try {
@@ -546,8 +560,8 @@ export class PokeLoungeGateway
     }
     const controller = new AbortController();
     const timer = setTimeout(
-      () => {
-        void (async () => {
+      function handleTimeout(this: PokeLoungeGateway): void {
+        void async function callback(this: PokeLoungeGateway): Promise<void> {
           const pending = this.disconnectTimers.get(key);
           if (!pending || pending.timer !== timer) {
             return;
@@ -579,11 +593,17 @@ export class PokeLoungeGateway
           }
 
           await Promise.all([
-            this.liveState
-              .removePlayer(input.roomCode, input.playerId)
-              .catch((error) =>
-                this.logLiveStateError('remove disconnected player', error),
-              ),
+            this.liveState.removePlayer(input.roomCode, input.playerId).catch(
+              function handleRejected(
+                this: PokeLoungeGateway,
+                error: any,
+              ): void {
+                return this.logLiveStateError(
+                  'remove disconnected player',
+                  error,
+                );
+              }.bind(this),
+            ),
             this.roomService
               .expireParticipantPresence(
                 input.roomCode,
@@ -592,21 +612,25 @@ export class PokeLoungeGateway
                 input.presenceEpoch,
                 controller.signal,
               )
-              .catch(() => undefined),
-          ]).finally(() => {
-            const current = this.disconnectTimers.get(key);
-            if (current?.timer === timer) {
-              this.disconnectTimers.delete(key);
-            }
-            if (
-              (this.socketsByPresence.get(key)?.size ?? 0) === 0 &&
-              this.presenceGroups.get(key)?.epoch === input.presenceEpoch
-            ) {
-              this.presenceGroups.delete(key);
-            }
-          });
-        })();
-      },
+              .catch(function handleRejected() {
+                return undefined;
+              }),
+          ]).finally(
+            function handleSettled(this: PokeLoungeGateway): void {
+              const current = this.disconnectTimers.get(key);
+              if (current?.timer === timer) {
+                this.disconnectTimers.delete(key);
+              }
+              if (
+                (this.socketsByPresence.get(key)?.size ?? 0) === 0 &&
+                this.presenceGroups.get(key)?.epoch === input.presenceEpoch
+              ) {
+                this.presenceGroups.delete(key);
+              }
+            }.bind(this),
+          );
+        }.bind(this)();
+      }.bind(this),
       Math.max(0, input.expiresAtMs - Date.now()),
     );
     timer.unref();
@@ -657,16 +681,20 @@ export class PokeLoungeGateway
           metadata.roomCode,
           liveStateExpiresAtMs(metadata.expiresAtMs),
         )
-        .catch((error) =>
-          this.logLiveStateError('extend active room expiry', error),
+        .catch(
+          function handleRejected(this: PokeLoungeGateway, error: any): void {
+            return this.logLiveStateError('extend active room expiry', error);
+          }.bind(this),
         );
       return;
     }
 
     this.closedRooms.add(metadata.roomCode);
-    void this.liveState
-      .deleteRoom(metadata.roomCode)
-      .catch((error) => this.logLiveStateError('delete closed room', error));
+    void this.liveState.deleteRoom(metadata.roomCode).catch(
+      function handleRejected(this: PokeLoungeGateway, error: any): void {
+        return this.logLiveStateError('delete closed room', error);
+      }.bind(this),
+    );
   }
 
   private async publishWorldCursors(): Promise<void> {
@@ -687,10 +715,17 @@ export class PokeLoungeGateway
         }
       }
       await Promise.all(
-        [...roomCodes].map(async (roomCode) => {
-          const cursor = await this.liveState.getCursor(roomCode);
-          this.server.to(roomName(roomCode)).emit('room.world-cursor', cursor);
-        }),
+        [...roomCodes].map(
+          async function mapItem(
+            this: PokeLoungeGateway,
+            roomCode: string,
+          ): Promise<void> {
+            const cursor = await this.liveState.getCursor(roomCode);
+            this.server
+              .to(roomName(roomCode))
+              .emit('room.world-cursor', cursor);
+          }.bind(this),
+        ),
       );
     } catch (error) {
       this.logLiveStateError('publish world cursor', error);
@@ -849,7 +884,7 @@ function hasMatchingPresence(
   sockets: ReadonlyArray<Pick<Socket, 'data'>>,
   input: Pick<PokeLoungeRoomSubscription, 'playerId' | 'sessionId'>,
 ): boolean {
-  return sockets.some((candidate) => {
+  return sockets.some(function testItem(candidate) {
     const data = candidate.data as PokeLoungeSocketData;
     return (
       data.pokeLoungePlayerId === input.playerId &&

@@ -19,7 +19,10 @@ const createRequest = (
 const createResponse = (): TestResponse => {
   const setHeader = jest.fn();
   let finishListener: (() => void) | undefined;
-  const once = jest.fn((event: string, listener: () => void) => {
+  const once = jest.fn(function mockFunction(
+    event: string,
+    listener: () => void,
+  ) {
     if (event === 'finish') {
       finishListener = listener;
     }
@@ -33,8 +36,8 @@ const createResponse = (): TestResponse => {
   };
 };
 
-describe('requestIdMiddleware', () => {
-  it('유효한 요청 ID를 응답 헤더와 로그 컨텍스트에 전파한다', () => {
+describe('requestIdMiddleware', function testSuite() {
+  it('유효한 요청 ID를 응답 헤더와 로그 컨텍스트에 전파한다', function testCase() {
     const requestId = 'a5fa93a9-5f91-44f0-9f6e-02e4360a1594';
     const request = createRequest({ 'x-request-id': requestId });
     const testResponse = createResponse();
@@ -52,7 +55,7 @@ describe('requestIdMiddleware', () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  it('유효하지 않은 요청 ID 대신 새 UUID를 생성한다', () => {
+  it('유효하지 않은 요청 ID 대신 새 UUID를 생성한다', function testCase() {
     const request = createRequest({ 'x-request-id': 'untrusted-value' });
     const testResponse = createResponse();
 
@@ -67,7 +70,7 @@ describe('requestIdMiddleware', () => {
     );
   });
 
-  it('응답 완료 시 구조화된 access log를 기록한다', () => {
+  it('응답 완료 시 구조화된 access log를 기록한다', function testCase() {
     const request = createRequest();
     Object.assign(request, {
       method: 'GET',
@@ -79,7 +82,7 @@ describe('requestIdMiddleware', () => {
     let logMessage: unknown;
     const logSpy = jest
       .spyOn(Logger.prototype, 'log')
-      .mockImplementation((message: unknown) => {
+      .mockImplementation(function mockImplementation(message: unknown) {
         logMessage = message;
       });
 

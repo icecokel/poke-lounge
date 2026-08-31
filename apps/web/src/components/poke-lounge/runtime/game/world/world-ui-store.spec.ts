@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createWorldUiStore } from "./world-ui-store";
 
-test("WorldUiStore는 공통 snapshot을 발행하고 action을 scene으로 전달한다", () => {
+test("WorldUiStore는 공통 snapshot을 발행하고 action을 scene으로 전달한다", function testCase() {
   const store = createWorldUiStore();
   let notifications = 0;
   let action: unknown;
-  store.subscribe(() => {
+  store.subscribe(function callback() {
     notifications += 1;
   });
-  store.setActionHandler(nextAction => {
+  store.setActionHandler(function callback(nextAction) {
     action = nextAction;
   });
 

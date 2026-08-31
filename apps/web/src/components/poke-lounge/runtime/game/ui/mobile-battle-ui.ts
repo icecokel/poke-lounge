@@ -1,4 +1,4 @@
-import type { BattleCommand, BattlePhase, BattleSpriteRef } from "../battle/battleTypes";
+import type { BattleCommand, BattlePhase, BattleSpriteRef } from "../battle/battle-types";
 
 export type MobileBattleDeckPhase = Extract<
   BattlePhase,

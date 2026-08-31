@@ -2,19 +2,23 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import {
   canonicalize,
+  createCanonicalIdRecord,
+  hashCanonicalState,
+  type CanonicalTerminalResult,
+} from '@poke-lounge/battle/canonical-state';
+import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
-  createCanonicalIdRecord,
-  createSeededRandom,
-  getReadyTournamentMatches,
-  hashCanonicalState,
+} from '@poke-lounge/battle/competitive-ruleset-config';
+import { createSeededRandom } from '@poke-lounge/battle/prng';
+import { getReadyTournamentMatches } from '@poke-lounge/battle/tournament-bracket';
+import {
   resolveTurn,
-  scoreRemainingHpPercentage,
   validateCompetitiveAction,
-  type CanonicalCompetitiveAction,
-  type CanonicalTerminalResult,
-  type NormalizedCompetitiveParty,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/resolve-turn';
+import { scoreRemainingHpPercentage } from '@poke-lounge/battle/tournament-scoring';
+import { type CanonicalCompetitiveAction } from '@poke-lounge/battle/actions';
+import { type NormalizedCompetitiveParty } from '@poke-lounge/battle/competitive-party';
 import type {
   CompetitiveActionRepository,
   CompetitiveActionResult,
@@ -338,7 +342,9 @@ export class RedisPokeLoungeRepository
       }
 
       const requestedParticipant = document.room.participants.find(
-        (participant) => participant.sessionId === input.sessionId,
+        function findItem(participant) {
+          return participant.sessionId === input.sessionId;
+        },
       );
       const existingMatch = requestedParticipant
         ? findActiveMatchForPlayer(document, requestedParticipant.playerId)
@@ -462,19 +468,22 @@ export class RedisPokeLoungeRepository
       if (!match) {
         return { outcome: 'match-not-found' };
       }
-      const actor = match.playerAccounts.find(
-        (candidate) => candidate.accountId === input.accountId,
-      );
+      const actor = match.playerAccounts.find(function findItem(candidate) {
+        return candidate.accountId === input.accountId;
+      });
       if (!actor) {
         return { outcome: 'actor-not-assigned' };
       }
 
       const requestHash = hashCompetitiveActionRequest(input);
       const existing = Object.values(document.actions).find(
-        (action) =>
-          action.matchId === match.matchId &&
-          action.actorPlayerId === actor.playerId &&
-          action.clientCommandId === input.clientCommandId,
+        function findItem(action) {
+          return (
+            action.matchId === match.matchId &&
+            action.actorPlayerId === actor.playerId &&
+            action.clientCommandId === input.clientCommandId
+          );
+        },
       );
       if (existing) {
         return existing.requestHash === requestHash
@@ -501,7 +510,9 @@ export class RedisPokeLoungeRepository
 
       const turnActions = findTurnActions(document, match);
       if (
-        turnActions.some((receipt) => receipt.actorPlayerId === actor.playerId)
+        turnActions.some(function testItem(receipt) {
+          return receipt.actorPlayerId === actor.playerId;
+        })
       ) {
         return { outcome: 'actor-turn-conflict' };
       }
@@ -603,16 +614,26 @@ export class RedisPokeLoungeRepository
   async findPendingTurns(): Promise<CompetitivePendingTurn[]> {
     const roomCodes = await this.redis.listRoomStateCodes();
     const rooms = await Promise.all(
-      roomCodes.map((roomCode) => this.readDocument(roomCode)),
+      roomCodes.map(
+        function mapItem(
+          this: RedisPokeLoungeRepository,
+          roomCode: string,
+        ): Promise<{
+          version: number;
+          document: RedisPokeLoungeDocument;
+        } | null> {
+          return this.readDocument(roomCode);
+        }.bind(this),
+      ),
     );
 
-    return rooms.flatMap((current) => {
+    return rooms.flatMap(function mapItem(current) {
       if (!current) {
         return [];
       }
-      return findActiveMatches(current.document).map((match) =>
-        toCompetitivePendingTurn(current.document.room.roomCode, match),
-      );
+      return findActiveMatches(current.document).map(function mapItem(match) {
+        return toCompetitivePendingTurn(current.document.room.roomCode, match);
+      });
     });
   }
 
@@ -677,23 +698,25 @@ export class RedisPokeLoungeRepository
       afterRevision === undefined
         ? []
         : Object.values(current.document.matches)
-            .filter(
-              (match) =>
+            .filter(function filterItem(match) {
+              return (
                 match.status === 'completed' &&
                 match.terminalEventId !== null &&
                 match.terminalRoomRevision !== null &&
                 match.terminalRoomRevision > afterRevision &&
-                match.terminalRoomRevision <= snapshot.revision,
-            )
-            .sort(
-              (left, right) =>
+                match.terminalRoomRevision <= snapshot.revision
+              );
+            })
+            .sort(function compareItems(left, right) {
+              return (
                 left.terminalRoomRevision! - right.terminalRoomRevision! ||
-                left.terminalEventId!.localeCompare(right.terminalEventId!),
-            )
+                left.terminalEventId!.localeCompare(right.terminalEventId!)
+              );
+            })
             .slice(0, 8)
-            .map((match) =>
-              toTerminalTransition(toCompetitiveProjection(match, [])),
-            );
+            .map(function mapItem(match) {
+              return toTerminalTransition(toCompetitiveProjection(match, []));
+            });
     return snapshot;
   }
 
@@ -753,7 +776,9 @@ function ensureActiveTournamentAssignment(
       }
 
       const existing = Object.values(document.matches).find(
-        (match) => match.bracketMatchId === bracketMatch.matchId,
+        function findItem(match) {
+          return match.bracketMatchId === bracketMatch.matchId;
+        },
       );
       if (existing) {
         const matchesBracket =
@@ -852,7 +877,9 @@ function completeServerAuthorityParticipantLeave(
     return;
   }
   const bracketMatch = current.tournament.bracket?.currentRound?.matches.find(
-    (candidate) => candidate.matchId === bracketMatchId,
+    function findItem(candidate) {
+      return candidate.matchId === bracketMatchId;
+    },
   );
   if (
     bracketMatch?.status !== 'ready' ||
@@ -861,12 +888,17 @@ function completeServerAuthorityParticipantLeave(
     return;
   }
   const winnerPlayerId = bracketMatch.participantIds.find(
-    (candidate) => candidate !== playerId,
+    function findItem(candidate) {
+      return candidate !== playerId;
+    },
   );
   const match = Object.values(document.matches).find(
-    (candidate) =>
-      candidate.bracketMatchId === bracketMatchId &&
-      candidate.status !== 'completed',
+    function findItem(candidate) {
+      return (
+        candidate.bracketMatchId === bracketMatchId &&
+        candidate.status !== 'completed'
+      );
+    },
   );
   if (!winnerPlayerId || !match) {
     throw new Error('Active server-authority match is missing');
@@ -892,10 +924,9 @@ function completeServerAuthorityParticipantLeave(
     next.competitive = finalized.nextCompetitive;
   }
   resolveTurnReceipts(
-    Object.values(document.actions).filter(
-      (action) =>
-        action.matchId === match.matchId && action.status === 'pending',
-    ),
+    Object.values(document.actions).filter(function filterItem(action) {
+      return action.matchId === match.matchId && action.status === 'pending';
+    }),
     finalized.projection,
     nowMs,
   );
@@ -926,7 +957,9 @@ function finalizeCompetitiveTerminalMatch(
   }
 
   const bracketMatch = state.tournament.bracket?.currentRound?.matches.find(
-    (candidate) => candidate.matchId === match.bracketMatchId,
+    function findItem(candidate) {
+      return candidate.matchId === match.bracketMatchId;
+    },
   );
   const nextCompetitive =
     bracketMatch?.status === 'ready'
@@ -960,12 +993,16 @@ function advanceTournamentAuthorityMatch(
   const readyMatchIds = new Set(
     state.tournament.bracket
       ? getReadyTournamentMatches(state.tournament.bracket).map(
-          (match) => match.matchId,
+          function mapItem(match) {
+            return match.matchId;
+          },
         )
       : [],
   );
-  const nextMatch = findActiveMatches(document).find((candidate) =>
-    readyMatchIds.has(candidate.bracketMatchId),
+  const nextMatch = findActiveMatches(document).find(
+    function findItem(candidate) {
+      return readyMatchIds.has(candidate.bracketMatchId);
+    },
   );
   return nextMatch ? toCompetitiveProjection(nextMatch, []) : null;
 }
@@ -977,7 +1014,9 @@ function completeExpiredTurn(
 ): { response: CompetitiveActionProjection; room: PokeLoungeRoomSnapshot } {
   const receipts = findTurnActions(document, match);
   const actionsByPlayerId = createCanonicalIdRecord<CanonicalCompetitiveAction>(
-    receipts.map((receipt) => [receipt.actorPlayerId, receipt.action]),
+    receipts.map(function mapItem(receipt) {
+      return [receipt.actorPlayerId, receipt.action];
+    }),
   );
   const resolved = resolveCompetitiveTurn(
     document,
@@ -1050,7 +1089,9 @@ function projectRoomSnapshot(
   const activeMatchIds = new Set(
     snapshot.tournament.bracket
       ? getReadyTournamentMatches(snapshot.tournament.bracket).map(
-          (match) => match.matchId,
+          function mapItem(match) {
+            return match.matchId;
+          },
         )
       : [],
   );
@@ -1061,12 +1102,14 @@ function projectRoomSnapshot(
     snapshot.competitiveAssignments = [];
     return snapshot;
   }
-  const matches = findActiveMatches(document).filter((candidate) =>
-    activeMatchIds.has(candidate.bracketMatchId),
+  const matches = findActiveMatches(document).filter(
+    function filterItem(candidate) {
+      return activeMatchIds.has(candidate.bracketMatchId);
+    },
   );
-  snapshot.competitiveAssignments = matches.map((match) =>
-    projectMatch(document, match),
-  );
+  snapshot.competitiveAssignments = matches.map(function mapItem(match) {
+    return projectMatch(document, match);
+  });
   if (matches[0]) {
     snapshot.competitive = projectMatch(document, matches[0]);
   }
@@ -1079,7 +1122,9 @@ function projectMatch(
 ): CompetitiveActionProjection {
   return toCompetitiveProjection(
     match,
-    findTurnActions(document, match).map((action) => action.actorPlayerId),
+    findTurnActions(document, match).map(function mapItem(action) {
+      return action.actorPlayerId;
+    }),
   );
 }
 
@@ -1088,23 +1133,26 @@ function findTurnActions(
   match: CompetitiveMatchAssignment,
 ): RedisCompetitiveActionReceipt[] {
   return Object.values(document.actions)
-    .filter(
-      (action) =>
-        action.matchId === match.matchId && action.turn === match.currentTurn,
-    )
-    .sort((left, right) =>
-      left.actorPlayerId.localeCompare(right.actorPlayerId),
-    );
+    .filter(function filterItem(action) {
+      return (
+        action.matchId === match.matchId && action.turn === match.currentTurn
+      );
+    })
+    .sort(function compareItems(left, right) {
+      return left.actorPlayerId.localeCompare(right.actorPlayerId);
+    });
 }
 
 function findActiveMatches(
   document: RedisPokeLoungeDocument,
 ): CompetitiveMatchAssignment[] {
   return Object.values(document.matches)
-    .filter((match) => match.status === 'pending' || match.status === 'active')
-    .sort((left, right) =>
-      left.bracketMatchId.localeCompare(right.bracketMatchId),
-    );
+    .filter(function filterItem(match) {
+      return match.status === 'pending' || match.status === 'active';
+    })
+    .sort(function compareItems(left, right) {
+      return left.bracketMatchId.localeCompare(right.bracketMatchId);
+    });
 }
 
 function findActiveMatchForPlayer(
@@ -1112,9 +1160,11 @@ function findActiveMatchForPlayer(
   playerId: string,
 ): CompetitiveMatchAssignment | null {
   return (
-    findActiveMatches(document).find((match) =>
-      match.playerAccounts.some((player) => player.playerId === playerId),
-    ) ?? null
+    findActiveMatches(document).find(function findItem(match) {
+      return match.playerAccounts.some(function testItem(player) {
+        return player.playerId === playerId;
+      });
+    }) ?? null
   );
 }
 
@@ -1136,17 +1186,23 @@ function removeParticipantSeats(
   next: PokeLoungeRoomSnapshot,
 ): void {
   const remaining = new Set(
-    next.participants.map((participant) => participant.playerId),
+    next.participants.map(function mapItem(participant) {
+      return participant.playerId;
+    }),
   );
   const removed = new Set(
     previous.participants
-      .map((participant) => participant.playerId)
-      .filter((playerId) => !remaining.has(playerId)),
+      .map(function mapItem(participant) {
+        return participant.playerId;
+      })
+      .filter(function filterItem(playerId) {
+        return !remaining.has(playerId);
+      }),
   );
   if (removed.size > 0) {
-    document.seats = document.seats.filter(
-      (seat) => !removed.has(seat.playerId),
-    );
+    document.seats = document.seats.filter(function filterItem(seat) {
+      return !removed.has(seat.playerId);
+    });
   }
 }
 
@@ -1216,7 +1272,7 @@ function createTerminalHpScores(
   state: CompetitiveMatchAssignment['currentState'],
 ): Record<string, number> {
   return Object.fromEntries(
-    state.participantIds.map((playerId) => {
+    state.participantIds.map(function mapItem(playerId) {
       const team = state.playersById[playerId]?.team;
       if (!team?.length) {
         throw new Error(`Competitive team is missing for ${playerId}`);
@@ -1247,11 +1303,13 @@ function toCompetitivePlayers(
   playerIds: readonly [string, string],
   roomCode: string,
 ): [CompetitivePlayerAccount, CompetitivePlayerAccount] | null {
-  const players = playerIds.map((playerId) => {
-    const seat = seats.find((candidate) => candidate.playerId === playerId);
-    const sessionId = state.participants.find(
-      (participant) => participant.playerId === playerId,
-    )?.sessionId;
+  const players = playerIds.map(function mapItem(playerId) {
+    const seat = seats.find(function findItem(candidate) {
+      return candidate.playerId === playerId;
+    });
+    const sessionId = state.participants.find(function findItem(participant) {
+      return participant.playerId === playerId;
+    })?.sessionId;
     const accountId =
       seat?.accountId ??
       (sessionId
@@ -1332,17 +1390,18 @@ function selectOfflineMatchLoser(
   snapshot: PokeLoungeRoomSnapshot,
   participantIds: readonly [string, string],
 ): string | null {
-  const participants = participantIds.map((playerId) =>
-    snapshot.participants.find(
-      (participant) => participant.playerId === playerId,
-    ),
-  );
-  const offline = participants.filter(
-    (participant) =>
+  const participants = participantIds.map(function mapItem(playerId) {
+    return snapshot.participants.find(function findItem(participant) {
+      return participant.playerId === playerId;
+    });
+  });
+  const offline = participants.filter(function filterItem(participant) {
+    return (
       participant !== undefined &&
       (!participant.connected ||
-        participant.presencePendingUntilMs !== undefined),
-  );
+        participant.presencePendingUntilMs !== undefined)
+    );
+  });
   if (offline.length === 0) {
     return null;
   }
@@ -1355,7 +1414,9 @@ function selectOfflineMatchLoser(
   if (leftAt !== rightAt) {
     return leftAt < rightAt ? participantIds[0] : participantIds[1];
   }
-  return [...participantIds].sort((a, b) => b.localeCompare(a))[0];
+  return [...participantIds].sort(function compareItems(a, b) {
+    return b.localeCompare(a);
+  })[0];
 }
 
 function hasSameCompetitivePlayers(
@@ -1364,13 +1425,14 @@ function hasSameCompetitivePlayers(
 ): boolean {
   return (
     left.length === right.length &&
-    left.every((player) =>
-      right.some(
-        (candidate) =>
+    left.every(function testItem(player) {
+      return right.some(function testItem(candidate) {
+        return (
           candidate.playerId === player.playerId &&
-          candidate.accountId === player.accountId,
-      ),
-    )
+          candidate.accountId === player.accountId
+        );
+      });
+    })
   );
 }
 
@@ -1480,18 +1542,17 @@ function parseDocument(value: string): RedisPokeLoungeDocument {
       match.turnStartedAtMs < 0
     ) {
       const firstTurnActionAtMs = Object.values(document.actions)
-        .filter(
-          (action) =>
+        .filter(function filterItem(action) {
+          return (
             action.matchId === match.matchId &&
-            action.turn === match.currentTurn,
-        )
-        .reduce<number | null>(
-          (earliest, action) =>
-            earliest === null
-              ? action.createdAtMs
-              : Math.min(earliest, action.createdAtMs),
-          null,
-        );
+            action.turn === match.currentTurn
+          );
+        })
+        .reduce<number | null>(function reduceItems(earliest, action) {
+          return earliest === null
+            ? action.createdAtMs
+            : Math.min(earliest, action.createdAtMs);
+        }, null);
       match.turnStartedAtMs = firstTurnActionAtMs ?? document.room.updatedAtMs;
     }
   }

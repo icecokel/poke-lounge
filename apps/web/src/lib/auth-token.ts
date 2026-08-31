@@ -28,20 +28,20 @@ const decodeBase64Url = (value: string): string => {
   return globalThis.atob(padded);
 };
 
-export const getJwtExpiresAt = (token?: unknown): number | undefined => {
+export function getJwtExpiresAt(token?: unknown): number | undefined {
   const payload = getJwtPayload(token);
   return typeof payload?.exp === "number" ? payload.exp : undefined;
-};
+}
 
-export const getJwtSubject = (token?: unknown): string | undefined => {
+export function getJwtSubject(token?: unknown): string | undefined {
   const payload = getJwtPayload(token);
   return typeof payload?.sub === "string" && payload.sub.trim() ? payload.sub : undefined;
-};
+}
 
-export const getSessionApiAccountId = (
+export function getSessionApiAccountId(
   session?: ApiTokenSession | null,
   idToken?: unknown,
-): string | undefined => {
+): string | undefined {
   const tokenSubject = getJwtSubject(idToken);
   if (tokenSubject) {
     return tokenSubject;
@@ -50,13 +50,13 @@ export const getSessionApiAccountId = (
   return typeof session?.user?.id === "string" && session.user.id.trim()
     ? session.user.id
     : undefined;
-};
+}
 
-export const isIdTokenUsable = (
+export function isIdTokenUsable(
   idToken?: unknown,
   idTokenExpiresAt?: unknown,
   nowMs: number = Date.now(),
-): idToken is string => {
+): idToken is string {
   if (typeof idToken !== "string" || !idToken) return false;
 
   const expiresAt =
@@ -64,16 +64,17 @@ export const isIdTokenUsable = (
   if (typeof expiresAt !== "number") return false;
 
   return nowMs < (expiresAt - ID_TOKEN_EXPIRY_BUFFER_SECONDS) * 1000;
-};
+}
 
-export const isAuthSessionError = (error?: unknown): boolean =>
-  typeof error === "string" && AUTH_SESSION_ERRORS_REQUIRING_LOGIN.has(error);
+export function isAuthSessionError(error?: unknown): boolean {
+  return typeof error === "string" && AUTH_SESSION_ERRORS_REQUIRING_LOGIN.has(error);
+}
 
-export const getSessionApiIdToken = (
+export function getSessionApiIdToken(
   session?: ApiTokenSession | null,
   nowMs: number = Date.now(),
   options: SessionApiTokenOptions = {},
-): string | undefined => {
+): string | undefined {
   if (
     !session ||
     isAuthSessionError(session.error) ||
@@ -85,7 +86,7 @@ export const getSessionApiIdToken = (
   return isIdTokenUsable(session.idToken, session.idTokenExpiresAt, nowMs)
     ? session.idToken
     : undefined;
-};
+}
 
 function getJwtPayload(token?: unknown): Record<string, unknown> | undefined {
   if (typeof token !== "string") return undefined;

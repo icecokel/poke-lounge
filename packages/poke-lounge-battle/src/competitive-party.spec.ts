@@ -1,16 +1,20 @@
 import {
   canUseCompetitiveStruggle,
-  COMPETITIVE_CATALOG_HASH,
-  COMPETITIVE_CATALOG_MOVE_COUNT,
-  COMPETITIVE_CATALOG_SPECIES_COUNT,
-  COMPETITIVE_MOVE_CATALOG,
-  COMPETITIVE_SPECIES_CATALOG,
   CompetitivePartyValidationError,
   isCompetitiveMoveSelectable,
   normalizeCompetitiveParty,
   restoreCompetitiveParty,
   type CompetitivePartyInput,
-} from "./index";
+} from "./competitive-party";
+import {
+  COMPETITIVE_CATALOG_HASH,
+  COMPETITIVE_MOVE_CATALOG,
+  COMPETITIVE_SPECIES_CATALOG,
+} from "./competitive-catalog.generated";
+import {
+  COMPETITIVE_CATALOG_MOVE_COUNT,
+  COMPETITIVE_CATALOG_SPECIES_COUNT,
+} from "./competitive-catalog-metadata.generated";
 
 const IVS = {
   hp: 31,
@@ -40,8 +44,8 @@ function input(overrides: Partial<CompetitivePartyInput> = {}): CompetitiveParty
   };
 }
 
-describe("competitive party normalization", () => {
-  it("keeps the generated catalog boundaries, counts and hash stable", () => {
+describe("competitive party normalization", function testSuite() {
+  it("keeps the generated catalog boundaries, counts and hash stable", function testCase() {
     expect(Object.keys(COMPETITIVE_SPECIES_CATALOG)).toHaveLength(493);
     expect(Object.keys(COMPETITIVE_MOVE_CATALOG)).toHaveLength(467);
     expect(COMPETITIVE_CATALOG_SPECIES_COUNT).toBe(493);
@@ -56,7 +60,7 @@ describe("competitive party normalization", () => {
     expect(COMPETITIVE_MOVE_CATALOG[95]?.accuracy).toBe(60);
   });
 
-  it("derives stats, types and move limits from the generated server catalog", () => {
+  it("derives stats, types and move limits from the generated server catalog", function testCase() {
     const normalized = normalizeCompetitiveParty(input());
     expect(normalized.members[0]).toMatchObject({
       speciesId: 7,
@@ -81,7 +85,7 @@ describe("competitive party normalization", () => {
     });
   });
 
-  it("preserves parties with different levels and non-contiguous physical slots", () => {
+  it("preserves parties with different levels and non-contiguous physical slots", function testCase() {
     const members = [
       { ...input().members[0], slotIndex: 5, speciesId: 158, level: 13 },
       { ...input().members[0], slotIndex: 0, speciesId: 7, level: 11 },
@@ -90,21 +94,35 @@ describe("competitive party normalization", () => {
 
     const normalized = normalizeCompetitiveParty(input({ activeSlotIndex: 2, members }));
 
-    expect(normalized.members.map(member => member.slotIndex)).toEqual([0, 2, 5]);
-    expect(normalized.members.map(member => member.level)).toEqual([11, 17, 13]);
-    expect(normalized.members.map(member => member.speciesId)).toEqual([7, 152, 158]);
+    expect(
+      normalized.members.map(function mapItem(member) {
+        return member.slotIndex;
+      }),
+    ).toEqual([0, 2, 5]);
+    expect(
+      normalized.members.map(function mapItem(member) {
+        return member.level;
+      }),
+    ).toEqual([11, 17, 13]);
+    expect(
+      normalized.members.map(function mapItem(member) {
+        return member.speciesId;
+      }),
+    ).toEqual([7, 152, 158]);
   });
 
-  it("accepts a six-member party without changing its size", () => {
-    const members = Array.from({ length: 6 }, (_, slotIndex) => ({
-      ...input().members[0],
-      slotIndex,
-    }));
+  it("accepts a six-member party without changing its size", function testCase() {
+    const members = Array.from({ length: 6 }, function callback(_, slotIndex) {
+      return {
+        ...input().members[0],
+        slotIndex,
+      };
+    });
 
     expect(normalizeCompetitiveParty(input({ members })).members).toHaveLength(6);
   });
 
-  it("restores HP, PP and persistent status before a tournament battle", () => {
+  it("restores HP, PP and persistent status before a tournament battle", function testCase() {
     const normalized = normalizeCompetitiveParty(
       input({
         members: [
@@ -135,10 +153,12 @@ describe("competitive party normalization", () => {
     [
       "party-too-large",
       {
-        members: Array.from({ length: 7 }, (_, slotIndex) => ({
-          ...input().members[0],
-          slotIndex,
-        })),
+        members: Array.from({ length: 7 }, function callback(_, slotIndex) {
+          return {
+            ...input().members[0],
+            slotIndex,
+          };
+        }),
       },
     ],
     ["slot-out-of-range", { members: [{ ...input().members[0], slotIndex: -1 }] }],
@@ -183,7 +203,7 @@ describe("competitive party normalization", () => {
     ],
     ["move-unsupported", { members: [{ ...input().members[0], moves: [{ moveId: 471, pp: 1 }] }] }],
     ["pp-out-of-range", { members: [{ ...input().members[0], moves: [{ moveId: 55, pp: 26 }] }] }],
-  ])("rejects invalid input with reason %s", (reason, overrides) => {
+  ])("rejects invalid input with reason %s", function callback(reason, overrides) {
     try {
       normalizeCompetitiveParty(input(overrides as Partial<CompetitivePartyInput>));
       throw new Error("expected validation error");
@@ -194,7 +214,7 @@ describe("competitive party normalization", () => {
     }
   });
 
-  it("allows struggle only when no selectable move has PP", () => {
+  it("allows struggle only when no selectable move has PP", function testCase() {
     expect(isCompetitiveMoveSelectable(55)).toBe(true);
     expect(isCompetitiveMoveSelectable(86)).toBe(true);
     expect(isCompetitiveMoveSelectable(111)).toBe(true);

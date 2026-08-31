@@ -1,6 +1,6 @@
-import { startGamePage, type GamePageHandle } from "./game/gamePageStartup";
-import type { PokeLoungeGameResult } from "./game/createPokeLoungeGame";
-import type { GameViewportDisplaySize } from "./game/gameViewport";
+import { startGamePage, type GamePageHandle } from "./game/game-page-startup";
+import type { PokeLoungeGameResult } from "./game/create-poke-lounge-game";
+import type { GameViewportDisplaySize } from "./game/game-viewport";
 import type { PokeLoungeRuntimeState } from "./game/game-page-state";
 import type { PokeLoungeRoomLeaveRequestDetail } from "./game/ui/poke-lounge-ui-events";
 

@@ -6,8 +6,8 @@ const expectDurationMs = (log: { durationMs: number }): void => {
   expect(log.durationMs).toBeGreaterThanOrEqual(0);
 };
 
-describe('createApiRequestLog', () => {
-  it('쿼리와 실제 경로 파라미터 없이 route template 기반 access log를 만든다', () => {
+describe('createApiRequestLog', function testSuite() {
+  it('쿼리와 실제 경로 파라미터 없이 route template 기반 access log를 만든다', function testCase() {
     const request = {
       method: 'GET',
       baseUrl: '/recipes',
@@ -30,7 +30,7 @@ describe('createApiRequestLog', () => {
     expectDurationMs(log);
   });
 
-  it('라우트를 찾을 수 없는 요청은 입력 경로 대신 unmatched로 기록한다', () => {
+  it('라우트를 찾을 수 없는 요청은 입력 경로 대신 unmatched로 기록한다', function testCase() {
     const request = {
       method: 'GET',
       path: '/person@example.com',

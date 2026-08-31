@@ -4,8 +4,8 @@ import { useSyncExternalStore, type CSSProperties } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import styles from "../../../poke-lounge.module.css";
 import { primePokeLoungeAudio } from "../audio/poke-lounge-audio";
-import { BATTLE_LAYOUT, getBattleStatusTextView, hpRatio, type BattleRect } from "./battleLayout";
-import { ROM_BATTLE_DESIGN_ASSETS } from "./battleDesign";
+import { BATTLE_LAYOUT, getBattleStatusTextView, hpRatio, type BattleRect } from "./battle-layout";
+import { ROM_BATTLE_DESIGN_ASSETS } from "./battle-design";
 import type {
   BattleCapturePresentation,
   BattleCombatantPresentation,
@@ -19,7 +19,7 @@ import {
   createShortcutGuideFooter,
   createShortcutGuideRows,
   createShortcutGuideTitle,
-} from "../ui/shortcutGuide";
+} from "../ui/shortcut-guide";
 import {
   HealthBar,
   MessageBox,
@@ -72,7 +72,9 @@ export function BattleScreen({
           className={styles.battleHelpButton}
           aria-label="전투 도움말"
           data-poke-lounge-battle-help="true"
-          onClick={() => onAction({ type: "toggle-help" })}
+          onClick={function handleClick() {
+            return onAction({ type: "toggle-help" });
+          }}
         >
           ?
         </button>
@@ -121,7 +123,9 @@ export function BattleStage({
       />
       {presentation.help.open && desktop ? (
         <BattleShortcutGuide
-          onClose={() => onAction({ type: "toggle-help" })}
+          onClose={function handleClose() {
+            return onAction({ type: "toggle-help" });
+          }}
           state={presentation}
         />
       ) : null}
@@ -230,7 +234,9 @@ export function BattleSurfaceRouter({
       <BattleMessagePanel
         message={presentation.message ?? "아래 터치 화면에서 행동을 선택하세요."}
         locked={controls.isInputLocked}
-        onConfirm={() => onAction({ type: "confirm-message" })}
+        onConfirm={function handleConfirm() {
+          return onAction({ type: "confirm-message" });
+        }}
       />
     );
   }
@@ -239,7 +245,9 @@ export function BattleSurfaceRouter({
       <BattleMessagePanel
         message={presentation.message}
         locked={controls.isInputLocked}
-        onConfirm={() => onAction({ type: "confirm-message" })}
+        onConfirm={function handleConfirm() {
+          return onAction({ type: "confirm-message" });
+        }}
       />
     );
   }
@@ -265,7 +273,9 @@ export function BattleSurfaceRouter({
     <BattleMessagePanel
       message="전투가 종료되었습니다."
       locked={controls.isInputLocked}
-      onConfirm={() => onAction({ type: "confirm-message" })}
+      onConfirm={function handleConfirm() {
+        return onAction({ type: "confirm-message" });
+      }}
     />
   );
 }
@@ -304,14 +314,18 @@ export function BattleCommandPanel({
       className={`${styles.battleWindow} ${styles.battleOptionGrid}`}
       data-poke-lounge-battle-surface="command"
     >
-      {controls.commands.map((command, index) => (
-        <BattleOptionButton
-          key={command.id}
-          label={labels[command.id]}
-          selected={command.selected}
-          onClick={() => onAction({ type: "select-command", index })}
-        />
-      ))}
+      {controls.commands.map(function mapItem(command, index) {
+        return (
+          <BattleOptionButton
+            key={command.id}
+            label={labels[command.id]}
+            selected={command.selected}
+            onClick={function handleClick() {
+              return onAction({ type: "select-command", index });
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -328,7 +342,7 @@ export function BattleMovePanel({
       className={`${styles.battleWindow} ${styles.battleOptionGrid}`}
       data-poke-lounge-battle-surface="moves"
     >
-      {Array.from({ length: 4 }, (_, index) => {
+      {Array.from({ length: 4 }, function callback(_, index) {
         const move = controls.moves[index];
         return (
           <BattleOptionButton
@@ -341,7 +355,9 @@ export function BattleMovePanel({
                 : undefined
             }
             selected={Boolean(move?.selected)}
-            onClick={() => move && onAction({ type: "select-move", index: move.index })}
+            onClick={function handleClick() {
+              return move && onAction({ type: "select-move", index: move.index });
+            }}
           />
         );
       })}
@@ -364,7 +380,7 @@ export function BattleMoveReplacementPanel({
     >
       <strong>{pending ? `${pending.newMoveName}을 배우려면 잊을 기술 선택` : "기술 교체"}</strong>
       <div className={styles.battleReplacementGrid}>
-        {Array.from({ length: 4 }, (_, index) => {
+        {Array.from({ length: 4 }, function callback(_, index) {
           const move = controls.moves[index];
           return (
             <BattleOptionButton
@@ -372,9 +388,9 @@ export function BattleMoveReplacementPanel({
               disabled={!move}
               label={move?.name ?? "-"}
               selected={Boolean(move?.selected)}
-              onClick={() =>
-                move && onAction({ type: "select-move-replacement", index: move.index })
-              }
+              onClick={function handleClick() {
+                return move && onAction({ type: "select-move-replacement", index: move.index });
+              }}
             />
           );
         })}
@@ -383,7 +399,9 @@ export function BattleMoveReplacementPanel({
         <button
           type="button"
           className={styles.battleInlineBack}
-          onClick={() => onAction({ type: "go-back" })}
+          onClick={function handleClick() {
+            return onAction({ type: "go-back" });
+          }}
         >
           배우지 않는다
         </button>
@@ -406,39 +424,43 @@ export function BattlePartyPanel({
         <span>{controls.isForcedPartySwitch ? "필수 교체" : "B 돌아가기"}</span>
       </header>
       <div>
-        {controls.party.map(pokemon => (
-          <button
-            key={pokemon.slotIndex}
-            type="button"
-            className={styles.battlePartySlot}
-            data-current={pokemon.isCurrent}
-            data-selected={pokemon.selected}
-            disabled={!pokemon.canSwitch}
-            onClick={() => onAction({ type: "select-party", index: pokemon.slotIndex })}
-          >
-            {pokemon.sprite ? (
-              <BattlePokemonSprite
-                side="party"
-                view={{
-                  alpha: pokemon.isFainted ? 0.34 : 1,
-                  height: 18,
-                  sprite: pokemon.sprite,
-                  tint: null,
-                  width: 18,
-                  x: 10,
-                  y: 10,
-                }}
-              />
-            ) : null}
-            <strong>{pokemon.isEmpty ? "- 빈 슬롯" : pokemon.name}</strong>
-            {!pokemon.isEmpty ? (
-              <small>
-                Lv.{pokemon.level} · HP {pokemon.currentHp}/{pokemon.maxHp}
-                {pokemon.status && pokemon.status !== "normal" ? ` · ${pokemon.status}` : ""}
-              </small>
-            ) : null}
-          </button>
-        ))}
+        {controls.party.map(function mapItem(pokemon) {
+          return (
+            <button
+              key={pokemon.slotIndex}
+              type="button"
+              className={styles.battlePartySlot}
+              data-current={pokemon.isCurrent}
+              data-selected={pokemon.selected}
+              disabled={!pokemon.canSwitch}
+              onClick={function handleClick() {
+                return onAction({ type: "select-party", index: pokemon.slotIndex });
+              }}
+            >
+              {pokemon.sprite ? (
+                <BattlePokemonSprite
+                  side="party"
+                  view={{
+                    alpha: pokemon.isFainted ? 0.34 : 1,
+                    height: 18,
+                    sprite: pokemon.sprite,
+                    tint: null,
+                    width: 18,
+                    x: 10,
+                    y: 10,
+                  }}
+                />
+              ) : null}
+              <strong>{pokemon.isEmpty ? "- 빈 슬롯" : pokemon.name}</strong>
+              {!pokemon.isEmpty ? (
+                <small>
+                  Lv.{pokemon.level} · HP {pokemon.currentHp}/{pokemon.maxHp}
+                  {pokemon.status && pokemon.status !== "normal" ? ` · ${pokemon.status}` : ""}
+                </small>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -453,7 +475,9 @@ export function BattleBagPanel({
 }) {
   const selectedIndex = Math.max(
     0,
-    controls.items.findIndex(item => item.selected),
+    controls.items.findIndex(function findItemIndex(item) {
+      return item.selected;
+    }),
   );
   const pageStart = Math.floor(selectedIndex / 4) * 4;
   return (
@@ -461,21 +485,25 @@ export function BattleBagPanel({
       className={`${styles.battleWindow} ${styles.battleBagPanel}`}
       data-poke-lounge-battle-surface="bag"
     >
-      {controls.items.slice(pageStart, pageStart + 4).map(item => (
-        <button
-          key={item.id}
-          type="button"
-          data-selected={item.selected}
-          disabled={item.disabled}
-          onClick={() => onAction({ type: "select-item", index: item.index })}
-        >
-          <span>
-            {item.selected ? "▶ " : "  "}
-            {item.name}
-          </span>
-          <small>×{item.count}</small>
-        </button>
-      ))}
+      {controls.items.slice(pageStart, pageStart + 4).map(function mapItem(item) {
+        return (
+          <button
+            key={item.id}
+            type="button"
+            data-selected={item.selected}
+            disabled={item.disabled}
+            onClick={function handleClick() {
+              return onAction({ type: "select-item", index: item.index });
+            }}
+          >
+            <span>
+              {item.selected ? "▶ " : "  "}
+              {item.name}
+            </span>
+            <small>×{item.count}</small>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -532,12 +560,14 @@ export function BattleShortcutGuide({
         </button>
       </header>
       <dl>
-        {rows.map(row => (
-          <div key={row.action}>
-            <dt>{row.action}</dt>
-            <dd>{row.keys}</dd>
-          </div>
-        ))}
+        {rows.map(function mapItem(row) {
+          return (
+            <div key={row.action}>
+              <dt>{row.action}</dt>
+              <dd>{row.keys}</dd>
+            </div>
+          );
+        })}
       </dl>
       <p>{createShortcutGuideFooter(state.help.inputMode)}</p>
     </section>
@@ -566,18 +596,20 @@ export function BattleCaptureEffect({ capture }: { capture: BattleCapturePresent
         />
       ) : null}
       {resultProgress !== null
-        ? Array.from({ length: 8 }, (_, index) => (
-            <i
-              key={index}
-              style={{
-                background: rayColor,
-                left: `${(capture.ballX / logicalWidth) * 100}%`,
-                opacity: 1 - resultProgress * 0.55,
-                top: `${(capture.ballY / logicalHeight) * 100}%`,
-                transform: `rotate(${index * 45}deg) translateX(${((7 + resultProgress * 13) / logicalWidth) * 100}cqw)`,
-              }}
-            />
-          ))
+        ? Array.from({ length: 8 }, function callback(_, index) {
+            return (
+              <i
+                key={index}
+                style={{
+                  background: rayColor,
+                  left: `${(capture.ballX / logicalWidth) * 100}%`,
+                  opacity: 1 - resultProgress * 0.55,
+                  top: `${(capture.ballY / logicalHeight) * 100}%`,
+                  transform: `rotate(${index * 45}deg) translateX(${((7 + resultProgress * 13) / logicalWidth) * 100}cqw)`,
+                }}
+              />
+            );
+          })
         : null}
     </div>
   );
@@ -588,9 +620,9 @@ export function BattleEvolutionScene({ evolution }: { evolution: BattleEvolution
   return (
     <div className={styles.battleEvolutionScene} data-poke-lounge-battle-evolution="true">
       <svg viewBox="0 0 256 192" aria-hidden="true">
-        {energy.lines.map((line, index) => (
-          <line key={index} {...line} opacity={energy.alpha * 0.52} />
-        ))}
+        {energy.lines.map(function mapItem(line, index) {
+          return <line key={index} {...line} opacity={energy.alpha * 0.52} />;
+        })}
         <circle
           cx="128"
           cy="82"
@@ -630,17 +662,19 @@ export function BattleEntranceEffect({
       style={{ backgroundColor: `rgb(16 24 32 / ${Math.max(0, 1 - entrance.progress)})` }}
       aria-hidden="true"
     >
-      {Array.from({ length: 6 }, (_, index) => (
-        <i
-          key={index}
-          style={{
-            left: index % 2 === 0 ? 0 : `${entrance.progress * 100}%`,
-            opacity: Math.max(0, 0.42 - entrance.progress * 0.5),
-            top: `${(index / 6) * 100}%`,
-            width: `${(1 - entrance.progress) * 100}%`,
-          }}
-        />
-      ))}
+      {Array.from({ length: 6 }, function callback(_, index) {
+        return (
+          <i
+            key={index}
+            style={{
+              left: index % 2 === 0 ? 0 : `${entrance.progress * 100}%`,
+              opacity: Math.max(0, 0.42 - entrance.progress * 0.5),
+              top: `${(index / 6) * 100}%`,
+              width: `${(1 - entrance.progress) * 100}%`,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -654,7 +688,7 @@ function createEvolutionEnergyLines(progress: number) {
   const outerRadius = 48 + startProgress * 20;
   return {
     alpha,
-    lines: Array.from({ length: 12 }, (_, index) => {
+    lines: Array.from({ length: 12 }, function callback(_, index) {
       const angle = rotation + (Math.PI * 2 * index) / 12;
       return {
         x1: 128 + Math.cos(angle) * innerRadius,

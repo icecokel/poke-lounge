@@ -4,9 +4,9 @@ import {
   buildPokeLoungeSaveSnapshot,
   parsePokeLoungeSaveSnapshot,
 } from "./poke-lounge-save-snapshot";
-import { createGameStateStore } from "./gameStateStore";
+import { createGameStateStore } from "./game-state-store";
 
-test("저장 스냅샷은 493번 포켓몬까지 복원한다", () => {
+test("저장 스냅샷은 493번 포켓몬까지 복원한다", function testCase() {
   const store = createGameStateStore();
   store.setStarterPokemon({
     speciesId: 493,
@@ -21,7 +21,7 @@ test("저장 스냅샷은 493번 포켓몬까지 복원한다", () => {
   assert.equal(parsed?.state.playersById["player-1"]?.party[0]?.pokemon?.gender, "genderless");
 });
 
-test("성별이 없는 구버전 저장 스냅샷도 계속 복원한다", () => {
+test("성별이 없는 구버전 저장 스냅샷도 계속 복원한다", function testCase() {
   const store = createGameStateStore();
   store.setStarterPokemon({ speciesId: 155, name: "브케인", level: 10 });
 
@@ -30,7 +30,7 @@ test("성별이 없는 구버전 저장 스냅샷도 계속 복원한다", () =>
   assert.equal(parsed?.state.playersById["player-1"]?.party[0]?.pokemon?.gender, undefined);
 });
 
-test("저장 스냅샷은 지원 범위를 벗어난 포켓몬을 거부한다", () => {
+test("저장 스냅샷은 지원 범위를 벗어난 포켓몬을 거부한다", function testCase() {
   const snapshot = buildPokeLoungeSaveSnapshot(createGameStateStore());
   snapshot.state.playersById["player-1"]!.pokemonBox = [{ speciesId: 494, name: "알", level: 1 }];
 

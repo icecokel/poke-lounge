@@ -17,14 +17,16 @@ const meta = {
     layout: "centered",
   },
   decorators: [
-    Story => (
-      <div
-        className={themeStyles.theme}
-        style={{ minWidth: 320, color: "var(--pl-color-ink)", fontFamily: "var(--pl-font-game)" }}
-      >
-        <Story />
-      </div>
-    ),
+    function callback(Story) {
+      return (
+        <div
+          className={themeStyles.theme}
+          style={{ minWidth: 320, color: "var(--pl-color-ink)", fontFamily: "var(--pl-font-game)" }}
+        >
+          <Story />
+        </div>
+      );
+    },
   ],
 } satisfies Meta;
 

@@ -13,7 +13,7 @@ const model = createWorldMapModel(
   ),
 );
 
-test("DOM 월드 motion은 큰 dt에도 맵·충돌 타일·NPC를 관통하지 않는다", () => {
+test("DOM 월드 motion은 큰 dt에도 맵·충돌 타일·NPC를 관통하지 않는다", function testCase() {
   const boundary = moveWorldPlayer({ x: 12, y: 288 }, { x: -104, y: 0 }, 1_000, model);
   assert.equal(boundary.x, 12);
 
@@ -24,7 +24,7 @@ test("DOM 월드 motion은 큰 dt에도 맵·충돌 타일·NPC를 관통하지 
   assert.ok(npc.y >= 330);
 });
 
-test("DOM 월드 camera는 기존 512x384 viewport를 맵 경계 안에 clamp한다", () => {
+test("DOM 월드 camera는 기존 512x384 viewport를 맵 경계 안에 clamp한다", function testCase() {
   assert.deepEqual(resolveWorldCamera({ x: 12, y: 12 }, { width: 512, height: 384 }, model), {
     x: 0,
     y: 0,

@@ -14,7 +14,7 @@ import {
   webkit,
 } from "@playwright/test";
 import { selectCompetitiveAssignment } from "../../src/components/poke-lounge/runtime/game/network/competitive-projection";
-import type { CompetitiveProjection } from "../../src/components/poke-lounge/runtime/game/network/localPreviewRoom";
+import type { CompetitiveProjection } from "../../src/components/poke-lounge/runtime/game/network/local-preview-room";
 
 type Probe = {
   maxTouchPoints: number;
@@ -257,7 +257,7 @@ const RUN_ROOT =
     `manual-${Date.now()}`,
   );
 
-test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정리까지 수렴한다", async ({}, testInfo) => {
+test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정리까지 수렴한다", async function testCase({}, testInfo) {
   test.setTimeout(0);
 
   expect(API_URL, "통합 테스트에는 NEXT_PUBLIC_API_URL이 필요합니다.").not.toBe("");
@@ -353,7 +353,7 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       }),
     );
 
-    await test.step("C0_JOINED: 다섯 context를 고정 순서로 입장시킨다", async () => {
+    await test.step("C0_JOINED: 다섯 context를 고정 순서로 입장시킨다", async function callback() {
       const host = testers[0];
       await host.page.route("**/poke-lounge/rooms", routeFivePlayerRoomCreation);
       await openServerRoom(host.page, undefined, `Tester ${host.id}`);
@@ -371,22 +371,45 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
         await expect(
           tester.page.locator('#game-root[data-poke-lounge-game-surface="ready"]'),
         ).toBeVisible({ timeout: 30_000 });
-        await expect.poll(() => readRoomCode(tester.page), { timeout: 30_000 }).toBe(roomCode);
+        await expect
+          .poll(
+            function pollExpectation() {
+              return readRoomCode(tester.page);
+            },
+            { timeout: 30_000 },
+          )
+          .toBe(roomCode);
         await waitForParticipantReady(roomCode, tester);
       }
 
-      const joined = await pollRoom(roomCode, room => room.participants.length === 5);
-      const participants = [...joined.participants].sort(
-        (left, right) =>
-          left.joinedAtMs - right.joinedAtMs || left.playerId.localeCompare(right.playerId),
-      );
+      const joined = await pollRoom(roomCode, function callback(room) {
+        return room.participants.length === 5;
+      });
+      const participants = [...joined.participants].sort(function compareItems(left, right) {
+        return left.joinedAtMs - right.joinedAtMs || left.playerId.localeCompare(right.playerId);
+      });
       expect(participants).toHaveLength(5);
-      expect(new Set(participants.map(participant => participant.playerId)).size).toBe(5);
-      expect(participants.every(participant => participant.role === "participant")).toBe(true);
+      expect(
+        new Set(
+          participants.map(function mapItem(participant) {
+            return participant.playerId;
+          }),
+        ).size,
+      ).toBe(5);
+      expect(
+        participants.every(function testItem(participant) {
+          return participant.role === "participant";
+        }),
+      ).toBe(true);
 
       for (const [index, tester] of testers.entries()) {
         await expect
-          .poll(() => Promise.resolve(tester.playerId), { timeout: 30_000 })
+          .poll(
+            function pollExpectation() {
+              return Promise.resolve(tester.playerId);
+            },
+            { timeout: 30_000 },
+          )
           .not.toBeNull();
         expect(tester.playerId).toBe(participants[index].playerId);
         await recordCheckpoint(tester, "C0_JOINED", "world", "PASS");
@@ -394,29 +417,37 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       await captureCheckpointScreenshots(testers, "C0_JOINED");
     });
 
-    await test.step("C1_STARTED: 첫 대진과 세 bye 관전을 모든 context에서 확인한다", async () => {
-      const readyRoom = await pollRoom(
-        roomCode,
-        room =>
+    await test.step("C1_STARTED: 첫 대진과 세 bye 관전을 모든 context에서 확인한다", async function callback() {
+      const readyRoom = await pollRoom(roomCode, function callback(room) {
+        return (
           room.participants.length === 5 &&
-          room.participants.every(participant => participant.ready),
-      );
+          room.participants.every(function testItem(participant) {
+            return participant.ready;
+          })
+        );
+      });
       expect(readyRoom.round.endsAtMs).toBeNull();
       const startButton = testers[0].page.locator("[data-room-lobby-start='true']");
       await expect(startButton).toBeEnabled({ timeout: 30_000 });
       await startButton.click();
-      const preparation = await pollRoom(roomCode, room => room.status === "round-started");
+      const preparation = await pollRoom(roomCode, function callback(room) {
+        return room.status === "round-started";
+      });
       expect(preparation.round.endsAtMs).not.toBeNull();
       const started = await pollRoom(
         roomCode,
-        room => findBracket(room.tournament) !== null,
+        function callback(room) {
+          return findBracket(room.tournament) !== null;
+        },
         45_000,
       );
       initialBracket = findBracket(started.tournament);
       expect(initialBracket).not.toBeNull();
 
       const participantsBySeed = new Map(
-        initialBracket!.participants.map(participant => [participant.seed, participant.playerId]),
+        initialBracket!.participants.map(function mapItem(participant) {
+          return [participant.seed, participant.playerId];
+        }),
       );
       expect(initialBracket!.currentRound?.matches).toHaveLength(1);
       expect(initialBracket!.currentRound?.matches[0]?.participantIds).toEqual([
@@ -425,11 +456,22 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       ]);
       expect(participantsBySeed.get(4)).toBe(testers[3].playerId);
       expect(participantsBySeed.get(5)).toBe(testers[4].playerId);
-      expect(initialBracket!.currentRound?.byes.map(bye => bye.entrant.seed)).toEqual([1, 3, 2]);
+      expect(
+        initialBracket!.currentRound?.byes.map(function mapItem(bye) {
+          return bye.entrant.seed;
+        }),
+      ).toEqual([1, 3, 2]);
 
       await expectBracketConvergence(testers, initialBracket!);
       for (const tester of testers) {
-        await expect.poll(() => getActiveSceneKey(tester.page), { timeout: 30_000 }).toBe("battle");
+        await expect
+          .poll(
+            function pollExpectation() {
+              return getActiveSceneKey(tester.page);
+            },
+            { timeout: 30_000 },
+          )
+          .toBe("battle");
       }
       for (const tester of testers.slice(3)) {
         await expect(
@@ -437,11 +479,20 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
         ).toBeVisible();
       }
 
-      await Promise.all(testers.map(tester => waitForWebSocketUpgrade(tester)));
+      await Promise.all(
+        testers.map(function mapItem(tester) {
+          return waitForWebSocketUpgrade(tester);
+        }),
+      );
 
       for (const tester of testers) {
         await expect
-          .poll(() => Promise.resolve(getRecoveryRequestTotal(tester)), { timeout: 30_000 })
+          .poll(
+            function pollExpectation() {
+              return Promise.resolve(getRecoveryRequestTotal(tester));
+            },
+            { timeout: 30_000 },
+          )
           .toBeGreaterThan(0);
         const initialRecovery = await waitForRecoveryEvidence(tester, "initial", roomCode);
         expectSuccessfulRecoveryResponse(initialRecovery);
@@ -449,12 +500,14 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       }
 
       const recoveryBaselines = await Promise.all(
-        testers.map(tester => waitForHealthyRecoveryQuiescence(tester, "C1_STABILITY")),
+        testers.map(function mapItem(tester) {
+          return waitForHealthyRecoveryQuiescence(tester, "C1_STABILITY");
+        }),
       );
       await Promise.all(
-        testers.map((tester, index) =>
-          assertRecoveryStability(tester, "C1_STABILITY", recoveryBaselines[index]),
-        ),
+        testers.map(function mapItem(tester, index) {
+          return assertRecoveryStability(tester, "C1_STABILITY", recoveryBaselines[index]);
+        }),
       );
 
       for (const tester of testers) {
@@ -468,7 +521,7 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       await captureCheckpointScreenshots(testers, "C1_STARTED");
     });
 
-    await test.step("FAULT-001: Chromium spectator context를 retry 없이 reload한다", async () => {
+    await test.step("FAULT-001: Chromium spectator context를 retry 없이 reload한다", async function callback() {
       const reconnectTester = testers[1];
       const recoveryCount = getRecoveryRequestTotal(reconnectTester);
       reconnectTester.transportEvidencePhase = "full-reload";
@@ -485,21 +538,39 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
         timeout: 30_000,
       });
       await expect
-        .poll(() => readRoomCode(reconnectTester.page), { timeout: 30_000 })
+        .poll(
+          function pollExpectation() {
+            return readRoomCode(reconnectTester.page);
+          },
+          { timeout: 30_000 },
+        )
         .toBe(roomCode);
       await expect
-        .poll(() => getActiveSceneKey(reconnectTester.page), { timeout: 30_000 })
+        .poll(
+          function pollExpectation() {
+            return getActiveSceneKey(reconnectTester.page);
+          },
+          { timeout: 30_000 },
+        )
         .toBe("battle");
       await expect
-        .poll(async () => (await readTesterRuntimeState(reconnectTester.page)).revision, {
-          timeout: 30_000,
-        })
+        .poll(
+          async function pollExpectation() {
+            return (await readTesterRuntimeState(reconnectTester.page)).revision;
+          },
+          {
+            timeout: 30_000,
+          },
+        )
         .not.toBeNull();
       await expect
         .poll(
-          async () =>
-            (await readTesterRuntimeState(reconnectTester.page)).transportDiagnostics
-              ?.lastAppliedTerminalRevision ?? null,
+          async function pollExpectation() {
+            return (
+              (await readTesterRuntimeState(reconnectTester.page)).transportDiagnostics
+                ?.lastAppliedTerminalRevision ?? null
+            );
+          },
           { timeout: 30_000 },
         )
         .not.toBeNull();
@@ -512,7 +583,12 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
         throw new Error("Full reload did not expose hydrated room and terminal baselines.");
       }
       await expect
-        .poll(() => Promise.resolve(getRecoveryRequestTotal(reconnectTester)), { timeout: 30_000 })
+        .poll(
+          function pollExpectation() {
+            return Promise.resolve(getRecoveryRequestTotal(reconnectTester));
+          },
+          { timeout: 30_000 },
+        )
         .toBeGreaterThan(recoveryCount);
       const freshRecovery = await waitForRecoveryEvidence(
         reconnectTester,
@@ -555,7 +631,7 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       );
     });
 
-    await test.step("FAULT-002: Chromium same-page Socket reconnect가 terminal cursor를 유지한다", async () => {
+    await test.step("FAULT-002: Chromium same-page Socket reconnect가 terminal cursor를 유지한다", async function callback() {
       const reconnectTester = testers[1];
       const { before, after } = await reconnectContextWithoutReload(reconnectTester);
       expect(after.afterRevision).toBe(before.afterRevision);
@@ -571,7 +647,7 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       );
     });
 
-    await test.step("C2_ACTION_1/C3T_TERMINAL: 두 모바일 context가 confirm 전에 같은 old match 결과를 관측한다", async () => {
+    await test.step("C2_ACTION_1/C3T_TERMINAL: 두 모바일 context가 confirm 전에 같은 old match 결과를 관측한다", async function callback() {
       const matchBefore = await fetchRoom(roomCode);
       expect(matchBefore.competitive).toBeDefined();
       oldCompetitiveMatchId = matchBefore.competitive!.matchId;
@@ -583,9 +659,15 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       );
       expect(matchBefore.competitive?.kind).toBe("tournament-unranked");
       expect(matchBefore.tournament.activeMatchAuthority).toBe("server");
-      await Promise.all(testers.map(tester => trackWorldBattleStarts(tester.page)));
+      await Promise.all(
+        testers.map(function mapItem(tester) {
+          return trackWorldBattleStarts(tester.page);
+        }),
+      );
       const preTerminalStates = await Promise.all(
-        testers.map(tester => captureTerminalConvergence(tester, "pre-terminal")),
+        testers.map(function mapItem(tester) {
+          return captureTerminalConvergence(tester, "pre-terminal");
+        }),
       );
       expect(preTerminalStates[3]).toMatchObject({
         activeScene: "battle",
@@ -624,9 +706,12 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       }
       const terminalRoom = await pollRoom(
         roomCode,
-        room =>
-          Boolean(room.competitive?.terminal) ||
-          Boolean(findBracket(room.tournament)?.completedRounds.length),
+        function callback(room) {
+          return (
+            Boolean(room.competitive?.terminal) ||
+            Boolean(findBracket(room.tournament)?.completedRounds.length)
+          );
+        },
         90_000,
       );
 
@@ -680,13 +765,13 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       await captureCheckpointScreenshots([testers[3], testers[4]], "C3T_TERMINAL_OBSERVED");
 
       const postConfirmStates = await Promise.all(
-        testers.map(tester =>
-          tester.seed === 4
+        testers.map(function mapItem(tester) {
+          return tester.seed === 4
             ? waitForPostConfirmRuntime(tester, oldCompetitiveMatchId, seed4Result)
             : tester.seed === 5
               ? waitForPostConfirmRuntime(tester, oldCompetitiveMatchId, seed5Result)
-              : readTesterRuntimeState(tester.page),
-        ),
+              : readTesterRuntimeState(tester.page);
+        }),
       );
       for (const [index, tester] of testers.entries()) {
         const runtime = postConfirmStates[index];
@@ -703,8 +788,8 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       }
     });
 
-    await test.step("C4T_NEXT_ROUND: 실제 scene/battle/competitive state가 역할별 다음 대진에 수렴한다", async () => {
-      const nextRoom = await pollRoom(roomCode, room => {
+    await test.step("C4T_NEXT_ROUND: 실제 scene/battle/competitive state가 역할별 다음 대진에 수렴한다", async function callback() {
+      const nextRoom = await pollRoom(roomCode, function callback(room) {
         const bracket = findBracket(room.tournament);
         return Boolean(bracket?.currentRound && bracket.currentRound.roundNumber >= 2);
       });
@@ -715,7 +800,9 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       expect(nextRoom.competitiveAssignments).toHaveLength(2);
       await expectBracketConvergence(testers, nextBracket!);
       const nextBattlePlayerIds = new Set(
-        nextRoom.competitiveAssignments.flatMap(assignment => assignment.playerIds),
+        nextRoom.competitiveAssignments.flatMap(function mapItem(assignment) {
+          return assignment.playerIds;
+        }),
       );
 
       for (const tester of testers) {
@@ -748,8 +835,12 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
 
       await Promise.all(
         testers
-          .filter(tester => tester.playerId && nextBattlePlayerIds.has(tester.playerId))
-          .map(tester => reconnectContextWithoutReload(tester, "C4T-reconnect")),
+          .filter(function filterItem(tester) {
+            return tester.playerId && nextBattlePlayerIds.has(tester.playerId);
+          })
+          .map(function mapItem(tester) {
+            return reconnectContextWithoutReload(tester, "C4T-reconnect");
+          }),
       );
 
       for (const tester of testers) {
@@ -776,7 +867,7 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       await captureCheckpointScreenshots(testers, "C4T_NEXT_ROUND");
     });
 
-    await test.step("C5_FULL_CYCLE: 남은 대진을 진행해 3라운드 최종 우승자를 확정한다", async () => {
+    await test.step("C5_FULL_CYCLE: 남은 대진을 진행해 3라운드 최종 우승자를 확정한다", async function callback() {
       expect(convergedRoom).not.toBeNull();
       const activeAssertions = await fetchJson<RedisAssertions>(
         `${API_URL}/__e2e/poke-lounge/assertions?roomCode=${encodeURIComponent(roomCode)}`,
@@ -796,7 +887,9 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       });
       expect(finalRoom!.finalStandings).toHaveLength(5);
       expect(
-        finalRoom!.finalStandings.filter(standing => standing.rank === 1).length,
+        finalRoom!.finalStandings.filter(function filterItem(standing) {
+          return standing.rank === 1;
+        }).length,
       ).toBeGreaterThan(0);
       const completedBracket = findBracket(finalRoom!.tournament);
       expect(completedBracket).toMatchObject({ status: "completed" });
@@ -806,7 +899,7 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       await captureCheckpointScreenshots(testers, "C5_FINAL_WINNER");
     });
 
-    await test.step("C6_CONVERGED: Redis·REST·Socket 최종 상태를 확인한다", async () => {
+    await test.step("C6_CONVERGED: Redis·REST·Socket 최종 상태를 확인한다", async function callback() {
       redisAssertions = await fetchJson<RedisAssertions>(
         `${API_URL}/__e2e/poke-lounge/assertions?roomCode=${encodeURIComponent(roomCode)}`,
       );
@@ -829,7 +922,9 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
         }
       }
       expect(
-        assertionObject.matches?.filter(match => match.status === "completed").length ?? 0,
+        assertionObject.matches?.filter(function filterItem(match) {
+          return match.status === "completed";
+        }).length ?? 0,
       ).toBe(12);
 
       for (const tester of testers) {
@@ -838,19 +933,20 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       expect(networkErrors).toEqual([]);
     });
 
-    await test.step("C7_ROOM_CLOSED: 다섯 context가 명시적으로 방을 나간다", async () => {
+    await test.step("C7_ROOM_CLOSED: 다섯 context가 명시적으로 방을 나간다", async function callback() {
       for (const tester of testers) {
         await leaveServerRoom(tester.page);
         await recordCheckpoint(tester, "C7_ROOM_CLOSED", "room entry after leave", "PASS");
       }
       await expect
         .poll(
-          async () =>
-            (
+          async function pollExpectation() {
+            return (
               await fetchJson<RedisAssertions>(
                 `${API_URL}/__e2e/poke-lounge/assertions?roomCode=${encodeURIComponent(roomCode)}`,
               )
-            ).worldStatePresent,
+            ).worldStatePresent;
+          },
           { timeout: 30_000 },
         )
         .toBe(false);
@@ -884,8 +980,20 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
       forcedSwitchEvidence,
       projectName: testInfo.project.name,
     });
-    await Promise.all(testers.map(tester => tester.context.close().catch(() => {})));
-    await Promise.all([...new Set(testers.map(tester => tester.browser))].map(closeBrowser));
+    await Promise.all(
+      testers.map(function mapItem(tester) {
+        return tester.context.close().catch(function handleRejected() {});
+      }),
+    );
+    await Promise.all(
+      [
+        ...new Set(
+          testers.map(function mapItem(tester) {
+            return tester.browser;
+          }),
+        ),
+      ].map(closeBrowser),
+    );
   }
 });
 
@@ -915,8 +1023,8 @@ async function createTester(input: {
     viewport: input.viewport,
   });
   const token = `poke-lounge-e2e-token-${input.id}`;
-  await context.route("**/api/auth/session", route =>
-    route.fulfill({
+  await context.route("**/api/auth/session", function callback(route) {
+    return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
@@ -925,8 +1033,8 @@ async function createTester(input: {
         idToken: token,
         idTokenExpiresAt: 4_102_444_800,
       }),
-    }),
-  );
+    });
+  });
   const page = await context.newPage();
   const runtime: TesterRuntime = {
     id: input.id,
@@ -957,7 +1065,7 @@ async function createTester(input: {
   };
   const recoveryEvidenceByRequest = new WeakMap<Request, RecoveryRequestEvidence>();
 
-  page.on("request", request => {
+  page.on("request", function handleEvent(request) {
     const recoveryCursor = parseRecoveryCursor(request.method(), request.url());
     if (recoveryCursor) {
       const evidence = recordRecoveryRequest(
@@ -975,7 +1083,7 @@ async function createTester(input: {
     const body = request.postDataJSON() as { playerId?: unknown } | null;
     if (typeof body?.playerId === "string") runtime.playerId = body.playerId;
   });
-  page.on("response", response => {
+  page.on("response", function handleEvent(response) {
     const recoveryEvidence = recoveryEvidenceByRequest.get(response.request());
     if (recoveryEvidence) {
       recordSanitizedRecoveryStatus(recoveryEvidence, response.status());
@@ -987,19 +1095,21 @@ async function createTester(input: {
       detail: `${response.status()} ${new URL(response.url()).pathname}`,
     });
   });
-  page.on("pageerror", error => {
+  page.on("pageerror", function handleEvent(error) {
     input.networkErrors.push({
       tester: input.id,
       kind: "pageerror",
       detail: sanitizeError(error.message),
     });
   });
-  runtime.probe = await page.evaluate(() => ({
-    maxTouchPoints: navigator.maxTouchPoints ?? 0,
-    coarsePointer: window.matchMedia("(pointer: coarse)").matches,
-    userAgent: navigator.userAgent ?? "",
-    platform: navigator.platform ?? "",
-  }));
+  runtime.probe = await page.evaluate(function evaluatePage() {
+    return {
+      maxTouchPoints: navigator.maxTouchPoints ?? 0,
+      coarsePointer: window.matchMedia("(pointer: coarse)").matches,
+      userAgent: navigator.userAgent ?? "",
+      platform: navigator.platform ?? "",
+    };
+  });
   return runtime;
 }
 
@@ -1024,15 +1134,29 @@ async function chooseStarterIfNeeded(page: Page): Promise<void> {
   const surface = page.locator('#game-root[data-poke-lounge-game-surface="ready"]');
   await expect
     .poll(
-      async () => {
-        if (await starter.isVisible().catch(() => false)) return "starter";
-        if (await surface.isVisible().catch(() => false)) return "surface";
+      async function pollExpectation() {
+        if (
+          await starter.isVisible().catch(function handleRejected() {
+            return false;
+          })
+        )
+          return "starter";
+        if (
+          await surface.isVisible().catch(function handleRejected() {
+            return false;
+          })
+        )
+          return "surface";
         return null;
       },
       { timeout: 30_000 },
     )
     .not.toBeNull();
-  if (await starter.isVisible().catch(() => false)) {
+  if (
+    await starter.isVisible().catch(function handleRejected() {
+      return false;
+    })
+  ) {
     await page.locator("[data-starter-confirm]").click();
   }
 }
@@ -1056,23 +1180,41 @@ async function confirmDirectMultiplayerEntryIfNeeded(
   const directEntry = page.locator("[data-room-entry-direct-multiplayer='true']");
   await expect
     .poll(
-      async () =>
-        (await surface.isVisible().catch(() => false)) ||
-        (await directEntry.isVisible().catch(() => false)),
+      async function pollExpectation() {
+        return (
+          (await surface.isVisible().catch(function handleRejected() {
+            return false;
+          })) ||
+          (await directEntry.isVisible().catch(function handleRejected() {
+            return false;
+          }))
+        );
+      },
       { timeout: 30_000 },
     )
     .toBe(true);
 
   if (
-    !(await surface.isVisible().catch(() => false)) &&
-    (await directEntry.isVisible().catch(() => false))
+    !(await surface.isVisible().catch(function handleRejected() {
+      return false;
+    })) &&
+    (await directEntry.isVisible().catch(function handleRejected() {
+      return false;
+    }))
   ) {
     await confirmDirectMultiplayerEntry(page, displayName);
   }
 }
 
 async function waitForRoomCode(page: Page): Promise<string> {
-  await expect.poll(() => readRoomCode(page), { timeout: 30_000 }).toMatch(/^[A-Z0-9]{6}$/);
+  await expect
+    .poll(
+      function pollExpectation() {
+        return readRoomCode(page);
+      },
+      { timeout: 30_000 },
+    )
+    .toMatch(/^[A-Z0-9]{6}$/);
   return readRoomCode(page);
 }
 
@@ -1081,15 +1223,22 @@ async function readRoomCode(page: Page): Promise<string> {
 }
 
 async function waitForParticipantReady(roomCode: string, tester: TesterRuntime): Promise<void> {
-  await expect.poll(() => Promise.resolve(tester.playerId), { timeout: 30_000 }).not.toBeNull();
+  await expect
+    .poll(
+      function pollExpectation() {
+        return Promise.resolve(tester.playerId);
+      },
+      { timeout: 30_000 },
+    )
+    .not.toBeNull();
   const readyButton = tester.page.locator("[data-room-lobby-ready='true']");
   await expect(readyButton).toBeEnabled({ timeout: 30_000 });
   await readyButton.click();
-  await pollRoom(roomCode, room =>
-    room.participants.some(
-      participant => participant.playerId === tester.playerId && participant.ready,
-    ),
-  );
+  await pollRoom(roomCode, function callback(room) {
+    return room.participants.some(function testItem(participant) {
+      return participant.playerId === tester.playerId && participant.ready;
+    });
+  });
 }
 
 async function routeFivePlayerRoomCreation(route: Route): Promise<void> {
@@ -1125,7 +1274,9 @@ async function pollRoom(
   while (Date.now() - startedAt < timeoutMs) {
     latest = await fetchRoom(roomCode);
     if (predicate(latest)) return latest;
-    await new Promise(resolve => setTimeout(resolve, 250));
+    await new Promise(function resolvePromise(resolve) {
+      return setTimeout(resolve, 250);
+    });
   }
   throw new Error(
     `Timed out polling room ${roomCode}; last revision=${latest?.revision ?? "unavailable"}`,
@@ -1170,10 +1321,11 @@ async function expectBracketConvergence(
   for (const tester of testers) {
     await expect
       .poll(
-        () =>
-          readBrowserBracket(tester.page).then(bracket =>
-            bracket ? canonicalJson(canonicalizeBracketBySeed(bracket)) : null,
-          ),
+        function pollExpectation() {
+          return readBrowserBracket(tester.page).then(function handleResolved(bracket) {
+            return bracket ? canonicalJson(canonicalizeBracketBySeed(bracket)) : null;
+          });
+        },
         { timeout: 30_000 },
       )
       .toBe(expectedCanonical);
@@ -1181,7 +1333,7 @@ async function expectBracketConvergence(
 }
 
 async function readBrowserBracket(page: Page): Promise<TournamentBracket | null> {
-  return page.evaluate(() => {
+  return page.evaluate(function evaluatePage() {
     const state = (
       window as Window & {
         __POKE_LOUNGE_E2E__?: { getGameStateSnapshot(): unknown };
@@ -1209,23 +1361,25 @@ async function readBrowserBracket(page: Page): Promise<TournamentBracket | null>
 }
 
 async function getActiveSceneKey(page: Page): Promise<string | null> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & { __POKE_LOUNGE_E2E__?: { getActiveSceneKey(): string | null } }
-      ).__POKE_LOUNGE_E2E__?.getActiveSceneKey() ?? null,
-  );
+      ).__POKE_LOUNGE_E2E__?.getActiveSceneKey() ?? null
+    );
+  });
 }
 
 async function getBattleSnapshot(page: Page): Promise<BattleSnapshot | null> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & {
           __POKE_LOUNGE_E2E__?: { getBattleSnapshot(): BattleSnapshot | null };
         }
-      ).__POKE_LOUNGE_E2E__?.getBattleSnapshot() ?? null,
-  );
+      ).__POKE_LOUNGE_E2E__?.getBattleSnapshot() ?? null
+    );
+  });
 }
 
 function parseRecoveryCursor(method: string, rawUrl: string): RecoveryCursor | null {
@@ -1246,12 +1400,13 @@ function recordRecoveryRequest(
   cursor: RecoveryCursor,
   observedAtMs: number,
 ): RecoveryRequestEvidence {
-  const existing = tester.recoveryRequests.find(
-    candidate =>
+  const existing = tester.recoveryRequests.find(function findItem(candidate) {
+    return (
       candidate.phase === phase &&
       candidate.roomCode === cursor.roomCode &&
-      candidate.afterRevision === cursor.afterRevision,
-  );
+      candidate.afterRevision === cursor.afterRevision
+    );
+  });
   if (existing) {
     existing.requestCount += 1;
     existing.lastObservedAtMs = observedAtMs;
@@ -1271,7 +1426,9 @@ function recordRecoveryRequest(
 }
 
 function recordSanitizedRecoveryStatus(evidence: RecoveryRequestEvidence, status: number): void {
-  const existing = evidence.statuses.find(candidate => candidate.status === status);
+  const existing = evidence.statuses.find(function findItem(candidate) {
+    return candidate.status === status;
+  });
   if (existing) {
     existing.count += 1;
     return;
@@ -1280,7 +1437,9 @@ function recordSanitizedRecoveryStatus(evidence: RecoveryRequestEvidence, status
 }
 
 function getRecoveryRequestTotal(tester: TesterRuntime): number {
-  return tester.recoveryRequests.reduce((total, evidence) => total + evidence.requestCount, 0);
+  return tester.recoveryRequests.reduce(function reduceItems(total, evidence) {
+    return total + evidence.requestCount;
+  }, 0);
 }
 
 function getRecoveryRequestTotalForPhase(
@@ -1288,12 +1447,18 @@ function getRecoveryRequestTotalForPhase(
   phase: TransportEvidencePhase,
 ): number {
   return tester.recoveryRequests
-    .filter(evidence => evidence.phase === phase)
-    .reduce((total, evidence) => total + evidence.requestCount, 0);
+    .filter(function filterItem(evidence) {
+      return evidence.phase === phase;
+    })
+    .reduce(function reduceItems(total, evidence) {
+      return total + evidence.requestCount;
+    }, 0);
 }
 
 function getRecoveryResponseTotal(evidence: RecoveryRequestEvidence): number {
-  return evidence.statuses.reduce((total, status) => total + status.count, 0);
+  return evidence.statuses.reduce(function reduceItems(total, status) {
+    return total + status.count;
+  }, 0);
 }
 
 function findRecoveryEvidence(
@@ -1302,12 +1467,13 @@ function findRecoveryEvidence(
   roomCode: string,
   afterRevision?: number,
 ): RecoveryRequestEvidence | undefined {
-  return tester.recoveryRequests.find(
-    candidate =>
+  return tester.recoveryRequests.find(function findItem(candidate) {
+    return (
       candidate.phase === phase &&
       candidate.roomCode === roomCode &&
-      (afterRevision === undefined || candidate.afterRevision === afterRevision),
-  );
+      (afterRevision === undefined || candidate.afterRevision === afterRevision)
+    );
+  });
 }
 
 async function waitForRecoveryEvidence(
@@ -1318,7 +1484,7 @@ async function waitForRecoveryEvidence(
 ): Promise<RecoveryRequestEvidence> {
   await expect
     .poll(
-      () => {
+      function pollExpectation() {
         const evidence = findRecoveryEvidence(tester, phase, roomCode, afterRevision);
         return evidence ? getRecoveryResponseTotal(evidence) : 0;
       },
@@ -1333,16 +1499,22 @@ async function waitForRecoveryEvidence(
 function expectSuccessfulRecoveryResponse(evidence: RecoveryRequestEvidence): void {
   expect(getRecoveryResponseTotal(evidence)).toBeGreaterThan(0);
   expect(
-    evidence.statuses.every(status => status.status >= 200 && status.status < 300),
+    evidence.statuses.every(function testItem(status) {
+      return status.status >= 200 && status.status < 300;
+    }),
     `Recovery request contained a non-success status: ${JSON.stringify(evidence.statuses)}`,
   ).toBe(true);
 }
 
 function snapshotRecoveryRequests(tester: TesterRuntime): RecoveryRequestEvidence[] {
-  return tester.recoveryRequests.map(evidence => ({
-    ...evidence,
-    statuses: evidence.statuses.map(status => ({ ...status })),
-  }));
+  return tester.recoveryRequests.map(function mapItem(evidence) {
+    return {
+      ...evidence,
+      statuses: evidence.statuses.map(function mapItem(status) {
+        return { ...status };
+      }),
+    };
+  });
 }
 
 async function appendFailureTimeTransportRecord(
@@ -1366,12 +1538,13 @@ async function waitForWebSocketUpgrade(tester: TesterRuntime): Promise<void> {
   try {
     await expect
       .poll(
-        () =>
-          readTesterRuntimeState(tester.page).then(runtime =>
-            runtime.transportDiagnostics?.socketConnected === true
+        function pollExpectation() {
+          return readTesterRuntimeState(tester.page).then(function handleResolved(runtime) {
+            return runtime.transportDiagnostics?.socketConnected === true
               ? runtime.transportDiagnostics.activeTransport
-              : null,
-          ),
+              : null;
+          });
+        },
         { timeout: 30_000 },
       )
       .toBe("websocket");
@@ -1390,8 +1563,8 @@ async function waitForHealthyRecoveryQuiescence(
   try {
     await expect
       .poll(
-        () =>
-          readTesterRuntimeState(tester.page).then(runtime => {
+        function pollExpectation() {
+          return readTesterRuntimeState(tester.page).then(function handleResolved(runtime) {
             const diagnostics = runtime.transportDiagnostics;
             return (
               diagnostics?.socketConnected === true &&
@@ -1401,7 +1574,8 @@ async function waitForHealthyRecoveryQuiescence(
               diagnostics.subscriptionFailed === false &&
               diagnostics.recoveryAttempt === 0
             );
-          }),
+          });
+        },
         { timeout: 30_000 },
       )
       .toBe(true);
@@ -1439,23 +1613,23 @@ async function assertRecoveryStability(
   quiescenceBaseline: RecoveryQuiescenceBaseline | null = null,
 ): Promise<void> {
   const totalBefore = getRecoveryRequestTotal(tester);
-  const responseTotalBefore = tester.recoveryRequests.reduce(
-    (total, evidence) => total + getRecoveryResponseTotal(evidence),
-    0,
-  );
+  const responseTotalBefore = tester.recoveryRequests.reduce(function reduceItems(total, evidence) {
+    return total + getRecoveryResponseTotal(evidence);
+  }, 0);
   await tester.page.waitForTimeout(RECOVERY_STABILITY_WINDOW_MS);
   const totalAfter = getRecoveryRequestTotal(tester);
-  const responseTotalAfter = tester.recoveryRequests.reduce(
-    (total, evidence) => total + getRecoveryResponseTotal(evidence),
-    0,
-  );
+  const responseTotalAfter = tester.recoveryRequests.reduce(function reduceItems(total, evidence) {
+    return total + getRecoveryResponseTotal(evidence);
+  }, 0);
   const requestDelta = totalAfter - totalBefore;
   const responseDelta = responseTotalAfter - responseTotalBefore;
   const runtime = await readTesterRuntimeState(tester.page);
   const diagnostics = runtime.transportDiagnostics;
-  const requestsSucceeded = tester.recoveryRequests.every(evidence =>
-    evidence.statuses.every(status => status.status >= 200 && status.status < 300),
-  );
+  const requestsSucceeded = tester.recoveryRequests.every(function testItem(evidence) {
+    return evidence.statuses.every(function testItem(status) {
+      return status.status >= 200 && status.status < 300;
+    });
+  });
   const transportHealthy =
     diagnostics?.socketConnected === true &&
     diagnostics.activeTransport === "websocket" &&
@@ -1524,9 +1698,14 @@ async function reconnectContextWithoutReload(
   await tester.page.waitForTimeout(500);
   await tester.context.setOffline(false);
   await expect
-    .poll(() => Promise.resolve(getRecoveryRequestTotalForPhase(tester, reconnectPhase)), {
-      timeout: 30_000,
-    })
+    .poll(
+      function pollExpectation() {
+        return Promise.resolve(getRecoveryRequestTotalForPhase(tester, reconnectPhase));
+      },
+      {
+        timeout: 30_000,
+      },
+    )
     .toBeGreaterThan(recoveryCount);
   const afterEvidence = await waitForRecoveryEvidence(
     tester,
@@ -1549,9 +1728,16 @@ async function reconnectContextWithoutReload(
   expect(after.roomCode).toBe(before.roomCode);
   expect(after.afterRevision).toBe(before.afterRevision);
   await expect
-    .poll(() => readTesterRuntimeState(tester.page).then(runtime => runtime.revision), {
-      timeout: 30_000,
-    })
+    .poll(
+      function pollExpectation() {
+        return readTesterRuntimeState(tester.page).then(function handleResolved(runtime) {
+          return runtime.revision;
+        });
+      },
+      {
+        timeout: 30_000,
+      },
+    )
     .toBeGreaterThanOrEqual(after.afterRevision);
   const quiescenceBaseline = await waitForHealthyRecoveryQuiescence(tester, reconnectPhase);
   tester.transportEvidencePhase = "steady";
@@ -1566,7 +1752,7 @@ async function reconnectContextWithoutReload(
 }
 
 async function trackWorldBattleStarts(page: Page): Promise<void> {
-  await page.evaluate(() => {
+  await page.evaluate(function evaluatePage() {
     (
       window as Window & {
         __POKE_LOUNGE_E2E__?: { beginWorldBattleLaunchTracking(): void };
@@ -1576,14 +1762,15 @@ async function trackWorldBattleStarts(page: Page): Promise<void> {
 }
 
 async function getTrackedWorldBattleStarts(page: Page): Promise<BattleLaunchEvidence[]> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & {
           __POKE_LOUNGE_E2E__?: { getWorldBattleLaunches(): BattleLaunchEvidence[] };
         }
-      ).__POKE_LOUNGE_E2E__?.getWorldBattleLaunches() ?? [],
-  );
+      ).__POKE_LOUNGE_E2E__?.getWorldBattleLaunches() ?? []
+    );
+  });
 }
 
 async function captureTerminalConvergence(
@@ -1597,7 +1784,7 @@ async function captureTerminalConvergence(
 }
 
 async function readTesterRuntimeState(page: Page): Promise<TesterRuntimeState> {
-  return page.evaluate(() => {
+  return page.evaluate(function evaluatePage() {
     type UnknownRecord = Record<string, unknown>;
     const isRecord = (value: unknown): value is UnknownRecord =>
       Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -1699,7 +1886,7 @@ async function readTesterRuntimeState(page: Page): Promise<TesterRuntimeState> {
     const bracket = isRecord(serverTournament?.bracket) ? serverTournament.bracket : null;
     const currentRound = isRecord(bracket?.currentRound) ? bracket.currentRound : null;
     const finalStandings = Array.isArray(serverProjection?.finalStandings)
-      ? serverProjection.finalStandings.flatMap(standing => {
+      ? serverProjection.finalStandings.flatMap(function mapItem(standing) {
           if (!isRecord(standing)) return [];
           return typeof standing.playerId === "string" &&
             typeof standing.displayName === "string" &&
@@ -1757,11 +1944,14 @@ async function completeRemainingTournamentMatches(input: {
   while (room.status !== "completed") {
     room = await pollRoom(
       input.roomCode,
-      candidate =>
-        candidate.status === "completed" ||
-        Boolean(
-          candidate.competitive && !input.completedMatchIds.has(candidate.competitive.matchId),
-        ),
+      function callback(candidate) {
+        return (
+          candidate.status === "completed" ||
+          Boolean(
+            candidate.competitive && !input.completedMatchIds.has(candidate.competitive.matchId),
+          )
+        );
+      },
       90_000,
     );
     if (room.status === "completed") break;
@@ -1770,19 +1960,26 @@ async function completeRemainingTournamentMatches(input: {
     if (!projection) {
       throw new Error(`Round ${room.round.index} did not expose an authoritative match.`);
     }
-    const players = projection.playerIds.map(playerId =>
-      input.testers.find(tester => tester.playerId === playerId),
-    );
+    const players = projection.playerIds.map(function mapItem(playerId) {
+      return input.testers.find(function findItem(tester) {
+        return tester.playerId === playerId;
+      });
+    });
     if (!players[0] || !players[1]) {
       throw new Error(`Match ${projection.matchId} has an unknown browser identity.`);
     }
     const activePlayers: [TesterRuntime, TesterRuntime] = [players[0], players[1]];
     await Promise.all(
-      activePlayers.map(async tester => {
+      activePlayers.map(async function mapItem(tester) {
         await expect
-          .poll(async () => (await readTesterRuntimeState(tester.page)).competitive?.matchId, {
-            timeout: 30_000,
-          })
+          .poll(
+            async function pollExpectation() {
+              return (await readTesterRuntimeState(tester.page)).competitive?.matchId;
+            },
+            {
+              timeout: 30_000,
+            },
+          )
           .toBe(projection.matchId);
       }),
     );
@@ -1798,23 +1995,29 @@ async function completeRemainingTournamentMatches(input: {
     );
     const terminalRoom = await pollRoom(
       input.roomCode,
-      candidate =>
-        candidate.revision > startingRevision &&
-        (candidate.status === "completed" ||
-          candidate.round.index > gameRound ||
-          candidate.competitive?.matchId !== projection.matchId ||
-          Boolean(candidate.competitive?.terminal) ||
-          isTournamentMatchCompleted(findBracket(candidate.tournament), projection.bracketMatchId)),
+      function callback(candidate) {
+        return (
+          candidate.revision > startingRevision &&
+          (candidate.status === "completed" ||
+            candidate.round.index > gameRound ||
+            candidate.competitive?.matchId !== projection.matchId ||
+            Boolean(candidate.competitive?.terminal) ||
+            isTournamentMatchCompleted(
+              findBracket(candidate.tournament),
+              projection.bracketMatchId,
+            ))
+        );
+      },
       120_000,
     );
     const terminalStates = await Promise.all(
-      activePlayers.map(tester =>
-        waitForOldMatchTerminalResult({
+      activePlayers.map(function mapItem(tester) {
+        return waitForOldMatchTerminalResult({
           tester,
           oldMatchId: projection.matchId,
           terminalRevision: terminalRoom.revision,
-        }),
-      ),
+        });
+      }),
     );
     const result = readTerminalResult(terminalStates[0].battle?.result);
     expect(result).not.toBeNull();
@@ -1841,15 +2044,15 @@ async function completeRemainingTournamentMatches(input: {
     await captureCheckpointScreenshots(activePlayers, `${checkpoint}_TERMINAL`);
 
     await Promise.all(
-      activePlayers.map(tester =>
-        waitForPostConfirmRuntime(
+      activePlayers.map(function mapItem(tester) {
+        return waitForPostConfirmRuntime(
           tester,
           projection.matchId,
           result!.winnerPlayerId === tester.playerId ? "win" : "loss",
-        ).then(runtime => {
+        ).then(function handleResolved(runtime) {
           tester.terminalConvergence["post-confirm"] = runtime;
-        }),
-      ),
+        });
+      }),
     );
     room = terminalRoom;
   }
@@ -1857,7 +2060,9 @@ async function completeRemainingTournamentMatches(input: {
   expect(input.completedMatchIds.size).toBe(12);
   return pollRoom(
     input.roomCode,
-    candidate => candidate.status === "completed" && candidate.finalStandings.length === 5,
+    function callback(candidate) {
+      return candidate.status === "completed" && candidate.finalStandings.length === 5;
+    },
     30_000,
   );
 }
@@ -1865,10 +2070,14 @@ async function completeRemainingTournamentMatches(input: {
 function isTournamentMatchCompleted(bracket: TournamentBracket | null, matchId: string): boolean {
   if (!bracket) return false;
   return [bracket.currentRound, ...bracket.completedRounds]
-    .filter((round): round is TournamentRound => round !== null)
-    .some(round =>
-      round.matches.some(match => match.matchId === matchId && match.status === "completed"),
-    );
+    .filter(function filterItem(round): round is TournamentRound {
+      return round !== null;
+    })
+    .some(function testItem(round) {
+      return round.matches.some(function testItem(match) {
+        return match.matchId === matchId && match.status === "completed";
+      });
+    });
 }
 
 async function expectFinalRoomConvergence(
@@ -1877,22 +2086,24 @@ async function expectFinalRoomConvergence(
 ): Promise<void> {
   const expectedStandings = canonicalJson(room.finalStandings);
   await Promise.all(
-    testers.map(async tester => {
+    testers.map(async function mapItem(tester) {
       const completedRuntime = await readTesterRuntimeState(tester.page);
       if (completedRuntime.activeScene === "battle" && completedRuntime.competitive?.matchId) {
         await waitForPostConfirmRuntime(tester, completedRuntime.competitive.matchId, "loss");
       }
       await expect
         .poll(
-          async () => {
+          async function pollExpectation() {
             const runtime = await readTesterRuntimeState(tester.page);
-            const normalizedStandings = runtime.finalStandings.map(standing => ({
-              ...standing,
-              playerId:
-                standing.playerId === runtime.currentPlayerId && tester.playerId
-                  ? tester.playerId
-                  : standing.playerId,
-            }));
+            const normalizedStandings = runtime.finalStandings.map(function mapItem(standing) {
+              return {
+                ...standing,
+                playerId:
+                  standing.playerId === runtime.currentPlayerId && tester.playerId
+                    ? tester.playerId
+                    : standing.playerId,
+              };
+            });
             return {
               roomStatus: runtime.roomStatus,
               gameRound: runtime.gameRound,
@@ -1914,7 +2125,7 @@ async function expectFinalRoomConvergence(
 }
 
 async function prepareFinalWinnerCapture(tester: TesterRuntime): Promise<void> {
-  await tester.page.evaluate(() => {
+  await tester.page.evaluate(function evaluatePage() {
     (
       window as Window & {
         __POKE_LOUNGE_E2E__?: { closeWorldShortcutGuide(): void };
@@ -1922,11 +2133,19 @@ async function prepareFinalWinnerCapture(tester: TesterRuntime): Promise<void> {
     ).__POKE_LOUNGE_E2E__?.closeWorldShortcutGuide();
   });
   const mobileClose = tester.page.locator("[data-poke-lounge-mobile-deck-close='true']");
-  if (await mobileClose.isVisible().catch(() => false)) {
+  if (
+    await mobileClose.isVisible().catch(function handleRejected() {
+      return false;
+    })
+  ) {
     await mobileClose.click();
   }
   const settingsClose = tester.page.locator("[data-poke-lounge-mobile-settings-close='true']");
-  if (await settingsClose.isVisible().catch(() => false)) {
+  if (
+    await settingsClose.isVisible().catch(function handleRejected() {
+      return false;
+    })
+  ) {
     await settingsClose.click();
   }
   await expect(
@@ -1934,17 +2153,19 @@ async function prepareFinalWinnerCapture(tester: TesterRuntime): Promise<void> {
   ).toHaveCount(0, { timeout: 10_000 });
   await expect
     .poll(
-      () =>
-        tester.page.evaluate(
-          () =>
+      function pollExpectation() {
+        return tester.page.evaluate(function evaluatePage() {
+          return (
             (
               window as Window & {
                 __POKE_LOUNGE_E2E__?: {
                   getWorldSnapshot(): { shortcutGuideOpen: boolean } | null;
                 };
               }
-            ).__POKE_LOUNGE_E2E__?.getWorldSnapshot()?.shortcutGuideOpen ?? null,
-        ),
+            ).__POKE_LOUNGE_E2E__?.getWorldSnapshot()?.shortcutGuideOpen ?? null
+          );
+        });
+      },
       { timeout: 10_000 },
     )
     .toBe(false);
@@ -2127,15 +2348,21 @@ async function finishBattleWithInput(
     }
     latestRoom = await fetchRoom(roomCode);
     const projection = latestRoom.competitive;
-    latestSnapshots = await Promise.all(players.map(player => getBattleSnapshot(player.page)));
+    latestSnapshots = await Promise.all(
+      players.map(function mapItem(player) {
+        return getBattleSnapshot(player.page);
+      }),
+    );
 
     if (!firstActionRoom && projection && projection.submittedPlayerIds.length > 0) {
       expect(projection.status).toBe("active");
       expect(projection.submittedPlayerIds).toContain(players[0].playerId);
       expect(
-        projection.submittedPlayerIds.every(playerId =>
-          players.some(player => player.playerId === playerId),
-        ),
+        projection.submittedPlayerIds.every(function testItem(playerId) {
+          return players.some(function testItem(player) {
+            return player.playerId === playerId;
+          });
+        }),
       ).toBe(true);
       firstActionRoom = latestRoom;
     }
@@ -2148,14 +2375,16 @@ async function finishBattleWithInput(
     if (
       projection?.terminal ||
       firstMatchAdvanced ||
-      latestSnapshots.every(snapshot => snapshot?.result)
+      latestSnapshots.every(function testItem(snapshot) {
+        return snapshot?.result;
+      })
     ) {
       return firstActionRoom ?? latestRoom;
     }
 
     const actionCandidates = firstActionRoom ? players : [players[0]];
     await Promise.all(
-      actionCandidates.map(async tester => {
+      actionCandidates.map(async function mapItem(tester) {
         const index = players.indexOf(tester);
         const playerId = tester.playerId;
         const snapshot = latestSnapshots[index];
@@ -2165,19 +2394,21 @@ async function finishBattleWithInput(
 
         const active = authorityPlayer.team[authorityPlayer.activeSlotIndex];
         const nextAliveSlot = authorityPlayer.team.findIndex(
-          (pokemon, slotIndex) =>
-            slotIndex !== authorityPlayer.activeSlotIndex && pokemon.currentHp > 0,
+          function findItemIndex(pokemon, slotIndex) {
+            return slotIndex !== authorityPlayer.activeSlotIndex && pokemon.currentHp > 0;
+          },
         );
         const forcedSwitch = Boolean(active && active.currentHp <= 0 && nextAliveSlot >= 0);
 
         if (
           forcedSwitch &&
-          !forcedSwitchEvidence.some(
-            evidence =>
+          !forcedSwitchEvidence.some(function testItem(evidence) {
+            return (
               evidence.matchId === projection.matchId &&
               evidence.playerId === playerId &&
-              evidence.turn === projection.currentTurn,
-          )
+              evidence.turn === projection.currentTurn
+            );
+          })
         ) {
           forcedSwitchEvidence.push({
             tester: tester.id,
@@ -2192,7 +2423,9 @@ async function finishBattleWithInput(
 
         const moveIndex = Math.max(
           0,
-          active.moves.findIndex(move => move.pp > 0),
+          active.moves.findIndex(function findItemIndex(move) {
+            return move.pp > 0;
+          }),
         );
         await driveAuthoritativeAction(tester, snapshot, {
           forcedSwitch,
@@ -2203,7 +2436,9 @@ async function finishBattleWithInput(
         });
       }),
     );
-    await new Promise(resolve => setTimeout(resolve, 250));
+    await new Promise(function resolvePromise(resolve) {
+      return setTimeout(resolve, 250);
+    });
   }
 
   throw new Error(
@@ -2305,7 +2540,7 @@ async function driveAuthoritativeTouchAction(
 }
 
 async function confirmBattleForTest(page: Page): Promise<void> {
-  await page.evaluate(() => {
+  await page.evaluate(function evaluatePage() {
     (
       window as Window & { __POKE_LOUNGE_E2E__?: { confirmBattle(): unknown } }
     ).__POKE_LOUNGE_E2E__?.confirmBattle();
@@ -2316,7 +2551,7 @@ async function setBattleCommandForTest(
   page: Page,
   command: BattleSnapshot["selectedCommand"],
 ): Promise<void> {
-  await page.evaluate(value => {
+  await page.evaluate(function evaluatePage(value) {
     (
       window as Window & {
         __POKE_LOUNGE_E2E__?: { setBattleCommand(command: string): unknown };
@@ -2326,7 +2561,7 @@ async function setBattleCommandForTest(
 }
 
 async function setBattleMoveIndexForTest(page: Page, index: number): Promise<void> {
-  await page.evaluate(value => {
+  await page.evaluate(function evaluatePage(value) {
     (
       window as Window & {
         __POKE_LOUNGE_E2E__?: { setBattleMoveIndex(index: number): unknown };
@@ -2336,7 +2571,7 @@ async function setBattleMoveIndexForTest(page: Page, index: number): Promise<voi
 }
 
 async function setBattlePartySlotForTest(page: Page, slotIndex: number): Promise<void> {
-  await page.evaluate(value => {
+  await page.evaluate(function evaluatePage(value) {
     (
       window as Window & {
         __POKE_LOUNGE_E2E__?: { setBattlePartySlotIndex(index: number): unknown };
@@ -2355,7 +2590,7 @@ async function tapMobileBattleOption(
     .locator(`[data-poke-lounge-mobile-deck='${deck}']`)
     .locator(selector)
     .nth(index);
-  await button.tap({ force: true, timeout: 1_000 }).catch(() => {});
+  await button.tap({ force: true, timeout: 1_000 }).catch(function handleRejected() {});
   await page.waitForTimeout(75);
 }
 
@@ -2379,14 +2614,22 @@ async function recordCheckpoint(
 }
 
 async function captureScreenshots(testers: TesterRuntime[]): Promise<void> {
-  await Promise.all(testers.map(tester => captureScreenshot(tester)));
+  await Promise.all(
+    testers.map(function mapItem(tester) {
+      return captureScreenshot(tester);
+    }),
+  );
 }
 
 async function captureCheckpointScreenshots(
   testers: TesterRuntime[],
   checkpoint: string,
 ): Promise<void> {
-  await Promise.all(testers.map(tester => captureScreenshot(tester, checkpoint)));
+  await Promise.all(
+    testers.map(function mapItem(tester) {
+      return captureScreenshot(tester, checkpoint);
+    }),
+  );
 }
 
 async function captureScreenshot(tester: TesterRuntime, checkpoint?: string): Promise<void> {
@@ -2402,9 +2645,13 @@ async function captureScreenshot(tester: TesterRuntime, checkpoint?: string): Pr
       fullPage: true,
       timeout: SCREENSHOT_CAPTURE_DEADLINE_MS,
     })
-    .then(() => undefined)
-    .catch(() => undefined);
-  const deadline = new Promise<void>(resolve => {
+    .then(function handleResolved() {
+      return undefined;
+    })
+    .catch(function handleRejected() {
+      return undefined;
+    });
+  const deadline = new Promise<void>(function resolvePromise(resolve) {
     deadlineTimer = setTimeout(resolve, SCREENSHOT_CAPTURE_DEADLINE_MS);
   });
 
@@ -2418,18 +2665,31 @@ async function captureScreenshot(tester: TesterRuntime, checkpoint?: string): Pr
 async function leaveServerRoom(page: Page): Promise<void> {
   const leaveButton = page.locator("[data-room-leave='true']");
   await expect(leaveButton).toHaveCount(1, { timeout: 10_000 });
-  await leaveButton.evaluate(button => (button as HTMLButtonElement).click());
+  await leaveButton.evaluate(function evaluatePage(button) {
+    return (button as HTMLButtonElement).click();
+  });
   const dialog = page.locator("[data-poke-lounge-leave-dialog='true']");
   const entryScreen = page.locator("[data-room-entry-screen='true']");
   await expect
     .poll(
-      async () =>
-        (await dialog.isVisible().catch(() => false)) ||
-        (await entryScreen.isVisible().catch(() => false)),
+      async function pollExpectation() {
+        return (
+          (await dialog.isVisible().catch(function handleRejected() {
+            return false;
+          })) ||
+          (await entryScreen.isVisible().catch(function handleRejected() {
+            return false;
+          }))
+        );
+      },
       { timeout: 10_000 },
     )
     .toBe(true);
-  if (await dialog.isVisible().catch(() => false)) {
+  if (
+    await dialog.isVisible().catch(function handleRejected() {
+      return false;
+    })
+  ) {
     await dialog.getByRole("button", { name: "방 나가기", exact: true }).click();
   }
   await expect(entryScreen).toBeVisible({ timeout: 30_000 });
@@ -2458,19 +2718,27 @@ function writeArtifacts(input: {
     runId: path.basename(RUN_ROOT),
     endedAt,
     browsers: Object.fromEntries(
-      input.testers.map(tester => [tester.environment, tester.browser.version()]),
+      input.testers.map(function mapItem(tester) {
+        return [tester.environment, tester.browser.version()];
+      }),
     ),
-    probes: Object.fromEntries(input.testers.map(tester => [tester.environment, tester.probe])),
+    probes: Object.fromEntries(
+      input.testers.map(function mapItem(tester) {
+        return [tester.environment, tester.probe];
+      }),
+    ),
   };
-  const matrix = input.testers.map(tester => ({
-    tester: tester.id,
-    environment: tester.environment,
-    viewport: tester.viewport,
-    input: tester.input,
-    seed: tester.seed,
-    role: tester.role,
-    status: tester.status,
-  }));
+  const matrix = input.testers.map(function mapItem(tester) {
+    return {
+      tester: tester.id,
+      environment: tester.environment,
+      viewport: tester.viewport,
+      input: tester.input,
+      seed: tester.seed,
+      role: tester.role,
+      status: tester.status,
+    };
+  });
 
   writeJson("environment.json", environment);
   writeJson("matrix.json", matrix);
@@ -2487,16 +2755,18 @@ function writeArtifacts(input: {
   writeJson("client-terminal-convergence.json", {
     oldMatchId: input.oldCompetitiveMatchId || null,
     overallStatus: input.overallStatus,
-    testers: input.testers.map(tester => ({
-      tester: tester.id,
-      seed: tester.seed,
-      playerId: tester.playerId,
-      snapshots: tester.terminalConvergence,
-      transportDiagnostics: tester.checkpoints.at(-1)?.runtime.transportDiagnostics ?? null,
-      failureTimeTransportRecords: tester.failureTimeTransportRecords,
-      reloadBaselineRecords: tester.reloadBaselineRecords,
-      nextBattleLaunches: tester.battleLaunches,
-    })),
+    testers: input.testers.map(function mapItem(tester) {
+      return {
+        tester: tester.id,
+        seed: tester.seed,
+        playerId: tester.playerId,
+        snapshots: tester.terminalConvergence,
+        transportDiagnostics: tester.checkpoints.at(-1)?.runtime.transportDiagnostics ?? null,
+        failureTimeTransportRecords: tester.failureTimeTransportRecords,
+        reloadBaselineRecords: tester.reloadBaselineRecords,
+        nextBattleLaunches: tester.battleLaunches,
+      };
+    }),
   });
   writeJson("socket-revisions.json", {
     evidenceModel: {
@@ -2510,13 +2780,15 @@ function writeArtifacts(input: {
     },
     initialBracket: input.initialBracket,
     nextBracket: input.nextBracket,
-    checkpoints: input.testers.map(tester => ({
-      tester: tester.id,
-      recoveryRequests: tester.recoveryRequests,
-      failureTimeTransportRecords: tester.failureTimeTransportRecords,
-      reloadBaselineRecords: tester.reloadBaselineRecords,
-      checkpoints: tester.checkpoints,
-    })),
+    checkpoints: input.testers.map(function mapItem(tester) {
+      return {
+        tester: tester.id,
+        recoveryRequests: tester.recoveryRequests,
+        failureTimeTransportRecords: tester.failureTimeTransportRecords,
+        reloadBaselineRecords: tester.reloadBaselineRecords,
+        checkpoints: tester.checkpoints,
+      };
+    }),
   });
 
   for (const tester of input.testers) {
@@ -2539,10 +2811,9 @@ function renderTesterReport(
 ): string {
   const checkpointRows = tester.checkpoints.length
     ? tester.checkpoints
-        .map(
-          checkpoint =>
-            `| ${checkpoint.checkpoint} | ${checkpoint.revision ?? "-"} | ${checkpoint.round ?? "-"} | ${checkpoint.activeMatch ?? "-"} | ${checkpoint.screenState} | ${checkpoint.result} |`,
-        )
+        .map(function mapItem(checkpoint) {
+          return `| ${checkpoint.checkpoint} | ${checkpoint.revision ?? "-"} | ${checkpoint.round ?? "-"} | ${checkpoint.activeMatch ?? "-"} | ${checkpoint.screenState} | ${checkpoint.result} |`;
+        })
         .join("\n")
     : "| 미수집 | - | - | - | 실행 중단 | BLOCKED |";
   return `# Tester ${String(tester.id).padStart(2, "0")} 검증 결과
@@ -2608,33 +2879,33 @@ function renderSummary(
   const error = input.failure ? sanitizeError(String(input.failure)) : "없음";
   const allPassedCheckpoint = (checkpoint: string) =>
     input.testers.length === 5 &&
-    input.testers.every(tester =>
-      tester.checkpoints.some(
-        candidate => candidate.checkpoint === checkpoint && candidate.result === "PASS",
-      ),
-    );
+    input.testers.every(function testItem(tester) {
+      return tester.checkpoints.some(function testItem(candidate) {
+        return candidate.checkpoint === checkpoint && candidate.result === "PASS";
+      });
+    });
   const fullReloadPassed = Boolean(
-    input.testers[1]?.checkpoints.some(
-      checkpoint => checkpoint.checkpoint === "FAULT_001_CHROMIUM_RELOAD",
-    ),
+    input.testers[1]?.checkpoints.some(function testItem(checkpoint) {
+      return checkpoint.checkpoint === "FAULT_001_CHROMIUM_RELOAD";
+    }),
   );
   const samePageReconnectPassed = Boolean(
-    input.testers[1]?.checkpoints.some(
-      checkpoint => checkpoint.checkpoint === "FAULT_002_SOCKET_RECONNECT",
-    ),
+    input.testers[1]?.checkpoints.some(function testItem(checkpoint) {
+      return checkpoint.checkpoint === "FAULT_002_SOCKET_RECONNECT";
+    }),
   );
-  const c3tStates = [input.testers[3], input.testers[4]].map(tester =>
-    tester?.checkpoints.find(
-      checkpoint =>
-        checkpoint.checkpoint === "C3T_TERMINAL_OBSERVED" && checkpoint.result === "PASS",
-    ),
-  );
+  const c3tStates = [input.testers[3], input.testers[4]].map(function mapItem(tester) {
+    return tester?.checkpoints.find(function findItem(checkpoint) {
+      return checkpoint.checkpoint === "C3T_TERMINAL_OBSERVED" && checkpoint.result === "PASS";
+    });
+  });
   const c3tTerminalObserved =
-    c3tStates.every(
-      checkpoint =>
+    c3tStates.every(function testItem(checkpoint) {
+      return (
         typeof checkpoint?.runtime.competitive?.matchId === "string" &&
-        Boolean(checkpoint.runtime.battle?.result),
-    ) && c3tStates[0]?.runtime.competitive?.matchId === c3tStates[1]?.runtime.competitive?.matchId;
+        Boolean(checkpoint.runtime.battle?.result)
+      );
+    }) && c3tStates[0]?.runtime.competitive?.matchId === c3tStates[1]?.runtime.competitive?.matchId;
   const gateStatus = (passed: boolean, attempted: boolean) =>
     passed ? "PASS" : attempted ? "FAIL" : "BLOCKED";
   return `# Poke Lounge 5인 토너먼트 검증 요약
@@ -2654,16 +2925,29 @@ function renderSummary(
 | C1 첫 대진 seed 4 vs 5, bye 1/3/2 | ${gateStatus(allPassedCheckpoint("C1_STARTED"), Boolean(input.initialBracket))} |
 | C2 모바일 touch authority action | ${gateStatus(
     allPassedCheckpoint("C2_ACTION_1"),
-    input.testers.some(tester =>
-      tester.checkpoints.some(checkpoint => checkpoint.checkpoint === "C2_ACTION_1"),
-    ),
+    input.testers.some(function testItem(tester) {
+      return tester.checkpoints.some(function testItem(checkpoint) {
+        return checkpoint.checkpoint === "C2_ACTION_1";
+      });
+    }),
   )} |
 | C3T seed 4/5 동일 old match terminal/result 선관측 | ${gateStatus(c3tTerminalObserved, Boolean(input.nextBracket))} |
 | C4T 실제 store/scene/battle/competitive 다음 대진 수렴 | ${gateStatus(allPassedCheckpoint("C4T_NEXT_ROUND"), Boolean(input.nextBracket))} |
 | C5 3라운드 최종 순위와 우승 수렴 | ${gateStatus(allPassedCheckpoint("C5_FINAL_WINNER"), Boolean(input.redisAssertions))} |
 | C6 Redis/REST/Socket 최종 수렴 | ${gateStatus(allPassedCheckpoint("C6_CONVERGED"), Boolean(input.redisAssertions))} |
 | C7 전원 명시적 퇴장 | ${gateStatus(allPassedCheckpoint("C7_ROOM_CLOSED"), Boolean(input.redisAssertions))} |
-| Chromium reload 최초 500 없음 | ${gateStatus(fullReloadPassed && !input.networkErrors.some(error => error.tester === 2 && error.kind === "http-5xx"), fullReloadPassed || input.testers.some(tester => tester.checkpoints.some(checkpoint => checkpoint.checkpoint === "C2_ACTION_1")))} |
+| Chromium reload 최초 500 없음 | ${gateStatus(
+    fullReloadPassed &&
+      !input.networkErrors.some(function testItem(error) {
+        return error.tester === 2 && error.kind === "http-5xx";
+      }),
+    fullReloadPassed ||
+      input.testers.some(function testItem(tester) {
+        return tester.checkpoints.some(function testItem(checkpoint) {
+          return checkpoint.checkpoint === "C2_ACTION_1";
+        });
+      }),
+  )} |
 | Chromium same-page Socket reconnect cursor 유지 | ${gateStatus(samePageReconnectPassed, fullReloadPassed)} |
 
 Socket.IO는 \`transports:['polling','websocket']\`으로 연결을 시작하고, 각 context의 sanitized runtime 진단이 실제 \`activeTransport='websocket'\`으로 업그레이드됐는지 확인한다. 원문 handshake나 subscribe frame은 저장하지 않으며, reconnect cursor는 live recovery GET 증가와 runtime revision 수렴을 함께 검증한다.
@@ -2688,31 +2972,41 @@ function canonicalJson(value: unknown): string {
 
 function canonicalizeBracketBySeed(bracket: TournamentBracket): unknown {
   const seedByPlayerId = new Map(
-    bracket.participants.map(participant => [participant.playerId, participant.seed]),
+    bracket.participants.map(function mapItem(participant) {
+      return [participant.playerId, participant.seed];
+    }),
   );
   const canonicalRound = (round: TournamentBracket["currentRound"]) =>
     round
       ? {
           roundNumber: round.roundNumber,
-          matches: round.matches.map(match => ({
-            matchId: match.matchId,
-            participantSeeds: match.participantIds.map(playerId => seedByPlayerId.get(playerId)),
-            status: match.status,
-            winnerSeed: match.winnerPlayerId
-              ? (seedByPlayerId.get(match.winnerPlayerId) ?? null)
-              : null,
-          })),
-          byes: round.byes.map(bye => ({
-            byeId: bye.byeId,
-            seed: bye.entrant.seed,
-          })),
+          matches: round.matches.map(function mapItem(match) {
+            return {
+              matchId: match.matchId,
+              participantSeeds: match.participantIds.map(function mapItem(playerId) {
+                return seedByPlayerId.get(playerId);
+              }),
+              status: match.status,
+              winnerSeed: match.winnerPlayerId
+                ? (seedByPlayerId.get(match.winnerPlayerId) ?? null)
+                : null,
+            };
+          }),
+          byes: round.byes.map(function mapItem(bye) {
+            return {
+              byeId: bye.byeId,
+              seed: bye.entrant.seed,
+            };
+          }),
         }
       : null;
 
   return {
     version: bracket.version,
     status: bracket.status,
-    participantSeeds: bracket.participants.map(participant => participant.seed),
+    participantSeeds: bracket.participants.map(function mapItem(participant) {
+      return participant.seed;
+    }),
     currentRound: canonicalRound(bracket.currentRound),
     completedRounds: (
       bracket.completedRounds as Array<NonNullable<TournamentBracket["currentRound"]>>
@@ -2728,8 +3022,12 @@ function sortRecord(value: unknown): unknown {
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, nested]) => [key, sortRecord(nested)]),
+      .sort(function compareItems([left], [right]) {
+        return left.localeCompare(right);
+      })
+      .map(function mapItem([key, nested]) {
+        return [key, sortRecord(nested)];
+      }),
   );
 }
 
@@ -2775,5 +3073,5 @@ function sanitizeError(value: string): string {
 }
 
 async function closeBrowser(browser: Browser): Promise<void> {
-  await browser.close().catch(() => {});
+  await browser.close().catch(function handleRejected() {});
 }

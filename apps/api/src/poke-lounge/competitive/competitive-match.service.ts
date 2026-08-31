@@ -9,9 +9,9 @@ import {
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
-  createInitialBattleState,
-  hashCanonicalState,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/competitive-ruleset-config';
+import { createInitialBattleState } from '@poke-lounge/battle/ruleset';
+import { hashCanonicalState } from '@poke-lounge/battle/canonical-state';
 import {
   COMPETITIVE_MATCH_REPOSITORY,
   createSessionCompetitiveAccountId,
@@ -43,7 +43,7 @@ import {
 } from '../poke-lounge-room-event.publisher';
 import { toPokeLoungePublicRoomState } from '../poke-lounge-room-conflict';
 import type { PokeLoungeRoomSnapshot } from '../poke-lounge-room.repository';
-import { toCompetitiveProjection } from './competitive-projection.service';
+import { toCompetitiveProjection } from './competitive-projection';
 
 @Injectable()
 export class CompetitiveMatchService {
@@ -219,10 +219,12 @@ export function createCompetitiveAssignment(
   context: CompetitiveAssignmentCreateContext,
 ): CompetitiveMatchAssignment {
   const initialState = createInitialBattleState(
-    context.players.map((player) => ({
-      playerId: player.playerId,
-      party: context.parties[player.playerId],
-    })) as [
+    context.players.map(function mapItem(player) {
+      return {
+        playerId: player.playerId,
+        party: context.parties[player.playerId],
+      };
+    }) as [
       { playerId: string; party: (typeof context.parties)[string] },
       { playerId: string; party: (typeof context.parties)[string] },
     ],

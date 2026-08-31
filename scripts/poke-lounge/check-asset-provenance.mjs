@@ -20,7 +20,7 @@ function sha256(path) {
 }
 
 function walkFiles(path) {
-  return readdirSync(path, { withFileTypes: true }).flatMap(entry => {
+  return readdirSync(path, { withFileTypes: true }).flatMap(function mapItem(entry) {
     const entryPath = join(path, entry.name);
 
     if (entry.isDirectory()) {
@@ -32,19 +32,23 @@ function walkFiles(path) {
 }
 
 export function getPublicFiles() {
-  return AUDITED_ROOTS.flatMap(root => {
+  return AUDITED_ROOTS.flatMap(function mapItem(root) {
     const absoluteRoot = join(PUBLIC_ROOT, root);
 
     if (!existsSync(absoluteRoot)) {
       throw new Error(`audited public asset root is missing: ${root}`);
     }
 
-    return walkFiles(absoluteRoot).map(absolutePath => ({
-      publicPath: relative(PUBLIC_ROOT, absolutePath).replaceAll("\\", "/"),
-      absolutePath,
-      sha256: sha256(absolutePath),
-    }));
-  }).sort((left, right) => left.publicPath.localeCompare(right.publicPath));
+    return walkFiles(absoluteRoot).map(function mapItem(absolutePath) {
+      return {
+        publicPath: relative(PUBLIC_ROOT, absolutePath).replaceAll("\\", "/"),
+        absolutePath,
+        sha256: sha256(absolutePath),
+      };
+    });
+  }).sort(function compareItems(left, right) {
+    return left.publicPath.localeCompare(right.publicPath);
+  });
 }
 
 export function validateManifest(rows, publicFiles = getPublicFiles()) {
@@ -52,7 +56,11 @@ export function validateManifest(rows, publicFiles = getPublicFiles()) {
     throw new Error("manifest assets must be an array");
   }
 
-  const publicFileByPath = new Map(publicFiles.map(file => [file.publicPath, file]));
+  const publicFileByPath = new Map(
+    publicFiles.map(function mapItem(file) {
+      return [file.publicPath, file];
+    }),
+  );
   const rowsByPath = new Map();
 
   for (const row of rows) {

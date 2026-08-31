@@ -8,8 +8,8 @@ const validateDto = (payload: Partial<CreateGameHistoryDto>) => {
   return validate(dto);
 };
 
-describe('CreateGameHistoryDto', () => {
-  it('유효한 Sky Drop 점수 payload를 허용해야 함', async () => {
+describe('CreateGameHistoryDto', function testSuite() {
+  it('유효한 Sky Drop 점수 payload를 허용해야 함', async function testCase() {
     const errors = await validateDto({
       score: 8500,
       playTime: 120,
@@ -19,7 +19,7 @@ describe('CreateGameHistoryDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('유효한 Poke Lounge 점수 payload를 DTO 레벨에서 허용해야 함', async () => {
+  it('유효한 Poke Lounge 점수 payload를 DTO 레벨에서 허용해야 함', async function testCase() {
     const errors = await validateDto({
       score: 300,
       playTime: 30,
@@ -29,7 +29,7 @@ describe('CreateGameHistoryDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('정수가 아닌 점수는 거절해야 함', async () => {
+  it('정수가 아닌 점수는 거절해야 함', async function testCase() {
     const errors = await validateDto({
       score: 100.5,
       gameType: GameType.SKY_DROP,
@@ -38,7 +38,7 @@ describe('CreateGameHistoryDto', () => {
     expect(errors[0]?.constraints).toHaveProperty('isInt');
   });
 
-  it('서버 정책보다 큰 점수는 거절해야 함', async () => {
+  it('서버 정책보다 큰 점수는 거절해야 함', async function testCase() {
     const errors = await validateDto({
       score: 999999999,
       gameType: GameType.SKY_DROP,
@@ -47,7 +47,7 @@ describe('CreateGameHistoryDto', () => {
     expect(errors[0]?.constraints).toHaveProperty('max');
   });
 
-  it('비정상 플레이 시간은 거절해야 함', async () => {
+  it('비정상 플레이 시간은 거절해야 함', async function testCase() {
     const errors = await validateDto({
       score: 1000,
       playTime: 0,
@@ -60,7 +60,7 @@ describe('CreateGameHistoryDto', () => {
 
   it.each(['resultTrust', 'sourceKey'])(
     'generic result DTO는 서버 전용 %s 필드를 거절해야 함',
-    async (field) => {
+    async function callback(field) {
       const pipe = new ValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,

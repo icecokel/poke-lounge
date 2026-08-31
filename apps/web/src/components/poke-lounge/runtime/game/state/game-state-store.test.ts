@@ -1,15 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createTournamentBracketState, recordTournamentMatchResult } from "@poke-lounge/battle";
+import {
+  createTournamentBracketState,
+  recordTournamentMatchResult,
+} from "@poke-lounge/battle/tournament-bracket";
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 import {
   createDefaultLocalPlayer,
   createGameStateStore,
   type GameStateStorage,
   type LocalPlayersSaveState,
-} from "./gameStateStore";
+} from "./game-state-store";
 
-test("storage scope 전환은 저장 데이터를 지우지 않고 대상 scope 상태를 다시 읽는다", () => {
+test("storage scope 전환은 저장 데이터를 지우지 않고 대상 scope 상태를 다시 읽는다", function testCase() {
   let persistedLocalPlayers: LocalPlayersSaveState | null = null;
   let clearCount = 0;
   const storage: GameStateStorage = {
@@ -48,10 +51,12 @@ test("storage scope 전환은 저장 데이터를 지우지 않고 대상 scope 
 
 function createProjection(revision: number): TournamentStateRoomPayload {
   const bracket = createTournamentBracketState(
-    Array.from({ length: 5 }, (_, index) => ({
-      playerId: `player-${index + 1}`,
-      displayName: `Player ${index + 1}`,
-    })),
+    Array.from({ length: 5 }, function callback(_, index) {
+      return {
+        playerId: `player-${index + 1}`,
+        displayName: `Player ${index + 1}`,
+      };
+    }),
     1,
   );
 
@@ -68,13 +73,15 @@ function createProjection(revision: number): TournamentStateRoomPayload {
       startedAtMs: 500,
       endsAtMs: 800,
     },
-    participants: bracket.participants.map(participant => ({
-      ...participant,
-      role: "participant",
-      ready: true,
-      partyReady: true,
-      connected: true,
-    })),
+    participants: bracket.participants.map(function mapItem(participant) {
+      return {
+        ...participant,
+        role: "participant",
+        ready: true,
+        partyReady: true,
+        connected: true,
+      };
+    }),
     tournament: {
       version: 2,
       bracket,
@@ -142,7 +149,9 @@ function createPreparationProjection(revision: number): TournamentStateRoomPaylo
 function createCompletedProjection(revision: number): TournamentStateRoomPayload {
   const projection = createProjection(revision);
   let bracket = createTournamentBracketState(
-    projection.participants.map(({ playerId, displayName }) => ({ playerId, displayName })),
+    projection.participants.map(function mapItem({ playerId, displayName }) {
+      return { playerId, displayName };
+    }),
     3,
   );
 
@@ -152,12 +161,14 @@ function createCompletedProjection(revision: number): TournamentStateRoomPayload
     }
   }
 
-  const finalStandings = bracket.participants.map((participant, index) => ({
-    playerId: participant.playerId,
-    displayName: participant.displayName,
-    rank: index + 1,
-    score: 300 - index * 50,
-  }));
+  const finalStandings = bracket.participants.map(function mapItem(participant, index) {
+    return {
+      playerId: participant.playerId,
+      displayName: participant.displayName,
+      rank: index + 1,
+      score: 300 - index * 50,
+    };
+  });
 
   return {
     ...projection,
@@ -175,13 +186,17 @@ function createCompletedProjection(revision: number): TournamentStateRoomPayload
       bracket,
       activeMatchId: null,
       activeMatchAuthority: null,
-      cumulativeScores: Object.fromEntries(finalStandings.map(row => [row.playerId, row.score])),
+      cumulativeScores: Object.fromEntries(
+        finalStandings.map(function mapItem(row) {
+          return [row.playerId, row.score];
+        }),
+      ),
     },
     finalStandings,
   };
 }
 
-test("preparation snapshot은 bracket과 current match를 조기에 만들지 않는다", () => {
+test("preparation snapshot은 bracket과 current match를 조기에 만들지 않는다", function testCase() {
   const store = createGameStateStore();
 
   assert.deepEqual(store.applyTournamentSnapshotFromRoom(createPreparationProjection(3), 1000), {
@@ -196,7 +211,7 @@ test("preparation snapshot은 bracket과 current match를 조기에 만들지 �
   assert.equal(store.getCurrentTournamentMatch(), null);
 });
 
-test("server preparation은 로컬 round clock으로 tournament 단계에 진입하지 않는다", () => {
+test("server preparation은 로컬 round clock으로 tournament 단계에 진입하지 않는다", function testCase() {
   const store = createGameStateStore();
   store.applyTournamentSnapshotFromRoom(createPreparationProjection(3), 1_000);
 
@@ -206,10 +221,10 @@ test("server preparation은 로컬 round clock으로 tournament 단계에 진입
   assert.equal(store.getState().round.preparationEndsAtMs, 301_000);
 });
 
-test("server projection은 한 번의 notify로 session과 active match에 원자 적용된다", () => {
+test("server projection은 한 번의 notify로 session과 active match에 원자 적용된다", function testCase() {
   const store = createGameStateStore();
   let notifyCount = 0;
-  store.subscribe(() => {
+  store.subscribe(function callback() {
     notifyCount += 1;
   });
 
@@ -221,7 +236,7 @@ test("server projection은 한 번의 notify로 session과 active match에 원�
   assert.deepEqual(store.getCurrentTournamentMatch()?.participantIds, ["player-4", "player-5"]);
 });
 
-test("공식 라운드 진입은 로컬 파티의 HP, PP와 상태이상을 한 번만 회복한다", () => {
+test("공식 라운드 진입은 로컬 파티의 HP, PP와 상태이상을 한 번만 회복한다", function testCase() {
   const store = createGameStateStore();
   store.setStarterPokemon({
     speciesId: 155,
@@ -256,7 +271,7 @@ test("공식 라운드 진입은 로컬 파티의 HP, PP와 상태이상을 한 
   assert.equal(store.getCurrentLocalPlayer().party[0]?.pokemon?.currentHp, 20);
 });
 
-test("낮은 revision projection은 현재 bracket을 덮지 않는다", () => {
+test("낮은 revision projection은 현재 bracket을 덮지 않는다", function testCase() {
   const store = createGameStateStore();
   store.applyTournamentSnapshotFromRoom(createProjection(7), 1000);
 
@@ -267,7 +282,7 @@ test("낮은 revision projection은 현재 bracket을 덮지 않는다", () => {
   assert.equal(store.getState().tournament.serverProjection?.revision, 7);
 });
 
-test("새 방의 낮은 revision은 이전 방의 토너먼트 상태를 교체한다", () => {
+test("새 방의 낮은 revision은 이전 방의 토너먼트 상태를 교체한다", function testCase() {
   const store = createGameStateStore();
   store.applyTournamentSnapshotFromRoom(createCompletedProjection(40), 1_000);
   const nextRoom = createPreparationProjection(1);
@@ -290,7 +305,7 @@ test("새 방의 낮은 revision은 이전 방의 토너먼트 상태를 교체�
   assert.deepEqual(store.getState().tournament.standings, []);
 });
 
-test("같은 revision의 다른 방장이나 bracket은 현재 canonical state를 덮지 않는다", () => {
+test("같은 revision의 다른 방장이나 bracket은 현재 canonical state를 덮지 않는다", function testCase() {
   const store = createGameStateStore();
   const projection = createProjection(7);
   store.applyTournamentSnapshotFromRoom(projection, 1000);
@@ -315,7 +330,7 @@ test("같은 revision의 다른 방장이나 bracket은 현재 canonical state�
   );
 });
 
-test("server projection이 적용된 동안 client result로 bracket을 전진시키지 않는다", () => {
+test("server projection이 적용된 동안 client result로 bracket을 전진시키지 않는다", function testCase() {
   const store = createGameStateStore();
   const projection = createProjection(7);
   store.applyTournamentSnapshotFromRoom(projection, 1000);
@@ -335,7 +350,7 @@ test("server projection이 적용된 동안 client result로 bracket을 전진�
   assert.equal(store.getState().tournament.serverProjection?.revision, 7);
 });
 
-test("완료 순위는 재접속 첫 snapshot에서도 canonical seed를 보존한다", () => {
+test("완료 순위는 재접속 첫 snapshot에서도 canonical seed를 보존한다", function testCase() {
   const store = createGameStateStore();
   const projection = createProjection(8);
   projection.finalStandings = [
@@ -348,7 +363,9 @@ test("완료 순위는 재접속 첫 snapshot에서도 canonical seed를 보존�
 
   assert.deepEqual(store.applyTournamentSnapshotFromRoom(projection, 1000), { ok: true });
   assert.deepEqual(
-    store.getState().tournament.standings.map(row => [row.playerId, row.seed]),
+    store.getState().tournament.standings.map(function mapItem(row) {
+      return [row.playerId, row.seed];
+    }),
     [
       ["player-5", 5],
       ["player-1", 1],
@@ -359,7 +376,7 @@ test("완료 순위는 재접속 첫 snapshot에서도 canonical seed를 보존�
   );
 });
 
-test("완료 event와 snapshot 순서가 달라도 이번 라운드 점수를 한 번만 계산한다", () => {
+test("완료 event와 snapshot 순서가 달라도 이번 라운드 점수를 한 번만 계산한다", function testCase() {
   const completedProjection = createCompletedProjection(9);
   const completedEvent = {
     roundIndex: 3,
@@ -370,7 +387,7 @@ test("완료 event와 snapshot 순서가 달라도 이번 라운드 점수를 �
 
   for (const eventFirst of [false, true]) {
     const store = createGameStateStore();
-    completedProjection.finalStandings.forEach((row, index) => {
+    completedProjection.finalStandings.forEach(function visitItem(row, index) {
       store.applyRoundScoreUpdatedFromRoom({
         roundIndex: 2,
         playerId: row.playerId,
@@ -392,7 +409,9 @@ test("완료 event와 snapshot 순서가 달라도 이번 라운드 점수를 �
     }
 
     assert.deepEqual(
-      store.getState().tournament.lastRoundScores.map(row => row.score),
+      store.getState().tournament.lastRoundScores.map(function mapItem(row) {
+        return row.score;
+      }),
       expectedRoundScores,
     );
   }

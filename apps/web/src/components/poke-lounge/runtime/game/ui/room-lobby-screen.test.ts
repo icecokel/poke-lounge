@@ -17,15 +17,17 @@ function createProjection(): TournamentStateRoomPayload {
       startedAtMs: null,
       endsAtMs: null,
     },
-    participants: ["player-1", "player-2"].map(playerId => ({
-      playerId,
-      displayName: playerId,
-      role: "participant" as const,
-      ready: true,
-      partyReady: true,
-      connected: true,
-      seed: null,
-    })),
+    participants: ["player-1", "player-2"].map(function mapItem(playerId) {
+      return {
+        playerId,
+        displayName: playerId,
+        role: "participant" as const,
+        ready: true,
+        partyReady: true,
+        connected: true,
+        seed: null,
+      };
+    }),
     tournament: {
       version: 2,
       bracket: null,
@@ -41,7 +43,7 @@ function createProjection(): TournamentStateRoomPayload {
   };
 }
 
-test("방장은 2명 모두 접속·파티·준비가 끝났을 때만 시작할 수 있다", () => {
+test("방장은 2명 모두 접속·파티·준비가 끝났을 때만 시작할 수 있다", function testCase() {
   const projection = createProjection();
   assert.deepEqual(createRoomLobbyViewState(projection), {
     participantCount: 2,

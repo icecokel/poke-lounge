@@ -1,12 +1,12 @@
 import type { GameBootstrapData, StarterPokemon } from "../types";
-import type { RoomEntrySelection } from "./network/roomEntryScreen";
-import type { WebRtcRoom } from "./network/webRtcRoom";
+import type { RoomEntrySelection } from "./network/room-entry-screen";
+import type { WebRtcRoom } from "./network/web-rtc-room";
 import type { RoomLobbyRuntimeState } from "./ui/room-lobby-screen";
 import type { WorldFrameStore } from "./world/world-frame-store";
 import type { WorldMapModel, WorldPlayerAtlasModel } from "./world/world-map-model";
 import type { WorldUiStore } from "./world/world-ui-store";
-import type { GameStateStore } from "./state/gameStateStore";
-import type { VirtualGamepadController } from "./input/virtualGamepad";
+import type { GameStateStore } from "./state/game-state-store";
+import type { VirtualGamepadController } from "./input/virtual-gamepad";
 import type { BattleUiStore } from "./battle/battle-ui-store";
 
 interface PokeLoungeGameplayRuntimeControls {

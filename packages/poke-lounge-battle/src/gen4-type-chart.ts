@@ -24,8 +24,7 @@ export function calculateGen4TypeEffectiveness(
 ): number {
   const matchup = TYPE_EFFECTIVENESS[moveTypeId] ?? {};
 
-  return defenderTypeIds.reduce(
-    (effectiveness, defenderTypeId) => effectiveness * (matchup[defenderTypeId] ?? 1),
-    1,
-  );
+  return defenderTypeIds.reduce(function reduceItems(effectiveness, defenderTypeId) {
+    return effectiveness * (matchup[defenderTypeId] ?? 1);
+  }, 1);
 }

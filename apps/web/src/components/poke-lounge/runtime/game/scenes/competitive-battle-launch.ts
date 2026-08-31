@@ -1,4 +1,4 @@
-import type { CompetitiveRoomProjectionEvent } from "../network/localPreviewRoom";
+import type { CompetitiveRoomProjectionEvent } from "../network/local-preview-room";
 import { isRoundReadinessDue } from "../network/tournament-projection";
 
 export interface CompetitiveBattleLaunchKey {

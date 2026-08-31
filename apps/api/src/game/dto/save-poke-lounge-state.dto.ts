@@ -27,7 +27,9 @@ export class SavePokeLoungeStateDto {
     example: 3,
     minimum: 0,
   })
-  @ValidateIf((_object, value) => value !== undefined)
+  @ValidateIf(function callback(_object, value) {
+    return value !== undefined;
+  })
   @IsInt()
   @Min(0)
   expectedRevision?: number;

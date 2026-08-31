@@ -88,29 +88,33 @@ export function toPokeLoungePublicRoomState(
       cumulativeScores: structuredClone(room.tournament.cumulativeScores),
     },
     partySnapshots: Object.fromEntries(
-      Object.entries(room.partySnapshots).map(([playerId, snapshot]) => [
+      Object.entries(room.partySnapshots).map(function mapItem([
         playerId,
-        toPublicPartySnapshot(snapshot),
-      ]),
+        snapshot,
+      ]) {
+        return [playerId, toPublicPartySnapshot(snapshot)];
+      }),
     ),
     competitiveTransitions: structuredClone(room.competitiveTransitions ?? []),
     competitiveAssignments: structuredClone(
       room.competitiveAssignments ??
         (room.competitive ? [room.competitive] : []),
     ),
-    participants: room.participants.map((participant) => ({
-      playerId: participant.playerId,
-      displayName: participant.displayName,
-      role: participant.role,
-      ready: participant.ready,
-      connected:
-        participant.connected &&
-        participant.presencePendingUntilMs === undefined,
-      joinedAtMs: participant.joinedAtMs,
-      ...(participant.leftAtMs === undefined
-        ? {}
-        : { leftAtMs: participant.leftAtMs }),
-    })),
+    participants: room.participants.map(function mapItem(participant) {
+      return {
+        playerId: participant.playerId,
+        displayName: participant.displayName,
+        role: participant.role,
+        ready: participant.ready,
+        connected:
+          participant.connected &&
+          participant.presencePendingUntilMs === undefined,
+        joinedAtMs: participant.joinedAtMs,
+        ...(participant.leftAtMs === undefined
+          ? {}
+          : { leftAtMs: participant.leftAtMs }),
+      };
+    }),
   };
 }
 
@@ -118,7 +122,9 @@ function toPublicPartySnapshot(
   snapshot: PokeLoungeRoomSnapshot['partySnapshots'][string],
 ): PokeLoungePublicRoomState['partySnapshots'][string] {
   const representative = snapshot.competitiveParty.members.find(
-    (member) => member.slotIndex === snapshot.competitiveParty.activeSlotIndex,
+    function findItem(member) {
+      return member.slotIndex === snapshot.competitiveParty.activeSlotIndex;
+    },
   );
   if (!representative) {
     throw new Error('Competitive party representative is missing');

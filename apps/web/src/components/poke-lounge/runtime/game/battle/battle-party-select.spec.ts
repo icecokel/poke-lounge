@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resetRuntimeGameDataJsonStateForTest } from "../data/game-data-json";
 import { loadPublicRuntimeGameDataFixture } from "../testing/runtime-rom-data.fixture";
-import { createSampleBattleState } from "./battleSampleState";
-import { BATTLE_LAYOUT } from "./battleLayout";
+import { createSampleBattleState } from "./battle-sample-state";
+import { BATTLE_LAYOUT } from "./battle-layout";
 import {
   createBattlePartySlotViews,
   formatBattlePartyPokemonName,
@@ -17,7 +17,7 @@ import {
 test.before(loadPublicRuntimeGameDataFixture);
 test.after(resetRuntimeGameDataJsonStateForTest);
 
-test("HGSS 파티 트레이는 여섯 슬롯의 선택·출전·기절·빈 상태를 만든다", () => {
+test("HGSS 파티 트레이는 여섯 슬롯의 선택·출전·기절·빈 상태를 만든다", function testCase() {
   const state = createSampleBattleState();
   const currentPokemon = structuredClone(state.player.pokemon);
   const reservePokemon = structuredClone(state.opponent.pokemon);
@@ -45,18 +45,22 @@ test("HGSS 파티 트레이는 여섯 슬롯의 선택·출전·기절·빈 상�
   });
 
   assert.deepEqual(
-    views.map(view => view.slotIndex),
+    views.map(function mapItem(view) {
+      return view.slotIndex;
+    }),
     [0, 1, 2, 3, 4, 5],
   );
   assert.deepEqual(
-    views.map(view => ({
-      canSwitch: view.canSwitch,
-      current: view.isCurrent,
-      empty: view.isEmpty,
-      fainted: view.isFainted,
-      selected: view.isSelected,
-      statusLabel: view.statusLabel,
-    })),
+    views.map(function mapItem(view) {
+      return {
+        canSwitch: view.canSwitch,
+        current: view.isCurrent,
+        empty: view.isEmpty,
+        fainted: view.isFainted,
+        selected: view.isSelected,
+        statusLabel: view.statusLabel,
+      };
+    }),
     [
       {
         canSwitch: false,
@@ -112,7 +116,7 @@ test("HGSS 파티 트레이는 여섯 슬롯의 선택·출전·기절·빈 상�
   assert.equal(views[2]?.hpRatio, 0);
 });
 
-test("HGSS 파티 트레이 슬롯은 3열 2행 좌표와 포인터 hit-test를 공유한다", () => {
+test("HGSS 파티 트레이 슬롯은 3열 2행 좌표와 포인터 hit-test를 공유한다", function testCase() {
   const rects = resolveBattlePartySlotRects(BATTLE_LAYOUT.partyWindow);
 
   assert.deepEqual(rects, [
@@ -124,7 +128,7 @@ test("HGSS 파티 트레이 슬롯은 3열 2행 좌표와 포인터 hit-test를 
     { x: 172, y: 171, width: 80, height: 18 },
   ]);
 
-  rects.forEach((rect, slotIndex) => {
+  rects.forEach(function visitItem(rect, slotIndex) {
     assert.equal(
       getBattlePartySlotIndexAtPoint(
         { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
@@ -138,7 +142,7 @@ test("HGSS 파티 트레이 슬롯은 3열 2행 좌표와 포인터 hit-test를 
   assert.equal(getBattlePartySlotIndexAtPoint({ x: 255, y: 191 }, BATTLE_LAYOUT.partyWindow), null);
 });
 
-test("HGSS 파티 트레이 방향 이동은 행과 열 경계에서 멈춘다", () => {
+test("HGSS 파티 트레이 방향 이동은 행과 열 경계에서 멈춘다", function testCase() {
   const expectedByIndex: Array<Record<BattlePartySelectionDirection, number>> = [
     { left: 0, right: 1, up: 0, down: 3 },
     { left: 0, right: 2, up: 1, down: 4 },
@@ -148,14 +152,14 @@ test("HGSS 파티 트레이 방향 이동은 행과 열 경계에서 멈춘다",
     { left: 4, right: 5, up: 2, down: 5 },
   ];
 
-  expectedByIndex.forEach((expected, slotIndex) => {
+  expectedByIndex.forEach(function visitItem(expected, slotIndex) {
     for (const direction of ["left", "right", "up", "down"] as const) {
       assert.equal(moveBattlePartySelection(slotIndex, direction), expected[direction]);
     }
   });
 });
 
-test("HGSS 파티 트레이는 교체 가능한 첫 후보를 기본 선택한다", () => {
+test("HGSS 파티 트레이는 교체 가능한 첫 후보를 기본 선택한다", function testCase() {
   const state = createSampleBattleState();
   const activePokemon = structuredClone(state.player.pokemon);
   const faintedPokemon = {
@@ -190,7 +194,7 @@ test("HGSS 파티 트레이는 교체 가능한 첫 후보를 기본 선택한�
   );
 });
 
-test("HGSS 파티 카드 이름은 여섯 글자를 넘으면 말줄임한다", () => {
+test("HGSS 파티 카드 이름은 여섯 글자를 넘으면 말줄임한다", function testCase() {
   assert.equal(formatBattlePartyPokemonName("가나다라마바"), "가나다라마바");
   assert.equal(formatBattlePartyPokemonName("가나다라마바사"), "가나다라마…");
 });

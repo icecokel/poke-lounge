@@ -47,15 +47,17 @@ const presentation = {
   },
 } satisfies BattlePresentationState;
 
-test("BattleUiStore는 전투 snapshot과 action을 같은 controller에 연결한다", () => {
+test("BattleUiStore는 전투 snapshot과 action을 같은 controller에 연결한다", function testCase() {
   const store = createBattleUiStore();
   const actions: string[] = [];
   let notifications = 0;
-  const unsubscribe = store.subscribe(() => {
+  const unsubscribe = store.subscribe(function callback() {
     notifications += 1;
   });
 
-  store.setActionHandler(action => actions.push(action.type));
+  store.setActionHandler(function callback(action) {
+    return actions.push(action.type);
+  });
   store.publishPresentation(presentation);
   store.dispatch({ type: "select-command", index: 0 });
 

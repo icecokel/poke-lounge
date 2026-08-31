@@ -1,14 +1,14 @@
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { BindCompetitiveSeatDto } from './bind-competitive-seat.dto';
 
-describe('BindCompetitiveSeatDto', () => {
+describe('BindCompetitiveSeatDto', function testSuite() {
   const pipe = new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
     transform: true,
   });
 
-  it('accepts only sessionId and rejects forged account or player identity', async () => {
+  it('accepts only sessionId and rejects forged account or player identity', async function testCase() {
     await expect(transform({ sessionId: 'session-a' })).resolves.toEqual({
       sessionId: 'session-a',
     });

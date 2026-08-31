@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { CreateLegacyCoreSchema1759999999999 } from './1759999999999-create-legacy-core-schema';
 
-describe('CreateLegacyCoreSchema1759999999999 SQL contract', () => {
-  it('creates the canonical historical schema only when all core objects are absent', async () => {
+describe('CreateLegacyCoreSchema1759999999999 SQL contract', function testSuite() {
+  it('creates the canonical historical schema only when all core objects are absent', async function testCase() {
     const query = await captureMigrationQuery('up');
 
     expect(query).not.toContain('set_config');
@@ -23,7 +23,7 @@ describe('CreateLegacyCoreSchema1759999999999 SQL contract', () => {
     );
   });
 
-  it('rejects partial objects and validates an exact existing schema', async () => {
+  it('rejects partial objects and validates an exact existing schema', async function testCase() {
     const query = await captureMigrationQuery('up');
 
     expect(query).toContain('Legacy core schema is partial');
@@ -56,7 +56,7 @@ describe('CreateLegacyCoreSchema1759999999999 SQL contract', () => {
     expect(query).not.toMatch(/\bDROP\b|\bALTER\b/);
   });
 
-  it('makes rollback explicitly irreversible instead of dropping adopted data', async () => {
+  it('makes rollback explicitly irreversible instead of dropping adopted data', async function testCase() {
     const query = await captureMigrationQuery('down');
 
     expect(query).toContain('Legacy core baseline is irreversible');

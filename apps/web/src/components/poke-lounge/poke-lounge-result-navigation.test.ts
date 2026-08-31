@@ -5,7 +5,7 @@ import {
   isPokeLoungeMultiplayerResultUrl,
 } from "./poke-lounge-result-navigation";
 
-test("로컬·서버·WebRTC 결과는 새 방 선택 흐름으로 분류한다", () => {
+test("로컬·서버·WebRTC 결과는 새 방 선택 흐름으로 분류한다", function testCase() {
   for (const network of ["local", "server", "webrtc"]) {
     assert.equal(
       isPokeLoungeMultiplayerResultUrl(
@@ -27,7 +27,7 @@ test("로컬·서버·WebRTC 결과는 새 방 선택 흐름으로 분류한다"
   );
 });
 
-test("방 입장 URL은 멀티플레이 신원만 지우고 테스트와 설정 파라미터는 보존한다", () => {
+test("방 입장 URL은 멀티플레이 신원만 지우고 테스트와 설정 파라미터는 보존한다", function testCase() {
   const roomEntryUrl = createPokeLoungeRoomEntryUrl(
     new URL(
       "https://example.test/en-US/game/poke-lounge?network=server&room=ABC123&create=1&serverPlayerId=p1&serverSessionId=s1&e2e=1&roundMs=300000",

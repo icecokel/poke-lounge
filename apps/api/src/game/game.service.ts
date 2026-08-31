@@ -168,15 +168,19 @@ export class GameService {
       queryValues,
     );
 
-    return rows.map((row, index) => ({
-      score: Number(row.score),
-      rank: index + 1,
-      createdAt:
-        row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
-      user: {
-        displayName: `${row.firstName} ${row.lastName}`.trim(),
-      },
-    }));
+    return rows.map(function mapItem(row, index) {
+      return {
+        score: Number(row.score),
+        rank: index + 1,
+        createdAt:
+          row.createdAt instanceof Date
+            ? row.createdAt
+            : new Date(row.createdAt),
+        user: {
+          displayName: `${row.firstName} ${row.lastName}`.trim(),
+        },
+      };
+    });
   }
 
   /**

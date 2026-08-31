@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { detectTouchGameDevice } from "./mobileTouchControls";
+import { detectTouchGameDevice } from "./mobile-touch-controls";
 
-test("mobile WebKit은 maxTouchPoints가 0이어도 coarse pointer면 터치 UI를 사용한다", () => {
+test("mobile WebKit은 maxTouchPoints가 0이어도 coarse pointer면 터치 UI를 사용한다", function testCase() {
   assert.equal(
     detectTouchGameDevice({
       maxTouchPoints: 0,
@@ -15,7 +15,7 @@ test("mobile WebKit은 maxTouchPoints가 0이어도 coarse pointer면 터치 UI�
   );
 });
 
-test("coarse pointer인 데스크톱은 터치 UI를 사용하지 않는다", () => {
+test("coarse pointer인 데스크톱은 터치 UI를 사용하지 않는다", function testCase() {
   assert.equal(
     detectTouchGameDevice({
       maxTouchPoints: 0,
@@ -28,7 +28,7 @@ test("coarse pointer인 데스크톱은 터치 UI를 사용하지 않는다", ()
   );
 });
 
-test("touch point와 coarse pointer가 없는 모바일 UA는 터치 UI를 사용하지 않는다", () => {
+test("touch point와 coarse pointer가 없는 모바일 UA는 터치 UI를 사용하지 않는다", function testCase() {
   assert.equal(
     detectTouchGameDevice({
       maxTouchPoints: 0,

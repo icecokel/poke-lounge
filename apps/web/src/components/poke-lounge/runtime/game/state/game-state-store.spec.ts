@@ -19,7 +19,7 @@ import {
   createGameStateStore,
   getShopItemById,
   type PlayerPokemon,
-} from "./gameStateStore";
+} from "./game-state-store";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 
@@ -37,7 +37,7 @@ const createPokemon = (
   ...overrides,
 });
 
-test("새 플레이어는 몬스터볼 10개를 기본 지급받는다", () => {
+test("새 플레이어는 몬스터볼 10개를 기본 지급받는다", function testCase() {
   const localPlayer = createDefaultLocalPlayer();
 
   assert.deepEqual(localPlayer.inventory, {
@@ -45,7 +45,7 @@ test("새 플레이어는 몬스터볼 10개를 기본 지급받는다", () => {
   });
 });
 
-test("상점은 랭크와 무관하게 ROM의 일반·희귀 품목을 판매한다", async () => {
+test("상점은 랭크와 무관하게 ROM의 일반·희귀 품목을 판매한다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   await loadRuntimeGameDataJson(createPokemonDataFetcher(pokemonData));
   registerPublicShopCatalogs();
@@ -77,7 +77,7 @@ test("상점은 랭크와 무관하게 ROM의 일반·희귀 품목을 판매한
   }
 });
 
-test("상점별 API 카탈로그가 판매 허용 목록을 결정한다", async () => {
+test("상점별 API 카탈로그가 판매 허용 목록을 결정한다", async function testCase() {
   await loadRuntimeGameDataJson(createPokemonDataFetcher(readPublicJson(POKEMON_DATA_JSON_PATH)));
 
   try {
@@ -118,7 +118,7 @@ function registerPublicShopCatalogs(): void {
   registerRuntimeShopItemRomIds("premium", itemData.shopCatalogs.premium);
 }
 
-test("솔로 챌린지 완료는 공개 경쟁 점수와 분리된 일반 결과를 만든다", () => {
+test("솔로 챌린지 완료는 공개 경쟁 점수와 분리된 일반 결과를 만든다", function testCase() {
   const store = createGameStateStore();
   const playerId = store.getState().currentPlayerId;
 
@@ -135,7 +135,7 @@ test("솔로 챌린지 완료는 공개 경쟁 점수와 분리된 일반 결과
   assert.deepEqual(store.getCurrentLocalPlayer().competitive, { rank: null, score: 0 });
 });
 
-test("진화의 돌은 호환될 때만 적용하고 성공한 경우에만 한 개를 소비한다", async () => {
+test("진화의 돌은 호환될 때만 적용하고 성공한 경우에만 한 개를 소비한다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   await loadRuntimeGameDataJson(createPokemonDataFetcher(pokemonData));
 
@@ -190,7 +190,7 @@ test("진화의 돌은 호환될 때만 적용하고 성공한 경우에만 한 
   }
 });
 
-test("각성의돌은 성별 조건이 맞을 때만 소비한다", async () => {
+test("각성의돌은 성별 조건이 맞을 때만 소비한다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   await loadRuntimeGameDataJson(createPokemonDataFetcher(pokemonData));
 
@@ -235,7 +235,7 @@ test("각성의돌은 성별 조건이 맞을 때만 소비한다", async () => 
   }
 });
 
-test("이상한사탕은 같은 레벨의 모든 기술을 습득하거나 교체 대기로 반환한다", async () => {
+test("이상한사탕은 같은 레벨의 모든 기술을 습득하거나 교체 대기로 반환한다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   const levelUpMoveTable = readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH);
   await loadRuntimeGameDataJson(createPokemonDataFetcher(pokemonData, levelUpMoveTable));
@@ -275,7 +275,9 @@ test("이상한사탕은 같은 레벨의 모든 기술을 습득하거나 교�
 
     assert.equal(result.pokemon.level, 13);
     assert.deepEqual(
-      result.pokemon.moves?.map(move => move.id),
+      result.pokemon.moves?.map(function mapItem(move) {
+        return move.id;
+      }),
       [33, 45, 73, 77],
     );
     assert.deepEqual(result.pendingMoveReplacements, [
@@ -305,7 +307,9 @@ test("이상한사탕은 같은 레벨의 모든 기술을 습득하거나 교�
     assert.equal(store.getCurrentLocalPlayer().inventory.rareCandy, undefined);
     assert.equal(store.getCurrentLocalPlayer().party[0]?.pokemon?.level, 13);
     assert.deepEqual(
-      store.getCurrentLocalPlayer().party[0]?.pokemon?.moves?.map(move => move.id),
+      store.getCurrentLocalPlayer().party[0]?.pokemon?.moves?.map(function mapItem(move) {
+        return move.id;
+      }),
       [33, 79, 73, 77],
     );
   } finally {
@@ -313,7 +317,7 @@ test("이상한사탕은 같은 레벨의 모든 기술을 습득하거나 교�
   }
 });
 
-test("이상한사탕은 기술이 이미 4개라면 기존 기술을 자동 삭제하지 않는다", async () => {
+test("이상한사탕은 기술이 이미 4개라면 기존 기술을 자동 삭제하지 않는다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   const levelUpMoveTable = readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH);
   await loadRuntimeGameDataJson(createPokemonDataFetcher(pokemonData, levelUpMoveTable));
@@ -374,7 +378,9 @@ test("이상한사탕은 기술이 이미 4개라면 기존 기술을 자동 삭
     assert.equal(store.getCurrentLocalPlayer().party[0]?.pokemon?.speciesId, 156);
     assert.equal(store.getCurrentLocalPlayer().party[0]?.pokemon?.name, "마그케인");
     assert.deepEqual(
-      store.getCurrentLocalPlayer().party[0]?.pokemon?.moves?.map(move => move.id),
+      store.getCurrentLocalPlayer().party[0]?.pokemon?.moves?.map(function mapItem(move) {
+        return move.id;
+      }),
       [33, 172, 108, 52],
     );
   } finally {
@@ -382,7 +388,7 @@ test("이상한사탕은 기술이 이미 4개라면 기존 기술을 자동 삭
   }
 });
 
-test("활성 슬롯은 기절한 박스 포켓몬과 교체하지 않는다", () => {
+test("활성 슬롯은 기절한 박스 포켓몬과 교체하지 않는다", function testCase() {
   const localPlayer = createDefaultLocalPlayer();
   localPlayer.party = [{ slotIndex: 0, pokemon: createPokemon(1, "이상해씨") }];
   localPlayer.pokemonBox = [createPokemon(2, "이상해풀", { currentHp: 0, status: "fainted" })];
@@ -403,7 +409,7 @@ test("활성 슬롯은 기절한 박스 포켓몬과 교체하지 않는다", ()
   assert.equal(store.getCurrentLocalPlayer().pokemonBox[0]?.name, "이상해풀");
 });
 
-test("기절한 포켓몬도 비활성 파티 슬롯에는 교체할 수 있다", () => {
+test("기절한 포켓몬도 비활성 파티 슬롯에는 교체할 수 있다", function testCase() {
   const localPlayer = createDefaultLocalPlayer();
   localPlayer.party = [
     { slotIndex: 0, pokemon: createPokemon(1, "이상해씨") },
@@ -424,7 +430,7 @@ test("기절한 포켓몬도 비활성 파티 슬롯에는 교체할 수 있다"
   assert.equal(store.getCurrentLocalPlayer().activePartySlotIndex, 0);
 });
 
-test("파티 정규화는 빈 physical slot과 활성 slot 번호를 보존한다", () => {
+test("파티 정규화는 빈 physical slot과 활성 slot 번호를 보존한다", function testCase() {
   const localPlayer = createDefaultLocalPlayer();
   localPlayer.party = [
     { slotIndex: 0, pokemon: createPokemon(1, "이상해씨") },
@@ -441,7 +447,9 @@ test("파티 정규화는 빈 physical slot과 활성 slot 번호를 보존한�
   });
 
   assert.deepEqual(
-    store.getCurrentLocalPlayer().party.map(slot => slot.slotIndex),
+    store.getCurrentLocalPlayer().party.map(function mapItem(slot) {
+      return slot.slotIndex;
+    }),
     [0, 3],
   );
   assert.equal(store.getCurrentLocalPlayer().activePartySlotIndex, 3);
@@ -452,12 +460,14 @@ test("파티 정규화는 빈 physical slot과 활성 slot 번호를 보존한�
     slotIndex: 1,
   });
   assert.deepEqual(
-    store.getCurrentLocalPlayer().party.map(slot => slot.slotIndex),
+    store.getCurrentLocalPlayer().party.map(function mapItem(slot) {
+      return slot.slotIndex;
+    }),
     [0, 1, 3],
   );
 });
 
-test("지원 범위를 벗어난 포켓몬은 초기 파티와 PC에서 제거한다", () => {
+test("지원 범위를 벗어난 포켓몬은 초기 파티와 PC에서 제거한다", function testCase() {
   const localPlayer = createDefaultLocalPlayer();
   localPlayer.party = [
     { slotIndex: 0, pokemon: createPokemon(494, "알") },
@@ -475,15 +485,19 @@ test("지원 범위를 벗어난 포켓몬은 초기 파티와 PC에서 제거�
   });
 
   assert.deepEqual(
-    store.getCurrentLocalPlayer().party.map(slot => ({
-      slotIndex: slot.slotIndex,
-      speciesId: slot.pokemon?.speciesId,
-    })),
+    store.getCurrentLocalPlayer().party.map(function mapItem(slot) {
+      return {
+        slotIndex: slot.slotIndex,
+        speciesId: slot.pokemon?.speciesId,
+      };
+    }),
     [{ slotIndex: 1, speciesId: 493 }],
   );
   assert.equal(store.getCurrentLocalPlayer().activePartySlotIndex, 1);
   assert.deepEqual(
-    store.getCurrentLocalPlayer().pokemonBox.map(pokemon => pokemon.speciesId),
+    store.getCurrentLocalPlayer().pokemonBox.map(function mapItem(pokemon) {
+      return pokemon.speciesId;
+    }),
     [493],
   );
 });
@@ -494,9 +508,12 @@ function readPublicJson(publicPath: string): unknown {
   );
 }
 
-const createPokemonDataFetcher =
-  (pokemonData: unknown, levelUpMoveTable?: unknown, itemData?: unknown): typeof fetch =>
-  async input => {
+const createPokemonDataFetcher = (
+  pokemonData: unknown,
+  levelUpMoveTable?: unknown,
+  itemData?: unknown,
+): typeof fetch =>
+  async function callback(input) {
     const requestPath =
       typeof input === "string"
         ? input

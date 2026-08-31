@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { createTournamentBracketState } from '@poke-lounge/battle';
+import { createTournamentBracketState } from '@poke-lounge/battle/tournament-bracket';
 import { FakePokeLoungeRoomRepository } from '../../test/support/fake-poke-lounge-room.repository';
 import {
   createTestCompetitivePartyInput,
@@ -19,7 +19,7 @@ import type {
 import { PokeLoungeRoomService } from './poke-lounge-room.service';
 import type { PokeLoungePublicRoomState } from './poke-lounge-room.types';
 
-describe('PokeLoungeRoomService', () => {
+describe('PokeLoungeRoomService', function testSuite() {
   let repository: FakePokeLoungeRoomRepository;
   let publisher: jest.Mocked<PokeLoungeRoomEventPublisher>;
   let service: PokeLoungeRoomService;
@@ -29,26 +29,30 @@ describe('PokeLoungeRoomService', () => {
     findRoomSnapshot: jest.Mock;
   };
 
-  beforeEach(() => {
+  beforeEach(function setUpTest() {
     currentTimeMs = 0;
     roomCodes = ['ROOM01'];
     repository = new FakePokeLoungeRoomRepository();
     competitiveProjection = {
-      findRoomSnapshot: jest.fn((roomCode: string) =>
-        Promise.resolve(repository.snapshot(roomCode)),
-      ),
+      findRoomSnapshot: jest.fn(function mockFunction(roomCode: string) {
+        return Promise.resolve(repository.snapshot(roomCode));
+      }),
     };
     publisher = { publish: jest.fn().mockResolvedValue(undefined) };
     service = new PokeLoungeRoomService(
       repository,
       publisher,
       competitiveProjection as never,
-      () => roomCodes.shift() ?? 'ROOM99',
-      () => currentTimeMs,
+      function callback() {
+        return roomCodes.shift() ?? 'ROOM99';
+      },
+      function callback() {
+        return currentTimeMs;
+      },
     );
   });
 
-  it('creates revision zero with durable expiry and publishes only the committed snapshot', async () => {
+  it('creates revision zero with durable expiry and publishes only the committed snapshot', async function testCase() {
     const room = await service.createRoom(
       {
         sessionId: ' session-a ',
@@ -75,7 +79,7 @@ describe('PokeLoungeRoomService', () => {
     expectPublicEvent(publisher, 'room-created', room);
   });
 
-  it('fixes production round preparation to three minutes', async () => {
+  it('fixes production round preparation to three minutes', async function testCase() {
     const originalNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
 
@@ -87,7 +91,7 @@ describe('PokeLoungeRoomService', () => {
     }
   });
 
-  it('uses supplied nicknames for a room creator and a newly joined player', async () => {
+  it('uses supplied nicknames for a room creator and a newly joined player', async function testCase() {
     const created = await service.createRoom(
       {
         playerId: 'player-1',
@@ -116,7 +120,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('creates or joins the same requested room code without exposing separate commands', async () => {
+  it('creates or joins the same requested room code without exposing separate commands', async function testCase() {
     const mutate = jest.spyOn(repository, 'mutate');
     const created = await service.createRoom(
       {
@@ -164,7 +168,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('updates a nickname when the same session rejoins a waiting room', async () => {
+  it('updates a nickname when the same session rejoins a waiting room', async function testCase() {
     const created = await service.createRoom(
       {
         playerId: 'player-1',
@@ -192,7 +196,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('publishes a redacted snapshot after a room update', async () => {
+  it('publishes a redacted snapshot after a room update', async function testCase() {
     await createRoom();
     publisher.publish.mockClear();
 
@@ -205,11 +209,11 @@ describe('PokeLoungeRoomService', () => {
     expectPublicEvent(publisher, 'room-updated', room);
   });
 
-  it('authorizes a durable participant session and returns only the public snapshot', async () => {
+  it('authorizes a durable participant session and returns only the public snapshot', async function testCase() {
     await createRoom();
 
-    const room = await Promise.resolve().then(() =>
-      (
+    const room = await Promise.resolve().then(function handleResolved() {
+      return (
         service as unknown as {
           authorizeSubscription(
             roomCode: string,
@@ -217,8 +221,8 @@ describe('PokeLoungeRoomService', () => {
             sessionId: string,
           ): Promise<PokeLoungePublicRoomState>;
         }
-      ).authorizeSubscription(' room01 ', 'player-1', 'session-1'),
-    );
+      ).authorizeSubscription(' room01 ', 'player-1', 'session-1');
+    });
 
     expect(room).toMatchObject({ roomCode: 'ROOM01', revision: 0 });
     expect(JSON.stringify(room)).not.toContain('sessionId');
@@ -226,7 +230,7 @@ describe('PokeLoungeRoomService', () => {
     expect(JSON.stringify(room)).not.toContain('session-1');
   });
 
-  it('forwards the optional recovery cursor for REST reads and subscription authorization', async () => {
+  it('forwards the optional recovery cursor for REST reads and subscription authorization', async function testCase() {
     await createRoom();
     competitiveProjection.findRoomSnapshot.mockClear();
 
@@ -245,7 +249,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('uses only the injected server clock when reading and purging rooms', async () => {
+  it('uses only the injected server clock when reading and purging rooms', async function testCase() {
     await createRoom();
     const getAndAdvance = jest.spyOn(repository, 'getAndAdvance');
     currentTimeMs = 42_000;
@@ -255,7 +259,7 @@ describe('PokeLoungeRoomService', () => {
     expect(getAndAdvance).toHaveBeenCalledWith('ROOM01', 42_000);
   });
 
-  it('keeps the room waiting after ready and presence acknowledgement until the host starts it', async () => {
+  it('keeps the room waiting after ready and presence acknowledgement until the host starts it', async function testCase() {
     const created = await service.createRoom(
       { playerId: 'player-1', sessionId: 'session-1', nowMs: 0 },
       command(0, 1),
@@ -337,7 +341,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('expires an unacknowledged HTTP participant and does not expose the pending lease', async () => {
+  it('expires an unacknowledged HTTP participant and does not expose the pending lease', async function testCase() {
     const created = await service.createRoom(
       { playerId: 'player-1', sessionId: 'session-1', nowMs: 0 },
       command(0, 1),
@@ -360,7 +364,7 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('does not replace an already acknowledged session with a pending lease', async () => {
+  it('does not replace an already acknowledged session with a pending lease', async function testCase() {
     await createRoom();
 
     await service.joinRoom(
@@ -381,7 +385,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('removes an expired participant but keeps the waiting room reclaimable', async () => {
+  it('removes an expired participant but keeps the waiting room reclaimable', async function testCase() {
     await createRoom();
     currentTimeMs = 42_000;
 
@@ -399,7 +403,7 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('still closes the waiting room when the last participant explicitly leaves', async () => {
+  it('still closes the waiting room when the last participant explicitly leaves', async function testCase() {
     await createRoom();
 
     const closed = await service.leaveRoom(
@@ -415,7 +419,7 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('persists a reconnect grace deadline and expires it after restart', async () => {
+  it('persists a reconnect grace deadline and expires it after restart', async function testCase() {
     await createRoom();
     await service.acknowledgeParticipantPresence(
       'ROOM01',
@@ -455,13 +459,15 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('persists reconnect grace when every room occupant disconnects together', async () => {
+  it('persists reconnect grace when every room occupant disconnects together', async function testCase() {
     let room = await createRoom();
-    const participants = Array.from({ length: 6 }, (_, index) => ({
-      playerId: `player-${index + 1}`,
-      sessionId: `session-${index + 1}`,
-      presenceEpoch: `presence-epoch-${index + 1}`,
-    }));
+    const participants = Array.from({ length: 6 }, function callback(_, index) {
+      return {
+        playerId: `player-${index + 1}`,
+        sessionId: `session-${index + 1}`,
+        presenceEpoch: `presence-epoch-${index + 1}`,
+      };
+    });
 
     for (const [index, participant] of participants.slice(1).entries()) {
       room = await service.joinRoom(
@@ -481,15 +487,15 @@ describe('PokeLoungeRoomService', () => {
     }
 
     await Promise.all(
-      participants.map((participant) =>
-        service.markParticipantDisconnectPending(
+      participants.map(function mapItem(participant) {
+        return service.markParticipantDisconnectPending(
           'ROOM01',
           participant.playerId,
           participant.sessionId,
           participant.presenceEpoch,
           60_000,
-        ),
-      ),
+        );
+      }),
     );
 
     const persistedParticipants = repository.snapshot('ROOM01')?.participants;
@@ -503,7 +509,7 @@ describe('PokeLoungeRoomService', () => {
     }
   });
 
-  it('clears a persisted disconnect deadline when the participant reconnects', async () => {
+  it('clears a persisted disconnect deadline when the participant reconnects', async function testCase() {
     await createRoom();
     await service.acknowledgeParticipantPresence(
       'ROOM01',
@@ -538,7 +544,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('does not mutate presence for a stale session or an already absent participant', async () => {
+  it('does not mutate presence for a stale session or an already absent participant', async function testCase() {
     await createRoom();
 
     await service.expireParticipantPresence(
@@ -559,7 +565,7 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('does not let a stale disconnect epoch remove a reconnected participant', async () => {
+  it('does not let a stale disconnect epoch remove a reconnected participant', async function testCase() {
     await createRoom();
     await service.acknowledgeParticipantPresence(
       'ROOM01',
@@ -570,20 +576,22 @@ describe('PokeLoungeRoomService', () => {
     );
     const mutate = repository.mutate.bind(repository);
     let reconnectCommitted = false;
-    jest.spyOn(repository, 'mutate').mockImplementation(async (input) => {
-      if (input.operation === 'leave' && !reconnectCommitted) {
-        reconnectCommitted = true;
-        await service.acknowledgeParticipantPresence(
-          'ROOM01',
-          'player-1',
-          'session-1',
-          undefined,
-          'presence-epoch-new',
-        );
-      }
+    jest
+      .spyOn(repository, 'mutate')
+      .mockImplementation(async function mockImplementation(input) {
+        if (input.operation === 'leave' && !reconnectCommitted) {
+          reconnectCommitted = true;
+          await service.acknowledgeParticipantPresence(
+            'ROOM01',
+            'player-1',
+            'session-1',
+            undefined,
+            'presence-epoch-new',
+          );
+        }
 
-      return mutate(input);
-    });
+        return mutate(input);
+      });
 
     await service.expireParticipantPresence(
       'ROOM01',
@@ -610,7 +618,7 @@ describe('PokeLoungeRoomService', () => {
     ).resolves.not.toHaveProperty('participants.0.presenceEpoch');
   });
 
-  it('cancels an in-flight expiry before its repository apply after reconnect', async () => {
+  it('cancels an in-flight expiry before its repository apply after reconnect', async function testCase() {
     await createRoom();
     await service.acknowledgeParticipantPresence(
       'ROOM01',
@@ -621,12 +629,14 @@ describe('PokeLoungeRoomService', () => {
     );
     const controller = new AbortController();
     const mutate = repository.mutate.bind(repository);
-    jest.spyOn(repository, 'mutate').mockImplementation(async (input) => {
-      if (input.operation === 'leave') {
-        controller.abort();
-      }
-      return mutate(input);
-    });
+    jest
+      .spyOn(repository, 'mutate')
+      .mockImplementation(async function mockImplementation(input) {
+        if (input.operation === 'leave') {
+          controller.abort();
+        }
+        return mutate(input);
+      });
 
     await service.expireParticipantPresence(
       'ROOM01',
@@ -649,25 +659,29 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('cancels an old acknowledgement after a zero-socket reconnect epoch wins', async () => {
+  it('cancels an old acknowledgement after a zero-socket reconnect epoch wins', async function testCase() {
     await createRoom();
     const mutate = repository.mutate.bind(repository);
     let releaseOldMutation: (() => void) | undefined;
     let oldMutationStarted: (() => void) | undefined;
-    const oldMutationReady = new Promise<void>((resolve) => {
+    const oldMutationReady = new Promise<void>(function resolvePromise(
+      resolve,
+    ) {
       oldMutationStarted = resolve;
     });
     let oldMutationHeld = false;
-    jest.spyOn(repository, 'mutate').mockImplementation(async (input) => {
-      if (input.operation === 'presence' && !oldMutationHeld) {
-        oldMutationHeld = true;
-        oldMutationStarted?.();
-        await new Promise<void>((resolve) => {
-          releaseOldMutation = resolve;
-        });
-      }
-      return mutate(input);
-    });
+    jest
+      .spyOn(repository, 'mutate')
+      .mockImplementation(async function mockImplementation(input) {
+        if (input.operation === 'presence' && !oldMutationHeld) {
+          oldMutationHeld = true;
+          oldMutationStarted?.();
+          await new Promise<void>(function resolvePromise(resolve) {
+            releaseOldMutation = resolve;
+          });
+        }
+        return mutate(input);
+      });
     const oldController = new AbortController();
     const oldAcknowledgement = service.acknowledgeParticipantPresence(
       'ROOM01',
@@ -712,11 +726,11 @@ describe('PokeLoungeRoomService', () => {
     ['ROOM01', 'player-1', 'wrong-session'],
   ])(
     'rejects subscription credentials without disclosing which value failed (%s)',
-    async (roomCode, playerId, sessionId) => {
+    async function callback(roomCode, playerId, sessionId) {
       await createRoom();
 
-      const attempt = Promise.resolve().then(() =>
-        (
+      const attempt = Promise.resolve().then(function handleResolved() {
+        return (
           service as unknown as {
             authorizeSubscription(
               roomCode: string,
@@ -724,8 +738,8 @@ describe('PokeLoungeRoomService', () => {
               sessionId: string,
             ): Promise<PokeLoungePublicRoomState>;
           }
-        ).authorizeSubscription(roomCode, playerId, sessionId),
-      );
+        ).authorizeSubscription(roomCode, playerId, sessionId);
+      });
 
       await expect(attempt).rejects.toMatchObject({
         message: 'Poke Lounge room subscription rejected',
@@ -733,7 +747,7 @@ describe('PokeLoungeRoomService', () => {
     },
   );
 
-  it('retries room-code collisions and preserves the capacity error', async () => {
+  it('retries room-code collisions and preserves the capacity error', async function testCase() {
     await createRoom();
     roomCodes = ['ROOM01', 'ROOM02'];
 
@@ -764,7 +778,7 @@ describe('PokeLoungeRoomService', () => {
     ).rejects.toThrow('Poke Lounge room capacity reached');
   });
 
-  it('rejects a seventh player while allowing an existing session to rejoin a full room', async () => {
+  it('rejects a seventh player while allowing an existing session to rejoin a full room', async function testCase() {
     await createRoom();
 
     for (let index = 2; index <= 6; index += 1) {
@@ -801,12 +815,16 @@ describe('PokeLoungeRoomService', () => {
     const room = await service.getRoom('ROOM01');
 
     expect(room.participants).toHaveLength(6);
-    expect(room.participants.every((row) => row.role === 'participant')).toBe(
-      true,
-    );
-    expect(room.participants.some((row) => row.playerId === 'player-7')).toBe(
-      false,
-    );
+    expect(
+      room.participants.every(function testItem(row) {
+        return row.role === 'participant';
+      }),
+    ).toBe(true);
+    expect(
+      room.participants.some(function testItem(row) {
+        return row.playerId === 'player-7';
+      }),
+    ).toBe(false);
     await expect(
       service.joinRoom(
         'ROOM01',
@@ -832,7 +850,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('starts only on the host command and durably advances the server round', async () => {
+  it('starts only on the host command and durably advances the server round', async function testCase() {
     await createRoom({ roundDurationMs: 1000 });
     await service.joinRoom(
       'ROOM01',
@@ -925,7 +943,7 @@ describe('PokeLoungeRoomService', () => {
     expectPublicEvent(publisher, 'room-updated', tournament);
   });
 
-  it('accepts three concurrent round readiness acknowledgements without revision conflicts', async () => {
+  it('accepts three concurrent round readiness acknowledgements without revision conflicts', async function testCase() {
     await createRoom({ roundDurationMs: 1_000 });
     let room = await service.joinRoom(
       'ROOM01',
@@ -976,16 +994,18 @@ describe('PokeLoungeRoomService', () => {
     currentTimeMs = 1_040;
 
     const acknowledgements = await Promise.all(
-      ['player-1', 'player-2', 'player-3'].map((playerId, index) =>
-        service.setRoundReady(
-          'ROOM01',
-          {
-            playerId,
-            sessionId: `session-${index + 1}`,
-            roundIndex: 1,
-          },
-          roundCommand(210 + index),
-        ),
+      ['player-1', 'player-2', 'player-3'].map(
+        function mapItem(playerId, index) {
+          return service.setRoundReady(
+            'ROOM01',
+            {
+              playerId,
+              sessionId: `session-${index + 1}`,
+              roundIndex: 1,
+            },
+            roundCommand(210 + index),
+          );
+        },
       ),
     );
     const tournament = repository.snapshot('ROOM01')!;
@@ -1002,7 +1022,7 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('requires a waiting room, a synced party, every ready participant, and the current host', async () => {
+  it('requires a waiting room, a synced party, every ready participant, and the current host', async function testCase() {
     await createRoom({ roundDurationMs: 1_000 });
 
     await expect(
@@ -1079,7 +1099,7 @@ describe('PokeLoungeRoomService', () => {
     ).rejects.toThrow('All participants need a party snapshot before starting');
   });
 
-  it('rejects new participants after host start and still allows an existing identity to reconnect', async () => {
+  it('rejects new participants after host start and still allows an existing identity to reconnect', async function testCase() {
     await createRoom({ roundDurationMs: 1000 });
     await service.joinRoom(
       'ROOM01',
@@ -1135,7 +1155,7 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('keeps a disconnected round participant reclaimable across failed resume leases', async () => {
+  it('keeps a disconnected round participant reclaimable across failed resume leases', async function testCase() {
     await createRoom({ roundDurationMs: 300_000 });
     await service.joinRoom(
       'ROOM01',
@@ -1196,18 +1216,18 @@ describe('PokeLoungeRoomService', () => {
     expect(firstResume.participants).toHaveLength(2);
     expect(failedResumeExpired.status).toBe('round-started');
     expect(
-      failedResumeExpired.participants.find(
-        (participant) => participant.playerId === 'player-2',
-      ),
+      failedResumeExpired.participants.find(function findItem(participant) {
+        return participant.playerId === 'player-2';
+      }),
     ).toMatchObject({
       playerId: 'player-2',
       connected: false,
     });
     expect(acknowledged.status).toBe('round-started');
     expect(
-      acknowledged.participants.find(
-        (participant) => participant.playerId === 'player-2',
-      ),
+      acknowledged.participants.find(function findItem(participant) {
+        return participant.playerId === 'player-2';
+      }),
     ).toMatchObject({
       playerId: 'player-2',
       connected: true,
@@ -1217,7 +1237,7 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('allows an existing player with the same session to reconnect during a tournament', async () => {
+  it('allows an existing player with the same session to reconnect during a tournament', async function testCase() {
     const tournament = await createTournament();
 
     const rejoined = await service.joinRoom(
@@ -1247,7 +1267,7 @@ describe('PokeLoungeRoomService', () => {
     ).rejects.toThrow('Room is not joinable');
   });
 
-  it('assigns the next participant id for an anonymous join and uses a stable opaque receipt actor', async () => {
+  it('assigns the next participant id for an anonymous join and uses a stable opaque receipt actor', async function testCase() {
     await createRoom();
     const mutateSpy = jest.spyOn(repository, 'mutate');
 
@@ -1263,7 +1283,9 @@ describe('PokeLoungeRoomService', () => {
     );
 
     expect(
-      joined.participants.map((participant) => participant.playerId),
+      joined.participants.map(function mapItem(participant) {
+        return participant.playerId;
+      }),
     ).toEqual(['player-1', 'player-2']);
     expect(replay).toEqual(joined);
     expect(mutateSpy.mock.calls[0]?.[0].actorPlayerId).toMatch(
@@ -1277,7 +1299,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('finds the first free player id without parsing unsafe or arbitrary participant suffixes', async () => {
+  it('finds the first free player id without parsing unsafe or arbitrary participant suffixes', async function testCase() {
     const seeded = createSnapshot();
     seeded.participants.push(
       {
@@ -1315,15 +1337,15 @@ describe('PokeLoungeRoomService', () => {
       { sessionId: 'anonymous-session', nowMs: 1 },
       command(0, 2),
     );
-    const playerIds = joined.participants.map(
-      (participant) => participant.playerId,
-    );
+    const playerIds = joined.participants.map(function mapItem(participant) {
+      return participant.playerId;
+    });
 
     expect(playerIds).toContain('player-3');
     expect(new Set(playerIds).size).toBe(playerIds.length);
   });
 
-  it('stores party snapshots and validates participant sessions and pokemon values', async () => {
+  it('stores party snapshots and validates participant sessions and pokemon values', async function testCase() {
     await createRoom();
 
     const room = await service.updatePartySnapshot(
@@ -1379,7 +1401,7 @@ describe('PokeLoungeRoomService', () => {
     }
   });
 
-  it('locks party snapshots after the tournament starts', async () => {
+  it('locks party snapshots after the tournament starts', async function testCase() {
     const tournament = await createTournament();
 
     try {
@@ -1402,7 +1424,7 @@ describe('PokeLoungeRoomService', () => {
     }
   });
 
-  it('accepts authorized tournament results and starts the next game round', async () => {
+  it('accepts authorized tournament results and starts the next game round', async function testCase() {
     const tournament = await createTournament();
 
     const completed = await service.submitMatchResult(
@@ -1483,7 +1505,7 @@ describe('PokeLoungeRoomService', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('records a participant leave as a tournament forfeit', async () => {
+  it('records a participant leave as a tournament forfeit', async function testCase() {
     const tournament = await createTournament();
 
     const completed = await service.leaveRoom(
@@ -1502,7 +1524,7 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('removes a preparation leaver and restarts waiting without a ghost bracket', async () => {
+  it('removes a preparation leaver and restarts waiting without a ghost bracket', async function testCase() {
     await createRoom({ roundDurationMs: 1_000 });
     await service.joinRoom(
       'ROOM01',
@@ -1545,27 +1567,33 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('converges a casual five-player bye disconnect when that player reaches a later match', async () => {
+  it('converges a casual five-player bye disconnect when that player reaches a later match', async function testCase() {
     const room = createSnapshot();
     room.status = 'tournament';
     room.round.phase = 'tournament';
-    room.participants = Array.from({ length: 5 }, (_, index) => ({
-      playerId: `player-${index + 1}`,
-      sessionId: `session-${index + 1}`,
-      displayName: `Player ${index + 1}`,
-      role: 'participant' as const,
-      ready: true,
-      connected: true,
-      joinedAtMs: index,
-    }));
+    room.participants = Array.from({ length: 5 }, function callback(_, index) {
+      return {
+        playerId: `player-${index + 1}`,
+        sessionId: `session-${index + 1}`,
+        displayName: `Player ${index + 1}`,
+        role: 'participant' as const,
+        ready: true,
+        connected: true,
+        joinedAtMs: index,
+      };
+    });
     room.partySnapshots = createTestPartySnapshots(
-      room.participants.map((participant) => participant.playerId),
+      room.participants.map(function mapItem(participant) {
+        return participant.playerId;
+      }),
     );
     const bracket = createTournamentBracketState(
-      room.participants.map(({ playerId, displayName }) => ({
-        playerId,
-        displayName,
-      })),
+      room.participants.map(function mapItem({ playerId, displayName }) {
+        return {
+          playerId,
+          displayName,
+        };
+      }),
       1,
     );
     room.tournament = {
@@ -1661,7 +1689,7 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('rejects casual results for a server-authoritative active match', async () => {
+  it('rejects casual results for a server-authoritative active match', async function testCase() {
     const tournament = await createTournament();
     tournament.tournament.activeMatchAuthority = 'server';
     repository.seed(tournament);
@@ -1685,7 +1713,7 @@ describe('PokeLoungeRoomService', () => {
     );
   });
 
-  it('returns fully redacted current snapshots for stale revisions', async () => {
+  it('returns fully redacted current snapshots for stale revisions', async function testCase() {
     await createRoom();
 
     const error = await captureConflict(
@@ -1716,7 +1744,7 @@ describe('PokeLoungeRoomService', () => {
     expect(JSON.stringify(response)).not.toContain('sessionId');
   });
 
-  it('replays an identical command but rejects changed auth or domain input under the same key', async () => {
+  it('replays an identical command but rejects changed auth or domain input under the same key', async function testCase() {
     await createRoom();
     const first = await service.joinRoom(
       'ROOM01',
@@ -1753,7 +1781,7 @@ describe('PokeLoungeRoomService', () => {
     });
   });
 
-  it('preserves a committed command snapshot when the room advances before enrichment', async () => {
+  it('preserves a committed command snapshot when the room advances before enrichment', async function testCase() {
     const revisionOne = {
       ...createSnapshot(),
       revision: 1,
@@ -1829,7 +1857,7 @@ describe('PokeLoungeRoomService', () => {
     expect(publisher.publish.mock.calls).toHaveLength(0);
   });
 
-  it('hashes explicit nowMs but keeps omitted nowMs stable across server clock changes', async () => {
+  it('hashes explicit nowMs but keeps omitted nowMs stable across server clock changes', async function testCase() {
     const createSpy = jest.spyOn(repository, 'create');
 
     await createRoom({ nowMs: undefined });
@@ -1845,14 +1873,16 @@ describe('PokeLoungeRoomService', () => {
         { playerId: 'player-1', sessionId: 'session-1', nowMs: 1000 },
         command(0, 1),
       )
-      .catch(() => undefined);
+      .catch(function handleRejected() {
+        return undefined;
+      });
     const explicitHash = createSpy.mock.calls[2][0].requestHash;
 
     expect(replayHash).toBe(firstHash);
     expect(explicitHash).not.toBe(firstHash);
   });
 
-  it('publishes after repository resolution and swallows publisher failures', async () => {
+  it('publishes after repository resolution and swallows publisher failures', async function testCase() {
     let resolveCreate:
       | ((
           value: Awaited<ReturnType<PokeLoungeRoomRepository['create']>>,
@@ -1860,19 +1890,25 @@ describe('PokeLoungeRoomService', () => {
       | undefined;
     const createPromise = new Promise<
       Awaited<ReturnType<PokeLoungeRoomRepository['create']>>
-    >((resolve) => {
+    >(function resolvePromise(resolve) {
       resolveCreate = resolve;
     });
     const deferredRepository = {
       ...repository,
-      create: jest.fn(() => createPromise),
+      create: jest.fn(function mockFunction() {
+        return createPromise;
+      }),
     } as unknown as PokeLoungeRoomRepository;
     const deferredService = new PokeLoungeRoomService(
       deferredRepository,
       publisher,
       competitiveProjection as never,
-      () => 'ROOM01',
-      () => 0,
+      function callback() {
+        return 'ROOM01';
+      },
+      function callback() {
+        return 0;
+      },
     );
     const pending = deferredService.createRoom(
       { playerId: 'player-1', sessionId: 'session-1', nowMs: 0 },
@@ -1895,7 +1931,9 @@ describe('PokeLoungeRoomService', () => {
 
     const loggerError = jest
       .spyOn(Logger.prototype, 'error')
-      .mockImplementation(() => undefined);
+      .mockImplementation(function mockImplementation() {
+        return undefined;
+      });
     publisher.publish.mockRejectedValueOnce(new Error('publisher unavailable'));
     roomCodes = ['ROOM02'];
     await expect(
@@ -1917,7 +1955,7 @@ describe('PokeLoungeRoomService', () => {
     loggerError.mockRestore();
   });
 
-  it('returns not found for expired repository state', async () => {
+  it('returns not found for expired repository state', async function testCase() {
     await createRoom({ nowMs: 0 });
 
     currentTimeMs = 30 * 60_000 + 1;

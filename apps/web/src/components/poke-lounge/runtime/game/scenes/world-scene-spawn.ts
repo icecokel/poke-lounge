@@ -1,4 +1,4 @@
-import type { PlayerFacing, PlayerPosition } from "../player/playerTypes";
+import type { PlayerFacing, PlayerPosition } from "../player/player-types";
 
 const playerFacings = new Set<PlayerFacing>(["front", "back", "left", "right"]);
 

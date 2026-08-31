@@ -9,10 +9,10 @@ const frame = (x: number, remotePlayers: WorldFrame["remotePlayers"] = []): Worl
   remotePlayers,
 });
 
-test("월드 frame 갱신은 React에 매 frame 알리지 않고 actor 구조 변경만 알린다", () => {
+test("월드 frame 갱신은 React에 매 frame 알리지 않고 actor 구조 변경만 알린다", function testCase() {
   const store = createWorldFrameStore();
   let notifications = 0;
-  store.subscribe(() => {
+  store.subscribe(function callback() {
     notifications += 1;
   });
 

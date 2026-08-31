@@ -1,13 +1,13 @@
 import { createLocalOpenApiDocument } from '../../api-contract';
 
-describe('PokeLoungeRoomResponseDto terminal transition contract', () => {
+describe('PokeLoungeRoomResponseDto terminal transition contract', function testSuite() {
   let document: unknown;
 
-  beforeAll(async () => {
+  beforeAll(async function setUpTests() {
     document = await createLocalOpenApiDocument();
   });
 
-  it('requires a bounded transition array while keeping current competitive assignment optional and non-null', () => {
+  it('requires a bounded transition array while keeping current competitive assignment optional and non-null', function testCase() {
     const room = schema('PokeLoungeRoomResponseDto');
     const roomProperties = requireRecord(
       room.properties,
@@ -53,7 +53,7 @@ describe('PokeLoungeRoomResponseDto terminal transition contract', () => {
     });
   });
 
-  it('requires wrapper metadata and its completed action projection', () => {
+  it('requires wrapper metadata and its completed action projection', function testCase() {
     const transition = schema('CompetitiveTerminalTransitionDto');
     const properties = requireRecord(
       transition.properties,
@@ -81,7 +81,7 @@ describe('PokeLoungeRoomResponseDto terminal transition contract', () => {
     });
   });
 
-  it('requires the nullable host id and documents the host start mutation', () => {
+  it('requires the nullable host id and documents the host start mutation', function testCase() {
     const room = schema('PokeLoungeRoomResponseDto');
     const roomProperties = requireRecord(
       room.properties,

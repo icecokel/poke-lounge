@@ -1,4 +1,4 @@
-import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from '@poke-lounge/battle';
+import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from '@poke-lounge/battle/runtime-item-ids';
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -58,13 +58,17 @@ export class PokeLoungeRomDataService {
 
     if (
       rowsByKey.size !== DOCUMENT_KEYS.length ||
-      DOCUMENT_KEYS.some((key) => !rowsByKey.has(key))
+      DOCUMENT_KEYS.some(function testItem(key) {
+        return !rowsByKey.has(key);
+      })
     ) {
       throw incompleteRomData();
     }
 
     return {
-      documents: DOCUMENT_KEYS.map((key) => toDocument(rowsByKey.get(key)!)),
+      documents: DOCUMENT_KEYS.map(function mapItem(key) {
+        return toDocument(rowsByKey.get(key)!);
+      }),
     };
   }
 
@@ -113,7 +117,7 @@ function readShopCatalogs(
       throw incompleteRomData();
     }
 
-    return values.map((value) => {
+    return values.map(function mapItem(value) {
       const itemId =
         typeof value === 'number' && Number.isSafeInteger(value) ? value : null;
       const item = items[String(itemId)];

@@ -4,9 +4,9 @@ import {
   createTournamentBracketState,
   getReadyTournamentMatches,
   recordTournamentMatchResult,
-} from "@poke-lounge/battle";
+} from "@poke-lounge/battle/tournament-bracket";
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
-import { createGameStateStore } from "../state/gameStateStore";
+import { createGameStateStore } from "../state/game-state-store";
 import {
   createServerTournamentAnnouncementText,
   createWorldSceneTournament,
@@ -14,10 +14,12 @@ import {
 
 function createFivePlayerProjection(): TournamentStateRoomPayload {
   const bracket = createTournamentBracketState(
-    Array.from({ length: 5 }, (_, index) => ({
-      playerId: `player-${index + 1}`,
-      displayName: `Player ${index + 1}`,
-    })),
+    Array.from({ length: 5 }, function callback(_, index) {
+      return {
+        playerId: `player-${index + 1}`,
+        displayName: `Player ${index + 1}`,
+      };
+    }),
     1,
   );
 
@@ -34,13 +36,15 @@ function createFivePlayerProjection(): TournamentStateRoomPayload {
       startedAtMs: 1_000,
       endsAtMs: 301_000,
     },
-    participants: bracket.participants.map(participant => ({
-      ...participant,
-      role: "participant",
-      ready: true,
-      partyReady: true,
-      connected: true,
-    })),
+    participants: bracket.participants.map(function mapItem(participant) {
+      return {
+        ...participant,
+        role: "participant",
+        ready: true,
+        partyReady: true,
+        connected: true,
+      };
+    }),
     tournament: {
       version: 2,
       bracket,
@@ -56,7 +60,7 @@ function createFivePlayerProjection(): TournamentStateRoomPayload {
   };
 }
 
-test("5인 서버 대진 안내는 canonical bye와 현재 상대를 7줄 이내로 표시한다", () => {
+test("5인 서버 대진 안내는 canonical bye와 현재 상대를 7줄 이내로 표시한다", function testCase() {
   const projection = createFivePlayerProjection();
   const text = createServerTournamentAnnouncementText({
     projection,
@@ -83,7 +87,7 @@ test("5인 서버 대진 안내는 canonical bye와 현재 상대를 7줄 이내
   assert.ok(byeText.split("\n").length <= 7);
 });
 
-test("terminal 이후에는 승자의 진출·다음 상대와 패자의 탈락 대기를 표시한다", () => {
+test("terminal 이후에는 승자의 진출·다음 상대와 패자의 탈락 대기를 표시한다", function testCase() {
   const winnerProjection = createFivePlayerProjection();
   const firstMatch = getReadyTournamentMatches(winnerProjection.tournament.bracket!)[0]!;
   const nextBracket = recordTournamentMatchResult(
@@ -112,7 +116,7 @@ test("terminal 이후에는 승자의 진출·다음 상대와 패자의 탈락 
   assert.match(loserText, /내 상태 · #4 Player 4 · 탈락 · 최종 순위 확정 대기/);
 });
 
-test("원격 party가 없는 casual active match는 미지원과 로그인·나가기 안내를 표시한다", () => {
+test("원격 party가 없는 casual active match는 미지원과 로그인·나가기 안내를 표시한다", function testCase() {
   const projection = createFivePlayerProjection();
   projection.tournament.activeMatchAuthority = "casual";
   projection.activeMatchTransport = "casual";
@@ -131,7 +135,7 @@ test("원격 party가 없는 casual active match는 미지원과 로그인·나�
   assert.ok(text.split("\n").length <= 7);
 });
 
-test("서버 토너먼트 진행 설명은 월드 중앙에 표시하지 않는다", () => {
+test("서버 토너먼트 진행 설명은 월드 중앙에 표시하지 않는다", function testCase() {
   const projection = createFivePlayerProjection();
   const store = createGameStateStore();
   const applied = store.applyTournamentSnapshotFromRoom(projection, 2_000);
@@ -160,7 +164,7 @@ test("서버 토너먼트 진행 설명은 월드 중앙에 표시하지 않는�
   assert.equal(announcementText, null);
 });
 
-test("서버 준비 단계는 서버 endsAt 기준 남은 시간을 표시한다", () => {
+test("서버 준비 단계는 서버 endsAt 기준 남은 시간을 표시한다", function testCase() {
   const projection = createFivePlayerProjection();
   projection.roomStatus = "round-started";
   projection.roomRound.phase = "round-started";
@@ -190,7 +194,7 @@ test("서버 준비 단계는 서버 endsAt 기준 남은 시간을 표시한다
   assert.doesNotMatch(expiredText, /00:00/);
 });
 
-test("다음 라운드 준비 단계는 내 누적 HP 비율 순위와 점수를 표시한다", () => {
+test("다음 라운드 준비 단계는 내 누적 HP 비율 순위와 점수를 표시한다", function testCase() {
   const projection = createFivePlayerProjection();
   projection.roomStatus = "round-started";
   projection.roundIndex = 2;
@@ -218,7 +222,7 @@ test("다음 라운드 준비 단계는 내 누적 HP 비율 순위와 점수를
   assert.ok(text.split("\n").length <= 7);
 });
 
-test("최종 결과는 마지막 대진 승자가 아니라 서버 누적 순위를 표시한다", () => {
+test("최종 결과는 마지막 대진 승자가 아니라 서버 누적 순위를 표시한다", function testCase() {
   const participants = [
     { playerId: "player-1", displayName: "Player 1" },
     { playerId: "player-2", displayName: "Player 2" },
@@ -245,13 +249,15 @@ test("최종 결과는 마지막 대진 승자가 아니라 서버 누적 순위
         startedAtMs: 1_000,
         endsAtMs: 301_000,
       },
-      participants: completedBracket.participants.map(participant => ({
-        ...participant,
-        role: "participant" as const,
-        ready: true,
-        partyReady: true,
-        connected: true,
-      })),
+      participants: completedBracket.participants.map(function mapItem(participant) {
+        return {
+          ...participant,
+          role: "participant" as const,
+          ready: true,
+          partyReady: true,
+          connected: true,
+        };
+      }),
       tournament: {
         version: 2,
         bracket: completedBracket,

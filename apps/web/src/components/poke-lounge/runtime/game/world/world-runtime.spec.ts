@@ -14,7 +14,7 @@ const model = createWorldMapModel(
   ),
 );
 
-test("WorldRuntime은 정규화 이동·충돌·중간 tile step·camera를 한 frame에 계산한다", () => {
+test("WorldRuntime은 정규화 이동·충돌·중간 tile step·camera를 한 frame에 계산한다", function testCase() {
   const store = createWorldFrameStore();
   const runtime = createWorldRuntime(model, store);
   runtime.initialize({ position: { x: 144, y: 80 }, viewport: { width: 512, height: 384 } });
@@ -46,7 +46,7 @@ test("WorldRuntime은 정규화 이동·충돌·중간 tile step·camera를 한 
   assert.equal(blocked.position.y > 416, true);
 });
 
-test("WorldRuntime은 remote 생성·보간·snap·퇴장을 frame store에 반영한다", () => {
+test("WorldRuntime은 remote 생성·보간·snap·퇴장을 frame store에 반영한다", function testCase() {
   const store = createWorldFrameStore();
   const runtime = createWorldRuntime(model, store);
   const snapshot = {

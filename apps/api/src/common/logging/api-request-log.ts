@@ -34,10 +34,10 @@ const getDurationMs = (
   return Number(process.hrtime.bigint() - request.requestStartedAt) / 1_000_000;
 };
 
-export const createApiRequestLog = (
+export function createApiRequestLog(
   request: Request,
   statusCode: number,
-): ApiRequestLog => {
+): ApiRequestLog {
   const requestWithContext = request as unknown as RoutedRequest;
 
   return {
@@ -48,4 +48,4 @@ export const createApiRequestLog = (
     statusCode,
     durationMs: Number(getDurationMs(requestWithContext).toFixed(3)),
   };
-};
+}

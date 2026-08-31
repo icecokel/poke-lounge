@@ -22,7 +22,9 @@ const CONTENT_SHA256_BY_KEY = {
 export function loadRuntimeGameDataJsonFixture(
   fetcher: typeof fetch,
 ): Promise<RuntimeGameDataJson> {
-  return loadRuntimeGameDataJson(fetcher, () => createRuntimeRomDataFixture(fetcher));
+  return loadRuntimeGameDataJson(fetcher, function callback() {
+    return createRuntimeRomDataFixture(fetcher);
+  });
 }
 
 export function loadPublicRuntimeGameDataFixture(): Promise<RuntimeGameDataJson> {

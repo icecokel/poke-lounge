@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { CreatePokeLoungeCompetitiveAction1794268800000 } from './1794268800000-create-poke-lounge-competitive-action';
 
-describe('CreatePokeLoungeCompetitiveAction1794268800000', () => {
-  it('creates durable exactly-once action receipts with private audit fields', async () => {
+describe('CreatePokeLoungeCompetitiveAction1794268800000', function testSuite() {
+  it('creates durable exactly-once action receipts with private audit fields', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
     const migration = new CreatePokeLoungeCompetitiveAction1794268800000();
 

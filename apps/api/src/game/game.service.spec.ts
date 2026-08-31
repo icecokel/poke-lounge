@@ -38,7 +38,9 @@ const mockGameHistoryRepository = () => ({
   save: jest.fn(),
   find: jest.fn(),
   findOne: jest.fn(),
-  createQueryBuilder: jest.fn(() => mockQueryBuilder),
+  createQueryBuilder: jest.fn(function mockFunction() {
+    return mockQueryBuilder;
+  }),
   query: jest.fn(), // Raw query 지원
 });
 
@@ -47,12 +49,12 @@ const mockPokeLoungeRedis = () => ({
   getPlayerState: jest.fn(),
 });
 
-describe('GameService', () => {
+describe('GameService', function testSuite() {
   let service: GameService;
   let repository: ReturnType<typeof mockGameHistoryRepository>;
   let pokeLoungeRedis: ReturnType<typeof mockPokeLoungeRedis>;
 
-  beforeEach(async () => {
+  beforeEach(async function setUpTest() {
     // 각 테스트 전에 모든 모킹 초기화
     jest.clearAllMocks();
 
@@ -75,16 +77,16 @@ describe('GameService', () => {
     pokeLoungeRedis = module.get(PokeLoungeLiveStateService);
   });
 
-  afterEach(() => {
+  afterEach(function tearDownTest() {
     jest.restoreAllMocks();
   });
 
-  it('should be defined', () => {
+  it('should be defined', function testCase() {
     expect(service).toBeDefined();
   });
 
-  describe('createHistory', () => {
-    it('should create and save a game history with gameType', async () => {
+  describe('createHistory', function testSuite() {
+    it('should create and save a game history with gameType', async function testCase() {
       const user = new User();
       user.id = 'test-id';
       const createDto: CreateGameHistoryDto = {
@@ -108,7 +110,7 @@ describe('GameService', () => {
       expect(result).toEqual(savedHistory);
     });
 
-    it('비정상적으로 큰 점수는 저장 전에 거절해야 함', async () => {
+    it('비정상적으로 큰 점수는 저장 전에 거절해야 함', async function testCase() {
       const user = new User();
       user.id = 'test-id';
       const createDto: CreateGameHistoryDto = {
@@ -124,7 +126,7 @@ describe('GameService', () => {
       expect(repository.save).not.toHaveBeenCalled();
     });
 
-    it('플레이 시간 대비 불가능한 점수는 저장 전에 거절해야 함', async () => {
+    it('플레이 시간 대비 불가능한 점수는 저장 전에 거절해야 함', async function testCase() {
       const user = new User();
       user.id = 'test-id';
       const createDto: CreateGameHistoryDto = {
@@ -140,7 +142,7 @@ describe('GameService', () => {
       expect(repository.save).not.toHaveBeenCalled();
     });
 
-    it('소수점 점수는 저장 전에 거절해야 함', async () => {
+    it('소수점 점수는 저장 전에 거절해야 함', async function testCase() {
       const user = new User();
       user.id = 'test-id';
       const createDto: CreateGameHistoryDto = {
@@ -155,7 +157,7 @@ describe('GameService', () => {
       expect(repository.save).not.toHaveBeenCalled();
     });
 
-    it('유효한 점수와 플레이 시간은 저장해야 함', async () => {
+    it('유효한 점수와 플레이 시간은 저장해야 함', async function testCase() {
       const user = new User();
       user.id = 'test-id';
       const createDto: CreateGameHistoryDto = {
@@ -180,7 +182,7 @@ describe('GameService', () => {
       expect(result).toEqual(savedHistory);
     });
 
-    it('Poke Lounge 결과는 영속 기록으로 저장하지 않아야 함', async () => {
+    it('Poke Lounge 결과는 영속 기록으로 저장하지 않아야 함', async function testCase() {
       const user = Object.assign(new User(), { id: 'test-id' });
       const dto: CreateGameHistoryDto = {
         score: 300,
@@ -196,8 +198,8 @@ describe('GameService', () => {
     });
   });
 
-  describe('getRanking', () => {
-    it('유저별 최고 점수만 반환해야 함 (gameType 필터 있음)', async () => {
+  describe('getRanking', function testSuite() {
+    it('유저별 최고 점수만 반환해야 함 (gameType 필터 있음)', async function testCase() {
       repository.query.mockResolvedValue([
         {
           score: 200,
@@ -236,7 +238,7 @@ describe('GameService', () => {
       expect(repository.find).not.toHaveBeenCalled();
     });
 
-    it('게임 타입별 유저 최고 점수만 필터링해야 함', async () => {
+    it('게임 타입별 유저 최고 점수만 필터링해야 함', async function testCase() {
       const rows = [
         {
           score: 200,
@@ -264,7 +266,7 @@ describe('GameService', () => {
       ]);
     });
 
-    it('랭킹 대상이 없으면 빈 배열을 반환해야 함', async () => {
+    it('랭킹 대상이 없으면 빈 배열을 반환해야 함', async function testCase() {
       repository.query.mockResolvedValue([]);
 
       const result = await service.getRanking(GameType.SKY_DROP);
@@ -273,7 +275,7 @@ describe('GameService', () => {
       expect(repository.find).not.toHaveBeenCalled();
     });
 
-    it('Poke Lounge 랭킹은 DB를 조회하지 않고 빈 배열을 반환해야 함', async () => {
+    it('Poke Lounge 랭킹은 DB를 조회하지 않고 빈 배열을 반환해야 함', async function testCase() {
       await expect(service.getRanking(GameType.POKE_LOUNGE)).resolves.toEqual(
         [],
       );
@@ -281,8 +283,8 @@ describe('GameService', () => {
     });
   });
 
-  describe('getUserBestScore', () => {
-    it('should return user best score', async () => {
+  describe('getUserBestScore', function testSuite() {
+    it('should return user best score', async function testCase() {
       mockQueryBuilder.getRawOne.mockResolvedValue({ maxScore: '100' });
 
       const result = await service.getUserBestScore('user1', GameType.SKY_DROP);
@@ -299,7 +301,7 @@ describe('GameService', () => {
       expect(result).toBe(100);
     });
 
-    it('should return 0 if no score found', async () => {
+    it('should return 0 if no score found', async function testCase() {
       mockQueryBuilder.getRawOne.mockResolvedValue({});
 
       const result = await service.getUserBestScore('user1', GameType.SKY_DROP);
@@ -307,7 +309,7 @@ describe('GameService', () => {
       expect(result).toBe(0);
     });
 
-    it('should apply date range filter', async () => {
+    it('should apply date range filter', async function testCase() {
       mockQueryBuilder.getRawOne.mockResolvedValue({ maxScore: '100' });
       const dateRange = {
         start: new Date('2024-01-01'),
@@ -322,7 +324,7 @@ describe('GameService', () => {
       );
     });
 
-    it('저장된 비정상 점수를 최고 점수 산정에서 제외해야 함', async () => {
+    it('저장된 비정상 점수를 최고 점수 산정에서 제외해야 함', async function testCase() {
       mockQueryBuilder.getRawOne.mockResolvedValue({ maxScore: '100' });
 
       await service.getUserBestScore('user1', GameType.SKY_DROP);
@@ -339,7 +341,7 @@ describe('GameService', () => {
       );
     });
 
-    it('Poke Lounge 최고 점수는 DB를 조회하지 않아야 함', async () => {
+    it('Poke Lounge 최고 점수는 DB를 조회하지 않아야 함', async function testCase() {
       await expect(
         service.getUserBestScore('user1', GameType.POKE_LOUNGE),
       ).resolves.toBe(0);
@@ -347,8 +349,8 @@ describe('GameService', () => {
     });
   });
 
-  describe('getUserRank', () => {
-    it('should return user rank', async () => {
+  describe('getUserRank', function testSuite() {
+    it('should return user rank', async function testCase() {
       repository.query.mockResolvedValue([{ count: '5' }]);
 
       const result = await service.getUserRank('user1', 100, GameType.SKY_DROP);
@@ -357,7 +359,7 @@ describe('GameService', () => {
       expect(result).toBe(6); // 5명보다 낮으면 6등
     });
 
-    it('should apply date range filter to rank calculation', async () => {
+    it('should apply date range filter to rank calculation', async function testCase() {
       repository.query.mockResolvedValue([{ count: '2' }]);
       const dateRange = {
         start: new Date('2024-01-01'),
@@ -389,7 +391,7 @@ describe('GameService', () => {
       expect(result).toBe(3); // 2명보다 낮으면 3등
     });
 
-    it('저장된 비정상 점수를 등수 산정에서 제외해야 함', async () => {
+    it('저장된 비정상 점수를 등수 산정에서 제외해야 함', async function testCase() {
       repository.query.mockResolvedValue([{ count: '5' }]);
 
       await service.getUserRank('user1', 100, GameType.SKY_DROP);
@@ -400,7 +402,7 @@ describe('GameService', () => {
       );
     });
 
-    it('Poke Lounge 등수는 DB를 조회하지 않아야 함', async () => {
+    it('Poke Lounge 등수는 DB를 조회하지 않아야 함', async function testCase() {
       await expect(
         service.getUserRank('user1', 300, GameType.POKE_LOUNGE),
       ).resolves.toBeNull();
@@ -408,8 +410,8 @@ describe('GameService', () => {
     });
   });
 
-  describe('savePokeLoungeState', () => {
-    it('Redis에 상태와 두 시간 TTL을 저장하고 최신 revision을 반환해야 함', async () => {
+  describe('savePokeLoungeState', function testSuite() {
+    it('Redis에 상태와 두 시간 TTL을 저장하고 최신 revision을 반환해야 함', async function testCase() {
       jest.spyOn(Date, 'now').mockReturnValue(1_000);
       const user = Object.assign(new User(), { id: 'poke-user' });
       const dto: SavePokeLoungeStateDto = {
@@ -444,7 +446,7 @@ describe('GameService', () => {
       });
     });
 
-    it('구버전 Web 저장은 expectedRevision을 Redis에 전달하지 않아야 함', async () => {
+    it('구버전 Web 저장은 expectedRevision을 Redis에 전달하지 않아야 함', async function testCase() {
       jest.spyOn(Date, 'now').mockReturnValue(1_000);
       const user = Object.assign(new User(), { id: 'legacy-user' });
       const stored = {
@@ -471,7 +473,7 @@ describe('GameService', () => {
       });
     });
 
-    it('Redis revision 충돌은 409로 반환해야 함', async () => {
+    it('Redis revision 충돌은 409로 반환해야 함', async function testCase() {
       pokeLoungeRedis.savePlayerState.mockResolvedValue(null);
 
       const error = await service
@@ -479,14 +481,16 @@ describe('GameService', () => {
           state: {},
           expectedRevision: 2,
         })
-        .catch((caught: unknown) => caught);
+        .catch(function handleRejected(caught: unknown) {
+          return caught;
+        });
 
       expect(error).toBeInstanceOf(ConflictException);
       expect((error as ConflictException).getStatus()).toBe(409);
       expect(pokeLoungeRedis.getPlayerState).not.toHaveBeenCalled();
     });
 
-    it('저장 직후 Redis에서 같은 revision을 읽지 못하면 실패해야 함', async () => {
+    it('저장 직후 Redis에서 같은 revision을 읽지 못하면 실패해야 함', async function testCase() {
       pokeLoungeRedis.savePlayerState.mockResolvedValue(2);
       pokeLoungeRedis.getPlayerState.mockResolvedValue({
         revision: 1,
@@ -505,8 +509,8 @@ describe('GameService', () => {
     });
   });
 
-  describe('findPokeLoungeState', () => {
-    it('Redis에서 최신 상태를 조회해야 함', async () => {
+  describe('findPokeLoungeState', function testSuite() {
+    it('Redis에서 최신 상태를 조회해야 함', async function testCase() {
       pokeLoungeRedis.getPlayerState.mockResolvedValueOnce({
         revision: 4,
         state: { map: 'new-bark-town' },
@@ -525,7 +529,7 @@ describe('GameService', () => {
       expect(pokeLoungeRedis.getPlayerState).toHaveBeenCalledWith('poke-user');
     });
 
-    it('Redis 상태가 없으면 NotFoundException을 던져야 함', async () => {
+    it('Redis 상태가 없으면 NotFoundException을 던져야 함', async function testCase() {
       pokeLoungeRedis.getPlayerState.mockResolvedValue(null);
 
       await expect(

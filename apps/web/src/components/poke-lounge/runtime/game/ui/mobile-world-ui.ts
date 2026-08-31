@@ -1,7 +1,7 @@
-import type { DiceGamblePrediction } from "../gamble/diceGamble";
-import { PLAYER_PARTY_SLOT_COUNT, type PlayerPokemonSlot } from "../player/playerTypes";
-import type { PlayerPokemon } from "../state/gameStateStore";
-import type { ShortcutGuideInputMode } from "./shortcutGuide";
+import type { DiceGamblePrediction } from "../gamble/dice-gamble";
+import { PLAYER_PARTY_SLOT_COUNT, type PlayerPokemonSlot } from "../player/player-types";
+import type { PlayerPokemon } from "../state/game-state-store";
+import type { ShortcutGuideInputMode } from "./shortcut-guide";
 
 export type MobileWorldUiScreen =
   | "explore"
@@ -122,8 +122,11 @@ export function createPokeLoungePartySlotSummaries({
   activePartySlotIndex: number;
   party: Array<PlayerPokemonSlot<PlayerPokemon>>;
 }): PokeLoungePartySlotSummary[] {
-  return Array.from({ length: PLAYER_PARTY_SLOT_COUNT }, (_, slotIndex) => {
-    const pokemon = party.find(slot => slot.slotIndex === slotIndex)?.pokemon ?? null;
+  return Array.from({ length: PLAYER_PARTY_SLOT_COUNT }, function callback(_, slotIndex) {
+    const pokemon =
+      party.find(function findItem(slot) {
+        return slot.slotIndex === slotIndex;
+      })?.pokemon ?? null;
 
     return {
       canSetAsLead:

@@ -27,6 +27,7 @@ const eslintConfig = [
       ".next-e2e*/**",
       "node_modules/**",
       "playwright-report/**",
+      "storybook-static/**",
       "test-results/**",
       "**/*.d.ts",
     ],

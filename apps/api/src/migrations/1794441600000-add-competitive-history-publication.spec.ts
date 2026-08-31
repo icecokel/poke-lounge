@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { AddCompetitiveHistoryPublication1794441600000 } from './1794441600000-add-competitive-history-publication';
 
-describe('AddCompetitiveHistoryPublication1794441600000', () => {
-  it('uses the unique later timestamp and adds a nullable JSONB audit mapping', async () => {
+describe('AddCompetitiveHistoryPublication1794441600000', function testSuite() {
+  it('uses the unique later timestamp and adds a nullable JSONB audit mapping', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
     const migration = new AddCompetitiveHistoryPublication1794441600000();
 
@@ -16,7 +16,7 @@ describe('AddCompetitiveHistoryPublication1794441600000', () => {
     );
   });
 
-  it('fails closed before dropping a populated history publication column', async () => {
+  it('fails closed before dropping a populated history publication column', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
 
     await new AddCompetitiveHistoryPublication1794441600000().down({

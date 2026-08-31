@@ -12,10 +12,12 @@ export type GameScorePolicy = {
 
 export type GameSubmissionTrust = 'client-asserted' | 'verified-room';
 
-export const isPublicRankingEligible = (
+export function isPublicRankingEligible(
   gameType: GameType,
   trust: GameSubmissionTrust,
-): boolean => gameType !== GameType.POKE_LOUNGE || trust === 'verified-room';
+): boolean {
+  return gameType !== GameType.POKE_LOUNGE || trust === 'verified-room';
+}
 
 const GAME_SCORE_POLICIES: Record<GameType, GameScorePolicy> = {
   [GameType.SKY_DROP]: {
@@ -34,29 +36,33 @@ const GAME_SCORE_POLICIES: Record<GameType, GameScorePolicy> = {
   },
 };
 
-export const getGameScorePolicy = (gameType: GameType): GameScorePolicy => {
+export function getGameScorePolicy(gameType: GameType): GameScorePolicy {
   const policy = GAME_SCORE_POLICIES[gameType];
   if (!policy) {
     throw new BadRequestException(`${gameType} score policy is not configured`);
   }
   return policy;
-};
+}
 
-export const getGameScorePolicyParams = (policy: GameScorePolicy) => ({
-  minScore: policy.minScore,
-  maxScore: policy.maxScore,
-  minPlayTimeSeconds: policy.minPlayTimeSeconds,
-  maxPlayTimeSeconds: policy.maxPlayTimeSeconds,
-  maxScorePerSecond: policy.maxScorePerSecond,
-});
+export function getGameScorePolicyParams(policy: GameScorePolicy) {
+  return {
+    minScore: policy.minScore,
+    maxScore: policy.maxScore,
+    minPlayTimeSeconds: policy.minPlayTimeSeconds,
+    maxPlayTimeSeconds: policy.maxPlayTimeSeconds,
+    maxScorePerSecond: policy.maxScorePerSecond,
+  };
+}
 
-export const getGameScorePolicyValues = (policy: GameScorePolicy): number[] => [
-  policy.minScore,
-  policy.maxScore,
-  policy.minPlayTimeSeconds,
-  policy.maxPlayTimeSeconds,
-  policy.maxScorePerSecond,
-];
+export function getGameScorePolicyValues(policy: GameScorePolicy): number[] {
+  return [
+    policy.minScore,
+    policy.maxScore,
+    policy.minPlayTimeSeconds,
+    policy.maxPlayTimeSeconds,
+    policy.maxScorePerSecond,
+  ];
+}
 
 const playTimeColumn = (alias?: string): string =>
   alias ? `${alias}."playTime"` : '"playTime"';
@@ -64,27 +70,25 @@ const playTimeColumn = (alias?: string): string =>
 const scoreColumn = (alias?: string): string =>
   alias ? `${alias}.score` : 'score';
 
-export const buildNamedValidScoreCondition = (alias: string): string => {
+export function buildNamedValidScoreCondition(alias: string): string {
   const score = scoreColumn(alias);
   const playTime = `${alias}.playTime`;
 
   return `${score} BETWEEN :minScore AND :maxScore AND (${playTime} IS NULL OR (${playTime} BETWEEN :minPlayTimeSeconds AND :maxPlayTimeSeconds AND ${score} <= ${playTime} * :maxScorePerSecond))`;
-};
+}
 
-export const buildPositionalValidScoreCondition = (
+export function buildPositionalValidScoreCondition(
   alias: string | undefined,
   firstParamIndex: number,
-): string => {
+): string {
   const score = scoreColumn(alias);
   const playTime = playTimeColumn(alias);
   const param = (offset: number) => `$${firstParamIndex + offset}`;
 
   return `${score} BETWEEN ${param(0)} AND ${param(1)} AND (${playTime} IS NULL OR (${playTime} BETWEEN ${param(2)} AND ${param(3)} AND ${score} <= ${playTime} * ${param(4)}))`;
-};
+}
 
-export const validateGameScoreSubmission = (
-  dto: CreateGameHistoryDto,
-): void => {
+export function validateGameScoreSubmission(dto: CreateGameHistoryDto): void {
   const policy = getGameScorePolicy(dto.gameType);
   const prefix = `${dto.gameType} score`;
 
@@ -120,4 +124,4 @@ export const validateGameScoreSubmission = (
   if (dto.score > dto.playTime * policy.maxScorePerSecond) {
     throw new BadRequestException(`${prefix} exceeds allowed score rate`);
   }
-};
+}

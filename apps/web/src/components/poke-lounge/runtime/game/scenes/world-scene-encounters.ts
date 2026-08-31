@@ -1,20 +1,20 @@
-import { playBattleTransitionSound } from "../battle/battleAudio";
-import { getBattleIntroDurationMs } from "../battle/battleIntro";
-import type { PlayerFacing } from "../network/localPreviewRoom";
-import type { PlayerPosition } from "../player/playerTypes";
+import { playBattleTransitionSound } from "../battle/battle-audio";
+import { getBattleIntroDurationMs } from "../battle/battle-intro";
+import type { PlayerFacing } from "../network/local-preview-room";
+import type { PlayerPosition } from "../player/player-types";
 import {
   calculateOccupiedPartyAverageLevel,
   type GameStateStore,
   type LocalPlayerState,
-} from "../state/gameStateStore";
-import { FIELD_MAP, resolveFieldEncounterAreaId } from "../world/fieldMap";
+} from "../state/game-state-store";
+import { FIELD_MAP, resolveFieldEncounterAreaId } from "../world/field-map";
 import {
   consumeCompletedTileSteps,
   createTileStepTracker,
   type CompletedTileStep,
   type TileCoordinate,
   type TileStepTracker,
-} from "../world/tileSteps";
+} from "../world/tile-steps";
 import { isTallGrassStep } from "../world/tall-grass";
 import {
   createWildEncounterLevelRange,
@@ -22,8 +22,11 @@ import {
   type WildBattleStartInput,
   type WildEncounterLevelRange,
   type WildEncounterSlot,
-} from "../world/wildEncounters";
-import { selectWildEncounterConfig, type WildEncounterConfig } from "../world/wildEncounterTables";
+} from "../world/wild-encounters";
+import {
+  selectWildEncounterConfig,
+  type WildEncounterConfig,
+} from "../world/wild-encounter-tables";
 
 export const WILD_ENCOUNTER_RATE_QUERY_PARAM = "wildEncounterRate";
 
@@ -164,13 +167,16 @@ class DefaultWorldSceneEncounters implements WorldSceneEncounterController {
 
     this.battleIntroPlaying = true;
     playBattleTransitionSound();
-    this.dependencies.delay(getBattleIntroDurationMs(), () => {
-      if (this.lifecycleGeneration !== lifecycleGeneration || !this.battleIntroPlaying) {
-        return;
-      }
+    this.dependencies.delay(
+      getBattleIntroDurationMs(),
+      function callback(this: DefaultWorldSceneEncounters): void {
+        if (this.lifecycleGeneration !== lifecycleGeneration || !this.battleIntroPlaying) {
+          return;
+        }
 
-      onComplete();
-    });
+        onComplete();
+      }.bind(this),
+    );
   }
 
   destroy(): void {
@@ -242,14 +248,16 @@ class DefaultWorldSceneEncounters implements WorldSceneEncounterController {
       },
     } as const;
 
-    this.playBattleIntroTransition(() => {
-      this.dependencies.startBattle(battleData);
-    });
+    this.playBattleIntroTransition(
+      function callback(this: DefaultWorldSceneEncounters): void {
+        this.dependencies.startBattle(battleData);
+      }.bind(this),
+    );
   }
 }
 
 function hasBattleCapablePartyPokemon(player: LocalPlayerState): boolean {
-  return player.party.some(slot => {
+  return player.party.some(function testItem(slot) {
     const pokemon = slot.pokemon;
 
     if (!pokemon || pokemon.status === "fainted") {

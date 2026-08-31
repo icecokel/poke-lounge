@@ -1,10 +1,10 @@
-import type { BattleParticipant, BattlePokemon } from "./battleTypes";
+import type { BattleParticipant, BattlePokemon } from "./battle-types";
 import type {
   AddPokemonToPartyResult,
   GameStateStore,
   LocalPlayerState,
   PlayerPokemon,
-} from "../state/gameStateStore";
+} from "../state/game-state-store";
 
 interface PersistBattlePartyToWorldInput {
   completedCompetitiveBattle: boolean;
@@ -36,15 +36,15 @@ export function persistBattlePartyToWorld({
     return;
   }
 
-  participant.party.forEach(slot => {
+  participant.party.forEach(function visitItem(slot) {
     if (slot.pokemon) {
       gameStateStore.updatePokemonInPartySlot(slot.slotIndex, toPlayerPokemon(slot.pokemon));
     }
   });
 
-  const activePartySlot = participant.party.find(
-    slot => slot.slotIndex === participant.activePartySlotIndex,
-  );
+  const activePartySlot = participant.party.find(function findItem(slot) {
+    return slot.slotIndex === participant.activePartySlotIndex;
+  });
   if (
     localPlayer.activePartySlotIndex !== participant.activePartySlotIndex &&
     activePartySlot?.pokemon?.status !== "fainted"
@@ -79,11 +79,13 @@ export function toPlayerPokemon(pokemon: BattlePokemon): PlayerPokemon {
     growthRate: pokemon.growthRate,
     status: pokemon.status,
     individualValues: { ...pokemon.individualValues },
-    moves: pokemon.moves.map(move => ({
-      id: move.id,
-      name: move.name,
-      pp: move.pp,
-      maxPp: move.maxPp,
-    })),
+    moves: pokemon.moves.map(function mapItem(move) {
+      return {
+        id: move.id,
+        name: move.name,
+        pp: move.pp,
+        maxPp: move.maxPp,
+      };
+    }),
   };
 }

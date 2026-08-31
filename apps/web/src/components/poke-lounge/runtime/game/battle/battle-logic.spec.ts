@@ -14,15 +14,15 @@ import {
   formatWildVictoryRewardMessage,
   isForcedPartySwitch,
   popBattleMessage,
-} from "./battleLogic";
-import { createSampleBattleState } from "./battleSampleState";
-import type { BattlePokemon, BattleScreenState } from "./battleTypes";
+} from "./battle-logic";
+import { createSampleBattleState } from "./battle-sample-state";
+import type { BattlePokemon, BattleScreenState } from "./battle-types";
 import { getExperienceForLevel } from "./experience";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 
-test.before(async () => {
-  await loadRuntimeGameDataJson(async input => {
+test.before(async function callback() {
+  await loadRuntimeGameDataJson(async function callback(input) {
     const requestPath =
       typeof input === "string"
         ? input
@@ -36,9 +36,11 @@ test.before(async () => {
   });
 });
 
-test.after(() => resetRuntimeGameDataJsonStateForTest());
+test.after(function callback() {
+  return resetRuntimeGameDataJsonStateForTest();
+});
 
-test("야생 전투 경험치와 돈 보상은 한 문구로 안내한다", () => {
+test("야생 전투 경험치와 돈 보상은 한 문구로 안내한다", function testCase() {
   assert.equal(
     formatWildVictoryRewardMessage("브케인", 500, 120),
     "브케인은 경험치 500과 ₽ 120을 얻었다!",
@@ -46,16 +48,16 @@ test("야생 전투 경험치와 돈 보상은 한 문구로 안내한다", () =
   assert.equal(formatWildVictoryRewardMessage("피카츄", 500, 0), "피카츄는 500 경험치를 얻었다!");
 });
 
-test("야생 전투 경험치와 레벨은 보상 문구가 표시될 때 적용한다", () => {
+test("야생 전투 경험치와 레벨은 보상 문구가 표시될 때 적용한다", function testCase() {
   const initialState = createSampleBattleState();
   const playerPokemon = {
     ...clonePokemon(initialState.player.pokemon),
     level: 10,
     experience: getExperienceForLevel(11, initialState.player.pokemon.growthRate) - 1,
     speed: 999,
-    moves: initialState.player.pokemon.moves.map((move, index) =>
-      index === 0 ? { ...move, accuracy: 100, power: 999 } : move,
-    ),
+    moves: initialState.player.pokemon.moves.map(function mapItem(move, index) {
+      return index === 0 ? { ...move, accuracy: 100, power: 999 } : move;
+    }),
   };
   const opponentPokemon = {
     ...clonePokemon(initialState.opponent.pokemon),
@@ -71,20 +73,20 @@ test("야생 전투 경험치와 레벨은 보상 문구가 표시될 때 적용
     player: {
       ...initialState.player,
       pokemon: playerPokemon,
-      party: initialState.player.party.map(slot =>
-        slot.slotIndex === initialState.player.activePartySlotIndex
+      party: initialState.player.party.map(function mapItem(slot) {
+        return slot.slotIndex === initialState.player.activePartySlotIndex
           ? { ...slot, pokemon: playerPokemon }
-          : slot,
-      ),
+          : slot;
+      }),
     },
     opponent: {
       ...initialState.opponent,
       pokemon: opponentPokemon,
-      party: initialState.opponent.party.map(slot =>
-        slot.slotIndex === initialState.opponent.activePartySlotIndex
+      party: initialState.opponent.party.map(function mapItem(slot) {
+        return slot.slotIndex === initialState.opponent.activePartySlotIndex
           ? { ...slot, pokemon: opponentPokemon }
-          : slot,
-      ),
+          : slot;
+      }),
     },
   };
 
@@ -105,7 +107,7 @@ test("야생 전투 경험치와 레벨은 보상 문구가 표시될 때 적용
   assert.equal(resolvedState.pendingExperienceReward, null);
 });
 
-test("포획 판정은 애니메이션용 볼 종류와 실제 흔들림 횟수를 보존한다", () => {
+test("포획 판정은 애니메이션용 볼 종류와 실제 흔들림 횟수를 보존한다", function testCase() {
   const initialState = createSampleBattleState();
   const bagState: BattleScreenState = {
     ...initialState,
@@ -136,7 +138,7 @@ test("포획 판정은 애니메이션용 볼 종류와 실제 흔들림 횟수�
   });
 });
 
-test("도망·포획·가방 뒤 상대 공격은 공격 메시지에만 타격 대상을 남긴다", () => {
+test("도망·포획·가방 뒤 상대 공격은 공격 메시지에만 타격 대상을 남긴다", function testCase() {
   const failedRunState = createOpponentAttackBattleState("command");
   const failedRun = chooseBattleCommand(failedRunState, "run", {
     randomByte: () => 255,
@@ -154,14 +156,14 @@ test("도망·포획·가방 뒤 상대 공격은 공격 메시지에만 타격 
   bagState.player.party[0] = { slotIndex: 0, pokemon: bagState.player.pokemon };
   const afterBagUse = chooseBattleBagItem(bagState, "potion", { itemCount: 1 });
 
-  [failedRun, failedCapture, afterBagUse].forEach(state => {
-    const attackMessageIndex = state.messageQueue.findIndex(
-      message => message === "브케인의 검증공격!",
-    );
+  [failedRun, failedCapture, afterBagUse].forEach(function visitItem(state) {
+    const attackMessageIndex = state.messageQueue.findIndex(function findItemIndex(message) {
+      return message === "브케인의 검증공격!";
+    });
 
     assert.ok(attackMessageIndex >= 0);
     assert.ok(
-      state.messageHpSnapshots?.slice(0, attackMessageIndex).every(snapshot => {
+      state.messageHpSnapshots?.slice(0, attackMessageIndex).every(function testItem(snapshot) {
         return snapshot.attackHitTarget === null;
       }),
     );
@@ -169,7 +171,7 @@ test("도망·포획·가방 뒤 상대 공격은 공격 메시지에만 타격 
   });
 });
 
-test("잔류 피해 메시지에는 타격 효과음 대상이 기록되지 않는다", () => {
+test("잔류 피해 메시지에는 타격 효과음 대상이 기록되지 않는다", function testCase() {
   const state = createOpponentAttackBattleState("command");
   state.opponent.pokemon = {
     ...state.opponent.pokemon,
@@ -186,10 +188,14 @@ test("잔류 피해 메시지에는 타격 효과음 대상이 기록되지 않�
   const failedRun = chooseBattleCommand(state, "run", { randomByte: () => 255 });
 
   assert.equal(failedRun.messageQueue.includes("치코리타는 독 데미지를 입었다!"), true);
-  assert.ok(failedRun.messageHpSnapshots?.every(snapshot => snapshot.attackHitTarget === null));
+  assert.ok(
+    failedRun.messageHpSnapshots?.every(function testItem(snapshot) {
+      return snapshot.attackHitTarget === null;
+    }),
+  );
 });
 
-test("기술 우선도가 같으면 스피드가 빠른 포켓몬이 먼저 행동한다", () => {
+test("기술 우선도가 같으면 스피드가 빠른 포켓몬이 먼저 행동한다", function testCase() {
   const fasterPlayerState = createSpeedOrderBattleState({
     playerSpeed: 100,
     opponentSpeed: 10,
@@ -245,7 +251,7 @@ test("기술 우선도가 같으면 스피드가 빠른 포켓몬이 먼저 행�
   );
 });
 
-test("ROM 기술 우선도는 스피드보다 먼저 적용한다", () => {
+test("ROM 기술 우선도는 스피드보다 먼저 적용한다", function testCase() {
   const state = createSpeedOrderBattleState({ playerSpeed: 10, opponentSpeed: 100 });
   const playerPokemon = {
     ...state.player.pokemon,
@@ -259,7 +265,7 @@ test("ROM 기술 우선도는 스피드보다 먼저 적용한다", () => {
   assert.equal(resolved.messageQueue[0], "치코리타의 몸통박치기!");
 });
 
-test("ROM 부가 효과 확률을 그대로 적용한다", () => {
+test("ROM 부가 효과 확률을 그대로 적용한다", function testCase() {
   const state = createSpeedOrderBattleState({ playerSpeed: 100, opponentSpeed: 10 });
   const playerPokemon = {
     ...state.player.pokemon,
@@ -279,7 +285,7 @@ test("ROM 부가 효과 확률을 그대로 적용한다", () => {
   assert.equal(resolved.opponent.pokemon.status, "paralyzed");
 });
 
-test("웅크리기는 상대를 공격하지 않고 사용자의 방어를 올린다", () => {
+test("웅크리기는 상대를 공격하지 않고 사용자의 방어를 올린다", function testCase() {
   const initialState = createSampleBattleState();
   const defenseCurl = {
     ...initialState.player.pokemon.moves[0],
@@ -316,10 +322,14 @@ test("웅크리기는 상대를 공격하지 않고 사용자의 방어를 올�
   assert.equal(resolved.opponent.pokemon.statStages.defense, 0);
   assert.equal(resolved.opponent.pokemon.currentHp, state.opponent.pokemon.currentHp);
   assert.equal(resolved.messageQueue.includes("치코리타의 방어가 올랐다!"), true);
-  assert.ok(resolved.messageHpSnapshots?.every(snapshot => snapshot.attackHitTarget === null));
+  assert.ok(
+    resolved.messageHpSnapshots?.every(function testItem(snapshot) {
+      return snapshot.attackHitTarget === null;
+    }),
+  );
 });
 
-test("미지원 상태 기술만 남으면 무효 공격 대신 발버둥을 사용한다", () => {
+test("미지원 상태 기술만 남으면 무효 공격 대신 발버둥을 사용한다", function testCase() {
   const initialState = createSampleBattleState();
   const unsupportedMove = {
     ...initialState.player.pokemon.moves[0],
@@ -357,7 +367,7 @@ test("미지원 상태 기술만 남으면 무효 공격 대신 발버둥을 사
   assert.ok(resolved.opponent.pokemon.currentHp < state.opponent.pokemon.currentHp);
 });
 
-test("선두가 쓰러지고 생존한 벤치가 있으면 패배 대신 강제 교체로 진행한다", () => {
+test("선두가 쓰러지고 생존한 벤치가 있으면 패배 대신 강제 교체로 진행한다", function testCase() {
   const state = choosePlayerMove(createTwoPokemonBattleState(), 0, {
     random: () => 0.5,
   });
@@ -370,14 +380,16 @@ test("선두가 쓰러지고 생존한 벤치가 있으면 패배 대신 강제 
   assert.equal(state.player.pokemon.currentHp, 0);
   assert.equal(state.player.party[0]?.pokemon?.status, "fainted");
   assert.equal(
-    state.messageQueue.some(message => message === "패배했다!"),
+    state.messageQueue.some(function testItem(message) {
+      return message === "패배했다!";
+    }),
     false,
   );
   assert.equal(state.messageQueue.includes(BATTLE_END_CONFIRM_MESSAGE), false);
   assert.equal(state.messageQueue.at(-1), "교체할 포켓몬을 선택해 주세요.");
 });
 
-test("강제 교체는 상대의 추가 공격이나 턴 증가 없이 명령 선택으로 돌아간다", () => {
+test("강제 교체는 상대의 추가 공격이나 턴 증가 없이 명령 선택으로 돌아간다", function testCase() {
   const faintState = drainBattleMessages(
     choosePlayerMove(createTwoPokemonBattleState(), 0, {
       random: () => 0.5,
@@ -399,7 +411,7 @@ test("강제 교체는 상대의 추가 공격이나 턴 증가 없이 명령 �
   assert.equal(popBattleMessage(switchedState).phase, "command");
 });
 
-test("교체할 수 있는 포켓몬이 없을 때만 전투 패배로 종료한다", () => {
+test("교체할 수 있는 포켓몬이 없을 때만 전투 패배로 종료한다", function testCase() {
   const state = createTwoPokemonBattleState();
   state.player.party[1] = { slotIndex: 1, pokemon: null };
 
@@ -414,7 +426,7 @@ test("교체할 수 있는 포켓몬이 없을 때만 전투 패배로 종료한
   assert.equal(defeatedState.messageQueue.includes(BATTLE_END_CONFIRM_MESSAGE), true);
 });
 
-test("전투 중 자발적 교체는 가능하고 상대 턴을 한 번 소모한다", () => {
+test("전투 중 자발적 교체는 가능하고 상대 턴을 한 번 소모한다", function testCase() {
   const initialState = createTwoPokemonBattleState({ reserveHp: 999 });
   initialState.phase = "command";
   initialState.player.pokemon = {
@@ -440,7 +452,7 @@ test("전투 중 자발적 교체는 가능하고 상대 턴을 한 번 소모�
   assert.equal(switchedState.result, null);
 });
 
-test("턴 종료 독 피해로 선두가 쓰러져도 생존한 벤치로 교체한다", () => {
+test("턴 종료 독 피해로 선두가 쓰러져도 생존한 벤치로 교체한다", function testCase() {
   const state = createTwoPokemonBattleState();
   state.player.pokemon = {
     ...state.player.pokemon,
@@ -466,11 +478,15 @@ test("턴 종료 독 피해로 선두가 쓰러져도 생존한 벤치로 교체
   assert.equal(faintState.result, null);
 });
 
-test("양쪽 기술 PP가 모두 0이면 발버둥으로 턴을 계속한다", () => {
+test("양쪽 기술 PP가 모두 0이면 발버둥으로 턴을 계속한다", function testCase() {
   const state = createSpeedOrderBattleState({ playerSpeed: 100, opponentSpeed: 1 });
-  state.player.pokemon.moves = state.player.pokemon.moves.map(move => ({ ...move, pp: 0 }));
+  state.player.pokemon.moves = state.player.pokemon.moves.map(function mapItem(move) {
+    return { ...move, pp: 0 };
+  });
   state.player.party[0] = { slotIndex: 0, pokemon: state.player.pokemon };
-  state.opponent.pokemon.moves = state.opponent.pokemon.moves.map(move => ({ ...move, pp: 0 }));
+  state.opponent.pokemon.moves = state.opponent.pokemon.moves.map(function mapItem(move) {
+    return { ...move, pp: 0 };
+  });
   state.opponent.party[0] = { slotIndex: 0, pokemon: state.opponent.pokemon };
   state.phase = "command";
 
@@ -487,13 +503,15 @@ test("양쪽 기술 PP가 모두 0이면 발버둥으로 턴을 계속한다", (
   assert.ok(resolvedState.opponent.pokemon.currentHp < state.opponent.pokemon.currentHp);
 });
 
-test("상대 발버둥은 도주·포획 실패와 가방 사용 뒤에도 반동과 승패를 적용한다", () => {
+test("상대 발버둥은 도주·포획 실패와 가방 사용 뒤에도 반동과 승패를 적용한다", function testCase() {
   const createState = (phase: "command" | "bag-select") => {
     const state = createOpponentAttackBattleState(phase);
     state.opponent.pokemon = {
       ...state.opponent.pokemon,
       currentHp: 1,
-      moves: state.opponent.pokemon.moves.map(move => ({ ...move, pp: 0 })),
+      moves: state.opponent.pokemon.moves.map(function mapItem(move) {
+        return { ...move, pp: 0 };
+      }),
     };
     state.opponent.party[0] = { slotIndex: 0, pokemon: state.opponent.pokemon };
     state.player.pokemon = {
@@ -516,13 +534,15 @@ test("상대 발버둥은 도주·포획 실패와 가방 사용 뒤에도 반�
     assert.equal(state.opponent.pokemon.status, "fainted");
     assert.equal(state.result?.winnerPlayerId, state.player.playerId);
     assert.equal(
-      state.messageQueue.some(message => message.includes("반동 데미지")),
+      state.messageQueue.some(function testItem(message) {
+        return message.includes("반동 데미지");
+      }),
       true,
     );
   }
 });
 
-test("턴 종료 양쪽이 동시에 쓰러지면 두 벤치 교체 상태를 모두 반영한다", () => {
+test("턴 종료 양쪽이 동시에 쓰러지면 두 벤치 교체 상태를 모두 반영한다", function testCase() {
   const state = createTwoPokemonBattleState();
   const opponentReserve = {
     ...clonePokemon(state.opponent.pokemon),
@@ -546,12 +566,14 @@ test("턴 종료 양쪽이 동시에 쓰러지면 두 벤치 교체 상태를 �
   };
   state.opponent.party[0] = { slotIndex: 0, pokemon: state.opponent.pokemon };
   state.opponent.party[1] = { slotIndex: 1, pokemon: opponentReserve };
-  state.player.pokemon.moves = state.player.pokemon.moves.map(move => ({
-    ...move,
-    category: "status" as const,
-    effectCode: 999,
-    power: 0,
-  }));
+  state.player.pokemon.moves = state.player.pokemon.moves.map(function mapItem(move) {
+    return {
+      ...move,
+      category: "status" as const,
+      effectCode: 999,
+      power: 0,
+    };
+  });
 
   const resolvedState = choosePlayerMove(state, 0, { random: () => 0.5 });
 
@@ -562,19 +584,23 @@ test("턴 종료 양쪽이 동시에 쓰러지면 두 벤치 교체 상태를 �
   assert.equal(resolvedState.opponent.pokemon.status, "normal");
 });
 
-test("플레이어 발버둥으로 양쪽 마지막 포켓몬이 쓰러지면 반동 사용자가 패배한다", () => {
+test("플레이어 발버둥으로 양쪽 마지막 포켓몬이 쓰러지면 반동 사용자가 패배한다", function testCase() {
   const state = createSpeedOrderBattleState({ playerSpeed: 100, opponentSpeed: 1 });
   state.phase = "command";
   state.player.pokemon = {
     ...state.player.pokemon,
     currentHp: 1,
-    moves: state.player.pokemon.moves.map(move => ({ ...move, pp: 0 })),
+    moves: state.player.pokemon.moves.map(function mapItem(move) {
+      return { ...move, pp: 0 };
+    }),
   };
   state.player.party[0] = { slotIndex: 0, pokemon: state.player.pokemon };
   state.opponent.pokemon = {
     ...state.opponent.pokemon,
     currentHp: 1,
-    moves: state.opponent.pokemon.moves.map(move => ({ ...move, pp: 0 })),
+    moves: state.opponent.pokemon.moves.map(function mapItem(move) {
+      return { ...move, pp: 0 };
+    }),
   };
   state.opponent.party[0] = { slotIndex: 0, pokemon: state.opponent.pokemon };
 
@@ -585,7 +611,7 @@ test("플레이어 발버둥으로 양쪽 마지막 포켓몬이 쓰러지면 �
   assert.equal(resolvedState.result?.winnerPlayerId, state.opponent.playerId);
 });
 
-test("상대 선두가 쓰러져도 생존한 벤치가 있으면 교체하고 전투를 계속한다", () => {
+test("상대 선두가 쓰러져도 생존한 벤치가 있으면 교체하고 전투를 계속한다", function testCase() {
   const state = createSpeedOrderBattleState({ playerSpeed: 100, opponentSpeed: 1 });
   const reservePokemon = {
     ...clonePokemon(state.opponent.pokemon),
@@ -613,7 +639,7 @@ test("상대 선두가 쓰러져도 생존한 벤치가 있으면 교체하고 �
   assert.equal(drainBattleMessages(switchedState).phase, "command");
 });
 
-test("독 기술은 기존 화상이나 마비 상태를 덮어쓰지 않는다", () => {
+test("독 기술은 기존 화상이나 마비 상태를 덮어쓰지 않는다", function testCase() {
   for (const status of ["burned", "paralyzed"] as const) {
     const state = createSpeedOrderBattleState({ playerSpeed: 100, opponentSpeed: 1 });
     state.player.pokemon.moves[0] = {
@@ -671,7 +697,7 @@ function createTwoPokemonBattleState({ reserveHp = 43 } = {}): BattleScreenState
       ...baseState.player,
       pokemon: playerPokemon,
       activePartySlotIndex: 0,
-      party: baseState.player.party.map(slot => {
+      party: baseState.player.party.map(function mapItem(slot) {
         if (slot.slotIndex === 0) {
           return { ...slot, pokemon: playerPokemon };
         }
@@ -686,9 +712,9 @@ function createTwoPokemonBattleState({ reserveHp = 43 } = {}): BattleScreenState
     opponent: {
       ...baseState.opponent,
       pokemon: opponentPokemon,
-      party: baseState.opponent.party.map(slot =>
-        slot.slotIndex === 0 ? { ...slot, pokemon: opponentPokemon } : slot,
-      ),
+      party: baseState.opponent.party.map(function mapItem(slot) {
+        return slot.slotIndex === 0 ? { ...slot, pokemon: opponentPokemon } : slot;
+      }),
     },
     selectedMoveId: null,
     result: null,
@@ -708,14 +734,16 @@ function createOpponentAttackBattleState(
     ...clonePokemon(state.opponent.pokemon),
     speed: 999,
     status: "normal" as const,
-    moves: state.opponent.pokemon.moves.slice(0, 1).map(move => ({
-      ...move,
-      accuracy: 100,
-      name: "검증공격",
-      power: 80,
-      pp: 10,
-      maxPp: 10,
-    })),
+    moves: state.opponent.pokemon.moves.slice(0, 1).map(function mapItem(move) {
+      return {
+        ...move,
+        accuracy: 100,
+        name: "검증공격",
+        power: 80,
+        pp: 10,
+        maxPp: 10,
+      };
+    }),
   };
 
   return {
@@ -726,20 +754,20 @@ function createOpponentAttackBattleState(
     player: {
       ...state.player,
       pokemon: playerPokemon,
-      party: state.player.party.map(slot =>
-        slot.slotIndex === state.player.activePartySlotIndex
+      party: state.player.party.map(function mapItem(slot) {
+        return slot.slotIndex === state.player.activePartySlotIndex
           ? { ...slot, pokemon: playerPokemon }
-          : slot,
-      ),
+          : slot;
+      }),
     },
     opponent: {
       ...state.opponent,
       pokemon: opponentPokemon,
-      party: state.opponent.party.map(slot =>
-        slot.slotIndex === state.opponent.activePartySlotIndex
+      party: state.opponent.party.map(function mapItem(slot) {
+        return slot.slotIndex === state.opponent.activePartySlotIndex
           ? { ...slot, pokemon: opponentPokemon }
-          : slot,
-      ),
+          : slot;
+      }),
     },
   };
 }
@@ -781,20 +809,20 @@ function createSpeedOrderBattleState({
     player: {
       ...baseState.player,
       pokemon: playerPokemon,
-      party: baseState.player.party.map(slot =>
-        slot.slotIndex === baseState.player.activePartySlotIndex
+      party: baseState.player.party.map(function mapItem(slot) {
+        return slot.slotIndex === baseState.player.activePartySlotIndex
           ? { ...slot, pokemon: playerPokemon }
-          : slot,
-      ),
+          : slot;
+      }),
     },
     opponent: {
       ...baseState.opponent,
       pokemon: opponentPokemon,
-      party: baseState.opponent.party.map(slot =>
-        slot.slotIndex === baseState.opponent.activePartySlotIndex
+      party: baseState.opponent.party.map(function mapItem(slot) {
+        return slot.slotIndex === baseState.opponent.activePartySlotIndex
           ? { ...slot, pokemon: opponentPokemon }
-          : slot,
-      ),
+          : slot;
+      }),
     },
     selectedMoveId: null,
     result: null,
@@ -809,7 +837,9 @@ function clonePokemon(pokemon: BattlePokemon): BattlePokemon {
     statStages: { ...pokemon.statStages },
     frontSprite: { ...pokemon.frontSprite },
     backSprite: { ...pokemon.backSprite },
-    moves: pokemon.moves.map(move => ({ ...move })),
+    moves: pokemon.moves.map(function mapItem(move) {
+      return { ...move };
+    }),
   };
 }
 

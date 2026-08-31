@@ -208,14 +208,16 @@ export class GameController {
   ): Promise<GameRankingHistoryDto[]> {
     const rankings = await this.gameService.getRanking(gameType);
 
-    return rankings.map((ranking) => ({
-      score: ranking.score,
-      rank: ranking.rank,
-      createdAt: ranking.createdAt,
-      user: {
-        displayName: ranking.user.displayName,
-      },
-    }));
+    return rankings.map(function mapItem(ranking) {
+      return {
+        score: ranking.score,
+        rank: ranking.rank,
+        createdAt: ranking.createdAt,
+        user: {
+          displayName: ranking.user.displayName,
+        },
+      };
+    });
   }
 
   /**

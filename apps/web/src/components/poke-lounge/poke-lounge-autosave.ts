@@ -2,7 +2,7 @@ import {
   savePokeLoungeState,
   type PokeLoungeStateSaveResult,
 } from "@/services/poke-lounge-state-service";
-import type { GameStateStore } from "./runtime/game/state/gameStateStore";
+import type { GameStateStore } from "./runtime/game/state/game-state-store";
 import {
   buildPokeLoungeSaveSnapshot,
   type PokeLoungeSaveSnapshot,
@@ -88,27 +88,37 @@ export function createPokeLoungeTokenLifecycle(): PokeLoungeTokenLifecycle {
 
     queuedDisposals.add(autosave);
     const disposal = disposalBarrier.then(dispose);
-    disposalBarrier = disposal.catch(() => undefined);
+    disposalBarrier = disposal.catch(function handleRejected() {
+      return undefined;
+    });
   };
 
   return {
     registerAutosave(autosave) {
       if (activeAutosave && activeAutosave !== autosave) {
         const previousAutosave = activeAutosave;
-        queueDisposal(previousAutosave, () => previousAutosave.disposeForRehydration());
+        queueDisposal(previousAutosave, function callback() {
+          return previousAutosave.disposeForRehydration();
+        });
       }
       activeAutosave = autosave;
     },
     disposeForRehydration(autosave) {
-      queueDisposal(autosave, () => autosave.disposeForRehydration());
+      queueDisposal(autosave, function callback() {
+        return autosave.disposeForRehydration();
+      });
     },
     disposeForUnmount(autosave) {
-      queueDisposal(autosave, () => autosave.disposeForUnmount());
+      queueDisposal(autosave, function callback() {
+        return autosave.disposeForUnmount();
+      });
     },
     runHydration(hydrate) {
       if (activeAutosave) {
         const autosave = activeAutosave;
-        queueDisposal(autosave, () => autosave.disposeForRehydration());
+        queueDisposal(autosave, function callback() {
+          return autosave.disposeForRehydration();
+        });
       }
       return disposalBarrier.then(hydrate);
     },
@@ -124,12 +134,16 @@ export function getPokeLoungeTokenLifecycle(): PokeLoungeTokenLifecycle {
 export function startPokeLoungeAutosave({
   gameStateStore,
   token,
-  getToken = () => token,
+  getToken = function callback() {
+    return token;
+  },
   initialRevision = 0,
   intervalMs = POKE_LOUNGE_AUTOSAVE_INTERVAL_MS,
   debounceMs = POKE_LOUNGE_AUTOSAVE_DEBOUNCE_MS,
   scheduler = createDefaultScheduler(),
-  getClientUpdatedAt = () => new Date().toISOString(),
+  getClientUpdatedAt = function callback() {
+    return new Date().toISOString();
+  },
   saveState = savePokeLoungeAutosavePayload,
   onStatusChange,
   onRevisionConflict,
@@ -181,7 +195,7 @@ export function startPokeLoungeAutosave({
 
   const savePayload = async (payload: PokeLoungeAutosavePayload) => {
     onStatusChange?.("saving");
-    inFlight = (async () => {
+    inFlight = (async function callback() {
       try {
         const result = await saveState(payload);
         if (!result.success) {
@@ -240,13 +254,13 @@ export function startPokeLoungeAutosave({
     }
 
     clearDebounce();
-    debounceHandle = scheduler.setTimeout(() => {
+    debounceHandle = scheduler.setTimeout(function handleTimeout() {
       debounceHandle = null;
       void flush();
     }, debounceMs);
   };
 
-  const unsubscribe = gameStateStore.subscribe(() => {
+  const unsubscribe = gameStateStore.subscribe(function callback() {
     if (revisionConflicted) {
       return;
     }
@@ -256,7 +270,7 @@ export function startPokeLoungeAutosave({
     scheduleDebouncedFlush();
   });
 
-  const intervalHandle = scheduler.setInterval(() => {
+  const intervalHandle = scheduler.setInterval(function handleInterval() {
     void flush();
   }, intervalMs);
 

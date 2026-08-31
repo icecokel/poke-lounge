@@ -21,22 +21,28 @@ export function createRoomLobbyViewState(
   projection: TournamentStateRoomPayload,
   mutation: RoomLobbyMutation = null,
 ): RoomLobbyViewState {
-  const participants = projection.participants.filter(
-    participant => participant.role === "participant",
-  );
-  const ownParticipant = participants.find(
-    participant => participant.playerId === projection.ownPlayerId,
-  );
+  const participants = projection.participants.filter(function filterItem(participant) {
+    return participant.role === "participant";
+  });
+  const ownParticipant = participants.find(function findItem(participant) {
+    return participant.playerId === projection.ownPlayerId;
+  });
   const startDisabledReason =
     mutation !== null
       ? "mutation"
       : participants.length < 2
         ? "players"
-        : participants.some(participant => !participant.connected)
+        : participants.some(function testItem(participant) {
+              return !participant.connected;
+            })
           ? "connection"
-          : participants.some(participant => !participant.partyReady)
+          : participants.some(function testItem(participant) {
+                return !participant.partyReady;
+              })
             ? "party"
-            : participants.some(participant => !participant.ready)
+            : participants.some(function testItem(participant) {
+                  return !participant.ready;
+                })
               ? "ready"
               : null;
 

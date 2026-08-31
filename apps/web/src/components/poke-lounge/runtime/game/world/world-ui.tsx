@@ -3,8 +3,8 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import { MobileWorldScreen } from "../../../mobile/mobile-game-shell";
-import { getBattlePokemonAssets } from "../battle/battlePokemonAssets";
-import type { GameStateStore, PlayerPokemon } from "../state/gameStateStore";
+import { getBattlePokemonAssets } from "../battle/battle-pokemon-assets";
+import type { GameStateStore, PlayerPokemon } from "../state/game-state-store";
 import {
   formatPokemonHp,
   formatPokeDollars,
@@ -84,23 +84,29 @@ export function WorldHud({
           activePartySlotIndex={player.activePartySlotIndex}
           party={player.party}
           selectedSlotIndex={ui.pokemonStatusSlotIndex}
-          onSelect={slotIndex => uiStore.dispatch({ type: "open-pokemon-status", slotIndex })}
+          onSelect={function handleSelect(slotIndex) {
+            return uiStore.dispatch({ type: "open-pokemon-status", slotIndex });
+          }}
         />
       ) : null}
       {desktop && ui.pokemonStatusSlotIndex !== null ? (
         <PokemonStatusPanel
           activePartySlotIndex={player.activePartySlotIndex}
           pokemon={
-            player.party.find(slot => slot.slotIndex === ui.pokemonStatusSlotIndex)?.pokemon ?? null
+            player.party.find(function findItem(slot) {
+              return slot.slotIndex === ui.pokemonStatusSlotIndex;
+            })?.pokemon ?? null
           }
           slotIndex={ui.pokemonStatusSlotIndex}
-          onClose={() => uiStore.dispatch({ type: "close-pokemon-status" })}
-          onSetLead={() =>
-            uiStore.dispatch({
+          onClose={function handleClose() {
+            return uiStore.dispatch({ type: "close-pokemon-status" });
+          }}
+          onSetLead={function handleSetLead() {
+            return uiStore.dispatch({
               type: "set-pokemon-status-lead",
               slotIndex: ui.pokemonStatusSlotIndex!,
-            })
-          }
+            });
+          }}
         />
       ) : null}
     </div>
@@ -130,16 +136,22 @@ export function RankScoreHud({
 }
 
 export function RoundHud({ gameStateStore }: { gameStateStore: GameStateStore }) {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(function callback() {
+    return Date.now();
+  });
   const state = useSyncExternalStore(
     gameStateStore.subscribe,
     gameStateStore.getState,
     gameStateStore.getState,
   );
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(timer);
+  useEffect(function runEffect() {
+    const timer = window.setInterval(function handleInterval() {
+      return setNow(Date.now());
+    }, 250);
+    return function callback() {
+      return window.clearInterval(timer);
+    };
   }, []);
 
   return (
@@ -162,8 +174,11 @@ export function PartyHud({
 }) {
   return (
     <div className={styles.worldPartyHud} data-poke-lounge-world-party-hud="true">
-      {Array.from({ length: 6 }, (_, slotIndex) => {
-        const pokemon = party.find(slot => slot.slotIndex === slotIndex)?.pokemon ?? null;
+      {Array.from({ length: 6 }, function callback(_, slotIndex) {
+        const pokemon =
+          party.find(function findItem(slot) {
+            return slot.slotIndex === slotIndex;
+          })?.pokemon ?? null;
         return (
           <PartyHudSlot
             key={slotIndex}
@@ -212,7 +227,9 @@ export function PartyHudSlot({
       sprite={pokemon ? <PokemonSprite pokemon={pokemon} size={42} /> : undefined}
       status={pokemon && pokemon.status !== "normal" ? formatStatus(pokemon.status) : undefined}
       disabled={!pokemon}
-      onClick={() => onSelect(slotIndex)}
+      onClick={function handleClick() {
+        return onSelect(slotIndex);
+      }}
       aria-label={
         pokemon ? `${pokemon.name} Lv.${pokemon.level} 상세` : `빈 파티 슬롯 ${slotIndex + 1}`
       }
@@ -259,14 +276,16 @@ export function PokemonStatusPanel({
       <p>상태 {formatStatus(pokemon.status)}</p>
       <h3>기술</h3>
       <ul>
-        {(pokemon.moves ?? []).slice(0, 4).map(move => (
-          <li key={move.id}>
-            <span>{move.name}</span>
-            <small>
-              {move.pp} / {move.maxPp}
-            </small>
-          </li>
-        ))}
+        {(pokemon.moves ?? []).slice(0, 4).map(function mapItem(move) {
+          return (
+            <li key={move.id}>
+              <span>{move.name}</span>
+              <small>
+                {move.pp} / {move.maxPp}
+              </small>
+            </li>
+          );
+        })}
       </ul>
       <button type="button" disabled={!canSetLead} onClick={onSetLead}>
         {isActive ? "현재 선두" : pokemon.status === "fainted" ? "선두 지정 불가" : "선두로 지정"}
@@ -346,7 +365,9 @@ export function WorldSurfaceRouter({
     <div className={styles.worldSurfaceScrim}>
       <MobileWorldScreen
         copy={copy}
-        onAction={action => uiStore.dispatch(action)}
+        onAction={function handleAction(action) {
+          return uiStore.dispatch(action);
+        }}
         state={ui.mobile}
         variant="desktop"
       />

@@ -1,24 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createLocalPreviewRoom, type RoomEvent } from "./localPreviewRoom";
-import { createWebRtcRoom } from "./webRtcRoom";
+import { createLocalPreviewRoom, type RoomEvent } from "./local-preview-room";
+import { createWebRtcRoom } from "./web-rtc-room";
 
 type ConnectionStatus = RoomEvent["CONNECTION_STATUS"]["connectionStatus"];
 
-test("로컬 방은 connect와 dispose transport 상태를 순서대로 알린다", () => {
+test("로컬 방은 connect와 dispose transport 상태를 순서대로 알린다", function testCase() {
   const room = createLocalPreviewRoom({
     roomId: "LOCAL1",
     sessionId: "local-1",
     channelFactory: () => createBroadcastChannelFixture(),
   });
   const statuses: ConnectionStatus[] = [];
-  room.on("CONNECTION_STATUS", ({ connectionStatus }) => statuses.push(connectionStatus));
+  room.on("CONNECTION_STATUS", function handleEvent({ connectionStatus }) {
+    return statuses.push(connectionStatus);
+  });
 
   room.connect();
   assert.deepEqual(statuses, ["connecting", "online"]);
 
   const replayed: ConnectionStatus[] = [];
-  room.on("CONNECTION_STATUS", ({ connectionStatus }) => replayed.push(connectionStatus));
+  room.on("CONNECTION_STATUS", function handleEvent({ connectionStatus }) {
+    return replayed.push(connectionStatus);
+  });
   assert.deepEqual(replayed, ["online"]);
 
   room.dispose();
@@ -26,7 +30,7 @@ test("로컬 방은 connect와 dispose transport 상태를 순서대로 알린�
   assert.deepEqual(replayed, ["online", "offline"]);
 });
 
-test("WebRTC 방은 data channel open과 close를 연결 상태로 알린다", async () => {
+test("WebRTC 방은 data channel open과 close를 연결 상태로 알린다", async function testCase() {
   const channel = createDataChannelFixture();
   const room = createWebRtcRoom({
     roomId: "WEBRTC1",
@@ -44,7 +48,9 @@ test("WebRTC 방은 data channel open과 close를 연결 상태로 알린다", a
     }),
   });
   const statuses: ConnectionStatus[] = [];
-  room.on("CONNECTION_STATUS", ({ connectionStatus }) => statuses.push(connectionStatus));
+  room.on("CONNECTION_STATUS", function handleEvent({ connectionStatus }) {
+    return statuses.push(connectionStatus);
+  });
 
   room.connect();
   assert.deepEqual(statuses, ["connecting"]);

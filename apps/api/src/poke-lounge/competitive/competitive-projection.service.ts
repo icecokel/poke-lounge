@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { PokeLoungeRoomSnapshot } from '../poke-lounge-room.repository';
 import { RedisPokeLoungeRepository } from '../redis-poke-lounge.repository';
-export {
-  toCompetitiveProjection,
-  toCompetitiveTerminalTransition,
-} from './competitive-projection';
 
 @Injectable()
 export class CompetitiveProjectionService {

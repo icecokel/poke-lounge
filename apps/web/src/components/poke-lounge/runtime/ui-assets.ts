@@ -54,7 +54,9 @@ export function findItemIconAssets(
   }
 
   return manifest.assets
-    .filter(asset => asset.role === "item-icon" && asset.path.startsWith("/assets/"))
+    .filter(function filterItem(asset) {
+      return asset.role === "item-icon" && asset.path.startsWith("/assets/");
+    })
     .slice(0, limit);
 }
 
@@ -68,17 +70,22 @@ export function normalizeUiAssetManifest(value: unknown, sourcePath?: string): U
   const manifestScreens = Array.isArray(value.screens) ? value.screens : [];
   const manifestPreviews = Array.isArray(value.previews) ? value.previews : [];
   const flatAssets = [...manifestAssets, ...manifestScreens, ...manifestPreviews]
-    .map((asset, index) => normalizeAsset(asset, `asset-${index}`))
+    .map(function mapItem(asset, index) {
+      return normalizeAsset(asset, `asset-${index}`);
+    })
     .filter(isPresent);
 
   const archives = Array.isArray(value.archives)
-    ? value.archives.map((archive, index) => normalizeArchive(archive, index)).filter(isPresent)
+    ? value.archives
+        .map(function mapItem(archive, index) {
+          return normalizeArchive(archive, index);
+        })
+        .filter(isPresent)
     : [];
 
-  const archiveAssets = archives.flatMap(archive => [
-    ...(archive.contactSheet ? [archive.contactSheet] : []),
-    ...archive.assets,
-  ]);
+  const archiveAssets = archives.flatMap(function mapItem(archive) {
+    return [...(archive.contactSheet ? [archive.contactSheet] : []), ...archive.assets];
+  });
 
   return {
     version,
@@ -135,9 +142,9 @@ function normalizeArchive(value: unknown, index: number): UiAssetArchive | null 
 
   const assets = Array.isArray(value.assets)
     ? value.assets
-        .map((asset, assetIndex) =>
-          normalizeAsset(asset, `${id}-asset-${assetIndex}`, id, sourceArchivePath),
-        )
+        .map(function mapItem(asset, assetIndex) {
+          return normalizeAsset(asset, `${id}-asset-${assetIndex}`, id, sourceArchivePath);
+        })
         .filter(isPresent)
     : [];
 
@@ -211,11 +218,15 @@ function isSuitableUiAsset(asset: UiAsset): boolean {
     asset.id,
     asset.path,
   ]
-    .filter((value): value is string => typeof value === "string")
+    .filter(function filterItem(value): value is string {
+      return typeof value === "string";
+    })
     .join(" ")
     .toLowerCase();
 
-  return SUITABLE_UI_ASSET_TERMS.some(term => descriptor.includes(term));
+  return SUITABLE_UI_ASSET_TERMS.some(function testItem(term) {
+    return descriptor.includes(term);
+  });
 }
 
 function inferAssetRole(
@@ -352,7 +363,9 @@ function readStringArray(value: unknown): string[] | undefined {
     return undefined;
   }
 
-  return value.filter((item): item is string => typeof item === "string");
+  return value.filter(function filterItem(item): item is string {
+    return typeof item === "string";
+  });
 }
 
 function toDomId(value: string): string {

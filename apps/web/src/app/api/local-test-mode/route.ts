@@ -45,7 +45,7 @@ const isSameOriginMutation = (request: NextRequest): boolean => {
   }
 };
 
-export const GET = async (request: NextRequest): Promise<Response> => {
+export async function GET(request: NextRequest): Promise<Response> {
   const available = isLocalTestAccountAvailable(request.nextUrl);
   const active =
     available &&
@@ -60,9 +60,9 @@ export const GET = async (request: NextRequest): Promise<Response> => {
       headers: noStoreHeaders,
     },
   );
-};
+}
 
-export const POST = async (request: NextRequest): Promise<Response> => {
+export async function POST(request: NextRequest): Promise<Response> {
   if (!isSameOriginMutation(request)) {
     return NextResponse.json(
       { active: false, error: "same-origin request required" },
@@ -92,9 +92,9 @@ export const POST = async (request: NextRequest): Promise<Response> => {
   });
 
   return response;
-};
+}
 
-export const DELETE = async (request: NextRequest): Promise<Response> => {
+export async function DELETE(request: NextRequest): Promise<Response> {
   if (!isSameOriginMutation(request)) {
     return NextResponse.json(
       { active: true, error: "same-origin request required" },
@@ -116,4 +116,4 @@ export const DELETE = async (request: NextRequest): Promise<Response> => {
   });
 
   return response;
-};
+}

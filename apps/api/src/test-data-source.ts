@@ -26,14 +26,16 @@ export function requireTestDatabaseUrl(
   const regularDatabaseUrls = [
     environment.DATABASE_URL,
     environment.DB_URL,
-  ].filter((value): value is string => Boolean(value?.trim()));
+  ].filter(function filterItem(value): value is string {
+    return Boolean(value?.trim());
+  });
 
   regularDatabaseUrls.forEach(assertRegularDatabaseUrlHasNoQuery);
 
   const testDatabaseTarget = databaseTarget(parsedTestUrl);
 
   if (
-    regularDatabaseUrls.some((value) => {
+    regularDatabaseUrls.some(function testItem(value) {
       return regularDatabaseTarget(value) === testDatabaseTarget;
     })
   ) {

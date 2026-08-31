@@ -1,11 +1,11 @@
-import { getBattlePokemonAssets } from "./battlePokemonAssets";
-import type { BattlePokemon, BattleSpriteRef } from "./battleTypes";
-import { calculateGen4BattleStats, type Gen4BaseStats } from "./gen4PokemonStats";
+import { getBattlePokemonAssets } from "./battle-pokemon-assets";
+import type { BattlePokemon, BattleSpriteRef } from "./battle-types";
+import { calculateGen4BattleStats, type Gen4BaseStats } from "./gen4-pokemon-stats";
 import { normalizeIndividualValues } from "./individual-values";
 import { EVOLUTION_STONE_CATALOG, type EvolutionStoneItemId } from "../items/evolution-stones";
 import { getRuntimeGameItem } from "../items/runtime-items";
-import type { PlayerPokemon } from "../state/gameStateStore";
-import { findRomPersonalRecord, type RomPersonalRecordCollection } from "./wildBattleFactory";
+import type { PlayerPokemon } from "../state/game-state-store";
+import { findRomPersonalRecord, type RomPersonalRecordCollection } from "./wild-battle-factory";
 import { createRomEvolutionMessages } from "./evolution-presentation";
 
 export const LEVEL_UP_EVOLUTION_METHOD = 4;
@@ -72,7 +72,7 @@ export function normalizePokemonEvolutionTable(data: unknown): PokemonEvolutionT
   }
 
   const speciesNames = Object.entries(data.species).reduce<Record<number, string>>(
-    (accumulator, [speciesIdKey, value]) => {
+    function reduceItems(accumulator, [speciesIdKey, value]) {
       const speciesId =
         readPositiveInteger(speciesIdKey) ?? readPositiveInteger(value, "speciesId");
       const speciesName = readNonEmptyString(value, "name");
@@ -86,25 +86,24 @@ export function normalizePokemonEvolutionTable(data: unknown): PokemonEvolutionT
     {},
   );
 
-  return Object.entries(data.species).reduce<PokemonEvolutionTable>(
-    (accumulator, [speciesIdKey, value]) => {
-      const speciesId =
-        readPositiveInteger(speciesIdKey) ?? readPositiveInteger(value, "speciesId");
+  return Object.entries(data.species).reduce<PokemonEvolutionTable>(function reduceItems(
+    accumulator,
+    [speciesIdKey, value],
+  ) {
+    const speciesId = readPositiveInteger(speciesIdKey) ?? readPositiveInteger(value, "speciesId");
 
-      if (!speciesId || !isRecord(value)) {
-        return accumulator;
-      }
-
-      const evolutions = normalizePokemonEvolutionRules(value.evolutions, speciesNames);
-
-      if (evolutions.length > 0) {
-        accumulator[speciesId] = evolutions;
-      }
-
+    if (!speciesId || !isRecord(value)) {
       return accumulator;
-    },
-    {},
-  );
+    }
+
+    const evolutions = normalizePokemonEvolutionRules(value.evolutions, speciesNames);
+
+    if (evolutions.length > 0) {
+      accumulator[speciesId] = evolutions;
+    }
+
+    return accumulator;
+  }, {});
 }
 
 export function applyLevelUpEvolution({
@@ -176,12 +175,15 @@ export function applyEvolutionStone<TPokemon extends PlayerPokemon>({
   }
   const evolutionTable = normalizePokemonEvolutionTable(pokemonData);
   const rule =
-    (evolutionTable[pokemon.speciesId] ?? []).find(
-      candidate =>
-        stone.evolutionMethods.some(method => method === candidate.method) &&
+    (evolutionTable[pokemon.speciesId] ?? []).find(function findItem(candidate) {
+      return (
+        stone.evolutionMethods.some(function testItem(method) {
+          return method === candidate.method;
+        }) &&
         candidate.parameter === stone.evolutionParameter &&
-        isEvolutionStoneRuleCompatibleWithGender(candidate, pokemon.gender),
-    ) ?? null;
+        isEvolutionStoneRuleCompatibleWithGender(candidate, pokemon.gender)
+      );
+    }) ?? null;
 
   if (!rule) {
     return { pokemon, messages: [], evolved: false };
@@ -253,7 +255,9 @@ export function applyPlayerLevelUpStats<TPokemon extends PlayerPokemon>({
     return pokemon;
   }
 
-  const individualValues = normalizeIndividualValues(pokemon.individualValues, () => 0);
+  const individualValues = normalizeIndividualValues(pokemon.individualValues, function callback() {
+    return 0;
+  });
   const previousStats = calculateGen4BattleStats(
     species.baseStats,
     Math.max(1, previousLevel),
@@ -293,7 +297,9 @@ function applyPlayerPokemonEvolution<TPokemon extends PlayerPokemon>({
   }
 
   const currentSpecies = readPokemonDataSpecies(pokemonData, pokemon.speciesId);
-  const individualValues = normalizeIndividualValues(pokemon.individualValues, () => 0);
+  const individualValues = normalizeIndividualValues(pokemon.individualValues, function callback() {
+    return 0;
+  });
   const evolvedStats = calculateGen4BattleStats(
     targetSpecies.baseStats,
     pokemon.level,
@@ -335,8 +341,12 @@ function normalizePokemonEvolutionRules(
   }
 
   return data
-    .map(value => normalizePokemonEvolutionRule(value, speciesNames))
-    .filter((rule): rule is PokemonEvolutionRule => rule !== null);
+    .map(function mapItem(value) {
+      return normalizePokemonEvolutionRule(value, speciesNames);
+    })
+    .filter(function filterItem(rule): rule is PokemonEvolutionRule {
+      return rule !== null;
+    });
 }
 
 function normalizePokemonEvolutionRule(
@@ -370,13 +380,16 @@ function findLevelUpEvolutionRule(
 ): PokemonEvolutionRule | null {
   return (
     rules
-      .filter(
-        rule =>
+      .filter(function filterItem(rule) {
+        return (
           rule.method === LEVEL_UP_EVOLUTION_METHOD &&
           previousLevel < currentLevel &&
-          currentLevel >= rule.parameter,
-      )
-      .sort((left, right) => left.parameter - right.parameter)[0] ?? null
+          currentLevel >= rule.parameter
+        );
+      })
+      .sort(function compareItems(left, right) {
+        return left.parameter - right.parameter;
+      })[0] ?? null
   );
 }
 
@@ -485,10 +498,9 @@ function normalizeNonNegativeHp(value: unknown): number | null {
 }
 
 function uniqueTypeIds(primary: number, secondary?: number | null): number[] {
-  return [primary, secondary].filter(
-    (typeId, index, typeIds): typeId is number =>
-      typeof typeId === "number" && typeIds.indexOf(typeId) === index,
-  );
+  return [primary, secondary].filter(function filterItem(typeId, index, typeIds): typeId is number {
+    return typeof typeId === "number" && typeIds.indexOf(typeId) === index;
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

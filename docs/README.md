@@ -2,6 +2,7 @@
 
 ## 현재 기준 문서
 
+- [코딩 컨벤션](./coding-conventions.md)
 - [게임 컨셉](./poke-lounge-game-concept.md)
 - [게임 규칙](./poke-lounge-rules/index.md)
 - [게임성 보존 Phaser → TSX/DOM 이식 기준](./poke-lounge-phaser-to-tsx-migration-plan.md)

@@ -2,8 +2,8 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
-  hashCanonicalState,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/competitive-ruleset-config';
+import { hashCanonicalState } from '@poke-lounge/battle/canonical-state';
 import {
   createTestCompetitiveParty,
   createTestInitialBattleState,
@@ -15,14 +15,14 @@ import type { PokeLoungeRoomEventPublisher } from '../poke-lounge-room-event.pub
 import { CompetitiveMatchService } from './competitive-match.service';
 import type { CompetitiveTurnQueue } from './competitive-turn-queue';
 
-describe('CompetitiveMatchService', () => {
+describe('CompetitiveMatchService', function testSuite() {
   let repository: jest.Mocked<CompetitiveMatchRepository>;
   let actionRepository: jest.Mocked<CompetitiveActionRepository>;
   let publisher: jest.Mocked<PokeLoungeRoomEventPublisher>;
   let turnQueue: jest.Mocked<CompetitiveTurnQueue>;
   let service: CompetitiveMatchService;
 
-  beforeEach(() => {
+  beforeEach(function setUpTest() {
     repository = {
       bindSeatAndAssign: jest.fn(),
     };
@@ -41,45 +41,47 @@ describe('CompetitiveMatchService', () => {
     );
   });
 
-  it('creates a full approved assignment and returns only its public projection', async () => {
-    repository.bindSeatAndAssign.mockImplementation((input) => {
-      const match = input.createAssignment({
-        roomId: 'room-id',
-        roomCode: 'ROOM01',
-        bracketMatchId: 'game-round-1-bracket-1-match-1',
-        kind: 'tournament-unranked',
-        assignmentRevision: 1,
-        players: [
+  it('creates a full approved assignment and returns only its public projection', async function testCase() {
+    repository.bindSeatAndAssign.mockImplementation(
+      function mockImplementation(input) {
+        const match = input.createAssignment({
+          roomId: 'room-id',
+          roomCode: 'ROOM01',
+          bracketMatchId: 'game-round-1-bracket-1-match-1',
+          kind: 'tournament-unranked',
+          assignmentRevision: 1,
+          players: [
+            { playerId: 'player-a', accountId: 'account-a' },
+            { playerId: 'player-b', accountId: 'account-b' },
+          ],
+          parties: {
+            'player-a': createTestCompetitiveParty(),
+            'player-b': createTestCompetitiveParty(),
+          },
+        });
+
+        expect(match.initialState).toEqual(
+          createTestInitialBattleState(['player-a', 'player-b']),
+        );
+        expect(match.initialStateHash).toBe(
+          hashCanonicalState(match.initialState),
+        );
+        expect(match.currentState).toEqual(match.initialState);
+        expect(match.rulesetVersion).toBe(COMPETITIVE_RULESET_VERSION);
+        expect(match.rulesetHash).toBe(COMPETITIVE_RULESET_HASH);
+        expect(match.serverSeed).toMatch(/^[0-9a-f]{64}$/);
+        expect(match.playerAccounts).toEqual([
           { playerId: 'player-a', accountId: 'account-a' },
           { playerId: 'player-b', accountId: 'account-b' },
-        ],
-        parties: {
-          'player-a': createTestCompetitiveParty(),
-          'player-b': createTestCompetitiveParty(),
-        },
-      });
+        ]);
 
-      expect(match.initialState).toEqual(
-        createTestInitialBattleState(['player-a', 'player-b']),
-      );
-      expect(match.initialStateHash).toBe(
-        hashCanonicalState(match.initialState),
-      );
-      expect(match.currentState).toEqual(match.initialState);
-      expect(match.rulesetVersion).toBe(COMPETITIVE_RULESET_VERSION);
-      expect(match.rulesetHash).toBe(COMPETITIVE_RULESET_HASH);
-      expect(match.serverSeed).toMatch(/^[0-9a-f]{64}$/);
-      expect(match.playerAccounts).toEqual([
-        { playerId: 'player-a', accountId: 'account-a' },
-        { playerId: 'player-b', accountId: 'account-b' },
-      ]);
-
-      return Promise.resolve({
-        outcome: 'assigned',
-        assignment: match,
-        eligible: true,
-      });
-    });
+        return Promise.resolve({
+          outcome: 'assigned',
+          assignment: match,
+          eligible: true,
+        });
+      },
+    );
 
     const result = await service.bindSeat('room01', ' session-a ', 'account-a');
 
@@ -108,7 +110,7 @@ describe('CompetitiveMatchService', () => {
     });
   });
 
-  it('publishes the durable assignment projection after the second seat commits', async () => {
+  it('publishes the durable assignment projection after the second seat commits', async function testCase() {
     const state = createTestInitialBattleState(['player-a', 'player-b']);
     repository.bindSeatAndAssign.mockResolvedValue({
       outcome: 'assigned',
@@ -169,15 +171,18 @@ describe('CompetitiveMatchService', () => {
     ['inactive-seat', BadRequestException],
     ['seat-account-conflict', ConflictException],
     ['duplicate-account', ConflictException],
-  ] as const)('rejects repository outcome %s', async (outcome, errorType) => {
-    repository.bindSeatAndAssign.mockResolvedValue({ outcome });
+  ] as const)(
+    'rejects repository outcome %s',
+    async function callback(outcome, errorType) {
+      repository.bindSeatAndAssign.mockResolvedValue({ outcome });
 
-    await expect(
-      service.bindSeat('ROOM01', 'session-a', 'account-a'),
-    ).rejects.toBeInstanceOf(errorType);
-  });
+      await expect(
+        service.bindSeat('ROOM01', 'session-a', 'account-a'),
+      ).rejects.toBeInstanceOf(errorType);
+    },
+  );
 
-  it('returns null while anonymous or extra active participants keep the room casual', async () => {
+  it('returns null while anonymous or extra active participants keep the room casual', async function testCase() {
     repository.bindSeatAndAssign.mockResolvedValue({
       outcome: 'bound-casual',
       assignment: null,
@@ -189,7 +194,7 @@ describe('CompetitiveMatchService', () => {
     ).resolves.toBeNull();
   });
 
-  it('returns an eligible false conflict without exposing an existing assignment to a third participant', async () => {
+  it('returns an eligible false conflict without exposing an existing assignment to a third participant', async function testCase() {
     repository.bindSeatAndAssign.mockResolvedValue({
       outcome: 'bound-ineligible',
       assignment: null,
@@ -210,10 +215,10 @@ describe('CompetitiveMatchService', () => {
     }
   });
 
-  it('publishes a sanitized competitive projection only after a committed action', async () => {
+  it('publishes a sanitized competitive projection only after a committed action', async function testCase() {
     const response = actionProjection();
     const order: string[] = [];
-    actionRepository.submit.mockImplementation(() => {
+    actionRepository.submit.mockImplementation(function mockImplementation() {
       order.push('transaction-committed');
       return Promise.resolve({
         outcome: 'accepted',
@@ -222,7 +227,7 @@ describe('CompetitiveMatchService', () => {
         committed: true,
       });
     });
-    publisher.publish.mockImplementation(() => {
+    publisher.publish.mockImplementation(function mockImplementation() {
       order.push('event-published');
       return Promise.resolve();
     });
@@ -259,7 +264,7 @@ describe('CompetitiveMatchService', () => {
     expect(order).toEqual(['transaction-committed', 'event-published']);
   });
 
-  it('maps a private room session to its server assignment actor', async () => {
+  it('maps a private room session to its server assignment actor', async function testCase() {
     const response = actionProjection();
     actionRepository.submit.mockResolvedValue({
       outcome: 'accepted',
@@ -284,7 +289,7 @@ describe('CompetitiveMatchService', () => {
     });
   });
 
-  it('queues the canonical committed turn deadline without changing it on replay', async () => {
+  it('queues the canonical committed turn deadline without changing it on replay', async function testCase() {
     const next = {
       ...actionProjection(),
       currentTurn: 1,
@@ -317,7 +322,7 @@ describe('CompetitiveMatchService', () => {
     ]);
   });
 
-  it('publishes one composite snapshot with the completed old match before the next tournament assignment', async () => {
+  it('publishes one composite snapshot with the completed old match before the next tournament assignment', async function testCase() {
     const terminalEventId = '00000000-0000-4000-8000-000000000050';
     const terminalRoomRevision = 50;
     const completed = {
@@ -401,7 +406,7 @@ describe('CompetitiveMatchService', () => {
     ]);
   });
 
-  it('does not publish replayed receipts or failed transactions', async () => {
+  it('does not publish replayed receipts or failed transactions', async function testCase() {
     actionRepository.submit.mockResolvedValueOnce({
       outcome: 'replayed',
       response: actionProjection(),
@@ -427,14 +432,17 @@ describe('CompetitiveMatchService', () => {
     'actor-turn-conflict',
     'terminal',
     'illegal-action',
-  ] as const)('rejects competitive action outcome %s', async (outcome) => {
-    actionRepository.submit.mockResolvedValue({ outcome });
+  ] as const)(
+    'rejects competitive action outcome %s',
+    async function callback(outcome) {
+      actionRepository.submit.mockResolvedValue({ outcome });
 
-    await expect(service.submitAction(actionInput())).rejects.toBeInstanceOf(
-      outcome === 'illegal-action' ? BadRequestException : ConflictException,
-    );
-    expect(publisher.publish.mock.calls).toHaveLength(0);
-  });
+      await expect(service.submitAction(actionInput())).rejects.toBeInstanceOf(
+        outcome === 'illegal-action' ? BadRequestException : ConflictException,
+      );
+      expect(publisher.publish.mock.calls).toHaveLength(0);
+    },
+  );
 });
 
 function actionInput() {

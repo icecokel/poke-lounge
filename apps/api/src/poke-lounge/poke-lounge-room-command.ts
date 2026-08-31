@@ -47,15 +47,23 @@ export function canonicalizePokeLoungeCommand(value: unknown): string {
 
 function sortCanonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) {
-    return value.map((item) => sortCanonicalValue(item));
+    return value.map(function mapItem(item) {
+      return sortCanonicalValue(item);
+    });
   }
 
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value)
-        .filter(([, item]) => item !== undefined)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, item]) => [key, sortCanonicalValue(item)]),
+        .filter(function filterItem([, item]) {
+          return item !== undefined;
+        })
+        .sort(function compareItems([left], [right]) {
+          return left.localeCompare(right);
+        })
+        .map(function mapItem([key, item]) {
+          return [key, sortCanonicalValue(item)];
+        }),
     );
   }
 

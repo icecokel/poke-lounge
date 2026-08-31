@@ -44,7 +44,9 @@ export function createWorldUiStore(): WorldUiStore {
   const listeners = new Set<() => void>();
   const publish = (next: WorldUiSnapshot) => {
     snapshot = next;
-    listeners.forEach(listener => listener());
+    listeners.forEach(function visitItem(listener) {
+      return listener();
+    });
   };
 
   return {
@@ -69,7 +71,9 @@ export function createWorldUiStore(): WorldUiStore {
     },
     subscribe(listener) {
       listeners.add(listener);
-      return () => listeners.delete(listener);
+      return function callback() {
+        return listeners.delete(listener);
+      };
     },
   };
 }

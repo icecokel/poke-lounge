@@ -15,9 +15,9 @@ type BattleSnapshot = {
   result: unknown;
 };
 
-test("싱글 플레이어는 탐색·시설·야생전 뒤 같은 위치로 복귀하고 진행을 복원한다", async ({
+test("싱글 플레이어는 탐색·시설·야생전 뒤 같은 위치로 복귀하고 진행을 복원한다", async function testCase({
   page,
-}) => {
+}) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
   await enterSoloWorld(page);
@@ -31,7 +31,11 @@ test("싱글 플레이어는 탐색·시설·야생전 뒤 같은 위치로 복�
   const beforeMovement = await readWorldSnapshot(page);
   await holdKey(page, "ArrowRight", 300);
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.player?.x ?? 0))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.player?.x ?? 0;
+      });
+    })
     .toBeGreaterThan(beforeMovement?.player?.x ?? Number.POSITIVE_INFINITY);
 
   await pressKey(page, "i");
@@ -44,25 +48,51 @@ test("싱글 플레이어는 탐색·시설·야생전 뒤 같은 위치로 복�
   await setWorldPlayerPosition(page, { x: 640, y: 300, facing: "back" });
   await pressKey(page, "Enter");
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.nurseHealing.effectCount ?? 0))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.nurseHealing.effectCount ?? 0;
+      });
+    })
     .toBe(nurseEffectCount + 1);
   await expect(page.locator("[data-poke-lounge-nurse-effect='true']")).toBeVisible();
 
   const returnPosition = { x: 656, y: 446, facing: "front" as const };
   await startWildBattle(page, returnPosition);
-  await expect.poll(() => readActiveScene(page), { timeout: 30_000 }).toBe("battle");
+  await expect
+    .poll(
+      function pollExpectation() {
+        return readActiveScene(page);
+      },
+      { timeout: 30_000 },
+    )
+    .toBe("battle");
   await expect(page.locator("[data-poke-lounge-battle-screen='true']")).toBeVisible();
   await expect(page.locator("[data-poke-lounge-battle-pokemon]")).toHaveCount(2);
   await expect(page.locator("[data-poke-lounge-battle-hp-panel]")).toHaveCount(2);
   await expect
-    .poll(() => readBattleSnapshot(page).then(snapshot => snapshot?.battleEntrancePlaying ?? true))
+    .poll(function pollExpectation() {
+      return readBattleSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.battleEntrancePlaying ?? true;
+      });
+    })
     .toBe(false);
 
   await finishWildBattleThroughUi(page);
-  await expect.poll(() => readActiveScene(page), { timeout: 30_000 }).toBe("world");
+  await expect
+    .poll(
+      function pollExpectation() {
+        return readActiveScene(page);
+      },
+      { timeout: 30_000 },
+    )
+    .toBe("world");
   await expect(page.locator("[data-poke-lounge-world-screen='true']")).toBeVisible();
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.player))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.player;
+      });
+    })
     .toMatchObject(returnPosition);
 
   await page.reload();
@@ -71,7 +101,11 @@ test("싱글 플레이어는 탐색·시설·야생전 뒤 같은 위치로 복�
   await expect(page.locator("[data-screen='starter-selection']")).toHaveCount(0);
   await expect(gameSurface).toBeVisible({ timeout: 30_000 });
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.player))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.player;
+      });
+    })
     .toMatchObject(returnPosition);
 });
 
@@ -80,16 +114,25 @@ async function enterSoloWorld(page: Page): Promise<void> {
   await page.locator("[data-room-entry-solo]").click();
   const starter = page.locator("[data-screen='starter-selection']");
   await expect
-    .poll(
-      async () =>
-        (await starter.isVisible().catch(() => false)) ||
+    .poll(async function pollExpectation() {
+      return (
+        (await starter.isVisible().catch(function handleRejected() {
+          return false;
+        })) ||
         (await page
           .locator('#game-root[data-poke-lounge-game-surface="ready"]')
           .isVisible()
-          .catch(() => false)),
-    )
+          .catch(function handleRejected() {
+            return false;
+          }))
+      );
+    })
     .toBe(true);
-  if (await starter.isVisible().catch(() => false)) {
+  if (
+    await starter.isVisible().catch(function handleRejected() {
+      return false;
+    })
+  ) {
     await page.locator("[data-starter-confirm]").click();
   }
   await expect(page.locator('#game-root[data-poke-lounge-game-surface="ready"]')).toBeVisible({
@@ -105,7 +148,11 @@ async function closeWorldHelp(page: Page): Promise<void> {
       .click();
   }
   await expect
-    .poll(() => readWorldSnapshot(page).then(snapshot => snapshot?.shortcutGuideOpen ?? true))
+    .poll(function pollExpectation() {
+      return readWorldSnapshot(page).then(function handleResolved(snapshot) {
+        return snapshot?.shortcutGuideOpen ?? true;
+      });
+    })
     .toBe(false);
 }
 
@@ -113,7 +160,7 @@ async function startWildBattle(
   page: Page,
   position: { x: number; y: number; facing: "front" },
 ): Promise<void> {
-  await page.evaluate(value => {
+  await page.evaluate(function evaluatePage(value) {
     (
       window as Window & {
         __POKE_LOUNGE_E2E__?: {
@@ -179,7 +226,7 @@ async function finishWildBattleThroughUi(page: Page): Promise<void> {
     }
 
     await expect
-      .poll(async () => {
+      .poll(async function pollExpectation() {
         const next = await readBattleSnapshot(page);
         return `${next?.phase}:${next?.message ?? ""}:${Boolean(next?.result)}`;
       })
@@ -190,43 +237,46 @@ async function finishWildBattleThroughUi(page: Page): Promise<void> {
 }
 
 async function readWorldSnapshot(page: Page): Promise<WorldSnapshot | null> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & {
           __POKE_LOUNGE_E2E__?: { getWorldSnapshot(): WorldSnapshot | null };
         }
-      ).__POKE_LOUNGE_E2E__?.getWorldSnapshot() ?? null,
-  );
+      ).__POKE_LOUNGE_E2E__?.getWorldSnapshot() ?? null
+    );
+  });
 }
 
 async function readBattleSnapshot(page: Page): Promise<BattleSnapshot | null> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & {
           __POKE_LOUNGE_E2E__?: { getBattleSnapshot(): BattleSnapshot | null };
         }
-      ).__POKE_LOUNGE_E2E__?.getBattleSnapshot() ?? null,
-  );
+      ).__POKE_LOUNGE_E2E__?.getBattleSnapshot() ?? null
+    );
+  });
 }
 
 async function readActiveScene(page: Page): Promise<string | null> {
-  return page.evaluate(
-    () =>
+  return page.evaluate(function evaluatePage() {
+    return (
       (
         window as Window & {
           __POKE_LOUNGE_E2E__?: { getActiveSceneKey(): string | null };
         }
-      ).__POKE_LOUNGE_E2E__?.getActiveSceneKey() ?? null,
-  );
+      ).__POKE_LOUNGE_E2E__?.getActiveSceneKey() ?? null
+    );
+  });
 }
 
 async function setWorldPlayerPosition(
   page: Page,
   position: { x: number; y: number; facing: "back" },
 ): Promise<void> {
-  await page.evaluate(value => {
+  await page.evaluate(function evaluatePage(value) {
     (
       window as Window & {
         __POKE_LOUNGE_E2E__?: { setWorldPlayerPositionForTest(position: typeof value): unknown };

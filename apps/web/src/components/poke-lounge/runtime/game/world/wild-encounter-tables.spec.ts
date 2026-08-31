@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { selectWildEncounterConfig } from "./wildEncounterTables";
+import { selectWildEncounterConfig } from "./wild-encounter-tables";
 
 interface PokemonDataFixture {
   version: 1;
@@ -19,7 +19,7 @@ interface PokemonDataFixture {
 
 const PUBLIC_GAME_DATA_URL = new URL("../../../../../../public/game-data/", import.meta.url);
 
-test("v2 종 범위는 포켓몬 원본의 이름과 포획률 등급으로 조우 슬롯을 확장한다", () => {
+test("v2 종 범위는 포켓몬 원본의 이름과 포획률 등급으로 조우 슬롯을 확장한다", function testCase() {
   const pokemonData: PokemonDataFixture = {
     version: 1,
     species: {
@@ -56,13 +56,15 @@ test("v2 종 범위는 포켓몬 원본의 이름과 포획률 등급으로 조�
   assert.ok(config);
   assert.equal(config.encounterRate, 0.15);
   assert.deepEqual(
-    config.slots.map(slot => ({
-      speciesId: slot.speciesId,
-      name: slot.name,
-      minLevel: slot.minLevel,
-      maxLevel: slot.maxLevel,
-      weight: slot.weight,
-    })),
+    config.slots.map(function mapItem(slot) {
+      return {
+        speciesId: slot.speciesId,
+        name: slot.name,
+        minLevel: slot.minLevel,
+        maxLevel: slot.maxLevel,
+        weight: slot.weight,
+      };
+    }),
     [
       { speciesId: 1, name: "첫째", minLevel: 1, maxLevel: 100, weight: 8 },
       { speciesId: 2, name: "둘째", minLevel: 1, maxLevel: 100, weight: 6 },
@@ -76,7 +78,7 @@ test("v2 종 범위는 포켓몬 원본의 이름과 포획률 등급으로 조�
   );
 });
 
-test("공개 v2 테이블은 세 지역의 기본 10종을 중심으로 493종 희귀 조우를 유지한다", () => {
+test("공개 v2 테이블은 세 지역의 기본 10종을 중심으로 493종 희귀 조우를 유지한다", function testCase() {
   const tableData = readPublicGameData("wild-encounter-tables.json") as {
     tables: Array<{
       areaIds?: string[];
@@ -93,44 +95,66 @@ test("공개 v2 테이블은 세 지역의 기본 10종을 중심으로 493종 �
   ];
 
   assert.ok(defaultConfig);
-  areaConfigs.forEach(config => assert.ok(config));
+  areaConfigs.forEach(function visitItem(config) {
+    return assert.ok(config);
+  });
   assert.deepEqual(
-    defaultConfig.slots.map(slot => slot.speciesId),
+    defaultConfig.slots.map(function mapItem(slot) {
+      return slot.speciesId;
+    }),
     createIntegerRange(1, 493),
   );
   assert.deepEqual(
-    areaConfigs.map(config => config?.slots.length),
+    areaConfigs.map(function mapItem(config) {
+      return config?.slots.length;
+    }),
     [151, 100, 242],
   );
   assert.deepEqual(
-    areaConfigs.map(config => config?.slots.map(slot => slot.speciesId)),
+    areaConfigs.map(function mapItem(config) {
+      return config?.slots.map(function mapItem(slot) {
+        return slot.speciesId;
+      });
+    }),
     [createIntegerRange(1, 151), createIntegerRange(152, 251), createIntegerRange(252, 493)],
   );
   assert.deepEqual(
-    [...new Set(areaConfigs.flatMap(config => config?.slots.map(slot => slot.speciesId) ?? []))],
+    [
+      ...new Set(
+        areaConfigs.flatMap(function mapItem(config) {
+          return (
+            config?.slots.map(function mapItem(slot) {
+              return slot.speciesId;
+            }) ?? []
+          );
+        }),
+      ),
+    ],
     createIntegerRange(1, 493),
   );
 
   for (const [index, config] of areaConfigs.entries()) {
     assert.ok(config);
-    const areaTable = tableData.tables.find(candidate =>
-      candidate.areaIds?.includes(
+    const areaTable = tableData.tables.find(function findItem(candidate) {
+      return candidate.areaIds?.includes(
         ["town-west-field", "town-plaza-field", "town-south-field"][index],
-      ),
-    );
+      );
+    });
     const commonNationalDexIds = new Set(areaTable?.commonNationalDexIds);
-    const commonWeight = config.slots.reduce(
-      (total, slot) => total + (commonNationalDexIds.has(slot.speciesId) ? slot.weight : 0),
-      0,
-    );
-    const rareWeight = config.slots.reduce(
-      (total, slot) => total + (commonNationalDexIds.has(slot.speciesId) ? 0 : slot.weight),
-      0,
-    );
+    const commonWeight = config.slots.reduce(function reduceItems(total, slot) {
+      return total + (commonNationalDexIds.has(slot.speciesId) ? slot.weight : 0);
+    }, 0);
+    const rareWeight = config.slots.reduce(function reduceItems(total, slot) {
+      return total + (commonNationalDexIds.has(slot.speciesId) ? 0 : slot.weight);
+    }, 0);
 
     assert.ok(areaTable);
     assert.equal(commonNationalDexIds.size, 10);
-    assert.ok(config.slots.every(slot => slot.weight > 0));
+    assert.ok(
+      config.slots.every(function testItem(slot) {
+        return slot.weight > 0;
+      }),
+    );
     assert.ok(Math.abs(rareWeight - (areaTable?.rarePoolWeight ?? 0)) < 1e-9);
     assert.ok(commonWeight / (commonWeight + rareWeight) > 0.95);
   }
@@ -146,7 +170,7 @@ test("공개 v2 테이블은 세 지역의 기본 10종을 중심으로 493종 �
   }
 });
 
-test("v1 명시적 슬롯 테이블은 기존 호출 형태를 유지한다", () => {
+test("v1 명시적 슬롯 테이블은 기존 호출 형태를 유지한다", function testCase() {
   const config = selectWildEncounterConfig(
     {
       version: 1,
@@ -182,7 +206,9 @@ function readPublicGameData(fileName: string): unknown {
 }
 
 function createIntegerRange(start: number, end: number): number[] {
-  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+  return Array.from({ length: end - start + 1 }, function callback(_, index) {
+    return start + index;
+  });
 }
 
 function resolveExpectedWeight(catchRate: number): number {

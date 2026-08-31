@@ -1,10 +1,12 @@
 import type {
   CompetitivePartyInput,
   NormalizedCompetitiveParty,
+} from '@poke-lounge/battle/competitive-party';
+import type {
   TournamentBracketState,
   TournamentMatch,
   TournamentMatchResultReason,
-} from '@poke-lounge/battle';
+} from '@poke-lounge/battle/tournament-bracket';
 import type { CompetitiveActionProjection } from './competitive/competitive-action.types';
 
 export type PokeLoungeParticipantRole = 'participant' | 'spectator';

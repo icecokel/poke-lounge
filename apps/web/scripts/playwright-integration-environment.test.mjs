@@ -12,7 +12,7 @@ const testDatabaseUrl =
 const testDatabasePassword = "integration-password";
 const testDatabaseUsername = "integration-user";
 
-test("Web과 Playwright 환경에서 DB 변수와 test DB secret을 제거한다", () => {
+test("Web과 Playwright 환경에서 DB 변수와 test DB secret을 제거한다", function testCase() {
   const sanitized = omitDatabaseEnvironment(
     {
       PATH: "/usr/bin",
@@ -32,59 +32,53 @@ test("Web과 Playwright 환경에서 DB 변수와 test DB secret을 제거한다
   );
 
   assert.deepEqual(sanitized, { PATH: "/usr/bin" });
-  assert.doesNotThrow(() =>
-    assertClientEnvironment(
+  assert.doesNotThrow(function callback() {
+    return assertClientEnvironment(
       "Playwright",
       sanitized,
       testDatabaseUrl,
       testDatabasePassword,
       testDatabaseUsername,
-    ),
-  );
+    );
+  });
 });
 
-test("DB 변수명 또는 test DB credential이 남으면 child 환경 assertion이 실패한다", () => {
+test("DB 변수명 또는 test DB credential이 남으면 child 환경 assertion이 실패한다", function testCase() {
   assert.equal(isDatabaseEnvironmentName("DB_DATABASE"), true);
   assert.equal(isDatabaseEnvironmentName("TEST_DATABASE_URL"), true);
   assert.equal(isDatabaseEnvironmentName("POSTGRES_USER"), true);
   assert.equal(isDatabaseEnvironmentName("DATABASE_USERNAME"), true);
   assert.equal(isDatabaseEnvironmentName("TYPEORM_USERNAME"), true);
-  assert.throws(
-    () =>
-      assertClientEnvironment(
-        "Web",
-        { DB_DATABASE: "poke_lounge_test" },
-        testDatabaseUrl,
-        testDatabasePassword,
-        testDatabaseUsername,
-      ),
-    /exposes database variables/,
-  );
-  assert.throws(
-    () =>
-      assertClientEnvironment(
-        "Playwright",
-        { LEAKED_VALUE: testDatabasePassword },
-        testDatabaseUrl,
-        testDatabasePassword,
-        testDatabaseUsername,
-      ),
-    /exposes a test database secret/,
-  );
-  assert.throws(
-    () =>
-      assertClientEnvironment(
-        "Playwright",
-        { LEAKED_USERNAME: testDatabaseUsername },
-        testDatabaseUrl,
-        testDatabasePassword,
-        testDatabaseUsername,
-      ),
-    /exposes a test database username/,
-  );
+  assert.throws(function callback() {
+    return assertClientEnvironment(
+      "Web",
+      { DB_DATABASE: "poke_lounge_test" },
+      testDatabaseUrl,
+      testDatabasePassword,
+      testDatabaseUsername,
+    );
+  }, /exposes database variables/);
+  assert.throws(function callback() {
+    return assertClientEnvironment(
+      "Playwright",
+      { LEAKED_VALUE: testDatabasePassword },
+      testDatabaseUrl,
+      testDatabasePassword,
+      testDatabaseUsername,
+    );
+  }, /exposes a test database secret/);
+  assert.throws(function callback() {
+    return assertClientEnvironment(
+      "Playwright",
+      { LEAKED_USERNAME: testDatabaseUsername },
+      testDatabaseUrl,
+      testDatabasePassword,
+      testDatabaseUsername,
+    );
+  }, /exposes a test database username/);
 });
 
-test("runner/API log용 redaction은 DB credential과 E2E token/session을 모두 제거한다", () => {
+test("runner/API log용 redaction은 DB credential과 E2E token/session을 모두 제거한다", function testCase() {
   const raw = [
     testDatabaseUrl,
     testDatabasePassword,

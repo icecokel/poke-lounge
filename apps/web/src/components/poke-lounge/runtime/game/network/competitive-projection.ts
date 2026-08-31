@@ -1,11 +1,14 @@
-import { COMPETITIVE_RULESET_HASH, COMPETITIVE_RULESET_VERSION } from "@poke-lounge/battle";
+import {
+  COMPETITIVE_RULESET_HASH,
+  COMPETITIVE_RULESET_VERSION,
+} from "@poke-lounge/battle/competitive-ruleset-config";
 import type {
   CompetitiveProjection,
   CompetitiveProjectionParseResult,
   CompetitiveRoomSnapshotContract,
   CompetitiveTerminalMetadataState,
   CompetitiveTerminalTransition,
-} from "./localPreviewRoom";
+} from "./local-preview-room";
 
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const BRACKET_MATCH_ID_PATTERN = /^game-round-[1-9]\d*-bracket-[1-9]\d*-match-[1-9]\d*$/;
@@ -148,9 +151,9 @@ export function parseCompetitiveRoomSnapshotContract(
       : [];
   if (
     result.competitive &&
-    !result.competitiveAssignments.some(
-      assignment => assignment.matchId === result.competitive?.matchId,
-    )
+    !result.competitiveAssignments.some(function testItem(assignment) {
+      return assignment.matchId === result.competitive?.matchId;
+    })
   ) {
     throw schemaError();
   }
@@ -163,7 +166,9 @@ export function selectCompetitiveAssignment(
   playerId: string,
   roundIndex: number,
 ): CompetitiveProjection | null {
-  const ownAssignment = assignments.find(assignment => assignment.playerIds.includes(playerId));
+  const ownAssignment = assignments.find(function findItem(assignment) {
+    return assignment.playerIds.includes(playerId);
+  });
   if (ownAssignment) {
     return ownAssignment;
   }
@@ -171,12 +176,16 @@ export function selectCompetitiveAssignment(
     return null;
   }
 
-  const ordered = [...assignments].sort((left, right) =>
-    left.bracketMatchId.localeCompare(right.bracketMatchId),
-  );
+  const ordered = [...assignments].sort(function compareItems(left, right) {
+    return left.bracketMatchId.localeCompare(right.bracketMatchId);
+  });
   return selectStableValue(
     ordered,
-    `${playerId}:${roundIndex}:${ordered.map(assignment => assignment.matchId).join(":")}`,
+    `${playerId}:${roundIndex}:${ordered
+      .map(function mapItem(assignment) {
+        return assignment.matchId;
+      })
+      .join(":")}`,
   );
 }
 
@@ -205,7 +214,7 @@ function parseCompetitiveAssignments(value: unknown): CompetitiveProjection[] {
 
   const matchIds = new Set<string>();
   const bracketMatchIds = new Set<string>();
-  return value.map(item => {
+  return value.map(function mapItem(item) {
     const parsed = parseCompetitiveProjectionContract(item);
     const projection = parsed.projection;
     if (
@@ -349,7 +358,9 @@ function parseCurrentState(
 
   const playersById = requireRecord(state.playersById, playerIds, 2);
   const parsedPlayers = Object.fromEntries(
-    playerIds.map(playerId => [playerId, parsePlayer(playersById[playerId], playerId)] as const),
+    playerIds.map(function mapItem(playerId) {
+      return [playerId, parsePlayer(playersById[playerId], playerId)] as const;
+    }),
   );
 
   return {
@@ -389,8 +400,14 @@ function parseTeam(
   team: unknown[],
   activeSlotIndex: number,
 ): CompetitiveProjection["currentState"]["playersById"][string]["team"] {
-  const parsed = team.map(pokemon => parsePokemon(pokemon));
-  const slots = new Set(parsed.map(pokemon => pokemon.slotIndex));
+  const parsed = team.map(function mapItem(pokemon) {
+    return parsePokemon(pokemon);
+  });
+  const slots = new Set(
+    parsed.map(function mapItem(pokemon) {
+      return pokemon.slotIndex;
+    }),
+  );
   if (slots.size !== parsed.length || !slots.has(activeSlotIndex)) {
     throw schemaError();
   }
@@ -452,7 +469,7 @@ function parseStatStages(
   ] as const;
   const stages = requireRecord(value, keys, 5);
   return Object.fromEntries(
-    keys.map(key => {
+    keys.map(function mapItem(key) {
       const stage = requireSafeInteger(stages[key]);
       if (stage < -6 || stage > 6) {
         throw schemaError();
@@ -465,8 +482,16 @@ function parseStatStages(
 function parseMoves(
   moves: unknown[],
 ): CompetitiveProjection["currentState"]["playersById"][string]["team"][number]["moves"] {
-  const parsed = moves.map(move => parseMove(move));
-  if (new Set(parsed.map(move => move.moveId)).size !== parsed.length) {
+  const parsed = moves.map(function mapItem(move) {
+    return parseMove(move);
+  });
+  if (
+    new Set(
+      parsed.map(function mapItem(move) {
+        return move.moveId;
+      }),
+    ).size !== parsed.length
+  ) {
     throw schemaError();
   }
   return parsed;
@@ -503,7 +528,9 @@ function parseSubmittedPlayerIds(value: unknown, playerIds: [string, string]): s
   const submitted = value.map(requirePlayerId);
   if (
     new Set(submitted).size !== submitted.length ||
-    submitted.some(playerId => !playerIds.includes(playerId))
+    submitted.some(function testItem(playerId) {
+      return !playerIds.includes(playerId);
+    })
   ) {
     throw schemaError();
   }
@@ -552,9 +579,9 @@ function parseTerminal(
 
 function requireCompetitiveProjectionRecord(value: unknown): Record<string, unknown> {
   const projection = requireOpenRecord(value, MAX_COMPETITIVE_RECORD_KEYS);
-  const hasTerminalMetadata = COMPETITIVE_TERMINAL_METADATA_KEYS.some(key =>
-    hasOwn(projection, key),
-  );
+  const hasTerminalMetadata = COMPETITIVE_TERMINAL_METADATA_KEYS.some(function testItem(key) {
+    return hasOwn(projection, key);
+  });
   const exactKeys = hasTerminalMetadata
     ? [...COMPETITIVE_PROJECTION_KEYS, ...COMPETITIVE_TERMINAL_METADATA_KEYS]
     : COMPETITIVE_PROJECTION_KEYS;
@@ -563,7 +590,9 @@ function requireCompetitiveProjectionRecord(value: unknown): Record<string, unkn
 
   if (
     keys.length !== sortedExpectedKeys.length ||
-    keys.some((key, index) => key !== sortedExpectedKeys[index])
+    keys.some(function testItem(key, index) {
+      return key !== sortedExpectedKeys[index];
+    })
   ) {
     throw schemaError();
   }
@@ -586,7 +615,11 @@ function requireRecord(
   }
   keys.sort();
   const sortedExpectedKeys = [...exactKeys].sort();
-  if (keys.some((key, index) => key !== sortedExpectedKeys[index])) {
+  if (
+    keys.some(function testItem(key, index) {
+      return key !== sortedExpectedKeys[index];
+    })
+  ) {
     throw schemaError();
   }
   return record;

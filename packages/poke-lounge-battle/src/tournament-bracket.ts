@@ -113,7 +113,9 @@ export function recordTournamentMatchResult(
     throw new Error("Tournament has no active round.");
   }
 
-  const match = state.currentRound.matches.find(candidate => candidate.matchId === matchId);
+  const match = state.currentRound.matches.find(function findItem(candidate) {
+    return candidate.matchId === matchId;
+  });
   if (!match) {
     throw new Error(`Unknown tournament match: ${matchId}`);
   }
@@ -132,9 +134,9 @@ export function recordTournamentMatchResult(
   };
   const currentRound: TournamentRound = {
     ...state.currentRound,
-    matches: state.currentRound.matches.map(candidate =>
-      candidate.matchId === matchId ? completedMatch : candidate,
-    ),
+    matches: state.currentRound.matches.map(function mapItem(candidate) {
+      return candidate.matchId === matchId ? completedMatch : candidate;
+    }),
   };
   const updatedState: TournamentBracketState = {
     ...state,
@@ -152,7 +154,11 @@ export function recordTournamentMatchResult(
     ],
   };
 
-  if (currentRound.matches.some(candidate => candidate.status !== "completed")) {
+  if (
+    currentRound.matches.some(function testItem(candidate) {
+      return candidate.status !== "completed";
+    })
+  ) {
     return updatedState;
   }
 
@@ -160,7 +166,11 @@ export function recordTournamentMatchResult(
 }
 
 export function getReadyTournamentMatches(state: TournamentBracketState): TournamentMatch[] {
-  return state.currentRound?.matches.filter(match => match.status === "ready") ?? [];
+  return (
+    state.currentRound?.matches.filter(function filterItem(match) {
+      return match.status === "ready";
+    }) ?? []
+  );
 }
 
 export function getTournamentStandings(state: TournamentBracketState): TournamentStanding[] {
@@ -178,24 +188,36 @@ export function getTournamentStandings(state: TournamentBracketState): Tournamen
     },
   ];
   const eliminatedRoundNumbers = Array.from(
-    new Set(state.eliminations.map(elimination => elimination.roundNumber)),
-  ).sort((left, right) => right - left);
+    new Set(
+      state.eliminations.map(function mapItem(elimination) {
+        return elimination.roundNumber;
+      }),
+    ),
+  ).sort(function compareItems(left, right) {
+    return right - left;
+  });
 
   for (const roundNumber of eliminatedRoundNumbers) {
     const rank = standings.length + 1;
     const eliminations = state.eliminations
-      .filter(elimination => elimination.roundNumber === roundNumber)
-      .sort((left, right) => left.order - right.order);
+      .filter(function filterItem(elimination) {
+        return elimination.roundNumber === roundNumber;
+      })
+      .sort(function compareItems(left, right) {
+        return left.order - right.order;
+      });
 
     standings.push(
-      ...eliminations.map(elimination => ({
-        playerId: elimination.playerId,
-        displayName: elimination.displayName,
-        seed: elimination.seed,
-        rank,
-        champion: false,
-        eliminatedRoundNumber: elimination.roundNumber,
-      })),
+      ...eliminations.map(function mapItem(elimination) {
+        return {
+          playerId: elimination.playerId,
+          displayName: elimination.displayName,
+          seed: elimination.seed,
+          rank,
+          champion: false,
+          eliminatedRoundNumber: elimination.roundNumber,
+        };
+      }),
     );
   }
 
@@ -206,11 +228,11 @@ function advanceTournamentRound(
   state: TournamentBracketState,
   completedRound: TournamentRound,
 ): TournamentBracketState {
-  const entrants = completedRound.slots.map(slot =>
-    slot.kind === "bye"
+  const entrants = completedRound.slots.map(function mapItem(slot) {
+    return slot.kind === "bye"
       ? getByeEntrant(completedRound, slot.byeId)
-      : getMatchWinner(state.participants, completedRound, slot.matchId),
-  );
+      : getMatchWinner(state.participants, completedRound, slot.matchId);
+  });
   const completedRounds = [...state.completedRounds, completedRound];
 
   if (entrants.length === 1) {
@@ -289,7 +311,9 @@ function createTournamentRound(
 function createOpeningRoundEntrants(
   participants: ReadonlyArray<TournamentParticipant>,
 ): Array<TournamentParticipant | null> {
-  return getBracketSeedOrder(participants.length).map(seed => participants[seed - 1] ?? null);
+  return getBracketSeedOrder(participants.length).map(function mapItem(seed) {
+    return participants[seed - 1] ?? null;
+  });
 }
 
 function getBracketSeedOrder(participantCount: number): readonly number[] {
@@ -311,7 +335,7 @@ function normalizeTournamentParticipants(
   }
 
   const playerIds = new Set<string>();
-  return inputs.map((input, index) => {
+  return inputs.map(function mapItem(input, index) {
     const playerId = input.playerId.trim();
     if (!playerId) {
       throw new Error(`Tournament participant ${index + 1} has an empty player id.`);
@@ -339,7 +363,9 @@ function getMatchWinner(
   round: TournamentRound,
   matchId: string,
 ): TournamentParticipant {
-  const match = round.matches.find(candidate => candidate.matchId === matchId);
+  const match = round.matches.find(function findItem(candidate) {
+    return candidate.matchId === matchId;
+  });
   if (!match?.winnerPlayerId) {
     throw new Error(`Tournament match has no winner: ${matchId}`);
   }
@@ -347,7 +373,9 @@ function getMatchWinner(
 }
 
 function getByeEntrant(round: TournamentRound, byeId: string): TournamentParticipant {
-  const bye = round.byes.find(candidate => candidate.byeId === byeId);
+  const bye = round.byes.find(function findItem(candidate) {
+    return candidate.byeId === byeId;
+  });
   if (!bye) throw new Error(`Unknown tournament bye: ${byeId}`);
   return bye.entrant;
 }
@@ -356,7 +384,9 @@ function getParticipantById(
   participants: ReadonlyArray<TournamentParticipant>,
   playerId: string,
 ): TournamentParticipant {
-  const participant = participants.find(candidate => candidate.playerId === playerId);
+  const participant = participants.find(function findItem(candidate) {
+    return candidate.playerId === playerId;
+  });
   if (!participant) throw new Error(`Unknown tournament participant: ${playerId}`);
   return participant;
 }

@@ -22,20 +22,20 @@ const getIncomingRequestId = (request: Request): string | undefined => {
     : undefined;
 };
 
-export const requestIdMiddleware = (
+export function requestIdMiddleware(
   request: RequestWithRequestId,
   response: Response,
   next: NextFunction,
-): void => {
+): void {
   const requestId = getIncomingRequestId(request) ?? randomUUID();
 
   request.requestId = requestId;
   request.requestStartedAt = process.hrtime.bigint();
   response.setHeader('X-Request-Id', requestId);
-  response.once('finish', () => {
+  response.once('finish', function handleEvent() {
     logger.log(
       JSON.stringify(createApiRequestLog(request, response.statusCode)),
     );
   });
   next();
-};
+}

@@ -2,7 +2,7 @@ import {
   playBattleCancelSound,
   playBattleConfirmSound,
   playPartyHealSound,
-} from "../battle/battleAudio";
+} from "../battle/battle-audio";
 import {
   DICE_GAMBLE_PREDICTIONS,
   DICE_GAMBLE_STAKE_POKE_DOLLARS,
@@ -11,10 +11,10 @@ import {
   type DiceGambleNumber,
   type DiceGamblePrediction,
   type DiceGambleRound,
-} from "../gamble/diceGamble";
-import { consumeVirtualGamepadPress } from "../input/virtualGamepad";
-import { setShortcutGuideTouchControlsSuppressed } from "../input/mobileTouchControlsVisibility";
-import { PLAYER_PARTY_SLOT_COUNT } from "../player/playerTypes";
+} from "../gamble/dice-gamble";
+import { consumeVirtualGamepadPress } from "../input/virtual-gamepad";
+import { setShortcutGuideTouchControlsSuppressed } from "../input/mobile-touch-controls-visibility";
+import { PLAYER_PARTY_SLOT_COUNT } from "../player/player-types";
 import {
   clearRuntimeShopItemRomIds,
   loadRuntimeShopItemRomIds,
@@ -31,8 +31,9 @@ import {
   type GameStateStore,
   type PlayerPokemon,
   type PlayerPokemonMove,
+  type PlayerPokemonStatus,
   type ShopItem,
-} from "../state/gameStateStore";
+} from "../state/game-state-store";
 import {
   hasPokeLoungeMobileFullscreenScene,
   usesPokeLoungeMobileShell,
@@ -43,11 +44,11 @@ import {
   type MobileWorldUiScreen,
 } from "../ui/mobile-world-ui";
 import { dispatchPokeLoungeAccessibleStatus } from "../ui/poke-lounge-ui-events";
-import { createShortcutGuideTitle, type ShortcutGuideInputMode } from "../ui/shortcutGuide";
-import { FIELD_MAP, resolveFieldEncounterAreaId } from "../world/fieldMap";
+import { createShortcutGuideTitle, type ShortcutGuideInputMode } from "../ui/shortcut-guide";
+import { FIELD_MAP, resolveFieldEncounterAreaId } from "../world/field-map";
 import { formatPokemonHp, formatPokeDollars } from "./world-scene-hud";
 import type { WorldE2eSnapshot } from "../testing/poke-lounge-e2e-controller";
-import type { ObjectLayerLookup } from "./WorldScene";
+import type { ObjectLayerLookup } from "./world-scene";
 import type { WorldUiStore } from "../world/world-ui-store";
 import type { RuntimeKeyboard } from "../runtime-input";
 
@@ -565,68 +566,140 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
     const activeItemIds = this.inventoryOpen ? inventoryItemIds : this.shopOpen ? shopItemIds : [];
     const selectedIndex = this.inventoryOpen ? this.inventorySelectedIndex : this.shopSelectedIndex;
-    const items = activeItemIds.flatMap((itemId, index) => {
-      const item = this.getKnownShopItem(itemId);
+    const items = activeItemIds.flatMap(
+      function mapItem(
+        this: DefaultWorldSceneInteractions,
+        itemId:
+          | "potion"
+          | "pokeball"
+          | "antidote"
+          | "superPotion"
+          | "hyperPotion"
+          | "revive"
+          | "ultraBall"
+          | "rareCandy"
+          | "sunStone"
+          | "moonStone"
+          | "fireStone"
+          | "thunderStone"
+          | "waterStone"
+          | "leafStone"
+          | "shinyStone"
+          | "duskStone"
+          | "dawnStone",
+        index: number,
+      ): {
+        count: number;
+        description: string;
+        disabled: boolean;
+        id: string;
+        index: number;
+        name: string;
+        price: number | null;
+        selected: boolean;
+      }[] {
+        const item = this.getKnownShopItem(itemId);
 
-      if (!item) {
-        return [];
-      }
+        if (!item) {
+          return [];
+        }
 
-      const count = localPlayer.inventory[item.id] ?? 0;
+        const count = localPlayer.inventory[item.id] ?? 0;
 
-      return [
-        {
-          count,
-          description: item.description,
-          disabled: false,
-          id: item.id,
-          index,
-          name: item.displayName,
-          price: this.shopOpen ? item.price : null,
-          selected: index === selectedIndex,
-        },
-      ];
-    });
-    const selectedItem = items.find(item => item.selected) ?? items[0];
+        return [
+          {
+            count,
+            description: item.description,
+            disabled: false,
+            id: item.id,
+            index,
+            name: item.displayName,
+            price: this.shopOpen ? item.price : null,
+            selected: index === selectedIndex,
+          },
+        ];
+      }.bind(this),
+    );
+    const selectedItem =
+      items.find(function findItem(item) {
+        return item.selected;
+      }) ?? items[0];
     const party = createPokeLoungePartySlotSummaries(localPlayer);
     const moveReplacementPokemon = this.getInventoryMoveReplacementPokemon();
     const pendingMoveReplacement = this.pendingInventoryMoveReplacements[0] ?? null;
     const moveReplacement =
       this.inventoryFocus === "move-replace" && moveReplacementPokemon && pendingMoveReplacement
         ? {
-            moves: (moveReplacementPokemon.moves ?? []).map((move, index) => ({
-              id: move.id,
-              index,
-              name: move.name,
-              selected: index === this.inventoryMoveReplaceIndex,
-            })),
+            moves: (moveReplacementPokemon.moves ?? []).map(
+              function mapItem(
+                this: DefaultWorldSceneInteractions,
+                move: PlayerPokemonMove,
+                index: number,
+              ): { id: number; index: number; name: string; selected: boolean } {
+                return {
+                  id: move.id,
+                  index,
+                  name: move.name,
+                  selected: index === this.inventoryMoveReplaceIndex,
+                };
+              }.bind(this),
+            ),
             newMoveName: pendingMoveReplacement.name,
             pokemonName: moveReplacementPokemon.name,
           }
         : null;
-    const box = localPlayer.pokemonBox.map((pokemon, boxIndex) => ({
-      boxIndex,
-      currentHp: pokemon.currentHp ?? null,
-      level: pokemon.level,
-      maxHp: pokemon.maxHp ?? null,
-      name: pokemon.name,
-      selected: this.pcBoxFocus === "box" && boxIndex === this.pcBoxBoxIndex,
-      status: pokemon.status ?? null,
-    }));
+    const box = localPlayer.pokemonBox.map(
+      function mapItem(
+        this: DefaultWorldSceneInteractions,
+        pokemon: PlayerPokemon,
+        boxIndex: number,
+      ): {
+        boxIndex: number;
+        currentHp: number | null;
+        level: number;
+        maxHp: number | null;
+        name: string;
+        selected: boolean;
+        status: PlayerPokemonStatus | null;
+      } {
+        return {
+          boxIndex,
+          currentHp: pokemon.currentHp ?? null,
+          level: pokemon.level,
+          maxHp: pokemon.maxHp ?? null,
+          name: pokemon.name,
+          selected: this.pcBoxFocus === "box" && boxIndex === this.pcBoxBoxIndex,
+          status: pokemon.status ?? null,
+        };
+      }.bind(this),
+    );
     const dice = this.diceGambleRound
       ? {
-          options: DICE_GAMBLE_PREDICTIONS.map((prediction, index) => {
-            const option = this.diceGambleRound?.options[prediction];
+          options: DICE_GAMBLE_PREDICTIONS.map(
+            function mapItem(
+              this: DefaultWorldSceneInteractions,
+              prediction: "lower" | "equal" | "higher",
+              index: number,
+            ): {
+              disabled: boolean;
+              label: string;
+              prediction: "lower" | "equal" | "higher";
+              rewardPokeDollars: number;
+              selected: boolean;
+              winningCaseCount: number;
+            } {
+              const option = this.diceGambleRound?.options[prediction];
 
-            return {
-              disabled: !option || option.winningCaseCount <= 0,
-              label: DICE_GAMBLE_LABELS[prediction],
-              prediction,
-              rewardPokeDollars: option?.rewardPokeDollars ?? 0,
-              selected: index === this.diceGambleSelectedIndex,
-              winningCaseCount: option?.winningCaseCount ?? 0,
-            };
-          }),
+              return {
+                disabled: !option || option.winningCaseCount <= 0,
+                label: DICE_GAMBLE_LABELS[prediction],
+                prediction,
+                rewardPokeDollars: option?.rewardPokeDollars ?? 0,
+                selected: index === this.diceGambleSelectedIndex,
+                winningCaseCount: option?.winningCaseCount ?? 0,
+              };
+            }.bind(this),
+          ),
           stakePokeDollars: DICE_GAMBLE_STAKE_POKE_DOLLARS,
           targetNumber: this.diceGambleRound.targetNumber,
         }
@@ -1233,10 +1306,13 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.nurseHealing = true;
     this.nurseHealingEffectCount += 1;
     this.publishNursePresentation();
-    this.dependencies.playNurseHealingEffect(this.nursePosition, () => {
-      this.nurseHealing = false;
-      this.publishNursePresentation();
-    });
+    this.dependencies.playNurseHealingEffect(
+      this.nursePosition,
+      function callback(this: DefaultWorldSceneInteractions): void {
+        this.nurseHealing = false;
+        this.publishNursePresentation();
+      }.bind(this),
+    );
   }
 
   private renderNurseMessage(): void {
@@ -1266,32 +1342,39 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.renderShopUi();
 
     void (this.dependencies.loadShopItemRomIds ?? loadRuntimeShopItemRomIds)(shopKind)
-      .then(itemIds => {
-        if (
-          requestId !== this.shopLoadRequestId ||
-          !this.shopOpen ||
-          this.activeShopKind !== shopKind
-        ) {
-          return;
-        }
-        registerRuntimeShopItemRomIds(shopKind, itemIds);
-        this.shopLoadStatus = "ready";
-        this.shopMessage = "";
-        this.renderShopUi();
-      })
-      .catch(() => {
-        if (
-          requestId !== this.shopLoadRequestId ||
-          !this.shopOpen ||
-          this.activeShopKind !== shopKind
-        ) {
-          return;
-        }
-        clearRuntimeShopItemRomIds(shopKind);
-        this.shopLoadStatus = "error";
-        this.shopMessage = "판매 목록을 불러오지 못했다. 상점을 닫고 다시 시도해 주세요.";
-        this.renderShopUi();
-      });
+      .then(
+        function handleResolved(
+          this: DefaultWorldSceneInteractions,
+          itemIds: readonly number[],
+        ): void {
+          if (
+            requestId !== this.shopLoadRequestId ||
+            !this.shopOpen ||
+            this.activeShopKind !== shopKind
+          ) {
+            return;
+          }
+          registerRuntimeShopItemRomIds(shopKind, itemIds);
+          this.shopLoadStatus = "ready";
+          this.shopMessage = "";
+          this.renderShopUi();
+        }.bind(this),
+      )
+      .catch(
+        function handleRejected(this: DefaultWorldSceneInteractions): void {
+          if (
+            requestId !== this.shopLoadRequestId ||
+            !this.shopOpen ||
+            this.activeShopKind !== shopKind
+          ) {
+            return;
+          }
+          clearRuntimeShopItemRomIds(shopKind);
+          this.shopLoadStatus = "error";
+          this.shopMessage = "판매 목록을 불러오지 못했다. 상점을 닫고 다시 시도해 주세요.";
+          this.renderShopUi();
+        }.bind(this),
+      );
   }
 
   private closeShop(): void {
@@ -1555,8 +1638,14 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
     this.pendingInventoryMovePokemon = {
       ...pokemon,
-      moves: (pokemon.moves ?? []).map((move, index) =>
-        index === this.inventoryMoveReplaceIndex ? pendingMove : move,
+      moves: (pokemon.moves ?? []).map(
+        function mapItem(
+          this: DefaultWorldSceneInteractions,
+          move: PlayerPokemonMove,
+          index: number,
+        ): PlayerPokemonMove {
+          return index === this.inventoryMoveReplaceIndex ? pendingMove : move;
+        }.bind(this),
       ),
     };
     this.inventoryMoveReplacementDecisions.push(this.inventoryMoveReplaceIndex);
@@ -1670,8 +1759,12 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private getInventoryTargetSlotIndices(): number[] {
     return this.gameStateStore
       .getCurrentLocalPlayer()
-      .party.filter(slot => slot.pokemon)
-      .map(slot => slot.slotIndex);
+      .party.filter(function filterItem(slot) {
+        return slot.pokemon;
+      })
+      .map(function mapItem(slot) {
+        return slot.slotIndex;
+      });
   }
 
   private renderInventoryUi(): void {
@@ -1686,7 +1779,9 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
   private getInventoryItemIds(): KnownShopItemId[] {
     const inventory = this.gameStateStore.getCurrentLocalPlayer().inventory;
-    return this.getAllInventoryItemIds().filter(itemId => (inventory[itemId] ?? 0) > 0);
+    return this.getAllInventoryItemIds().filter(function filterItem(itemId) {
+      return (inventory[itemId] ?? 0) > 0;
+    });
   }
 
   private getAllInventoryItemIds(): KnownShopItemId[] {
@@ -1834,7 +1929,9 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       partySlotIndex: this.pcBoxPartySlotIndex,
       boxIndex: this.pcBoxBoxIndex,
       message: this.pcBoxMessage,
-      partyCount: localPlayer.party.filter(slot => slot.pokemon).length,
+      partyCount: localPlayer.party.filter(function filterItem(slot) {
+        return slot.pokemon;
+      }).length,
       boxCount: localPlayer.pokemonBox.length,
     };
   }

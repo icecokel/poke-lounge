@@ -12,7 +12,7 @@ const createMarkerElements = () => {
   return { gamePage, gameRoot };
 };
 
-test("전투 장면 마커를 게임 루트와 페이지에 함께 설정하고 제거한다", () => {
+test("전투 장면 마커를 게임 루트와 페이지에 함께 설정하고 제거한다", function testCase() {
   const { gamePage, gameRoot } = createMarkerElements();
 
   setBattleSceneMarker(gameRoot, true);
@@ -24,7 +24,7 @@ test("전투 장면 마커를 게임 루트와 페이지에 함께 설정하고 
   assert.equal(gamePage.dataset.pokeLoungeActiveScene, undefined);
 });
 
-test("새 게임 시작 시 남아 있는 전투 장면 마커를 제거한다", () => {
+test("새 게임 시작 시 남아 있는 전투 장면 마커를 제거한다", function testCase() {
   const { gamePage, gameRoot } = createMarkerElements();
   gameRoot.dataset.pokeLoungeActiveScene = "battle";
   gamePage.dataset.pokeLoungeActiveScene = "battle";

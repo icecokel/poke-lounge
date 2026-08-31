@@ -6,8 +6,8 @@ const validateDto = (payload: Partial<SavePokeLoungeStateDto>) => {
   return validate(dto);
 };
 
-describe('SavePokeLoungeStateDto', () => {
-  it('Poke Lounge 상태 객체와 클라이언트 갱신 시각을 허용해야 함', async () => {
+describe('SavePokeLoungeStateDto', function testSuite() {
+  it('Poke Lounge 상태 객체와 클라이언트 갱신 시각을 허용해야 함', async function testCase() {
     const errors = await validateDto({
       state: {
         trainer: { x: 12, y: 3 },
@@ -20,7 +20,7 @@ describe('SavePokeLoungeStateDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('state가 없으면 거절해야 함', async () => {
+  it('state가 없으면 거절해야 함', async function testCase() {
     const errors = await validateDto({
       expectedRevision: 0,
       clientUpdatedAt: '2026-07-08T12:00:00.000Z',
@@ -30,7 +30,7 @@ describe('SavePokeLoungeStateDto', () => {
     expect(errors[0]?.constraints).toHaveProperty('isObject');
   });
 
-  it('state 배열은 거절해야 함', async () => {
+  it('state 배열은 거절해야 함', async function testCase() {
     const errors = await validateDto({
       state: ['pikachu'] as unknown as Record<string, unknown>,
       expectedRevision: 0,
@@ -40,7 +40,7 @@ describe('SavePokeLoungeStateDto', () => {
     expect(errors[0]?.constraints).toHaveProperty('isObject');
   });
 
-  it('clientUpdatedAt이 ISO 날짜 문자열이 아니면 거절해야 함', async () => {
+  it('clientUpdatedAt이 ISO 날짜 문자열이 아니면 거절해야 함', async function testCase() {
     const errors = await validateDto({
       state: {
         room: 'LOUNGE',
@@ -55,32 +55,36 @@ describe('SavePokeLoungeStateDto', () => {
 
   it.each([-1, 1.5])(
     'expectedRevision %s는 non-negative integer가 아니므로 거절해야 함',
-    async (expectedRevision) => {
+    async function callback(expectedRevision) {
       const errors = await validateDto({
         state: { room: 'LOUNGE' },
         expectedRevision,
       });
 
       expect(
-        errors.some((error) => error.property === 'expectedRevision'),
+        errors.some(function testItem(error) {
+          return error.property === 'expectedRevision';
+        }),
       ).toBe(true);
     },
   );
 
-  it('API 선배포 중 구버전 Web 요청은 expectedRevision 없이 허용해야 함', async () => {
+  it('API 선배포 중 구버전 Web 요청은 expectedRevision 없이 허용해야 함', async function testCase() {
     const errors = await validateDto({ state: { room: 'LOUNGE' } });
 
     expect(errors).toHaveLength(0);
   });
 
-  it('expectedRevision null은 호환용 생략으로 처리하지 않아야 함', async () => {
+  it('expectedRevision null은 호환용 생략으로 처리하지 않아야 함', async function testCase() {
     const errors = await validateDto({
       state: { room: 'LOUNGE' },
       expectedRevision: null as unknown as number,
     });
 
-    expect(errors.some((error) => error.property === 'expectedRevision')).toBe(
-      true,
-    );
+    expect(
+      errors.some(function testItem(error) {
+        return error.property === 'expectedRevision';
+      }),
+    ).toBe(true);
   });
 });

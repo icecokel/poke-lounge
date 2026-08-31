@@ -1,6 +1,6 @@
 import { isLocalTestAccountRequestAllowed } from './local-test-account';
 
-describe('local test account request allowlist', () => {
+describe('local test account request allowlist', function testSuite() {
   it.each([
     { method: 'GET', path: '/game/poke-lounge/state' },
     { method: 'PUT', path: '/api/game/poke-lounge/state' },
@@ -11,7 +11,7 @@ describe('local test account request allowlist', () => {
     },
   ])(
     '싱글 상태와 Poke Lounge 결과 요청만 허용한다: $method $path',
-    (request) => {
+    function callback(request) {
       expect(isLocalTestAccountRequestAllowed(request)).toBe(true);
     },
   );
@@ -31,7 +31,7 @@ describe('local test account request allowlist', () => {
     },
   ])(
     '멀티플레이와 허용되지 않은 메서드를 거부한다: $method $path',
-    (request) => {
+    function callback(request) {
       expect(isLocalTestAccountRequestAllowed(request)).toBe(false);
     },
   );

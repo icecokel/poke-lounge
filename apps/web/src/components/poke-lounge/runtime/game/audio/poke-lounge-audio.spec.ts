@@ -8,19 +8,37 @@ import { getPokeLoungeAudioPreloadAssets, parsePokeLoungeAudioManifest } from ".
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const manifestPath = path.join(webRoot, "public/assets/poke-lounge/audio/audio-manifest.json");
 
-test("부트 오디오 프리로드는 매니페스트의 모든 음원을 고유한 캐시 키로 제공한다", () => {
+test("부트 오디오 프리로드는 매니페스트의 모든 음원을 고유한 캐시 키로 제공한다", function testCase() {
   const manifest = parsePokeLoungeAudioManifest(JSON.parse(fs.readFileSync(manifestPath, "utf8")));
 
   assert.ok(manifest);
   const preloadAssets = getPokeLoungeAudioPreloadAssets(manifest);
 
   assert.equal(preloadAssets.length, manifest.sfx.length + manifest.bgm.length);
-  assert.equal(new Set(preloadAssets.map(asset => asset.id)).size, preloadAssets.length);
-  assert.equal(new Set(preloadAssets.map(asset => asset.cacheKey)).size, preloadAssets.length);
-  assert.ok(preloadAssets.every(asset => asset.src.startsWith("/assets/poke-lounge/audio/")));
+  assert.equal(
+    new Set(
+      preloadAssets.map(function mapItem(asset) {
+        return asset.id;
+      }),
+    ).size,
+    preloadAssets.length,
+  );
+  assert.equal(
+    new Set(
+      preloadAssets.map(function mapItem(asset) {
+        return asset.cacheKey;
+      }),
+    ).size,
+    preloadAssets.length,
+  );
+  assert.ok(
+    preloadAssets.every(function testItem(asset) {
+      return asset.src.startsWith("/assets/poke-lounge/audio/");
+    }),
+  );
 });
 
-test("필수 음원이 빠진 오디오 매니페스트는 부트 완료 대상으로 인정하지 않는다", () => {
+test("필수 음원이 빠진 오디오 매니페스트는 부트 완료 대상으로 인정하지 않는다", function testCase() {
   const manifest = parsePokeLoungeAudioManifest(JSON.parse(fs.readFileSync(manifestPath, "utf8")));
 
   assert.ok(manifest);
@@ -33,11 +51,13 @@ test("필수 음원이 빠진 오디오 매니페스트는 부트 완료 대상�
   );
 });
 
-test("ROM SDAT 출처가 있는 매니페스트를 파싱하고 잘못된 시퀀스 인덱스는 거부한다", () => {
+test("ROM SDAT 출처가 있는 매니페스트를 파싱하고 잘못된 시퀀스 인덱스는 거부한다", function testCase() {
   const manifest = parsePokeLoungeAudioManifest(JSON.parse(fs.readFileSync(manifestPath, "utf8")));
 
   assert.ok(manifest);
-  const fieldDayBgm = manifest.bgm.find(item => item.id === "field-day");
+  const fieldDayBgm = manifest.bgm.find(function findItem(item) {
+    return item.id === "field-day";
+  });
 
   assert.ok(fieldDayBgm);
   assert.deepEqual(fieldDayBgm.source, {
@@ -48,7 +68,9 @@ test("ROM SDAT 출처가 있는 매니페스트를 파싱하고 잘못된 시퀀
 
   const createManifestWithFieldDaySource = (source: unknown): unknown => ({
     ...manifest,
-    bgm: manifest.bgm.map(item => (item.id === "field-day" ? { ...item, source } : item)),
+    bgm: manifest.bgm.map(function mapItem(item) {
+      return item.id === "field-day" ? { ...item, source } : item;
+    }),
   });
 
   for (const malformedSource of [

@@ -25,31 +25,35 @@ export function SampleMapPreview({ model = createSampleMapModel() }: { model?: S
         role="img"
         aria-label="Sample ROM asset map with tree boundary, water, forest, and nurse NPC."
       >
-        {model.tiles.map(tile => (
-          <span
-            key={`${tile.x}-${tile.y}`}
-            className={`map-sample-tile map-sample-tile--${tile.code.toLowerCase()} map-sample-tile--variant-${getSampleTileVariant(tile)}`}
-            data-tile-code={tile.code}
-            data-tile-x={tile.x}
-            data-tile-y={tile.y}
-            data-tile-variant={getSampleTileVariant(tile)}
-            data-blocks-movement={tile.definition.blocksMovement}
-            data-encounter-rate={tile.definition.encounterRate}
-            data-rom-asset={tile.definition.assetPath}
-            data-rom-source={tile.definition.sourcePaths.join(",")}
-            style={{ "--tile-image": `url("${tile.definition.assetPath}")` } as CSSProperties}
-            aria-label={tile.definition.label}
-          >
-            {model.npcs
-              .filter(npc => npc.x === tile.x && npc.y === tile.y)
-              .map(npc => (
-                <SampleMapNpcMarker key={npc.id} npc={npc} />
-              ))}
-          </span>
-        ))}
+        {model.tiles.map(function mapItem(tile) {
+          return (
+            <span
+              key={`${tile.x}-${tile.y}`}
+              className={`map-sample-tile map-sample-tile--${tile.code.toLowerCase()} map-sample-tile--variant-${getSampleTileVariant(tile)}`}
+              data-tile-code={tile.code}
+              data-tile-x={tile.x}
+              data-tile-y={tile.y}
+              data-tile-variant={getSampleTileVariant(tile)}
+              data-blocks-movement={tile.definition.blocksMovement}
+              data-encounter-rate={tile.definition.encounterRate}
+              data-rom-asset={tile.definition.assetPath}
+              data-rom-source={tile.definition.sourcePaths.join(",")}
+              style={{ "--tile-image": `url("${tile.definition.assetPath}")` } as CSSProperties}
+              aria-label={tile.definition.label}
+            >
+              {model.npcs
+                .filter(function filterItem(npc) {
+                  return npc.x === tile.x && npc.y === tile.y;
+                })
+                .map(function mapItem(npc) {
+                  return <SampleMapNpcMarker key={npc.id} npc={npc} />;
+                })}
+            </span>
+          );
+        })}
       </div>
       <ul className="map-sample-legend">
-        {(["T", "G", "F", "W", "P", "D"] as const).map(code => {
+        {(["T", "G", "F", "W", "P", "D"] as const).map(function mapItem(code) {
           const definition = SAMPLE_MAP_TILE_DEFINITIONS[code];
           return (
             <li key={code} data-tile-code={code}>

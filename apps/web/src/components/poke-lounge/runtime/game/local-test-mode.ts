@@ -23,27 +23,29 @@ const unavailableLocalTestModeState = (): LocalTestModeState => ({
   active: false,
 });
 
-export const resolveLocalTestModeState = (
+export function resolveLocalTestModeState(
   capabilityState: LocalTestModeState,
   sessionActive: boolean,
-): LocalTestModeState =>
-  sessionActive
+): LocalTestModeState {
+  return sessionActive
     ? {
         available: true,
         active: true,
       }
     : capabilityState;
+}
 
-export const isLocalTestModeUrl = (url: URL): boolean =>
-  url.protocol === "http:" && localTestWebHostnames.has(url.hostname);
+export function isLocalTestModeUrl(url: URL): boolean {
+  return url.protocol === "http:" && localTestWebHostnames.has(url.hostname);
+}
 
 const createLocalTestModeEndpointUrl = (currentUrl: URL): URL =>
   new URL(LOCAL_TEST_MODE_ENDPOINT, currentUrl.origin);
 
-export const loadLocalTestModeState = async (
+export async function loadLocalTestModeState(
   currentUrl: URL,
   fetchImpl: LocalTestModeFetch = globalThis.fetch,
-): Promise<LocalTestModeState> => {
+): Promise<LocalTestModeState> {
   if (!isLocalTestModeUrl(currentUrl)) {
     return unavailableLocalTestModeState();
   }
@@ -69,7 +71,7 @@ export const loadLocalTestModeState = async (
   } catch {
     return unavailableLocalTestModeState();
   }
-};
+}
 
 const updateLocalTestMode = async (
   currentUrl: URL,
@@ -96,25 +98,31 @@ const updateLocalTestMode = async (
   }
 };
 
-export const activateLocalTestMode = async (
+export async function activateLocalTestMode(
   currentUrl: URL,
   fetchImpl: LocalTestModeFetch = globalThis.fetch,
-): Promise<void> => updateLocalTestMode(currentUrl, "POST", fetchImpl);
+): Promise<void> {
+  return updateLocalTestMode(currentUrl, "POST", fetchImpl);
+}
 
-export const deactivateLocalTestMode = async (
+export async function deactivateLocalTestMode(
   currentUrl: URL,
   fetchImpl: LocalTestModeFetch = globalThis.fetch,
-): Promise<void> => updateLocalTestMode(currentUrl, "DELETE", fetchImpl);
+): Promise<void> {
+  return updateLocalTestMode(currentUrl, "DELETE", fetchImpl);
+}
 
-export const createLocalTestModeSoloUrl = (currentUrl: URL): URL => {
+export function createLocalTestModeSoloUrl(currentUrl: URL): URL {
   const soloUrl = new URL(currentUrl.href);
-  multiplayerSearchParams.forEach(searchParam => soloUrl.searchParams.delete(searchParam));
+  multiplayerSearchParams.forEach(function visitItem(searchParam) {
+    return soloUrl.searchParams.delete(searchParam);
+  });
   soloUrl.searchParams.delete(LOCAL_TEST_MODE_START_QUERY_PARAM);
   return soloUrl;
-};
+}
 
-export const createLocalTestModeStartUrl = (currentUrl: URL): URL => {
+export function createLocalTestModeStartUrl(currentUrl: URL): URL {
   const startUrl = createLocalTestModeSoloUrl(currentUrl);
   startUrl.searchParams.set(LOCAL_TEST_MODE_START_QUERY_PARAM, "1");
   return startUrl;
-};
+}

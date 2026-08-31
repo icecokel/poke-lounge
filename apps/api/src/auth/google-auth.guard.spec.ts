@@ -46,13 +46,13 @@ const createUser = (overrides: Partial<User> = {}): User => ({
   ...overrides,
 });
 
-describe('GoogleAuthGuard', () => {
+describe('GoogleAuthGuard', function testSuite() {
   let guard: GoogleAuthGuard;
   let mockUserRepository: MockUserRepository;
   let mockClient: MockGoogleClient;
   let originalEnv: NodeJS.ProcessEnv;
 
-  beforeEach(() => {
+  beforeEach(function setUpTest() {
     originalEnv = { ...process.env };
     process.env.NODE_ENV = 'test';
     process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
@@ -77,16 +77,16 @@ describe('GoogleAuthGuard', () => {
     (guard as unknown as { client: MockGoogleClient }).client = mockClient;
   });
 
-  afterEach(() => {
+  afterEach(function tearDownTest() {
     process.env = originalEnv;
   });
 
-  it('should be defined', () => {
+  it('should be defined', function testCase() {
     expect(guard).toBeDefined();
   });
 
-  describe('canActivate', () => {
-    it('should throw UnauthorizedException if no token provided', async () => {
+  describe('canActivate', function testSuite() {
+    it('should throw UnauthorizedException if no token provided', async function testCase() {
       const context = createExecutionContext({
         headers: {},
       });
@@ -96,7 +96,7 @@ describe('GoogleAuthGuard', () => {
       );
     });
 
-    it('should throw UnauthorizedException if email is missing', async () => {
+    it('should throw UnauthorizedException if email is missing', async function testCase() {
       const context = createExecutionContext({
         headers: { authorization: 'Bearer valid-token' },
       });
@@ -113,7 +113,7 @@ describe('GoogleAuthGuard', () => {
       );
     });
 
-    it('should throw UnauthorizedException when GOOGLE_CLIENT_ID is missing', async () => {
+    it('should throw UnauthorizedException when GOOGLE_CLIENT_ID is missing', async function testCase() {
       delete process.env.GOOGLE_CLIENT_ID;
       const context = createExecutionContext({
         headers: { authorization: 'Bearer valid-token' },
@@ -124,7 +124,7 @@ describe('GoogleAuthGuard', () => {
       );
     });
 
-    it('should return true and attach user if token and email are valid', async () => {
+    it('should return true and attach user if token and email are valid', async function testCase() {
       const mockRequest: TestRequest = {
         headers: { authorization: 'Bearer valid-token' },
       };
@@ -170,7 +170,7 @@ describe('GoogleAuthGuard', () => {
       expect(mockRequest.user?.email).toBe(payload.email);
     });
 
-    it('should reuse a user inserted by a concurrent request', async () => {
+    it('should reuse a user inserted by a concurrent request', async function testCase() {
       const request: TestRequest = {
         headers: { authorization: 'Bearer valid-token' },
       };
@@ -209,7 +209,7 @@ describe('GoogleAuthGuard', () => {
       },
     ])(
       'should surface the insert failure when $caseName',
-      async ({ saveError, findResults }) => {
+      async function callback({ saveError, findResults }) {
         const request: TestRequest = {
           headers: { authorization: 'Bearer valid-token' },
         };
@@ -236,7 +236,7 @@ describe('GoogleAuthGuard', () => {
       },
     );
 
-    it('should allow bypass only when explicitly enabled', async () => {
+    it('should allow bypass only when explicitly enabled', async function testCase() {
       process.env.ENABLE_DEV_AUTH_BYPASS = 'true';
       process.env.DEV_AUTH_TOKEN = 'local-dev-token';
 
@@ -270,7 +270,7 @@ describe('GoogleAuthGuard', () => {
       expect(mockRequest.user?.id).toBe('dev-user-id');
     });
 
-    it('should attach a stable local test account in development', async () => {
+    it('should attach a stable local test account in development', async function testCase() {
       process.env.NODE_ENV = 'development';
       process.env.LOCAL_TEST_AUTH_TOKEN =
         'local_test_auth_token_0123456789abcdef';
@@ -309,7 +309,7 @@ describe('GoogleAuthGuard', () => {
       expect(mockRequest.user?.id).toBe('poke-lounge-local-test-user');
     });
 
-    it('should allow the local test account to save a Poke Lounge solo result', async () => {
+    it('should allow the local test account to save a Poke Lounge solo result', async function testCase() {
       process.env.NODE_ENV = 'development';
       process.env.LOCAL_TEST_AUTH_TOKEN =
         'local_test_auth_token_0123456789abcdef';
@@ -331,7 +331,7 @@ describe('GoogleAuthGuard', () => {
       expect(mockClient.verifyIdToken).not.toHaveBeenCalled();
     });
 
-    it('should reject the local test token for multiplayer and other game routes', async () => {
+    it('should reject the local test token for multiplayer and other game routes', async function testCase() {
       process.env.NODE_ENV = 'development';
       process.env.LOCAL_TEST_AUTH_TOKEN =
         'local_test_auth_token_0123456789abcdef';
@@ -362,7 +362,7 @@ describe('GoogleAuthGuard', () => {
       expect(mockClient.verifyIdToken).not.toHaveBeenCalled();
     });
 
-    it('should ignore the local test account in production', async () => {
+    it('should ignore the local test account in production', async function testCase() {
       process.env.NODE_ENV = 'production';
       process.env.LOCAL_TEST_AUTH_TOKEN =
         'local_test_auth_token_0123456789abcdef';
@@ -383,7 +383,7 @@ describe('GoogleAuthGuard', () => {
       });
     });
 
-    it('should ignore the local test account in the test environment', async () => {
+    it('should ignore the local test account in the test environment', async function testCase() {
       process.env.LOCAL_TEST_AUTH_TOKEN =
         'local_test_auth_token_0123456789abcdef';
       mockClient.verifyIdToken.mockRejectedValue(new Error('invalid token'));
@@ -401,7 +401,7 @@ describe('GoogleAuthGuard', () => {
       expect(mockClient.verifyIdToken).toHaveBeenCalled();
     });
 
-    it('should not fall back to the local account for a different token', async () => {
+    it('should not fall back to the local account for a different token', async function testCase() {
       process.env.NODE_ENV = 'development';
       process.env.LOCAL_TEST_AUTH_TOKEN =
         'local_test_auth_token_0123456789abcdef';
@@ -421,7 +421,7 @@ describe('GoogleAuthGuard', () => {
       });
     });
 
-    it('should reject a malformed local test token configuration', async () => {
+    it('should reject a malformed local test token configuration', async function testCase() {
       process.env.NODE_ENV = 'development';
       process.env.LOCAL_TEST_AUTH_TOKEN = 'too-short';
 
@@ -436,7 +436,7 @@ describe('GoogleAuthGuard', () => {
       expect(mockClient.verifyIdToken).not.toHaveBeenCalled();
     });
 
-    it('should reuse the existing local test account', async () => {
+    it('should reuse the existing local test account', async function testCase() {
       process.env.NODE_ENV = 'development';
       process.env.LOCAL_TEST_AUTH_TOKEN =
         'local_test_auth_token_0123456789abcdef';

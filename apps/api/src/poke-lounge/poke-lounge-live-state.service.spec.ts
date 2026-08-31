@@ -1,8 +1,8 @@
 import { ConfigService } from '@nestjs/config';
 import { PokeLoungeLiveStateService } from './poke-lounge-live-state.service';
 
-describe('PokeLoungeLiveStateService', () => {
-  it('requires Redis instead of silently falling back to process memory', async () => {
+describe('PokeLoungeLiveStateService', function testSuite() {
+  it('requires Redis instead of silently falling back to process memory', async function testCase() {
     const service = new PokeLoungeLiveStateService(
       new ConfigService({ REDIS_URL: '' }),
       jest.fn() as never,
@@ -13,7 +13,7 @@ describe('PokeLoungeLiveStateService', () => {
     );
   });
 
-  it('stores a player with an atomic world cursor and restores the snapshot', async () => {
+  it('stores a player with an atomic world cursor and restores the snapshot', async function testCase() {
     const redis = redisFixture();
     const service = createService(redis);
     await service.connect();
@@ -70,7 +70,7 @@ describe('PokeLoungeLiveStateService', () => {
     expect(redis.subscriber.close).toHaveBeenCalledTimes(1);
   });
 
-  it('increments the shared cursor when a disconnected player is removed', async () => {
+  it('increments the shared cursor when a disconnected player is removed', async function testCase() {
     const redis = redisFixture();
     const service = createService(redis);
     await service.connect();
@@ -89,7 +89,7 @@ describe('PokeLoungeLiveStateService', () => {
     await service.onModuleDestroy();
   });
 
-  it('extends only an existing room world expiry after a durable room update', async () => {
+  it('extends only an existing room world expiry after a durable room update', async function testCase() {
     const redis = redisFixture();
     const service = createService(redis);
     await service.connect();
@@ -103,7 +103,7 @@ describe('PokeLoungeLiveStateService', () => {
     await service.onModuleDestroy();
   });
 
-  it('maps room document CAS and player progress to Redis primitives', async () => {
+  it('maps room document CAS and player progress to Redis primitives', async function testCase() {
     const redis = redisFixture();
     const service = createService(redis);
     await service.connect();
@@ -181,17 +181,18 @@ describe('PokeLoungeLiveStateService', () => {
     await service.onModuleDestroy();
   });
 
-  it('publishes and subscribes to minimal room commit notifications', async () => {
+  it('publishes and subscribes to minimal room commit notifications', async function testCase() {
     const redis = redisFixture();
     const service = createService(redis);
     await service.connect();
     let handleMessage: ((message: string) => void) | undefined;
-    redis.commitSubscriber.subscribe.mockImplementationOnce(
-      (_channel: string, listener: (message: string) => void) => {
-        handleMessage = listener;
-        return Promise.resolve(1);
-      },
-    );
+    redis.commitSubscriber.subscribe.mockImplementationOnce(function callback(
+      _channel: string,
+      listener: (message: string) => void,
+    ) {
+      handleMessage = listener;
+      return Promise.resolve(1);
+    });
     const listener = jest.fn();
 
     const unsubscribe = await service.subscribeRoomCommits(listener);
@@ -223,7 +224,9 @@ describe('PokeLoungeLiveStateService', () => {
 function createService(redis: ReturnType<typeof redisFixture>) {
   return new PokeLoungeLiveStateService(
     new ConfigService({ REDIS_URL: 'redis://localhost:6379' }),
-    jest.fn(() => redis.command) as never,
+    jest.fn(function mockFunction() {
+      return redis.command;
+    }) as never,
   );
 }
 
@@ -231,12 +234,18 @@ function redisFixture() {
   const redisClient = () => ({
     isReady: false,
     isOpen: false,
-    connect: jest.fn(function (this: { isReady: boolean; isOpen: boolean }) {
+    connect: jest.fn(function connectRedisClient(this: {
+      isReady: boolean;
+      isOpen: boolean;
+    }) {
       this.isReady = true;
       this.isOpen = true;
       return Promise.resolve();
     }),
-    close: jest.fn(function (this: { isReady: boolean; isOpen: boolean }) {
+    close: jest.fn(function closeRedisClient(this: {
+      isReady: boolean;
+      isOpen: boolean;
+    }) {
       this.isReady = false;
       this.isOpen = false;
       return Promise.resolve();

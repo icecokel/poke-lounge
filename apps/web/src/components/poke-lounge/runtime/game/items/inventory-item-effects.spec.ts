@@ -13,12 +13,12 @@ import {
   resetRuntimeGameDataJsonStateForTest,
 } from "../data/game-data-json";
 import { loadRuntimeGameDataJsonFixture as loadRuntimeGameDataJson } from "../testing/runtime-rom-data.fixture";
-import type { PlayerPokemon } from "../state/gameStateStore";
-import { applyInventoryItemEffect } from "./inventoryItemEffects";
+import type { PlayerPokemon } from "../state/game-state-store";
+import { applyInventoryItemEffect } from "./inventory-item-effects";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 
-test("고급상처약은 ROM 이름과 회복량 200을 사용한다", async () => {
+test("고급상처약은 ROM 이름과 회복량 200을 사용한다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   const levelUpMoveTable = readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH);
   await loadRuntimeGameDataJson(createGameDataFetcher(pokemonData, levelUpMoveTable));
@@ -41,7 +41,7 @@ test("고급상처약은 ROM 이름과 회복량 200을 사용한다", async () 
   }
 });
 
-test("이상한사탕 레벨업은 경험치를 보정하고 레벨 진화를 적용한다", async () => {
+test("이상한사탕 레벨업은 경험치를 보정하고 레벨 진화를 적용한다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   const levelUpMoveTable = readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH);
   await loadRuntimeGameDataJson(createGameDataFetcher(pokemonData, levelUpMoveTable));
@@ -94,16 +94,16 @@ test("이상한사탕 레벨업은 경험치를 보정하고 레벨 진화를 �
     assert.deepEqual(result.pokemon.moves, pokemon.moves);
     assert.deepEqual(result.pendingMoveReplacements, []);
     assert.ok(
-      result.messages.some(
-        message => message.includes("마그케인") && message.includes("진화했습니다"),
-      ),
+      result.messages.some(function testItem(message) {
+        return message.includes("마그케인") && message.includes("진화했습니다");
+      }),
     );
   } finally {
     resetRuntimeGameDataJsonStateForTest();
   }
 });
 
-test("Lv.9 캐터피에게 이상한사탕을 쓰면 버터플까지 연쇄 진화하고 Lv.10 기술을 배운다", async () => {
+test("Lv.9 캐터피에게 이상한사탕을 쓰면 버터플까지 연쇄 진화하고 Lv.10 기술을 배운다", async function testCase() {
   const pokemonData = readPublicJson(POKEMON_DATA_JSON_PATH);
   const levelUpMoveTable = readPublicJson(LEVEL_UP_MOVE_TABLE_JSON_PATH);
   await loadRuntimeGameDataJson(createGameDataFetcher(pokemonData, levelUpMoveTable));
@@ -142,7 +142,9 @@ test("Lv.9 캐터피에게 이상한사탕을 쓰면 버터플까지 연쇄 진�
     assert.equal(result.pokemon.speciesId, 12);
     assert.equal(result.pokemon.name, "버터플");
     assert.deepEqual(
-      result.pokemon.moves?.map(move => move.id),
+      result.pokemon.moves?.map(function mapItem(move) {
+        return move.id;
+      }),
       [33, 81, 93],
     );
     assert.deepEqual(result.pendingMoveReplacements, []);
@@ -166,9 +168,8 @@ function readPublicJson(publicPath: string): unknown {
   );
 }
 
-const createGameDataFetcher =
-  (pokemonData: unknown, levelUpMoveTable: unknown): typeof fetch =>
-  async input => {
+const createGameDataFetcher = (pokemonData: unknown, levelUpMoveTable: unknown): typeof fetch =>
+  async function callback(input) {
     const requestPath =
       typeof input === "string"
         ? input

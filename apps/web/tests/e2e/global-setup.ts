@@ -2,7 +2,10 @@ import type { FullConfig } from "@playwright/test";
 
 const warmupRoutes = ["/ko-KR", "/ko-KR/game/poke-lounge", "/api/auth/session"];
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) =>
+  new Promise(function resolvePromise(resolve) {
+    return setTimeout(resolve, ms);
+  });
 
 export default async function globalSetup(config: FullConfig) {
   if (!process.env.PLAYWRIGHT_BASE_URL) {

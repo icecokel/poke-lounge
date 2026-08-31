@@ -6,8 +6,8 @@ import {
 import type { Request, Response } from 'express';
 import { HttpExceptionFilter } from './http-exception.filter';
 
-describe('HttpExceptionFilter', () => {
-  it('구조화된 예외 응답을 보존하고 로그에서는 사용자 입력을 제외한다', () => {
+describe('HttpExceptionFilter', function testSuite() {
+  it('구조화된 예외 응답을 보존하고 로그에서는 사용자 입력을 제외한다', function testCase() {
     const request = {
       method: 'POST',
       url: '/poke-lounge/rooms?question=person@example.com',
@@ -20,7 +20,7 @@ describe('HttpExceptionFilter', () => {
     } as unknown as Request;
     const status = jest.fn().mockReturnThis();
     let responseBody: unknown;
-    const json = jest.fn((body: unknown) => {
+    const json = jest.fn(function mockFunction(body: unknown) {
       responseBody = body;
     });
     const response = { status, json } as unknown as Response;
@@ -33,7 +33,7 @@ describe('HttpExceptionFilter', () => {
     let logMessage: unknown;
     const warnSpy = jest
       .spyOn(Logger.prototype, 'warn')
-      .mockImplementation((message: unknown) => {
+      .mockImplementation(function mockImplementation(message: unknown) {
         logMessage = message;
       });
 

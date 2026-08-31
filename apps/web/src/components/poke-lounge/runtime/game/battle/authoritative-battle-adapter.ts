@@ -2,10 +2,10 @@ import {
   COMPETITIVE_RULESET_V2,
   COMPETITIVE_STRUGGLE_MOVE_ID,
   isCompetitiveMoveEffectSelectable,
-} from "@poke-lounge/battle";
-import type { CompetitiveAction, CompetitiveProjection } from "../network/localPreviewRoom";
-import { getBattlePokemonAssets } from "./battlePokemonAssets";
-import { calculateGen4BattleStats } from "./gen4PokemonStats";
+} from "@poke-lounge/battle/competitive-ruleset-config";
+import type { CompetitiveAction, CompetitiveProjection } from "../network/local-preview-room";
+import { getBattlePokemonAssets } from "./battle-pokemon-assets";
+import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
 import { getExperienceForLevel } from "./experience";
 import { createMaxIndividualValues } from "./individual-values";
 import {
@@ -18,7 +18,7 @@ import type {
   BattlePartySlot,
   BattlePokemon,
   BattleScreenState,
-} from "./battleTypes";
+} from "./battle-types";
 
 type CompetitivePlayer = CompetitiveProjection["currentState"]["playersById"][string];
 type CompetitivePokemon = CompetitivePlayer["team"][number];
@@ -34,7 +34,9 @@ export function isLegalAuthoritativeAction(
   }
 
   if (action.kind === "move") {
-    const activePokemon = player.team.find(pokemon => pokemon.slotIndex === player.activeSlotIndex);
+    const activePokemon = player.team.find(function findItem(pokemon) {
+      return pokemon.slotIndex === player.activeSlotIndex;
+    });
     if (!activePokemon || activePokemon.currentHp === 0) {
       return false;
     }
@@ -44,12 +46,13 @@ export function isLegalAuthoritativeAction(
 
     return Boolean(
       Number.isSafeInteger(action.moveId) &&
-      activePokemon.moves.some(
-        move =>
+      activePokemon.moves.some(function testItem(move) {
+        return (
           move.moveId === action.moveId &&
           move.pp > 0 &&
-          isRuntimeCompetitiveMoveSelectable(move.moveId),
-      ),
+          isRuntimeCompetitiveMoveSelectable(move.moveId)
+        );
+      }),
     );
   }
 
@@ -58,7 +61,9 @@ export function isLegalAuthoritativeAction(
       return false;
     }
     const slotIndex = action.slotIndex as number;
-    const target = player.team.find(pokemon => pokemon.slotIndex === slotIndex);
+    const target = player.team.find(function findItem(pokemon) {
+      return pokemon.slotIndex === slotIndex;
+    });
     return slotIndex !== player.activeSlotIndex && Boolean(target && target.currentHp > 0);
   }
 
@@ -73,7 +78,9 @@ export function toAuthoritativeBattleState(
   previousState?: BattleScreenState,
 ): BattleScreenState {
   const ownPlayer = projection.currentState.playersById[ownPlayerId];
-  const opponentId = projection.playerIds.find(playerId => playerId !== ownPlayerId);
+  const opponentId = projection.playerIds.find(function findItem(playerId) {
+    return playerId !== ownPlayerId;
+  });
   const opponent = opponentId ? projection.currentState.playersById[opponentId] : undefined;
 
   if (!ownPlayer || !opponent || !opponentId) {
@@ -121,12 +128,20 @@ export function toAuthoritativeBattleState(
 }
 
 function toBattleParticipant(player: CompetitivePlayer, fallbackName: string): BattleParticipant {
-  const party = Array.from({ length: 6 }, (_, slotIndex): BattlePartySlot => ({
-    slotIndex,
-    pokemon: player.team.find(candidate => candidate.slotIndex === slotIndex)
-      ? toBattlePokemon(player.team.find(candidate => candidate.slotIndex === slotIndex)!)
-      : null,
-  }));
+  const party = Array.from({ length: 6 }, function callback(_, slotIndex): BattlePartySlot {
+    return {
+      slotIndex,
+      pokemon: player.team.find(function findItem(candidate) {
+        return candidate.slotIndex === slotIndex;
+      })
+        ? toBattlePokemon(
+            player.team.find(function findItem(candidate) {
+              return candidate.slotIndex === slotIndex;
+            })!,
+          )
+        : null,
+    };
+  });
   const activePokemon = party[player.activeSlotIndex]?.pokemon;
 
   if (!activePokemon) {
@@ -223,7 +238,9 @@ function toBattleMove(move: CompetitivePokemon["moves"][number]): BattleMove {
 export function canUseAuthoritativeStruggle(
   moves: readonly { moveId: number; pp: number }[],
 ): boolean {
-  return moves.every(move => move.pp === 0 || !isRuntimeCompetitiveMoveSelectable(move.moveId));
+  return moves.every(function testItem(move) {
+    return move.pp === 0 || !isRuntimeCompetitiveMoveSelectable(move.moveId);
+  });
 }
 
 function isRuntimeCompetitiveMoveSelectable(moveId: number): boolean {

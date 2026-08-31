@@ -1,8 +1,8 @@
 import type { QueryRunner } from 'typeorm';
 import { CreatePokeLoungeCompetitiveAssignment1794182400000 } from './1794182400000-create-poke-lounge-competitive-assignment';
 
-describe('CreatePokeLoungeCompetitiveAssignment1794182400000', () => {
-  it('creates durable private seats and complete immutable assignments with race-safe uniqueness', async () => {
+describe('CreatePokeLoungeCompetitiveAssignment1794182400000', function testSuite() {
+  it('creates durable private seats and complete immutable assignments with race-safe uniqueness', async function testCase() {
     const query = jest.fn().mockResolvedValue(undefined);
     const migration = new CreatePokeLoungeCompetitiveAssignment1794182400000();
 

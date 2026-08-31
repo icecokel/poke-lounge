@@ -8,12 +8,12 @@ import type {
   PokeLoungeBgmId,
   PokeLoungeSfxId,
 } from "../audio/poke-lounge-audio.types";
-import { BATTLE_ASSET_MANIFEST_PATH } from "../battle/battleAssets";
-import { ROM_BATTLE_PRELOAD_ASSETS } from "../battle/battleDesign";
+import { BATTLE_ASSET_MANIFEST_PATH } from "../battle/battle-assets";
+import { ROM_BATTLE_PRELOAD_ASSETS } from "../battle/battle-design";
 import {
   toBattlePokemonPreloadAssets,
   type BattlePokemonPreloadAsset,
-} from "../battle/battlePokemonAssets";
+} from "../battle/battle-pokemon-assets";
 import {
   BATTLE_POKEMON_ASSETS_JSON_PATH,
   ITEM_DATA_JSON_PATH,
@@ -22,8 +22,8 @@ import {
   WILD_BATTLE_MOVE_SETS_JSON_PATH,
   type RuntimeGameDataJson,
 } from "../data/game-data-json";
-import { FIELD_MAP } from "../world/fieldMap";
-import { WILD_ENCOUNTER_TABLES_JSON_ASSET } from "../world/wildEncounterTables";
+import { FIELD_MAP } from "../world/field-map";
+import { WILD_ENCOUNTER_TABLES_JSON_ASSET } from "../world/wild-encounter-tables";
 
 const JSON_CACHE_ASSETS = [
   ["battleAssetManifest", BATTLE_ASSET_MANIFEST_PATH],
@@ -91,13 +91,21 @@ export async function loadPokeLoungeRuntimeAssets({
   const spriteSheetAssets = toBattlePokemonPreloadAssets();
   const audioAssets = getPokeLoungeAudioPreloadAssets(audioManifest);
   const imageAssets = [
-    ...ROM_BATTLE_PRELOAD_ASSETS.map(([key, path]) => ({ key, path })),
+    ...ROM_BATTLE_PRELOAD_ASSETS.map(function mapItem([key, path]) {
+      return { key, path };
+    }),
     { key: FIELD_MAP.tilesetKey, path: FIELD_MAP.tilesetUrl },
-    ...Object.values(FIELD_MAP.npcs).map(npc => ({ key: npc.textureKey, path: npc.imageUrl })),
+    ...Object.values(FIELD_MAP.npcs).map(function mapItem(npc) {
+      return { key: npc.textureKey, path: npc.imageUrl };
+    }),
   ];
   const uniqueImagePaths = new Set([
-    ...imageAssets.map(asset => asset.path),
-    ...spriteSheetAssets.map(asset => asset.path),
+    ...imageAssets.map(function mapItem(asset) {
+      return asset.path;
+    }),
+    ...spriteSheetAssets.map(function mapItem(asset) {
+      return asset.path;
+    }),
     FIELD_MAP.player.atlasUrl,
   ]);
   const total = 1 + JSON_CACHE_ASSETS.length + 2 + uniqueImagePaths.size + audioAssets.length;
@@ -119,10 +127,9 @@ export async function loadPokeLoungeRuntimeAssets({
 
   const [jsonEntries, tilemapValue, playerAtlasValue] = await Promise.all([
     Promise.all(
-      JSON_CACHE_ASSETS.map(
-        async ([key, path]) =>
-          [key, complete(await fetchRequiredJson(fetcher, path, signal))] as const,
-      ),
+      JSON_CACHE_ASSETS.map(async function mapItem([key, path]) {
+        return [key, complete(await fetchRequiredJson(fetcher, path, signal))] as const;
+      }),
     ),
     fetchRequiredJson(fetcher, FIELD_MAP.mapUrl, signal).then(complete),
     fetchRequiredJson(fetcher, FIELD_MAP.player.atlasJsonUrl, signal).then(complete),
@@ -145,16 +152,24 @@ export async function loadPokeLoungeRuntimeAssets({
     return promise;
   };
   const [loadedImages, spriteSheets, playerAtlasImage, audioBufferEntries] = await Promise.all([
-    Promise.all(imageAssets.map(async asset => [asset.key, await getImage(asset.path)] as const)),
     Promise.all(
-      spriteSheetAssets.map(async asset => ({ ...asset, image: await getImage(asset.path) })),
+      imageAssets.map(async function mapItem(asset) {
+        return [asset.key, await getImage(asset.path)] as const;
+      }),
+    ),
+    Promise.all(
+      spriteSheetAssets.map(async function mapItem(asset) {
+        return { ...asset, image: await getImage(asset.path) };
+      }),
     ),
     getImage(FIELD_MAP.player.atlasUrl),
     Promise.all(
-      audioAssets.map(
-        async asset =>
-          [asset.id, complete(await fetchRequiredArrayBuffer(fetcher, asset.src, signal))] as const,
-      ),
+      audioAssets.map(async function mapItem(asset) {
+        return [
+          asset.id,
+          complete(await fetchRequiredArrayBuffer(fetcher, asset.src, signal)),
+        ] as const;
+      }),
     ),
   ]);
 
@@ -194,7 +209,7 @@ async function fetchRequiredArrayBuffer(
 }
 
 function loadBrowserImage(path: string, signal?: AbortSignal): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
+  return new Promise(function resolvePromise(resolve, reject) {
     const image = new Image();
     const cleanup = () => {
       image.onload = null;
@@ -206,11 +221,11 @@ function loadBrowserImage(path: string, signal?: AbortSignal): Promise<HTMLImage
       image.src = "";
       reject(signal?.reason ?? new DOMException("Asset loading aborted.", "AbortError"));
     };
-    image.onload = () => {
+    image.onload = function callback() {
       cleanup();
       resolve(image);
     };
-    image.onerror = () => {
+    image.onerror = function callback() {
       cleanup();
       reject(new Error(`Failed to load required Poke Lounge image ${path}.`));
     };

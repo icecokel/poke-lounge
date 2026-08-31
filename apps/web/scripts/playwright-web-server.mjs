@@ -29,14 +29,14 @@ const sanitizedTsconfig = {
     tsBuildInfoFile: e2eTsBuildInfoPath,
   },
   include: Array.isArray(rawTsconfig.include)
-    ? rawTsconfig.include.filter(
-        entry => typeof entry !== "string" || !entry.startsWith(".next-e2e"),
-      )
+    ? rawTsconfig.include.filter(function filterItem(entry) {
+        return typeof entry !== "string" || !entry.startsWith(".next-e2e");
+      })
     : rawTsconfig.include,
   exclude: Array.isArray(rawTsconfig.exclude)
-    ? rawTsconfig.exclude.filter(
-        entry => typeof entry !== "string" || !entry.startsWith(".next-e2e"),
-      )
+    ? rawTsconfig.exclude.filter(function filterItem(entry) {
+        return typeof entry !== "string" || !entry.startsWith(".next-e2e");
+      })
     : rawTsconfig.exclude,
 };
 
@@ -72,11 +72,11 @@ const server = spawn(pnpmCommand, ["exec", "next", "dev", "--hostname", host, "-
   env: serverEnv,
 });
 
-server.stdout.on("data", chunk => {
+server.stdout.on("data", function handleEvent(chunk) {
   process.stdout.write(chunk);
 });
 
-server.stderr.on("data", chunk => {
+server.stderr.on("data", function handleEvent(chunk) {
   process.stderr.write(chunk);
 });
 
@@ -113,7 +113,7 @@ const removeArtifact = (artifactPath, recursive) => {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-server.on("exit", code => {
+server.on("exit", function handleEvent(code) {
   removeE2eNextEnvRouteReferences();
   removeArtifact(resolvedNextDistDir, true);
   removeArtifact(resolvedNextTsconfigPath, false);

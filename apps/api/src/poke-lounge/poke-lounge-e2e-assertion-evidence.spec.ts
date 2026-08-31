@@ -3,8 +3,8 @@ import {
   summarizeRedisAssertionDocument,
 } from '../../scripts/start-poke-lounge-e2e-api';
 
-describe('Poke Lounge E2E assertion evidence', () => {
-  it('counts action kinds and exposes only switch match/player/turn evidence', () => {
+describe('Poke Lounge E2E assertion evidence', function testSuite() {
+  it('counts action kinds and exposes only switch match/player/turn evidence', function testCase() {
     expect(
       summarizeActionEvidence([
         {
@@ -38,20 +38,20 @@ describe('Poke Lounge E2E assertion evidence', () => {
     });
   });
 
-  it('rejects an unknown stored action kind', () => {
-    expect(() =>
-      summarizeActionEvidence([
+  it('rejects an unknown stored action kind', function testCase() {
+    expect(function callback() {
+      return summarizeActionEvidence([
         {
           matchId: '11111111-1111-4111-8111-111111111111',
           playerId: 'player-4',
           turn: 0,
           kind: 'unknown',
         },
-      ]),
-    ).toThrow('Unknown competitive action kind');
+      ]);
+    }).toThrow('Unknown competitive action kind');
   });
 
-  it('summarizes Redis evidence without exposing stored secrets', () => {
+  it('summarizes Redis evidence without exposing stored secrets', function testCase() {
     const party = {
       activeSlotIndex: 0,
       members: [
@@ -127,8 +127,8 @@ describe('Poke Lounge E2E assertion evidence', () => {
     expect(JSON.stringify(summary)).not.toMatch(
       /room-id-secret|session-secret|account-secret|request-hash-secret|server-seed-secret|client-command-secret|action-hash-secret/,
     );
-    expect(() =>
-      summarizeRedisAssertionDocument('{"version":1}', 'ABC123'),
-    ).toThrow('Redis room is malformed');
+    expect(function callback() {
+      return summarizeRedisAssertionDocument('{"version":1}', 'ABC123');
+    }).toThrow('Redis room is malformed');
   });
 });

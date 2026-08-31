@@ -11,7 +11,9 @@ const collectTestFiles = async (directory, isTestFile) => {
   const entries = await readdir(path.join(webRoot, directory), { withFileTypes: true });
   const files = [];
 
-  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+  for (const entry of entries.sort(function compareItems(left, right) {
+    return left.name.localeCompare(right.name);
+  })) {
     const relativePath = path.posix.join(directory, entry.name);
 
     if (entry.isDirectory()) {
@@ -26,11 +28,12 @@ const collectTestFiles = async (directory, isTestFile) => {
 
 const testFiles = [
   "next-config.test.ts",
-  ...(await collectTestFiles("scripts", fileName => fileName.endsWith(".test.mjs"))),
-  ...(await collectTestFiles(
-    "src",
-    fileName => fileName.endsWith(".test.ts") || fileName.endsWith(".spec.ts"),
-  )),
+  ...(await collectTestFiles("scripts", function callback(fileName) {
+    return fileName.endsWith(".test.mjs");
+  })),
+  ...(await collectTestFiles("src", function callback(fileName) {
+    return fileName.endsWith(".test.ts") || fileName.endsWith(".spec.ts");
+  })),
 ];
 
 const testProcess = spawn(pnpmCommand, ["exec", "tsx", "--test", ...testFiles], {
@@ -38,11 +41,11 @@ const testProcess = spawn(pnpmCommand, ["exec", "tsx", "--test", ...testFiles], 
   stdio: "inherit",
 });
 
-testProcess.on("error", error => {
+testProcess.on("error", function handleEvent(error) {
   console.error(error);
   process.exitCode = 1;
 });
 
-testProcess.on("exit", code => {
+testProcess.on("exit", function handleEvent(code) {
   process.exitCode = code ?? 1;
 });

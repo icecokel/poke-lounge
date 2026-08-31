@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createGameStateStore } from "./gameStateStore";
+import { createGameStateStore } from "./game-state-store";
 import { hasSamePokeLoungeLocalProgress } from "./poke-lounge-save-conflict";
 import { buildPokeLoungeSaveSnapshot } from "./poke-lounge-save-snapshot";
 
-test("jsonb가 record key 순서를 바꿔도 같은 로컬 진행으로 판정한다", () => {
+test("jsonb가 record key 순서를 바꿔도 같은 로컬 진행으로 판정한다", function testCase() {
   const snapshot = buildPokeLoungeSaveSnapshot(createGameStateStore());
   const reordered = reverseRecordKeys(snapshot);
 
   assert.equal(hasSamePokeLoungeLocalProgress(snapshot, reordered), true);
 });
 
-test("실제 로컬 진행 값이 다르면 저장 충돌로 판정한다", () => {
+test("실제 로컬 진행 값이 다르면 저장 충돌로 판정한다", function testCase() {
   const snapshot = buildPokeLoungeSaveSnapshot(createGameStateStore());
   const changed = structuredClone(snapshot);
   changed.state.playersById[changed.state.currentPlayerId].wallet.pokeDollars += 1;
@@ -31,6 +31,8 @@ function reverseRecordKeys<T>(value: T): T {
   return Object.fromEntries(
     Object.entries(value)
       .reverse()
-      .map(([key, entry]) => [key, reverseRecordKeys(entry)]),
+      .map(function mapItem([key, entry]) {
+        return [key, reverseRecordKeys(entry)];
+      }),
   ) as T;
 }

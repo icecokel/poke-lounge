@@ -1,6 +1,6 @@
-import type { ShortcutGuideInputMode } from "../ui/shortcutGuide";
+import type { ShortcutGuideInputMode } from "../ui/shortcut-guide";
 import type { MobileBattleUiAction, MobileBattleUiState } from "../ui/mobile-battle-ui";
-import type { BattleKind, BattlePhase, BattlePokemonStatus, BattleSpriteRef } from "./battleTypes";
+import type { BattleKind, BattlePhase, BattlePokemonStatus, BattleSpriteRef } from "./battle-types";
 
 export interface BattleSpritePresentation {
   alpha: number;
@@ -79,7 +79,9 @@ export function createBattleUiStore(): BattleUiStore {
   const listeners = new Set<() => void>();
   const publish = (next: BattleUiSnapshot) => {
     snapshot = next;
-    listeners.forEach(listener => listener());
+    listeners.forEach(function visitItem(listener) {
+      return listener();
+    });
   };
 
   return {
@@ -102,7 +104,9 @@ export function createBattleUiStore(): BattleUiStore {
     },
     subscribe(listener) {
       listeners.add(listener);
-      return () => listeners.delete(listener);
+      return function callback() {
+        return listeners.delete(listener);
+      };
     },
   };
 }

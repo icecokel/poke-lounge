@@ -6,17 +6,17 @@ import {
   runDeploymentGate,
   runStrictGate,
   validateManifest,
-} from "./check-asset-provenance.mjs";
+} from "./check-asset-provenance";
 
-assert.throws(
-  () =>
-    validateManifest([
-      { publicPath: "assets/poke-lounge/audio/sfx/button-confirm.mp3", rightsStatus: "blocked" },
-    ]),
-  /must be approved/,
-);
+assert.throws(function callback() {
+  return validateManifest([
+    { publicPath: "assets/poke-lounge/audio/sfx/button-confirm.mp3", rightsStatus: "blocked" },
+  ]);
+}, /must be approved/);
 
-assert.throws(() => validateManifest([]), /missing manifest row/);
+assert.throws(function callback() {
+  return validateManifest([]);
+}, /missing manifest row/);
 
 const [publicFile] = getPublicFiles();
 const validRow = {
@@ -29,13 +29,18 @@ const validRow = {
   approvedAt: "2026-07-10T00:00:00.000Z",
 };
 
-assert.doesNotThrow(() => validateManifest([validRow], [publicFile]));
-assert.throws(
-  () => validateManifest([{ ...validRow, sha256: "0".repeat(64) }], [publicFile]),
-  /SHA-256 mismatch/,
-);
+assert.doesNotThrow(function callback() {
+  return validateManifest([validRow], [publicFile]);
+});
+assert.throws(function callback() {
+  return validateManifest([{ ...validRow, sha256: "0".repeat(64) }], [publicFile]);
+}, /SHA-256 mismatch/);
 
-assert.throws(() => runStrictGate(), /must be approved/);
+assert.throws(function callback() {
+  return runStrictGate();
+}, /must be approved/);
 assert.equal(runDeploymentGate({ VERCEL: "1" }), false);
-assert.throws(() => runDeploymentGate({ POKE_LOUNGE_PROVENANCE_STRICT: "1" }), /must be approved/);
+assert.throws(function callback() {
+  return runDeploymentGate({ POKE_LOUNGE_PROVENANCE_STRICT: "1" });
+}, /must be approved/);
 assert.equal(runDeploymentGate({}), false);

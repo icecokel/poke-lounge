@@ -169,13 +169,15 @@ export function PokeLoungeSettingsDialog({
               <p className={styles.rankingEmpty}>{copy.settingsRankingEmpty}</p>
             ) : (
               <ol className={styles.rankingList}>
-                {ranking.map(entry => (
-                  <li key={entry.id}>
-                    <span>#{entry.rank}</span>
-                    <strong>{entry.name}</strong>
-                    <b>{entry.score.toLocaleString(copy.locale)}</b>
-                  </li>
-                ))}
+                {ranking.map(function mapItem(entry) {
+                  return (
+                    <li key={entry.id}>
+                      <span>#{entry.rank}</span>
+                      <strong>{entry.name}</strong>
+                      <b>{entry.score.toLocaleString(copy.locale)}</b>
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </section>
@@ -193,7 +195,9 @@ export function PokeLoungeSettingsDialog({
             type="button"
             variant="outline"
             className={styles.settingsOptionButton}
-            onClick={() => onOpenChange(false)}
+            onClick={function handleClick() {
+              return onOpenChange(false);
+            }}
             data-poke-lounge-setting-option="true"
             data-poke-lounge-settings-cancel="true"
           >

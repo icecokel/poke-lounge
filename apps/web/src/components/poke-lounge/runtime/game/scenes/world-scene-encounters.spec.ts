@@ -4,7 +4,7 @@ import {
   createDefaultGameState,
   createDefaultLocalPlayer,
   createGameStateStore,
-} from "../state/gameStateStore";
+} from "../state/game-state-store";
 import {
   createWorldSceneEncounters,
   type WorldSceneEncountersDependencies,
@@ -18,7 +18,9 @@ interface EncounterHarness {
 
 const createEncounterHarness = (
   hasTallGrassAt: WorldSceneEncountersDependencies["hasTallGrassAt"],
-  delay: WorldSceneEncountersDependencies["delay"] = (_ms, onComplete) => onComplete(),
+  delay: WorldSceneEncountersDependencies["delay"] = function callback(_ms, onComplete) {
+    return onComplete();
+  },
 ): EncounterHarness => {
   const player = createDefaultLocalPlayer();
   player.party = [
@@ -92,8 +94,10 @@ const createEncounterHarness = (
   };
 };
 
-test("일반 바닥에서 이동을 완료해도 야생 조우를 시작하지 않는다", () => {
-  const harness = createEncounterHarness(() => false);
+test("일반 바닥에서 이동을 완료해도 야생 조우를 시작하지 않는다", function testCase() {
+  const harness = createEncounterHarness(function callback() {
+    return false;
+  });
 
   harness.moveTo({ x: 688, y: 446 });
   harness.controller.afterMovement();
@@ -105,8 +109,10 @@ test("일반 바닥에서 이동을 완료해도 야생 조우를 시작하지 �
   assert.equal(harness.getStartedBattle(), null);
 });
 
-test("긴 풀 타일에서 이동을 완료하면 야생 조우를 시작한다", () => {
-  const harness = createEncounterHarness(tile => tile.x === 21 && tile.y === 13);
+test("긴 풀 타일에서 이동을 완료하면 야생 조우를 시작한다", function testCase() {
+  const harness = createEncounterHarness(function callback(tile) {
+    return tile.x === 21 && tile.y === 13;
+  });
 
   harness.moveTo({ x: 688, y: 446 });
   harness.controller.afterMovement();
@@ -118,8 +124,10 @@ test("긴 풀 타일에서 이동을 완료하면 야생 조우를 시작한다"
   assert.ok(harness.getStartedBattle());
 });
 
-test("한 프레임에 여러 타일을 지나도 중간 긴 풀 타일의 조우를 판정한다", () => {
-  const harness = createEncounterHarness(tile => tile.x === 22 && tile.y === 13);
+test("한 프레임에 여러 타일을 지나도 중간 긴 풀 타일의 조우를 판정한다", function testCase() {
+  const harness = createEncounterHarness(function callback(tile) {
+    return tile.x === 22 && tile.y === 13;
+  });
 
   harness.moveTo({ x: 752, y: 446 });
   harness.controller.afterMovement();
@@ -131,11 +139,13 @@ test("한 프레임에 여러 타일을 지나도 중간 긴 풀 타일의 조�
   assert.ok(harness.getStartedBattle());
 });
 
-test("파괴된 조우 컨트롤러의 지연 전환은 새 라이프사이클에서 전투를 시작하지 않는다", () => {
+test("파괴된 조우 컨트롤러의 지연 전환은 새 라이프사이클에서 전투를 시작하지 않는다", function testCase() {
   const battleIntroCallbacks: Array<() => void> = [];
   const harness = createEncounterHarness(
-    tile => tile.x === 21 && tile.y === 13,
-    (_ms, onComplete) => {
+    function callback(tile) {
+      return tile.x === 21 && tile.y === 13;
+    },
+    function callback(_ms, onComplete) {
       battleIntroCallbacks.push(onComplete);
     },
   );
