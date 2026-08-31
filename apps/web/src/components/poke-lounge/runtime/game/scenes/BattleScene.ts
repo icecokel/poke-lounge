@@ -71,13 +71,11 @@ import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-asse
 import { getDefaultGameStateStore } from "../state/defaultGameStateStore";
 import {
   getShopItemById,
-  SHOP_ITEM_IDS,
   type GameStateStore,
   type LocalPlayerState,
-  type PremiumShopItemId,
   type PlayerPokemon,
-  type ShopItemId,
 } from "../state/gameStateStore";
+import type { RuntimeItemId } from "../items/runtime-items";
 import {
   dispatchPokeLoungeAccessibleStatus,
   dispatchPokeLoungeNotice,
@@ -150,14 +148,17 @@ const BATTLE_MESSAGE_AUTO_ADVANCE_MS = 850;
 const BATTLE_HIT_SHAKE_PIXELS = 4;
 const BATTLE_ENTRANCE_TWEEN_MS = 640;
 const E2E_SINGLE_LEVEL_BASE_EXP_YIELD = Math.ceil(500 / WILD_BATTLE_EXPERIENCE_MULTIPLIER);
-const BATTLE_BAG_PREMIUM_ITEM_IDS = [
+const BATTLE_BAG_ITEM_IDS = [
+  "potion",
+  "pokeball",
+  "antidote",
+  "superPotion",
   "hyperPotion",
   "revive",
   "ultraBall",
-] as const satisfies readonly PremiumShopItemId[];
+] as const satisfies readonly RuntimeItemId[];
 
-type PremiumBattleBagItemId = (typeof BATTLE_BAG_PREMIUM_ITEM_IDS)[number];
-type BattleBagItemId = ShopItemId | PremiumBattleBagItemId;
+type BattleBagItemId = (typeof BATTLE_BAG_ITEM_IDS)[number];
 interface PendingMoveLearning {
   slotIndex: number;
   pokemonName: string;
@@ -2851,7 +2852,7 @@ export class BattleController {
   }
 
   private getBattleBagItemIds(): BattleBagItemId[] {
-    return [...SHOP_ITEM_IDS, ...BATTLE_BAG_PREMIUM_ITEM_IDS];
+    return [...BATTLE_BAG_ITEM_IDS];
   }
 
   private publishE2eSnapshot(): void {

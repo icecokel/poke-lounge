@@ -16,15 +16,22 @@ import { consumeVirtualGamepadPress } from "../input/virtualGamepad";
 import { setShortcutGuideTouchControlsSuppressed } from "../input/mobileTouchControlsVisibility";
 import { PLAYER_PARTY_SLOT_COUNT } from "../player/playerTypes";
 import {
+  clearRuntimeShopItemRomIds,
+  loadRuntimeShopItemRomIds,
+  registerRuntimeShopItemRomIds,
+  type RuntimeShopKind,
+} from "../data/game-data-json";
+import {
+  getRuntimeItemIds,
+  getRuntimeShopItemIds,
+  type RuntimeItemId,
+} from "../items/runtime-items";
+import {
   getShopItemById,
-  PREMIUM_SHOP_ITEM_IDS,
-  SHOP_ITEM_IDS,
   type GameStateStore,
   type PlayerPokemon,
   type PlayerPokemonMove,
-  type PremiumShopItemId,
   type ShopItem,
-  type ShopItemId,
 } from "../state/gameStateStore";
 import {
   hasPokeLoungeMobileFullscreenScene,
@@ -50,8 +57,8 @@ const DICE_GAMBLE_LABELS: Record<DiceGamblePrediction, string> = {
   higher: "높다",
 };
 
-type ShopKind = "basic" | "premium";
-type KnownShopItemId = ShopItemId | PremiumShopItemId;
+type ShopKind = RuntimeShopKind;
+type KnownShopItemId = RuntimeItemId;
 type PcBoxFocus = "party" | "box";
 type InventoryFocus = "items" | "move-replace" | "party";
 
@@ -138,6 +145,7 @@ export interface WorldSceneInteractionsDependencies {
   getPartyPokemonBySlotIndex(slotIndex: number): PlayerPokemon | null;
   getPokemonStatusPanelSnapshot(): WorldE2eSnapshot["pokemonStatusPanel"];
   isPokemonStatusPanelOpen(): boolean;
+  loadShopItemRomIds?(shopKind: ShopKind): Promise<readonly number[]>;
   worldUiStore: WorldUiStore;
 }
 
@@ -177,6 +185,8 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private activeShopKind: ShopKind = "basic";
   private shopSelectedIndex = 0;
   private shopMessage = "";
+  private shopLoadRequestId = 0;
+  private shopLoadStatus: "idle" | "loading" | "ready" | "error" = "idle";
   private inventoryOpen = false;
   private inventoryFocus: InventoryFocus = "items";
   private inventorySelectedIndex = 0;
@@ -361,7 +371,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     }
 
     if (action.type === "select-shop-item") {
-      if (!this.shopOpen) {
+      if (!this.shopOpen || this.shopLoadStatus !== "ready") {
         return;
       }
 
@@ -375,7 +385,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     }
 
     if (action.type === "purchase-shop-item") {
-      if (!this.shopOpen) {
+      if (!this.shopOpen || this.shopLoadStatus !== "ready") {
         return;
       }
 
@@ -1245,21 +1255,59 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
   private openShop(shopKind: ShopKind = "basic"): void {
     this.mobileWorldView = "explore";
+    clearRuntimeShopItemRomIds(this.activeShopKind);
     this.activeShopKind = shopKind;
+    clearRuntimeShopItemRomIds(shopKind);
     this.shopOpen = true;
     this.shopSelectedIndex = 0;
-    this.shopMessage = "";
+    this.shopLoadStatus = "loading";
+    this.shopMessage = "상품을 불러오는 중…";
+    const requestId = (this.shopLoadRequestId += 1);
     this.renderShopUi();
+
+    void (this.dependencies.loadShopItemRomIds ?? loadRuntimeShopItemRomIds)(shopKind)
+      .then(itemIds => {
+        if (
+          requestId !== this.shopLoadRequestId ||
+          !this.shopOpen ||
+          this.activeShopKind !== shopKind
+        ) {
+          return;
+        }
+        registerRuntimeShopItemRomIds(shopKind, itemIds);
+        this.shopLoadStatus = "ready";
+        this.shopMessage = "";
+        this.renderShopUi();
+      })
+      .catch(() => {
+        if (
+          requestId !== this.shopLoadRequestId ||
+          !this.shopOpen ||
+          this.activeShopKind !== shopKind
+        ) {
+          return;
+        }
+        clearRuntimeShopItemRomIds(shopKind);
+        this.shopLoadStatus = "error";
+        this.shopMessage = "판매 목록을 불러오지 못했다. 상점을 닫고 다시 시도해 주세요.";
+        this.renderShopUi();
+      });
   }
 
   private closeShop(): void {
+    this.shopLoadRequestId += 1;
+    clearRuntimeShopItemRomIds(this.activeShopKind);
     this.shopOpen = false;
+    this.shopLoadStatus = "idle";
     this.shopMessage = "";
     this.destroyShopUi();
     this.publishMobileWorldUiState();
   }
 
   private moveShopSelection(delta: number): void {
+    if (this.shopLoadStatus !== "ready") {
+      return;
+    }
     const shopItemIds = this.getCurrentShopItemIds();
 
     if (shopItemIds.length === 0) {
@@ -1276,6 +1324,9 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private confirmShopSelection(): void {
+    if (this.shopLoadStatus !== "ready") {
+      return;
+    }
     const shopItemIds = this.getCurrentShopItemIds();
     const itemId = shopItemIds[this.shopSelectedIndex] ?? shopItemIds[0];
     const item = this.getKnownShopItem(itemId);
@@ -1306,7 +1357,10 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private destroyShopUi(): void {}
 
   private getCurrentShopItemIds(): KnownShopItemId[] {
-    return this.activeShopKind === "premium" ? [...PREMIUM_SHOP_ITEM_IDS] : [...SHOP_ITEM_IDS];
+    if (!this.shopOpen || this.shopLoadStatus !== "ready") {
+      return [];
+    }
+    return getRuntimeShopItemIds(this.activeShopKind);
   }
 
   private getCurrentShopTitle(): string {
@@ -1636,7 +1690,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private getAllInventoryItemIds(): KnownShopItemId[] {
-    return [...SHOP_ITEM_IDS, ...PREMIUM_SHOP_ITEM_IDS];
+    return getRuntimeItemIds();
   }
 
   private openPcBox(): void {

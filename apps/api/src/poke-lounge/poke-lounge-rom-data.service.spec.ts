@@ -13,7 +13,9 @@ const DOCUMENT_KEYS = [
 
 describe('PokeLoungeRomDataService', () => {
   it('returns the exact four validated ROM documents from one query', async () => {
-    const query = jest.fn().mockResolvedValue(DOCUMENT_KEYS.map(row));
+    const query = jest
+      .fn()
+      .mockResolvedValue(DOCUMENT_KEYS.map((key) => row(key)));
     const service = new PokeLoungeRomDataService({ query } as never);
 
     await expect(service.getRuntimeData()).resolves.toEqual({
@@ -29,8 +31,56 @@ describe('PokeLoungeRomDataService', () => {
   });
 
   it.each([
+    ['basic', [17, 4]],
+    ['premium', [80, 25]],
+  ] as const)(
+    'returns only the %s shop catalog',
+    async (shopKind, expected) => {
+      const query = jest
+        .fn()
+        .mockResolvedValue([row('item-data', shopPayload())]);
+      const service = new PokeLoungeRomDataService({ query } as never);
+
+      await expect(service.getShopItemIds(shopKind)).resolves.toEqual(expected);
+      expect(query).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    ['missing row', []],
+    [
+      'empty catalog',
+      [row('item-data', shopPayload({ basic: [], premium: [80] }))],
+    ],
+    [
+      'duplicate across shops',
+      [row('item-data', shopPayload({ basic: [17], premium: [17] }))],
+    ],
+    [
+      'unsupported item',
+      [row('item-data', shopPayload({ basic: [1], premium: [80] }))],
+    ],
+    [
+      'non-integer item',
+      [row('item-data', shopPayload({ basic: [17.5], premium: [80] }))],
+    ],
+    [
+      'missing item record',
+      [row('item-data', shopPayload({ basic: [2], premium: [80] }))],
+    ],
+  ])('rejects %s shop catalog data', async (_label, rows) => {
+    const service = new PokeLoungeRomDataService({
+      query: jest.fn().mockResolvedValue(rows),
+    } as unknown as DataSource);
+
+    await expect(service.getShopItemIds('basic')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+  });
+
+  it.each([
     ['empty', []],
-    ['missing', DOCUMENT_KEYS.slice(0, 3).map(row)],
+    ['missing', DOCUMENT_KEYS.slice(0, 3).map((key) => row(key))],
     [
       'wrong ROM',
       DOCUMENT_KEYS.map((key) =>
@@ -67,13 +117,13 @@ describe('PokeLoungeRomDataService', () => {
   );
 });
 
-function row(documentKey: string) {
+function row(documentKey: string, payloadOverride?: object) {
   return {
     documentKey,
     schemaVersion: 1,
     romSha1: ROM_SHA1,
     contentSha256: CONTENT_SHA256,
-    payload: payload(documentKey),
+    payload: payloadOverride ?? payload(documentKey),
   };
 }
 
@@ -82,5 +132,25 @@ function payload(documentKey: string) {
     version: 1,
     source: { romSha1: ROM_SHA1 },
     documentKey,
+  };
+}
+
+function shopPayload(
+  shopCatalogs: { basic: number[]; premium: number[] } = {
+    basic: [17, 4],
+    premium: [80, 25],
+  },
+) {
+  return {
+    version: 1,
+    source: { romSha1: ROM_SHA1 },
+    items: {
+      '1': { id: 1 },
+      '4': { id: 4 },
+      '17': { id: 17 },
+      '25': { id: 25 },
+      '80': { id: 80 },
+    },
+    shopCatalogs,
   };
 }

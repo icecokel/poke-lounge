@@ -36,6 +36,11 @@ describe('PokeLoungeController', () => {
     } as unknown as jest.Mocked<CompetitiveMatchService>;
     romDataService = {
       getRuntimeData: jest.fn().mockResolvedValue({ documents: [] }),
+      getShopItemIds: jest
+        .fn()
+        .mockImplementation((shopKind) =>
+          Promise.resolve(shopKind === 'basic' ? [17] : [80]),
+        ),
     } as unknown as jest.Mocked<PokeLoungeRomDataService>;
     controller = new PokeLoungeController(
       service,
@@ -56,6 +61,37 @@ describe('PokeLoungeController', () => {
       Reflect.getMetadata(GUARDS_METADATA, descriptor?.value as object),
     ).toBeUndefined();
   });
+
+  it.each([
+    [
+      'basic',
+      () => controller.getBasicShopItemIds(),
+      'getBasicShopItemIds',
+      [17],
+    ],
+    [
+      'premium',
+      () => controller.getPremiumShopItemIds(),
+      'getPremiumShopItemIds',
+      [80],
+    ],
+  ] as const)(
+    'serves the %s shop catalog from its own route',
+    async (shopKind, requestShopItems, method, expected) => {
+      await expect(requestShopItems()).resolves.toEqual(expected);
+      expect(romDataService.getShopItemIds.mock.calls).toContainEqual([
+        shopKind,
+      ]);
+
+      const descriptor = Object.getOwnPropertyDescriptor(
+        PokeLoungeController.prototype,
+        method,
+      );
+      expect(
+        Reflect.getMetadata(GUARDS_METADATA, descriptor?.value as object),
+      ).toBeUndefined();
+    },
+  );
 
   it('requires one canonical UUID v4 and one non-negative safe revision on revision-controlled POSTs', async () => {
     const cases = [

@@ -68,3 +68,4 @@ export {
   type Gen4StatValues,
 } from "./gen4-pokemon-stats";
 export { calculateGen4TypeEffectiveness } from "./gen4-type-chart";
+export { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS, type PokeLoungeRuntimeItemId } from "./runtime-item-ids";

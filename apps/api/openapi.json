@@ -304,6 +304,84 @@
         "tags": ["poke-lounge"]
       }
     },
+    "/poke-lounge/shops/basic/items": {
+      "get": {
+        "operationId": "PokeLoungeController_getBasicShopItemIds",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "일반 상점 판매 목록이 없거나 무결하지 않음"
+          }
+        },
+        "summary": "Poke Lounge 일반 상점 판매 목록 조회",
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/shops/premium/items": {
+      "get": {
+        "operationId": "PokeLoungeController_getPremiumShopItemIds",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "희귀 상점 판매 목록이 없거나 무결하지 않음"
+          }
+        },
+        "summary": "Poke Lounge 희귀 상점 판매 목록 조회",
+        "tags": ["poke-lounge"]
+      }
+    },
     "/poke-lounge/rooms": {
       "post": {
         "operationId": "PokeLoungeController_createRoom",

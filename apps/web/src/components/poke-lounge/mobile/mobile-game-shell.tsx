@@ -511,6 +511,7 @@ export function MobileWorldScreen({
         onBack={back}
         onConfirm={() => onAction({ type: "purchase-shop-item" })}
         confirmLabel={copy.mobile.buy}
+        confirmDisabled={state.items.length === 0}
       />
     );
   } else if (state.screen === "pc") {
@@ -907,12 +908,14 @@ function MobileWorldSceneHeader({
 
 function MobileWorldSceneFooter({
   backLabel,
+  confirmDisabled = false,
   confirmLabel,
   copy,
   onBack,
   onConfirm,
 }: {
   backLabel?: string;
+  confirmDisabled?: boolean;
   confirmLabel: string;
   copy: PokeLoungeCopy;
   onBack(): void;
@@ -923,7 +926,12 @@ function MobileWorldSceneFooter({
       <button type="button" className={styles.panelAction} onClick={onBack}>
         ‹ {backLabel ?? copy.mobile.back}
       </button>
-      <button type="button" className={styles.panelActionPrimary} onClick={onConfirm}>
+      <button
+        type="button"
+        className={styles.panelActionPrimary}
+        disabled={confirmDisabled}
+        onClick={onConfirm}
+      >
         {confirmLabel}
       </button>
     </footer>

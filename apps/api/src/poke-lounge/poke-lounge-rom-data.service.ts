@@ -1,3 +1,4 @@
+import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from '@poke-lounge/battle';
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -8,6 +9,9 @@ import type {
 
 const EXPECTED_ROM_SHA1 = '5834fb3a2d751c48501d47d6a56898d7af6ccf9e';
 const CONTENT_SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const SUPPORTED_RUNTIME_ITEM_ROM_IDS = new Set<number>(
+  Object.values(POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS),
+);
 const DOCUMENT_KEYS = [
   'pokemon-data',
   'item-data',
@@ -63,6 +67,75 @@ export class PokeLoungeRomDataService {
       documents: DOCUMENT_KEYS.map((key) => toDocument(rowsByKey.get(key)!)),
     };
   }
+
+  async getShopItemIds(shopKind: 'basic' | 'premium'): Promise<number[]> {
+    const rows = await this.dataSource.query<PokeLoungeRomDocumentRow[]>(`
+      SELECT
+        "document_key" AS "documentKey",
+        "schema_version" AS "schemaVersion",
+        "rom_sha1" AS "romSha1",
+        "content_sha256" AS "contentSha256",
+        "payload"
+      FROM "poke_lounge_rom_document"
+      WHERE "document_key" = 'item-data'
+    `);
+    const row = rows[0];
+
+    if (
+      rows.length !== 1 ||
+      !row ||
+      !isValidRow(row) ||
+      row.documentKey !== 'item-data'
+    ) {
+      throw incompleteRomData();
+    }
+
+    return readShopCatalogs(row.payload)[shopKind];
+  }
+}
+
+function readShopCatalogs(
+  payload: unknown,
+): Record<'basic' | 'premium', number[]> {
+  if (!isRecord(payload)) {
+    throw incompleteRomData();
+  }
+  const items = payload.items;
+  const shopCatalogs = payload.shopCatalogs;
+  if (!isRecord(items) || !isRecord(shopCatalogs)) {
+    throw incompleteRomData();
+  }
+
+  const seenItemIds = new Set<number>();
+  const readCatalog = (shopKind: 'basic' | 'premium'): number[] => {
+    const values = shopCatalogs[shopKind];
+    if (!Array.isArray(values) || values.length === 0) {
+      throw incompleteRomData();
+    }
+
+    return values.map((value) => {
+      const itemId =
+        typeof value === 'number' && Number.isSafeInteger(value) ? value : null;
+      const item = items[String(itemId)];
+      if (
+        itemId === null ||
+        itemId <= 0 ||
+        !SUPPORTED_RUNTIME_ITEM_ROM_IDS.has(itemId) ||
+        seenItemIds.has(itemId) ||
+        !isRecord(item) ||
+        item.id !== itemId
+      ) {
+        throw incompleteRomData();
+      }
+      seenItemIds.add(itemId);
+      return itemId;
+    });
+  };
+
+  return {
+    basic: readCatalog('basic'),
+    premium: readCatalog('premium'),
+  };
 }
 
 function isValidRow(

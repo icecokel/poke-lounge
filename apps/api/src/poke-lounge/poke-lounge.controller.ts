@@ -87,6 +87,40 @@ export class PokeLoungeController {
     return this.romDataService.getRuntimeData();
   }
 
+  @Get('shops/basic/items')
+  @ApiOperation({ summary: 'Poke Lounge 일반 상점 판매 목록 조회' })
+  @ApiOkResponse({
+    schema: {
+      type: 'array',
+      items: { type: 'integer', minimum: 1 },
+      minItems: 1,
+      uniqueItems: true,
+    },
+  })
+  @ApiServiceUnavailableResponse({
+    description: '일반 상점 판매 목록이 없거나 무결하지 않음',
+  })
+  getBasicShopItemIds(): Promise<number[]> {
+    return this.romDataService.getShopItemIds('basic');
+  }
+
+  @Get('shops/premium/items')
+  @ApiOperation({ summary: 'Poke Lounge 희귀 상점 판매 목록 조회' })
+  @ApiOkResponse({
+    schema: {
+      type: 'array',
+      items: { type: 'integer', minimum: 1 },
+      minItems: 1,
+      uniqueItems: true,
+    },
+  })
+  @ApiServiceUnavailableResponse({
+    description: '희귀 상점 판매 목록이 없거나 무결하지 않음',
+  })
+  getPremiumShopItemIds(): Promise<number[]> {
+    return this.romDataService.getShopItemIds('premium');
+  }
+
   @Post('rooms')
   @ApiHeader({ name: IDEMPOTENCY_HEADER, required: true })
   @ApiHeader({ name: REVISION_HEADER, required: true, example: '0' })
