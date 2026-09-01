@@ -3,6 +3,25 @@
     "pokeLoungeLoading": "Loading Poke Lounge...",
     "pokeLoungeDesc": "Choose a starter and explore a lounge world with browser-based battles.",
     "backToGame": "Back to games",
-    "playNow": "Play now"
+    "playNow": "Play now",
+    "introEyebrow": "A Johto adventure in your browser",
+    "introTitle": "Explore the lounge with a partner of your own.",
+    "introPlayNote": "No install · Desktop and mobile ready",
+    "introStarterLabel": "Chikorita, Cyndaquil, and Totodile",
+    "introStarterPrompt": "Choose your first partner",
+    "introPreviewEyebrow": "Actual game screen",
+    "introPreviewTitle": "Two ways to begin, inside the game.",
+    "introPreviewDescription": "Start a solo adventure or join public and private multiplayer from the same game screen.",
+    "introPreviewAlt": "Poke Lounge multiplayer entry screen",
+    "introSectionEyebrow": "About the game",
+    "introSectionTitle": "Explore solo. Compete together.",
+    "introWorldTitle": "Explore the lounge world",
+    "introWorldDescription": "Roam the field, meet NPCs, and visit shops and facilities as your journey unfolds.",
+    "introPartyTitle": "Build your own party",
+    "introPartyDescription": "Grow your team through wild battles and captures, then continue from your saved progress.",
+    "introMultiplayerTitle": "Up to 6 players",
+    "introMultiplayerDescription": "Share the same world and compete with your own party in a three-round championship.",
+    "introFinalEyebrow": "Your journey begins here",
+    "introFinalTitle": "It is time to choose your first partner."
   }
 }

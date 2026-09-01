@@ -3,6 +3,25 @@
     "pokeLoungeLoading": "Poke Loungeを読み込んでいます...",
     "pokeLoungeDesc": "スターターを選び、ラウンジの世界とブラウザバトルを探索するファンゲームです。",
     "backToGame": "ゲームへ戻る",
-    "playNow": "今すぐプレイ"
+    "playNow": "今すぐプレイ",
+    "introEyebrow": "ブラウザで始まるジョウトアドベンチャー",
+    "introTitle": "自分だけのパートナーとラウンジを冒険しよう。",
+    "introPlayNote": "インストール不要 · PC / モバイル対応",
+    "introStarterLabel": "チコリータ、ヒノアラシ、ワニノコ",
+    "introStarterPrompt": "最初のパートナーを選ぼう",
+    "introPreviewEyebrow": "実際のゲーム画面",
+    "introPreviewTitle": "ゲームの中で選べる2つの遊び方。",
+    "introPreviewDescription": "ひとりで進める冒険も、公開・非公開マルチプレイも、同じゲーム画面からすぐに始められます。",
+    "introPreviewAlt": "Poke Loungeのマルチプレイ入場画面",
+    "introSectionEyebrow": "ゲーム紹介",
+    "introSectionTitle": "ひとりで冒険し、みんなで競おう。",
+    "introWorldTitle": "ラウンジワールドを探索",
+    "introWorldDescription": "フィールドを歩き、NPCと出会い、お店や施設を利用しながら冒険を進めます。",
+    "introPartyTitle": "自分だけのパーティを育成",
+    "introPartyDescription": "野生バトルと捕獲で仲間を育て、保存した進行状況を次のプレイへ引き継げます。",
+    "introMultiplayerTitle": "最大6人のマルチプレイ",
+    "introMultiplayerDescription": "同じ世界を一緒に冒険し、3ラウンド制チャンピオンシップで競います。",
+    "introFinalEyebrow": "Your journey begins here",
+    "introFinalTitle": "最初のパートナーを選ぶ時間です。"
   }
 }
