@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
+import { getLocale, getTranslations } from "next-intl/server";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Poke Lounge",
-  description: "친구와 함께 즐기는 브라우저형 포켓몬 팬 게임",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Game");
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return {
+    title: "Poke Lounge",
+    description: t("pokeLoungeDesc"),
+  };
+}
+
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
+
   return (
-    <html lang="ko-KR" className="dark">
+    <html lang={locale} className="dark">
       <body>{children}</body>
     </html>
   );
