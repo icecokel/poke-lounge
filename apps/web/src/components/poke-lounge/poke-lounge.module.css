@@ -1640,7 +1640,7 @@
           env(safe-area-inset-right, 0px)
       )
     );
-    --poke-lounge-mobile-screen-width: var(--poke-lounge-mobile-available-inline-size);
+    --poke-lounge-mobile-screen-width: min(var(--poke-lounge-mobile-available-inline-size), 768px);
     --poke-lounge-mobile-screen-height: calc(var(--poke-lounge-mobile-screen-width) * 3 / 4);
     --poke-lounge-frame-available-height: var(--poke-lounge-mobile-screen-height);
 
@@ -1677,6 +1677,48 @@
     max-width: none;
     max-height: none;
     margin: 0;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 768px) {
+  .touchGameDevice {
+    --poke-lounge-tablet-controls-width: clamp(300px, 34vw, 380px);
+    --poke-lounge-tablet-gap: clamp(8px, 1.5vw, 16px);
+    --poke-lounge-tablet-content-height: max(
+      0px,
+      calc(
+        var(--poke-lounge-container-height) - var(--poke-lounge-mobile-letterbox-top) -
+          var(--poke-lounge-mobile-letterbox-bottom)
+      )
+    );
+    --poke-lounge-frame-available-height: var(--poke-lounge-tablet-content-height);
+
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--poke-lounge-tablet-controls-width);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--poke-lounge-tablet-gap);
+    padding: var(--poke-lounge-mobile-letterbox-top) env(safe-area-inset-right, 0px)
+      var(--poke-lounge-mobile-letterbox-bottom) env(safe-area-inset-left, 0px);
+  }
+
+  .touchGameDevice .gameFrame {
+    grid-column: 1;
+    grid-row: 1;
+    width: min(100%, calc(var(--poke-lounge-tablet-content-height) * 4 / 3));
+    height: auto;
+    max-height: var(--poke-lounge-tablet-content-height);
+    align-self: center;
+    justify-self: center;
+  }
+
+  .touchGameDevice .gameFrame[data-poke-lounge-runtime-mounted="false"] {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    aspect-ratio: auto;
   }
 }
 

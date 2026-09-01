@@ -8,10 +8,12 @@ export interface TouchGameDeviceEnvironment {
 export function detectTouchGameDevice(environment: TouchGameDeviceEnvironment): boolean {
   const userAgent = environment.userAgent;
   const platform = environment.platform;
+  const isIPadDesktopMode = platform === "MacIntel" && environment.maxTouchPoints > 1;
   const isAppleMobilePlatform =
     /\b(iPad|iPhone|iPod)\b/i.test(userAgent) ||
     /\b(iPad|iPhone|iPod)\b/i.test(platform) ||
-    (platform === "MacIntel" && /Mobile\//i.test(userAgent));
+    (platform === "MacIntel" && /Mobile\//i.test(userAgent)) ||
+    isIPadDesktopMode;
   const isMobilePlatform =
     isAppleMobilePlatform ||
     /Android|Windows Phone|webOS|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);

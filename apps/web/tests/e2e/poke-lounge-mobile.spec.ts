@@ -686,6 +686,59 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   await expect(settingsScreen).toHaveCount(0);
 });
 
+test("Poke Lounge 태블릿은 세로와 가로에서 게임과 터치 조작을 유지한다", async function testCase({
+  page,
+}) {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
+  await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
+  await page.locator("[data-room-entry-solo]").click();
+  await chooseStarterIfNeeded(page);
+
+  const controlDock = page.locator("[data-poke-lounge-mobile-control-dock='true']");
+  await expect(controlDock).toBeVisible({ timeout: 30_000 });
+  await expectPortraitFieldAndControlDock(page, controlDock);
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect
+    .poll(async function pollExpectation() {
+      return page.evaluate(function evaluatePage() {
+        const frame = document.querySelector<HTMLElement>("[data-poke-lounge-game-frame='true']");
+        const controls = document.querySelector<HTMLElement>(
+          "[data-poke-lounge-mobile-control-dock='true']",
+        );
+
+        if (!frame || !controls) return null;
+
+        const frameBounds = frame.getBoundingClientRect();
+        const controlBounds = controls.getBoundingClientRect();
+
+        return {
+          documentFits: document.documentElement.scrollWidth <= window.innerWidth,
+          frameFits:
+            frameBounds.left >= -1 &&
+            frameBounds.top >= -1 &&
+            frameBounds.right <= window.innerWidth + 1 &&
+            frameBounds.bottom <= window.innerHeight + 1,
+          controlsFit:
+            controlBounds.left >= -1 &&
+            controlBounds.top >= -1 &&
+            controlBounds.right <= window.innerWidth + 1 &&
+            controlBounds.bottom <= window.innerHeight + 1,
+          sideBySide: frameBounds.right <= controlBounds.left + 1,
+          frameRatio: Math.round((frameBounds.width / frameBounds.height) * 100) / 100,
+        };
+      });
+    })
+    .toEqual({
+      documentFits: true,
+      frameFits: true,
+      controlsFit: true,
+      sideBySide: true,
+      frameRatio: 1.33,
+    });
+});
+
 test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고른다", async function testCase({
   page,
 }) {

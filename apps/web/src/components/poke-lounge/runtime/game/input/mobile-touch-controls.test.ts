@@ -15,6 +15,19 @@ test("mobile WebKit은 maxTouchPoints가 0이어도 coarse pointer면 터치 UI�
   );
 });
 
+test("데스크톱형 UA를 사용하는 iPadOS도 터치 UI를 사용한다", function testCase() {
+  assert.equal(
+    detectTouchGameDevice({
+      maxTouchPoints: 5,
+      coarsePointer: true,
+      platform: "MacIntel",
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
+    }),
+    true,
+  );
+});
+
 test("coarse pointer인 데스크톱은 터치 UI를 사용하지 않는다", function testCase() {
   assert.equal(
     detectTouchGameDevice({
