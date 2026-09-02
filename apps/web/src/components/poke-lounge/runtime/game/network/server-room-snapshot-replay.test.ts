@@ -3690,7 +3690,7 @@ test("공개 빠른 참가는 revision 헤더 없이 실제 방 코드를 URL에
   }
 });
 
-test("7번째 신규 사용자는 정원 초과 안내를 받고 자동 재시도하지 않는다", async function testCase() {
+test("9번째 신규 사용자는 정원 초과 안내를 받고 자동 재시도하지 않는다", async function testCase() {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers("?create=1&network=server");
@@ -3758,7 +3758,7 @@ test("7번째 신규 사용자는 정원 초과 안내를 받고 자동 재시�
     const errorDetail = errorDetails[0];
     assert.ok(errorDetail);
     assert.equal(errorDetail.code, "ROOM_FULL");
-    assert.equal(errorDetail.message, "멀티플레이 방의 최대 인원 6명이 모두 접속 중입니다.");
+    assert.equal(errorDetail.message, "멀티플레이 방의 최대 인원 8명이 모두 접속 중입니다.");
     assert.equal(errorDetail.recoverable, false);
     assert.equal(errorDetail.retry, undefined);
     assert.equal(timers.nextDelay(), null);

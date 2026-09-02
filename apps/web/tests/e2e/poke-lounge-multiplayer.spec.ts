@@ -2199,7 +2199,8 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     const guestLobby = guestPage.locator("[data-room-lobby='true']");
     await expect(hostLobby).toBeVisible();
     await expect(guestLobby).toBeVisible();
-    await expect(hostLobby).toContainText("참가자 2/6");
+    await expect(hostLobby).toContainText("참가자 2/8");
+    await expect(hostLobby).toContainText("4~7명은 8명까지 AI가 자동 참가");
     await expect(hostLobby).toContainText("레드");
     await expect(hostLobby).toContainText("그린");
     await expect(hostPage.locator("[data-room-lobby-start='true']")).toBeDisabled();
@@ -2217,7 +2218,7 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     expect(await getWorldPlayerPosition(hostPage)).toEqual(beforeMovement);
 
     server.joinedParticipants.push(
-      ...Array.from({ length: 4 }, function callback(_, index) {
+      ...Array.from({ length: 6 }, function callback(_, index) {
         return {
           playerId: `layout-player-${index + 3}`,
           sessionId: `layout-session-${index + 3}`,
@@ -2230,8 +2231,8 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     const fullWaitingRoom = createLobbyWaitingRoomState(server);
     await emitSocketSnapshot(hostPage, fullWaitingRoom);
     await emitSocketSnapshot(guestPage, fullWaitingRoom);
-    await expect(hostLobby).toContainText("참가자 6/6");
-    await expect(guestLobby).toContainText("참가자 6/6");
+    await expect(hostLobby).toContainText("참가자 8/8");
+    await expect(guestLobby).toContainText("참가자 8/8");
 
     for (const page of [hostPage, guestPage]) {
       const participantList = page.locator("[data-room-lobby-participants='true']");

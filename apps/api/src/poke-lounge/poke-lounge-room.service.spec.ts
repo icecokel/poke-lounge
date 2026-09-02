@@ -116,6 +116,45 @@ describe('PokeLoungeRoomService', function testSuite() {
     expect(removed.partySnapshots[ai!.playerId]).toBeUndefined();
   });
 
+  it('counts manually added AI when filling the room on start', async function testCase() {
+    await createRoom({ roundDurationMs: 1_000 });
+    const withAi = await service.addAiParticipant(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', nowMs: 10 },
+      command(0, 110),
+    );
+    const party = await updateTestParty(
+      'player-1',
+      'session-1',
+      withAi.revision,
+      111,
+      20,
+    );
+    const ready = await service.setReady(
+      'ROOM01',
+      {
+        playerId: 'player-1',
+        sessionId: 'session-1',
+        ready: true,
+        nowMs: 30,
+      },
+      command(party.revision, 112),
+    );
+
+    const started = await service.startRoom(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', nowMs: 40 },
+      command(ready.revision, 113),
+    );
+
+    expect(started.participants).toHaveLength(4);
+    expect(
+      started.participants.filter(function filterItem(participant) {
+        return participant.controller === 'ai';
+      }),
+    ).toHaveLength(3);
+  });
+
   it('creates a public room when quick play has no candidate', async function testCase() {
     const room = await service.quickPlay(
       {
@@ -536,6 +575,27 @@ describe('PokeLoungeRoomService', function testSuite() {
     });
   });
 
+  it('removes AI participants when the last human explicitly leaves', async function testCase() {
+    const created = await createRoom();
+    const withAi = await service.addAiParticipant(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', nowMs: 41_000 },
+      command(created.revision, 21),
+    );
+    const aiPlayerId = withAi.participants.find(function findItem(participant) {
+      return participant.controller === 'ai';
+    })!.playerId;
+
+    const closed = await service.leaveRoom(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', nowMs: 42_000 },
+      command(withAi.revision, 22),
+    );
+
+    expect(closed).toMatchObject({ status: 'closed', participants: [] });
+    expect(closed.partySnapshots).not.toHaveProperty(aiPlayerId);
+  });
+
   it('persists a reconnect grace deadline and expires it after restart', async function testCase() {
     await createRoom();
     await service.acknowledgeParticipantPresence(
@@ -895,10 +955,10 @@ describe('PokeLoungeRoomService', function testSuite() {
     ).rejects.toThrow('Poke Lounge room capacity reached');
   });
 
-  it('rejects a seventh player while allowing an existing session to rejoin a full room', async function testCase() {
+  it('rejects a ninth player while allowing an existing session to rejoin a full room', async function testCase() {
     await createRoom();
 
-    for (let index = 2; index <= 6; index += 1) {
+    for (let index = 2; index <= 8; index += 1) {
       await service.joinRoom(
         'room01',
         {
@@ -914,11 +974,11 @@ describe('PokeLoungeRoomService', function testSuite() {
       service.createRoom(
         {
           roomCode: 'ROOM01',
-          playerId: 'player-7',
-          sessionId: 'session-7',
-          nowMs: 7,
+          playerId: 'player-9',
+          sessionId: 'session-9',
+          nowMs: 9,
         },
-        command(0, 7),
+        command(0, 9),
       ),
     ).rejects.toMatchObject({
       response: {
@@ -931,7 +991,7 @@ describe('PokeLoungeRoomService', function testSuite() {
     currentTimeMs = 10;
     const room = await service.getRoom('ROOM01');
 
-    expect(room.participants).toHaveLength(6);
+    expect(room.participants).toHaveLength(8);
     expect(
       room.participants.every(function testItem(row) {
         return row.role === 'participant';
@@ -939,21 +999,21 @@ describe('PokeLoungeRoomService', function testSuite() {
     ).toBe(true);
     expect(
       room.participants.some(function testItem(row) {
-        return row.playerId === 'player-7';
+        return row.playerId === 'player-9';
       }),
     ).toBe(false);
     await expect(
       service.joinRoom(
         'ROOM01',
         { playerId: 'player-2', sessionId: 'wrong', nowMs: 11 },
-        command(5, 20),
+        command(7, 20),
       ),
     ).rejects.toThrow('Join sessionId does not match this participant');
 
     const rejoined = await service.joinRoom(
       'ROOM01',
       { playerId: 'player-2', sessionId: 'session-2', nowMs: 12 },
-      command(5, 21),
+      command(7, 21),
     );
 
     expect(rejoined.participants).toEqual(
@@ -1026,11 +1086,13 @@ describe('PokeLoungeRoomService', function testSuite() {
     ]);
     expect(hostRoundReady).toMatchObject({
       status: 'round-started',
-      participants: [
-        { playerId: 'player-1', ready: true },
-        { playerId: 'player-2', ready: false },
-      ],
     });
+    expect(hostRoundReady.participants).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ playerId: 'player-1', ready: true }),
+        expect.objectContaining({ playerId: 'player-2', ready: false }),
+      ]),
+    );
     const tournament = repository.snapshot('ROOM01')!;
     const replayedRoundReady = await service.setRoundReady(
       'ROOM01',
@@ -1044,18 +1106,17 @@ describe('PokeLoungeRoomService', function testSuite() {
       tournament: {
         version: 2,
         activeMatchId: 'game-round-1-bracket-1-match-1',
-        bracket: {
-          currentRound: {
-            matches: [
-              {
-                matchId: 'game-round-1-bracket-1-match-1',
-                participantIds: ['player-1', 'player-2'],
-              },
-            ],
-          },
-        },
       },
     });
+    expect(tournament.tournament.bracket?.currentRound?.matches).toHaveLength(
+      2,
+    );
+    expect(
+      tournament.tournament.bracket?.currentRound?.matches[0]?.participantIds,
+    ).toContain('player-1');
+    expect(
+      tournament.tournament.bracket?.currentRound?.matches[1]?.participantIds,
+    ).toContain('player-2');
     expect(replayedRoundReady).toEqual(tournament);
     expectPublicEvent(publisher, 'room-updated', tournament);
   });
@@ -1131,40 +1192,84 @@ describe('PokeLoungeRoomService', function testSuite() {
     expect(tournament).toMatchObject({
       status: 'tournament',
       revision: started.revision + 3,
-      participants: [
-        { playerId: 'player-1', ready: true },
-        { playerId: 'player-2', ready: true },
-        { playerId: 'player-3', ready: true },
-      ],
     });
+    expect(tournament.participants).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ playerId: 'player-1', ready: true }),
+        expect.objectContaining({ playerId: 'player-2', ready: true }),
+        expect.objectContaining({ playerId: 'player-3', ready: true }),
+      ]),
+    );
   });
 
-  it('allows a ready host to start a room alone', async function testCase() {
-    await createRoom({ roundDurationMs: 1_000 });
-    const party = await updateTestParty('player-1', 'session-1', 0, 2, 10);
-    const ready = await service.setReady(
-      'ROOM01',
-      {
-        playerId: 'player-1',
-        sessionId: 'session-1',
-        ready: true,
-        nowMs: 20,
-      },
-      command(party.revision, 3),
-    );
+  it.each([
+    [1, 4],
+    [3, 4],
+    [4, 8],
+    [7, 8],
+    [8, 8],
+  ])(
+    'fills %i ready participants to %i when the host starts',
+    async function testCase(participantCount, expectedParticipantCount) {
+      await createRoom({ roundDurationMs: 1_000 });
+      let room = repository.snapshot('ROOM01')!;
+      for (let index = 2; index <= participantCount; index += 1) {
+        room = await service.joinRoom(
+          'ROOM01',
+          {
+            playerId: `player-${index}`,
+            sessionId: `session-${index}`,
+            nowMs: index,
+          },
+          command(room.revision, 300 + index),
+        );
+      }
+      for (let index = 1; index <= participantCount; index += 1) {
+        room = await updateTestParty(
+          `player-${index}`,
+          `session-${index}`,
+          room.revision,
+          400 + index,
+          10 + index,
+        );
+        room = await service.setReady(
+          'ROOM01',
+          {
+            playerId: `player-${index}`,
+            sessionId: `session-${index}`,
+            ready: true,
+            nowMs: 20 + index,
+          },
+          command(room.revision, 500 + index),
+        );
+      }
 
-    await expect(
-      service.startRoom(
+      const started = await service.startRoom(
         'ROOM01',
         { playerId: 'player-1', sessionId: 'session-1', nowMs: 30 },
-        command(ready.revision, 4),
-      ),
-    ).resolves.toMatchObject({
-      status: 'round-started',
-      participants: [{ playerId: 'player-1', ready: false }],
-      round: { startedAtMs: 30, endsAtMs: 1_030 },
-    });
-  });
+        command(room.revision, 600),
+      );
+
+      expect(started).toMatchObject({
+        status: 'round-started',
+        round: { startedAtMs: 30, endsAtMs: 1_030 },
+      });
+      expect(started.participants).toHaveLength(expectedParticipantCount);
+      expect(
+        started.participants.filter(function filterItem(participant) {
+          return participant.controller === 'ai';
+        }),
+      ).toHaveLength(expectedParticipantCount - participantCount);
+      expect(Object.keys(started.partySnapshots)).toHaveLength(
+        expectedParticipantCount,
+      );
+      expect(
+        started.participants.every(function testItem(participant) {
+          return participant.connected && !participant.ready;
+        }),
+      ).toBe(true);
+    },
+  );
 
   it('requires a waiting room, a synced party, every ready participant, and the current host', async function testCase() {
     await createRoom({ roundDurationMs: 1_000 });
@@ -1241,6 +1346,14 @@ describe('PokeLoungeRoomService', function testSuite() {
         command(withoutGuestParty.revision, 11),
       ),
     ).rejects.toThrow('All participants need a party snapshot before starting');
+    expect(repository.snapshot('ROOM01')?.participants).toHaveLength(2);
+    expect(
+      repository
+        .snapshot('ROOM01')
+        ?.participants.some(function testItem(participant) {
+          return participant.controller === 'ai';
+        }),
+    ).toBe(false);
   });
 
   it('rejects new participants after host start and still allows an existing identity to reconnect', async function testCase() {
@@ -1357,7 +1470,7 @@ describe('PokeLoungeRoomService', function testSuite() {
     );
 
     expect(started.status).toBe('round-started');
-    expect(firstResume.participants).toHaveLength(2);
+    expect(firstResume.participants).toHaveLength(4);
     expect(failedResumeExpired.status).toBe('round-started');
     expect(
       failedResumeExpired.participants.find(function findItem(participant) {
@@ -1570,86 +1683,101 @@ describe('PokeLoungeRoomService', function testSuite() {
 
   it('accepts authorized tournament results and starts the next game round', async function testCase() {
     const tournament = await createTournament();
+    const firstMatch =
+      tournament.tournament.bracket?.currentRound?.matches.find(
+        function findItem(match) {
+          return match.matchId === tournament.tournament.activeMatchId;
+        },
+      );
+    expect(firstMatch).toBeDefined();
+    const firstResultInput = {
+      reportingPlayerId: 'player-1',
+      reportingSessionId: 'session-1',
+      matchId: firstMatch!.matchId,
+      winnerPlayerId: 'player-1',
+      loserPlayerId: firstMatch!.participantIds.find(
+        function findItem(playerId) {
+          return playerId !== 'player-1';
+        },
+      )!,
+      reason: 'faint' as const,
+      nowMs: 1201,
+    };
 
-    const completed = await service.submitMatchResult(
+    const firstCompleted = await service.submitMatchResult(
       'ROOM01',
-      {
-        reportingPlayerId: 'player-1',
-        reportingSessionId: 'session-1',
-        matchId: tournament.tournament.activeMatchId!,
-        winnerPlayerId: 'player-1',
-        loserPlayerId: 'player-2',
-        reason: 'faint',
-        nowMs: 1201,
-      },
+      firstResultInput,
       command(tournament.revision, 5),
     );
 
-    expect(completed).toMatchObject({
-      status: 'round-started',
-      revision: tournament.revision + 1,
-      round: { index: 2, phase: 'round-started' },
-      tournament: {
-        bracket: null,
-        cumulativeScores: { 'player-1': 100, 'player-2': 100 },
-      },
-      finalStandings: [],
-    });
+    expect(firstCompleted.status).toBe('tournament');
     publisher.publish.mockClear();
     await expect(
-      service.submitMatchResult(
-        'ROOM01',
-        {
-          reportingPlayerId: 'player-1',
-          reportingSessionId: 'session-1',
-          matchId: tournament.tournament.activeMatchId!,
-          winnerPlayerId: 'player-1',
-          loserPlayerId: 'player-2',
-          reason: 'faint',
-          nowMs: 1201,
-        },
-        command(999, 5),
-      ),
-    ).resolves.toEqual(completed);
+      service.submitMatchResult('ROOM01', firstResultInput, command(999, 5)),
+    ).resolves.toEqual(firstCompleted);
     expect(publisher.publish.mock.calls).toHaveLength(0);
 
     const changedNowMs = await captureConflict(
       service.submitMatchResult(
         'ROOM01',
-        {
-          reportingPlayerId: 'player-1',
-          reportingSessionId: 'session-1',
-          matchId: tournament.tournament.activeMatchId!,
-          winnerPlayerId: 'player-1',
-          loserPlayerId: 'player-2',
-          reason: 'faint',
-          nowMs: 1202,
-        },
-        command(completed.revision, 5),
+        { ...firstResultInput, nowMs: 1202 },
+        command(firstCompleted.revision, 5),
       ),
     );
     expect(changedNowMs.getResponse()).toMatchObject({
       code: 'POKE_LOUNGE_IDEMPOTENCY_CONFLICT',
-      snapshot: { revision: completed.revision },
+      snapshot: { revision: firstCompleted.revision },
     });
     await expect(
       service.submitMatchResult(
         'ROOM01',
-        {
-          reportingPlayerId: 'player-1',
-          reportingSessionId: 'session-1',
-          matchId: tournament.tournament.activeMatchId!,
-          winnerPlayerId: 'player-1',
-          loserPlayerId: 'player-2',
-          reason: 'faint',
-          nowMs: 1202,
-        },
-        command(completed.revision, 6),
+        { ...firstResultInput, nowMs: 1202 },
+        command(firstCompleted.revision, 6),
       ),
     ).rejects.toThrow(BadRequestException);
+
+    let completed = firstCompleted;
+    let commandIndex = 7;
+    while (completed.status === 'tournament') {
+      const match = completed.tournament.bracket?.currentRound?.matches.find(
+        function findItem(candidate) {
+          return candidate.matchId === completed.tournament.activeMatchId;
+        },
+      );
+      expect(match).toBeDefined();
+      const winnerPlayerId = match!.participantIds[0];
+      const loserPlayerId = match!.participantIds[1];
+      const reporter = completed.participants.find(
+        function findItem(participant) {
+          return participant.playerId === winnerPlayerId;
+        },
+      )!;
+      completed = await service.submitMatchResult(
+        'ROOM01',
+        {
+          reportingPlayerId: winnerPlayerId,
+          reportingSessionId: reporter.sessionId,
+          matchId: match!.matchId,
+          winnerPlayerId,
+          loserPlayerId,
+          reason: 'faint',
+          nowMs: 1201 + commandIndex,
+        },
+        command(completed.revision, commandIndex),
+      );
+      commandIndex += 1;
+    }
+
+    expect(completed).toMatchObject({
+      status: 'round-started',
+      round: { index: 2, phase: 'round-started' },
+      tournament: { bracket: null },
+      finalStandings: [],
+    });
+    expect(Object.keys(completed.tournament.cumulativeScores)).toHaveLength(4);
   });
 
-  it('records a participant leave as a tournament forfeit', async function testCase() {
+  it('records a participant leave as a tournament forfeit while other matches continue', async function testCase() {
     const tournament = await createTournament();
 
     const completed = await service.leaveRoom(
@@ -1659,16 +1787,23 @@ describe('PokeLoungeRoomService', function testSuite() {
     );
 
     expect(completed).toMatchObject({
-      status: 'waiting',
-      round: { index: 2, phase: 'waiting' },
+      status: 'tournament',
+      round: { index: 1, phase: 'tournament' },
       tournament: {
-        bracket: null,
-        cumulativeScores: { 'player-1': 100, 'player-2': 100 },
+        bracket: { status: 'in-progress' },
+        cumulativeScores: {},
       },
     });
+    expect(
+      completed.tournament.bracket?.currentRound?.matches.find(
+        function findItem(match) {
+          return match.participantIds.includes('player-1');
+        },
+      ),
+    ).toMatchObject({ status: 'completed', resultReason: 'forfeit' });
   });
 
-  it('removes a preparation leaver and restarts waiting without a ghost bracket', async function testCase() {
+  it('removes a preparation leaver while auto-filled AI keep preparation active', async function testCase() {
     await createRoom({ roundDurationMs: 1_000 });
     await service.joinRoom(
       'ROOM01',
@@ -1693,19 +1828,19 @@ describe('PokeLoungeRoomService', function testSuite() {
       command(bothReady.revision, 5),
     );
 
-    const waiting = await service.leaveRoom(
+    const active = await service.leaveRoom(
       'ROOM01',
       { playerId: 'player-1', sessionId: 'session-1', nowMs: 300 },
       command(started.revision, 6),
     );
 
-    expect(waiting).toMatchObject({
-      status: 'waiting',
-      participants: [{ playerId: 'player-2', ready: false }],
-      round: { phase: 'waiting', startedAtMs: null, endsAtMs: null },
+    expect(active).toMatchObject({
+      status: 'round-started',
+      round: { phase: 'round-started', startedAtMs: 200, endsAtMs: 1_200 },
       tournament: { bracket: null, activeMatchId: null },
     });
-    expect(waiting.partySnapshots['player-1']).toBeUndefined();
+    expect(active.participants).toHaveLength(3);
+    expect(active.partySnapshots['player-1']).toBeUndefined();
     expect(publisher.publish.mock.calls.at(-1)?.[0].snapshot).toMatchObject({
       hostPlayerId: 'player-2',
     });

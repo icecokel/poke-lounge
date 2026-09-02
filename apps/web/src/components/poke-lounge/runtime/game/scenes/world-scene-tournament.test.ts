@@ -12,9 +12,9 @@ import {
   createWorldSceneTournament,
 } from "./world-scene-tournament";
 
-function createFivePlayerProjection(): TournamentStateRoomPayload {
+function createProjection(participantCount = 5): TournamentStateRoomPayload {
   const bracket = createTournamentBracketState(
-    Array.from({ length: 5 }, function callback(_, index) {
+    Array.from({ length: participantCount }, function callback(_, index) {
       return {
         playerId: `player-${index + 1}`,
         displayName: `Player ${index + 1}`,
@@ -61,7 +61,7 @@ function createFivePlayerProjection(): TournamentStateRoomPayload {
 }
 
 test("5인 서버 대진 안내는 canonical bye와 현재 상대를 7줄 이내로 표시한다", function testCase() {
-  const projection = createFivePlayerProjection();
+  const projection = createProjection();
   const text = createServerTournamentAnnouncementText({
     projection,
     nowMs: 2_000,
@@ -70,7 +70,7 @@ test("5인 서버 대진 안내는 canonical bye와 현재 상대를 7줄 이내
 
   assert.match(text, /^서버 토너먼트$/m);
   assert.doesNotMatch(text, /ROOM01/);
-  assert.match(text, /참가 5\/6 · 준비 5\/5 · 접속 5\/5 · 관전 0/);
+  assert.match(text, /참가 5\/8 · 준비 5\/5 · 접속 5\/5 · 관전 0/);
   assert.match(text, /현재 경기 · #4 Player 4 vs #5 Player 5/);
   assert.match(text, /내 상태 · #4 Player 4 · 상대 #5 Player 5/);
   assert.match(text, /서버 권위전 · 공개 랭킹 미반영/);
@@ -88,7 +88,7 @@ test("5인 서버 대진 안내는 canonical bye와 현재 상대를 7줄 이내
 });
 
 test("terminal 이후에는 승자의 진출·다음 상대와 패자의 탈락 대기를 표시한다", function testCase() {
-  const winnerProjection = createFivePlayerProjection();
+  const winnerProjection = createProjection();
   const firstMatch = getReadyTournamentMatches(winnerProjection.tournament.bracket!)[0]!;
   const nextBracket = recordTournamentMatchResult(
     winnerProjection.tournament.bracket!,
@@ -117,7 +117,7 @@ test("terminal 이후에는 승자의 진출·다음 상대와 패자의 탈락 
 });
 
 test("원격 party가 없는 casual active match는 미지원과 로그인·나가기 안내를 표시한다", function testCase() {
-  const projection = createFivePlayerProjection();
+  const projection = createProjection();
   projection.tournament.activeMatchAuthority = "casual";
   projection.activeMatchTransport = "casual";
   projection.competitionKind = "casual-unranked";
@@ -136,7 +136,7 @@ test("원격 party가 없는 casual active match는 미지원과 로그인·나�
 });
 
 test("서버 토너먼트 진행 설명은 월드 중앙에 표시하지 않는다", function testCase() {
-  const projection = createFivePlayerProjection();
+  const projection = createProjection();
   const store = createGameStateStore();
   const applied = store.applyTournamentSnapshotFromRoom(projection, 2_000);
   assert.deepEqual(applied, { ok: true });
@@ -165,7 +165,7 @@ test("서버 토너먼트 진행 설명은 월드 중앙에 표시하지 않는�
 });
 
 test("준비 종료 5초 전에는 전체 대진을 먼저 안내한다", function testCase() {
-  const projection = createFivePlayerProjection();
+  const projection = createProjection();
   projection.roomStatus = "round-started";
   projection.roomRound.phase = "round-started";
   projection.roomRound.endsAtMs = 32_000;
@@ -204,14 +204,35 @@ test("준비 종료 5초 전에는 전체 대진을 먼저 안내한다", functi
   assert.equal(announcementText, null);
   tournament.update(27_000);
   assert.match(announcementText ?? "", /라운드 1\/3 대진 안내/);
-  assert.match(announcementText ?? "", /1회전 · #4 Player 4 vs #5 Player 5/);
+  assert.match(announcementText ?? "", /8강 · #4 Player 4 vs #5 Player 5/);
   assert.match(announcementText ?? "", /부전승 · #1 Player 1 · #3 Player 3 · #2 Player 2/);
-  assert.match(announcementText ?? "", /이후 · 준결승 2경기 → 결승/);
-  assert.match(announcementText ?? "", /내 위치 · 1회전 1경기/);
+  assert.match(announcementText ?? "", /이후 · 4강 2경기 → 결승/);
+  assert.match(announcementText ?? "", /내 위치 · 8강 1경기/);
+});
+
+test("8인 준비 단계는 부전승 없이 8강부터 안내한다", function testCase() {
+  const projection = createProjection(8);
+  projection.roomStatus = "round-started";
+  projection.roomRound.phase = "round-started";
+  projection.roomRound.endsAtMs = 32_000;
+  projection.tournament.bracket = null;
+
+  const text = createServerTournamentAnnouncementText({
+    projection,
+    nowMs: 2_000,
+    casualBattleAvailable: null,
+  });
+
+  assert.match(text, /8강 · #1 Player 1 vs #8 Player 8/);
+  assert.match(text, /#4 Player 4 vs #5 Player 5/);
+  assert.match(text, /#3 Player 3 vs #6 Player 6/);
+  assert.match(text, /#2 Player 2 vs #7 Player 7/);
+  assert.match(text, /이후 · 4강 2경기 → 결승/);
+  assert.doesNotMatch(text, /부전승/);
 });
 
 test("서버 준비 단계는 서버 endsAt 기준 남은 시간을 표시한다", function testCase() {
-  const projection = createFivePlayerProjection();
+  const projection = createProjection();
   projection.roomStatus = "round-started";
   projection.roomRound.phase = "round-started";
   projection.roomRound.endsAtMs = 32_000;
@@ -229,7 +250,7 @@ test("서버 준비 단계는 서버 endsAt 기준 남은 시간을 표시한다
 
   assert.match(text, /라운드 1\/3 대진 안내/);
   assert.match(text, /00:30 후 전투 시작/);
-  assert.match(text, /1회전 · #4 Player 4 vs #5 Player 5/);
+  assert.match(text, /8강 · #4 Player 4 vs #5 Player 5/);
   assert.ok(text.split("\n").length <= 7);
 
   const expiredText = createServerTournamentAnnouncementText({
@@ -243,7 +264,7 @@ test("서버 준비 단계는 서버 endsAt 기준 남은 시간을 표시한다
 });
 
 test("다음 라운드 준비 단계는 내 누적 HP 비율 순위와 점수를 표시한다", function testCase() {
-  const projection = createFivePlayerProjection();
+  const projection = createProjection();
   projection.roomStatus = "round-started";
   projection.roundIndex = 2;
   projection.roomRound.index = 2;

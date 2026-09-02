@@ -196,13 +196,23 @@ test("room snapshot의 누락 transitions는 빈 배열로, competitive 누락�
   assert.equal("competitive" in parsed, false);
 });
 
-test("room snapshot은 같은 bracket 단계의 경쟁전 여러 개를 함께 읽는다", function testCase() {
+test("room snapshot은 8강의 경쟁전 네 개를 함께 읽는다", function testCase() {
   const assignments = [
     createProjection(),
     createProjection({
       matchId: "223e4567-e89b-42d3-a456-426614174001",
       bracketMatchId: "game-round-1-bracket-1-match-2",
       playerIds: ["player-1", "player-2"],
+    }),
+    createProjection({
+      matchId: "323e4567-e89b-42d3-a456-426614174002",
+      bracketMatchId: "game-round-1-bracket-1-match-3",
+      playerIds: ["player-3", "player-6"],
+    }),
+    createProjection({
+      matchId: "423e4567-e89b-42d3-a456-426614174003",
+      bracketMatchId: "game-round-1-bracket-1-match-4",
+      playerIds: ["player-7", "player-8"],
     }),
   ];
 
@@ -216,7 +226,12 @@ test("room snapshot은 같은 bracket 단계의 경쟁전 여러 개를 함께 �
     parsed.competitiveAssignments.map(function mapItem(assignment) {
       return assignment.bracketMatchId;
     }),
-    ["game-round-1-bracket-1-match-1", "game-round-1-bracket-1-match-2"],
+    [
+      "game-round-1-bracket-1-match-1",
+      "game-round-1-bracket-1-match-2",
+      "game-round-1-bracket-1-match-3",
+      "game-round-1-bracket-1-match-4",
+    ],
   );
 });
 

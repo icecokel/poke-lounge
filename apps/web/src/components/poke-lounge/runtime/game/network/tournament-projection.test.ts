@@ -115,6 +115,32 @@ test("5인 canonical projection은 seed 4/5 match와 seed 1/3/2 bye를 보존한
   );
 });
 
+test("8인 canonical projection은 네 개의 8강 경기를 보존한다", function testCase() {
+  const bracket = createTournamentBracketState(
+    Array.from({ length: 8 }, function callback(_, index) {
+      return {
+        playerId: `player-${index + 1}`,
+        displayName: `Player ${index + 1}`,
+      };
+    }),
+    1,
+  );
+  const tournament = parseServerTournamentState(
+    {
+      version: 2,
+      bracket,
+      activeMatchId: bracket.currentRound?.matches[0]?.matchId ?? null,
+      activeMatchAuthority: "server",
+      cumulativeScores: {},
+    },
+    1,
+  );
+
+  assert.equal(tournament.bracket?.participants.length, 8);
+  assert.equal(tournament.bracket?.currentRound?.matches.length, 4);
+  assert.equal(tournament.bracket?.currentRound?.byes.length, 0);
+});
+
 test("ready match의 결과 metadata는 둘 다 null이어야 한다", function testCase() {
   const tournament = structuredClone(createFivePlayerServerTournament());
   const match = tournament.bracket.currentRound?.matches[0];

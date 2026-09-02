@@ -3,7 +3,7 @@
   "assets": [
     {
       "publicPath": "assets/poke-lounge/audio/audio-manifest.json",
-      "sha256": "975e738fd0a0985b86d56c9484a17306dba8f1a238e60d4699deb796ca8677cc",
+      "sha256": "3a137adcde18a43e5d9c13ca1f091c05f3e2b0f6b52b8ddd6dad972a4b22f697",
       "source": "scripts/poke-lounge/render-audio-cues.py; scripts/poke-lounge/audio-cues.json; local HeartGold Korean game source SDAT provenance; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,

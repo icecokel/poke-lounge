@@ -1,5 +1,5 @@
 export const TOURNAMENT_MIN_PARTICIPANT_COUNT = 2;
-export const TOURNAMENT_MAX_PARTICIPANT_COUNT = 6;
+export const TOURNAMENT_MAX_PARTICIPANT_COUNT = 8;
 
 export type TournamentStatus = "in-progress" | "completed";
 export type TournamentMatchStatus = "ready" | "completed";

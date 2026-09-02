@@ -68,7 +68,8 @@ import { CompetitiveProjectionService } from './competitive/competitive-projecti
 const DEFAULT_ROUND_DURATION_MS = 180_000;
 const MIN_ROUND_DURATION_MS = 1;
 const MAX_ROUND_DURATION_MS = 3_600_000;
-const MAX_ROOM_OCCUPANTS = 6;
+const MAX_ROOM_OCCUPANTS = 8;
+const MIN_AUTO_FILLED_PARTICIPANTS = 4;
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MATCH_RESULT_REASONS = new Set<PokeLoungeMatchResultReason>([
   'faint',
@@ -1009,6 +1010,14 @@ export class PokeLoungeRoomService {
           );
         }
 
+        const targetParticipantCount =
+          participants.length < MIN_AUTO_FILLED_PARTICIPANTS
+            ? MIN_AUTO_FILLED_PARTICIPANTS
+            : MAX_ROOM_OCCUPANTS;
+        while (participants.length < targetParticipantCount) {
+          participants.push(appendAiParticipant(room, nowMs));
+        }
+
         room.status = 'round-started';
         room.round.phase = 'round-started';
         room.round.startedAtMs = nowMs;
@@ -1029,11 +1038,6 @@ export class PokeLoungeRoomService {
   ): Promise<PokeLoungeRoomSnapshot> {
     const playerId = input.playerId.trim();
     const sessionId = input.sessionId.trim();
-    const aiPlayerId = `ai-${randomUUID()}`;
-    const aiSessionId = randomUUID();
-    const starterParty = createAiStarterParty(function random() {
-      return randomInt(0, 1_000_000) / 1_000_000;
-    });
     const nowMs = this.normalizeNow(input.nowMs);
 
     return this.mutateRoom({
@@ -1058,28 +1062,7 @@ export class PokeLoungeRoomService {
           throw new PokeLoungeRoomFull();
         }
 
-        const aiNumber =
-          room.participants.filter(function filterItem(participant) {
-            return participant.controller === 'ai';
-          }).length + 1;
-        const displayName = `AI ${aiNumber}`;
-        room.participants.push({
-          sessionId: aiSessionId,
-          playerId: aiPlayerId,
-          displayName,
-          controller: 'ai',
-          role: 'participant',
-          ready: true,
-          connected: true,
-          joinedAtMs: nowMs,
-        });
-        room.partySnapshots[aiPlayerId] = {
-          version: 2,
-          playerId: aiPlayerId,
-          displayName,
-          competitiveParty: starterParty,
-          updatedAtMs: nowMs,
-        };
+        appendAiParticipant(room, nowMs);
         room.updatedAtMs = nowMs;
         return room;
       },
@@ -1440,6 +1423,14 @@ function applyParticipantLeave(
   ) {
     room.status = 'closed';
     room.round.phase = 'completed';
+    for (const ai of room.participants.filter(function filterItem(row) {
+      return row.controller === 'ai';
+    })) {
+      delete room.partySnapshots[ai.playerId];
+    }
+    room.participants = room.participants.filter(function filterItem(row) {
+      return row.controller !== 'ai';
+    });
   }
 
   return room;
@@ -1533,6 +1524,39 @@ function createParticipant(
       : {}),
     joinedAtMs: nowMs,
   };
+}
+
+function appendAiParticipant(
+  room: PokeLoungeRoomState,
+  nowMs: number,
+): PokeLoungeRoomParticipant {
+  const aiPlayerId = `ai-${randomUUID()}`;
+  const displayName = `AI ${
+    room.participants.filter(function filterItem(participant) {
+      return participant.controller === 'ai';
+    }).length + 1
+  }`;
+  const participant: PokeLoungeRoomParticipant = {
+    sessionId: randomUUID(),
+    playerId: aiPlayerId,
+    displayName,
+    controller: 'ai',
+    role: 'participant',
+    ready: true,
+    connected: true,
+    joinedAtMs: nowMs,
+  };
+  room.participants.push(participant);
+  room.partySnapshots[aiPlayerId] = {
+    version: 2,
+    playerId: aiPlayerId,
+    displayName,
+    competitiveParty: createAiStarterParty(function random() {
+      return randomInt(0, 1_000_000) / 1_000_000;
+    }),
+    updatedAtMs: nowMs,
+  };
+  return participant;
 }
 
 function createAnonymousJoinActorPlayerId(sessionId: string): string {

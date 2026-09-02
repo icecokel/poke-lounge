@@ -116,7 +116,7 @@ room은 다음 조건을 모두 만족할 때만 새 공개 참가자를 받는�
 visibility = public
 status = waiting
 round.phase = waiting
-participants.length < 6
+participants.length < 8
 expiresAtMs >= serverNowMs
 ```
 

@@ -2417,7 +2417,7 @@ function createInitialWorkflowErrorDetail(
   if (stage === "open" && isRoomFullRequestError(error)) {
     return {
       code: "ROOM_FULL",
-      message: "멀티플레이 방의 최대 인원 6명이 모두 접속 중입니다.",
+      message: "멀티플레이 방의 최대 인원 8명이 모두 접속 중입니다.",
       recoverable: false,
     };
   }

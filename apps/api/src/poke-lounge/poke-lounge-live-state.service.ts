@@ -37,7 +37,7 @@ if ARGV[7] == 'public' then
         and room.round
         and room.round.phase == 'waiting'
         and room.participants
-        and #room.participants < 6 then
+        and #room.participants < 8 then
         return {4, roomCode}
       end
     end

@@ -1424,7 +1424,7 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
         return { ok: false, reason: "invalid-round" };
       }
 
-      const participantIds = normalizeUniquePlayerIds(input.participantIds, 2, 6);
+      const participantIds = normalizeUniquePlayerIds(input.participantIds, 2, 8);
 
       if (!participantIds) {
         return { ok: false, reason: "invalid-participants" };
@@ -1984,7 +1984,7 @@ function normalizeRoomTournamentStandingRows(
   standings: ApplyTournamentCompletedFromRoomInput["standings"],
   canonicalParticipants?: ReadonlyArray<TournamentParticipant>,
 ): CumulativeTournamentScoreRank[] | null {
-  if (!Array.isArray(standings) || standings.length < 2 || standings.length > 6) {
+  if (!Array.isArray(standings) || standings.length < 2 || standings.length > 8) {
     return null;
   }
 

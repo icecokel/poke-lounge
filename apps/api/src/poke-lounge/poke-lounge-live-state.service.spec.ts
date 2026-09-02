@@ -153,6 +153,10 @@ describe('PokeLoungeLiveStateService', function testSuite() {
         visibility: 'public',
       }),
     ).resolves.toEqual({ outcome: 'public-room-exists', roomCode: 'ROOM02' });
+    expect(redis.command.eval).toHaveBeenLastCalledWith(
+      expect.stringContaining('#room.participants < 8'),
+      expect.anything(),
+    );
 
     redis.command.hmGet.mockResolvedValueOnce(['2', '{"roomCode":"ROOM01"}']);
     await expect(service.getRoomState('room01')).resolves.toEqual({

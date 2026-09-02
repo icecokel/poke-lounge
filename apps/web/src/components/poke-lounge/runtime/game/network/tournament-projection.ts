@@ -14,7 +14,7 @@ type ApiRoomStatus = components["schemas"]["PokeLoungeRoomResponseDto"]["status"
 type ApiRoomParticipant = components["schemas"]["PokeLoungeRoomParticipantDto"];
 type ApiRoomRound = components["schemas"]["PokeLoungeRoundDto"];
 
-const MAX_PARTICIPANTS = 6;
+const MAX_PARTICIPANTS = 8;
 const MAX_BRACKET_ROUNDS = 4;
 const MAX_ROUND_ENTRIES = 4;
 const MAX_ID_LENGTH = 128;

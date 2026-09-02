@@ -94,7 +94,7 @@ function normalizeTournamentStartedPayload(
   const roundIndex = normalizeInteger(payload.roundIndex, 1);
   const hostPlayerId = normalizeOptionalId(payload.hostPlayerId);
   const participantIds = normalizeIdList(payload.participantIds, {
-    maxCount: 6,
+    maxCount: 8,
     minCount: 2,
     removeDuplicates: true,
   });
@@ -202,7 +202,7 @@ function normalizeStandings(
   value: unknown,
   championPlayerId: string | null,
 ): TournamentCompletedRoomPayload["standings"] | null {
-  if (!Array.isArray(value) || value.length < 2 || value.length > 6) {
+  if (!Array.isArray(value) || value.length < 2 || value.length > 8) {
     return null;
   }
 

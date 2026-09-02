@@ -127,7 +127,7 @@ export const FIELD_MAP = {
       height: 160,
     },
   ],
-  maxPlayers: 6,
+  maxPlayers: 8,
 } as const;
 
 export const POKE_WORLD_MESSAGES = [

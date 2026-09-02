@@ -53,7 +53,7 @@ export function createTournamentAuthorityRoster(
 
   const normalizedParticipants = Array.from(participantsById.values()).sort(comparePlayerId);
 
-  if (normalizedParticipants.length < 2 || normalizedParticipants.length > 6) {
+  if (normalizedParticipants.length < 2 || normalizedParticipants.length > 8) {
     return null;
   }
 

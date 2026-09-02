@@ -115,6 +115,7 @@ const stopProcessGroup = child => {
 };
 
 let apiProcess;
+let turnWorkerProcess;
 
 try {
   const apiArgs = [
@@ -134,11 +135,30 @@ try {
   });
 
   await waitForApi();
+  turnWorkerProcess = spawn(
+    pnpmCommand,
+    [
+      "--filter",
+      "@poke-lounge/api",
+      "exec",
+      "ts-node",
+      "-r",
+      "tsconfig-paths/register",
+      "src/poke-lounge-turn-worker.ts",
+    ],
+    {
+      cwd: repositoryRoot,
+      detached: process.platform !== "win32",
+      env: apiEnv,
+      stdio: "inherit",
+    },
+  );
   await runCommand(process.execPath, ["scripts/playwright-runner.mjs", ...playwrightArgs], {
     cwd: webRoot,
     env: playwrightEnv,
   });
 } finally {
+  stopProcessGroup(turnWorkerProcess);
   stopProcessGroup(apiProcess);
 }
 

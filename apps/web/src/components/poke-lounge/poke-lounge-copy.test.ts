@@ -62,3 +62,14 @@ test("멀티플레이 결과의 다음 행동은 방을 다시 선택한다고 �
   assert.equal(getPokeLoungeCopy("en-US").resultRoomEntry, "Choose another room");
   assert.equal(getPokeLoungeCopy("ja-JP").resultRoomEntry, "別のルームを選ぶ");
 });
+
+test("모든 로케일은 8명 정원과 시작 시 AI 자동 참가를 안내한다", function testCase() {
+  for (const locale of ["ko-KR", "en-US", "ja-JP"] as const) {
+    const lobby = getPokeLoungeCopy(locale).lobby;
+
+    assert.match(lobby.participantCount(3), /3\/8/);
+    assert.match(lobby.autoFillNotice, /4/);
+    assert.match(lobby.autoFillNotice, /8/);
+    assert.match(lobby.autoFillNotice, /AI/);
+  }
+});

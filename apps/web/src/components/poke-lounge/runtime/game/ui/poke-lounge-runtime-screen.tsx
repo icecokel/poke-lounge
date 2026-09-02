@@ -763,7 +763,7 @@ export function RoomLobbyActions({
         <>
           <button
             type="button"
-            disabled={view.participantCount >= 6 || view.startDisabledReason === "mutation"}
+            disabled={view.participantCount >= 8 || view.startDisabledReason === "mutation"}
             onClick={onAddAi}
             data-room-lobby-ai-add="true"
           >
@@ -779,6 +779,9 @@ export function RoomLobbyActions({
           </button>
         </>
       ) : null}
+      <p className="room-lobby-auto-fill-notice" data-room-lobby-auto-fill-notice="true">
+        {copy.autoFillNotice}
+      </p>
     </footer>
   );
 }

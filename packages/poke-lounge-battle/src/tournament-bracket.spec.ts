@@ -13,6 +13,8 @@ describe("tournament bracket", function testSuite() {
     [4, 2, 0],
     [5, 1, 3],
     [6, 2, 2],
+    [7, 3, 1],
+    [8, 4, 0],
   ])(
     "places every one of %i participants in exactly one opening match or bye",
     function callback(participantCount, expectedMatches, expectedByes) {
@@ -74,6 +76,38 @@ describe("tournament bracket", function testSuite() {
     ).toEqual(["player-1", "player-3", "player-2"]);
   });
 
+  it("creates an eight-player quarterfinal without byes", function testCase() {
+    const state = createTournamentBracketState(participants(8), 1);
+
+    expect(
+      state.currentRound?.matches.map(function mapItem(match) {
+        return match.participantIds;
+      }),
+    ).toEqual([
+      ["player-1", "player-8"],
+      ["player-4", "player-5"],
+      ["player-3", "player-6"],
+      ["player-2", "player-7"],
+    ]);
+    expect(state.currentRound?.byes).toHaveLength(0);
+  });
+
+  it("completes an eight-player bracket in seven matches", function testCase() {
+    let state = createTournamentBracketState(participants(8), 1);
+    let completedMatchCount = 0;
+
+    while (state.status === "in-progress") {
+      const matches = getReadyTournamentMatches(state);
+      completedMatchCount += matches.length;
+      state = matches.reduce(function reduceItems(current, match) {
+        return recordTournamentMatchResult(current, match.matchId, match.participantIds[0]);
+      }, state);
+    }
+
+    expect(completedMatchCount).toBe(7);
+    expect(state.completedRounds).toHaveLength(3);
+  });
+
   it("advances a five-player bracket deterministically without omissions", function testCase() {
     let state = createTournamentBracketState(participants(5), 2);
 
@@ -114,7 +148,7 @@ describe("tournament bracket", function testSuite() {
       return createTournamentBracketState(participants(1), 1);
     }).toThrow(RangeError);
     expect(function callback() {
-      return createTournamentBracketState(participants(7), 1);
+      return createTournamentBracketState(participants(9), 1);
     }).toThrow(RangeError);
     expect(function callback() {
       return createTournamentBracketState(

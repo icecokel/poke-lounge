@@ -388,7 +388,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
         return left.playerId.localeCompare(right.playerId, undefined, { numeric: true });
       });
 
-    return [...localPlayers, ...remotePlayers].filter(hasActiveTournamentPokemon).slice(0, 6);
+    return [...localPlayers, ...remotePlayers].filter(hasActiveTournamentPokemon).slice(0, 8);
   }
 
   private getTournamentBattlePlayer(playerId: string): LocalPlayerState | undefined {
@@ -518,7 +518,7 @@ export function createServerTournamentAnnouncementText({
   const lines = [
     "서버 토너먼트",
     createServerRoomStageLabel(projection, nowMs),
-    `참가 ${tournamentParticipants.length}/6 · 준비 ${readyCount}/${tournamentParticipants.length} · 접속 ${connectedCount}/${participants.length} · 관전 ${spectators.length}`,
+    `참가 ${tournamentParticipants.length}/8 · 준비 ${readyCount}/${tournamentParticipants.length} · 접속 ${connectedCount}/${participants.length} · 관전 ${spectators.length}`,
   ];
 
   if (activeMatch) {
@@ -576,7 +576,7 @@ function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayl
   const participants = projection.participants.filter(function filterItem(participant) {
     return participant.role === "participant" && participant.connected && participant.partyReady;
   });
-  if (participants.length < 2 || participants.length > 6) {
+  if (participants.length < 2 || participants.length > 8) {
     return ["대진 확정 대기"];
   }
 
@@ -587,8 +587,7 @@ function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayl
     projection.roundIndex,
   );
   const openingRound = bracket.currentRound!;
-  const openingLabel =
-    participants.length <= 2 ? "결승" : participants.length <= 4 ? "준결승" : "1회전";
+  const openingLabel = participants.length <= 2 ? "결승" : participants.length <= 4 ? "4강" : "8강";
   const lines = [
     `${openingLabel} · ${openingRound.matches.map(formatMatchParticipants).join(" / ")}`,
   ];
@@ -603,7 +602,7 @@ function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayl
     );
   }
   if (participants.length > 2) {
-    lines.push(participants.length <= 4 ? "이후 · 결승" : "이후 · 준결승 2경기 → 결승");
+    lines.push(participants.length <= 4 ? "이후 · 결승" : "이후 · 4강 2경기 → 결승");
   }
 
   const ownMatch = openingRound.matches.find(function findItem(match) {
@@ -615,7 +614,7 @@ function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayl
   if (ownMatch) {
     lines.push(`내 위치 · ${openingLabel} ${ownMatch.matchNumber}경기`);
   } else if (ownBye) {
-    lines.push(`내 위치 · 부전승 · ${participants.length <= 4 ? "결승" : "준결승"} 진출`);
+    lines.push(`내 위치 · 부전승 · ${participants.length <= 4 ? "결승" : "4강"} 진출`);
   }
 
   return lines;
@@ -623,7 +622,7 @@ function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayl
 
 function createServerRoomStageLabel(projection: TournamentStateRoomPayload, nowMs: number): string {
   if (projection.roomStatus === "waiting") {
-    return "대기실 · 참가자 2명 이상 모두 준비하면 시작";
+    return "대기실 · 모든 사람이 준비하면 방장이 시작";
   }
 
   if (projection.roomStatus === "round-started") {

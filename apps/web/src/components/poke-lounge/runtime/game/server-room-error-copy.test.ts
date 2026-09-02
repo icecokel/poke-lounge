@@ -31,6 +31,6 @@ test("server room 오류 코드는 모든 지원 locale에서 안정적인 안�
   }
 
   assert.match(getServerRoomErrorMessage("en-US", "ROOM_TRANSPORT_FAILED"), /server room/i);
-  assert.match(getServerRoomErrorMessage("ko-KR", "ROOM_FULL"), /6명/);
+  assert.match(getServerRoomErrorMessage("ko-KR", "ROOM_FULL"), /8명/);
   assert.match(getServerRoomErrorMessage("ja-JP", "CURSOR_REGRESSION"), /入室画面/);
 });

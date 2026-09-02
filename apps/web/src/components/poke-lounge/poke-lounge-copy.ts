@@ -145,6 +145,7 @@ export interface PokeLoungeCopy {
     addAiAction: string;
     removeAiAction: string;
     startAction: string;
+    autoFillNotice: string;
     hostReady: string;
     guestWaiting: string;
     ownPartyMissingReason: string;
@@ -330,7 +331,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
   },
   lobby: {
     title: "챔피언십 대기실",
-    participantCount: count => `참가자 ${count}/6`,
+    participantCount: count => `참가자 ${count}/8`,
     participantListLabel: "챔피언십 참가자",
     hostBadge: "방장",
     aiBadge: "AI",
@@ -345,6 +346,8 @@ const KOREAN_COPY: PokeLoungeCopy = {
     addAiAction: "AI 추가",
     removeAiAction: "제거",
     startAction: "챔피언십 시작",
+    autoFillNotice:
+      "시작 시 1~3명은 4명까지, 4~7명은 8명까지 AI가 자동 참가하며 준비 단계부터 함께 플레이합니다.",
     hostReady: "모든 조건이 갖춰졌습니다.",
     guestWaiting: "방장이 챔피언십을 시작할 때까지 기다려 주세요.",
     ownPartyMissingReason: "파티가 서버에 반영되면 준비할 수 있습니다.",
@@ -541,7 +544,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   },
   lobby: {
     title: "Championship Lobby",
-    participantCount: count => `Players ${count}/6`,
+    participantCount: count => `Players ${count}/8`,
     participantListLabel: "Championship players",
     hostBadge: "Host",
     aiBadge: "AI",
@@ -556,6 +559,8 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     addAiAction: "Add AI",
     removeAiAction: "Remove",
     startAction: "Start championship",
+    autoFillNotice:
+      "When the room starts, AI fills 1–3 players to 4 and 4–7 players to 8, then joins from preparation onward.",
     hostReady: "Everyone is ready to start.",
     guestWaiting: "Wait for the host to start the championship.",
     ownPartyMissingReason: "You can ready up after your party reaches the server.",
@@ -754,7 +759,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   },
   lobby: {
     title: "チャンピオンシップロビー",
-    participantCount: count => `参加者 ${count}/6`,
+    participantCount: count => `参加者 ${count}/8`,
     participantListLabel: "チャンピオンシップ参加者",
     hostBadge: "ホスト",
     aiBadge: "AI",
@@ -769,6 +774,8 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     addAiAction: "AIを追加",
     removeAiAction: "削除",
     startAction: "チャンピオンシップ開始",
+    autoFillNotice:
+      "開始時に1～3人なら4人、4～7人なら8人までAIが自動参加し、準備段階から一緒にプレイします。",
     hostReady: "開始条件がそろいました。",
     guestWaiting: "ホストが開始するまでお待ちください。",
     ownPartyMissingReason: "パーティがサーバーに反映されると準備できます。",

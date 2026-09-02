@@ -7,13 +7,14 @@ import request from 'supertest';
 import { io, type Socket as ClientSocket } from 'socket.io-client';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { PokeLoungeModule } from '../src/poke-lounge/poke-lounge.module';
-import { POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS } from '../src/poke-lounge/poke-lounge-room-policy';
 import type {
   PokeLoungePublicRoomState,
   PokeLoungeRoomState,
 } from '../src/poke-lounge/poke-lounge-room.types';
 import { getPokeLoungeTestTypeOrmOptions } from './support/poke-lounge-test-database';
 import { createTestCompetitivePartyInput } from './support/competitive-party.fixture';
+
+const WAITING_ROOM_TTL_MS = 30 * 60_000;
 
 type ConflictBody = {
   statusCode: number;
@@ -154,9 +155,9 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', function te
     expect(guest.participants).toHaveLength(2);
   });
 
-  it('caps concurrent public matching at six players per room', async function testCase() {
+  it('caps concurrent public matching at eight players per room', async function testCase() {
     const matches = await Promise.all(
-      Array.from({ length: 7 }, function mapItem(_, index) {
+      Array.from({ length: 9 }, function mapItem(_, index) {
         return request(httpServer)
           .post('/poke-lounge/rooms/quick-play')
           .set('X-Idempotency-Key', commandKey(200 + index))
@@ -186,19 +187,19 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', function te
     );
 
     expect(roomCodes.size).toBe(2);
-    expect(participantCounts.sort()).toEqual([1, 6]);
+    expect(participantCounts.sort()).toEqual([1, 8]);
   });
 
   it('returns revisions and expiry, redacts sessions, and replays exact commands', async function testCase() {
     const body = createBody();
-    const earliestExpiryMs = Date.now() + POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS;
+    const earliestExpiryMs = Date.now() + WAITING_ROOM_TTL_MS;
     const createdResponse = await request(httpServer)
       .post('/poke-lounge/rooms')
       .set(commandHeaders(1, 0))
       .send(body)
       .expect(201);
     const created = createdResponse.body as PokeLoungePublicRoomState;
-    const latestExpiryMs = Date.now() + POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS;
+    const latestExpiryMs = Date.now() + WAITING_ROOM_TTL_MS;
 
     expect(created).toMatchObject({
       status: 'waiting',
@@ -513,14 +514,14 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', function te
       .get(`/poke-lounge/rooms/${created.roomCode}`)
       .expect(200);
     expect(expiredResponse.body).toMatchObject({
-      status: 'closed',
+      status: 'waiting',
       revision: bothReady.revision + 1,
       participants: [],
       tournament: { bracket: null },
     });
   });
 
-  it('starts five ready players together, rejects late joins, and supports tournament reconnect', async function testCase() {
+  it('starts five ready players with three AI, rejects late joins, and supports tournament reconnect', async function testCase() {
     const roundDurationMs = 2_000;
     const created = await createRoom(20, roundDurationMs);
     const joinedSecond = await request(httpServer)
@@ -646,7 +647,14 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', function te
         activeMatchId: 'game-round-1-bracket-1-match-1',
       },
     });
-    expect(tournament.tournament.bracket?.participants).toHaveLength(5);
+    expect(tournament.tournament.bracket?.participants).toHaveLength(8);
+    expect(
+      tournament.tournament.bracket?.participants.filter(
+        function filterItem(participant) {
+          return participant.playerId.startsWith('ai-');
+        },
+      ),
+    ).toHaveLength(3);
 
     const rejoined = await request(httpServer)
       .post(`/poke-lounge/rooms/${created.roomCode}/join`)
