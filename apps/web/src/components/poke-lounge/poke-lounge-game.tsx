@@ -722,12 +722,24 @@ export function PokeLoungeGame() {
     }
 
     const updateContainerSize = () => {
+      const viewport = window.visualViewport;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportRight = viewportLeft + (viewport?.width ?? window.innerWidth);
+      const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+
       if (
         document.fullscreenElement === page ||
         page.classList.contains("is-game-fullscreen-fallback")
       ) {
-        page.style.setProperty(POKE_LOUNGE_CONTAINER_WIDTH_VAR, `${window.innerWidth}px`);
-        page.style.setProperty(POKE_LOUNGE_CONTAINER_HEIGHT_VAR, `${window.innerHeight}px`);
+        page.style.setProperty(
+          POKE_LOUNGE_CONTAINER_WIDTH_VAR,
+          `${Math.floor(viewportRight - viewportLeft)}px`,
+        );
+        page.style.setProperty(
+          POKE_LOUNGE_CONTAINER_HEIGHT_VAR,
+          `${Math.floor(viewportBottom - viewportTop)}px`,
+        );
         return;
       }
 
@@ -737,15 +749,19 @@ export function PokeLoungeGame() {
       const paddingRight = Number.parseFloat(parentStyle.paddingRight) || 0;
       const paddingTop = Number.parseFloat(parentStyle.paddingTop) || 0;
       const paddingBottom = Number.parseFloat(parentStyle.paddingBottom) || 0;
-      const visibleLeft = Math.max(parentRect.left + paddingLeft, 0);
-      const visibleRight = Math.min(parentRect.right - paddingRight, window.innerWidth);
-      const visibleTop = Math.max(parentRect.top + paddingTop, 0);
-      const visibleBottom = Math.min(parentRect.bottom - paddingBottom, window.innerHeight);
+      const visibleLeft = Math.max(parentRect.left + paddingLeft, viewportLeft);
+      const visibleRight = Math.min(parentRect.right - paddingRight, viewportRight);
+      const visibleTop = Math.max(parentRect.top + paddingTop, viewportTop);
+      const visibleBottom = Math.min(parentRect.bottom - paddingBottom, viewportBottom);
       const width = Math.max(0, visibleRight - visibleLeft);
       const height = Math.max(0, visibleBottom - visibleTop);
 
       page.style.setProperty(POKE_LOUNGE_CONTAINER_WIDTH_VAR, `${Math.floor(width)}px`);
       page.style.setProperty(POKE_LOUNGE_CONTAINER_HEIGHT_VAR, `${Math.floor(height)}px`);
+
+      if (viewport && viewport.height < window.innerHeight) {
+        page.querySelector<HTMLElement>("input:focus")?.scrollIntoView({ block: "center" });
+      }
     };
 
     updateContainerSize();

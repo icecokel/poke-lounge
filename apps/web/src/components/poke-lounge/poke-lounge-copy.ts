@@ -178,6 +178,7 @@ export interface PokeLoungeCopy {
     temporaryPasswordLabel: string;
     temporaryPasswordDescription: string;
     temporaryPasswordPlaceholder: string;
+    temporaryPasswordGenerate: string;
     temporaryPasswordRequired: string;
     multiplayerConnect: string;
     multiplayerConnectFailed: string;
@@ -387,6 +388,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     temporaryPasswordDescription:
       "함께 플레이할 친구끼리 같은 값을 입력하세요. 비밀번호 원문은 저장하거나 전송하지 않습니다.",
     temporaryPasswordPlaceholder: "임시 비밀번호 입력",
+    temporaryPasswordGenerate: "랜덤 생성",
     temporaryPasswordRequired: "멀티플레이에 사용할 임시 비밀번호를 입력해 주세요.",
     multiplayerConnect: "비공개 방 만들기",
     multiplayerConnectFailed: "멀티플레이 접속 정보를 만들지 못했습니다. 다시 시도해 주세요.",
@@ -597,6 +599,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     temporaryPasswordDescription:
       "Use the same value as the friends you want to play with. The original password is never stored or sent.",
     temporaryPasswordPlaceholder: "Enter a temporary password",
+    temporaryPasswordGenerate: "Generate",
     temporaryPasswordRequired: "Enter a temporary password for multiplayer.",
     multiplayerConnect: "Create private room",
     multiplayerConnectFailed: "Could not prepare multiplayer access. Try again.",
@@ -809,6 +812,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     temporaryPasswordDescription:
       "一緒に遊ぶ友達同士で同じ値を入力してください。パスワードの原文は保存も送信もしません。",
     temporaryPasswordPlaceholder: "一時パスワードを入力",
+    temporaryPasswordGenerate: "ランダム生成",
     temporaryPasswordRequired: "マルチプレイ用の一時パスワードを入力してください。",
     multiplayerConnect: "非公開ルームを作成",
     multiplayerConnectFailed: "マルチプレイ接続を準備できませんでした。もう一度お試しください。",

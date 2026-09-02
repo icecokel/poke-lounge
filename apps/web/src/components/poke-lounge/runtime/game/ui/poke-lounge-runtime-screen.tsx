@@ -3,7 +3,11 @@ import { getPokeLoungeCopyForUrl, type PokeLoungeCopy } from "../../../poke-loun
 import type { StarterPokemon } from "../../types";
 import { playPokeLoungeSfx, primePokeLoungeAudio } from "../audio/poke-lounge-audio";
 import type { PokeLoungeRuntimeState } from "../game-page-state";
-import { deriveTemporaryRoomCode, normalizeTemporaryPassword } from "../network/room-entry";
+import {
+  createTemporaryPassword,
+  deriveTemporaryRoomCode,
+  normalizeTemporaryPassword,
+} from "../network/room-entry";
 import {
   normalizeMultiplayerDisplayName,
   resolveInitialMultiplayerDisplayName,
@@ -100,17 +104,35 @@ function RoomEntryScreen({
 
   return (
     <section
-      className="room-entry-screen"
+      className="room-entry-screen room-entry-create-screen"
       data-room-entry-screen="true"
       data-local-test-mode-active={state.localTestMode?.active || undefined}
     >
-      <div className="room-entry-panel">
-        <h1>{copy.roomEntry.title}</h1>
-        <FanNotice copy={copy} />
-        <section className="room-entry-mode-group" data-room-entry-mode="multiplayer">
-          <h2 className="room-entry-mode-heading">{copy.roomEntry.multiplayerTitle}</h2>
-          <p className="room-entry-mode-copy">{copy.roomEntry.multiplayerDescription}</p>
-          <form className="room-entry-mode-content" onSubmit={selectMultiplayer}>
+      <div className="room-entry-panel room-entry-create-panel">
+        <header className="room-entry-intro">
+          <div className="room-entry-brand">
+            <span className="room-entry-emblem" aria-hidden="true" />
+            <span>POKE LOUNGE</span>
+          </div>
+          <div className="room-entry-intro-heading">
+            <h1>{copy.roomEntry.title}</h1>
+            <p>{copy.roomEntry.multiplayerDescription}</p>
+          </div>
+          <FanNotice copy={copy} />
+        </header>
+        <section
+          className="room-entry-workspace"
+          data-room-entry-mode="multiplayer"
+          aria-label={copy.roomEntry.multiplayerTitle}
+        >
+          <header className="room-entry-workspace-heading">
+            <h2>{copy.roomEntry.multiplayerTitle}</h2>
+            <span className="room-entry-room-status">
+              <span aria-hidden="true" />
+              {copy.roomEntry.privateGameTitle}
+            </span>
+          </header>
+          <form className="room-entry-mode-content room-entry-form" onSubmit={selectMultiplayer}>
             <LabeledField
               id="poke-lounge-multiplayer-display-name"
               label={copy.roomEntry.multiplayerNameLabel}
@@ -164,36 +186,55 @@ function RoomEntryScreen({
               label={copy.roomEntry.temporaryPasswordLabel}
               description={copy.roomEntry.temporaryPasswordDescription}
             >
-              <input
-                id="poke-lounge-temporary-password"
-                type="password"
-                inputMode="text"
-                autoComplete="off"
-                maxLength={64}
-                placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
-                value={temporaryPassword}
-                disabled={pending}
-                onChange={function handleChange(event) {
-                  setTemporaryPassword(event.currentTarget.value);
-                  setMessage("");
-                }}
-                data-room-entry-temporary-password
-              />
+              <div className="room-entry-password-row">
+                <input
+                  id="poke-lounge-temporary-password"
+                  type="password"
+                  inputMode="text"
+                  autoComplete="off"
+                  maxLength={64}
+                  placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
+                  value={temporaryPassword}
+                  disabled={pending}
+                  onChange={function handleChange(event) {
+                    setTemporaryPassword(event.currentTarget.value);
+                    setMessage("");
+                  }}
+                  data-room-entry-temporary-password
+                />
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={function handleClick() {
+                    setTemporaryPassword(createTemporaryPassword());
+                    setMessage("");
+                  }}
+                  data-room-entry-temporary-password-generate
+                >
+                  {copy.roomEntry.temporaryPasswordGenerate}
+                </button>
+              </div>
             </LabeledField>
-            <button type="submit" disabled={pending} data-room-entry-multiplayer-submit>
-              {copy.roomEntry.multiplayerConnect}
+            <button
+              type="submit"
+              className="room-entry-submit"
+              disabled={pending}
+              data-room-entry-multiplayer-submit
+            >
+              <span>{copy.roomEntry.multiplayerConnect}</span>
+              <span aria-hidden="true">→</span>
             </button>
           </form>
+          <p
+            className="room-entry-message"
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+            data-room-entry-message="true"
+          >
+            {message}
+          </p>
         </section>
-        <p
-          className="room-entry-message"
-          role="alert"
-          aria-live="assertive"
-          aria-atomic="true"
-          data-room-entry-message="true"
-        >
-          {message}
-        </p>
       </div>
     </section>
   );

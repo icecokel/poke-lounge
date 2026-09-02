@@ -40,7 +40,44 @@ test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 �
   await expect(page.locator("[data-room-entry-display-name]")).toBeVisible();
   await expect(page.locator("[data-room-entry-visibility-public]")).toBeDisabled();
   await expect(page.locator("[data-room-entry-visibility-private]")).toBeChecked();
-  await expect(page.locator("[data-room-entry-temporary-password]")).toBeVisible();
+  const temporaryPassword = page.locator("[data-room-entry-temporary-password]");
+  await expect(temporaryPassword).toBeVisible();
+  const generatePassword = page.locator("[data-room-entry-temporary-password-generate]");
+  await expect(generatePassword).toBeVisible();
+  await generatePassword.click();
+  await expect(temporaryPassword).toHaveValue(/^[A-HJ-NP-Z2-9]{12}$/);
+  await temporaryPassword.focus();
+  expect(
+    await page.evaluate(async function evaluatePage() {
+      if (!window.visualViewport) {
+        return false;
+      }
+
+      const viewportPrototype = Object.getPrototypeOf(window.visualViewport) as object;
+      const heightDescriptor = Object.getOwnPropertyDescriptor(viewportPrototype, "height");
+      if (!heightDescriptor) {
+        return false;
+      }
+
+      Object.defineProperty(viewportPrototype, "height", {
+        configurable: true,
+        get: function getHeight() {
+          return 420;
+        },
+      });
+      window.visualViewport.dispatchEvent(new Event("resize"));
+
+      const page = document.querySelector<HTMLElement>("[data-testid='poke-lounge-page']");
+      const password = document.querySelector<HTMLElement>("[data-room-entry-temporary-password]");
+      const fits =
+        Boolean(page && password) &&
+        password!.getBoundingClientRect().bottom <= page!.getBoundingClientRect().bottom + 1;
+
+      Object.defineProperty(viewportPrototype, "height", heightDescriptor);
+      window.visualViewport.dispatchEvent(new Event("resize"));
+      return fits;
+    }),
+  ).toBe(true);
   await expect(page.locator("[data-room-entry-multiplayer-submit]")).toBeVisible();
   await expect(page.locator("[data-room-entry-code]")).toHaveCount(0);
   await expect(page.locator("[data-room-entry-settings]")).toHaveCount(0);

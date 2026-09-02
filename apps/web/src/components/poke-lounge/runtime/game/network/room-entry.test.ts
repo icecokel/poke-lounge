@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getPokeLoungeCopy } from "../../../poke-lounge-copy";
 import {
+  createTemporaryPassword,
   deriveTemporaryRoomCode,
   normalizeTemporaryPassword,
   readRoomEntryFromSearchParams,
@@ -133,4 +134,8 @@ test("임시 비밀번호는 원문 대신 동일한 6자리 방 키로 파생�
   await assert.rejects(function callback() {
     return deriveTemporaryRoomCode("   ");
   });
+});
+
+test("랜덤 임시 비밀번호는 혼동하기 어려운 12자리 문자로 생성한다", function testCase() {
+  assert.match(createTemporaryPassword(), /^[A-HJ-NP-Z2-9]{12}$/);
 });

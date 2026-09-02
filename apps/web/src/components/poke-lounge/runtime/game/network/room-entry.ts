@@ -4,6 +4,7 @@ export const ROOM_ROUND_DURATION_OPTIONS_MS = [180_000, 300_000, 600_000, 900_00
 
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAX_TEMPORARY_PASSWORD_LENGTH = 64;
+const GENERATED_TEMPORARY_PASSWORD_LENGTH = 12;
 
 export type RoomEntryMode = "unset" | "solo" | "local-room" | "server-room" | "webrtc";
 export type RoomRoundDurationMs = (typeof ROOM_ROUND_DURATION_OPTIONS_MS)[number];
@@ -39,6 +40,16 @@ export function normalizeTemporaryPassword(value: string): string {
   return Array.from(value.normalize("NFKC").trim())
     .slice(0, MAX_TEMPORARY_PASSWORD_LENGTH)
     .join("");
+}
+
+export function createTemporaryPassword(): string {
+  const randomValues = globalThis.crypto.getRandomValues(
+    new Uint8Array(GENERATED_TEMPORARY_PASSWORD_LENGTH),
+  );
+
+  return Array.from(randomValues, function callback(byte) {
+    return ROOM_CODE_ALPHABET[byte & (ROOM_CODE_ALPHABET.length - 1)];
+  }).join("");
 }
 
 export async function deriveTemporaryRoomCode(password: string): Promise<string> {
