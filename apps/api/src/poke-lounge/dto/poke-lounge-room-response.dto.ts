@@ -16,6 +16,7 @@ import type {
   PokeLoungeFinalStanding,
   PokeLoungeMatchResultReason,
   PokeLoungeMatchStatus,
+  PokeLoungeParticipantController,
   PokeLoungePublicPartySnapshot,
   PokeLoungeParticipantRole,
   PokeLoungePublicRoomParticipant,
@@ -31,6 +32,10 @@ import { CompetitiveActionResponseDto } from './competitive-action-response.dto'
 const participantRoles: PokeLoungeParticipantRole[] = [
   'participant',
   'spectator',
+];
+const participantControllers: PokeLoungeParticipantController[] = [
+  'human',
+  'ai',
 ];
 const roomStatuses: PokeLoungeRoomStatus[] = [
   'waiting',
@@ -63,6 +68,9 @@ class PokeLoungeRoomParticipantDto implements PokeLoungePublicRoomParticipant {
 
   @ApiProperty({ example: 'Player A' })
   displayName!: string;
+
+  @ApiProperty({ enum: participantControllers, example: 'human' })
+  controller!: PokeLoungeParticipantController;
 
   @ApiProperty({ enum: participantRoles, example: 'participant' })
   role!: PokeLoungeParticipantRole;

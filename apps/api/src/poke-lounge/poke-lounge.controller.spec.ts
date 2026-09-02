@@ -29,6 +29,8 @@ describe('PokeLoungeController', function testSuite() {
       setReady: jest.fn().mockResolvedValue(snapshot()),
       setRoundReady: jest.fn().mockResolvedValue(snapshot()),
       startRoom: jest.fn().mockResolvedValue(snapshot()),
+      addAiParticipant: jest.fn().mockResolvedValue(snapshot()),
+      removeAiParticipant: jest.fn().mockResolvedValue(snapshot()),
       updatePartySnapshot: jest.fn().mockResolvedValue(snapshot()),
       submitMatchResult: jest.fn().mockResolvedValue(snapshot()),
       leaveRoom: jest.fn().mockResolvedValue(snapshot()),
@@ -128,6 +130,21 @@ describe('PokeLoungeController', function testSuite() {
         );
       },
       function callback() {
+        return controller.addAiParticipant(
+          'ROOM01',
+          { playerId: 'player-a', sessionId: 'session-a' },
+          request(),
+        );
+      },
+      function callback() {
+        return controller.removeAiParticipant(
+          'ROOM01',
+          'ai-player',
+          { playerId: 'player-a', sessionId: 'session-a' },
+          request(),
+        );
+      },
+      function callback() {
         return controller.updatePartySnapshot(
           'ROOM01',
           {
@@ -169,6 +186,8 @@ describe('PokeLoungeController', function testSuite() {
     expect(service.joinRoom.mock.calls).toHaveLength(0);
     expect(service.setReady.mock.calls).toHaveLength(0);
     expect(service.startRoom.mock.calls).toHaveLength(0);
+    expect(service.addAiParticipant.mock.calls).toHaveLength(0);
+    expect(service.removeAiParticipant.mock.calls).toHaveLength(0);
     expect(service.updatePartySnapshot.mock.calls).toHaveLength(0);
     expect(service.submitMatchResult.mock.calls).toHaveLength(0);
     expect(service.leaveRoom.mock.calls).toHaveLength(0);

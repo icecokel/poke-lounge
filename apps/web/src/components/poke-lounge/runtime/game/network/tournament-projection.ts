@@ -42,6 +42,7 @@ export type TournamentCompetitionKind =
 export interface TournamentRoomParticipant {
   playerId: string;
   displayName: string;
+  controller?: ApiRoomParticipant["controller"];
   role: ApiRoomParticipant["role"];
   ready: boolean;
   partyReady: boolean;

@@ -63,6 +63,8 @@ export interface PlayerSnapshot {
   x: number;
   y: number;
   facing: PlayerFacing;
+  controller?: "human" | "ai";
+  activity?: "idle" | "moving" | "hunting" | "recovering" | "tournament";
   activePartySlotIndex?: number;
   party?: Array<PlayerPokemonSlot<PlayerPokemon>>;
   activePokemon?: {
@@ -102,6 +104,8 @@ export interface MultiplayerRoom {
   connect(initialSnapshot?: PlayerSnapshot): void;
   setLobbyReady(ready: boolean): Promise<void>;
   startChampionship(): Promise<void>;
+  addAiParticipant(): Promise<void>;
+  removeAiParticipant(aiPlayerId: string): Promise<void>;
   leave?(): Promise<void>;
   dispose(): void;
   send<T extends RoomMessage>(type: T, payload: RoomEvent[T]): void;
@@ -308,6 +312,8 @@ export function createLocalPreviewRoom(options: LocalPreviewRoomOptions = {}): M
     sessionId,
     setLobbyReady: async () => undefined,
     startChampionship: async () => undefined,
+    addAiParticipant: async () => undefined,
+    removeAiParticipant: async () => undefined,
     connect(initialSnapshot) {
       if (disposed || connected) {
         return;

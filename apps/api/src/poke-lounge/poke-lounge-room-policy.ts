@@ -29,7 +29,9 @@ export function getPokeLoungeRoomHostPlayerId(
   return (
     room.participants
       .filter(function filterItem(participant) {
-        return participant.role === 'participant';
+        return (
+          participant.role === 'participant' && participant.controller !== 'ai'
+        );
       })
       .sort(function compareItems(left, right) {
         return (
@@ -109,7 +111,7 @@ export function advancePokeLoungeRoomClock(
   }
   if (
     participants.some(function testItem(participant) {
-      return !participant.ready;
+      return participant.controller !== 'ai' && !participant.ready;
     })
   ) {
     return null;
@@ -234,7 +236,7 @@ export function resetPokeLoungeRoundPreparation(
   room.round.startedAtMs = null;
   room.round.endsAtMs = null;
   for (const participant of room.participants) {
-    participant.ready = false;
+    participant.ready = participant.controller === 'ai';
   }
 }
 
@@ -250,12 +252,26 @@ export function normalizeLegacyPokeLoungeRoomSnapshot(
   const normalizesTournament = tournament.version !== 2;
   const normalizesVisibility =
     room.visibility !== 'public' && room.visibility !== 'private';
-  if (!normalizesTournament && !normalizesVisibility) {
+  const normalizesParticipantControllers = room.participants.some(
+    function testItem(participant) {
+      return (
+        participant.controller !== 'human' && participant.controller !== 'ai'
+      );
+    },
+  );
+  if (
+    !normalizesTournament &&
+    !normalizesVisibility &&
+    !normalizesParticipantControllers
+  ) {
     return null;
   }
 
   const normalized = structuredClone(room);
   normalized.visibility = normalizesVisibility ? 'private' : room.visibility;
+  for (const participant of normalized.participants) {
+    if (participant.controller !== 'ai') participant.controller = 'human';
+  }
   normalized.revision = room.revision + 1;
   normalized.updatedAtMs = nowMs;
 

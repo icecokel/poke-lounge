@@ -263,6 +263,7 @@ function publicRoom(): PokeLoungePublicRoomState {
       return {
         playerId,
         displayName,
+        controller: 'human',
         role,
         ready,
         connected,

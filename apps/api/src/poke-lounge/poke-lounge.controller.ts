@@ -37,6 +37,7 @@ import {
 import { CreatePokeLoungeRoomDto } from './dto/create-poke-lounge-room.dto';
 import { JoinPokeLoungeRoomDto } from './dto/join-poke-lounge-room.dto';
 import { LeavePokeLoungeRoomDto } from './dto/leave-poke-lounge-room.dto';
+import { ManagePokeLoungeAiParticipantDto } from './dto/manage-poke-lounge-ai-participant.dto';
 import { PokeLoungeRoomResponseDto } from './dto/poke-lounge-room-response.dto';
 import { PokeLoungeRomDataResponseDto } from './dto/poke-lounge-rom-data-response.dto';
 import { SetPokeLoungeReadyDto } from './dto/set-poke-lounge-ready.dto';
@@ -363,6 +364,51 @@ export class PokeLoungeController {
           sessionId: body.sessionId,
         },
         command,
+      ),
+    );
+  }
+
+  @Post('rooms/:roomCode/ai-participants')
+  @ApiHeader({ name: IDEMPOTENCY_HEADER, required: true })
+  @ApiHeader({ name: REVISION_HEADER, required: true, example: '0' })
+  @ApiBody({ type: ManagePokeLoungeAiParticipantDto })
+  @ApiCreatedResponse({ type: PokeLoungeRoomResponseDto })
+  @ApiConflictResponse({ type: PokeLoungeRoomConflictResponseDto })
+  async addAiParticipant(
+    @Param('roomCode') roomCode: string,
+    @Body() body: ManagePokeLoungeAiParticipantDto,
+    @Req() request: Request,
+  ) {
+    return toPokeLoungePublicRoomState(
+      await this.roomService.addAiParticipant(
+        roomCode,
+        { playerId: body.playerId, sessionId: body.sessionId },
+        parseRoomCommandHeaders(request),
+      ),
+    );
+  }
+
+  @Post('rooms/:roomCode/ai-participants/:aiPlayerId/remove')
+  @ApiHeader({ name: IDEMPOTENCY_HEADER, required: true })
+  @ApiHeader({ name: REVISION_HEADER, required: true, example: '0' })
+  @ApiBody({ type: ManagePokeLoungeAiParticipantDto })
+  @ApiCreatedResponse({ type: PokeLoungeRoomResponseDto })
+  @ApiConflictResponse({ type: PokeLoungeRoomConflictResponseDto })
+  async removeAiParticipant(
+    @Param('roomCode') roomCode: string,
+    @Param('aiPlayerId') aiPlayerId: string,
+    @Body() body: ManagePokeLoungeAiParticipantDto,
+    @Req() request: Request,
+  ) {
+    return toPokeLoungePublicRoomState(
+      await this.roomService.removeAiParticipant(
+        roomCode,
+        {
+          playerId: body.playerId,
+          sessionId: body.sessionId,
+          aiPlayerId,
+        },
+        parseRoomCommandHeaders(request),
       ),
     );
   }

@@ -2,6 +2,8 @@ import type { PlayerFacing } from "../network/local-preview-room";
 import { FIELD_MAP } from "./field-map";
 
 export interface WorldActorFrame {
+  activity?: "idle" | "moving" | "hunting" | "recovering" | "tournament";
+  controller?: "human" | "ai";
   displayName: string;
   facing: PlayerFacing;
   frameName: string;
@@ -45,7 +47,7 @@ export function createWorldFrameStore(): WorldFrameStore {
   const publishActorsIfChanged = (remotePlayers: readonly WorldActorFrame[]) => {
     const nextActorsKey = remotePlayers
       .map(function mapItem(player) {
-        return `${player.sessionId}\u0000${player.displayName}`;
+        return `${player.sessionId}\u0000${player.displayName}\u0000${player.activity ?? ""}`;
       })
       .sort()
       .join("\u0001");

@@ -1,6 +1,6 @@
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 
-export type RoomLobbyMutation = "ready" | "start" | null;
+export type RoomLobbyMutation = "ready" | "start" | "ai-add" | "ai-remove" | null;
 
 export interface RoomLobbyViewState {
   participantCount: number;
@@ -15,6 +15,8 @@ export interface RoomLobbyRuntimeState {
   projection: TournamentStateRoomPayload;
   onSetReady(ready: boolean): Promise<void>;
   onStart(): Promise<void>;
+  onAddAi(): Promise<void>;
+  onRemoveAi(aiPlayerId: string): Promise<void>;
 }
 
 export function createRoomLobbyViewState(

@@ -6,7 +6,8 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
+import { createAiStarterParty } from '@poke-lounge/battle/ai-policy';
 import {
   CompetitivePartyValidationError,
   normalizeCompetitiveParty,
@@ -45,6 +46,7 @@ import {
   type PokeLoungeRoomSnapshot,
 } from './poke-lounge-room.repository';
 import type {
+  AddPokeLoungeAiParticipantInput,
   CreatePokeLoungeRoomInput,
   JoinPokeLoungeRoomInput,
   LeavePokeLoungeRoomInput,
@@ -54,6 +56,7 @@ import type {
   PokeLoungeRoomParticipant,
   PokeLoungeRoomState,
   PokeLoungeTournamentMatch,
+  RemovePokeLoungeAiParticipantInput,
   SetPokeLoungeReadyInput,
   SetPokeLoungeRoundReadyInput,
   StartPokeLoungeRoomInput,
@@ -988,7 +991,7 @@ export class PokeLoungeRoomService {
         }
         if (
           participants.some(function testItem(candidate) {
-            return !candidate.ready;
+            return candidate.controller !== 'ai' && !candidate.ready;
           })
         ) {
           throw new BadRequestException(
@@ -1013,6 +1016,114 @@ export class PokeLoungeRoomService {
         for (const candidate of participants) {
           candidate.ready = false;
         }
+        room.updatedAtMs = nowMs;
+        return room;
+      },
+    });
+  }
+
+  async addAiParticipant(
+    roomCode: string,
+    input: AddPokeLoungeAiParticipantInput,
+    command: PokeLoungeRoomCommandContext,
+  ): Promise<PokeLoungeRoomSnapshot> {
+    const playerId = input.playerId.trim();
+    const sessionId = input.sessionId.trim();
+    const aiPlayerId = `ai-${randomUUID()}`;
+    const aiSessionId = randomUUID();
+    const starterParty = createAiStarterParty(function random() {
+      return randomInt(0, 1_000_000) / 1_000_000;
+    });
+    const nowMs = this.normalizeNow(input.nowMs);
+
+    return this.mutateRoom({
+      operation: 'ai-add',
+      roomCode,
+      actorPlayerId: playerId,
+      command,
+      nowMs,
+      body: { playerId, sessionId },
+      apply: (room) => {
+        assertRoomJoinable(room);
+        const host = findParticipant(room, playerId);
+        assertParticipantSession(
+          host,
+          sessionId,
+          'AI management sessionId does not match this participant',
+        );
+        if (getPokeLoungeRoomHostPlayerId(room) !== playerId) {
+          throw new BadRequestException('Only the room host can manage AI');
+        }
+        if (room.participants.length >= MAX_ROOM_OCCUPANTS) {
+          throw new PokeLoungeRoomFull();
+        }
+
+        const aiNumber =
+          room.participants.filter(function filterItem(participant) {
+            return participant.controller === 'ai';
+          }).length + 1;
+        const displayName = `AI ${aiNumber}`;
+        room.participants.push({
+          sessionId: aiSessionId,
+          playerId: aiPlayerId,
+          displayName,
+          controller: 'ai',
+          role: 'participant',
+          ready: true,
+          connected: true,
+          joinedAtMs: nowMs,
+        });
+        room.partySnapshots[aiPlayerId] = {
+          version: 2,
+          playerId: aiPlayerId,
+          displayName,
+          competitiveParty: starterParty,
+          updatedAtMs: nowMs,
+        };
+        room.updatedAtMs = nowMs;
+        return room;
+      },
+    });
+  }
+
+  async removeAiParticipant(
+    roomCode: string,
+    input: RemovePokeLoungeAiParticipantInput,
+    command: PokeLoungeRoomCommandContext,
+  ): Promise<PokeLoungeRoomSnapshot> {
+    const playerId = input.playerId.trim();
+    const sessionId = input.sessionId.trim();
+    const aiPlayerId = input.aiPlayerId.trim();
+    const nowMs = this.normalizeNow(input.nowMs);
+
+    return this.mutateRoom({
+      operation: 'ai-remove',
+      roomCode,
+      actorPlayerId: playerId,
+      command,
+      nowMs,
+      body: { playerId, sessionId, aiPlayerId },
+      apply: (room) => {
+        assertRoomJoinable(room);
+        const host = findParticipant(room, playerId);
+        assertParticipantSession(
+          host,
+          sessionId,
+          'AI management sessionId does not match this participant',
+        );
+        if (getPokeLoungeRoomHostPlayerId(room) !== playerId) {
+          throw new BadRequestException('Only the room host can manage AI');
+        }
+        const ai = findParticipant(room, aiPlayerId);
+        if (ai.controller !== 'ai') {
+          throw new BadRequestException('Only AI participants can be removed');
+        }
+        room.participants = room.participants.filter(
+          function filterItem(participant) {
+            return participant.playerId !== aiPlayerId;
+          },
+        );
+        delete room.partySnapshots[aiPlayerId];
         room.updatedAtMs = nowMs;
         return room;
       },
@@ -1322,7 +1433,7 @@ function applyParticipantLeave(
 
   if (
     !room.participants.some(function testItem(row) {
-      return row.connected;
+      return row.connected && row.controller !== 'ai';
     }) &&
     !options.keepRoomOpen &&
     !(room.status === 'round-started' && options.preserveRoundParticipant)
@@ -1411,6 +1522,7 @@ function createParticipant(
     playerId: input.playerId,
     ...(input.userId ? { userId: input.userId } : {}),
     displayName: input.displayName,
+    controller: 'human',
     role,
     ready: false,
     connected: true,
