@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import styles from "../../../poke-lounge.module.css";
 import { primePokeLoungeAudio } from "../audio/poke-lounge-audio";
@@ -26,6 +26,11 @@ import {
   PixelButton,
   PixelPanel,
 } from "../../../ui/poke-lounge-ui-primitives";
+import type { GameStateStore } from "../state/game-state-store";
+import {
+  createTournamentBriefingText,
+  TOURNAMENT_BRIEFING_DURATION_MS,
+} from "../scenes/world-scene-tournament";
 
 const logicalWidth = 256;
 const logicalHeight = 192;
@@ -33,10 +38,12 @@ const logicalHeight = 192;
 export function BattleScreen({
   copy,
   desktop,
+  gameStateStore,
   uiStore,
 }: {
   copy: PokeLoungeCopy;
   desktop: boolean;
+  gameStateStore?: GameStateStore;
   uiStore: BattleUiStore;
 }) {
   const snapshot = useSyncExternalStore(
@@ -66,6 +73,7 @@ export function BattleScreen({
         onAction={onAction}
         presentation={presentation}
       />
+      {gameStateStore ? <BattleTournamentBriefing gameStateStore={gameStateStore} /> : null}
       {desktop ? (
         <button
           type="button"
@@ -81,6 +89,48 @@ export function BattleScreen({
       ) : null}
     </section>
   );
+}
+
+function BattleTournamentBriefing({ gameStateStore }: { gameStateStore: GameStateStore }) {
+  const state = useSyncExternalStore(
+    gameStateStore.subscribe,
+    gameStateStore.getState,
+    gameStateStore.getState,
+  );
+  const projection = state.tournament.serverProjection;
+  const [nowMs, setNowMs] = useState(0);
+
+  useEffect(
+    function runEffect() {
+      const endsAtMs = projection?.roomRound.endsAtMs;
+      if (projection?.roomStatus !== "round-started" || endsAtMs == null) {
+        setNowMs(0);
+        return;
+      }
+
+      const timer = window.setTimeout(
+        function handleTimeout() {
+          setNowMs(Date.now());
+        },
+        Math.max(0, endsAtMs - TOURNAMENT_BRIEFING_DURATION_MS - Date.now()),
+      );
+      return function cleanup() {
+        window.clearTimeout(timer);
+      };
+    },
+    [projection?.roomRound.endsAtMs, projection?.roomStatus],
+  );
+
+  const text = projection ? createTournamentBriefingText(projection, nowMs) : null;
+  return text ? (
+    <div
+      className={styles.worldTournamentAnnouncement}
+      data-poke-lounge-tournament-announcement="true"
+      role="status"
+    >
+      {text}
+    </div>
+  ) : null;
 }
 
 export function BattleStage({

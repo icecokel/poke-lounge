@@ -434,12 +434,14 @@ test("실제 API와 Socket.IO에서 5개 환경이 3라운드 우승과 방 정�
         return room.status === "round-started";
       });
       expect(preparation.round.endsAtMs).not.toBeNull();
+      await expectTournamentBriefing(testers, 1);
+      await captureCheckpointScreenshots(testers, "C1_BRACKET_PREVIEW");
       const started = await pollRoom(
         roomCode,
         function callback(room) {
           return findBracket(room.tournament) !== null;
         },
-        45_000,
+        105_000,
       );
       initialBracket = findBracket(started.tournament);
       expect(initialBracket).not.toBeNull();
@@ -1255,7 +1257,7 @@ async function routeFivePlayerRoomCreation(route: Route): Promise<void> {
     headers,
     postData: JSON.stringify({
       ...(request.postDataJSON() as Record<string, unknown>),
-      roundDurationMs: 30_000,
+      roundDurationMs: 90_000,
     }),
   });
 }
@@ -1947,14 +1949,35 @@ async function completeRemainingTournamentMatches(input: {
       function callback(candidate) {
         return (
           candidate.status === "completed" ||
+          candidate.status === "round-started" ||
           Boolean(
             candidate.competitive && !input.completedMatchIds.has(candidate.competitive.matchId),
           )
         );
       },
-      90_000,
+      150_000,
     );
     if (room.status === "completed") break;
+    if (room.status === "round-started") {
+      await expectTournamentBriefing(input.testers, room.round.index);
+      await captureCheckpointScreenshots(
+        input.testers,
+        `C5_GAME_${room.round.index}_BRACKET_PREVIEW`,
+      );
+      room = await pollRoom(
+        input.roomCode,
+        function callback(candidate) {
+          return (
+            candidate.status === "completed" ||
+            Boolean(
+              candidate.competitive && !input.completedMatchIds.has(candidate.competitive.matchId),
+            )
+          );
+        },
+        30_000,
+      );
+      if (room.status === "completed") break;
+    }
 
     const projection = room.competitive;
     if (!projection) {
@@ -2064,6 +2087,23 @@ async function completeRemainingTournamentMatches(input: {
       return candidate.status === "completed" && candidate.finalStandings.length === 5;
     },
     30_000,
+  );
+}
+
+async function expectTournamentBriefing(
+  testers: TesterRuntime[],
+  gameRound: number,
+): Promise<void> {
+  await Promise.all(
+    testers.map(async function mapItem(tester) {
+      const announcement = tester.page.locator('[data-poke-lounge-tournament-announcement="true"]');
+      await expect(announcement).toContainText(`라운드 ${gameRound}/3 대진 안내`, {
+        timeout: 105_000,
+      });
+      await expect(announcement).toContainText("#4 Tester 4 vs #5 Tester 5");
+      await expect(announcement).toContainText("부전승");
+      await expect(announcement).toContainText("내 위치");
+    }),
   );
 }
 

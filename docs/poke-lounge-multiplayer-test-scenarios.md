@@ -158,7 +158,7 @@ agent-operated 한 사이클에는 배정하지 않는다.
 | 턴 시한   | 서버 turn 진입부터 30,000ms, 미제출자는 해당 턴 행동만 생략                                                                     |
 | 결과 확인 | terminal 캡처 뒤 Desktop은 Enter, Mobile은 화면의 `다음`을 한 번 입력                                                           |
 | 금지 행동 | 기권이나 브라우저 종료로 승패 유도                                                                                              |
-| 준비 시간 | 분산 테스터는 제품 기본값 180,000ms, 단일 자동화만 30,000ms 허용                                                                |
+| 준비 시간 | 분산 테스터는 제품 기본값 180,000ms, 단일 자동화만 90,000ms 허용                                                                |
 | 승패 판정 | 실행마다 서버가 확정한 점수·순위·우승자와 세 화면이 같은지 확인                                                                 |
 
 전투 참가자는 공유 관리자 채널에
@@ -169,7 +169,7 @@ agent-operated 한 사이클에는 배정하지 않는다.
 `bracketMatchId`는 사용하지 않는다. 첫 대진은 `MP2`·`MP3`, 결승은 `MP1`·첫 대진 승자가 보고
 대상이다.
 
-30초 준비는 모든 watcher와 입력 루프를 시작 전에 대기시킬 수 있는 단일 자동화 runner 전용이다.
+90초 준비는 모든 watcher와 입력 루프를 시작 전에 대기시킬 수 있는 단일 자동화 runner 전용이다.
 독립 서브에이전트나 수동 테스터가 각자 브라우저를 조작할 때는 제품 기본값 180초를 그대로
 사용한다. 세 화면의 `startedAtMs`, `endsAtMs`가 같은지 확인하며, 단축 실행 결과로 3분 제품 계약을
 대체하지 않는다.
@@ -181,7 +181,7 @@ room의 `durationMs`는 기본값 `180000`이어야 한다.
 
 ### 4.5 Playwright scripted regression
 
-단일 Playwright 자동화만 방 생성 POST를 가로채 `roundDurationMs: 30000`을 병합해 30초 fixture를
+단일 Playwright 자동화만 방 생성 POST를 가로채 `roundDurationMs: 90000`을 병합해 90초 fixture를
 사용할 수 있다. route handler 참조를 보존하고 최초 생성 응답 직후 `finally`에서 제거한다. 다음
 실행 시작 시 각 Playwright page에서 `page.unrouteAll({ behavior: "wait" })`을 호출해 이전 override가
 새 room 생성에 적용되지 않게 한다. 실패 증적에는 screenshot, trace와 video를 포함한다.
@@ -349,19 +349,20 @@ Desktop은 결과 문구가 끝날 때까지 `Poke Lounge 게임 화면`을 fres
 
 ### 5.9 3라운드 챔피언십
 
-| ID             | 우선순위/상태 | 절차                                         | 기대 결과                                                                              |
-| -------------- | ------------- | -------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `MP-CHAMP-001` | P0/A          | 2명의 party snapshot·수동 ready 뒤 방장 시작 | 정확히 3분 준비가 시작되고 현재 라운드와 남은 시간이 같은 기준 시각으로 보인다.        |
-| `MP-CHAMP-002` | P0/A          | 준비 중 한 명이 나가 참가자가 1명이 됨       | 이탈자의 파티를 제거하고 ready를 해제한 뒤 대진 없이 `waiting`으로 돌아간다.           |
-| `MP-CHAMP-003` | P0/P          | 준비 종료 뒤 첫 대진에서 행동 제출           | 로그인 없이 private session identity로 자기 행동만 제출할 수 있다.                     |
-| `MP-CHAMP-004` | P0/P          | 전투를 terminal까지 진행                     | 서버가 승패·bracket 전진·각 파티 terminal HP 비율 점수를 확정한다.                     |
-| `MP-CHAMP-005` | P0/P          | 3개 라운드를 모두 완료                       | 누적 점수 내림차순 최종 순위가 표시되고 동점 최고 점수는 공동 우승이다.                |
-| `MP-CHAMP-006` | P0/A          | 1·2라운드 토너먼트 완료                      | 별도 ready 없이 다음 라운드의 정확한 3분 준비가 자동 시작된다.                         |
-| `MP-CHAMP-007` | P0/P          | 3명이 참가 순서대로 대진에 배치              | 매 게임 라운드에서 seed 1은 부전승, seed 2와 3이 첫 대진을 치른다.                     |
-| `MP-CHAMP-008` | P0/P          | seed 2와 3이 전투하는 동안 seed 1 관찰       | seed 1도 같은 server competitive Battle scene에서 관전하고 행동 control은 잠긴다.      |
-| `MP-CHAMP-009` | P0/P          | 첫 대진 종료 후 결승 진행                    | seed 1과 첫 대진 승자가 결승에 진입하고 세 화면의 대진·결과가 같다.                    |
-| `MP-CHAMP-010` | P0/P          | 다음 게임 라운드 준비 시작                   | 탈락자를 포함한 세 참가자가 다시 포함되고 새 라운드 준비가 자동 시작된다.              |
-| `MP-CHAMP-011` | P0/P          | terminal 결과를 화면에서 확인                | 승자는 다음 대진으로 진행하고 탈락자·부전승자는 활성 대진을 입력 잠금 상태로 관전한다. |
+| ID              | 우선순위/상태 | 절차                                         | 기대 결과                                                                              |
+| --------------- | ------------- | -------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `MP-CHAMP-001`  | P0/A          | 2명의 party snapshot·수동 ready 뒤 방장 시작 | 정확히 3분 준비가 시작되고 현재 라운드와 남은 시간이 같은 기준 시각으로 보인다.        |
+| `MP-CHAMP-002`  | P0/A          | 준비 중 한 명이 나가 참가자가 1명이 됨       | 이탈자의 파티를 제거하고 ready를 해제한 뒤 대진 없이 `waiting`으로 돌아간다.           |
+| `MP-CHAMP-002A` | P0/A          | 준비 종료 5초 전 대진 안내 확인              | 예상 1회전·부전승·후속 단계와 내 위치가 표시되고 종료 뒤 전투로 자동 전환된다.         |
+| `MP-CHAMP-003`  | P0/P          | 준비 종료 뒤 첫 대진에서 행동 제출           | 로그인 없이 private session identity로 자기 행동만 제출할 수 있다.                     |
+| `MP-CHAMP-004`  | P0/P          | 전투를 terminal까지 진행                     | 서버가 승패·bracket 전진·각 파티 terminal HP 비율 점수를 확정한다.                     |
+| `MP-CHAMP-005`  | P0/P          | 3개 라운드를 모두 완료                       | 누적 점수 내림차순 최종 순위가 표시되고 동점 최고 점수는 공동 우승이다.                |
+| `MP-CHAMP-006`  | P0/A          | 1·2라운드 토너먼트 완료                      | 별도 ready 없이 다음 라운드의 정확한 3분 준비가 자동 시작된다.                         |
+| `MP-CHAMP-007`  | P0/P          | 3명이 참가 순서대로 대진에 배치              | 매 게임 라운드에서 seed 1은 부전승, seed 2와 3이 첫 대진을 치른다.                     |
+| `MP-CHAMP-008`  | P0/P          | seed 2와 3이 전투하는 동안 seed 1 관찰       | seed 1도 같은 server competitive Battle scene에서 관전하고 행동 control은 잠긴다.      |
+| `MP-CHAMP-009`  | P0/P          | 첫 대진 종료 후 결승 진행                    | seed 1과 첫 대진 승자가 결승에 진입하고 세 화면의 대진·결과가 같다.                    |
+| `MP-CHAMP-010`  | P0/P          | 다음 게임 라운드 준비 시작                   | 탈락자를 포함한 세 참가자가 다시 포함되고 새 라운드 준비가 자동 시작된다.              |
+| `MP-CHAMP-011`  | P0/P          | terminal 결과를 화면에서 확인                | 승자는 다음 대진으로 진행하고 탈락자·부전승자는 활성 대진을 입력 잠금 상태로 관전한다. |
 
 ### 5.10 오류·복구·화면
 
@@ -488,7 +489,7 @@ Desktop은 결과 문구가 끝날 때까지 `Poke Lounge 게임 화면`을 fres
 1. 관리자는 격리 DB와 실제 API·Web을 준비하고 실행 ID, 환경 배정 seed, 임시 비밀번호와 artifact
    경로를 만든다. 관리자는 플레이어 context를 조작하지 않는다.
 2. Playwright page를 사용하는 scripted run에서만 이전 route를 `page.unrouteAll({ behavior:
-"wait" })`로 제거한다. 단일 자동화의 30초 생성 override는 handler 참조를 보존하고 생성 응답
+"wait" })`로 제거한다. 단일 자동화의 90초 생성 override는 handler 참조를 보존하고 생성 응답
    직후 `finally`에서도 제거한다. agent-browser runner는 route를 다루지 않고 각 named session의
    network log만 비운다.
 3. 세 플레이어는 이 문서와 연결된 멀티플레이·챔피언십·전투 규칙을 읽고 자신의 환경, 입력,
@@ -503,7 +504,7 @@ Desktop은 결과 문구가 끝날 때까지 `Poke Lounge 게임 화면`을 fres
    뒤 스타터 선택 화면이 열리면 첫 번째 스타터를 확정하고 party snapshot 동기화가 끝날 때까지
    기다린다.
 2. 분산 실행에서는 방 생성 요청 body에 `roundDurationMs`가 없고 서버 room의 `durationMs`가
-   `180000`인지 확인한다. 단일 자동화에서는 요청과 서버 값이 모두 `30000`인지 확인한다. 이전
+   `180000`인지 확인한다. 단일 자동화에서는 요청과 서버 값이 모두 `90000`인지 확인한다. 이전
    route 값이 남아 기준과 다르면 제품 assertion 전에 중단·정리하고 `INFRA-BLOCKED`로 보고한다.
 3. `MP1`은 대기실에서 자신이 유일한 참가자이자 방장이고 파티 동기화가 완료됐음을 캡처한 뒤
    관리자에게 `C0-HOST`를 보고한다.
@@ -539,12 +540,14 @@ Desktop은 결과 문구가 끝날 때까지 `Poke Lounge 게임 화면`을 fres
    다른 runner의 timing field나 이동
    보고를 기다리지 않고 이 절차까지 연속·병렬 수행한다. 루트는 전원 보고 뒤 timing field와 동기화
    증적을 대조한다. 준비 `endsAtMs` 전에 전원 checkpoint를 끝내지 못하면 `TEST-RUNNER`로 중단한다.
-5. 이동으로 야생전이 열리면 해당 화면을 캡처하되 파티 상태를 바꿀 수 있는 battle command를
+5. 준비 종료 5초 전에는 세 화면에 같은 예상 1회전·부전승·후속 단계와 각자의 위치가 표시되고,
+   카운트다운 종료 뒤 별도 입력 없이 서버 경쟁 대진으로 전환되는지 확인한다.
+6. 이동으로 야생전이 열리면 해당 화면을 캡처하되 파티 상태를 바꿀 수 있는 battle command를
    입력하지 않는다. 다른 두 플레이어의 world 진행이 유지되는지 확인하고 서버 경쟁 대진을
    기다린다. 첫 대진 참가자에게 competitive assignment가 생기면 로컬 야생전 대신 해당 전투가,
    seed 1 부전승이면 결승 assignment 시 해당 전투가 열려야 한다. 배정 뒤에도 야생전이 남으면
    `CODE-FAIL`이다.
-6. 첫 대진 참가자는 준비 `endsAtMs + 15000ms`, seed 1은 첫 대진 `completedAtMs + 15000ms`까지
+7. 첫 대진 참가자는 준비 `endsAtMs + 15000ms`, seed 1은 첫 대진 `completedAtMs + 15000ms`까지
    자신의 authoritative room projection에서 UUID `competitive.matchId`와 server competitive battle
    scene을 확인한다. 배정 전 로컬 야생전과 배정 뒤 `matchId`·scene을 각각 캡처한다. 제한 시간까지
    배정이나 scene 전환이 없으면 민감값을 뺀 최신 room projection과 scene을 캡처하고

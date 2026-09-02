@@ -17,7 +17,11 @@ import {
   type GameStateStore,
   type LocalPlayerState,
 } from "../state/game-state-store";
-import type { TournamentMatch, TournamentStanding } from "@poke-lounge/battle/tournament-bracket";
+import {
+  createTournamentBracketState,
+  type TournamentMatch,
+  type TournamentStanding,
+} from "@poke-lounge/battle/tournament-bracket";
 import type { TournamentSession } from "../tournament/tournament-session";
 import {
   createTournamentResultPanelViewModel,
@@ -45,6 +49,8 @@ export interface WorldSceneTournamentController extends WorldSceneTournament {
 interface TournamentAnnouncement {
   destroy(): void;
 }
+
+export const TOURNAMENT_BRIEFING_DURATION_MS = 5_000;
 
 export interface WorldSceneTournamentDependencies {
   gameStateStore: GameStateStore;
@@ -89,7 +95,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
 
   constructor(private readonly dependencies: WorldSceneTournamentDependencies) {}
 
-  update(): void {
+  update(nowMs: number): void {
     const state = this.dependencies.gameStateStore.getState();
     const serverProjection = state.tournament.serverProjection;
 
@@ -97,7 +103,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       serverProjection &&
       (state.round.phase === "waiting" || state.round.phase === "preparation")
     ) {
-      this.showServerTournamentMessage(serverProjection);
+      this.showServerTournamentMessage(serverProjection, nowMs);
       return;
     }
 
@@ -111,7 +117,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
         return;
       }
 
-      this.showTournamentPendingMessage();
+      this.showTournamentPendingMessage(nowMs);
       return;
     }
 
@@ -252,11 +258,11 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
     this.submittedServerMatchId = null;
   }
 
-  private showTournamentPendingMessage(): void {
+  private showTournamentPendingMessage(nowMs: number): void {
     const projection = this.dependencies.gameStateStore.getState().tournament.serverProjection;
 
     if (projection) {
-      this.showServerTournamentMessage(projection);
+      this.showServerTournamentMessage(projection, nowMs);
       return;
     }
 
@@ -429,7 +435,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
     return true;
   }
 
-  private showServerTournamentMessage(projection: TournamentStateRoomPayload): void {
+  private showServerTournamentMessage(projection: TournamentStateRoomPayload, nowMs: number): void {
     if (projection.resultSync.matchId === projection.tournament.activeMatchId) {
       if (projection.resultSync.status === "submitting") {
         this.setAnnouncement("경기 결과 전송 중", "16px");
@@ -445,6 +451,12 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
         this.setAnnouncement("경기 결과 동기화 실패\n서버 상태를 다시 불러오고 있습니다", "16px");
         return;
       }
+    }
+
+    const briefing = createTournamentBriefingText(projection, nowMs);
+    if (briefing) {
+      this.setAnnouncement(briefing, "14px");
+      return;
     }
 
     this.clearPresentation();
@@ -472,6 +484,22 @@ export function createServerTournamentAnnouncementText({
   nowMs,
   casualBattleAvailable,
 }: CreateServerTournamentAnnouncementTextInput): string {
+  if (projection.roomStatus === "round-started") {
+    const remainingMs = Math.max(0, (projection.roomRound.endsAtMs ?? nowMs) - nowMs);
+    const cumulativeStatus = createOwnCumulativeStatusLabel(projection);
+
+    return [
+      `라운드 ${projection.roundIndex}/${ROUND_TOTAL_COUNT} 대진 안내`,
+      remainingMs > 0 ? `${formatRemainingTime(remainingMs)} 후 전투 시작` : "전투 준비 중",
+      ...createTournamentBracketPreviewLines(projection),
+      cumulativeStatus,
+    ]
+      .filter(function filterItem(line): line is string {
+        return Boolean(line);
+      })
+      .join("\n");
+  }
+
   const participants = projection.participants;
   const tournamentParticipants = participants.filter(function filterItem(participant) {
     return participant.role === "participant";
@@ -522,6 +550,75 @@ export function createServerTournamentAnnouncementText({
   }
 
   return lines.join("\n");
+}
+
+export function createTournamentBriefingText(
+  projection: TournamentStateRoomPayload,
+  nowMs: number,
+): string | null {
+  const endsAtMs = projection.roomRound.endsAtMs;
+  if (
+    projection.roomStatus !== "round-started" ||
+    endsAtMs === null ||
+    endsAtMs - nowMs > TOURNAMENT_BRIEFING_DURATION_MS
+  ) {
+    return null;
+  }
+
+  return createServerTournamentAnnouncementText({
+    projection,
+    nowMs: endsAtMs - TOURNAMENT_BRIEFING_DURATION_MS,
+    casualBattleAvailable: null,
+  });
+}
+
+function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayload): string[] {
+  const participants = projection.participants.filter(function filterItem(participant) {
+    return participant.role === "participant" && participant.connected && participant.partyReady;
+  });
+  if (participants.length < 2 || participants.length > 6) {
+    return ["대진 확정 대기"];
+  }
+
+  const bracket = createTournamentBracketState(
+    participants.map(function mapItem(participant) {
+      return { playerId: participant.playerId, displayName: participant.displayName };
+    }),
+    projection.roundIndex,
+  );
+  const openingRound = bracket.currentRound!;
+  const openingLabel =
+    participants.length <= 2 ? "결승" : participants.length <= 4 ? "준결승" : "1회전";
+  const lines = [
+    `${openingLabel} · ${openingRound.matches.map(formatMatchParticipants).join(" / ")}`,
+  ];
+
+  if (openingRound.byes.length > 0) {
+    lines.push(
+      `부전승 · ${openingRound.byes
+        .map(function mapItem(bye) {
+          return formatTournamentParticipant(bye.entrant);
+        })
+        .join(" · ")}`,
+    );
+  }
+  if (participants.length > 2) {
+    lines.push(participants.length <= 4 ? "이후 · 결승" : "이후 · 준결승 2경기 → 결승");
+  }
+
+  const ownMatch = openingRound.matches.find(function findItem(match) {
+    return match.participantIds.includes(projection.ownPlayerId);
+  });
+  const ownBye = openingRound.byes.find(function findItem(bye) {
+    return bye.entrant.playerId === projection.ownPlayerId;
+  });
+  if (ownMatch) {
+    lines.push(`내 위치 · ${openingLabel} ${ownMatch.matchNumber}경기`);
+  } else if (ownBye) {
+    lines.push(`내 위치 · 부전승 · ${participants.length <= 4 ? "결승" : "준결승"} 진출`);
+  }
+
+  return lines;
 }
 
 function createServerRoomStageLabel(projection: TournamentStateRoomPayload, nowMs: number): string {
@@ -694,7 +791,13 @@ function formatRemainingTime(remainingMs: number): string {
 }
 
 function formatMatchParticipants(match: TournamentMatch): string {
-  return `#${match.participantA.seed} ${truncateDisplayName(match.participantA.displayName)} vs #${match.participantB.seed} ${truncateDisplayName(match.participantB.displayName)}`;
+  return `${formatTournamentParticipant(match.participantA)} vs ${formatTournamentParticipant(match.participantB)}`;
+}
+
+function formatTournamentParticipant(
+  participant: Pick<TournamentMatch["participantA"], "displayName" | "seed">,
+): string {
+  return `#${participant.seed} ${truncateDisplayName(participant.displayName)}`;
 }
 
 function formatOpponent(match: TournamentMatch, ownPlayerId: string): string {

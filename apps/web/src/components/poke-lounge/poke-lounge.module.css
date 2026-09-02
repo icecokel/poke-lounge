@@ -844,6 +844,34 @@
   text-align: center;
 }
 
+.worldTournamentAnnouncement {
+  z-index: 900;
+  box-sizing: border-box;
+  width: min(calc(100% - 24px), 500px);
+  padding: 12px 14px;
+  border: var(--pl-panel-border) solid var(--pl-color-ink);
+  border-radius: var(--pl-panel-radius);
+  background: var(--pl-color-surface-raised);
+  box-shadow: var(--pl-panel-shadow);
+  color: var(--pl-color-ink);
+  line-height: 1.45;
+  text-shadow: none;
+  animation: tournament-briefing-in var(--pl-motion-panel) ease-out both;
+  pointer-events: none;
+}
+
+@keyframes tournament-briefing-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 .worldNurseMessage {
   bottom: 74px;
   left: 50%;

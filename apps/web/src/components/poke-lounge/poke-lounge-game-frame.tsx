@@ -91,7 +91,14 @@ export function PokeLoungeGameFrame({
         : null}
       {gameplayTarget && battle
         ? createPortal(
-            <BattleScreen copy={copy} desktop={!touchGameDevice} uiStore={battle.uiStore} />,
+            <BattleScreen
+              copy={copy}
+              desktop={!touchGameDevice}
+              gameStateStore={
+                runtimeState.phase === "battle" ? runtimeState.world?.gameStateStore : undefined
+              }
+              uiStore={battle.uiStore}
+            />,
             gameplayTarget,
           )
         : null}

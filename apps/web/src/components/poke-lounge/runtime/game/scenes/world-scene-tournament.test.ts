@@ -164,6 +164,52 @@ test("서버 토너먼트 진행 설명은 월드 중앙에 표시하지 않는�
   assert.equal(announcementText, null);
 });
 
+test("준비 종료 5초 전에는 전체 대진을 먼저 안내한다", function testCase() {
+  const projection = createFivePlayerProjection();
+  projection.roomStatus = "round-started";
+  projection.roomRound.phase = "round-started";
+  projection.roomRound.endsAtMs = 32_000;
+  projection.tournament.bracket = null;
+  projection.tournament.activeMatchId = null;
+  projection.tournament.activeMatchAuthority = null;
+  projection.activeMatchTransport = "awaiting-authority";
+  projection.competitionKind = null;
+  const store = createGameStateStore();
+  const applied = store.applyTournamentSnapshotFromRoom(projection, 26_999);
+  assert.deepEqual(applied, { ok: true });
+  let announcementText: string | null = null;
+  const tournament = createWorldSceneTournament({
+    gameStateStore: store,
+    isBattleIntroPlaying: () => false,
+    hasWorldPlayer: () => false,
+    isRoomTournamentHost: () => false,
+    getRemotePlayerSnapshots: () => [],
+    startTrainerBattle: () => {},
+    getRoomHostPlayerId: () => null,
+    sendTournamentStarted: () => {},
+    sendTournamentMatchResult: () => {},
+    sendTournamentCompleted: () => {},
+    sendRoundScoreUpdates: () => {},
+    createAnnouncement: text => {
+      announcementText = text;
+      return {
+        destroy: () => {
+          announcementText = null;
+        },
+      };
+    },
+  });
+
+  tournament.update(26_999);
+  assert.equal(announcementText, null);
+  tournament.update(27_000);
+  assert.match(announcementText ?? "", /라운드 1\/3 대진 안내/);
+  assert.match(announcementText ?? "", /1회전 · #4 Player 4 vs #5 Player 5/);
+  assert.match(announcementText ?? "", /부전승 · #1 Player 1 · #3 Player 3 · #2 Player 2/);
+  assert.match(announcementText ?? "", /이후 · 준결승 2경기 → 결승/);
+  assert.match(announcementText ?? "", /내 위치 · 1회전 1경기/);
+});
+
 test("서버 준비 단계는 서버 endsAt 기준 남은 시간을 표시한다", function testCase() {
   const projection = createFivePlayerProjection();
   projection.roomStatus = "round-started";
@@ -181,7 +227,9 @@ test("서버 준비 단계는 서버 endsAt 기준 남은 시간을 표시한다
     casualBattleAvailable: null,
   });
 
-  assert.match(text, /라운드 1\/3 준비 중 · 00:30/);
+  assert.match(text, /라운드 1\/3 대진 안내/);
+  assert.match(text, /00:30 후 전투 시작/);
+  assert.match(text, /1회전 · #4 Player 4 vs #5 Player 5/);
   assert.ok(text.split("\n").length <= 7);
 
   const expiredText = createServerTournamentAnnouncementText({
@@ -190,7 +238,7 @@ test("서버 준비 단계는 서버 endsAt 기준 남은 시간을 표시한다
     casualBattleAvailable: null,
   });
 
-  assert.match(expiredText, /라운드 1\/3 · 다른 플레이어를 기다리는 중\.\.\./);
+  assert.match(expiredText, /전투 준비 중/);
   assert.doesNotMatch(expiredText, /00:00/);
 });
 
@@ -217,7 +265,7 @@ test("다음 라운드 준비 단계는 내 누적 HP 비율 순위와 점수를
     casualBattleAvailable: null,
   });
 
-  assert.match(text, /라운드 2\/3 준비 중/);
+  assert.match(text, /라운드 2\/3 대진 안내/);
   assert.match(text, /내 누적 순위 · 2위 · 133\.33점/);
   assert.ok(text.split("\n").length <= 7);
 });

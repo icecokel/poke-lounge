@@ -326,7 +326,12 @@ export function WorldNoticeLayer({ ui }: { ui: WorldUiSnapshot }) {
       ) : null}
       {ui.nurseHealing.active ? <NurseHealingEffect key={ui.nurseHealing.effectCount} /> : null}
       {ui.tournamentAnnouncement ? (
-        <div className={styles.worldTournamentAnnouncement}>{ui.tournamentAnnouncement}</div>
+        <div
+          className={styles.worldTournamentAnnouncement}
+          data-poke-lounge-tournament-announcement="true"
+        >
+          {ui.tournamentAnnouncement}
+        </div>
       ) : null}
       {ui.tournamentResult ? (
         <div className={styles.worldTournamentResult}>{ui.tournamentResult}</div>
