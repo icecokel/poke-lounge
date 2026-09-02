@@ -93,10 +93,12 @@ describe('PokeLoungeRoomService', function testSuite() {
     });
 
     expect(ai).toMatchObject({
-      displayName: 'AI 1',
       ready: true,
       connected: true,
     });
+    expect(ai?.displayName).toMatch(
+      /^(반바지 꼬마 (오성|강철|정수)|곤충채집소년 (미키|광일)|피크닉걸 (은향|진미)|캠프보이 고광|낚시꾼 (세형|주원|태명)|새조련사 선정|등산가 스톰|애호가클럽 동휘|쌍둥이 아롱&다롱|불놀이꾼 다인|선원 시현|저글러 죤)$/,
+    );
     expect(
       added.partySnapshots[ai!.playerId]?.competitiveParty.members,
     ).toHaveLength(1);
@@ -148,11 +150,19 @@ describe('PokeLoungeRoomService', function testSuite() {
     );
 
     expect(started.participants).toHaveLength(4);
-    expect(
-      started.participants.filter(function filterItem(participant) {
+    const aiParticipants = started.participants.filter(
+      function filterItem(participant) {
         return participant.controller === 'ai';
-      }),
-    ).toHaveLength(3);
+      },
+    );
+    expect(aiParticipants).toHaveLength(3);
+    expect(
+      new Set(
+        aiParticipants.map(function mapItem(participant) {
+          return participant.displayName;
+        }),
+      ).size,
+    ).toBe(3);
   });
 
   it('creates a public room when quick play has no candidate', async function testCase() {

@@ -71,6 +71,26 @@ const MAX_ROUND_DURATION_MS = 3_600_000;
 const MAX_ROOM_OCCUPANTS = 8;
 const MIN_AUTO_FILLED_PARTICIPANTS = 4;
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const AI_DISPLAY_NAMES = [
+  '반바지 꼬마 오성',
+  '반바지 꼬마 강철',
+  '반바지 꼬마 정수',
+  '곤충채집소년 미키',
+  '곤충채집소년 광일',
+  '피크닉걸 은향',
+  '캠프보이 고광',
+  '낚시꾼 세형',
+  '낚시꾼 주원',
+  '낚시꾼 태명',
+  '새조련사 선정',
+  '등산가 스톰',
+  '애호가클럽 동휘',
+  '쌍둥이 아롱&다롱',
+  '불놀이꾼 다인',
+  '선원 시현',
+  '저글러 죤',
+  '피크닉걸 진미',
+];
 const MATCH_RESULT_REASONS = new Set<PokeLoungeMatchResultReason>([
   'faint',
   'timeout',
@@ -1531,11 +1551,7 @@ function appendAiParticipant(
   nowMs: number,
 ): PokeLoungeRoomParticipant {
   const aiPlayerId = `ai-${randomUUID()}`;
-  const displayName = `AI ${
-    room.participants.filter(function filterItem(participant) {
-      return participant.controller === 'ai';
-    }).length + 1
-  }`;
+  const displayName = createAiDisplayName(room);
   const participant: PokeLoungeRoomParticipant = {
     sessionId: randomUUID(),
     playerId: aiPlayerId,
@@ -1557,6 +1573,25 @@ function appendAiParticipant(
     updatedAtMs: nowMs,
   };
   return participant;
+}
+
+function createAiDisplayName(room: PokeLoungeRoomState): string {
+  const usedNames = new Set(
+    room.participants.map(function mapItem(participant) {
+      return participant.displayName;
+    }),
+  );
+  const startIndex = randomInt(0, AI_DISPLAY_NAMES.length);
+
+  for (let offset = 0; offset < AI_DISPLAY_NAMES.length; offset += 1) {
+    const index = (startIndex + offset) % AI_DISPLAY_NAMES.length;
+    const displayName = AI_DISPLAY_NAMES[index];
+    if (!usedNames.has(displayName)) {
+      return displayName;
+    }
+  }
+
+  throw new Error('AI display name pool exhausted');
 }
 
 function createAnonymousJoinActorPlayerId(sessionId: string): string {
