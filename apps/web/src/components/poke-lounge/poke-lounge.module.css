@@ -1923,6 +1923,34 @@
   gap: 8px;
 }
 
+.page :global(.room-entry-visibility) {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.page :global(.room-entry-visibility-option) {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 2px solid #17231c;
+  border-radius: 4px;
+  background: #fffef3;
+  color: #17201a;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.page :global(.room-entry-visibility-option small) {
+  grid-column: 2;
+  color: #4a5b4d;
+}
+
 .page :global(.room-entry-local-test) {
   display: grid;
   gap: 7px;
@@ -2048,6 +2076,12 @@
 .page :global(.room-entry-panel input) {
   padding: 8px 10px;
   background: #fffef3;
+}
+
+.page :global(.room-entry-visibility-option input) {
+  width: auto;
+  min-height: 0;
+  padding: 0;
 }
 
 .page :global(.room-entry-message) {

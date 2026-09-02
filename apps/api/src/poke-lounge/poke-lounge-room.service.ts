@@ -971,11 +971,6 @@ export class PokeLoungeRoomService {
             return candidate.role === 'participant';
           },
         );
-        if (participants.length < 2) {
-          throw new BadRequestException(
-            'At least two participants are required to start',
-          );
-        }
         if (participants.length > MAX_ROOM_OCCUPANTS) {
           throw new BadRequestException('Room has too many participants');
         }

@@ -145,15 +145,11 @@ export interface PokeLoungeCopy {
     guestWaiting: string;
     ownPartyMissingReason: string;
     mutationFailed: string;
-    startDisabledReason: Record<"players" | "connection" | "party" | "ready" | "mutation", string>;
+    startDisabledReason: Record<"connection" | "party" | "ready" | "mutation", string>;
   };
   roomEntry: {
     title: string;
     fanNotice: string;
-    soloTitle: string;
-    soloDescription: string;
-    continue: string;
-    newGame: string;
     localTestTitle: string;
     localTestDescription: string;
     localTestStart: string;
@@ -171,9 +167,9 @@ export interface PokeLoungeCopy {
     localDescription: string;
     multiplayerTitle: string;
     multiplayerDescription: string;
+    roomVisibilityLabel: string;
     publicGameTitle: string;
     publicGameDescription: string;
-    publicGameConnect: string;
     privateGameTitle: string;
     temporaryPasswordLabel: string;
     temporaryPasswordDescription: string;
@@ -182,10 +178,6 @@ export interface PokeLoungeCopy {
     multiplayerConnect: string;
     multiplayerConnectFailed: string;
     preparing: string;
-    newGameTitle: string;
-    newGameDescription: string;
-    cancel: string;
-    resetAndStart: string;
     freshSession: string;
     leaveTournamentTitle: string;
     leaveTournamentDescription: string;
@@ -343,7 +335,6 @@ const KOREAN_COPY: PokeLoungeCopy = {
     ownPartyMissingReason: "파티가 서버에 반영되면 준비할 수 있습니다.",
     mutationFailed: "요청을 반영하지 못했습니다. 최신 대기실 상태를 확인해 주세요.",
     startDisabledReason: {
-      players: "참가자가 2명 이상 필요합니다.",
       connection: "연결이 끊긴 참가자가 있습니다.",
       party: "파티 준비가 끝나지 않은 참가자가 있습니다.",
       ready: "아직 준비하지 않은 참가자가 있습니다.",
@@ -351,13 +342,9 @@ const KOREAN_COPY: PokeLoungeCopy = {
     },
   },
   roomEntry: {
-    title: "플레이 방식 선택",
+    title: "방 만들기",
     fanNotice:
       "Poke Lounge는 친구들과 함께 즐기기 위해 만든 비공식 팬 게임입니다. Pokémon 관련 권리는 각 권리자에게 있습니다.",
-    soloTitle: "혼자 플레이",
-    soloDescription: "저장된 모험이 있으면 이어서 하고, 없으면 새 모험을 시작합니다.",
-    continue: "이어하기",
-    newGame: "새 게임",
     localTestTitle: "로컬 싱글 테스트",
     localTestDescription:
       "고정 테스트 계정에 진행도를 저장하며 전투, 상호작용, 이어하기 완성도를 반복 확인합니다. 멀티플레이 테스트에는 사용하지 않습니다.",
@@ -376,26 +363,20 @@ const KOREAN_COPY: PokeLoungeCopy = {
     multiplayerEntrySubmit: "입장하기",
     localDescription:
       "같은 기기의 같은 브라우저 프로필에서 연 다른 탭끼리만 연결됩니다. 다른 기기나 브라우저 프로필에서는 참가할 수 없습니다.",
-    multiplayerTitle: "멀티플레이",
-    multiplayerDescription:
-      "공개 게임에 빠르게 참가하거나 임시 비밀번호로 친구와 비공개 게임을 시작하세요.",
-    publicGameTitle: "공개 게임",
-    publicGameDescription: "대기 중인 다른 트레이너와 자동으로 연결됩니다.",
-    publicGameConnect: "빠른 참가",
-    privateGameTitle: "비공개 게임",
+    multiplayerTitle: "비공개 방 만들기",
+    multiplayerDescription: "현재는 비공개 방만 만들 수 있습니다.",
+    roomVisibilityLabel: "공개 범위",
+    publicGameTitle: "공개",
+    publicGameDescription: "준비 중",
+    privateGameTitle: "비공개",
     temporaryPasswordLabel: "임시 비밀번호",
     temporaryPasswordDescription:
       "함께 플레이할 친구끼리 같은 값을 입력하세요. 비밀번호 원문은 저장하거나 전송하지 않습니다.",
     temporaryPasswordPlaceholder: "임시 비밀번호 입력",
     temporaryPasswordRequired: "멀티플레이에 사용할 임시 비밀번호를 입력해 주세요.",
-    multiplayerConnect: "비공개 게임 입장",
+    multiplayerConnect: "비공개 방 만들기",
     multiplayerConnectFailed: "멀티플레이 접속 정보를 만들지 못했습니다. 다시 시도해 주세요.",
     preparing: "준비 중...",
-    newGameTitle: "새 게임을 시작할까요?",
-    newGameDescription:
-      "현재 브라우저에 저장된 모험과 세션 진행 상황이 초기화됩니다. 이 작업은 되돌릴 수 없습니다.",
-    cancel: "취소",
-    resetAndStart: "초기화 후 시작",
     freshSession: "멀티플레이 연결 정보가 만료되어 입장 화면으로 돌아왔습니다. 다시 접속해 주세요.",
     leaveTournamentTitle: "경기에서 나갈까요?",
     leaveTournamentDescription: "지금 나가면 진행 중인 경기가 기권 처리될 수 있습니다.",
@@ -554,7 +535,6 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     ownPartyMissingReason: "You can ready up after your party reaches the server.",
     mutationFailed: "The request failed. Check the latest lobby state and try again.",
     startDisabledReason: {
-      players: "At least two players are required.",
       connection: "A player is disconnected.",
       party: "A player's party is not ready.",
       ready: "A player is not ready yet.",
@@ -562,13 +542,9 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     },
   },
   roomEntry: {
-    title: "Choose how to play",
+    title: "Create a room",
     fanNotice:
       "Poke Lounge is an unofficial fan game made for playing with friends. Pokémon rights belong to their respective owners.",
-    soloTitle: "Solo play",
-    soloDescription: "Continue a saved adventure, or start a new one if no save exists.",
-    continue: "Continue",
-    newGame: "New game",
     localTestTitle: "Local solo test",
     localTestDescription:
       "Save progress to a fixed test account while repeatedly checking battles, interactions, and continue behavior. This mode is not for multiplayer testing.",
@@ -587,26 +563,20 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     multiplayerEntrySubmit: "Join",
     localDescription:
       "Only tabs opened in the same browser profile on this device can connect. Other devices and browser profiles cannot join.",
-    multiplayerTitle: "Multiplayer",
-    multiplayerDescription:
-      "Quickly join a public game or start a private game with friends using a temporary password.",
-    publicGameTitle: "Public game",
-    publicGameDescription: "Automatically connect with another trainer who is waiting.",
-    publicGameConnect: "Quick play",
-    privateGameTitle: "Private game",
+    multiplayerTitle: "Create a private room",
+    multiplayerDescription: "Only private rooms can be created right now.",
+    roomVisibilityLabel: "Visibility",
+    publicGameTitle: "Public",
+    publicGameDescription: "Coming soon",
+    privateGameTitle: "Private",
     temporaryPasswordLabel: "Temporary password",
     temporaryPasswordDescription:
       "Use the same value as the friends you want to play with. The original password is never stored or sent.",
     temporaryPasswordPlaceholder: "Enter a temporary password",
     temporaryPasswordRequired: "Enter a temporary password for multiplayer.",
-    multiplayerConnect: "Join private game",
+    multiplayerConnect: "Create private room",
     multiplayerConnectFailed: "Could not prepare multiplayer access. Try again.",
     preparing: "Preparing...",
-    newGameTitle: "Start a new game?",
-    newGameDescription:
-      "This clears the adventure and session progress stored in this browser. This cannot be undone.",
-    cancel: "Cancel",
-    resetAndStart: "Reset and start",
     freshSession:
       "The multiplayer session expired, so you were returned to play selection. Connect again.",
     leaveTournamentTitle: "Leave the match?",
@@ -767,7 +737,6 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     ownPartyMissingReason: "パーティがサーバーに反映されると準備できます。",
     mutationFailed: "リクエストに失敗しました。最新のロビー状態を確認してください。",
     startDisabledReason: {
-      players: "参加者が2人以上必要です。",
       connection: "切断中の参加者がいます。",
       party: "パーティ準備が完了していない参加者がいます。",
       ready: "まだ準備していない参加者がいます。",
@@ -775,13 +744,9 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     },
   },
   roomEntry: {
-    title: "プレイ方法を選択",
+    title: "ルームを作成",
     fanNotice:
       "ポケラウンジは友達と楽しむための非公式ファンゲームです。Pokémonに関する権利は各権利者に帰属します。",
-    soloTitle: "ソロプレイ",
-    soloDescription: "保存された冒険があれば続きから、なければ新しい冒険を始めます。",
-    continue: "続きから",
-    newGame: "ニューゲーム",
     localTestTitle: "ローカルソロテスト",
     localTestDescription:
       "固定テストアカウントに進行を保存しながら、バトル、操作、続きからの完成度を繰り返し確認します。マルチプレイテストには使用しません。",
@@ -800,26 +765,20 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     multiplayerEntrySubmit: "参加する",
     localDescription:
       "この端末の同じブラウザプロファイルで開いた別タブ同士だけが接続できます。他の端末やプロファイルからは参加できません。",
-    multiplayerTitle: "マルチプレイ",
-    multiplayerDescription:
-      "公開ゲームにすぐ参加するか、一時パスワードを使って友達と非公開ゲームを始めましょう。",
-    publicGameTitle: "公開ゲーム",
-    publicGameDescription: "待機中のほかのトレーナーと自動的に接続します。",
-    publicGameConnect: "クイック参加",
-    privateGameTitle: "非公開ゲーム",
+    multiplayerTitle: "非公開ルームを作成",
+    multiplayerDescription: "現在作成できるのは非公開ルームのみです。",
+    roomVisibilityLabel: "公開範囲",
+    publicGameTitle: "公開",
+    publicGameDescription: "準備中",
+    privateGameTitle: "非公開",
     temporaryPasswordLabel: "一時パスワード",
     temporaryPasswordDescription:
       "一緒に遊ぶ友達同士で同じ値を入力してください。パスワードの原文は保存も送信もしません。",
     temporaryPasswordPlaceholder: "一時パスワードを入力",
     temporaryPasswordRequired: "マルチプレイ用の一時パスワードを入力してください。",
-    multiplayerConnect: "非公開ゲームに参加",
+    multiplayerConnect: "非公開ルームを作成",
     multiplayerConnectFailed: "マルチプレイ接続を準備できませんでした。もう一度お試しください。",
     preparing: "準備中...",
-    newGameTitle: "ニューゲームを始めますか？",
-    newGameDescription:
-      "このブラウザに保存された冒険とセッション進行状況が初期化されます。この操作は元に戻せません。",
-    cancel: "キャンセル",
-    resetAndStart: "初期化して開始",
     freshSession:
       "マルチプレイ接続情報の期限が切れたため、プレイ選択に戻りました。もう一度接続してください。",
     leaveTournamentTitle: "試合から退出しますか？",

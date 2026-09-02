@@ -1103,6 +1103,33 @@ describe('PokeLoungeRoomService', function testSuite() {
     });
   });
 
+  it('allows a ready host to start a room alone', async function testCase() {
+    await createRoom({ roundDurationMs: 1_000 });
+    const party = await updateTestParty('player-1', 'session-1', 0, 2, 10);
+    const ready = await service.setReady(
+      'ROOM01',
+      {
+        playerId: 'player-1',
+        sessionId: 'session-1',
+        ready: true,
+        nowMs: 20,
+      },
+      command(party.revision, 3),
+    );
+
+    await expect(
+      service.startRoom(
+        'ROOM01',
+        { playerId: 'player-1', sessionId: 'session-1', nowMs: 30 },
+        command(ready.revision, 4),
+      ),
+    ).resolves.toMatchObject({
+      status: 'round-started',
+      participants: [{ playerId: 'player-1', ready: false }],
+      round: { startedAtMs: 30, endsAtMs: 1_030 },
+    });
+  });
+
   it('requires a waiting room, a synced party, every ready participant, and the current host', async function testCase() {
     await createRoom({ roundDurationMs: 1_000 });
 
@@ -1119,7 +1146,7 @@ describe('PokeLoungeRoomService', function testSuite() {
         { playerId: 'player-1', sessionId: 'session-1', nowMs: 1 },
         command(0, 3),
       ),
-    ).rejects.toThrow('At least two participants are required to start');
+    ).rejects.toThrow('All participants must be ready before starting');
 
     const joined = await service.joinRoom(
       'ROOM01',

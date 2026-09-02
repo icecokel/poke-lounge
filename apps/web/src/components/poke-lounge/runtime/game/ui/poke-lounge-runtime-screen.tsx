@@ -1,16 +1,5 @@
 import { useState, type FormEvent } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { getPokeLoungeCopyForUrl, type PokeLoungeCopy } from "../../../poke-lounge-copy";
-import styles from "../../../poke-lounge.module.css";
 import type { StarterPokemon } from "../../types";
 import { playPokeLoungeSfx, primePokeLoungeAudio } from "../audio/poke-lounge-audio";
 import type { PokeLoungeRuntimeState } from "../game-page-state";
@@ -76,40 +65,6 @@ function RoomEntryScreen({
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
-  const [newGameOpen, setNewGameOpen] = useState(false);
-  const [activeMode, setActiveMode] = useState<"solo" | "multiplayer">("solo");
-  const selectedMode = state.localTestMode?.active ? "solo" : activeMode;
-
-  const selectSolo = (resetSession = false) => {
-    playConfirmSound();
-    setPending(true);
-    setMessage(copy.roomEntry.preparing);
-    state.onSelect({
-      mode: "solo",
-      roomCode: null,
-      inviteUrl: null,
-      ...(resetSession ? { resetSession: true } : {}),
-    });
-  };
-  const selectPublicGame = () => {
-    const normalizedName = normalizeMultiplayerDisplayName(displayName);
-    setDisplayName(normalizedName);
-    if (!normalizedName) {
-      setMessage(copy.roomEntry.multiplayerNameRequired);
-      return;
-    }
-
-    playConfirmSound();
-    setPending(true);
-    setMessage(copy.roomEntry.preparing);
-    state.onSelect({
-      mode: "server-room",
-      roomCode: null,
-      inviteUrl: null,
-      displayName: normalizedName,
-      quickPlay: true,
-    });
-  };
   const selectMultiplayer = async (event: FormEvent) => {
     event.preventDefault();
     const normalizedName = normalizeMultiplayerDisplayName(displayName);
@@ -152,198 +107,84 @@ function RoomEntryScreen({
       <div className="room-entry-panel">
         <h1>{copy.roomEntry.title}</h1>
         <FanNotice copy={copy} />
-        <div className="room-entry-tabs" role="tablist" aria-label={copy.roomEntry.title}>
-          <button
-            id="room-entry-solo-tab"
-            type="button"
-            role="tab"
-            aria-selected={selectedMode === "solo"}
-            aria-controls="room-entry-solo-panel"
-            disabled={pending}
-            onClick={function handleClick() {
-              setActiveMode("solo");
-              setMessage("");
-            }}
-            data-room-entry-tab="solo"
-          >
-            {copy.roomEntry.soloTitle}
-          </button>
-          {!state.localTestMode?.active ? (
-            <button
-              id="room-entry-multiplayer-tab"
-              type="button"
-              role="tab"
-              aria-selected={selectedMode === "multiplayer"}
-              aria-controls="room-entry-multiplayer-panel"
-              disabled={pending}
-              onClick={function handleClick() {
-                setActiveMode("multiplayer");
-                setMessage("");
-              }}
-              data-room-entry-tab="multiplayer"
+        <section className="room-entry-mode-group" data-room-entry-mode="multiplayer">
+          <h2 className="room-entry-mode-heading">{copy.roomEntry.multiplayerTitle}</h2>
+          <p className="room-entry-mode-copy">{copy.roomEntry.multiplayerDescription}</p>
+          <form className="room-entry-mode-content" onSubmit={selectMultiplayer}>
+            <LabeledField
+              id="poke-lounge-multiplayer-display-name"
+              label={copy.roomEntry.multiplayerNameLabel}
+              description={copy.roomEntry.multiplayerNameDescription}
             >
-              {copy.roomEntry.multiplayerTitle}
-            </button>
-          ) : null}
-        </div>
-        {selectedMode === "solo" ? (
-          <ModeGroup
-            mode="solo"
-            title={copy.roomEntry.soloTitle}
-            description={copy.roomEntry.soloDescription}
-          >
-            <div className="room-entry-mode-actions">
-              <button
-                type="button"
-                disabled={pending}
-                onClick={function handleClick() {
-                  return selectSolo();
-                }}
-                data-room-entry-solo
-              >
-                {copy.roomEntry.continue}
-              </button>
-              <button
-                type="button"
-                className="room-entry-new-game-button"
-                disabled={pending}
-                onClick={function handleClick() {
-                  playConfirmSound();
-                  setNewGameOpen(true);
-                }}
-                data-room-entry-new-start
-              >
-                {copy.roomEntry.newGame}
-              </button>
-            </div>
-            {state.localTestMode ? (
-              <section
-                className="room-entry-local-test"
-                data-room-entry-local-test="true"
-                data-local-test-mode-active={state.localTestMode.active || undefined}
-              >
-                <h3 className="room-entry-field-label">{copy.roomEntry.localTestTitle}</h3>
-                <p className="room-entry-field-copy">{copy.roomEntry.localTestDescription}</p>
-                <div className="room-entry-local-test-actions">
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={function handleClick() {
-                      playConfirmSound();
-                      setPending(true);
-                      setMessage(copy.roomEntry.preparing);
-                      state.localTestMode?.onStart();
-                    }}
-                    data-room-entry-local-test-start
-                  >
-                    {state.localTestMode.active
-                      ? copy.roomEntry.localTestContinue
-                      : copy.roomEntry.localTestStart}
-                  </button>
-                  {state.localTestMode.active ? (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={function handleClick() {
-                        playConfirmSound();
-                        setPending(true);
-                        setMessage(copy.roomEntry.preparing);
-                        state.localTestMode?.onExit();
-                      }}
-                      data-room-entry-local-test-exit
-                    >
-                      {copy.roomEntry.localTestExit}
-                    </button>
-                  ) : null}
-                </div>
-              </section>
-            ) : null}
-          </ModeGroup>
-        ) : (
-          <ModeGroup
-            mode="multiplayer"
-            title={copy.roomEntry.multiplayerTitle}
-            description={copy.roomEntry.multiplayerDescription}
-          >
-            <form className="room-entry-mode-content" onSubmit={selectMultiplayer}>
-              <LabeledField
+              <input
                 id="poke-lounge-multiplayer-display-name"
-                label={copy.roomEntry.multiplayerNameLabel}
-                description={copy.roomEntry.multiplayerNameDescription}
-              >
+                type="text"
+                autoComplete="off"
+                maxLength={12}
+                placeholder={copy.roomEntry.multiplayerNamePlaceholder}
+                value={displayName}
+                disabled={pending}
+                aria-invalid={!displayName.trim() || undefined}
+                onChange={function handleChange(event) {
+                  setDisplayName(event.currentTarget.value);
+                  setMessage("");
+                }}
+                data-room-entry-display-name
+              />
+            </LabeledField>
+            <fieldset className="room-entry-visibility" data-room-entry-visibility>
+              <legend className="room-entry-field-label">
+                {copy.roomEntry.roomVisibilityLabel}
+              </legend>
+              <label className="room-entry-visibility-option">
                 <input
-                  id="poke-lounge-multiplayer-display-name"
-                  type="text"
-                  autoComplete="off"
-                  maxLength={12}
-                  placeholder={copy.roomEntry.multiplayerNamePlaceholder}
-                  value={displayName}
-                  disabled={pending}
-                  aria-invalid={!displayName.trim() || undefined}
-                  onChange={function handleChange(event) {
-                    setDisplayName(event.currentTarget.value);
-                    setMessage("");
-                  }}
-                  data-room-entry-display-name
+                  type="radio"
+                  name="room-visibility"
+                  value="public"
+                  disabled
+                  data-room-entry-visibility-public
                 />
-              </LabeledField>
-              <section
-                className="room-entry-field"
-                aria-labelledby="poke-lounge-public-game-title"
-                data-room-entry-public-game
-              >
-                <h3 id="poke-lounge-public-game-title" className="room-entry-field-label">
-                  {copy.roomEntry.publicGameTitle}
-                </h3>
-                <p id="poke-lounge-public-game-description" className="room-entry-field-copy">
-                  {copy.roomEntry.publicGameDescription}
-                </p>
-                <button
-                  type="button"
+                <span>{copy.roomEntry.publicGameTitle}</span>
+                <small>{copy.roomEntry.publicGameDescription}</small>
+              </label>
+              <label className="room-entry-visibility-option">
+                <input
+                  type="radio"
+                  name="room-visibility"
+                  value="private"
+                  defaultChecked
                   disabled={pending}
-                  aria-describedby="poke-lounge-public-game-description"
-                  onClick={selectPublicGame}
-                  data-room-entry-public-game-submit
-                >
-                  {copy.roomEntry.publicGameConnect}
-                </button>
-              </section>
-              <section
-                className="room-entry-field"
-                aria-labelledby="poke-lounge-private-game-title"
-                data-room-entry-private-game
-              >
-                <h3 id="poke-lounge-private-game-title" className="room-entry-field-label">
-                  {copy.roomEntry.privateGameTitle}
-                </h3>
-                <LabeledField
-                  id="poke-lounge-temporary-password"
-                  label={copy.roomEntry.temporaryPasswordLabel}
-                  description={copy.roomEntry.temporaryPasswordDescription}
-                >
-                  <input
-                    id="poke-lounge-temporary-password"
-                    type="password"
-                    inputMode="text"
-                    autoComplete="off"
-                    maxLength={64}
-                    placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
-                    value={temporaryPassword}
-                    disabled={pending}
-                    onChange={function handleChange(event) {
-                      setTemporaryPassword(event.currentTarget.value);
-                      setMessage("");
-                    }}
-                    data-room-entry-temporary-password
-                  />
-                </LabeledField>
-                <button type="submit" disabled={pending} data-room-entry-multiplayer-submit>
-                  {copy.roomEntry.multiplayerConnect}
-                </button>
-              </section>
-            </form>
-          </ModeGroup>
-        )}
+                  data-room-entry-visibility-private
+                />
+                <span>{copy.roomEntry.privateGameTitle}</span>
+              </label>
+            </fieldset>
+            <LabeledField
+              id="poke-lounge-temporary-password"
+              label={copy.roomEntry.temporaryPasswordLabel}
+              description={copy.roomEntry.temporaryPasswordDescription}
+            >
+              <input
+                id="poke-lounge-temporary-password"
+                type="password"
+                inputMode="text"
+                autoComplete="off"
+                maxLength={64}
+                placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
+                value={temporaryPassword}
+                disabled={pending}
+                onChange={function handleChange(event) {
+                  setTemporaryPassword(event.currentTarget.value);
+                  setMessage("");
+                }}
+                data-room-entry-temporary-password
+              />
+            </LabeledField>
+            <button type="submit" disabled={pending} data-room-entry-multiplayer-submit>
+              {copy.roomEntry.multiplayerConnect}
+            </button>
+          </form>
+        </section>
         <p
           className="room-entry-message"
           role="alert"
@@ -354,33 +195,6 @@ function RoomEntryScreen({
           {message}
         </p>
       </div>
-      <AlertDialog open={newGameOpen} onOpenChange={setNewGameOpen}>
-        <AlertDialogContent
-          className={styles.confirmDialog}
-          data-room-entry-new-start-dialog="true"
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>{copy.roomEntry.newGameTitle}</AlertDialogTitle>
-            <AlertDialogDescription>{copy.roomEntry.newGameDescription}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter
-            className={`${styles.roomEntryConfirmDialogActions} room-entry-confirm-dialog-actions`}
-          >
-            <AlertDialogCancel data-room-entry-new-start-cancel>
-              {copy.roomEntry.cancel}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={function handleClick() {
-                return selectSolo(true);
-              }}
-              data-room-entry-new-start-confirm
-            >
-              {copy.roomEntry.resetAndStart}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </section>
   );
 }
@@ -1034,32 +848,6 @@ export function WebRtcSignalingPanel({
           {copy.leave}
         </button>
       </div>
-    </section>
-  );
-}
-
-function ModeGroup({
-  mode,
-  title,
-  description,
-  children,
-}: {
-  mode: "solo" | "multiplayer";
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      id={`room-entry-${mode}-panel`}
-      className="room-entry-mode-group"
-      role="tabpanel"
-      aria-labelledby={`room-entry-${mode}-tab`}
-      data-room-entry-mode={mode}
-    >
-      <h2 className="room-entry-mode-heading">{title}</h2>
-      <p className="room-entry-mode-copy">{description}</p>
-      <div className="room-entry-mode-content">{children}</div>
     </section>
   );
 }

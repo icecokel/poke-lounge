@@ -154,7 +154,6 @@ async function enterPublicRoom(
   const response = await page.goto(publicGameUrl, { waitUntil: "domcontentloaded" });
   expect(response?.ok()).toBe(true);
   await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible();
-  await page.locator("[data-room-entry-tab='multiplayer']").click();
   await page.locator("[data-room-entry-display-name='true']").fill(displayName);
   await page.locator("[data-room-entry-temporary-password='true']").fill(temporaryPassword);
   await page.locator("[data-room-entry-multiplayer-submit='true']").click();

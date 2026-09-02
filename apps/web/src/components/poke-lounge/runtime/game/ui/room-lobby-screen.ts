@@ -8,7 +8,7 @@ export interface RoomLobbyViewState {
   ownPartyReady: boolean;
   isHost: boolean;
   readyDisabled: boolean;
-  startDisabledReason: "players" | "connection" | "party" | "ready" | "mutation" | null;
+  startDisabledReason: "connection" | "party" | "ready" | "mutation" | null;
 }
 
 export interface RoomLobbyRuntimeState {
@@ -30,21 +30,19 @@ export function createRoomLobbyViewState(
   const startDisabledReason =
     mutation !== null
       ? "mutation"
-      : participants.length < 2
-        ? "players"
+      : participants.some(function testItem(participant) {
+            return !participant.connected;
+          })
+        ? "connection"
         : participants.some(function testItem(participant) {
-              return !participant.connected;
+              return !participant.partyReady;
             })
-          ? "connection"
+          ? "party"
           : participants.some(function testItem(participant) {
-                return !participant.partyReady;
+                return !participant.ready;
               })
-            ? "party"
-            : participants.some(function testItem(participant) {
-                  return !participant.ready;
-                })
-              ? "ready"
-              : null;
+            ? "ready"
+            : null;
 
   return {
     participantCount: participants.length,

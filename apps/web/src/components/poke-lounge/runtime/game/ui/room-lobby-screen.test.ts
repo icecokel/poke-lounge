@@ -43,7 +43,11 @@ function createProjection(): TournamentStateRoomPayload {
   };
 }
 
-test("방장은 2명 모두 접속·파티·준비가 끝났을 때만 시작할 수 있다", function testCase() {
+test("방장은 혼자여도 접속·파티·준비가 끝나면 시작할 수 있다", function testCase() {
+  const soloProjection = createProjection();
+  soloProjection.participants.splice(1);
+  assert.equal(createRoomLobbyViewState(soloProjection).startDisabledReason, null);
+
   const projection = createProjection();
   assert.deepEqual(createRoomLobbyViewState(projection), {
     participantCount: 2,
