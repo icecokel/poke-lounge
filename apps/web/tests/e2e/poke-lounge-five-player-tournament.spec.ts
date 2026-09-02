@@ -2441,7 +2441,7 @@ async function waitForC4RuntimeConvergence(input: {
       latest.activeScene === "battle" &&
       latest.battle !== null &&
       latest.competitive?.matchId !== input.oldMatchId &&
-      latest.competitive?.status === "active" &&
+      (latest.competitive?.status === "pending" || latest.competitive?.status === "active") &&
       Boolean(projectedMatch);
 
     if (commonStateMatches && roleStateMatches) {

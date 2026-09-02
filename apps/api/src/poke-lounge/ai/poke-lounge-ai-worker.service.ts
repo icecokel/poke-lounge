@@ -129,6 +129,10 @@ export class PokeLoungeAiWorkerService
         revision: room.revision,
       });
     }
+    if (room.status === 'closed') {
+      await this.liveState.deleteRoom(roomCode);
+      return;
+    }
 
     const aiParticipants = room.participants.filter(
       function filterItem(participant) {
@@ -155,31 +159,36 @@ export class PokeLoungeAiWorkerService
           this.liveState.removePlayer(room.roomCode, player.playerId),
         ),
     );
-    if (aiParticipants.length === 0) return;
-
-    await Promise.all(
-      aiParticipants.map(
-        async function mapItem(
-          this: PokeLoungeAiWorkerService,
-          participant: (typeof aiParticipants)[number],
-        ): Promise<void> {
-          await this.publishWorldState(room, participant.playerId, nowMs);
-          await this.submitCompetitiveAction(
-            room,
-            participant.playerId,
-            participant.sessionId,
-            nowMs,
-          );
-        }.bind(this),
-      ),
-    );
-    if (room.status === 'round-started') {
-      let currentRoom = room;
-      for (const participant of aiParticipants) {
-        currentRoom =
-          (await this.tryCapture(currentRoom, participant.playerId, nowMs)) ??
-          currentRoom;
+    if (aiParticipants.length > 0) {
+      await Promise.all(
+        aiParticipants.map(
+          async function mapItem(
+            this: PokeLoungeAiWorkerService,
+            participant: (typeof aiParticipants)[number],
+          ): Promise<void> {
+            await this.publishWorldState(room, participant.playerId, nowMs);
+            await this.submitCompetitiveAction(
+              room,
+              participant.playerId,
+              participant.sessionId,
+              nowMs,
+            );
+          }.bind(this),
+        ),
+      );
+      if (room.status === 'round-started') {
+        let currentRoom = room;
+        for (const participant of aiParticipants) {
+          currentRoom =
+            (await this.tryCapture(currentRoom, participant.playerId, nowMs)) ??
+            currentRoom;
+        }
       }
+    }
+
+    const latest = await this.repository.getAndAdvance(roomCode, nowMs);
+    if (!latest.snapshot || latest.snapshot.status === 'closed') {
+      await this.liveState.deleteRoom(roomCode);
     }
   }
 
