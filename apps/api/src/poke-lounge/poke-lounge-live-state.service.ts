@@ -157,6 +157,8 @@ type RedisClient = ReturnType<typeof createClient>;
 type RedisClientFactory = (url: string) => RedisClient;
 
 export type PokeLoungeWorldFacing = 'front' | 'back' | 'left' | 'right';
+export type PokeLoungeAiActivity =
+  'idle' | 'moving' | 'hunting' | 'recovering' | 'tournament';
 
 export interface PokeLoungeWorldPlayerState {
   playerId: string;
@@ -165,6 +167,12 @@ export interface PokeLoungeWorldPlayerState {
   x: number;
   y: number;
   facing: PokeLoungeWorldFacing;
+  controller?: 'human' | 'ai';
+  activity?: PokeLoungeAiActivity;
+  activePokemon?: {
+    speciesId: number;
+    level: number;
+  };
   updatedAtMs: number;
 }
 
@@ -842,6 +850,15 @@ function parseWorldPlayer(
       player.facing !== 'back' &&
       player.facing !== 'left' &&
       player.facing !== 'right') ||
+    (player.controller !== undefined &&
+      player.controller !== 'human' &&
+      player.controller !== 'ai') ||
+    (player.activity !== undefined &&
+      player.activity !== 'idle' &&
+      player.activity !== 'moving' &&
+      player.activity !== 'hunting' &&
+      player.activity !== 'recovering' &&
+      player.activity !== 'tournament') ||
     !Number.isSafeInteger(player.updatedAtMs) ||
     (player.updatedAtMs as number) < 0
   ) {

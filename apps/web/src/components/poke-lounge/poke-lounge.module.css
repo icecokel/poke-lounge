@@ -1558,13 +1558,24 @@
 
 .page :global(.room-lobby-participant) {
   display: grid;
-  grid-template-columns: minmax(90px, 0.8fr) minmax(0, 1.8fr);
+  grid-template-columns: minmax(90px, 0.8fr) minmax(0, 1.8fr) auto;
   align-items: center;
   gap: 8px;
   padding: 8px;
   border: 2px solid rgba(79, 101, 63, 0.55);
   border-radius: 4px;
   background: #eef4df;
+}
+
+.page :global(.room-lobby-participant > button) {
+  min-height: 28px;
+  border: 1px solid #4f653f;
+  border-radius: 4px;
+  background: #fff9dd;
+  color: #17201a;
+  cursor: pointer;
+  font-size: 0.66rem;
+  font-weight: 900;
 }
 
 .page :global(.room-lobby-participant strong) {

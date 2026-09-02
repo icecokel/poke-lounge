@@ -5,6 +5,7 @@ type PokeLoungeRandomNameWords = readonly [string, string, string, string, strin
 export interface PokeLoungeCopy {
   locale: PokeLoungeLocale;
   unknownTrainer: string;
+  aiActivity: Record<"idle" | "moving" | "hunting" | "recovering" | "tournament", string>;
   volumeMuted: string;
   volumeLabel(percent: number): string;
   volumeAriaLabel(percent: number): string;
@@ -132,6 +133,7 @@ export interface PokeLoungeCopy {
     participantCount(count: number): string;
     participantListLabel: string;
     hostBadge: string;
+    aiBadge: string;
     ready: string;
     notReady: string;
     connected: string;
@@ -140,6 +142,8 @@ export interface PokeLoungeCopy {
     partyMissing: string;
     readyAction: string;
     cancelReadyAction: string;
+    addAiAction: string;
+    removeAiAction: string;
     startAction: string;
     hostReady: string;
     guestWaiting: string;
@@ -190,6 +194,13 @@ export interface PokeLoungeCopy {
 const KOREAN_COPY: PokeLoungeCopy = {
   locale: "ko-KR",
   unknownTrainer: "이름 없는 트레이너",
+  aiActivity: {
+    idle: "대기 중",
+    moving: "이동 중",
+    hunting: "사냥 중",
+    recovering: "회복 중",
+    tournament: "대전 중",
+  },
   volumeMuted: "소리 꺼짐",
   volumeLabel: percent => `소리 ${percent}%`,
   volumeAriaLabel: percent => (percent === 0 ? "소리 음소거" : `소리 볼륨 ${percent}퍼센트`),
@@ -321,6 +332,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     participantCount: count => `참가자 ${count}/6`,
     participantListLabel: "챔피언십 참가자",
     hostBadge: "방장",
+    aiBadge: "AI",
     ready: "준비 완료",
     notReady: "준비 전",
     connected: "접속 중",
@@ -329,6 +341,8 @@ const KOREAN_COPY: PokeLoungeCopy = {
     partyMissing: "파티 확인 필요",
     readyAction: "준비",
     cancelReadyAction: "준비 취소",
+    addAiAction: "AI 추가",
+    removeAiAction: "제거",
     startAction: "챔피언십 시작",
     hostReady: "모든 조건이 갖춰졌습니다.",
     guestWaiting: "방장이 챔피언십을 시작할 때까지 기다려 주세요.",
@@ -390,6 +404,13 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   ...KOREAN_COPY,
   locale: "en-US",
   unknownTrainer: "Unnamed Trainer",
+  aiActivity: {
+    idle: "Idle",
+    moving: "Moving",
+    hunting: "Hunting",
+    recovering: "Recovering",
+    tournament: "Battling",
+  },
   volumeMuted: "Muted",
   volumeLabel: percent => `Volume ${percent}%`,
   volumeAriaLabel: percent => (percent === 0 ? "Mute sound" : `Sound volume ${percent} percent`),
@@ -521,6 +542,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     participantCount: count => `Players ${count}/6`,
     participantListLabel: "Championship players",
     hostBadge: "Host",
+    aiBadge: "AI",
     ready: "Ready",
     notReady: "Not ready",
     connected: "Connected",
@@ -529,6 +551,8 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     partyMissing: "Party needed",
     readyAction: "Ready",
     cancelReadyAction: "Cancel ready",
+    addAiAction: "Add AI",
+    removeAiAction: "Remove",
     startAction: "Start championship",
     hostReady: "Everyone is ready to start.",
     guestWaiting: "Wait for the host to start the championship.",
@@ -591,6 +615,13 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   ...KOREAN_COPY,
   locale: "ja-JP",
   unknownTrainer: "名前のないトレーナー",
+  aiActivity: {
+    idle: "待機中",
+    moving: "移動中",
+    hunting: "探索中",
+    recovering: "回復中",
+    tournament: "対戦中",
+  },
   volumeMuted: "ミュート",
   volumeLabel: percent => `音量 ${percent}%`,
   volumeAriaLabel: percent => (percent === 0 ? "音をミュート" : `音量 ${percent}パーセント`),
@@ -723,6 +754,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     participantCount: count => `参加者 ${count}/6`,
     participantListLabel: "チャンピオンシップ参加者",
     hostBadge: "ホスト",
+    aiBadge: "AI",
     ready: "準備完了",
     notReady: "準備前",
     connected: "接続中",
@@ -731,6 +763,8 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     partyMissing: "パーティ確認待ち",
     readyAction: "準備完了",
     cancelReadyAction: "準備を取り消す",
+    addAiAction: "AIを追加",
+    removeAiAction: "削除",
     startAction: "チャンピオンシップ開始",
     hostReady: "開始条件がそろいました。",
     guestWaiting: "ホストが開始するまでお待ちください。",

@@ -1593,6 +1593,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         return {
           playerId,
           displayName: participant.displayName,
+          ...(participant.controller === "ai" ? { controller: "ai" as const } : {}),
           role: participant.role,
           ready: participant.ready,
           partyReady: Object.hasOwn(state.partySnapshots, participant.playerId),
@@ -1927,6 +1928,22 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     async startChampionship() {
       const state = await mutateRoom(
         `/poke-lounge/rooms/${activeRoomId}/start`,
+        { playerId: serverPlayerId, sessionId },
+        getLatestRevision,
+      );
+      applyExpectedTransitionSnapshot(state);
+    },
+    async addAiParticipant() {
+      const state = await mutateRoom(
+        `/poke-lounge/rooms/${activeRoomId}/ai-participants`,
+        { playerId: serverPlayerId, sessionId },
+        getLatestRevision,
+      );
+      applyExpectedTransitionSnapshot(state);
+    },
+    async removeAiParticipant(aiPlayerId) {
+      const state = await mutateRoom(
+        `/poke-lounge/rooms/${activeRoomId}/ai-participants/${encodeURIComponent(aiPlayerId)}/remove`,
         { playerId: serverPlayerId, sessionId },
         getLatestRevision,
       );
@@ -2804,6 +2821,26 @@ function parseSharedWorldPlayer(
     x: candidate.x,
     y: candidate.y,
     facing: candidate.facing,
+    ...(candidate.controller === "ai" ? { controller: "ai" as const } : {}),
+    ...(candidate.activity === "idle" ||
+    candidate.activity === "moving" ||
+    candidate.activity === "hunting" ||
+    candidate.activity === "recovering" ||
+    candidate.activity === "tournament"
+      ? { activity: candidate.activity }
+      : {}),
+    ...(candidate.activePokemon &&
+    typeof candidate.activePokemon === "object" &&
+    Number.isSafeInteger((candidate.activePokemon as Record<string, unknown>).speciesId) &&
+    Number.isSafeInteger((candidate.activePokemon as Record<string, unknown>).level)
+      ? {
+          activePokemon: {
+            speciesId: (candidate.activePokemon as { speciesId: number }).speciesId,
+            name: `Pokémon #${(candidate.activePokemon as { speciesId: number }).speciesId}`,
+            level: (candidate.activePokemon as { level: number }).level,
+          },
+        }
+      : {}),
   };
 }
 

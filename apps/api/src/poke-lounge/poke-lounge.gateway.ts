@@ -385,6 +385,7 @@ export class PokeLoungeGateway
         player: {
           playerId,
           displayName,
+          controller: 'human',
           ...event.snapshot,
           updatedAtMs: Date.now(),
         },
@@ -402,6 +403,11 @@ export class PokeLoungeGateway
           sessionId: stored.playerId,
           playerId: stored.playerId,
           displayName: stored.displayName,
+          ...(stored.controller ? { controller: stored.controller } : {}),
+          ...(stored.activity ? { activity: stored.activity } : {}),
+          ...(stored.activePokemon
+            ? { activePokemon: stored.activePokemon }
+            : {}),
           map: stored.map,
           x: stored.x,
           y: stored.y,

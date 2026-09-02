@@ -111,7 +111,11 @@ export function WorldScreen({
                   <RemotePlayerActor
                     key={player.sessionId}
                     ref={registerMapRef(remotePlayerRefs.current, player.sessionId)}
-                    displayName={player.displayName}
+                    displayName={
+                      player.controller === "ai" && player.activity
+                        ? `${player.displayName} · ${copy.aiActivity[player.activity]}`
+                        : player.displayName
+                    }
                   />
                 );
               })}

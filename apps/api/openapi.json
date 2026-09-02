@@ -1019,6 +1019,164 @@
         "tags": ["poke-lounge"]
       }
     },
+    "/poke-lounge/rooms/{roomCode}/ai-participants": {
+      "post": {
+        "operationId": "PokeLoungeController_addAiParticipant",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match-Revision",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagePokeLoungeAiParticipantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PokeLoungeRoomConflictResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
+    "/poke-lounge/rooms/{roomCode}/ai-participants/{aiPlayerId}/remove": {
+      "post": {
+        "operationId": "PokeLoungeController_removeAiParticipant",
+        "parameters": [
+          {
+            "name": "roomCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "aiPlayerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match-Revision",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "0"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagePokeLoungeAiParticipantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PokeLoungeRoomConflictResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
     "/poke-lounge/rooms/{roomCode}/party-snapshot": {
       "post": {
         "operationId": "PokeLoungeController_updatePartySnapshot",
@@ -1855,6 +2013,11 @@
             "type": "string",
             "example": "Player A"
           },
+          "controller": {
+            "type": "string",
+            "enum": ["human", "ai"],
+            "example": "human"
+          },
           "role": {
             "type": "string",
             "enum": ["participant", "spectator"],
@@ -1877,7 +2040,15 @@
             "example": 1720000005000
           }
         },
-        "required": ["playerId", "displayName", "role", "ready", "connected", "joinedAtMs"]
+        "required": [
+          "playerId",
+          "displayName",
+          "controller",
+          "role",
+          "ready",
+          "connected",
+          "joinedAtMs"
+        ]
       },
       "PokeLoungeRoundDto": {
         "type": "object",
@@ -2670,6 +2841,20 @@
         "required": ["playerId", "sessionId", "roundIndex"]
       },
       "StartPokeLoungeRoomDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "example": "player-a"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "session-a"
+          }
+        },
+        "required": ["playerId", "sessionId"]
+      },
+      "ManagePokeLoungeAiParticipantDto": {
         "type": "object",
         "properties": {
           "playerId": {

@@ -355,6 +355,7 @@ describe('PokeLoungeGateway', function testSuite() {
       player: {
         playerId: 'player-1',
         displayName: 'Player 1',
+        controller: 'human',
         map: 'new-bark-town',
         x: 672,
         y: 448,
@@ -372,6 +373,7 @@ describe('PokeLoungeGateway', function testSuite() {
         sessionId: 'player-1',
         playerId: 'player-1',
         displayName: 'Player 1',
+        controller: 'human',
         map: 'new-bark-town',
         x: 672,
         y: 448,
@@ -836,6 +838,7 @@ function publicRoom(
       {
         playerId: 'player-1',
         displayName: 'Player 1',
+        controller: 'human',
         role: 'participant',
         ready: false,
         connected: true,

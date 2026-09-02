@@ -321,6 +321,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/poke-lounge/rooms/{roomCode}/ai-participants": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["PokeLoungeController_addAiParticipant"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/poke-lounge/rooms/{roomCode}/ai-participants/{aiPlayerId}/remove": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["PokeLoungeController_removeAiParticipant"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/poke-lounge/rooms/{roomCode}/party-snapshot": {
     parameters: {
       query?: never;
@@ -658,6 +690,11 @@ export interface components {
       /** @example Player A */
       displayName: string;
       /**
+       * @example human
+       * @enum {string}
+       */
+      controller: "human" | "ai";
+      /**
        * @example participant
        * @enum {string}
        */
@@ -977,6 +1014,12 @@ export interface components {
       roundIndex: number;
     };
     StartPokeLoungeRoomDto: {
+      /** @example player-a */
+      playerId: string;
+      /** @example session-a */
+      sessionId: string;
+    };
+    ManagePokeLoungeAiParticipantDto: {
       /** @example player-a */
       playerId: string;
       /** @example session-a */
@@ -1666,6 +1709,87 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["StartPokeLoungeRoomDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PokeLoungeRoomResponseDto"];
+          };
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PokeLoungeRoomConflictResponseDto"];
+        };
+      };
+    };
+  };
+  PokeLoungeController_addAiParticipant: {
+    parameters: {
+      query?: never;
+      header: {
+        "If-Match-Revision": string;
+        "X-Idempotency-Key": string;
+      };
+      path: {
+        roomCode: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ManagePokeLoungeAiParticipantDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PokeLoungeRoomResponseDto"];
+          };
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PokeLoungeRoomConflictResponseDto"];
+        };
+      };
+    };
+  };
+  PokeLoungeController_removeAiParticipant: {
+    parameters: {
+      query?: never;
+      header: {
+        "If-Match-Revision": string;
+        "X-Idempotency-Key": string;
+      };
+      path: {
+        roomCode: string;
+        aiPlayerId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ManagePokeLoungeAiParticipantDto"];
       };
     };
     responses: {

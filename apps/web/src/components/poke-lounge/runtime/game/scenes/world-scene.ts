@@ -1176,6 +1176,8 @@ export class WorldController {
       projection: payload,
       onSetReady: ready => this.room.setLobbyReady(ready),
       onStart: () => this.room.startChampionship(),
+      onAddAi: () => this.room.addAiParticipant(),
+      onRemoveAi: aiPlayerId => this.room.removeAiParticipant(aiPlayerId),
     });
   }
 

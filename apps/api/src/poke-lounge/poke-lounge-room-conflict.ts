@@ -104,6 +104,7 @@ export function toPokeLoungePublicRoomState(
       return {
         playerId: participant.playerId,
         displayName: participant.displayName,
+        controller: participant.controller === 'ai' ? 'ai' : 'human',
         role: participant.role,
         ready: participant.ready,
         connected:

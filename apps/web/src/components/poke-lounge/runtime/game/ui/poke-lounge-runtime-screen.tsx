@@ -553,9 +553,21 @@ export function RoomLobbyScreen({
     >
       <div className="room-lobby-panel">
         <RoomLobbyHeader copy={copy} participantCount={view.participantCount} />
-        <RoomLobbyParticipantList copy={copy} projection={state.projection} />
+        <RoomLobbyParticipantList
+          copy={copy}
+          mutation={mutation}
+          projection={state.projection}
+          onRemoveAi={function handleRemoveAi(aiPlayerId) {
+            return void runMutation("ai-remove", function callback() {
+              return state.onRemoveAi(aiPlayerId);
+            });
+          }}
+        />
         <RoomLobbyActions
           copy={copy}
+          onAddAi={function handleAddAi() {
+            return void runMutation("ai-add", state.onAddAi);
+          }}
           onReady={function handleReady() {
             return void runMutation("ready", function callback() {
               return state.onSetReady(!view.ownReady);
@@ -589,9 +601,13 @@ export function RoomLobbyHeader({
 
 export function RoomLobbyParticipantList({
   copy,
+  mutation,
+  onRemoveAi,
   projection,
 }: {
   copy: PokeLoungeCopy["lobby"];
+  mutation: RoomLobbyMutation;
+  onRemoveAi(aiPlayerId: string): void;
   projection: Extract<PokeLoungeRuntimeState, { phase: "lobby" }>["projection"];
 }) {
   return (
@@ -612,6 +628,8 @@ export function RoomLobbyParticipantList({
             key={participant.playerId}
             copy={copy}
             hostPlayerId={projection.hostPlayerId}
+            canRemoveAi={projection.hostPlayerId === projection.ownPlayerId && mutation === null}
+            onRemoveAi={onRemoveAi}
             participant={participant}
           />
         );
@@ -621,12 +639,16 @@ export function RoomLobbyParticipantList({
 }
 
 export function RoomLobbyParticipantRow({
+  canRemoveAi,
   copy,
   hostPlayerId,
+  onRemoveAi,
   participant,
 }: {
+  canRemoveAi: boolean;
   copy: PokeLoungeCopy["lobby"];
   hostPlayerId: string | null;
+  onRemoveAi(aiPlayerId: string): void;
   participant: Extract<
     PokeLoungeRuntimeState,
     { phase: "lobby" }
@@ -634,6 +656,7 @@ export function RoomLobbyParticipantRow({
 }) {
   const badges = [
     participant.playerId === hostPlayerId ? copy.hostBadge : null,
+    participant.controller === "ai" ? copy.aiBadge : null,
     participant.ready ? copy.ready : copy.notReady,
     participant.connected ? copy.connected : copy.disconnected,
     participant.partyReady ? copy.partyReady : copy.partyMissing,
@@ -653,6 +676,17 @@ export function RoomLobbyParticipantRow({
           return <RoomLobbyBadge key={label} label={label} />;
         })}
       </span>
+      {participant.controller === "ai" && canRemoveAi ? (
+        <button
+          type="button"
+          onClick={function handleClick() {
+            onRemoveAi(participant.playerId);
+          }}
+          data-room-lobby-ai-remove={participant.playerId}
+        >
+          {copy.removeAiAction}
+        </button>
+      ) : null}
     </li>
   );
 }
@@ -663,11 +697,13 @@ export function RoomLobbyBadge({ label }: { label: string }) {
 
 export function RoomLobbyActions({
   copy,
+  onAddAi,
   onReady,
   onStart,
   view,
 }: {
   copy: PokeLoungeCopy["lobby"];
+  onAddAi(): void;
   onReady(): void;
   onStart(): void;
   view: ReturnType<typeof createRoomLobbyViewState>;
@@ -683,14 +719,24 @@ export function RoomLobbyActions({
         {view.ownReady ? copy.cancelReadyAction : copy.readyAction}
       </button>
       {view.isHost ? (
-        <button
-          type="button"
-          disabled={view.startDisabledReason !== null}
-          onClick={onStart}
-          data-room-lobby-start="true"
-        >
-          {copy.startAction}
-        </button>
+        <>
+          <button
+            type="button"
+            disabled={view.participantCount >= 6 || view.startDisabledReason === "mutation"}
+            onClick={onAddAi}
+            data-room-lobby-ai-add="true"
+          >
+            {copy.addAiAction}
+          </button>
+          <button
+            type="button"
+            disabled={view.startDisabledReason !== null}
+            onClick={onStart}
+            data-room-lobby-start="true"
+          >
+            {copy.startAction}
+          </button>
+        </>
       ) : null}
     </footer>
   );

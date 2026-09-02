@@ -167,7 +167,9 @@ export class WorldRuntime {
       shouldSnapRemotePlayer(existing, snapshot);
     if (!existing || shouldSnap) {
       this.remotePlayers.set(snapshot.sessionId, {
+        activity: snapshot.activity,
         animationStartedAtMs: nowMs,
+        controller: snapshot.controller,
         displayName,
         facing: snapshot.facing,
         frameName: FIELD_MAP.player.frameNames[snapshot.facing],
@@ -180,6 +182,8 @@ export class WorldRuntime {
       });
     } else {
       existing.animationStartedAtMs = nowMs;
+      existing.activity = snapshot.activity;
+      existing.controller = snapshot.controller;
       existing.displayName = displayName;
       existing.facing = snapshot.facing;
       existing.map = snapshot.map;

@@ -10,6 +10,7 @@ import type {
 import type { CompetitiveActionProjection } from './competitive/competitive-action.types';
 
 export type PokeLoungeParticipantRole = 'participant' | 'spectator';
+export type PokeLoungeParticipantController = 'human' | 'ai';
 export type PokeLoungeRoomVisibility = 'public' | 'private';
 export type PokeLoungeRoomStatus =
   'waiting' | 'round-started' | 'tournament' | 'completed' | 'closed';
@@ -27,6 +28,7 @@ export interface PokeLoungeRoomParticipant {
   playerId: string;
   userId?: string;
   displayName: string;
+  controller?: PokeLoungeParticipantController;
   role: PokeLoungeParticipantRole;
   ready: boolean;
   connected: boolean;
@@ -44,7 +46,10 @@ export type PokeLoungePublicRoomParticipant = Omit<
   | 'presencePendingUntilMs'
   | 'disconnectPendingUntilMs'
   | 'presenceEpoch'
->;
+  | 'controller'
+> & {
+  controller: PokeLoungeParticipantController;
+};
 
 export interface PokeLoungeFinalStanding {
   playerId: string;
@@ -158,6 +163,16 @@ export interface StartPokeLoungeRoomInput {
   playerId: string;
   sessionId: string;
   nowMs?: number;
+}
+
+export interface AddPokeLoungeAiParticipantInput {
+  playerId: string;
+  sessionId: string;
+  nowMs?: number;
+}
+
+export interface RemovePokeLoungeAiParticipantInput extends AddPokeLoungeAiParticipantInput {
+  aiPlayerId: string;
 }
 
 export interface SubmitPokeLoungeMatchResultInput {

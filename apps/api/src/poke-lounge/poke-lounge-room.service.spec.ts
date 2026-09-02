@@ -80,6 +80,42 @@ describe('PokeLoungeRoomService', function testSuite() {
     expectPublicEvent(publisher, 'room-created', room);
   });
 
+  it('lets the host add and remove an AI participant with a starter party', async function testCase() {
+    await createRoom();
+
+    const added = await service.addAiParticipant(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', nowMs: 10 },
+      command(0, 101),
+    );
+    const ai = added.participants.find(function findItem(participant) {
+      return participant.controller === 'ai';
+    });
+
+    expect(ai).toMatchObject({
+      displayName: 'AI 1',
+      ready: true,
+      connected: true,
+    });
+    expect(
+      added.partySnapshots[ai!.playerId]?.competitiveParty.members,
+    ).toHaveLength(1);
+
+    const removed = await service.removeAiParticipant(
+      'ROOM01',
+      {
+        playerId: 'player-1',
+        sessionId: 'session-1',
+        aiPlayerId: ai!.playerId,
+        nowMs: 20,
+      },
+      command(1, 102),
+    );
+
+    expect(removed.participants).toHaveLength(1);
+    expect(removed.partySnapshots[ai!.playerId]).toBeUndefined();
+  });
+
   it('creates a public room when quick play has no candidate', async function testCase() {
     const room = await service.quickPlay(
       {
