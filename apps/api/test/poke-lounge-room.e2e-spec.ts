@@ -43,6 +43,10 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', function te
 
   it('requires valid command headers on every mutating route', async function testCase() {
     await request(httpServer)
+      .post('/poke-lounge/rooms/quick-play')
+      .send({ playerId: 'player-a', sessionId: 'session-a' })
+      .expect(400);
+    await request(httpServer)
       .post('/poke-lounge/rooms')
       .send(createBody())
       .expect(400);
@@ -113,6 +117,76 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', function te
     for (const route of routes) {
       await request(httpServer).post(route.path).send(route.body).expect(400);
     }
+  });
+
+  it('matches public players without exposing private rooms', async function testCase() {
+    const privateRoom = await createRoom(100);
+    const host = (
+      await request(httpServer)
+        .post('/poke-lounge/rooms/quick-play')
+        .set('X-Idempotency-Key', commandKey(101))
+        .send({
+          playerId: 'public-a',
+          sessionId: 'public-session-a',
+          displayName: 'Public A',
+        })
+        .expect(201)
+    ).body as PokeLoungePublicRoomState;
+    const guest = (
+      await request(httpServer)
+        .post('/poke-lounge/rooms/quick-play')
+        .set('X-Idempotency-Key', commandKey(102))
+        .send({
+          playerId: 'public-b',
+          sessionId: 'public-session-b',
+          displayName: 'Public B',
+        })
+        .expect(201)
+    ).body as PokeLoungePublicRoomState;
+
+    expect(privateRoom.visibility).toBe('private');
+    expect(host).toMatchObject({ visibility: 'public' });
+    expect(host.roomCode).not.toBe(privateRoom.roomCode);
+    expect(guest).toMatchObject({
+      roomCode: host.roomCode,
+      visibility: 'public',
+    });
+    expect(guest.participants).toHaveLength(2);
+  });
+
+  it('caps concurrent public matching at six players per room', async function testCase() {
+    const matches = await Promise.all(
+      Array.from({ length: 7 }, function mapItem(_, index) {
+        return request(httpServer)
+          .post('/poke-lounge/rooms/quick-play')
+          .set('X-Idempotency-Key', commandKey(200 + index))
+          .send({
+            playerId: `public-${index + 1}`,
+            sessionId: `public-session-${index + 1}`,
+            displayName: `Public ${index + 1}`,
+          })
+          .expect(201)
+          .then(function handleResponse(response) {
+            return response.body as PokeLoungePublicRoomState;
+          });
+      }),
+    );
+    const roomCodes = new Set(
+      matches.map(function mapItem(room) {
+        return room.roomCode;
+      }),
+    );
+    const participantCounts = await Promise.all(
+      [...roomCodes].map(async function mapItem(roomCode) {
+        const response = await request(httpServer)
+          .get(`/poke-lounge/rooms/${roomCode}`)
+          .expect(200);
+        return (response.body as PokeLoungePublicRoomState).participants.length;
+      }),
+    );
+
+    expect(roomCodes.size).toBe(2);
+    expect(participantCounts.sort()).toEqual([1, 6]);
   });
 
   it('returns revisions and expiry, redacts sessions, and replays exact commands', async function testCase() {

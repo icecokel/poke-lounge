@@ -633,6 +633,7 @@ export async function startGamePage(
           inviteUrl: null,
           displayName,
           ...(roomEntry.createRoom ? { createRoom: true } : {}),
+          ...(roomEntry.quickPlay ? { quickPlay: true } : {}),
           ...(roundDurationMs !== null ? { roundDurationMs } : {}),
         });
       },
@@ -674,6 +675,7 @@ export async function startGamePage(
       resumingStoredRoom = true;
       currentUrl.searchParams.set("network", "server");
       currentUrl.searchParams.set("create", "1");
+      currentUrl.searchParams.delete("quick");
       currentUrl.searchParams.delete("room");
       roomEntrySelectionPending = true;
       startGameAfterStarterSelection(currentUrl);
@@ -689,9 +691,7 @@ export async function startGamePage(
     }
 
     if (roomEntry.mode === "server-room" && !isLocalE2eUrl(currentUrl)) {
-      currentUrl.searchParams.delete("create");
-      currentUrl.searchParams.delete("network");
-      currentUrl.searchParams.delete("room");
+      clearRoomEntrySearchParams(currentUrl);
       replaceBrowserUrl(currentUrl);
       showRoomEntry();
       return;
@@ -734,6 +734,7 @@ function isCompetitiveRoomEntryMode(mode: RoomEntryMode): boolean {
 function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void {
   if (selection.mode === "solo") {
     url.searchParams.delete("create");
+    url.searchParams.delete("quick");
     url.searchParams.delete("network");
     url.searchParams.delete("room");
     applyRoomRoundDurationSearchParam(url);
@@ -742,6 +743,7 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
 
   if (selection.mode === "webrtc") {
     url.searchParams.delete("create");
+    url.searchParams.delete("quick");
     url.searchParams.set("network", "webrtc");
     url.searchParams.delete("room");
     applyRoomRoundDurationSearchParam(url);
@@ -751,6 +753,15 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
   if (selection.mode === "server-room") {
     url.searchParams.set("network", "server");
     applyRoomRoundDurationSearchParam(url, selection.roundDurationMs);
+
+    if (selection.quickPlay) {
+      url.searchParams.set("quick", "1");
+      url.searchParams.delete("create");
+      url.searchParams.delete("room");
+      return;
+    }
+
+    url.searchParams.delete("quick");
 
     if (selection.createRoom) {
       url.searchParams.set("create", "1");
@@ -769,6 +780,7 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
 
   if (selection.roomCode) {
     url.searchParams.delete("create");
+    url.searchParams.delete("quick");
     url.searchParams.set("network", "local");
     url.searchParams.set("room", selection.roomCode);
     applyRoomRoundDurationSearchParam(url, selection.roundDurationMs);
@@ -777,6 +789,7 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
 
 function clearRoomEntrySearchParams(url: URL): void {
   url.searchParams.delete("create");
+  url.searchParams.delete("quick");
   url.searchParams.delete("network");
   url.searchParams.delete("room");
   url.searchParams.delete("serverPlayerId");

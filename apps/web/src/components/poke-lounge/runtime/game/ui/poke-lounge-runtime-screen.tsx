@@ -91,6 +91,25 @@ function RoomEntryScreen({
       ...(resetSession ? { resetSession: true } : {}),
     });
   };
+  const selectPublicGame = () => {
+    const normalizedName = normalizeMultiplayerDisplayName(displayName);
+    setDisplayName(normalizedName);
+    if (!normalizedName) {
+      setMessage(copy.roomEntry.multiplayerNameRequired);
+      return;
+    }
+
+    playConfirmSound();
+    setPending(true);
+    setMessage(copy.roomEntry.preparing);
+    state.onSelect({
+      mode: "server-room",
+      roomCode: null,
+      inviteUrl: null,
+      displayName: normalizedName,
+      quickPlay: true,
+    });
+  };
   const selectMultiplayer = async (event: FormEvent) => {
     event.preventDefault();
     const normalizedName = normalizeMultiplayerDisplayName(displayName);
@@ -281,8 +300,9 @@ function RoomEntryScreen({
                 </p>
                 <button
                   type="button"
-                  disabled
+                  disabled={pending}
                   aria-describedby="poke-lounge-public-game-description"
+                  onClick={selectPublicGame}
                   data-room-entry-public-game-submit
                 >
                   {copy.roomEntry.publicGameConnect}

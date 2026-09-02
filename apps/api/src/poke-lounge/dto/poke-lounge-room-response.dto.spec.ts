@@ -94,6 +94,13 @@ describe('PokeLoungeRoomResponseDto terminal transition contract', function test
       type: 'string',
       nullable: true,
     });
+    expect(
+      requireStringArray(room.required, 'PokeLoungeRoomResponseDto.required'),
+    ).toContain('visibility');
+    expect(roomProperties.visibility).toMatchObject({
+      type: 'string',
+      enum: ['public', 'private'],
+    });
 
     const documentRecord = requireRecord(document, 'OpenAPI document');
     const paths = requireRecord(documentRecord.paths, 'OpenAPI paths');
@@ -108,6 +115,27 @@ describe('PokeLoungeRoomResponseDto terminal transition contract', function test
 
     expect(json.schema).toEqual({
       $ref: '#/components/schemas/StartPokeLoungeRoomDto',
+    });
+
+    const quickPlayPath = requireRecord(
+      paths['/poke-lounge/rooms/quick-play'],
+      'quick-play path',
+    );
+    const quickPlayPost = requireRecord(quickPlayPath.post, 'quick-play POST');
+    const quickPlayRequestBody = requireRecord(
+      quickPlayPost.requestBody,
+      'quick-play request body',
+    );
+    const quickPlayContent = requireRecord(
+      quickPlayRequestBody.content,
+      'quick-play request content',
+    );
+    const quickPlayJson = requireRecord(
+      quickPlayContent['application/json'],
+      'quick-play JSON body',
+    );
+    expect(quickPlayJson.schema).toEqual({
+      $ref: '#/components/schemas/JoinPokeLoungeRoomDto',
     });
   });
 

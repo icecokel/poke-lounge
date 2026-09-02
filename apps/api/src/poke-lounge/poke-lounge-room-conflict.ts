@@ -36,7 +36,7 @@ export class PokeLoungeRoomFullResponseDto {
 
 export class PokeLoungeRoomConflict extends ConflictException {
   constructor(
-    kind: PokeLoungeRoomConflictKind,
+    readonly kind: PokeLoungeRoomConflictKind,
     snapshot: PokeLoungeRoomSnapshot,
   ) {
     const idempotency = kind === 'idempotency';

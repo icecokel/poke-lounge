@@ -543,6 +543,18 @@ describe('PokeLoungeRoomPolicy', function testSuite() {
     });
   });
 
+  it('normalizes rooms without visibility to private without resetting a current tournament contract', function testCase() {
+    const legacy = createSnapshot();
+    delete (legacy as Partial<PokeLoungeRoomSnapshot>).visibility;
+
+    expect(normalizeLegacyPokeLoungeRoomSnapshot(legacy, 2_000)).toMatchObject({
+      visibility: 'private',
+      status: 'waiting',
+      revision: 1,
+      tournament: { version: 2 },
+    });
+  });
+
   it('does not advance before the round deadline or after advancement', function testCase() {
     const running = createSnapshot({
       status: 'round-started',
@@ -594,6 +606,7 @@ function createSnapshot(
 ): PokeLoungeRoomSnapshot {
   const snapshot: PokeLoungeRoomSnapshot = {
     roomCode: 'ROOM01',
+    visibility: 'private',
     status: 'waiting',
     createdAtMs: 1_000,
     updatedAtMs: 1_000,

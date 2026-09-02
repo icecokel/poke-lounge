@@ -246,6 +246,24 @@ export class PokeLoungeController {
     });
   }
 
+  @Post('rooms/quick-play')
+  @ApiHeader({ name: IDEMPOTENCY_HEADER, required: true })
+  @ApiBody({ type: JoinPokeLoungeRoomDto })
+  @ApiCreatedResponse({ type: PokeLoungeRoomResponseDto })
+  @ApiConflictResponse({ type: PokeLoungeRoomFullResponseDto })
+  async quickPlay(
+    @Body() body: JoinPokeLoungeRoomDto,
+    @Req() request: Request,
+  ) {
+    return toPokeLoungePublicRoomState(
+      await this.roomService.quickPlay(
+        withoutClientNowMs(body),
+        parseIdempotencyHeader(request),
+        { requireSocketAcknowledgement: true },
+      ),
+    );
+  }
+
   @Post('rooms/:roomCode/join')
   @ApiHeader({ name: IDEMPOTENCY_HEADER, required: true })
   @ApiHeader({ name: REVISION_HEADER, required: true, example: '0' })

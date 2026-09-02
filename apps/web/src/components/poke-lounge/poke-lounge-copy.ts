@@ -381,7 +381,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
       "공개 게임에 빠르게 참가하거나 임시 비밀번호로 친구와 비공개 게임을 시작하세요.",
     publicGameTitle: "공개 게임",
     publicGameDescription: "대기 중인 다른 트레이너와 자동으로 연결됩니다.",
-    publicGameConnect: "빠른 참가 준비 중",
+    publicGameConnect: "빠른 참가",
     privateGameTitle: "비공개 게임",
     temporaryPasswordLabel: "임시 비밀번호",
     temporaryPasswordDescription:
@@ -592,7 +592,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
       "Quickly join a public game or start a private game with friends using a temporary password.",
     publicGameTitle: "Public game",
     publicGameDescription: "Automatically connect with another trainer who is waiting.",
-    publicGameConnect: "Quick play coming soon",
+    publicGameConnect: "Quick play",
     privateGameTitle: "Private game",
     temporaryPasswordLabel: "Temporary password",
     temporaryPasswordDescription:
@@ -805,7 +805,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
       "公開ゲームにすぐ参加するか、一時パスワードを使って友達と非公開ゲームを始めましょう。",
     publicGameTitle: "公開ゲーム",
     publicGameDescription: "待機中のほかのトレーナーと自動的に接続します。",
-    publicGameConnect: "クイック参加は準備中",
+    publicGameConnect: "クイック参加",
     privateGameTitle: "非公開ゲーム",
     temporaryPasswordLabel: "一時パスワード",
     temporaryPasswordDescription:

@@ -20,6 +20,29 @@ if receipt then
   return {3, receipt}
 end
 redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', ARGV[1])
+if ARGV[7] == 'public' then
+  local roomCodes = redis.call('ZRANGE', KEYS[2], 0, -1)
+  for _, roomCode in ipairs(roomCodes) do
+    local document = redis.call(
+      'HGET',
+      '${WORLD_KEY_PREFIX}' .. roomCode .. '${ROOM_STATE_KEY_SUFFIX}',
+      'document'
+    )
+    if document then
+      local decoded = cjson.decode(document)
+      local room = decoded.room
+      if room
+        and room.visibility == 'public'
+        and room.status == 'waiting'
+        and room.round
+        and room.round.phase == 'waiting'
+        and room.participants
+        and #room.participants < 6 then
+        return {4, roomCode}
+      end
+    end
+  end
+end
 if redis.call('ZCARD', KEYS[2]) >= tonumber(ARGV[2]) then
   return {2, ''}
 end
@@ -170,6 +193,7 @@ export interface PokeLoungeRoomCommitNotification {
 
 export type CreatePokeLoungeRedisRoomResult =
   | { outcome: 'created' | 'capacity-reached' | 'room-code-collision' }
+  | { outcome: 'public-room-exists'; roomCode: string }
   | { outcome: 'command-exists'; receipt: string };
 
 export interface PokeLoungeRedisPlayerState {
@@ -318,6 +342,7 @@ export class PokeLoungeLiveStateService implements OnModuleDestroy {
     actorPlayerId: string;
     idempotencyKey: string;
     requestHash: string;
+    visibility: 'public' | 'private';
   }): Promise<CreatePokeLoungeRedisRoomResult> {
     const client = this.requireCommandClient();
     const roomCode = normalizeRoomCode(input.roomCode);
@@ -338,6 +363,7 @@ export class PokeLoungeLiveStateService implements OnModuleDestroy {
         String(normalizeTimestampMs(input.expiresAtMs)),
         receipt,
         roomCode,
+        input.visibility,
       ],
     });
     const [status, existingReceipt] = parseRedisTuple(result);
@@ -353,6 +379,12 @@ export class PokeLoungeLiveStateService implements OnModuleDestroy {
     }
     if (status === 3 && typeof existingReceipt === 'string') {
       return { outcome: 'command-exists', receipt: existingReceipt };
+    }
+    if (status === 4 && typeof existingReceipt === 'string') {
+      return {
+        outcome: 'public-room-exists',
+        roomCode: normalizeRoomCode(existingReceipt),
+      };
     }
 
     throw new Error('Poke Lounge Redis create result is malformed');

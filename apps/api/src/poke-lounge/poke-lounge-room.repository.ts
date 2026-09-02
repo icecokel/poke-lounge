@@ -24,6 +24,7 @@ export type PokeLoungeRepositoryResult = {
 
 export type PokeLoungeCreateResult =
   | PokeLoungeRepositoryResult
+  | { outcome: 'public-room-exists'; roomCode: string }
   | { outcome: 'capacity-reached' | 'room-code-collision' };
 
 export interface PokeLoungeRoomRepository {
@@ -41,6 +42,7 @@ export interface PokeLoungeRoomRepository {
     snapshot: PokeLoungeRoomSnapshot | null;
     committedChange: boolean;
   }>;
+  listRoomCodes(nowMs: number): Promise<string[]>;
   mutate(input: {
     operation?: Exclude<PokeLoungeRoomOperation, 'create'>;
     roomCode: string;

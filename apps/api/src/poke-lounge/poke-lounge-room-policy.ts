@@ -247,33 +247,40 @@ export function normalizeLegacyPokeLoungeRoomSnapshot(
     matches?: Array<{ status?: string }>;
     cumulativeScores?: Record<string, number>;
   };
-  if (tournament.version === 2) {
+  const normalizesTournament = tournament.version !== 2;
+  const normalizesVisibility =
+    room.visibility !== 'public' && room.visibility !== 'private';
+  if (!normalizesTournament && !normalizesVisibility) {
     return null;
   }
 
   const normalized = structuredClone(room);
-  normalized.tournament = {
-    version: 2,
-    bracket: null,
-    activeMatchId: null,
-    activeMatchAuthority: null,
-    roundScores: {},
-    cumulativeScores: structuredClone(tournament.cumulativeScores ?? {}),
-  };
+  normalized.visibility = normalizesVisibility ? 'private' : room.visibility;
   normalized.revision = room.revision + 1;
   normalized.updatedAtMs = nowMs;
 
-  const canRestartDeterministically =
-    (room.status === 'waiting' || room.status === 'round-started') &&
-    !(tournament.matches ?? []).some(function testItem(match) {
-      return match.status === 'completed';
-    });
+  if (normalizesTournament) {
+    normalized.tournament = {
+      version: 2,
+      bracket: null,
+      activeMatchId: null,
+      activeMatchAuthority: null,
+      roundScores: {},
+      cumulativeScores: structuredClone(tournament.cumulativeScores ?? {}),
+    };
 
-  if (!canRestartDeterministically) {
-    normalized.status = 'closed';
-    normalized.closeReason = 'legacy-room-restart-required';
-    normalized.round.phase = 'completed';
-    normalized.round.endsAtMs = null;
+    const canRestartDeterministically =
+      (room.status === 'waiting' || room.status === 'round-started') &&
+      !(tournament.matches ?? []).some(function testItem(match) {
+        return match.status === 'completed';
+      });
+
+    if (!canRestartDeterministically) {
+      normalized.status = 'closed';
+      normalized.closeReason = 'legacy-room-restart-required';
+      normalized.round.phase = 'completed';
+      normalized.round.endsAtMs = null;
+    }
   }
 
   normalized.expiresAtMs = getPokeLoungeRoomExpiresAtMs(normalized);

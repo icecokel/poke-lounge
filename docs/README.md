@@ -9,6 +9,7 @@
 - [멀티플레이 테스트 시나리오](./poke-lounge-multiplayer-test-scenarios.md)
 - [화면 배치 원칙](./poke-lounge-viewport-layout.md)
 - [서버 안정화 계획과 완료 기록](./poke-lounge-game-server-stabilization-plan.md)
+- [공개방 구현 계획](./poke-lounge-public-room-implementation-plan.md)
 - [Redis 실시간 상태 계획](./poke-lounge-redis-live-state-plan.md)
 - [성능 최적화 계획](./poke-lounge-performance-optimization-plan.md)
 - [Playwright 테스트](./playwright-testing.md)

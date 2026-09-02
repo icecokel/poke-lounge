@@ -49,6 +49,7 @@ type ServerPartySnapshot = components["schemas"]["PokeLoungePartySnapshotDto"];
 
 interface ServerRoomState {
   roomCode: string;
+  visibility: ApiServerRoom["visibility"];
   hostPlayerId: string | null;
   revision: number;
   expiresAtMs: number;
@@ -69,6 +70,7 @@ export interface ServerRoomOptions {
   sessionId?: string;
   playerId?: string;
   createRoom?: boolean;
+  quickPlay?: boolean;
   resumeRoom?: boolean;
   roundDurationMs?: number;
   persistRoomCodeInUrl?: boolean;
@@ -503,6 +505,30 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     });
   };
 
+  const mutateIdempotentRoom = (
+    path: string,
+    body: unknown,
+    idempotencyKey: string,
+  ): Promise<ServerRoomState> => {
+    return enqueueMutation(async function callback() {
+      try {
+        return await retryOneNetworkFailure(function callback() {
+          return requestRoom(path, {
+            method: "POST",
+            headers: { "X-Idempotency-Key": idempotencyKey },
+            body: JSON.stringify(body),
+          });
+        });
+      } catch (error) {
+        const conflict = getServerRoomConflict(error);
+        if (conflict) {
+          applySnapshot(conflict.snapshot);
+        }
+        throw error;
+      }
+    });
+  };
+
   const clearRecoveryTimer = (resetAttempt = true) => {
     if (recoveryTimer !== null) {
       window.clearTimeout(recoveryTimer);
@@ -550,7 +576,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       initialWorkflowStage,
       error,
       recoverable,
-      options.createRoom === true && options.resumeRoom !== true,
+      (options.createRoom === true || options.quickPlay === true) && options.resumeRoom !== true,
     );
     emitConnectionStatus("offline");
     dispatchServerRoomError({
@@ -2057,6 +2083,19 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return rejoined;
     }
 
+    if (options.quickPlay) {
+      return mutateIdempotentRoom(
+        "/poke-lounge/rooms/quick-play",
+        participantBody,
+        initialOpenIdempotencyKey,
+      ).then(function handleResolved(state) {
+        if (!disposed && options.persistRoomCodeInUrl !== false) {
+          applyCreatedRoomToLocation(state.roomCode);
+        }
+        return state;
+      });
+    }
+
     const body = {
       ...participantBody,
       ...(options.createRoom && activeRoomId !== PENDING_ROOM_ID ? { roomCode: activeRoomId } : {}),
@@ -2504,6 +2543,7 @@ function parseServerRoomState(value: unknown): ServerRoomState {
 
   if (
     typeof room.roomCode !== "string" ||
+    (room.visibility !== "public" && room.visibility !== "private") ||
     (room.hostPlayerId !== null && typeof room.hostPlayerId !== "string") ||
     !Number.isSafeInteger(room.revision) ||
     (room.revision as number) < 0 ||
@@ -2770,6 +2810,7 @@ function parseSharedWorldPlayer(
 function hasSameCanonicalRoomProjection(left: ServerRoomState, right: ServerRoomState): boolean {
   return (
     left.roomCode === right.roomCode &&
+    left.visibility === right.visibility &&
     left.hostPlayerId === right.hostPlayerId &&
     left.status === right.status &&
     stableJsonStringify(left.participants) === stableJsonStringify(right.participants) &&
@@ -3195,6 +3236,7 @@ function applyCreatedRoomToLocation(roomCode: string): void {
 
   const url = new URL(window.location.href);
   url.searchParams.delete("create");
+  url.searchParams.delete("quick");
   url.searchParams.set("network", "server");
   url.searchParams.set("room", roomCode);
   window.history.replaceState(window.history.state, "", url);

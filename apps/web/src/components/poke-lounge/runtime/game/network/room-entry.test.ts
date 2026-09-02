@@ -50,6 +50,11 @@ test("방 생성 선택에 초기화 플래그가 있어도 저장 세션을 유
 });
 
 test("서버 방 URL은 선택 화면 없이 생성과 코드 입장을 유지한다", function testCase() {
+  assert.deepEqual(readRoomEntryFromSearchParams(new URLSearchParams("network=server&quick=1")), {
+    mode: "server-room",
+    roomCode: null,
+    quickPlay: true,
+  });
   assert.deepEqual(readRoomEntryFromSearchParams(new URLSearchParams("network=server&create=1")), {
     mode: "server-room",
     roomCode: null,

@@ -10,6 +10,7 @@ import type {
 import type { CompetitiveActionProjection } from './competitive/competitive-action.types';
 
 export type PokeLoungeParticipantRole = 'participant' | 'spectator';
+export type PokeLoungeRoomVisibility = 'public' | 'private';
 export type PokeLoungeRoomStatus =
   'waiting' | 'round-started' | 'tournament' | 'completed' | 'closed';
 export type PokeLoungeRoundPhase =
@@ -75,6 +76,7 @@ export interface PokeLoungePublicPartySnapshot {
 
 export interface PokeLoungeRoomState {
   roomCode: string;
+  visibility: PokeLoungeRoomVisibility;
   status: PokeLoungeRoomStatus;
   closeReason?: PokeLoungeRoomCloseReason;
   createdAtMs: number;
@@ -121,6 +123,7 @@ export type PokeLoungePublicRoomState = Omit<
 
 export interface CreatePokeLoungeRoomInput {
   roomCode?: string;
+  visibility?: PokeLoungeRoomVisibility;
   playerId?: string;
   sessionId: string;
   userId?: string;

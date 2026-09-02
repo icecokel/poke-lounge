@@ -4,6 +4,7 @@ export const LOCAL_TEST_MODE_START_QUERY_PARAM = "localTest";
 const localTestWebHostnames = new Set(["localhost", "127.0.0.1"]);
 const multiplayerSearchParams = [
   "create",
+  "quick",
   "network",
   "room",
   "roundMs",

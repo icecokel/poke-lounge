@@ -228,6 +228,7 @@ function seat(sessionId: string, playerId: string, accountId: string) {
 function roomState(): PokeLoungeRoomState {
   return {
     roomCode: 'ROOM01',
+    visibility: 'private',
     status: 'waiting',
     createdAtMs: 0,
     updatedAtMs: 0,

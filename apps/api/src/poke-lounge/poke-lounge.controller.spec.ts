@@ -20,6 +20,10 @@ describe('PokeLoungeController', function testSuite() {
   beforeEach(function setUpTest() {
     service = {
       createRoom: jest.fn().mockResolvedValue(snapshot()),
+      quickPlay: jest.fn().mockResolvedValue({
+        ...snapshot(),
+        visibility: 'public',
+      }),
       getRoom: jest.fn().mockResolvedValue(snapshot()),
       joinRoom: jest.fn().mockResolvedValue(snapshot()),
       setReady: jest.fn().mockResolvedValue(snapshot()),
@@ -181,6 +185,19 @@ describe('PokeLoungeController', function testSuite() {
       'ROOM01',
       { playerId: 'player-a', sessionId: 'session-a', roundIndex: 1 },
       { idempotencyKey: IDEMPOTENCY_KEY },
+    ]);
+  });
+
+  it('starts quick play with idempotency metadata and no revision header', async function testCase() {
+    await controller.quickPlay(
+      { playerId: 'player-a', sessionId: 'session-a' },
+      request(['X-Idempotency-Key', IDEMPOTENCY_KEY]),
+    );
+
+    expect(service.quickPlay.mock.calls[0]).toEqual([
+      { playerId: 'player-a', sessionId: 'session-a' },
+      { idempotencyKey: IDEMPOTENCY_KEY },
+      { requireSocketAcknowledgement: true },
     ]);
   });
 
@@ -594,6 +611,7 @@ function request(rawHeaders: string[] = []): Request {
 function snapshot(): PokeLoungeRoomSnapshot {
   return {
     roomCode: 'ROOM01',
+    visibility: 'private',
     status: 'waiting',
     createdAtMs: 0,
     updatedAtMs: 0,

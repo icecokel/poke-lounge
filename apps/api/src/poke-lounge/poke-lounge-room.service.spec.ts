@@ -65,6 +65,7 @@ describe('PokeLoungeRoomService', function testSuite() {
 
     expect(room).toMatchObject({
       roomCode: 'ROOM01',
+      visibility: 'private',
       revision: 0,
       expiresAtMs: 100 + 30 * 60_000,
       participants: [
@@ -77,6 +78,86 @@ describe('PokeLoungeRoomService', function testSuite() {
       ],
     });
     expectPublicEvent(publisher, 'room-created', room);
+  });
+
+  it('creates a public room when quick play has no candidate', async function testCase() {
+    const room = await service.quickPlay(
+      {
+        playerId: 'player-1',
+        sessionId: 'session-1',
+        displayName: '레드',
+        nowMs: 0,
+      },
+      roundCommand(201),
+    );
+
+    expect(room).toMatchObject({
+      roomCode: 'ROOM01',
+      visibility: 'public',
+      participants: [
+        expect.objectContaining({
+          playerId: 'player-1',
+          sessionId: 'session-1',
+        }),
+      ],
+    });
+  });
+
+  it('quick plays into the oldest public waiting room and skips private rooms', async function testCase() {
+    roomCodes = ['PRIVATE', 'PUBLIC'];
+    await service.createRoom(
+      {
+        playerId: 'private-player',
+        sessionId: 'private-session',
+        nowMs: 0,
+      },
+      command(0, 202),
+    );
+    await service.createRoom(
+      {
+        visibility: 'public',
+        playerId: 'public-player',
+        sessionId: 'public-session',
+        nowMs: 1,
+      },
+      command(0, 203),
+    );
+
+    const joined = await service.quickPlay(
+      {
+        playerId: 'joining-player',
+        sessionId: 'joining-session',
+        nowMs: 2,
+      },
+      roundCommand(204),
+    );
+
+    expect(joined.roomCode).toBe('PUBLIC');
+    expect(joined.participants).toHaveLength(2);
+    expect(repository.snapshot('PRIVATE')?.participants).toHaveLength(1);
+  });
+
+  it('replays quick play without duplicating an existing participant', async function testCase() {
+    const quickPlayCommand = roundCommand(205);
+    const created = await service.quickPlay(
+      {
+        playerId: 'player-1',
+        sessionId: 'session-1',
+        nowMs: 0,
+      },
+      quickPlayCommand,
+    );
+    const replayed = await service.quickPlay(
+      {
+        playerId: 'player-1',
+        sessionId: 'session-1',
+        nowMs: 1,
+      },
+      quickPlayCommand,
+    );
+
+    expect(replayed.roomCode).toBe(created.roomCode);
+    expect(replayed.participants).toHaveLength(1);
   });
 
   it('fixes production round preparation to three minutes', async function testCase() {
@@ -2057,6 +2138,7 @@ function roundCommand(index: number) {
 function createSnapshot(): PokeLoungeRoomSnapshot {
   return {
     roomCode: 'ROOM01',
+    visibility: 'private',
     status: 'waiting' as const,
     createdAtMs: 0,
     updatedAtMs: 0,

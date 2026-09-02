@@ -22,6 +22,7 @@ import type {
   PokeLoungePublicRoomState,
   PokeLoungeRoomState,
   PokeLoungeRoomStatus,
+  PokeLoungeRoomVisibility,
   PokeLoungeRoundPhase,
   PokeLoungeTournamentMatch,
 } from '../poke-lounge-room.types';
@@ -38,6 +39,7 @@ const roomStatuses: PokeLoungeRoomStatus[] = [
   'completed',
   'closed',
 ];
+const roomVisibilities: PokeLoungeRoomVisibility[] = ['public', 'private'];
 const roundPhases: PokeLoungeRoundPhase[] = [
   'waiting',
   'round-started',
@@ -323,6 +325,9 @@ class CompetitiveTerminalTransitionDto implements CompetitiveTerminalTransition 
 export class PokeLoungeRoomResponseDto implements PokeLoungePublicRoomState {
   @ApiProperty({ example: 'ROOM01' })
   roomCode!: string;
+
+  @ApiProperty({ enum: roomVisibilities, example: 'public' })
+  visibility!: PokeLoungeRoomVisibility;
 
   @ApiProperty({ enum: roomStatuses, example: 'waiting' })
   status!: PokeLoungeRoomStatus;

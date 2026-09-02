@@ -8,11 +8,13 @@ import { CompetitiveMatchService } from '../src/poke-lounge/competitive/competit
 import { PokeLoungeController } from '../src/poke-lounge/poke-lounge.controller';
 import type { PokeLoungeRoomSnapshot } from '../src/poke-lounge/poke-lounge-room.repository';
 import { PokeLoungeRoomService } from '../src/poke-lounge/poke-lounge-room.service';
+import { PokeLoungeRomDataService } from '../src/poke-lounge/poke-lounge-rom-data.service';
 import { createTestCompetitivePartyInput } from './support/competitive-party.fixture';
 
 const idempotencyKey = '00000000-0000-4000-8000-000000000001';
 const roomSnapshot: PokeLoungeRoomSnapshot = {
   roomCode: 'ROOM01',
+  visibility: 'private',
   status: 'waiting',
   createdAtMs: 0,
   updatedAtMs: 0,
@@ -102,6 +104,10 @@ const invalidMutations = [
 
 const createRoomServiceMock = () => ({
   createRoom: jest.fn().mockResolvedValue(roomSnapshot),
+  quickPlay: jest.fn().mockResolvedValue({
+    ...roomSnapshot,
+    visibility: 'public',
+  }),
   getRoom: jest.fn().mockResolvedValue(roomSnapshot),
   joinRoom: jest.fn().mockResolvedValue(roomSnapshot),
   setReady: jest.fn().mockResolvedValue(roomSnapshot),
@@ -135,6 +141,10 @@ describe('Poke Lounge request validation (e2e)', function testSuite() {
         {
           provide: CompetitiveMatchService,
           useValue: { bindSeat: jest.fn(), submitAction: jest.fn() },
+        },
+        {
+          provide: PokeLoungeRomDataService,
+          useValue: { getRuntimeData: jest.fn() },
         },
       ],
     })

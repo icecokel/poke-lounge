@@ -94,6 +94,11 @@ export class FakePokeLoungeRoomRepository implements PokeLoungeRoomRepository {
     return { snapshot: structuredClone(committed), committedChange: true };
   }
 
+  async listRoomCodes(nowMs: number): Promise<string[]> {
+    await this.purgeExpired(nowMs);
+    return [...this.rooms.keys()];
+  }
+
   async mutate(
     input: Parameters<PokeLoungeRoomRepository['mutate']>[0],
   ): Promise<PokeLoungeRepositoryResult | null> {

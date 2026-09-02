@@ -673,6 +673,64 @@
         "tags": ["poke-lounge"]
       }
     },
+    "/poke-lounge/rooms/quick-play": {
+      "post": {
+        "operationId": "PokeLoungeController_quickPlay",
+        "parameters": [
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinPokeLoungeRoomDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PokeLoungeRoomResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PokeLoungeRoomFullResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["poke-lounge"]
+      }
+    },
     "/poke-lounge/rooms/{roomCode}/join": {
       "post": {
         "operationId": "PokeLoungeController_joinRoom",
@@ -2171,6 +2229,11 @@
             "type": "string",
             "example": "ROOM01"
           },
+          "visibility": {
+            "type": "string",
+            "enum": ["public", "private"],
+            "example": "public"
+          },
           "status": {
             "type": "string",
             "enum": ["waiting", "round-started", "tournament", "completed", "closed"],
@@ -2247,6 +2310,7 @@
         },
         "required": [
           "roomCode",
+          "visibility",
           "status",
           "createdAtMs",
           "updatedAtMs",

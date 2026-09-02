@@ -141,13 +141,21 @@ export class RedisPokeLoungeRepository
       actorPlayerId: input.actorPlayerId,
       idempotencyKey: input.idempotencyKey,
       requestHash: input.requestHash,
+      visibility: snapshot.visibility,
     });
 
-    if (created.outcome !== 'command-exists') {
+    if (
+      created.outcome !== 'command-exists' &&
+      created.outcome !== 'public-room-exists'
+    ) {
       if (created.outcome === 'created') {
         return createRepositoryResult(snapshot, 'committed', true);
       }
       return { outcome: created.outcome };
+    }
+
+    if (created.outcome === 'public-room-exists') {
+      return { outcome: created.outcome, roomCode: created.roomCode };
     }
 
     const receipt = parseCreateCommandReceipt(created.receipt);
@@ -201,6 +209,11 @@ export class RedisPokeLoungeRepository
     }
 
     throw new Error('Poke Lounge Redis room clock update was contended');
+  }
+
+  async listRoomCodes(nowMs: number): Promise<string[]> {
+    await this.purgeExpired(nowMs);
+    return this.redis.listRoomStateCodes();
   }
 
   async mutate(

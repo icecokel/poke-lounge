@@ -58,6 +58,7 @@ describe('toPokeLoungePublicRoomState', function testSuite() {
 function roomSnapshot(): PokeLoungeRoomSnapshot {
   return {
     roomCode: 'ROOM01',
+    visibility: 'private',
     status: 'waiting',
     createdAtMs: 0,
     updatedAtMs: 0,

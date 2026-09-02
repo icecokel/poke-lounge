@@ -12,6 +12,7 @@ export interface RoomEntryIntent {
   mode: RoomEntryMode;
   roomCode: string | null;
   createRoom?: boolean;
+  quickPlay?: boolean;
 }
 
 export function normalizeRoomCode(value: string): string | null {
@@ -127,6 +128,14 @@ export function readRoomEntryFromSearchParams(
   }
 
   const roomCode = normalizeRoomCode(searchParams.get("room") ?? "");
+
+  if (network === "server" && searchParams.get("quick") === "1") {
+    return {
+      mode: "server-room",
+      roomCode: null,
+      quickPlay: true,
+    };
+  }
 
   if (network === "server" && roomCode) {
     return {

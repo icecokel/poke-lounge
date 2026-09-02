@@ -97,7 +97,7 @@ test("로컬 테스트 모드 mutation 실패를 성공으로 처리하지 않�
 test("싱글 테스트 재진입 URL은 멀티플레이 선택만 제거한다", function testCase() {
   const startUrl = createLocalTestModeStartUrl(
     new URL(
-      "http://localhost:3000/ko-KR/game/poke-lounge?network=server&room=ABC123&create=1&roundMs=300000&serverPlayerId=player-1&serverSessionId=session-1&scene=world",
+      "http://localhost:3000/ko-KR/game/poke-lounge?network=server&room=ABC123&create=1&quick=1&roundMs=300000&serverPlayerId=player-1&serverSessionId=session-1&scene=world",
     ),
   );
 
@@ -114,7 +114,7 @@ test("싱글 테스트 재진입 URL은 멀티플레이 선택만 제거한다",
 test("활성 테스트 모드 진입 URL은 직접 조합한 멀티플레이 파라미터도 제거한다", function testCase() {
   const soloUrl = createLocalTestModeSoloUrl(
     new URL(
-      "http://localhost:3000/ko-KR/game/poke-lounge?localTest=1&network=webrtc&room=ABC123&create=1&roundMs=300000&serverPlayerId=player-1&serverSessionId=session-1&scene=world",
+      "http://localhost:3000/ko-KR/game/poke-lounge?localTest=1&network=webrtc&room=ABC123&create=1&quick=1&roundMs=300000&serverPlayerId=player-1&serverSessionId=session-1&scene=world",
     ),
   );
 

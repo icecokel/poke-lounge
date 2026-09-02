@@ -9,6 +9,7 @@ export interface RoomEntrySelection {
   inviteUrl: string | null;
   displayName?: string;
   createRoom?: boolean;
+  quickPlay?: boolean;
   roundDurationMs?: RoomRoundDurationMs;
   resetSession?: boolean;
 }

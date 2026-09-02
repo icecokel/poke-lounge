@@ -119,6 +119,7 @@ describe('PokeLoungeLiveStateService', function testSuite() {
         actorPlayerId: 'player-1',
         idempotencyKey: 'command-1',
         requestHash: 'hash-1',
+        visibility: 'private',
       }),
     ).resolves.toEqual({ outcome: 'created' });
     expect(redis.command.eval).toHaveBeenLastCalledWith(expect.any(String), {
@@ -134,8 +135,24 @@ describe('PokeLoungeLiveStateService', function testSuite() {
         '10000',
         JSON.stringify({ requestHash: 'hash-1', roomCode: 'ROOM01' }),
         'ROOM01',
+        'private',
       ],
     });
+
+    redis.command.eval.mockResolvedValueOnce([4, 'ROOM02']);
+    await expect(
+      service.createRoomState({
+        roomCode: 'ROOM03',
+        document: '{"roomCode":"ROOM03"}',
+        expiresAtMs: 10_000,
+        nowMs: 1_000,
+        capacity: 20,
+        actorPlayerId: 'player-2',
+        idempotencyKey: 'command-2',
+        requestHash: 'hash-2',
+        visibility: 'public',
+      }),
+    ).resolves.toEqual({ outcome: 'public-room-exists', roomCode: 'ROOM02' });
 
     redis.command.hmGet.mockResolvedValueOnce(['2', '{"roomCode":"ROOM01"}']);
     await expect(service.getRoomState('room01')).resolves.toEqual({

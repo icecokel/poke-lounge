@@ -35,6 +35,7 @@ import {
   getPokeLoungeRoomHostPlayerId,
   getPokeLoungeRoomExpiresAtMs,
   POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS,
+  POKE_LOUNGE_ROOM_CAPACITY,
   resetPokeLoungeRoundPreparation,
 } from './poke-lounge-room-policy';
 import {
@@ -122,14 +123,19 @@ export class PokeLoungeRoomService {
 
     const normalized = normalizeCreateInput(input);
     const nowMs = this.normalizeNow(input.nowMs);
+    const { visibility, ...privateCommandBody } = normalized;
     const requestHash = hashPokeLoungeRoomCommand({
       operation: 'create',
-      body: normalizedCommandBody(normalized, input.nowMs),
+      body: normalizedCommandBody(
+        visibility === 'public' ? normalized : privateCommandBody,
+        input.nowMs,
+      ),
     });
 
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const room: PokeLoungeRoomSnapshot = {
         roomCode: normalized.roomCode ?? this.roomCodeFactory(),
+        visibility,
         status: 'waiting',
         createdAtMs: nowMs,
         updatedAtMs: nowMs,
@@ -170,6 +176,39 @@ export class PokeLoungeRoomService {
         requestHash,
         nowMs,
       });
+
+      if (result.outcome === 'public-room-exists') {
+        const existing = await this.repository.getAndAdvance(
+          result.roomCode,
+          nowMs,
+        );
+        if (!existing.snapshot) {
+          continue;
+        }
+        if (existing.committedChange) {
+          await this.publish(
+            'room-clock-advanced',
+            await this.commandEventSnapshot(existing.snapshot),
+          );
+        }
+        return this.joinRoom(
+          result.roomCode,
+          {
+            playerId: normalized.playerId,
+            sessionId: normalized.sessionId,
+            ...(normalized.userId ? { userId: normalized.userId } : {}),
+            displayName: normalized.displayName,
+            ...(input.nowMs === undefined ? {} : { nowMs }),
+          },
+          {
+            idempotencyKey: deriveCreateOrJoinIdempotencyKey(
+              command.idempotencyKey,
+            ),
+            expectedRevision: existing.snapshot.revision,
+          },
+          options,
+        );
+      }
 
       if (result.outcome === 'room-code-collision') {
         if (normalized.roomCode) {
@@ -230,6 +269,112 @@ export class PokeLoungeRoomService {
     }
 
     throw new BadRequestException('Unable to create a unique room code');
+  }
+
+  async quickPlay(
+    input: JoinPokeLoungeRoomInput,
+    command: PokeLoungeIdempotentCommandContext,
+    options: PresenceAdmissionOptions = {},
+  ): Promise<PokeLoungeRoomSnapshot> {
+    const normalized = normalizeJoinInput(input);
+    const nowMs = this.normalizeNow(input.nowMs);
+    const joinIdempotencyKey = deriveIdempotencyKey(
+      'quick-play-join',
+      command.idempotencyKey,
+    );
+
+    // ponytail: bounded by the existing 20-room cap; add a public-room index only if that cap grows.
+    for (let attempt = 0; attempt < POKE_LOUNGE_ROOM_CAPACITY; attempt += 1) {
+      const rooms: PokeLoungeRoomSnapshot[] = [];
+      for (const roomCode of await this.repository.listRoomCodes(nowMs)) {
+        try {
+          rooms.push(await this.getRoom(roomCode));
+        } catch (error) {
+          if (!(error instanceof NotFoundException)) {
+            throw error;
+          }
+        }
+      }
+
+      const existing = rooms
+        .filter(function filterItem(room) {
+          return (
+            room.visibility === 'public' &&
+            (room.status === 'waiting' ||
+              room.status === 'round-started' ||
+              room.status === 'tournament')
+          );
+        })
+        .flatMap(function mapItem(room) {
+          const participant = room.participants.find(function findItem(item) {
+            return (
+              item.sessionId === normalized.sessionId &&
+              (!normalized.playerId || item.playerId === normalized.playerId)
+            );
+          });
+          return participant ? [{ room, participant }] : [];
+        })
+        .sort(function compareItems(left, right) {
+          return compareMatchmakingRooms(left.room, right.room);
+        })[0];
+      const target =
+        existing?.room ??
+        rooms
+          .filter(isPublicRoomMatchmakingCandidate)
+          .sort(compareMatchmakingRooms)[0];
+
+      if (!target) {
+        try {
+          return await this.createRoom(
+            {
+              ...normalized,
+              visibility: 'public',
+              ...(input.nowMs === undefined ? {} : { nowMs }),
+            },
+            { idempotencyKey: command.idempotencyKey, expectedRevision: 0 },
+            options,
+          );
+        } catch (error) {
+          if (
+            (error instanceof PokeLoungeRoomConflict &&
+              error.kind === 'revision') ||
+            error instanceof PokeLoungeRoomFull ||
+            error instanceof NotFoundException
+          ) {
+            continue;
+          }
+          throw error;
+        }
+      }
+
+      try {
+        return await this.joinRoom(
+          target.roomCode,
+          {
+            ...normalized,
+            ...(existing ? { playerId: existing.participant.playerId } : {}),
+            ...(input.nowMs === undefined ? {} : { nowMs }),
+          },
+          {
+            idempotencyKey: joinIdempotencyKey,
+            expectedRevision: target.revision,
+          },
+          options,
+        );
+      } catch (error) {
+        if (
+          (error instanceof PokeLoungeRoomConflict &&
+            error.kind === 'revision') ||
+          error instanceof PokeLoungeRoomFull ||
+          error instanceof NotFoundException
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new BadRequestException('Unable to join a public room');
   }
 
   async getRoom(
@@ -1211,6 +1356,7 @@ type NormalizedJoinInput = Omit<
 
 type NormalizedCreateInput = NormalizedParticipantInput & {
   roomCode?: string;
+  visibility: PokeLoungeRoomState['visibility'];
   roundDurationMs: number;
 };
 
@@ -1223,6 +1369,7 @@ function normalizeCreateInput(
     ...(input.roomCode?.trim()
       ? { roomCode: normalizeRoomCode(input.roomCode) }
       : {}),
+    visibility: input.visibility === 'public' ? 'public' : 'private',
     playerId,
     sessionId: requireSessionId(input.sessionId),
     ...(input.userId?.trim() ? { userId: input.userId.trim() } : {}),
@@ -1516,8 +1663,15 @@ function normalizeRoomCode(roomCode: string): string {
 function deriveCreateOrJoinIdempotencyKey(
   createIdempotencyKey: string,
 ): string {
+  return deriveIdempotencyKey('create-or-join', createIdempotencyKey);
+}
+
+function deriveIdempotencyKey(
+  namespace: string,
+  idempotencyKey: string,
+): string {
   const bytes = createHash('sha256')
-    .update(`poke-lounge-create-or-join:${createIdempotencyKey}`)
+    .update(`poke-lounge-${namespace}:${idempotencyKey}`)
     .digest()
     .subarray(0, 16);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
@@ -1525,6 +1679,27 @@ function deriveCreateOrJoinIdempotencyKey(
   const hex = bytes.toString('hex');
 
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function isPublicRoomMatchmakingCandidate(
+  room: PokeLoungeRoomSnapshot,
+): boolean {
+  return (
+    room.visibility === 'public' &&
+    room.status === 'waiting' &&
+    room.round.phase === 'waiting' &&
+    room.participants.length < MAX_ROOM_OCCUPANTS
+  );
+}
+
+function compareMatchmakingRooms(
+  left: PokeLoungeRoomSnapshot,
+  right: PokeLoungeRoomSnapshot,
+): number {
+  return (
+    left.createdAtMs - right.createdAtMs ||
+    left.roomCode.localeCompare(right.roomCode)
+  );
 }
 
 function isMatchResultReason(

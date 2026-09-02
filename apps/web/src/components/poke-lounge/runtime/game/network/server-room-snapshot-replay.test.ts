@@ -257,6 +257,7 @@ function createRoomSnapshots() {
 
     return {
       roomCode: "ROOM01",
+      visibility: "private",
       hostPlayerId: "player-1",
       revision,
       expiresAtMs: 253_402_300_799_999,
@@ -543,6 +544,7 @@ function createEightTerminalTransitionPage() {
 
   return {
     roomCode: "ROOM01",
+    visibility: "private",
     hostPlayerId: "player-1",
     revision: 100,
     expiresAtMs: 253_402_300_799_999,
@@ -926,6 +928,7 @@ test("이전 게임 라운드 terminal은 다음 라운드 bracket 초기화 뒤
 
     socket.pushSnapshot({
       roomCode: "ROOM01",
+      visibility: "private",
       hostPlayerId: "player-1",
       revision: 51,
       expiresAtMs: 253_402_300_799_999,
@@ -3613,6 +3616,74 @@ test("create 응답 전 transport 실패는 같은 idempotency key로 방 생성
     assert.equal(new Set(createIdempotencyKeys).size, 1);
     assert.notEqual(createIdempotencyKeys[0], "");
     assert.equal(room.roomId, snapshots.initial.roomCode);
+  } finally {
+    room?.dispose();
+    restoreWindow(originalWindow);
+  }
+});
+
+test("공개 빠른 참가는 revision 헤더 없이 실제 방 코드를 URL에 반영한다", async function testCase() {
+  process.env.NEXT_PUBLIC_API_URL = "http://api.test";
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const timers = createManualRecoveryTimers("?quick=1&network=server");
+  const fixtureWindow = timers.window as typeof timers.window & {
+    history: { state: null; replaceState(state: unknown, title: string, url?: string | URL): void };
+  };
+  fixtureWindow.history = {
+    state: null,
+    replaceState(_state, _title, url) {
+      if (url) {
+        fixtureWindow.location.href = String(url);
+      }
+    },
+  };
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: fixtureWindow,
+  });
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
+
+  try {
+    const { createServerRoom } = await import("./server-room");
+    const socket = createSocket();
+    const snapshots = createRoomSnapshots();
+    const requestedPaths: string[] = [];
+    const quickPlayRequest: { headers?: Headers; body?: unknown } = {};
+    const fetchFixture: typeof fetch = async (input, init) => {
+      const url = new URL(typeof input === "string" ? input : input.toString());
+      requestedPaths.push(url.pathname);
+      if (url.pathname === "/poke-lounge/rooms/quick-play") {
+        quickPlayRequest.headers = new Headers(init?.headers);
+        quickPlayRequest.body = JSON.parse(String(init?.body));
+      }
+      return jsonResponse({ ...snapshots.initial, visibility: "public" });
+    };
+    room = createServerRoom({
+      quickPlay: true,
+      playerId: "player-1",
+      sessionId: "session-1",
+      fetch: fetchFixture,
+      socketFactory: () => socket,
+    });
+
+    room.connect(createPlayerSnapshot());
+    await waitFor(function waitForCondition() {
+      return requestedPaths.some(function testItem(path) {
+        return path.endsWith("/party-snapshot");
+      });
+    });
+
+    assert.equal(requestedPaths[0], "/poke-lounge/rooms/quick-play");
+    assert.notEqual(quickPlayRequest.headers?.get("X-Idempotency-Key"), null);
+    assert.equal(quickPlayRequest.headers?.get("If-Match-Revision"), null);
+    assert.deepEqual(quickPlayRequest.body, {
+      playerId: "player-1",
+      sessionId: "session-1",
+      displayName: "Player 1",
+    });
+    assert.match(fixtureWindow.location.href, /network=server/);
+    assert.match(fixtureWindow.location.href, /room=ROOM01/);
+    assert.equal(fixtureWindow.location.href.includes("quick="), false);
   } finally {
     room?.dispose();
     restoreWindow(originalWindow);
