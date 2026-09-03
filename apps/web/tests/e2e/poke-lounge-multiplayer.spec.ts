@@ -1993,7 +1993,11 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     }
 
     await page.locator("[data-poke-lounge-desktop-settings-toggle='true']").click();
-    await page.locator("[data-poke-lounge-game-exit='true']").click();
+    const roomLeaveButton = page.locator(
+      "[data-poke-lounge-settings='true'] [data-room-leave='true']",
+    );
+    await expect(roomLeaveButton).toHaveText("방 나가기");
+    await roomLeaveButton.click();
     await expect(page.locator("[data-poke-lounge-game-exit-dialog='true']")).toHaveCount(0);
     const leaveDialog = page.locator("[data-poke-lounge-leave-dialog='true']");
     await expect(leaveDialog).toBeVisible();
@@ -2205,6 +2209,16 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     await expect(hostLobby).toContainText("그린");
     await expect(hostPage.locator("[data-room-lobby-start='true']")).toBeDisabled();
     await expect(guestPage.locator("[data-room-lobby-start='true']")).toHaveCount(0);
+    await expect(hostPage.locator("#game-root [data-room-leave='true']")).toHaveCount(0);
+    await expect(guestPage.locator("#game-root [data-room-leave='true']")).toHaveCount(0);
+
+    await guestPage.locator("[data-poke-lounge-mobile-menu='true']").click();
+    await expect(
+      guestPage.locator(
+        "[data-poke-lounge-mobile-settings-screen='true'] [data-room-leave='true']",
+      ),
+    ).toHaveText("방 나가기");
+    await guestPage.locator("[data-poke-lounge-mobile-settings-close='true']").click();
     expect(
       server.commandRequests.filter(function filterItem(request) {
         return request.suffix === "/ready";
@@ -2249,17 +2263,12 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
             "[data-room-lobby-participants='true']",
           );
           const lastParticipant = participantList?.querySelector<HTMLElement>("li:last-child");
-          const leaveButton = gameRoot.querySelector<HTMLElement>("[data-room-leave='true']");
 
           return {
             rootBox: gameRoot.getBoundingClientRect(),
             lobbyBox: lobby?.getBoundingClientRect(),
             listBox: participantList?.getBoundingClientRect(),
             lastBox: lastParticipant?.getBoundingClientRect(),
-            leaveBox: leaveButton?.getBoundingClientRect(),
-            leaveMinHeight: leaveButton
-              ? Number.parseFloat(getComputedStyle(leaveButton).minHeight)
-              : null,
           };
         });
       }),
@@ -2272,11 +2281,6 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
       expect(bounds.lastBox?.top).toBeGreaterThanOrEqual((bounds.listBox?.top ?? 0) - 1);
       expect(bounds.lastBox?.bottom).toBeLessThanOrEqual((bounds.listBox?.bottom ?? 0) + 1);
     }
-    const mobileBounds = lobbyBounds[1];
-    expect(mobileBounds.leaveMinHeight).toBeGreaterThanOrEqual(44);
-    expect(mobileBounds.leaveBox?.right).toBeLessThanOrEqual(mobileBounds.rootBox.right);
-    expect(mobileBounds.leaveBox?.top).toBeGreaterThanOrEqual(mobileBounds.rootBox.top);
-
     server.joinedParticipants.splice(2);
     server.revision += 1;
     const restoredWaitingRoom = createLobbyWaitingRoomState(server);

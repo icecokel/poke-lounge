@@ -20,6 +20,7 @@ import {
   PokemonSlot,
   StatusBadge,
 } from "../../../ui/poke-lounge-ui-primitives";
+import { TournamentBracketPanel } from "../tournament/tournament-bracket-panel";
 import styles from "../../../poke-lounge.module.css";
 
 export function WorldUiLayer({
@@ -46,7 +47,7 @@ export function WorldUiLayer({
         ui={ui}
         uiStore={uiStore}
       />
-      <WorldNoticeLayer ui={ui} />
+      <WorldNoticeLayer gameStateStore={gameStateStore} ui={ui} />
       {desktop ? <WorldSurfaceRouter copy={copy} ui={ui} uiStore={uiStore} /> : null}
     </div>
   );
@@ -314,7 +315,20 @@ export function PokemonSprite({ pokemon, size }: { pokemon: PlayerPokemon; size:
   );
 }
 
-export function WorldNoticeLayer({ ui }: { ui: WorldUiSnapshot }) {
+export function WorldNoticeLayer({
+  gameStateStore,
+  ui,
+}: {
+  gameStateStore: GameStateStore;
+  ui: WorldUiSnapshot;
+}) {
+  const gameState = useSyncExternalStore(
+    gameStateStore.subscribe,
+    gameStateStore.getState,
+    gameStateStore.getState,
+  );
+  const tournamentProjection = gameState.tournament.serverProjection;
+
   return (
     <div className={styles.worldNoticeLayer} aria-live="polite">
       {ui.areaAnnouncement ? (
@@ -325,13 +339,18 @@ export function WorldNoticeLayer({ ui }: { ui: WorldUiSnapshot }) {
         <div className={styles.worldInteractionPrompt}>{ui.interactionPrompt}</div>
       ) : null}
       {ui.nurseHealing.active ? <NurseHealingEffect key={ui.nurseHealing.effectCount} /> : null}
-      {ui.tournamentAnnouncement ? (
-        <div
+      {ui.tournamentAnnouncement && tournamentProjection ? (
+        <TournamentBracketPanel
+          projection={tournamentProjection}
+          text={ui.tournamentAnnouncement}
+        />
+      ) : ui.tournamentAnnouncement ? (
+        <PixelPanel
           className={styles.worldTournamentAnnouncement}
           data-poke-lounge-tournament-announcement="true"
         >
           {ui.tournamentAnnouncement}
-        </div>
+        </PixelPanel>
       ) : null}
       {ui.tournamentResult ? (
         <div className={styles.worldTournamentResult}>{ui.tournamentResult}</div>

@@ -2175,6 +2175,8 @@ async function expectTournamentBriefing(
       await expect(announcement).toContainText(`라운드 ${gameRound}/3 대진 안내`, {
         timeout: 105_000,
       });
+      await expect(announcement).toHaveAttribute("data-poke-lounge-tournament-bracket", "true");
+      await expect(announcement).toHaveAttribute("data-bracket-flow", "outside-in");
       await expect(announcement).toContainText("#4 Tester 4 vs #5 Tester 5");
       await expect(announcement).toContainText("8강");
       await expect(announcement).toContainText("4강 2경기 → 결승");
@@ -2824,10 +2826,19 @@ async function captureScreenshot(tester: TesterRuntime, checkpoint?: string): Pr
 
 async function leaveServerRoom(page: Page): Promise<void> {
   const leaveButton = page.locator("[data-room-leave='true']");
-  await expect(leaveButton).toHaveCount(1, { timeout: 10_000 });
-  await leaveButton.evaluate(function evaluatePage(button) {
-    return (button as HTMLButtonElement).click();
-  });
+  if (
+    !(await leaveButton.isVisible().catch(function handleRejected() {
+      return false;
+    }))
+  ) {
+    const mobileMenu = page.locator("[data-poke-lounge-mobile-menu='true']");
+    const settingsToggle = (await mobileMenu.isVisible())
+      ? mobileMenu
+      : page.locator("[data-poke-lounge-desktop-settings-toggle='true']");
+    await settingsToggle.click();
+  }
+  await expect(leaveButton).toBeVisible({ timeout: 10_000 });
+  await leaveButton.click();
   const dialog = page.locator("[data-poke-lounge-leave-dialog='true']");
   const entryScreen = page.locator("[data-room-entry-screen='true']");
   await expect

@@ -143,6 +143,7 @@ interface MobileSettingsProps {
   rankingStatus: "idle" | "loading" | "ready" | "error";
   roomShareAvailable: boolean;
   roomShareStatus: "idle" | "success" | "error";
+  roomLeaveLabel: string | null;
   volumeAriaLabel: string;
   volumeLabel: string;
 }
@@ -1422,6 +1423,7 @@ function MobileSettingsScreen({
   rankingStatus,
   roomShareAvailable,
   roomShareStatus,
+  roomLeaveLabel,
   volumeAriaLabel,
   volumeLabel,
 }: MobileSettingsProps & { copy: PokeLoungeCopy }) {
@@ -1482,15 +1484,6 @@ function MobileSettingsScreen({
             {hydrationRetryLabel}
           </Button>
         ) : null}
-        <Button
-          type="button"
-          variant="destructive"
-          className={styles.settingsExitButton}
-          onClick={onExit}
-          data-poke-lounge-mobile-game-exit="true"
-        >
-          {copy.settingsExit}
-        </Button>
       </div>
       <div className={styles.settingsStatus} aria-live="polite">
         <span>{connectionLabel}</span>
@@ -1535,6 +1528,18 @@ function MobileSettingsScreen({
           </ol>
         ) : null}
       </section>
+      <div className={styles.settingsOptions}>
+        <Button
+          type="button"
+          variant="destructive"
+          className={styles.settingsExitButton}
+          onClick={onExit}
+          data-poke-lounge-mobile-game-exit="true"
+          data-room-leave={roomLeaveLabel ? "true" : undefined}
+        >
+          {roomLeaveLabel ?? copy.settingsExit}
+        </Button>
+      </div>
     </section>
   );
 }

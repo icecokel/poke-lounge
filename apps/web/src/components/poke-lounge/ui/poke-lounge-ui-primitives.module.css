@@ -56,36 +56,28 @@
 }
 
 .healthBar {
+  box-sizing: border-box;
   display: block;
   width: 100%;
   height: 8px;
   overflow: hidden;
-  appearance: none;
   background: var(--pl-color-ink);
   border: 2px solid var(--pl-color-ink);
   border-radius: 2px;
 }
 
-.healthBar::-webkit-meter-bar {
-  background: var(--pl-color-ink);
-  border: 0;
-  border-radius: 0;
-}
-
-.healthBar::-webkit-meter-optimum-value {
+.healthBarValue {
+  display: block;
+  height: 100%;
   background: var(--pl-color-hp);
 }
 
-.healthBar::-webkit-meter-suboptimum-value {
+.healthBar[data-tone="warning"] .healthBarValue {
   background: var(--pl-color-warning);
 }
 
-.healthBar::-webkit-meter-even-less-good-value {
+.healthBar[data-tone="danger"] .healthBarValue {
   background: var(--pl-color-danger);
-}
-
-.healthBar::-moz-meter-bar {
-  background: var(--pl-color-hp);
 }
 
 .pokemonSlot {

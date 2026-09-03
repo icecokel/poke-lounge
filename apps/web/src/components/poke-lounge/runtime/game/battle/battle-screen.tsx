@@ -31,6 +31,7 @@ import {
   createTournamentBriefingText,
   TOURNAMENT_BRIEFING_DURATION_MS,
 } from "../scenes/world-scene-tournament";
+import { TournamentBracketPanel } from "../tournament/tournament-bracket-panel";
 
 const logicalWidth = 256;
 const logicalHeight = 192;
@@ -122,15 +123,7 @@ function BattleTournamentBriefing({ gameStateStore }: { gameStateStore: GameStat
   );
 
   const text = projection ? createTournamentBriefingText(projection, nowMs) : null;
-  return text ? (
-    <div
-      className={styles.worldTournamentAnnouncement}
-      data-poke-lounge-tournament-announcement="true"
-      role="status"
-    >
-      {text}
-    </div>
-  ) : null;
+  return text && projection ? <TournamentBracketPanel projection={projection} text={text} /> : null;
 }
 
 export function BattleStage({

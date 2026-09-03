@@ -26,13 +26,19 @@ const AI_TICK_MS = 1_000;
 const AI_HUNT_CYCLE_MS = 20_000;
 const AI_HUNT_DURATION_MS = 5_000;
 const AI_SPEED_PX_PER_SECOND = 104;
+const AI_TALL_GRASS_AREA = {
+  x: 704,
+  y: 384,
+  width: 320,
+  height: 96,
+} as const;
 const AI_ROUTE = [
-  { x: 640, y: 480 },
-  { x: 560, y: 480 },
-  { x: 480, y: 480 },
-  { x: 480, y: 520 },
-  { x: 560, y: 520 },
-  { x: 640, y: 520 },
+  { x: 720, y: 400 },
+  { x: 864, y: 400 },
+  { x: 1008, y: 400 },
+  { x: 1008, y: 464 },
+  { x: 864, y: 464 },
+  { x: 720, y: 464 },
 ] as const;
 const ENCOUNTER_SPECIES_IDS = [
   10, 13, 16, 19, 25, 43, 69, 74, 129, 133, 161, 163, 165, 167, 179, 183, 187,
@@ -207,14 +213,15 @@ export class PokeLoungeAiWorkerService
     const elapsedMs = Math.max(0, nowMs - (room.round.startedAtMs ?? nowMs));
     const inPreparation = room.status === 'round-started';
     const cycleOffset = elapsedMs % AI_HUNT_CYCLE_MS;
-    const hunting =
+    const inHuntWindow =
       inPreparation && cycleOffset >= AI_HUNT_CYCLE_MS - AI_HUNT_DURATION_MS;
     const position = positionOnRoute(
-      hunting
+      inHuntWindow
         ? elapsedMs - cycleOffset + AI_HUNT_CYCLE_MS - AI_HUNT_DURATION_MS
         : elapsedMs,
       stableNumber(playerId) % 10_000,
     );
+    const hunting = inHuntWindow && isInAiTallGrass(position);
     await this.liveState.upsertPlayer({
       roomCode: room.roomCode,
       expiresAtMs: room.expiresAtMs,
@@ -261,6 +268,11 @@ export class PokeLoungeAiWorkerService
     const cycle = Math.floor((nowMs - startedAtMs) / AI_HUNT_CYCLE_MS);
     const boundaryMs = startedAtMs + cycle * AI_HUNT_CYCLE_MS;
     if (cycle < 1 || snapshot.updatedAtMs >= boundaryMs) return null;
+    const huntPosition = positionOnRoute(
+      cycle * AI_HUNT_CYCLE_MS - AI_HUNT_DURATION_MS,
+      stableNumber(playerId) % 10_000,
+    );
+    if (!isInAiTallGrass(huntPosition)) return null;
     const seed = stableNumber(`${playerId}:${room.round.index}:${cycle}`);
     let roll = seed;
     const capture = resolveCaptureAttempt({
@@ -411,4 +423,13 @@ function positionOnRoute(
     };
   }
   return { ...AI_ROUTE[0], facing: 'front' };
+}
+
+function isInAiTallGrass(position: { x: number; y: number }): boolean {
+  return (
+    position.x >= AI_TALL_GRASS_AREA.x &&
+    position.x < AI_TALL_GRASS_AREA.x + AI_TALL_GRASS_AREA.width &&
+    position.y >= AI_TALL_GRASS_AREA.y &&
+    position.y < AI_TALL_GRASS_AREA.y + AI_TALL_GRASS_AREA.height
+  );
 }

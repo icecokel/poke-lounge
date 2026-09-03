@@ -19,6 +19,7 @@ import {
 } from "../state/game-state-store";
 import {
   createTournamentBracketState,
+  type TournamentBracketState,
   type TournamentMatch,
   type TournamentStanding,
 } from "@poke-lounge/battle/tournament-bracket";
@@ -572,12 +573,22 @@ export function createTournamentBriefingText(
   });
 }
 
-function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayload): string[] {
+export interface TournamentBracketPreview {
+  bracket: TournamentBracketState;
+  cumulativeStatusLabel: string | null;
+  futureRounds: Array<{ label: "4강" | "결승"; matchCount: number }>;
+  openingLabel: "8강" | "4강" | "결승";
+  ownPositionLabel: string | null;
+}
+
+export function createTournamentBracketPreview(
+  projection: TournamentStateRoomPayload,
+): TournamentBracketPreview | null {
   const participants = projection.participants.filter(function filterItem(participant) {
     return participant.role === "participant" && participant.connected && participant.partyReady;
   });
   if (participants.length < 2 || participants.length > 8) {
-    return ["대진 확정 대기"];
+    return null;
   }
 
   const bracket = createTournamentBracketState(
@@ -588,8 +599,43 @@ function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayl
   );
   const openingRound = bracket.currentRound!;
   const openingLabel = participants.length <= 2 ? "결승" : participants.length <= 4 ? "4강" : "8강";
+  const ownMatch = openingRound.matches.find(function findItem(match) {
+    return match.participantIds.includes(projection.ownPlayerId);
+  });
+  const ownBye = openingRound.byes.find(function findItem(bye) {
+    return bye.entrant.playerId === projection.ownPlayerId;
+  });
+
+  return {
+    bracket,
+    cumulativeStatusLabel: createOwnCumulativeStatusLabel(projection),
+    futureRounds:
+      participants.length <= 2
+        ? []
+        : participants.length <= 4
+          ? [{ label: "결승", matchCount: 1 }]
+          : [
+              { label: "4강", matchCount: 2 },
+              { label: "결승", matchCount: 1 },
+            ],
+    openingLabel,
+    ownPositionLabel: ownMatch
+      ? `내 위치 · ${openingLabel} ${ownMatch.matchNumber}경기`
+      : ownBye
+        ? `내 위치 · 부전승 · ${participants.length <= 4 ? "결승" : "4강"} 진출`
+        : null,
+  };
+}
+
+function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayload): string[] {
+  const preview = createTournamentBracketPreview(projection);
+  if (!preview) {
+    return ["대진 확정 대기"];
+  }
+
+  const openingRound = preview.bracket.currentRound!;
   const lines = [
-    `${openingLabel} · ${openingRound.matches.map(formatMatchParticipants).join(" / ")}`,
+    `${preview.openingLabel} · ${openingRound.matches.map(formatMatchParticipants).join(" / ")}`,
   ];
 
   if (openingRound.byes.length > 0) {
@@ -601,21 +647,17 @@ function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayl
         .join(" · ")}`,
     );
   }
-  if (participants.length > 2) {
-    lines.push(participants.length <= 4 ? "이후 · 결승" : "이후 · 4강 2경기 → 결승");
+  if (preview.futureRounds.length > 0) {
+    lines.push(
+      `이후 · ${preview.futureRounds
+        .map(function mapItem(round) {
+          return `${round.label}${round.matchCount > 1 ? ` ${round.matchCount}경기` : ""}`;
+        })
+        .join(" → ")}`,
+    );
   }
 
-  const ownMatch = openingRound.matches.find(function findItem(match) {
-    return match.participantIds.includes(projection.ownPlayerId);
-  });
-  const ownBye = openingRound.byes.find(function findItem(bye) {
-    return bye.entrant.playerId === projection.ownPlayerId;
-  });
-  if (ownMatch) {
-    lines.push(`내 위치 · ${openingLabel} ${ownMatch.matchNumber}경기`);
-  } else if (ownBye) {
-    lines.push(`내 위치 · 부전승 · ${participants.length <= 4 ? "결승" : "4강"} 진출`);
-  }
+  if (preview.ownPositionLabel) lines.push(preview.ownPositionLabel);
 
   return lines;
 }
@@ -781,7 +823,7 @@ function createCompetitionKindLabel(kind: TournamentCompetitionKind): string {
   return "경기 권위 확정 대기 · 공개 랭킹 반영 여부 확인 중";
 }
 
-function formatRemainingTime(remainingMs: number): string {
+export function formatRemainingTime(remainingMs: number): string {
   const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1_000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;

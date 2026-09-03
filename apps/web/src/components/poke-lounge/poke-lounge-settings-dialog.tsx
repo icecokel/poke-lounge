@@ -31,6 +31,7 @@ export function PokeLoungeSettingsDialog({
   rankingStatus,
   roomShareAvailable,
   roomShareStatus,
+  roomLeaveLabel,
   uiSize,
   uiSizeLabel,
   volumeAriaLabel,
@@ -56,6 +57,7 @@ export function PokeLoungeSettingsDialog({
   rankingStatus: "idle" | "loading" | "ready" | "error";
   roomShareAvailable: boolean;
   roomShareStatus: "idle" | "success" | "error";
+  roomLeaveLabel: string | null;
   uiSize: "normal" | "large";
   uiSizeLabel: string;
   volumeAriaLabel: string;
@@ -183,16 +185,6 @@ export function PokeLoungeSettingsDialog({
           </section>
           <Button
             type="button"
-            variant="destructive"
-            className={styles.settingsOptionButton}
-            onClick={onExit}
-            data-poke-lounge-setting-option="true"
-            data-poke-lounge-game-exit="true"
-          >
-            {copy.settingsExit}
-          </Button>
-          <Button
-            type="button"
             variant="outline"
             className={styles.settingsOptionButton}
             onClick={function handleClick() {
@@ -202,6 +194,17 @@ export function PokeLoungeSettingsDialog({
             data-poke-lounge-settings-cancel="true"
           >
             {copy.settingsClose}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            className={styles.settingsOptionButton}
+            onClick={onExit}
+            data-poke-lounge-setting-option="true"
+            data-poke-lounge-game-exit="true"
+            data-room-leave={roomLeaveLabel ? "true" : undefined}
+          >
+            {roomLeaveLabel ?? copy.settingsExit}
           </Button>
         </div>
       </DialogContent>

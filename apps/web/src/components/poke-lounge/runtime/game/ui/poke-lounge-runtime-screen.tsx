@@ -43,14 +43,9 @@ export function PokeLoungeRuntimeControls({ state }: { state: PokeLoungeRuntimeS
     return null;
   }
 
-  return (
-    <>
-      {state.roomLeave ? <RoomLeaveButton control={state.roomLeave} /> : null}
-      {state.webRtc ? (
-        <WebRtcSignalingPanel room={state.webRtc.room} onLeave={state.webRtc.onLeave} />
-      ) : null}
-    </>
-  );
+  return state.webRtc ? (
+    <WebRtcSignalingPanel room={state.webRtc.room} onLeave={state.webRtc.onLeave} />
+  ) : null;
 }
 
 function RoomEntryScreen({
@@ -802,25 +797,6 @@ export function RoomLobbyStatus({
         {errorMessage}
       </p>
     </>
-  );
-}
-
-export function RoomLeaveButton({
-  control,
-}: {
-  control: NonNullable<
-    Extract<PokeLoungeRuntimeState, { phase: "world" | "battle" | "lobby" }>["roomLeave"]
-  >;
-}) {
-  return (
-    <button
-      type="button"
-      className="room-leave-button"
-      onClick={control.onRequest}
-      data-room-leave="true"
-    >
-      {control.label}
-    </button>
   );
 }
 

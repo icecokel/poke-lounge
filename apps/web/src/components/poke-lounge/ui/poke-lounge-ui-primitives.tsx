@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, HTMLAttributes, MeterHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import styles from "./poke-lounge-ui-primitives.module.css";
 
@@ -26,18 +26,22 @@ export function HealthBar({
   className,
   value,
   ...props
-}: Omit<MeterHTMLAttributes<HTMLMeterElement>, "max" | "min" | "optimum">) {
+}: Omit<HTMLAttributes<HTMLSpanElement>, "children"> & { value: number }) {
+  const normalizedValue = Math.min(1, Math.max(0, value));
+  const tone = normalizedValue < 0.25 ? "danger" : normalizedValue < 0.5 ? "warning" : "healthy";
+
   return (
-    <meter
-      className={cn(styles.healthBar, className)}
-      min={0}
-      max={1}
-      low={0.25}
-      high={0.5}
-      optimum={1}
-      value={value}
+    <span
       {...props}
-    />
+      className={cn(styles.healthBar, className)}
+      role="meter"
+      aria-valuemin={0}
+      aria-valuemax={1}
+      aria-valuenow={normalizedValue}
+      data-tone={tone}
+    >
+      <span className={styles.healthBarValue} style={{ width: `${normalizedValue * 100}%` }} />
+    </span>
   );
 }
 
