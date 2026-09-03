@@ -4,10 +4,26 @@ import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Game");
+  const title = "Poke Lounge";
+  const description = t("pokeLoungeDesc");
 
   return {
-    title: "Poke Lounge",
-    description: t("pokeLoungeDesc"),
+    metadataBase: new URL("https://poke-lounge.icecoke.kr"),
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: "/",
+      images: [{ url: "/og-image.png", width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og-image.png"],
+    },
   };
 }
 
