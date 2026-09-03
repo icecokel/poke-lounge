@@ -1879,7 +1879,7 @@
       )
     );
     --poke-lounge-mobile-screen-width: min(var(--poke-lounge-mobile-available-inline-size), 768px);
-    --poke-lounge-mobile-screen-height: var(--poke-lounge-mobile-screen-width);
+    --poke-lounge-mobile-screen-height: calc(var(--poke-lounge-mobile-screen-width) * 3 / 4);
     --poke-lounge-frame-available-height: var(--poke-lounge-mobile-screen-height);
 
     display: grid;

@@ -1619,7 +1619,7 @@ async function expectPortraitFieldAndControlDock(page: Page, controlDock: Locato
   expect(fieldBounds!.x + fieldBounds!.width).toBeLessThanOrEqual(viewport!.width + 1);
   expect(fieldBounds!.y + fieldBounds!.height).toBeLessThanOrEqual(viewport!.height + 1);
   expect(fieldBounds!.width).toBeGreaterThanOrEqual(viewport!.width * 0.9);
-  expect(Math.abs(fieldBounds!.width / fieldBounds!.height - 1)).toBeLessThanOrEqual(0.01);
+  expect(Math.abs(fieldBounds!.width / fieldBounds!.height - 4 / 3)).toBeLessThanOrEqual(0.01);
 
   expect(controlDockBounds!.x).toBeGreaterThanOrEqual(-1);
   expect(controlDockBounds!.y).toBeGreaterThanOrEqual(-1);
