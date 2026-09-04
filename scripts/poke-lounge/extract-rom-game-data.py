@@ -11,17 +11,15 @@ try:
     from ndspy import lz10
     from ndspy.narc import NARC
     from ndspy.rom import NintendoDSRom
-except ImportError as error:
-    raise SystemExit(
-        "Missing Python package 'ndspy'. Install it with: python3 -m pip install --user ndspy"
-    ) from error
+except ImportError:
+    lz10 = None
+    NARC = None
+    NintendoDSRom = None
 
 try:
     from PIL import Image
-except ImportError as error:
-    raise SystemExit(
-        "Missing Python package 'Pillow'. Install it with: python3 -m pip install --user Pillow"
-    ) from error
+except ImportError:
+    Image = None
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -247,7 +245,21 @@ MAX_LEVEL_UP_MOVE_ID = EXPECTED_MOVE_NAME_COUNT - 1
 MAX_POKEMON_LEVEL = 100
 
 
+def require_extraction_dependencies() -> None:
+    if lz10 is None or NARC is None or NintendoDSRom is None:
+        raise SystemExit(
+            "Missing Python package 'ndspy'. Install it with: "
+            "python3 -m pip install --user ndspy"
+        )
+    if Image is None:
+        raise SystemExit(
+            "Missing Python package 'Pillow'. Install it with: "
+            "python3 -m pip install --user Pillow"
+        )
+
+
 def main() -> None:
+    require_extraction_dependencies()
     parser = argparse.ArgumentParser(
         description="Extract Poke Lounge game data from a local NDS ROM."
     )
