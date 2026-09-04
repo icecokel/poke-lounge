@@ -73,3 +73,17 @@ test("모든 로케일은 8명 정원과 시작 시 AI 자동 참가를 안내�
     assert.match(lobby.autoFillNotice, /AI/);
   }
 });
+
+test("모바일 전투 문구는 한국어 중심 런타임과 같은 언어를 사용한다", function testCase() {
+  for (const locale of ["ko-KR", "en-US", "ja-JP"] as const) {
+    const mobile = getPokeLoungeCopy(locale).mobile;
+
+    assert.equal(mobile.battleDeckLabel, "전투 조작");
+    assert.equal(
+      mobile.moveReplacementPrompt("리아코", "물기"),
+      "리아코의 새 기술 물기. 잊을 기술을 선택하세요.",
+    );
+    assert.equal(mobile.forgetMove, "이 기술을 잊기");
+    assert.equal(mobile.doNotLearnMove, "배우지 않기");
+  }
+});
