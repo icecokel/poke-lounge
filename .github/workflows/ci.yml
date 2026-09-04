@@ -37,6 +37,9 @@ jobs:
           pnpm lint
           pnpm type:check:web
           pnpm check:api-contract
+          python3 scripts/poke-lounge/test_extract_rom_game_data.py
+          pnpm --filter @poke-lounge/api rom-data:check
+          pnpm check:poke-lounge-i18n
           pnpm check:poke-lounge-competitive-catalog
           pnpm check:poke-lounge-battle-resolution
           pnpm poke-lounge:audio:verify

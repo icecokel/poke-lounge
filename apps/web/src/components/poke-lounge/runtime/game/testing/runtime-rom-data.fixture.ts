@@ -1,3 +1,5 @@
+import { canonicalize } from "@poke-lounge/battle/canonical-json";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import growthTable from "../battle/growthTable.json";
@@ -11,12 +13,7 @@ import {
 
 const ROM_SHA1 = "5834fb3a2d751c48501d47d6a56898d7af6ccf9e";
 const webRoot = process.cwd();
-const CONTENT_SHA256_BY_KEY = {
-  "pokemon-data": "dceedc4d12314fff37c80697dbd8ebb749a9dc8138687f08e18109c1acc49723",
-  "item-data": "9b4e6d64e10900571a47889142e86c7f8ee94dc1f315b3010ee25f9bfbf7a32d",
-  "level-up-move-table": "2f499528dd71e5ceccb799f2d7f2d29c2f4970467d61eba6e27b5697664ba2b8",
-  "growth-table": "c6052e967dcb8233a869ea791da98f803dce1e6a9c187323283d4f604f6e374a",
-} as const;
+type RomDocumentKey = "pokemon-data" | "item-data" | "level-up-move-table" | "growth-table";
 
 export function loadRuntimeGameDataJsonFixture(
   fetcher: typeof fetch,
@@ -41,11 +38,7 @@ export async function createRuntimeRomDataFixture(fetcher: typeof fetch) {
   };
 }
 
-async function readDocument(
-  fetcher: typeof fetch,
-  documentKey: keyof typeof CONTENT_SHA256_BY_KEY,
-  path: string,
-) {
+async function readDocument(fetcher: typeof fetch, documentKey: RomDocumentKey, path: string) {
   const response = await fetcher(path);
   if (!response.ok) {
     throw new Error(`Test ROM document ${path} failed: ${response.status}`);
@@ -54,12 +47,12 @@ async function readDocument(
   return document(documentKey, await response.json());
 }
 
-function document(documentKey: keyof typeof CONTENT_SHA256_BY_KEY, payload: unknown) {
+function document(documentKey: RomDocumentKey, payload: unknown) {
   return {
     documentKey,
     schemaVersion: 1,
     romSha1: ROM_SHA1,
-    contentSha256: CONTENT_SHA256_BY_KEY[documentKey],
+    contentSha256: createHash("sha256").update(canonicalize(payload), "utf8").digest("hex"),
     payload,
   };
 }

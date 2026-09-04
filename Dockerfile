@@ -18,6 +18,9 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+RUN pnpm --filter @poke-lounge/api rom-data:check
+RUN pnpm check:poke-lounge-competitive-catalog
+
 RUN pnpm build
 
 ENV NODE_ENV=production

@@ -234,6 +234,17 @@ GEN4_MOVE_CATEGORY_NAMES = {
     1: "special",
     2: "status",
 }
+GEN4_MOVE_EFFECT_MAX = 276
+GEN4_MOVE_TARGET_RANGES = frozenset({0} | {1 << bit for bit in range(11)})
+GEN4_MOVE_PRIORITY_MIN = -7
+GEN4_MOVE_PRIORITY_MAX = 5
+GEN4_MOVE_MAX_ACCURACY = 100
+GEN4_MOVE_MAX_PP = 40
+GEN4_MOVE_MAX_EFFECT_CHANCE = 100
+GEN4_MOVE_MAX_CONTEST_EFFECT = 23
+GEN4_MOVE_MAX_CONTEST_TYPE = 4
+MAX_LEVEL_UP_MOVE_ID = EXPECTED_MOVE_NAME_COUNT - 1
+MAX_POKEMON_LEVEL = 100
 
 
 def main() -> None:
@@ -937,30 +948,92 @@ def parse_move_records(
         if len(data) != 16:
             raise ValueError(f"Move record {move_id} has {len(data)} bytes; expected 16")
 
-        type_id = data[4]
+        effect_code = read_u16le(data, 0)
         category_id = data[2]
+        if category_id not in GEN4_MOVE_CATEGORY_NAMES:
+            raise ValueError(f"Move record {move_id} has invalid category {category_id}")
+
+        type_id = data[4]
+        if type_id >= len(GEN4_TYPE_NAMES):
+            raise ValueError(f"Move record {move_id} has invalid type {type_id}")
+
+        accuracy = data[5]
+        pp = data[6]
+        effect_chance = data[7]
+        target_range = read_u16le(data, 8)
+        priority = read_i8(data, 10)
+        contest_effect = data[12]
+        contest_type = data[13]
+        unknown14 = read_u16le(data, 14)
+
+        validate_integer_range(
+            f"Move record {move_id} effect code", effect_code, 0, GEN4_MOVE_EFFECT_MAX
+        )
+        validate_integer_range(
+            f"Move record {move_id} accuracy", accuracy, 0, GEN4_MOVE_MAX_ACCURACY
+        )
+        validate_integer_range(
+            f"Move record {move_id} PP",
+            pp,
+            0 if move_id == 0 else 1,
+            GEN4_MOVE_MAX_PP,
+        )
+        validate_integer_range(
+            f"Move record {move_id} effect chance",
+            effect_chance,
+            0,
+            GEN4_MOVE_MAX_EFFECT_CHANCE,
+        )
+        if target_range not in GEN4_MOVE_TARGET_RANGES:
+            raise ValueError(
+                f"Move record {move_id} has invalid target range {target_range}"
+            )
+        validate_integer_range(
+            f"Move record {move_id} priority",
+            priority,
+            GEN4_MOVE_PRIORITY_MIN,
+            GEN4_MOVE_PRIORITY_MAX,
+        )
+        validate_integer_range(
+            f"Move record {move_id} contest effect",
+            contest_effect,
+            0,
+            GEN4_MOVE_MAX_CONTEST_EFFECT,
+        )
+        validate_integer_range(
+            f"Move record {move_id} contest type",
+            contest_type,
+            0,
+            GEN4_MOVE_MAX_CONTEST_TYPE,
+        )
+        validate_exact_value(f"Move record {move_id} unknown14", unknown14, 0)
+
         record = {
             "id": move_id,
             "rawHex": data.hex(),
-            "effectCode": read_u16le(data, 0),
-            "category": GEN4_MOVE_CATEGORY_NAMES.get(category_id, "status"),
+            "effectCode": effect_code,
+            "category": GEN4_MOVE_CATEGORY_NAMES[category_id],
             "categoryId": category_id,
             "power": data[3],
             "typeId": type_id,
-            "typeName": (
-                GEN4_TYPE_NAMES[type_id]
-                if type_id < len(GEN4_TYPE_NAMES)
-                else f"type-{type_id}"
-            ),
-            "accuracy": data[5],
-            "pp": data[6],
-            "effectChance": data[7],
-            "range": read_u16le(data, 8),
-            "priority": int.from_bytes(data[10:11], "little", signed=True),
+            "typeName": GEN4_TYPE_NAMES[type_id],
+            "accuracy": accuracy,
+            "pp": pp,
+            "effectChance": effect_chance,
+            "range": target_range,
+            "priority": priority,
+            "flags": data[11],
+            "contestEffect": contest_effect,
+            "contestType": contest_type,
+            "unknown14": unknown14,
         }
         move_name = move_names.get(move_id)
-        if move_name:
+        if 1 <= move_id <= MAX_LEVEL_UP_MOVE_ID:
+            if not move_name:
+                raise ValueError(f"Move record {move_id} has no decoded name")
             record["name"] = move_name
+        elif move_name:
+            raise ValueError(f"Internal move record {move_id} unexpectedly has a name")
         records.append(record)
 
     return records
@@ -1097,18 +1170,49 @@ def parse_learnsets(learnset_narc: NARC) -> dict[int, list[dict[str, int]]]:
     for species_id, file_data in enumerate(learnset_narc.files):
         rows: list[dict[str, int]] = []
         data = bytes(file_data)
+        if len(data) % 2 != 0:
+            raise ValueError(
+                f"Learnset {species_id} has an odd byte length: {len(data)}"
+            )
 
-        for offset in range(0, len(data) - 1, 2):
-            value = read_u16le(data, offset)
-            if value == 0xFFFF:
-                break
-            if value == 0:
-                continue
+        values = [read_u16le(data, offset) for offset in range(0, len(data), 2)]
+        terminator_indexes = [
+            index for index, value in enumerate(values) if value == 0xFFFF
+        ]
+        if len(terminator_indexes) != 1:
+            raise ValueError(
+                f"Learnset {species_id} has {len(terminator_indexes)} FFFF terminators; "
+                "expected exactly 1"
+            )
 
+        terminator_index = terminator_indexes[0]
+        expected_padding = [0] if terminator_index % 2 == 0 else []
+        padding = values[terminator_index + 1 :]
+        if padding != expected_padding:
+            raise ValueError(
+                f"Learnset {species_id} has invalid data after its FFFF terminator: "
+                f"expected {expected_padding}, got {padding}"
+            )
+
+        seen_rows: set[tuple[int, int]] = set()
+        for value in values[:terminator_index]:
             move_id = value & 0x1FF
             level = value >> 9
-            if move_id > 0 and level > 0:
-                rows.append({"level": level, "moveId": move_id})
+            validate_integer_range(
+                f"Learnset {species_id} move ID", move_id, 1, MAX_LEVEL_UP_MOVE_ID
+            )
+            validate_integer_range(
+                f"Learnset {species_id} level", level, 1, MAX_POKEMON_LEVEL
+            )
+
+            row = (level, move_id)
+            if row in seen_rows:
+                raise ValueError(
+                    f"Learnset {species_id} has duplicate row: "
+                    f"level {level}, move ID {move_id}"
+                )
+            seen_rows.add(row)
+            rows.append({"level": level, "moveId": move_id})
 
         learnsets[species_id] = rows
 
@@ -1158,6 +1262,13 @@ def read_u32le(data: bytes, offset: int) -> int:
 def validate_exact_value(label: str, actual: Any, expected: Any) -> None:
     if actual != expected:
         raise ValueError(f"Unexpected {label}: expected {expected!r}, got {actual!r}")
+
+
+def validate_integer_range(label: str, actual: int, minimum: int, maximum: int) -> None:
+    if not minimum <= actual <= maximum:
+        raise ValueError(
+            f"Unexpected {label}: expected {minimum}..{maximum}, got {actual}"
+        )
 
 
 def unique_type_ids(type_ids: list[int]) -> list[int]:

@@ -1,6 +1,8 @@
 import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from '@poke-lounge/battle/runtime-item-ids';
+import { canonicalize } from '@poke-lounge/battle/canonical-json';
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
+import { createHash } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import type {
   PokeLoungeRomDataResponseDto,
@@ -153,12 +155,23 @@ function isValidRow(
     !isRecord(row.payload) ||
     row.payload.version !== 1 ||
     !isRecord(row.payload.source) ||
-    row.payload.source.romSha1 !== EXPECTED_ROM_SHA1
+    row.payload.source.romSha1 !== EXPECTED_ROM_SHA1 ||
+    hashPayload(row.payload) !== row.contentSha256
   ) {
     return false;
   }
 
   return true;
+}
+
+function hashPayload(payload: unknown): string | null {
+  try {
+    return createHash('sha256')
+      .update(canonicalize(payload), 'utf8')
+      .digest('hex');
+  } catch {
+    return null;
+  }
 }
 
 function toDocument(

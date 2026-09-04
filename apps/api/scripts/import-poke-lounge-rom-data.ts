@@ -1,4 +1,10 @@
 import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from '@poke-lounge/battle/runtime-item-ids';
+import { canonicalize } from '@poke-lounge/battle/canonical-json';
+import {
+  GEN4_PLAYABLE_MOVE_MAX_ID,
+  GEN4_PLAYABLE_MOVE_MIN_ID,
+  readCompleteGen4MoveRecords,
+} from '@poke-lounge/battle/runtime-rom-data';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -101,9 +107,10 @@ async function main(): Promise<void> {
           schema_version: number;
           rom_sha1: string;
           content_sha256: string;
+          payload: JsonObject;
         }>
       >(`
-          SELECT "document_key", "schema_version", "rom_sha1", "content_sha256"
+          SELECT "document_key", "schema_version", "rom_sha1", "content_sha256", "payload"
           FROM "poke_lounge_rom_document"
           ORDER BY "document_key"
         `);
@@ -160,7 +167,9 @@ function loadDocument(documentKey: string, relativePath: string): RomDocument {
     documentKey,
     schemaVersion,
     romSha1,
-    contentSha256: createHash('sha256').update(raw).digest('hex'),
+    contentSha256: createHash('sha256')
+      .update(canonicalize(payload), 'utf8')
+      .digest('hex'),
     payload,
   };
 }
@@ -172,9 +181,9 @@ function validatePokemonData(payload: JsonObject): void {
   assertSequentialRecords(species, 'speciesId', 1, 507);
   assertSequentialRecords(moves, 'id', 0, 470);
 
-  const moveNames = Object.values(moves).filter(function filterItem(move) {
-    return typeof asObject(move, 'move').name === 'string';
-  });
+  if (!readCompleteGen4MoveRecords(payload)) {
+    throw new Error('pokemon-data move records are invalid');
+  }
   const evolutionCount = Object.values(species).reduce<number>(
     function reduceItems(count, record) {
       return (
@@ -185,7 +194,7 @@ function validatePokemonData(payload: JsonObject): void {
     0,
   );
 
-  if (moveNames.length !== 467 || evolutionCount !== 246) {
+  if (evolutionCount !== 246) {
     throw new Error('pokemon-data record counts are incomplete');
   }
 }
@@ -244,6 +253,24 @@ function validateLevelUpMoves(
     if (JSON.stringify(rows) !== JSON.stringify(embeddedRows)) {
       throw new Error(`learnset ${key} differs from pokemon-data`);
     }
+    const seenRows = new Set<string>();
+    for (const [index, value] of rows.entries()) {
+      const row = asObject(value, `learnset ${key}[${index}]`);
+      const level = asInteger(row.level, `learnset ${key}[${index}].level`);
+      const moveId = asInteger(row.moveId, `learnset ${key}[${index}].moveId`);
+      const rowKey = `${level}:${moveId}`;
+      if (
+        Object.keys(row).length !== 2 ||
+        level < 1 ||
+        level > 100 ||
+        moveId < GEN4_PLAYABLE_MOVE_MIN_ID ||
+        moveId > GEN4_PLAYABLE_MOVE_MAX_ID ||
+        seenRows.has(rowKey)
+      ) {
+        throw new Error(`learnset ${key}[${index}] is invalid or duplicated`);
+      }
+      seenRows.add(rowKey);
+    }
     rowCount += rows.length;
   }
 
@@ -296,6 +323,7 @@ function assertImportedDocuments(
     schema_version: number;
     rom_sha1: string;
     content_sha256: string;
+    payload: JsonObject;
   }>,
 ): void {
   const expectedMetadata = expected
@@ -311,7 +339,25 @@ function assertImportedDocuments(
       return left.document_key.localeCompare(right.document_key);
     });
 
-  if (JSON.stringify(actual) !== JSON.stringify(expectedMetadata)) {
+  const actualMetadata = actual.map(function mapItem(document) {
+    if (
+      createHash('sha256')
+        .update(canonicalize(document.payload), 'utf8')
+        .digest('hex') !== document.content_sha256
+    ) {
+      throw new Error(
+        `Imported ROM document ${document.document_key} payload hash does not match`,
+      );
+    }
+    return {
+      document_key: document.document_key,
+      schema_version: document.schema_version,
+      rom_sha1: document.rom_sha1,
+      content_sha256: document.content_sha256,
+    };
+  });
+
+  if (JSON.stringify(actualMetadata) !== JSON.stringify(expectedMetadata)) {
     throw new Error(
       'Imported ROM document metadata does not match the source files',
     );

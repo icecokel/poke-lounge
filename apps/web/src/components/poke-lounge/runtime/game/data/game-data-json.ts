@@ -1,4 +1,11 @@
 import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from "@poke-lounge/battle/runtime-item-ids";
+import { canonicalize } from "@poke-lounge/battle/canonical-json";
+import {
+  GEN4_PLAYABLE_MOVE_MAX_ID,
+  GEN4_PLAYABLE_MOVE_MIN_ID,
+  readCompleteGen4MoveRecords,
+  readGen4MoveRecord,
+} from "@poke-lounge/battle/runtime-rom-data";
 import {
   MAX_SUPPORTED_POKEMON_SPECIES_ID,
   MIN_SUPPORTED_POKEMON_SPECIES_ID,
@@ -155,7 +162,8 @@ export async function loadRuntimeGameDataJson(
       fetchRequiredJson(fetcher, WILD_BATTLE_MOVE_SETS_JSON_PATH),
       fetchRequiredJson(fetcher, BATTLE_POKEMON_ASSETS_JSON_PATH),
     ]);
-    const { pokemonData, itemData, levelUpMoveTable, growthTable } = readRomDataResponse(romData);
+    const { pokemonData, itemData, levelUpMoveTable, growthTable } =
+      await readRomDataResponse(romData);
 
     const data = {
       pokemonData,
@@ -379,24 +387,20 @@ export function getRuntimePokemonMoveSummary(moveId: number): RuntimePokemonMove
     return null;
   }
 
-  const move = pokemonData.moves[String(moveId)];
-
-  if (!isRecord(move)) {
-    return null;
-  }
-
-  const id = readPositiveInteger(move.id);
-  const name = typeof move.name === "string" ? move.name.trim() : "";
-  const pp = readPositiveInteger(move.pp);
-
-  if (id !== moveId || !name || !pp) {
+  const move = readGen4MoveRecord(pokemonData.moves[String(moveId)], moveId);
+  if (
+    !move ||
+    moveId < GEN4_PLAYABLE_MOVE_MIN_ID ||
+    moveId > GEN4_PLAYABLE_MOVE_MAX_ID ||
+    !move.name
+  ) {
     return null;
   }
 
   return {
-    id,
-    name,
-    pp,
+    id: move.id,
+    name: move.name,
+    pp: move.pp,
   };
 }
 
@@ -462,49 +466,27 @@ export function getRuntimePokemonMoveDetails(moveId: number): RuntimePokemonMove
   if (!isRecord(pokemonData) || !isRecord(pokemonData.moves)) {
     return null;
   }
-  const move = pokemonData.moves[String(moveId)];
-  if (!isRecord(move)) {
-    return null;
-  }
-  const id = readPositiveInteger(move.id);
-  const name = typeof move.name === "string" ? move.name.trim() : "";
-  const pp = readPositiveInteger(move.pp);
-  const power = typeof move.power === "number" && Number.isInteger(move.power) ? move.power : 0;
-  const accuracy =
-    typeof move.accuracy === "number" && Number.isInteger(move.accuracy) ? move.accuracy : 0;
-  const typeId = typeof move.typeId === "number" && Number.isInteger(move.typeId) ? move.typeId : 0;
-  const typeName = typeof move.typeName === "string" ? move.typeName.trim() : "";
-  const effectCode =
-    typeof move.effectCode === "number" && Number.isInteger(move.effectCode) ? move.effectCode : 0;
-  const effectChance =
-    typeof move.effectChance === "number" && Number.isInteger(move.effectChance)
-      ? move.effectChance
-      : 0;
-  const priority =
-    typeof move.priority === "number" && Number.isInteger(move.priority) ? move.priority : 0;
-  const category = move.category;
+  const move = readGen4MoveRecord(pokemonData.moves[String(moveId)], moveId);
   if (
-    id !== moveId ||
-    !name ||
-    !typeName ||
-    !pp ||
-    typeof category !== "string" ||
-    !["physical", "special", "status"].includes(category)
+    !move ||
+    moveId < GEN4_PLAYABLE_MOVE_MIN_ID ||
+    moveId > GEN4_PLAYABLE_MOVE_MAX_ID ||
+    !move.name
   ) {
     return null;
   }
   return {
-    id,
-    name,
-    pp,
-    power,
-    accuracy,
-    typeId,
-    typeName,
-    effectCode,
-    effectChance,
-    priority,
-    category: category as RuntimePokemonMoveDetails["category"],
+    id: move.id,
+    name: move.name,
+    pp: move.pp,
+    power: move.power,
+    accuracy: move.accuracy,
+    typeId: move.typeId,
+    typeName: move.typeName,
+    effectCode: move.effectCode,
+    effectChance: move.effectChance,
+    priority: move.priority,
+    category: move.category,
   };
 }
 
@@ -592,31 +574,16 @@ export function normalizePokemonDataRecordCount(data: unknown): number | null {
 }
 
 export function normalizePokemonMoveNames(data: unknown): Record<number, string> | null {
-  if (!isRecord(data) || data.version !== 1 || !isRecord(data.moves)) {
+  const moves = readCompleteGen4MoveRecords(data);
+  if (!moves) {
     return null;
   }
 
-  const moveNames = Object.entries(data.moves).reduce<Record<number, string>>(function reduceItems(
-    accumulator,
-    [moveIdKey, value],
-  ) {
-    const moveId = readPositiveInteger(moveIdKey);
-
-    if (!moveId || !isRecord(value) || readPositiveInteger(value.id) !== moveId) {
-      return accumulator;
-    }
-
-    const name = typeof value.name === "string" ? value.name.trim() : "";
-
-    if (!name) {
-      return accumulator;
-    }
-
-    accumulator[moveId] = name;
-    return accumulator;
-  }, {});
-
-  return Object.keys(moveNames).length > 0 ? moveNames : null;
+  const moveNames: Record<number, string> = {};
+  for (let moveId = GEN4_PLAYABLE_MOVE_MIN_ID; moveId <= GEN4_PLAYABLE_MOVE_MAX_ID; moveId += 1) {
+    moveNames[moveId] = moves[moveId].name!;
+  }
+  return moveNames;
 }
 
 export function normalizeLevelUpMoveTable(data: unknown): Record<number, LevelUpMoveRow[]> | null {
@@ -624,20 +591,15 @@ export function normalizeLevelUpMoveTable(data: unknown): Record<number, LevelUp
     return null;
   }
 
-  const species = Object.entries(data.species).reduce<Record<number, LevelUpMoveRow[]>>(
-    function reduceItems(accumulator, [speciesIdKey, value]) {
-      const speciesId = readPositiveInteger(speciesIdKey);
-      const rows = normalizeLevelUpMoveRows(value);
-
-      if (!speciesId || rows.length === 0) {
-        return accumulator;
-      }
-
-      accumulator[speciesId] = rows;
-      return accumulator;
-    },
-    {},
-  );
+  const species: Record<number, LevelUpMoveRow[]> = {};
+  for (const [speciesIdKey, value] of Object.entries(data.species)) {
+    const speciesId = readPositiveInteger(speciesIdKey);
+    const rows = normalizeLevelUpMoveRows(value);
+    if (!speciesId || !rows?.length) {
+      return null;
+    }
+    species[speciesId] = rows;
+  }
 
   return Object.keys(species).length > 0 ? species : null;
 }
@@ -696,26 +658,34 @@ export function normalizeBattlePokemonAssetManifest(
   return { spriteSheetRanges };
 }
 
-function normalizeLevelUpMoveRows(data: unknown): LevelUpMoveRow[] {
+function normalizeLevelUpMoveRows(data: unknown): LevelUpMoveRow[] | null {
   if (!Array.isArray(data)) {
-    return [];
+    return null;
   }
 
   const uniqueRows = new Map<string, LevelUpMoveRow>();
 
   for (const row of data) {
-    if (!isRecord(row)) {
-      continue;
+    if (
+      !isRecord(row) ||
+      Object.keys(row).length !== 2 ||
+      !Number.isSafeInteger(row.level) ||
+      (row.level as number) < 1 ||
+      (row.level as number) > 100 ||
+      !Number.isSafeInteger(row.moveId) ||
+      (row.moveId as number) < GEN4_PLAYABLE_MOVE_MIN_ID ||
+      (row.moveId as number) > GEN4_PLAYABLE_MOVE_MAX_ID
+    ) {
+      return null;
     }
 
-    const level = readPositiveInteger(row.level);
-    const moveId = readPositiveInteger(row.moveId);
-
-    if (!level || !moveId) {
-      continue;
+    const level = row.level as number;
+    const moveId = row.moveId as number;
+    const key = `${level}:${moveId}`;
+    if (uniqueRows.has(key)) {
+      return null;
     }
-
-    uniqueRows.set(`${level}:${moveId}`, { level, moveId });
+    uniqueRows.set(key, { level, moveId });
   }
 
   return [...uniqueRows.values()].sort(function compareItems(left, right) {
@@ -952,8 +922,7 @@ function normalizeBattlePokemonSpriteSheetAssetRecord(
 }
 
 function readPositiveInteger(value: unknown): number | null {
-  const candidate =
-    typeof value === "string" && value.trim().length > 0 ? Number.parseInt(value, 10) : value;
+  const candidate = typeof value === "string" && value.trim().length > 0 ? Number(value) : value;
 
   return typeof candidate === "number" && Number.isInteger(candidate) && candidate > 0
     ? candidate
@@ -961,8 +930,7 @@ function readPositiveInteger(value: unknown): number | null {
 }
 
 function readNonNegativeInteger(value: unknown): number | null {
-  const candidate =
-    typeof value === "string" && value.trim().length > 0 ? Number.parseInt(value, 10) : value;
+  const candidate = typeof value === "string" && value.trim().length > 0 ? Number(value) : value;
 
   return typeof candidate === "number" && Number.isInteger(candidate) && candidate >= 0
     ? candidate
@@ -970,7 +938,7 @@ function readNonNegativeInteger(value: unknown): number | null {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function hasCompleteBattlePokemonSpriteSheetCoverage(
@@ -988,9 +956,11 @@ function hasCompleteBattlePokemonSpriteSheetCoverage(
   });
 }
 
-function readRomDataResponse(
+async function readRomDataResponse(
   data: unknown,
-): Pick<RuntimeGameDataJson, "pokemonData" | "itemData" | "levelUpMoveTable" | "growthTable"> {
+): Promise<
+  Pick<RuntimeGameDataJson, "pokemonData" | "itemData" | "levelUpMoveTable" | "growthTable">
+> {
   if (!isRecord(data) || !Array.isArray(data.documents) || data.documents.length !== 4) {
     throw invalidRomDataResponse();
   }
@@ -1014,6 +984,14 @@ function readRomDataResponse(
       throw invalidRomDataResponse();
     }
 
+    try {
+      if ((await sha256CanonicalJson(candidate.payload)) !== candidate.contentSha256) {
+        throw invalidRomDataResponse();
+      }
+    } catch {
+      throw invalidRomDataResponse();
+    }
+
     documents.set(candidate.documentKey as RomDocumentKey, candidate.payload);
   }
 
@@ -1031,6 +1009,16 @@ function readRomDataResponse(
     levelUpMoveTable: documents.get("level-up-move-table")!,
     growthTable: documents.get("growth-table")!,
   };
+}
+
+async function sha256CanonicalJson(value: unknown): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(canonicalize(value)),
+  );
+  return Array.from(new Uint8Array(digest), function mapItem(byte) {
+    return byte.toString(16).padStart(2, "0");
+  }).join("");
 }
 
 function invalidRomDataResponse(): Error {

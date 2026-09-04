@@ -1,4 +1,6 @@
+import { canonicalize } from "@poke-lounge/battle/canonical-json";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { getExperienceForLevel } from "../battle/experience";
 import {
@@ -117,8 +119,11 @@ test("비었거나 무결하지 않은 ROM API 응답은 정적 데이터로 우
   Reflect.set(wrongHash.documents[0], "contentSha256", "not-a-sha");
   const malformedPayload = structuredClone(validRomData);
   malformedPayload.documents[0].payload = {};
+  const stalePayloadHash = structuredClone(validRomData);
+  const stalePokemonData = readPokemonData(stalePayloadHash);
+  Reflect.set(stalePokemonData, "integrityProbe", true);
 
-  for (const response of [{}, missingDocument, wrongHash, malformedPayload]) {
+  for (const response of [{}, missingDocument, wrongHash, malformedPayload, stalePayloadHash]) {
     await assert.rejects(
       loadRuntimeGameDataJson(fetchPublicGameDataFixture, function callback() {
         return Promise.resolve(response);
@@ -128,6 +133,61 @@ test("비었거나 무결하지 않은 ROM API 응답은 정적 데이터로 우
     assert.throws(function callback() {
       return getRuntimeGrowthExperienceTable(0);
     }, /not loaded/);
+  }
+});
+
+test("정규 기술 이름 누락과 내부 기술 이름 추가를 거부한다", async function testCase() {
+  for (const mutate of [
+    function removePlayableMoveName(moves: Record<string, Record<string, unknown>>) {
+      delete moves["15"].name;
+    },
+    function addInternalMoveName(moves: Record<string, Record<string, unknown>>) {
+      moves["468"].name = "내부 기술";
+    },
+  ]) {
+    const response = structuredClone(validRomData);
+    mutate(readPokemonData(response).moves);
+    refreshPokemonDataHash(response);
+
+    await assert.rejects(
+      loadRuntimeGameDataJson(fetchPublicGameDataFixture, function callback() {
+        return Promise.resolve(response);
+      }),
+      /runtime game data is incomplete/,
+    );
+  }
+});
+
+test("잘못된 기술 상세 필드는 보정하지 않고 ROM 데이터를 거부한다", async function testCase() {
+  for (const [field, value] of [
+    ["id", 34],
+    ["rawHex", "00"],
+    ["power", "broken"],
+    ["pp", 0],
+    ["accuracy", 101],
+    ["typeId", 18],
+    ["typeName", "불꽃"],
+    ["category", "unknown"],
+    ["categoryId", 3],
+    ["effectCode", 277],
+    ["effectChance", -1],
+    ["range", 3],
+    ["priority", 6],
+    ["flags", 256],
+    ["contestEffect", 24],
+    ["contestType", 5],
+    ["unknown14", 1],
+  ] as const) {
+    const response = structuredClone(validRomData);
+    readPokemonData(response).moves["33"][field] = value;
+    refreshPokemonDataHash(response);
+
+    await assert.rejects(
+      loadRuntimeGameDataJson(fetchPublicGameDataFixture, function callback() {
+        return Promise.resolve(response);
+      }),
+      /runtime game data is incomplete/,
+    );
   }
 });
 
@@ -175,4 +235,24 @@ function readRequestPath(input: RequestInfo | URL): string {
     : input instanceof URL
       ? input.pathname
       : new URL(input.url).pathname;
+}
+
+function readPokemonData(response: typeof validRomData): {
+  moves: Record<string, Record<string, unknown>>;
+} {
+  const document = response.documents.find(function findItem(candidate) {
+    return candidate.documentKey === "pokemon-data";
+  });
+  assert.ok(document);
+  return document.payload as { moves: Record<string, Record<string, unknown>> };
+}
+
+function refreshPokemonDataHash(response: typeof validRomData): void {
+  const document = response.documents.find(function findItem(candidate) {
+    return candidate.documentKey === "pokemon-data";
+  });
+  assert.ok(document);
+  document.contentSha256 = createHash("sha256")
+    .update(canonicalize(document.payload), "utf8")
+    .digest("hex");
 }

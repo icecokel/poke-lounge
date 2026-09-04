@@ -1,9 +1,10 @@
+import { canonicalize } from '@poke-lounge/battle/canonical-json';
 import { ServiceUnavailableException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import type { DataSource } from 'typeorm';
 import { PokeLoungeRomDataService } from './poke-lounge-rom-data.service';
 
 const ROM_SHA1 = '5834fb3a2d751c48501d47d6a56898d7af6ccf9e';
-const CONTENT_SHA256 = 'a'.repeat(64);
 const DOCUMENT_KEYS = [
   'pokemon-data',
   'item-data',
@@ -26,7 +27,7 @@ describe('PokeLoungeRomDataService', function testSuite() {
           documentKey,
           schemaVersion: 1,
           romSha1: ROM_SHA1,
-          contentSha256: CONTENT_SHA256,
+          contentSha256: contentSha256(payload(documentKey)),
           payload: payload(documentKey),
         };
       }),
@@ -112,6 +113,14 @@ describe('PokeLoungeRomDataService', function testSuite() {
         return key === 'item-data' ? { ...row(key), payload: {} } : row(key);
       }),
     ],
+    [
+      'stale payload hash',
+      DOCUMENT_KEYS.map(function mapItem(key) {
+        return key === 'pokemon-data'
+          ? { ...row(key), payload: { ...payload(key), changed: true } }
+          : row(key);
+      }),
+    ],
   ])(
     'rejects %s data instead of returning a partial bundle',
     async function callback(_label, rows) {
@@ -127,13 +136,18 @@ describe('PokeLoungeRomDataService', function testSuite() {
 });
 
 function row(documentKey: string, payloadOverride?: object) {
+  const rowPayload = payloadOverride ?? payload(documentKey);
   return {
     documentKey,
     schemaVersion: 1,
     romSha1: ROM_SHA1,
-    contentSha256: CONTENT_SHA256,
-    payload: payloadOverride ?? payload(documentKey),
+    contentSha256: contentSha256(rowPayload),
+    payload: rowPayload,
   };
+}
+
+function contentSha256(value: unknown): string {
+  return createHash('sha256').update(canonicalize(value), 'utf8').digest('hex');
 }
 
 function payload(documentKey: string) {
