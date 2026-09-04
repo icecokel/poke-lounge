@@ -2142,6 +2142,10 @@
   width: min(440px, 100%);
 }
 
+.page :global(.game-startup-panel progress) {
+  width: 100%;
+}
+
 .page :global(.room-entry-panel) {
   display: grid;
   gap: 12px;
