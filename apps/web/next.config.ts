@@ -44,6 +44,15 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingRoot: monorepoRoot,
   transpilePackages: ["@poke-lounge/battle"],
+  async redirects() {
+    return [
+      {
+        source: "/storybook",
+        destination: "/storybook/index.html",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {
