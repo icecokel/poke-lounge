@@ -20,7 +20,7 @@ import {
   COMPETITIVE_SPECIES_CATALOG,
 } from "./competitive-catalog.generated";
 import { canUseCompetitiveStruggle, isCompetitiveMoveSelectable } from "./competitive-party";
-import { calculateGen4Damage, checkGen4Accuracy } from "./gen4-battle-math";
+import { calculateGen4Damage, checkGen4Accuracy, getGen4FixedDamage } from "./gen4-battle-math";
 import { calculateGen4TypeEffectiveness } from "./gen4-type-chart";
 import type { SeededRandom } from "./prng";
 import {
@@ -371,14 +371,19 @@ function executeMove(
   }
 
   const effectiveness = calculateGen4TypeEffectiveness(move.typeId, defender.typeIds);
+  const fixedDamage = getGen4FixedDamage(move.effectCode);
   const isDamaging = move.category !== "status" && move.power > 0 && effectiveness > 0;
   let damage = 0;
   if (isDamaging) {
-    const critical = randomValue(random) < COMPETITIVE_RULESET_V2.criticalHitChance;
-    const range = COMPETITIVE_RULESET_V2.damageRangePercent;
-    const randomFactor =
-      range.minimum + Math.floor(randomValue(random) * (range.maximum - range.minimum + 1));
-    damage = calculateMoveDamage(attacker, defender, move, critical, randomFactor, effectiveness);
+    if (fixedDamage !== null) {
+      damage = fixedDamage;
+    } else {
+      const critical = randomValue(random) < COMPETITIVE_RULESET_V2.criticalHitChance;
+      const range = COMPETITIVE_RULESET_V2.damageRangePercent;
+      const randomFactor =
+        range.minimum + Math.floor(randomValue(random) * (range.maximum - range.minimum + 1));
+      damage = calculateMoveDamage(attacker, defender, move, critical, randomFactor, effectiveness);
+    }
     applyDamage(defender, damage);
     const defenderTeamFainted = setTerminalIfTeamFainted(state, participantIds, targetPlayerId);
     if (isStruggle) {

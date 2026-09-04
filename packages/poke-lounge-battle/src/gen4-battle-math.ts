@@ -36,6 +36,15 @@ const STAGE_MULTIPLIERS: Record<number, readonly [number, number]> = {
   6: [9, 3],
 };
 
+export const GEN4_FIXED_DAMAGE_BY_EFFECT_CODE: Readonly<Record<number, number>> = Object.freeze({
+  41: 40,
+  130: 20,
+});
+
+export function getGen4FixedDamage(effectCode: number): number | null {
+  return GEN4_FIXED_DAMAGE_BY_EFFECT_CODE[effectCode] ?? null;
+}
+
 export function calculateGen4Damage(input: Gen4DamageInput): number {
   if (input.category === "status" || input.power <= 0 || input.typeEffectiveness <= 0) {
     return 0;

@@ -4,8 +4,10 @@ import {
   COMPETITIVE_SPECIES_CATALOG,
 } from "./competitive-catalog.generated";
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "./competitive-ruleset-config";
+import { getGen4FixedDamage } from "./gen4-battle-math";
 import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
 import {
+  isCompetitiveMoveSelectable,
   normalizeCompetitiveParty,
   type CompetitiveIndividualValues,
   type NormalizedCompetitiveParty,
@@ -137,7 +139,7 @@ export function chooseAiCompetitiveAction(
 
   const move = [...active.moves]
     .filter(function filterItem(candidate) {
-      return candidate.pp > 0 && COMPETITIVE_MOVE_CATALOG[candidate.moveId] !== undefined;
+      return candidate.pp > 0 && isCompetitiveMoveSelectable(candidate.moveId);
     })
     .sort(function compareItems(left, right) {
       return (
@@ -151,6 +153,9 @@ export function chooseAiCompetitiveAction(
 
 function expectedMoveValue(moveId: number, speciesId: number): number {
   const move = COMPETITIVE_MOVE_CATALOG[moveId]!;
+  const fixedDamage = getGen4FixedDamage(move.effectCode);
   const typeIds = COMPETITIVE_SPECIES_CATALOG[speciesId]?.typeIds ?? [];
-  return move.power * (move.accuracy || 100) * (typeIds.includes(move.typeId) ? 1.5 : 1);
+  return (
+    (fixedDamage ?? move.power * (typeIds.includes(move.typeId) ? 1.5 : 1)) * (move.accuracy || 100)
+  );
 }

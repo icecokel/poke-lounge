@@ -285,6 +285,53 @@ test("ROM 부가 효과 확률을 그대로 적용한다", function testCase() {
   assert.equal(resolved.opponent.pokemon.status, "paralyzed");
 });
 
+test("고정 피해 기술은 타입 면역만 유지하고 배율·급소·난수를 우회한다", function testCase() {
+  const cases = [
+    { id: 82, name: "용의분노", effectCode: 41, typeId: 16, defenderTypeId: 8, damage: 40 },
+    { id: 49, name: "소닉붐", effectCode: 130, typeId: 0, defenderTypeId: 5, damage: 20 },
+    { id: 49, name: "소닉붐", effectCode: 130, typeId: 0, defenderTypeId: 7, damage: 0 },
+  ];
+
+  for (const fixedDamageMove of cases) {
+    const state = createSpeedOrderBattleState({ playerSpeed: 100, opponentSpeed: 1 });
+    state.player.pokemon.moves = [
+      {
+        ...state.player.pokemon.moves[0]!,
+        id: fixedDamageMove.id,
+        name: fixedDamageMove.name,
+        category: "special",
+        effectCode: fixedDamageMove.effectCode,
+        typeId: fixedDamageMove.typeId,
+      },
+    ];
+    state.player.party[0] = { slotIndex: 0, pokemon: state.player.pokemon };
+    state.opponent.pokemon = {
+      ...state.opponent.pokemon,
+      typeIds: [fixedDamageMove.defenderTypeId],
+      moves: [],
+    };
+    state.opponent.party[0] = { slotIndex: 0, pokemon: state.opponent.pokemon };
+    let randomCalls = 0;
+
+    const resolved = choosePlayerMove(state, 0, {
+      random: () => {
+        randomCalls += 1;
+        return 0;
+      },
+    });
+
+    assert.equal(
+      resolved.opponent.pokemon.currentHp,
+      state.opponent.pokemon.currentHp - fixedDamageMove.damage,
+    );
+    assert.equal(randomCalls, 1);
+    assert.deepEqual(resolved.messageQueue, [
+      `치코리타의 ${fixedDamageMove.name}!`,
+      ...(fixedDamageMove.damage === 0 ? ["효과가 없는 것 같다..."] : []),
+    ]);
+  }
+});
+
 test("웅크리기는 상대를 공격하지 않고 사용자의 방어를 올린다", function testCase() {
   const initialState = createSampleBattleState();
   const defenseCurl = {

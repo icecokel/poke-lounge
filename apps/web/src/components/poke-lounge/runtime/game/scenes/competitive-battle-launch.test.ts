@@ -233,6 +233,8 @@ test("미지원 상태 기술은 선택 불가로, 공격 기술의 미지원 �
   activePokemon.moves = [
     { moveId: 97, pp: 30 },
     { moveId: 2, pp: 25 },
+    { moveId: 82, pp: 10 },
+    { moveId: 69, pp: 20 },
   ];
 
   const state = toAuthoritativeBattleState(projection, "seed-4");
@@ -248,6 +250,8 @@ test("미지원 상태 기술은 선택 불가로, 공격 기술의 미지원 �
     [
       { moveId: 97, name: "고속이동", support: "unsupported-primary" },
       { moveId: 2, name: "태권당수", support: "unsupported-secondary" },
+      { moveId: 82, name: "용의분노", support: undefined },
+      { moveId: 69, name: "지구던지기", support: "unsupported-primary" },
     ],
   );
   assert.equal(
@@ -255,6 +259,10 @@ test("미지원 상태 기술은 선택 불가로, 공격 기술의 미지원 �
     false,
   );
   assert.equal(isLegalAuthoritativeAction(projection, "seed-4", { kind: "move", moveId: 2 }), true);
+  assert.equal(
+    isLegalAuthoritativeAction(projection, "seed-4", { kind: "move", moveId: 69 }),
+    false,
+  );
 });
 
 test("WorldScene은 handed-off old key만 완료하고 next assignment를 한 번만 launch한다", function testCase() {

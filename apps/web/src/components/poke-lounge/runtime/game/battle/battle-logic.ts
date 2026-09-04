@@ -12,7 +12,11 @@ import { BATTLE_PARTY_SLOT_COUNT, syncActivePartyPokemon } from "./battle-party"
 import { calculateWildBattlePokeDollarReward, formatBattlePokeDollars } from "./battle-rewards";
 import { resolveGen4CaptureAttempt } from "./capture-logic";
 import { applyExperienceGain, calculateWildBattleExpGain } from "./experience";
-import { calculateGen4Damage, checkGen4Accuracy } from "@poke-lounge/battle/gen4-battle-math";
+import {
+  calculateGen4Damage,
+  checkGen4Accuracy,
+  getGen4FixedDamage,
+} from "@poke-lounge/battle/gen4-battle-math";
 import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
 import { calculateGen4TypeEffectiveness } from "@poke-lounge/battle/gen4-type-chart";
 import { formatTypeEffectivenessMessage } from "./gen4-type-chart";
@@ -1330,7 +1334,21 @@ function resolveMoveOutcome(
     };
   }
 
+  const fixedDamage = getGen4FixedDamage(move.effectCode);
   const typeEffectiveness = calculateGen4TypeEffectiveness(move.typeId, defender.typeIds);
+
+  if (fixedDamage !== null) {
+    return {
+      damage: typeEffectiveness === 0 ? 0 : fixedDamage,
+      attacker,
+      defender,
+      messages:
+        typeEffectiveness === 0
+          ? [formatTypeEffectivenessMessage(typeEffectiveness)].filter(isString)
+          : [],
+    };
+  }
+
   const critical = move.category === "status" || move.power <= 0 ? false : rollCriticalHit(random);
   const damage = damageForMove(attacker, defender, move, {
     critical,

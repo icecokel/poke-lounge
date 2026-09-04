@@ -1,4 +1,5 @@
 import type { PlayerPokemon, PlayerPokemonMove } from "../state/game-state-store";
+import { isCompetitiveMoveEffectSelectable } from "@poke-lounge/battle/competitive-ruleset-config";
 import {
   getRuntimeLevelUpMoveTable,
   getRuntimeMoveName,
@@ -9,7 +10,6 @@ import type { BattleMove, BattlePokemon } from "./battle-types";
 import type { RomRefinedMoveCollection } from "./wild-battle-factory";
 
 export const MAX_POKEMON_MOVE_COUNT = 4;
-const SUPPORTED_STATUS_MOVE_EFFECT_CODES = new Set([18, 19, 20, 23, 60, 66, 67, 156]);
 
 export interface LevelUpMoveDefinition {
   level: number;
@@ -120,7 +120,7 @@ export function createBattleMoveFromRom(
     power: normalized.power,
   };
 
-  return move.category === "status" && !SUPPORTED_STATUS_MOVE_EFFECT_CODES.has(move.effectCode)
+  return !isCompetitiveMoveEffectSelectable(move)
     ? {
         ...move,
         competitiveEffectSupport: "unsupported-primary",

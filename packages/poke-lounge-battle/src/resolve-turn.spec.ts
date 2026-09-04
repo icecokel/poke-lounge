@@ -106,6 +106,79 @@ describe("competitive turn resolution V2", function testSuite() {
     expect(resolved.stateHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  it.each([
+    {
+      name: "Dragon Rage",
+      moveId: 82,
+      attackerSpeciesId: 147,
+      defenderSpeciesId: 147,
+      expectedDamage: 40,
+    },
+    {
+      name: "Sonic Boom",
+      moveId: 49,
+      attackerSpeciesId: 143,
+      defenderSpeciesId: 95,
+      expectedDamage: 20,
+    },
+    {
+      name: "Sonic Boom against an immune target",
+      moveId: 49,
+      attackerSpeciesId: 143,
+      defenderSpeciesId: 94,
+      expectedDamage: 0,
+    },
+  ])("resolves $name without battle modifiers", function testCase(fixture) {
+    const state = createInitialBattleState([
+      {
+        playerId: PLAYER_A,
+        party: normalizedParty({
+          members: [
+            {
+              slotIndex: 0,
+              speciesId: fixture.attackerSpeciesId,
+              level: 50,
+              moveIds: [fixture.moveId],
+            },
+          ],
+        }),
+      },
+      {
+        playerId: PLAYER_B,
+        party: normalizedParty({
+          members: [
+            {
+              slotIndex: 0,
+              speciesId: fixture.defenderSpeciesId,
+              level: 50,
+              moveIds: [33],
+            },
+          ],
+        }),
+      },
+    ]);
+    const defenderBefore = state.playersById[PLAYER_B]!.team[0]!.currentHp;
+    let randomCalls = 0;
+
+    const resolved = resolveTurn({
+      state,
+      actionsByPlayerId: createCanonicalIdRecord([
+        [PLAYER_A, { kind: "move", moveId: fixture.moveId }],
+      ]),
+      random: {
+        next() {
+          randomCalls += 1;
+          return 0;
+        },
+      },
+    });
+
+    expect(defenderBefore - resolved.state.playersById[PLAYER_B]!.team[0]!.currentHp).toBe(
+      fixture.expectedDamage,
+    );
+    expect(randomCalls).toBe(1);
+  });
+
   it("resolves one submitted action while the other participant skips the turn", function testCase() {
     const state = battleState();
     const defenderBefore = state.playersById[PLAYER_B]!.team[0]!.currentHp;

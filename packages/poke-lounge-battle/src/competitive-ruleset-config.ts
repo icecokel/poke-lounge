@@ -1,3 +1,5 @@
+import { GEN4_FIXED_DAMAGE_BY_EFFECT_CODE, getGen4FixedDamage } from "./gen4-battle-math";
+
 export const COMPETITIVE_RULESET_VERSION = 2;
 export const COMPETITIVE_STRUGGLE_MOVE_ID = "struggle" as const;
 
@@ -23,6 +25,7 @@ export const COMPETITIVE_RULESET_V2 = deepFreeze({
   burnPhysicalAttackDivisor: 2,
   damageRangePercent: { minimum: 85, maximum: 100 },
   criticalHitChance: 1 / 16,
+  fixedDamageByEffectCode: GEN4_FIXED_DAMAGE_BY_EFFECT_CODE,
   struggle: {
     moveId: COMPETITIVE_STRUGGLE_MOVE_ID,
     typeId: 0,
@@ -53,17 +56,20 @@ export const APPROVED_COMPETITIVE_RULESET_V2 = COMPETITIVE_RULESET_V2;
 export interface CompetitiveMoveEffectDescriptor {
   category: "physical" | "special" | "status";
   effectCode: number;
+  power: number;
 }
 
 export function isCompetitiveMoveEffectSelectable(move: CompetitiveMoveEffectDescriptor): boolean {
-  return (
-    move.category !== "status" ||
-    COMPETITIVE_RULESET_V2.supportedPrimaryStatusEffectCodes.includes(
+  if (move.category === "status") {
+    return COMPETITIVE_RULESET_V2.supportedPrimaryStatusEffectCodes.includes(
       move.effectCode as (typeof COMPETITIVE_RULESET_V2.supportedPrimaryStatusEffectCodes)[number],
-    )
-  );
+    );
+  }
+
+  // HGSS 기술표의 위력 1은 별도 대미지 공식이 필요한 센티널이다.
+  return move.power !== 1 || getGen4FixedDamage(move.effectCode) !== null;
 }
 
 // canonical JSON({ catalogHash, ruleset: COMPETITIVE_RULESET_V2 })의 SHA-256이다.
 export const COMPETITIVE_RULESET_HASH =
-  "011a0f940d36c676d61345d10068a55ab979446f6a9f49063e489b73954bb152";
+  "f5011fa021d23fb38aa9bc4d6db8382bfa7b93e9041048939795416b6fc8d05e";

@@ -3,6 +3,7 @@ import {
   COMPETITIVE_STRUGGLE_MOVE_ID,
   isCompetitiveMoveEffectSelectable,
 } from "@poke-lounge/battle/competitive-ruleset-config";
+import { getGen4FixedDamage } from "@poke-lounge/battle/gen4-battle-math";
 import type { CompetitiveAction, CompetitiveProjection } from "../network/local-preview-room";
 import { getBattlePokemonAssets } from "./battle-pokemon-assets";
 import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
@@ -254,17 +255,23 @@ function isRuntimeCompetitiveMoveSelectable(moveId: number): boolean {
 function getCompetitiveEffectSupport(
   move: NonNullable<ReturnType<typeof getRuntimePokemonMoveDetails>>,
 ): Pick<BattleMove, "competitiveEffectSupport"> {
+  if (!isCompetitiveMoveEffectSelectable(move)) {
+    return { competitiveEffectSupport: "unsupported-primary" };
+  }
+
   const supportedEffectCodes: readonly number[] = [
     0,
     ...COMPETITIVE_RULESET_V2.supportedPrimaryStatusEffectCodes,
     ...COMPETITIVE_RULESET_V2.supportedSecondaryEffectCodes,
     ...COMPETITIVE_RULESET_V2.priorityEffectCodes,
   ];
-  if (supportedEffectCodes.includes(move.effectCode)) {
+  if (
+    supportedEffectCodes.includes(move.effectCode) ||
+    getGen4FixedDamage(move.effectCode) !== null
+  ) {
     return {};
   }
   return {
-    competitiveEffectSupport:
-      move.category === "status" ? "unsupported-primary" : "unsupported-secondary",
+    competitiveEffectSupport: "unsupported-secondary",
   };
 }

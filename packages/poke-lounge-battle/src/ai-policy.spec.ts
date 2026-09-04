@@ -29,4 +29,31 @@ describe("AI battle policy", function testSuite() {
       ),
     ).toEqual({ kind: "switch", slotIndex: 1 });
   });
+
+  it("values Dragon Rage as fixed 40 damage", function testCase() {
+    expect(
+      chooseAiCompetitiveAction(
+        {
+          playersById: {
+            ai: {
+              activeSlotIndex: 0,
+              team: [
+                {
+                  slotIndex: 0,
+                  speciesId: 7,
+                  maxHp: 100,
+                  currentHp: 100,
+                  moves: [
+                    { moveId: 33, pp: 35 },
+                    { moveId: 82, pp: 10 },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        "ai",
+      ),
+    ).toEqual({ kind: "move", moveId: 82 });
+  });
 });

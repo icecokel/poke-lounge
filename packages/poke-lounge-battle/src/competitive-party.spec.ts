@@ -218,7 +218,10 @@ describe("competitive party normalization", function testSuite() {
     expect(isCompetitiveMoveSelectable(55)).toBe(true);
     expect(isCompetitiveMoveSelectable(86)).toBe(true);
     expect(isCompetitiveMoveSelectable(111)).toBe(true);
+    expect(isCompetitiveMoveSelectable(82)).toBe(true);
+    expect(isCompetitiveMoveSelectable(69)).toBe(false);
     expect(isCompetitiveMoveSelectable(97)).toBe(false);
+    expect(canUseCompetitiveStruggle([{ moveId: 69, pp: 20 }])).toBe(true);
     expect(canUseCompetitiveStruggle([{ moveId: 97, pp: 30 }])).toBe(true);
     expect(canUseCompetitiveStruggle([{ moveId: 55, pp: 1 }])).toBe(false);
   });

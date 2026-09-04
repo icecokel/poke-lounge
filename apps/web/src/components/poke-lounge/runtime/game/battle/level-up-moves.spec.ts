@@ -56,6 +56,11 @@ test("ROM 한국어 기술명은 코드형 fallback 대신 상대 기술명에 �
       createBattleMoveFromRom(97, moveRecords).competitiveEffectSupport,
       "unsupported-primary",
     );
+    assert.equal(createBattleMoveFromRom(82, moveRecords).competitiveEffectSupport, undefined);
+    assert.equal(
+      createBattleMoveFromRom(69, moveRecords).competitiveEffectSupport,
+      "unsupported-primary",
+    );
   } finally {
     resetRuntimeGameDataJsonStateForTest();
   }

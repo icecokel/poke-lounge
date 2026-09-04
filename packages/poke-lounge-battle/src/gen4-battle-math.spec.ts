@@ -4,7 +4,7 @@ import {
   createDefaultBattleStatStages,
 } from "./battle-stat-stages";
 import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
-import { calculateGen4Damage } from "./gen4-battle-math";
+import { calculateGen4Damage, getGen4FixedDamage } from "./gen4-battle-math";
 import { calculateGen4TypeEffectiveness } from "./gen4-type-chart";
 
 describe("shared Gen 4 battle math", function testSuite() {
@@ -57,6 +57,14 @@ describe("shared Gen 4 battle math", function testSuite() {
         category: "special",
       }),
     ).toBe(18);
+  });
+
+  it.each([
+    [41, 40],
+    [130, 20],
+    [0, null],
+  ])("maps fixed-damage effect %i to %s", function testCase(effectCode, expected) {
+    expect(getGen4FixedDamage(effectCode)).toBe(expected);
   });
 
   it("clamps stat stages to -6 through +6", function testCase() {
