@@ -1351,15 +1351,23 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
             completedAtMs: bracket.status === "completed" ? normalizedNowMs : null,
           }
         : null;
-      const rows = normalizeRoomTournamentStandingRows(
+      const finalRows = normalizeRoomTournamentStandingRows(
         state,
         input.finalStandings,
         bracket?.participants,
       );
 
-      if (input.finalStandings.length > 0 && !rows) {
+      if (input.finalStandings.length > 0 && !finalRows) {
         return { ok: false, reason: "invalid-projection" };
       }
+
+      const rows =
+        finalRows ??
+        (input.finalStandings.length === 0 ? createRoomCumulativeStandingRows(input) : null);
+      const completedRoundAdvanced =
+        input.roomStatus === "round-started" &&
+        input.roundIndex === state.round.roundIndex + 1 &&
+        (previousProjection?.roomCode === input.roomCode || state.round.phase === "round-result");
 
       const projectionAdvanced =
         !previousProjection || roomChanged || input.revision > previousProjection.revision;
@@ -1405,9 +1413,13 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
               ? hasAppliedTournamentRoundResult(state, input.roundIndex)
                 ? state.tournament.lastRoundScores
                 : createRoundScoresFromCumulativeRows(state.tournament.scoresByPlayerId, rows)
-              : roomChanged
-                ? []
-                : state.tournament.lastRoundScores,
+              : completedRoundAdvanced && rows
+                ? hasAppliedTournamentRoundResult(state, input.roundIndex - 1)
+                  ? state.tournament.lastRoundScores
+                  : createRoundScoresFromCumulativeRows(state.tournament.scoresByPlayerId, rows)
+                : roomChanged
+                  ? []
+                  : state.tournament.lastRoundScores,
         },
       };
       if (shouldRestoreCurrentParty) {
@@ -2021,6 +2033,41 @@ function normalizeRoomTournamentStandingRows(
   return rows.sort(function compareItems(left, right) {
     return left.rank - right.rank || left.seed - right.seed;
   });
+}
+
+function createRoomCumulativeStandingRows(
+  input: TournamentStateRoomPayload,
+): CumulativeTournamentScoreRank[] | null {
+  const participants = input.participants.filter(function filterItem(participant) {
+    return participant.role === "participant";
+  });
+  const scorePlayerIds = Object.keys(input.tournament.cumulativeScores);
+  const participantPlayerIds = new Set(
+    participants.map(function mapItem(participant) {
+      return participant.playerId;
+    }),
+  );
+
+  if (
+    scorePlayerIds.length < 2 ||
+    scorePlayerIds.length !== participants.length ||
+    scorePlayerIds.some(function testItem(playerId) {
+      return !participantPlayerIds.has(playerId);
+    })
+  ) {
+    return null;
+  }
+
+  return rankCumulativeTournamentScores(
+    input.tournament.cumulativeScores,
+    participants.map(function mapItem(participant, index) {
+      return {
+        playerId: participant.playerId,
+        displayName: participant.displayName,
+        seed: participant.seed ?? index + 1,
+      };
+    }),
+  );
 }
 
 function createRoundScoresFromCumulativeRows(

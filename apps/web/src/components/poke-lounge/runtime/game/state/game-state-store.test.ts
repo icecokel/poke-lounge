@@ -221,6 +221,45 @@ test("server preparation은 로컬 round clock으로 tournament 단계에 진입
   assert.equal(store.getState().round.preparationEndsAtMs, 301_000);
 });
 
+test("다음 라운드 snapshot은 누적 순위와 직전 라운드 점수를 함께 반영한다", function testCase() {
+  const store = createGameStateStore();
+  const tournament = createProjection(3);
+  store.applyTournamentSnapshotFromRoom(tournament, 1_000);
+
+  const nextRound = createPreparationProjection(4);
+  nextRound.roundIndex = 2;
+  nextRound.roomRound = {
+    ...nextRound.roomRound,
+    index: 2,
+    startedAtMs: 2_000,
+    endsAtMs: 302_000,
+  };
+  nextRound.tournament.cumulativeScores = {
+    "player-1": 25,
+    "player-2": 75,
+  };
+
+  assert.deepEqual(store.applyTournamentSnapshotFromRoom(nextRound, 2_000), { ok: true });
+  assert.deepEqual(
+    store.getState().tournament.standings.map(function mapItem(row) {
+      return [row.playerId, row.rank, row.score];
+    }),
+    [
+      ["player-2", 1, 75],
+      ["player-1", 2, 25],
+    ],
+  );
+  assert.deepEqual(
+    store.getState().tournament.lastRoundScores.map(function mapItem(row) {
+      return [row.playerId, row.score];
+    }),
+    [
+      ["player-2", 75],
+      ["player-1", 25],
+    ],
+  );
+});
+
 test("server projection은 한 번의 notify로 session과 active match에 원자 적용된다", function testCase() {
   const store = createGameStateStore();
   let notifyCount = 0;

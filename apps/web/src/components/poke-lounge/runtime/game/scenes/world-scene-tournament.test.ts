@@ -164,6 +164,62 @@ test("서버 토너먼트 진행 설명은 월드 중앙에 표시하지 않는�
   assert.equal(announcementText, null);
 });
 
+test("다음 라운드 시작 직후 직전 라운드 점수와 누적 순위를 표시한다", function testCase() {
+  const store = createGameStateStore();
+  const firstRound = createProjection(2);
+  store.applyTournamentSnapshotFromRoom(firstRound, 1_000);
+  const nextRound = createProjection(2);
+  nextRound.revision = 6;
+  nextRound.roundIndex = 2;
+  nextRound.roomStatus = "round-started";
+  nextRound.roomRound = {
+    ...nextRound.roomRound,
+    index: 2,
+    phase: "round-started",
+    startedAtMs: 2_000,
+    endsAtMs: 302_000,
+  };
+  nextRound.tournament = {
+    ...nextRound.tournament,
+    bracket: null,
+    activeMatchId: null,
+    activeMatchAuthority: null,
+    cumulativeScores: { "player-1": 25, "player-2": 75 },
+  };
+  store.applyTournamentSnapshotFromRoom(nextRound, 2_000);
+  let announcementText: string | null = null;
+  let result = false;
+  const tournament = createWorldSceneTournament({
+    gameStateStore: store,
+    isBattleIntroPlaying: () => false,
+    hasWorldPlayer: () => false,
+    isRoomTournamentHost: () => false,
+    getRemotePlayerSnapshots: () => [],
+    startTrainerBattle: () => {},
+    getRoomHostPlayerId: () => null,
+    sendTournamentStarted: () => {},
+    sendTournamentMatchResult: () => {},
+    sendTournamentCompleted: () => {},
+    sendRoundScoreUpdates: () => {},
+    createAnnouncement: (text, _fontSize, isResult) => {
+      announcementText = text;
+      result = isResult === true;
+      return {
+        destroy: () => {
+          announcementText = null;
+        },
+      };
+    },
+  });
+
+  tournament.update(2_000);
+
+  assert.equal(result, true);
+  assert.match(announcementText ?? "", /라운드 1\/3 결과/);
+  assert.match(announcementText ?? "", /1위 Player 2 · 이번 \+75 · 방 점수 75/);
+  assert.match(announcementText ?? "", /2위 Player 1 · 이번 \+25 · 방 점수 25/);
+});
+
 test("준비 종료 5초 전에는 전체 대진을 먼저 안내한다", function testCase() {
   const projection = createProjection();
   projection.roomStatus = "round-started";

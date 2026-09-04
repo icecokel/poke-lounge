@@ -285,7 +285,8 @@ export class WorldController {
       sendRoundScoreUpdates: payloads => {
         for (const payload of payloads) this.sendRoomMessage("ROUND_SCORE_UPDATED", payload);
       },
-      createAnnouncement: text => this.createTournamentAnnouncement(text),
+      createAnnouncement: (text, _fontSize, result) =>
+        this.createTournamentAnnouncement(text, result),
     });
     this.applyReturnedTournamentResult(data);
     if (!this.competitiveRoundsEnabled) this.gameStateStore.resetCompetitiveSession();
@@ -656,8 +657,9 @@ export class WorldController {
     this.tournament?.update(nowMs);
   }
 
-  private createTournamentAnnouncement(text: string): { destroy(): void } {
+  private createTournamentAnnouncement(text: string, forceResult = false): { destroy(): void } {
     const result =
+      forceResult ||
       this.gameStateStore.getState().round.phase === "round-result" ||
       this.gameStateStore.getState().round.phase === "game-result";
     this.options.worldUiStore.publishPresentation({

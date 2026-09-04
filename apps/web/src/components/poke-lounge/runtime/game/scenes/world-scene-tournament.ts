@@ -52,6 +52,7 @@ interface TournamentAnnouncement {
 }
 
 export const TOURNAMENT_BRIEFING_DURATION_MS = 5_000;
+const TOURNAMENT_RESULT_DURATION_MS = 10_000;
 
 export interface WorldSceneTournamentDependencies {
   gameStateStore: GameStateStore;
@@ -79,7 +80,11 @@ export interface WorldSceneTournamentDependencies {
   sendRoundScoreUpdates(
     payloads: ReturnType<typeof createRoundScoreUpdatedAuthorityPayloads>,
   ): void;
-  createAnnouncement(text: string, fontSize: "14px" | "16px"): TournamentAnnouncement;
+  createAnnouncement(
+    text: string,
+    fontSize: "14px" | "16px",
+    result?: boolean,
+  ): TournamentAnnouncement;
 }
 
 export function createWorldSceneTournament(
@@ -460,16 +465,62 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       return;
     }
 
+    if (this.showServerRoundResultIfNeeded(projection, nowMs)) {
+      return;
+    }
+
     this.clearPresentation();
   }
 
-  private setAnnouncement(text: string, fontSize: "14px" | "16px"): void {
+  private showServerRoundResultIfNeeded(
+    projection: TournamentStateRoomPayload,
+    nowMs: number,
+  ): boolean {
+    const state = this.dependencies.gameStateStore.getState();
+    const startedAtMs = projection.roomRound.startedAtMs;
+
+    if (
+      projection.roomStatus !== "round-started" ||
+      projection.roundIndex <= 1 ||
+      startedAtMs === null ||
+      nowMs >= startedAtMs + TOURNAMENT_RESULT_DURATION_MS ||
+      state.tournament.lastRoundScores.length === 0 ||
+      state.tournament.standings.length === 0
+    ) {
+      return false;
+    }
+
+    const panel = createTournamentResultPanelViewModel({
+      roundIndex: projection.roundIndex - 1,
+      totalRounds: state.round.totalRounds,
+      final: false,
+      standings: createVisibleTournamentStandings(state),
+      roundScores: state.tournament.lastRoundScores,
+      cumulativeScores: state.tournament.scoresByPlayerId,
+      publicRankingIncluded: projection.competitionKind === "ranked-head-to-head",
+    });
+    this.setAnnouncement(
+      [
+        panel.title,
+        ...panel.rows.map(formatTournamentResultRow),
+        panel.rankingLabel,
+        `다음 라운드 준비 중 · ${formatRemainingTime(
+          Math.max(0, (projection.roomRound.endsAtMs ?? nowMs) - nowMs),
+        )}`,
+      ].join("\n"),
+      "14px",
+      true,
+    );
+    return true;
+  }
+
+  private setAnnouncement(text: string, fontSize: "14px" | "16px", result = false): void {
     if (this.announcement && this.announcementText === text) {
       return;
     }
 
     this.announcement?.destroy();
-    this.announcement = this.dependencies.createAnnouncement(text, fontSize);
+    this.announcement = this.dependencies.createAnnouncement(text, fontSize, result);
     this.announcementText = text;
   }
 }
