@@ -37,6 +37,7 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
 
   expect(process.env.POKE_LOUNGE_E2E_ENV_ISOLATED).toBe("1");
   const hostContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await hostContext.grantPermissions(["clipboard-read", "clipboard-write"]);
   const guestContext = await browser.newContext({
     hasTouch: true,
     isMobile: true,
@@ -61,6 +62,21 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
     await enterPublicRoom(hostPage, "빠른 레드", temporaryPassword);
     const hostRoom = await readRoom(await hostRoomResponse);
     await expect(hostPage.locator("[data-room-lobby='true']")).toBeVisible();
+    const shareButton = hostPage.locator("[data-room-lobby-share='true']");
+    await expect(shareButton).toBeVisible();
+    await shareButton.click();
+    await expect(shareButton).toHaveText("링크 복사됨");
+    const sharedUrl = new URL(
+      await hostPage.evaluate(function evaluatePage() {
+        return navigator.clipboard.readText();
+      }),
+    );
+    expect(sharedUrl.origin).toBe(new URL(hostPage.url()).origin);
+    expect(sharedUrl.pathname).toBe(new URL(hostPage.url()).pathname);
+    expect(sharedUrl.searchParams.get("network")).toBe("server");
+    expect(sharedUrl.searchParams.get("room")).toBe(hostRoom.roomCode);
+    expect(sharedUrl.searchParams.has("create")).toBe(false);
+    expect(sharedUrl.searchParams.has("e2e")).toBe(false);
 
     const guestRoomResponse = guestPage.waitForResponse(isRoomCreationResponse);
     await enterPublicRoom(guestPage, "침착한 그린", temporaryPassword);
@@ -89,6 +105,7 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
     await expect(hostPage.locator("[data-room-lobby-participant='true']")).toHaveCount(2);
     await expect(hostPage.locator("[data-room-lobby-badge='true']")).toHaveCount(7);
     await expect(hostPage.locator("[data-room-lobby-actions='true']")).toBeVisible();
+    await expect(guestPage.locator("[data-room-lobby-share='true']")).toBeVisible();
     await expect(hostPage.locator("[data-room-lobby-status='true']")).toBeVisible();
 
     expect(guestRoom.roomCode === hostRoom.roomCode).toBe(true);

@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import growthTable from "../battle/growthTable.json";
 import {
   ITEM_DATA_JSON_PATH,
@@ -11,7 +10,7 @@ import {
 } from "../data/game-data-json";
 
 const ROM_SHA1 = "5834fb3a2d751c48501d47d6a56898d7af6ccf9e";
-const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
+const webRoot = process.cwd();
 const CONTENT_SHA256_BY_KEY = {
   "pokemon-data": "dceedc4d12314fff37c80697dbd8ebb749a9dc8138687f08e18109c1acc49723",
   "item-data": "9b4e6d64e10900571a47889142e86c7f8ee94dc1f315b3010ee25f9bfbf7a32d",

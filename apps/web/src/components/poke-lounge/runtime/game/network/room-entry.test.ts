@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getPokeLoungeCopy } from "../../../poke-lounge-copy";
 import {
+  createRoomShareUrl,
   createTemporaryPassword,
   deriveTemporaryRoomCode,
   normalizeTemporaryPassword,
@@ -122,20 +123,39 @@ test("기본 멀티플레이 닉네임은 로케일별 5×5 조합 중 하나를
 });
 
 test("임시 비밀번호는 원문 대신 동일한 6자리 방 키로 파생한다", async function testCase() {
-  assert.equal(normalizeTemporaryPassword(" １２３ 친구 "), "123 친구");
+  assert.equal(normalizeTemporaryPassword(" １２３ａｂｃ "), "123ABC");
 
-  const normalizedCode = await deriveTemporaryRoomCode(" １２３ 친구 ");
-  const sameCode = await deriveTemporaryRoomCode("123 친구");
-  const differentCode = await deriveTemporaryRoomCode("다른 친구");
+  const normalizedCode = await deriveTemporaryRoomCode(" １２３ａｂｃ ");
+  const sameCode = await deriveTemporaryRoomCode("123ABC");
+  const differentCode = await deriveTemporaryRoomCode("123ABD");
 
   assert.match(normalizedCode, /^[A-HJ-NP-Z2-9]{6}$/);
   assert.equal(normalizedCode, sameCode);
   assert.notEqual(normalizedCode, differentCode);
   await assert.rejects(function callback() {
-    return deriveTemporaryRoomCode("   ");
+    return deriveTemporaryRoomCode("ABC12");
   });
 });
 
-test("랜덤 임시 비밀번호는 혼동하기 어려운 12자리 문자로 생성한다", function testCase() {
-  assert.match(createTemporaryPassword(), /^[A-HJ-NP-Z2-9]{12}$/);
+test("랜덤 임시 비밀번호는 혼동하기 어려운 영문·숫자 6자리로 생성한다", function testCase() {
+  assert.match(createTemporaryPassword(), /^[A-HJ-NP-Z2-9]{6}$/);
+});
+
+test("공유 링크는 생성된 방 코드를 담고 생성·테스트·사용자 식별값을 제거한다", function testCase() {
+  const shareUrl = createRoomShareUrl(
+    new URL(
+      "https://example.test/ko-KR/game/poke-lounge?network=server&create=1&e2e=1&scene=world&serverPlayerId=p1&serverSessionId=s1",
+    ),
+    "ROOM01",
+  );
+
+  assert.ok(shareUrl);
+  const parsedUrl = new URL(shareUrl);
+  assert.equal(parsedUrl.searchParams.get("network"), "server");
+  assert.equal(parsedUrl.searchParams.get("room"), "ROOM01");
+  assert.equal(parsedUrl.searchParams.has("create"), false);
+  assert.equal(parsedUrl.searchParams.has("e2e"), false);
+  assert.equal(parsedUrl.searchParams.has("scene"), false);
+  assert.equal(parsedUrl.searchParams.has("serverPlayerId"), false);
+  assert.equal(parsedUrl.searchParams.has("serverSessionId"), false);
 });

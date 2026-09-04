@@ -59,6 +59,7 @@ import {
   type PokeLoungePartySlotSummary,
 } from "./runtime/game/ui/mobile-world-ui";
 import { hasPokeLoungeMobileFullscreenScene } from "./runtime/game/ui/mobile-ui-capability";
+import { createRoomShareUrl } from "./runtime/game/network/room-entry";
 import { getPokeLoungeCopy } from "./poke-lounge-copy";
 import {
   createPokeLoungeRoomEntryUrl,
@@ -146,31 +147,12 @@ function isShortcutGuideOpen(ownerDocument: Document): boolean {
   return ownerDocument.body.classList.contains("is-shortcut-guide-open");
 }
 
-function createPokeLoungeRoomShareUrlFromLocation(): string | null {
+function createPokeLoungeRoomShareUrlFromLocation(roomCode?: string | null): string | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  return createPokeLoungeRoomShareUrl(new URL(window.location.href));
-}
-
-function createPokeLoungeRoomShareUrl(currentUrl: URL): string | null {
-  const network = currentUrl.searchParams.get("network");
-  const roomCode = currentUrl.searchParams.get("room");
-
-  if ((network !== "local" && network !== "server") || !roomCode) {
-    return null;
-  }
-
-  const shareUrl = new URL(currentUrl.href);
-  shareUrl.searchParams.set("network", network);
-  shareUrl.searchParams.set("room", roomCode);
-  shareUrl.searchParams.delete("create");
-  shareUrl.searchParams.delete("e2e");
-  shareUrl.searchParams.delete("e2eBattle");
-  shareUrl.searchParams.delete("scene");
-
-  return shareUrl.href;
+  return createRoomShareUrl(new URL(window.location.href), roomCode);
 }
 
 function readStoredVolumeLevelIndex(): number | null {
@@ -286,15 +268,17 @@ export function PokeLoungeGame() {
   const volumeLabel = volumePercent === 0 ? copy.volumeMuted : copy.volumeLabel(volumePercent);
   const volumeAriaLabel = copy.volumeAriaLabel(volumePercent);
   const uiSizeLabel = uiSize === "large" ? copy.uiLarge : copy.uiNormal;
-  const roomShareUrl = settingsOpen ? createPokeLoungeRoomShareUrlFromLocation() : null;
-  const localRoomShare =
-    Boolean(roomShareUrl) &&
-    typeof window !== "undefined" &&
-    new URL(window.location.href).searchParams.get("network") === "local";
   const multiplayerRoomId =
     connectionSummary.roomId && connectionSummary.roomId !== "local-preview"
       ? connectionSummary.roomId
       : null;
+  const roomShareUrl = createPokeLoungeRoomShareUrlFromLocation(
+    runtimeState.phase === "lobby" ? runtimeState.projection.roomCode : multiplayerRoomId,
+  );
+  const localRoomShare =
+    Boolean(roomShareUrl) &&
+    typeof window !== "undefined" &&
+    new URL(window.location.href).searchParams.get("network") === "local";
   const connectionLabel =
     connectionSummary.connectionStatus === "online"
       ? copy.connectionConnected
@@ -512,21 +496,29 @@ export function PokeLoungeGame() {
     [copy.hydrationLocalFallback],
   );
 
-  const handleRoomShare = useCallback(async function memoizedCallback() {
-    const shareUrl = createPokeLoungeRoomShareUrlFromLocation();
+  const handleRoomShare = useCallback(
+    async function memoizedCallback() {
+      if (!roomShareUrl || !navigator.clipboard?.writeText) {
+        setRoomShareStatus("error");
+        return;
+      }
 
-    if (!shareUrl || !navigator.clipboard?.writeText) {
-      setRoomShareStatus("error");
-      return;
-    }
+      try {
+        await navigator.clipboard.writeText(roomShareUrl);
+        setRoomShareStatus("success");
+      } catch {
+        setRoomShareStatus("error");
+      }
+    },
+    [roomShareUrl],
+  );
 
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setRoomShareStatus("success");
-    } catch {
-      setRoomShareStatus("error");
-    }
-  }, []);
+  useEffect(
+    function runEffect() {
+      setRoomShareStatus("idle");
+    },
+    [roomShareUrl],
+  );
 
   useEffect(
     function runEffect() {
@@ -733,6 +725,17 @@ export function PokeLoungeGame() {
       const viewportTop = viewport?.offsetTop ?? 0;
       const viewportRight = viewportLeft + (viewport?.width ?? window.innerWidth);
       const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+      const focusedInput = page.querySelector<HTMLElement>(
+        '.room-entry-screen input[type="text"]:focus',
+      );
+      const keyboardOpen = Boolean(
+        focusedInput ||
+        (page.hasAttribute("data-poke-lounge-keyboard-open") &&
+          viewport &&
+          viewport.height < window.innerHeight),
+      );
+
+      page.toggleAttribute("data-poke-lounge-keyboard-open", keyboardOpen);
 
       if (
         document.fullscreenElement === page ||
@@ -766,7 +769,7 @@ export function PokeLoungeGame() {
       page.style.setProperty(POKE_LOUNGE_CONTAINER_HEIGHT_VAR, `${Math.floor(height)}px`);
 
       if (viewport && viewport.height < window.innerHeight) {
-        page.querySelector<HTMLElement>("input:focus")?.scrollIntoView({ block: "center" });
+        focusedInput?.scrollIntoView({ block: "center" });
       }
     };
 
@@ -774,6 +777,8 @@ export function PokeLoungeGame() {
 
     const resizeObserver = new ResizeObserver(updateContainerSize);
     resizeObserver.observe(parent);
+    page.addEventListener("focusin", updateContainerSize);
+    page.addEventListener("focusout", updateContainerSize);
     window.addEventListener("resize", updateContainerSize);
     window.visualViewport?.addEventListener("resize", updateContainerSize);
     document.addEventListener("fullscreenchange", updateContainerSize);
@@ -781,12 +786,15 @@ export function PokeLoungeGame() {
 
     return function callback() {
       resizeObserver.disconnect();
+      page.removeEventListener("focusin", updateContainerSize);
+      page.removeEventListener("focusout", updateContainerSize);
       window.removeEventListener("resize", updateContainerSize);
       window.visualViewport?.removeEventListener("resize", updateContainerSize);
       document.removeEventListener("fullscreenchange", updateContainerSize);
       document.removeEventListener(GAME_FULLSCREEN_STATE_EVENT, updateContainerSize);
       page.style.removeProperty(POKE_LOUNGE_CONTAINER_WIDTH_VAR);
       page.style.removeProperty(POKE_LOUNGE_CONTAINER_HEIGHT_VAR);
+      page.removeAttribute("data-poke-lounge-keyboard-open");
     };
   }, []);
 
@@ -1221,11 +1229,14 @@ export function PokeLoungeGame() {
       <PokeLoungeGameFrame
         copy={copy}
         gameRuntimeMounted={gameRuntimeMounted}
+        roomShareAvailable={Boolean(roomShareUrl)}
+        roomShareStatus={roomShareStatus}
         runtimeState={runtimeState}
         touchGameDevice={touchGameDevice}
         onOpenSettings={function handleOpenSettings() {
           return setSettingsOpen(true);
         }}
+        onRoomShare={handleRoomShare}
       />
       {touchGameDevice && gameRuntimeMounted ? (
         <MobileGameShell

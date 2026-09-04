@@ -1,6 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
-import { expect, type Browser, type Page, type Request, test } from "@playwright/test";
+import { devices, expect, type Browser, type Page, type Request, test } from "@playwright/test";
 import { COMPETITIVE_RULESET_HASH } from "@poke-lounge/battle/competitive-ruleset-config";
 import {
   createTournamentBracketState,
@@ -12,14 +10,12 @@ import {
   toAuthoritativeBattleState,
 } from "../../src/components/poke-lounge/runtime/game/battle/authoritative-battle-adapter";
 import { parseCompetitiveProjection } from "../../src/components/poke-lounge/runtime/game/network/competitive-projection";
+import { resetRuntimeGameDataJsonStateForTest } from "../../src/components/poke-lounge/runtime/game/data/game-data-json";
 import {
-  BATTLE_POKEMON_ASSETS_JSON_PATH,
-  LEVEL_UP_MOVE_TABLE_JSON_PATH,
-  loadRuntimeGameDataJson,
-  POKEMON_DATA_JSON_PATH,
-  resetRuntimeGameDataJsonStateForTest,
-  WILD_BATTLE_MOVE_SETS_JSON_PATH,
-} from "../../src/components/poke-lounge/runtime/game/data/game-data-json";
+  createRuntimeRomDataFixture,
+  fetchPublicGameDataFixture,
+  loadPublicRuntimeGameDataFixture,
+} from "../../src/components/poke-lounge/runtime/game/testing/runtime-rom-data.fixture";
 import { createCompetitiveBattleLaunchCache } from "../../src/components/poke-lounge/runtime/game/scenes/competitive-battle-launch";
 import type { CompetitiveProjection } from "../../src/components/poke-lounge/runtime/game/network/local-preview-room";
 import { createGameStateStore } from "../../src/components/poke-lounge/runtime/game/state/game-state-store";
@@ -97,31 +93,11 @@ const ROOM_EXPIRES_AT_MS = 253402300799999;
 const COMPETITIVE_TURN_ENDS_AT_MS = Date.now() + 60 * 60 * 1000;
 const AUTH_ID_TOKEN_EXPIRES_AT = Math.floor(Date.now() / 1000) + 60 * 60;
 const AUTH_ID_TOKEN = `${Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: AUTH_ID_TOKEN_EXPIRES_AT })).toString("base64url")}.signature`;
-const webRoot = process.cwd();
+let runtimeRomDataFixture: Awaited<ReturnType<typeof createRuntimeRomDataFixture>>;
 
 test.beforeAll(async function setUpTests() {
-  await loadRuntimeGameDataJson(async function callback(input) {
-    const requestPath =
-      typeof input === "string"
-        ? input
-        : input instanceof URL
-          ? input.pathname
-          : new URL(input.url).pathname;
-    if (
-      ![
-        POKEMON_DATA_JSON_PATH,
-        LEVEL_UP_MOVE_TABLE_JSON_PATH,
-        WILD_BATTLE_MOVE_SETS_JSON_PATH,
-        BATTLE_POKEMON_ASSETS_JSON_PATH,
-      ].includes(requestPath)
-    ) {
-      return new Response(null, { status: 404 });
-    }
-    return new Response(
-      fs.readFileSync(path.join(webRoot, "public", requestPath.replace(/^\//, "")), "utf8"),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
-  });
+  runtimeRomDataFixture = await createRuntimeRomDataFixture(fetchPublicGameDataFixture);
+  await loadPublicRuntimeGameDataFixture();
 });
 
 test.afterAll(function tearDownTests() {
@@ -2314,6 +2290,45 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     await guestPage.context().close();
   });
 
+  test("모바일 대기실 공유 버튼은 확정된 방 딥링크를 복사한다", async function testCase({
+    browser,
+  }) {
+    const server = createMockServerState();
+    server.joinedParticipants.push({
+      playerId: "existing-host",
+      sessionId: "existing-host-session",
+      displayName: "방장",
+      joinedAtMs: 0,
+    });
+
+    const context = await browser.newContext({
+      ...devices["iPhone 13"],
+      viewport: { width: 390, height: 844 },
+    });
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    const page = await context.newPage();
+    await mockServerRoom(page, server, { lobbyLifecycle: true, wrapped: true });
+    await startServerRoom(page);
+
+    const shareButton = page.locator("[data-room-lobby-share='true']");
+    await expect(shareButton).toBeVisible();
+    await shareButton.click();
+    await expect(shareButton).toHaveText("링크 복사됨");
+
+    const sharedUrl = new URL(
+      await page.evaluate(function evaluatePage() {
+        return navigator.clipboard.readText();
+      }),
+    );
+    expect(sharedUrl.origin).toBe(new URL(page.url()).origin);
+    expect(sharedUrl.pathname).toBe(`/${LOCALE}/game/poke-lounge`);
+    expect(sharedUrl.searchParams.get("network")).toBe("server");
+    expect(sharedUrl.searchParams.get("room")).toBe(ROOM_CODE);
+    expect(sharedUrl.searchParams.has("create")).toBe(false);
+    expect(sharedUrl.searchParams.has("e2e")).toBe(false);
+    await context.close();
+  });
+
   test("server room은 connect 시점과 로컬 파티 변경 시점에 party snapshot을 전송한다", async function testCase({
     page,
   }) {
@@ -3198,6 +3213,13 @@ async function mockServerRoom(
     options.bodyReadFailureSuffix,
   );
   let completedOnRecoveryGet = false;
+  await page.route("**/poke-lounge/rom-data", function callback(route) {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: runtimeRomDataFixture }),
+    });
+  });
   await page.route("**/poke-lounge/rooms**", async function callback(route) {
     const request = route.request();
     const url = new URL(request.url());
@@ -3906,6 +3928,7 @@ function createWaitingRoomState(server: MockServerState) {
 function createLobbyWaitingRoomState(server: MockServerState) {
   return {
     roomCode: ROOM_CODE,
+    visibility: "private",
     hostPlayerId: server.joinedParticipants[0]?.playerId ?? null,
     revision: server.revision,
     expiresAtMs: ROOM_EXPIRES_AT_MS,
@@ -4088,6 +4111,7 @@ function createCompletedRoomState(server?: MockServerState) {
 
   return {
     roomCode: ROOM_CODE,
+    visibility: "private",
     hostPlayerId: first.playerId,
     revision: server?.revision ?? 0,
     expiresAtMs: ROOM_EXPIRES_AT_MS,

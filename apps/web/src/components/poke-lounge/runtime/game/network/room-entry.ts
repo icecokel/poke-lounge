@@ -1,10 +1,9 @@
 export const ROOM_CODE_LENGTH = 6;
+export const TEMPORARY_PASSWORD_LENGTH = 6;
 export const ROOM_ROUND_DURATION_QUERY_PARAM = "roundMs";
 export const ROOM_ROUND_DURATION_OPTIONS_MS = [180_000, 300_000, 600_000, 900_000] as const;
 
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const MAX_TEMPORARY_PASSWORD_LENGTH = 64;
-const GENERATED_TEMPORARY_PASSWORD_LENGTH = 12;
 
 export type RoomEntryMode = "unset" | "solo" | "local-room" | "server-room" | "webrtc";
 export type RoomRoundDurationMs = (typeof ROOM_ROUND_DURATION_OPTIONS_MS)[number];
@@ -37,15 +36,15 @@ export function createRoomCode(random: () => number = Math.random): string {
 }
 
 export function normalizeTemporaryPassword(value: string): string {
-  return Array.from(value.normalize("NFKC").trim())
-    .slice(0, MAX_TEMPORARY_PASSWORD_LENGTH)
-    .join("");
+  return value
+    .normalize("NFKC")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, TEMPORARY_PASSWORD_LENGTH);
 }
 
 export function createTemporaryPassword(): string {
-  const randomValues = globalThis.crypto.getRandomValues(
-    new Uint8Array(GENERATED_TEMPORARY_PASSWORD_LENGTH),
-  );
+  const randomValues = globalThis.crypto.getRandomValues(new Uint8Array(TEMPORARY_PASSWORD_LENGTH));
 
   return Array.from(randomValues, function callback(byte) {
     return ROOM_CODE_ALPHABET[byte & (ROOM_CODE_ALPHABET.length - 1)];
@@ -55,8 +54,8 @@ export function createTemporaryPassword(): string {
 export async function deriveTemporaryRoomCode(password: string): Promise<string> {
   const normalizedPassword = normalizeTemporaryPassword(password);
 
-  if (!normalizedPassword) {
-    throw new Error("Temporary password is required.");
+  if (normalizedPassword.length !== TEMPORARY_PASSWORD_LENGTH) {
+    throw new Error("Temporary password must be 6 alphanumeric characters.");
   }
 
   const digest = new Uint8Array(
@@ -91,6 +90,31 @@ export function createServerInviteUrl(
   applyRoomRoundDurationSearchParam(url, roundDurationMs);
 
   return url;
+}
+
+export function createRoomShareUrl(currentUrl: URL, roomCode?: string | null): string | null {
+  const network = currentUrl.searchParams.get("network");
+  const normalizedRoomCode = normalizeRoomCode(
+    roomCode ?? currentUrl.searchParams.get("room") ?? "",
+  );
+
+  if ((network !== "local" && network !== "server") || !normalizedRoomCode) {
+    return null;
+  }
+
+  const shareUrl = new URL(currentUrl.href);
+  shareUrl.searchParams.set("network", network);
+  shareUrl.searchParams.set("room", normalizedRoomCode);
+  shareUrl.searchParams.delete("create");
+  shareUrl.searchParams.delete("quick");
+  shareUrl.searchParams.delete("e2e");
+  shareUrl.searchParams.delete("e2eBattle");
+  shareUrl.searchParams.delete("localTest");
+  shareUrl.searchParams.delete("scene");
+  shareUrl.searchParams.delete("serverPlayerId");
+  shareUrl.searchParams.delete("serverSessionId");
+
+  return shareUrl.href;
 }
 
 export function normalizeRoomRoundDurationMs(value: unknown): RoomRoundDurationMs | null {

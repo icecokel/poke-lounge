@@ -7,6 +7,7 @@ import {
   createTemporaryPassword,
   deriveTemporaryRoomCode,
   normalizeTemporaryPassword,
+  TEMPORARY_PASSWORD_LENGTH,
 } from "../network/room-entry";
 import {
   normalizeMultiplayerDisplayName,
@@ -15,7 +16,17 @@ import {
 import { getWebRtcSignalingCopy } from "../network/web-rtc-signaling-panel";
 import { createRoomLobbyViewState, type RoomLobbyMutation } from "./room-lobby-screen";
 
-export function PokeLoungeRuntimeScreen({ state }: { state: PokeLoungeRuntimeState }) {
+export function PokeLoungeRuntimeScreen({
+  roomShareAvailable,
+  roomShareLabel,
+  state,
+  onRoomShare,
+}: {
+  roomShareAvailable: boolean;
+  roomShareLabel: string;
+  state: PokeLoungeRuntimeState;
+  onRoomShare(): void;
+}) {
   if (state.phase === "entry") {
     return state.screen === "room" ? (
       <RoomEntryScreen state={state} />
@@ -33,7 +44,14 @@ export function PokeLoungeRuntimeScreen({ state }: { state: PokeLoungeRuntimeSta
     return <RuntimeErrorScreen state={state} />;
   }
   if (state.phase === "lobby") {
-    return <RoomLobbyScreen state={state} />;
+    return (
+      <RoomLobbyScreen
+        roomShareAvailable={roomShareAvailable}
+        roomShareLabel={roomShareLabel}
+        state={state}
+        onRoomShare={onRoomShare}
+      />
+    );
   }
   return null;
 }
@@ -74,7 +92,7 @@ function RoomEntryScreen({
       setMessage(copy.roomEntry.multiplayerNameRequired);
       return;
     }
-    if (!normalizedPassword) {
+    if (normalizedPassword.length !== TEMPORARY_PASSWORD_LENGTH) {
       setMessage(copy.roomEntry.temporaryPasswordRequired);
       return;
     }
@@ -184,15 +202,17 @@ function RoomEntryScreen({
               <div className="room-entry-password-row">
                 <input
                   id="poke-lounge-temporary-password"
-                  type="password"
+                  type="text"
                   inputMode="text"
                   autoComplete="off"
-                  maxLength={64}
+                  autoCapitalize="characters"
+                  maxLength={TEMPORARY_PASSWORD_LENGTH}
                   placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
                   value={temporaryPassword}
                   disabled={pending}
+                  aria-invalid={temporaryPassword.length !== TEMPORARY_PASSWORD_LENGTH || undefined}
                   onChange={function handleChange(event) {
-                    setTemporaryPassword(event.currentTarget.value);
+                    setTemporaryPassword(normalizeTemporaryPassword(event.currentTarget.value));
                     setMessage("");
                   }}
                   data-room-entry-temporary-password
@@ -548,9 +568,15 @@ function RuntimeErrorScreen({
 }
 
 export function RoomLobbyScreen({
+  roomShareAvailable,
+  roomShareLabel,
   state,
+  onRoomShare,
 }: {
+  roomShareAvailable: boolean;
+  roomShareLabel: string;
   state: Extract<PokeLoungeRuntimeState, { phase: "lobby" }>;
+  onRoomShare(): void;
 }) {
   const copy = getPokeLoungeCopyForUrl(
     new URL(typeof window === "undefined" ? "http://localhost/ko-KR" : window.location.href),
@@ -609,9 +635,12 @@ export function RoomLobbyScreen({
               return state.onSetReady(!view.ownReady);
             });
           }}
+          onRoomShare={onRoomShare}
           onStart={function handleStart() {
             return void runMutation("start", state.onStart);
           }}
+          roomShareAvailable={roomShareAvailable}
+          roomShareLabel={roomShareLabel}
           view={view}
         />
         <RoomLobbyStatus errorMessage={errorMessage} status={status} />
@@ -735,13 +764,19 @@ export function RoomLobbyActions({
   copy,
   onAddAi,
   onReady,
+  onRoomShare,
   onStart,
+  roomShareAvailable,
+  roomShareLabel,
   view,
 }: {
   copy: PokeLoungeCopy["lobby"];
   onAddAi(): void;
   onReady(): void;
+  onRoomShare(): void;
   onStart(): void;
+  roomShareAvailable: boolean;
+  roomShareLabel: string;
   view: ReturnType<typeof createRoomLobbyViewState>;
 }) {
   return (
@@ -754,6 +789,11 @@ export function RoomLobbyActions({
       >
         {view.ownReady ? copy.cancelReadyAction : copy.readyAction}
       </button>
+      {roomShareAvailable ? (
+        <button type="button" onClick={onRoomShare} data-room-lobby-share="true">
+          {roomShareLabel}
+        </button>
+      ) : null}
       {view.isHost ? (
         <>
           <button

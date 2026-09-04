@@ -45,7 +45,10 @@ test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 �
   const generatePassword = page.locator("[data-room-entry-temporary-password-generate]");
   await expect(generatePassword).toBeVisible();
   await generatePassword.click();
-  await expect(temporaryPassword).toHaveValue(/^[A-HJ-NP-Z2-9]{12}$/);
+  await expect(temporaryPassword).toHaveAttribute("type", "text");
+  await expect(temporaryPassword).toHaveValue(/^[A-HJ-NP-Z2-9]{6}$/);
+  await temporaryPassword.fill("a1b2c3");
+  await expect(temporaryPassword).toHaveValue("A1B2C3");
   await temporaryPassword.focus();
   expect(
     await page.evaluate(async function evaluatePage() {
@@ -68,11 +71,33 @@ test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 �
       window.visualViewport.dispatchEvent(new Event("resize"));
 
       const page = document.querySelector<HTMLElement>("[data-testid='poke-lounge-page']");
+      const frame = document.querySelector<HTMLElement>("[data-poke-lounge-game-frame='true']");
       const password = document.querySelector<HTMLElement>("[data-room-entry-temporary-password]");
-      const fits =
-        Boolean(page && password) &&
-        password!.getBoundingClientRect().bottom <= page!.getBoundingClientRect().bottom + 1;
+      const submit = document.querySelector<HTMLElement>("[data-room-entry-multiplayer-submit]");
+      const intro = document.querySelector<HTMLElement>(".room-entry-intro");
+      const controlDock = document.querySelector<HTMLElement>(
+        "[data-poke-lounge-mobile-control-dock='true']",
+      );
+      const pageRect = page?.getBoundingClientRect();
+      const frameRect = frame?.getBoundingClientRect();
+      const passwordRect = password?.getBoundingClientRect();
+      const submitRect = submit?.getBoundingClientRect();
+      const fits = Boolean(
+        pageRect &&
+        frameRect &&
+        passwordRect &&
+        submitRect &&
+        intro &&
+        page?.hasAttribute("data-poke-lounge-keyboard-open") &&
+        frameRect.top >= pageRect.top - 1 &&
+        frameRect.bottom <= pageRect.bottom + 1 &&
+        passwordRect.top >= pageRect.top - 1 &&
+        submitRect.bottom <= pageRect.bottom + 1 &&
+        getComputedStyle(intro).display === "none" &&
+        (!controlDock || getComputedStyle(controlDock).display === "none"),
+      );
 
+      password?.blur();
       Object.defineProperty(viewportPrototype, "height", heightDescriptor);
       window.visualViewport.dispatchEvent(new Event("resize"));
       return fits;

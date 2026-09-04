@@ -2005,6 +2005,51 @@
   justify-self: stretch;
 }
 
+.touchGameDevice[data-poke-lounge-keyboard-open] {
+  --poke-lounge-frame-available-height: var(--poke-lounge-container-height);
+
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+}
+
+.touchGameDevice[data-poke-lounge-keyboard-open] .gameFrame {
+  inset: 0;
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
+  align-self: stretch;
+  justify-self: stretch;
+}
+
+.touchGameDevice[data-poke-lounge-keyboard-open]
+  :global([data-poke-lounge-mobile-control-dock="true"]),
+.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-intro),
+.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-visibility),
+.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-field-copy) {
+  display: none;
+}
+
+.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-create-screen) {
+  padding: 0;
+}
+
+.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-workspace) {
+  min-height: 100%;
+  align-content: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-form) {
+  gap: 8px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page,
   .page *,

@@ -12,15 +12,21 @@ import { BattleScreen } from "./runtime/game/battle/battle-screen";
 export function PokeLoungeGameFrame({
   copy,
   gameRuntimeMounted,
+  roomShareAvailable,
+  roomShareStatus,
   runtimeState,
   touchGameDevice,
   onOpenSettings,
+  onRoomShare,
 }: {
   copy: PokeLoungeCopy;
   gameRuntimeMounted: boolean;
+  roomShareAvailable: boolean;
+  roomShareStatus: "idle" | "success" | "error";
   runtimeState: PokeLoungeRuntimeState;
   touchGameDevice: boolean;
   onOpenSettings(): void;
+  onRoomShare(): void;
 }) {
   const hasRuntimeScreen =
     runtimeState.phase === "entry" ||
@@ -49,6 +55,12 @@ export function PokeLoungeGameFrame({
     runtimeState.phase === "lobby"
       ? runtimeState.battle
       : undefined;
+  const roomShareLabel =
+    roomShareStatus === "success"
+      ? copy.settingsShareCopied
+      : roomShareStatus === "error"
+        ? copy.settingsShareFailed
+        : copy.settingsShare;
 
   return (
     <div
@@ -69,7 +81,12 @@ export function PokeLoungeGameFrame({
       />
       {hasRuntimeScreen ? (
         <div className={styles.runtimeScreen} data-poke-lounge-runtime-screen="true">
-          <PokeLoungeRuntimeScreen state={runtimeState} />
+          <PokeLoungeRuntimeScreen
+            roomShareAvailable={roomShareAvailable}
+            roomShareLabel={roomShareLabel}
+            state={runtimeState}
+            onRoomShare={onRoomShare}
+          />
         </div>
       ) : null}
       {lobbyTarget
@@ -78,7 +95,12 @@ export function PokeLoungeGameFrame({
               className={`${styles.runtimeScreen} ${styles.runtimeLobbyScreen}`}
               data-poke-lounge-runtime-screen="true"
             >
-              <PokeLoungeRuntimeScreen state={runtimeState} />
+              <PokeLoungeRuntimeScreen
+                roomShareAvailable={roomShareAvailable}
+                roomShareLabel={roomShareLabel}
+                state={runtimeState}
+                onRoomShare={onRoomShare}
+              />
             </div>,
             lobbyTarget,
           )
