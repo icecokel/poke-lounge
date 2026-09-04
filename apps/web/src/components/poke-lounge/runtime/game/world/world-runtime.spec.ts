@@ -71,5 +71,19 @@ test("WorldRuntime은 remote 생성·보간·snap·퇴장을 frame store에 반�
   runtime.upsertRemotePlayer({ ...snapshot, x: 300 }, "interpolate", 2_000);
   assert.equal(store.read().remotePlayers[0]?.x, 300);
   runtime.removeRemotePlayer(snapshot.sessionId);
+
+  const aiSnapshot = { ...snapshot, controller: "ai" as const, sessionId: "ai-1" };
+  runtime.upsertRemotePlayer(aiSnapshot, "snap", 3_000);
+  runtime.upsertRemotePlayer({ ...aiSnapshot, x: 204 }, "interpolate", 4_000);
+  runtime.update({
+    elapsedMs: 0,
+    input: { down: false, left: false, right: false, up: false },
+    inputLocked: true,
+    nowMs: 4_500,
+    viewport: { width: 512, height: 384 },
+  });
+  assert.equal(store.read().remotePlayers[0]?.x, 152);
+  assert.equal(store.read().remotePlayers[0]?.walking, true);
+  runtime.removeRemotePlayer(aiSnapshot.sessionId);
   assert.equal(store.read().remotePlayers.length, 0);
 });

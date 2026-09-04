@@ -1148,12 +1148,21 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
 
     const previousPlayerIds = new Set(worldPlayers.keys());
+    const previousPlayers = new Map(worldPlayers);
     worldPlayers.clear();
     for (const player of snapshot.players) {
       worldPlayers.set(player.sessionId, structuredClone(player));
       previousPlayerIds.delete(player.sessionId);
       if (player.playerId !== serverPlayerId) {
-        emit("PLAYER_CHANGED_MAP", player);
+        const previous = previousPlayers.get(player.sessionId);
+        emit(
+          player.controller === "ai" &&
+            previous &&
+            (previous.x !== player.x || previous.y !== player.y)
+            ? "PLAYER_MOVED"
+            : "PLAYER_CHANGED_MAP",
+          player,
+        );
       }
     }
     if (worldSnapshotInitialized) {

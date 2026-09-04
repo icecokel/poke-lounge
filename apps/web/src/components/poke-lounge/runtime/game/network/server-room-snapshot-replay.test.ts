@@ -3910,9 +3910,20 @@ test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준�
           y: 446,
           facing: "right",
         },
+        {
+          playerId: "ai-1",
+          displayName: "AI 1",
+          controller: "ai",
+          activity: "moving",
+          map: "new-bark-town",
+          x: 800,
+          y: 446,
+          facing: "right",
+        },
       ],
     });
-    assert.equal(changed.at(-1)?.x, 700);
+    assert.equal(changed.find(player => player.playerId === "player-2")?.x, 700);
+    assert.equal(changed.find(player => player.playerId === "ai-1")?.x, 800);
     socket.pushPlayerEvent({
       type: "PLAYER_MOVED",
       roomCode: "ROOM01",
@@ -3969,9 +3980,21 @@ test("임시 비밀번호 방은 안전한 실시간 위치와 챔피언십 준�
           y: 446,
           facing: "right",
         },
+        {
+          playerId: "ai-1",
+          displayName: "AI 1",
+          controller: "ai",
+          activity: "moving",
+          map: "new-bark-town",
+          x: 904,
+          y: 446,
+          facing: "right",
+        },
       ],
     });
     assert.equal(changed.at(-1)?.x, 708);
+    assert.equal(received.at(-1)?.playerId, "ai-1");
+    assert.equal(received.at(-1)?.x, 904);
 
     socket.pushWorldCursor({
       roomCode: "ROOM01",

@@ -30,6 +30,7 @@ test("로컬 직선·대각선 이동은 같은 104px/s 속도와 기존 방향 
 
 test("원격 이동은 120ms 동안 목표 좌표를 보간하고 큰 좌표 차이는 즉시 맞춘다", function testCase() {
   const motion = {
+    durationMs: REMOTE_PLAYER_INTERPOLATION_MS,
     fromX: 10,
     fromY: 20,
     targetX: 34,

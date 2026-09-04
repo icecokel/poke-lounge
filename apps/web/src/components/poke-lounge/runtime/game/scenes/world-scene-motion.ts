@@ -1,4 +1,5 @@
 export const REMOTE_PLAYER_INTERPOLATION_MS = 120;
+export const AI_REMOTE_PLAYER_INTERPOLATION_MS = 1_000;
 export const REMOTE_PLAYER_SNAP_DISTANCE = 96;
 export const LOCAL_PLAYER_SPEED = 104;
 
@@ -37,6 +38,7 @@ export interface RemotePlayerMotion {
   targetX: number;
   targetY: number;
   startedAtMs: number;
+  durationMs: number;
 }
 
 export function resolveRemotePlayerMotion(
@@ -45,7 +47,7 @@ export function resolveRemotePlayerMotion(
 ): { x: number; y: number; complete: boolean } {
   const progress = Math.min(
     1,
-    Math.max(0, (nowMs - motion.startedAtMs) / REMOTE_PLAYER_INTERPOLATION_MS),
+    Math.max(0, (nowMs - motion.startedAtMs) / motion.durationMs),
   );
 
   return {

@@ -1,5 +1,7 @@
 import type { PlayerFacing, PlayerSnapshot } from "../network/local-preview-room";
 import {
+  AI_REMOTE_PLAYER_INTERPOLATION_MS,
+  REMOTE_PLAYER_INTERPOLATION_MS,
   resolveLocalPlayerVelocity,
   resolveRemotePlayerMotion,
   shouldSnapRemotePlayer,
@@ -164,7 +166,7 @@ export class WorldRuntime {
       movement === "snap" ||
       !existing ||
       existing.map !== snapshot.map ||
-      shouldSnapRemotePlayer(existing, snapshot);
+      (snapshot.controller !== "ai" && shouldSnapRemotePlayer(existing, snapshot));
     if (!existing || shouldSnap) {
       this.remotePlayers.set(snapshot.sessionId, {
         activity: snapshot.activity,
@@ -188,6 +190,10 @@ export class WorldRuntime {
       existing.facing = snapshot.facing;
       existing.map = snapshot.map;
       existing.motion = {
+        durationMs:
+          snapshot.controller === "ai"
+            ? AI_REMOTE_PLAYER_INTERPOLATION_MS
+            : REMOTE_PLAYER_INTERPOLATION_MS,
         fromX: existing.x,
         fromY: existing.y,
         targetX: snapshot.x,
