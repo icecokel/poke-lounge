@@ -26,6 +26,7 @@ const AI_TICK_MS = 1_000;
 const AI_HUNT_CYCLE_MS = 20_000;
 const AI_HUNT_DURATION_MS = 5_000;
 const AI_SPEED_PX_PER_SECOND = 104;
+const WORLD_START_POSITION = { x: 656, y: 446 } as const;
 const AI_TALL_GRASS_AREA = {
   x: 704,
   y: 384,
@@ -154,6 +155,17 @@ export class PokeLoungeAiWorkerService
       room.roomCode,
       room.expiresAtMs,
     );
+    const worldMovementStarted = world.players.some(function testItem(player) {
+      return (
+        player.x !== WORLD_START_POSITION.x ||
+        player.y !== WORLD_START_POSITION.y
+      );
+    });
+    const spawnedPlayerIds = new Set(
+      world.players.map(function mapItem(player) {
+        return player.playerId;
+      }),
+    );
     await Promise.all(
       world.players
         .filter(function filterItem(player) {
@@ -172,7 +184,13 @@ export class PokeLoungeAiWorkerService
             this: PokeLoungeAiWorkerService,
             participant: (typeof aiParticipants)[number],
           ): Promise<void> {
-            await this.publishWorldState(room, participant.playerId, nowMs);
+            await this.publishWorldState(
+              room,
+              participant.playerId,
+              nowMs,
+              worldMovementStarted &&
+                spawnedPlayerIds.has(participant.playerId),
+            );
             await this.submitCompetitiveAction(
               room,
               participant.playerId,
@@ -202,6 +220,7 @@ export class PokeLoungeAiWorkerService
     room: PokeLoungeRoomSnapshot,
     playerId: string,
     nowMs: number,
+    worldMovementStarted: boolean,
   ): Promise<void> {
     const participant = room.participants.find(function findItem(candidate) {
       return candidate.playerId === playerId;
@@ -215,13 +234,16 @@ export class PokeLoungeAiWorkerService
     const cycleOffset = elapsedMs % AI_HUNT_CYCLE_MS;
     const inHuntWindow =
       inPreparation && cycleOffset >= AI_HUNT_CYCLE_MS - AI_HUNT_DURATION_MS;
-    const position = positionOnRoute(
-      inHuntWindow
-        ? elapsedMs - cycleOffset + AI_HUNT_CYCLE_MS - AI_HUNT_DURATION_MS
-        : elapsedMs,
-      stableNumber(playerId) % 10_000,
-    );
-    const hunting = inHuntWindow && isInAiTallGrass(position);
+    const position = worldMovementStarted
+      ? positionOnRoute(
+          inHuntWindow
+            ? elapsedMs - cycleOffset + AI_HUNT_CYCLE_MS - AI_HUNT_DURATION_MS
+            : elapsedMs,
+          stableNumber(playerId) % 10_000,
+        )
+      : { ...WORLD_START_POSITION, facing: 'front' as const };
+    const hunting =
+      worldMovementStarted && inHuntWindow && isInAiTallGrass(position);
     await this.liveState.upsertPlayer({
       roomCode: room.roomCode,
       expiresAtMs: room.expiresAtMs,
@@ -234,7 +256,7 @@ export class PokeLoungeAiWorkerService
             ? 'tournament'
             : hunting
               ? 'hunting'
-              : inPreparation
+              : inPreparation && worldMovementStarted
                 ? 'moving'
                 : 'idle',
         map: 'town',

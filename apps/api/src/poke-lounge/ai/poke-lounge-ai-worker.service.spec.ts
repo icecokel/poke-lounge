@@ -9,7 +9,7 @@ import type { RedisPokeLoungeRepository } from '../redis-poke-lounge.repository'
 import { PokeLoungeAiWorkerService } from './poke-lounge-ai-worker.service';
 
 describe('PokeLoungeAiWorkerService', () => {
-  it('AI는 실제 풀숲 안에서만 사냥한다', async () => {
+  it('플레이어와 같은 위치에서 대기하고 플레이어가 움직이면 풀숲을 사냥한다', async () => {
     const activeRoom = {
       roomCode: 'ROOM01',
       revision: 1,
@@ -36,6 +36,36 @@ describe('PokeLoungeAiWorkerService', () => {
       committedChange: false,
     });
     const publishedPlayers: PokeLoungeWorldPlayerState[] = [];
+    const getSnapshot = jest
+      .fn()
+      .mockResolvedValueOnce({
+        players: [
+          {
+            playerId: 'player-1',
+            controller: 'human',
+            x: 656,
+            y: 446,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        players: [
+          {
+            playerId: 'player-1',
+            controller: 'human',
+            x: 657,
+            y: 446,
+          },
+          ...Array.from({ length: 8 }, function createPlayer(_, index) {
+            return {
+              playerId: `ai-${index + 1}`,
+              controller: 'ai',
+              x: 656,
+              y: 446,
+            };
+          }),
+        ],
+      });
     const upsertPlayer = jest
       .fn()
       .mockImplementation(function recordPlayer(input: {
@@ -49,7 +79,7 @@ describe('PokeLoungeAiWorkerService', () => {
       { getAndAdvance } as unknown as RedisPokeLoungeRepository,
       {
         listRoomStateCodes: jest.fn().mockResolvedValue(['ROOM01']),
-        getSnapshot: jest.fn().mockResolvedValue({ players: [] }),
+        getSnapshot,
         removePlayer: jest.fn(),
         upsertPlayer,
         deleteRoom: jest.fn(),
@@ -57,10 +87,22 @@ describe('PokeLoungeAiWorkerService', () => {
       {} as CompetitiveMatchService,
     );
 
-    await service.processTick(17_000);
+    await service.processTick(1_000);
 
     expect(upsertPlayer).toHaveBeenCalledTimes(8);
     for (const player of publishedPlayers) {
+      expect(player).toMatchObject({
+        activity: 'idle',
+        facing: 'front',
+        x: 656,
+        y: 446,
+      });
+    }
+
+    await service.processTick(17_000);
+
+    expect(upsertPlayer).toHaveBeenCalledTimes(16);
+    for (const player of publishedPlayers.slice(8)) {
       expect(player.activity).toBe('hunting');
       expect(player.x).toBeGreaterThanOrEqual(704);
       expect(player.x).toBeLessThan(1_024);
