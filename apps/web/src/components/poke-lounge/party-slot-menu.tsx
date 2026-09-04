@@ -1,6 +1,7 @@
 import type { PokeLoungeCopy } from "./poke-lounge-copy";
 import type { PokeLoungePartySlotSummary } from "./runtime/game/ui/mobile-world-ui";
 import styles from "./party-slot-menu.module.css";
+import { localizePokemonName } from "./runtime/game/i18n/runtime-game-localization";
 
 export function PokeLoungePartySlotMenu({
   copy,
@@ -27,7 +28,11 @@ export function PokeLoungePartySlotMenu({
               data-poke-lounge-party-slot={pokemon.slotIndex}
             >
               <span>{copy.partySlotLabel(pokemon.slotIndex + 1)}</span>
-              <strong>{pokemon.isEmpty ? copy.partySlotEmpty : pokemon.name}</strong>
+              <strong>
+                {pokemon.isEmpty
+                  ? copy.partySlotEmpty
+                  : localizePokemonName(pokemon.name, copy.locale)}
+              </strong>
               {!pokemon.isEmpty ? (
                 <small>
                   {pokemon.isActive ? `${copy.partySlotLead} · ` : ""}Lv.{pokemon.level}

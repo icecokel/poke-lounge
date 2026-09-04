@@ -22,6 +22,12 @@ import {
 } from "../../../ui/poke-lounge-ui-primitives";
 import { TournamentBracketPanel } from "../tournament/tournament-bracket-panel";
 import styles from "../../../poke-lounge.module.css";
+import {
+  localizeMobileWorldUiState,
+  localizeMoveName,
+  localizePokemonName,
+  localizeRuntimeText,
+} from "../i18n/runtime-game-localization";
 
 export function WorldUiLayer({
   copy,
@@ -36,30 +42,50 @@ export function WorldUiLayer({
   gameStateStore: GameStateStore;
   uiStore: WorldUiStore;
 }) {
-  const ui = useSyncExternalStore(uiStore.subscribe, uiStore.getSnapshot, uiStore.getSnapshot);
+  const rawUi = useSyncExternalStore(uiStore.subscribe, uiStore.getSnapshot, uiStore.getSnapshot);
+  const ui: WorldUiSnapshot = {
+    ...rawUi,
+    areaAnnouncement: rawUi.areaAnnouncement
+      ? localizeRuntimeText(rawUi.areaAnnouncement, copy.locale)
+      : null,
+    interactionPrompt: rawUi.interactionPrompt
+      ? localizeRuntimeText(rawUi.interactionPrompt, copy.locale)
+      : null,
+    mobile: rawUi.mobile ? localizeMobileWorldUiState(rawUi.mobile, copy.locale) : null,
+    nurseMessage: rawUi.nurseMessage ? localizeRuntimeText(rawUi.nurseMessage, copy.locale) : null,
+    tournamentAnnouncement: rawUi.tournamentAnnouncement
+      ? localizeRuntimeText(rawUi.tournamentAnnouncement, copy.locale)
+      : null,
+    tournamentResult: rawUi.tournamentResult
+      ? localizeRuntimeText(rawUi.tournamentResult, copy.locale)
+      : null,
+  };
 
   return (
     <div className={styles.worldUiLayer} data-poke-lounge-world-ui="true">
       <WorldHud
+        copy={copy}
         desktop={desktop}
         competitiveRoundsEnabled={competitiveRoundsEnabled}
         gameStateStore={gameStateStore}
         ui={ui}
         uiStore={uiStore}
       />
-      <WorldNoticeLayer gameStateStore={gameStateStore} ui={ui} />
+      <WorldNoticeLayer copy={copy} gameStateStore={gameStateStore} ui={ui} />
       {desktop ? <WorldSurfaceRouter copy={copy} ui={ui} uiStore={uiStore} /> : null}
     </div>
   );
 }
 
 export function WorldHud({
+  copy,
   desktop,
   competitiveRoundsEnabled,
   gameStateStore,
   ui,
   uiStore,
 }: {
+  copy: PokeLoungeCopy;
   desktop: boolean;
   competitiveRoundsEnabled: boolean;
   gameStateStore: GameStateStore;
@@ -77,11 +103,12 @@ export function WorldHud({
 
   return (
     <div className={styles.worldHud} data-poke-lounge-world-hud="true">
-      <CurrencyHud value={player.wallet.pokeDollars} />
-      <RankScoreHud competitive={competitiveRoundsEnabled} stats={player.competitive} />
-      {competitiveRoundsEnabled ? <RoundHud gameStateStore={gameStateStore} /> : null}
+      <CurrencyHud copy={copy} value={player.wallet.pokeDollars} />
+      <RankScoreHud copy={copy} competitive={competitiveRoundsEnabled} stats={player.competitive} />
+      {competitiveRoundsEnabled ? <RoundHud copy={copy} gameStateStore={gameStateStore} /> : null}
       {desktop ? (
         <PartyHud
+          copy={copy}
           activePartySlotIndex={player.activePartySlotIndex}
           party={player.party}
           selectedSlotIndex={ui.pokemonStatusSlotIndex}
@@ -92,6 +119,7 @@ export function WorldHud({
       ) : null}
       {desktop && ui.pokemonStatusSlotIndex !== null ? (
         <PokemonStatusPanel
+          copy={copy}
           activePartySlotIndex={player.activePartySlotIndex}
           pokemon={
             player.party.find(function findItem(slot) {
@@ -114,29 +142,40 @@ export function WorldHud({
   );
 }
 
-export function CurrencyHud({ value }: { value: number }) {
+export function CurrencyHud({ copy, value }: { copy: PokeLoungeCopy; value: number }) {
   return (
     <StatusBadge className={styles.worldCurrencyHud} tone="gold">
-      {formatPokeDollars(value)}
+      {formatPokeDollars(value, copy.locale)}
     </StatusBadge>
   );
 }
 
 export function RankScoreHud({
+  copy,
   competitive,
   stats,
 }: {
+  copy: PokeLoungeCopy;
   competitive: boolean;
   stats: { rank: number | null; score: number };
 }) {
   return (
     <StatusBadge className={styles.worldRankHud} tone="blue">
-      {formatRankScoreHud(stats, competitive ? "competitive" : "solo")}
+      {localizeRuntimeText(
+        formatRankScoreHud(stats, competitive ? "competitive" : "solo", copy.locale),
+        copy.locale,
+      )}
     </StatusBadge>
   );
 }
 
-export function RoundHud({ gameStateStore }: { gameStateStore: GameStateStore }) {
+export function RoundHud({
+  copy,
+  gameStateStore,
+}: {
+  copy: PokeLoungeCopy;
+  gameStateStore: GameStateStore;
+}) {
   const [now, setNow] = useState(function callback() {
     return Date.now();
   });
@@ -157,17 +196,19 @@ export function RoundHud({ gameStateStore }: { gameStateStore: GameStateStore })
 
   return (
     <StatusBadge className={styles.worldRoundHud} tone="green">
-      {formatRoundHudText(state.round, now)}
+      {localizeRuntimeText(formatRoundHudText(state.round, now), copy.locale)}
     </StatusBadge>
   );
 }
 
 export function PartyHud({
+  copy,
   activePartySlotIndex,
   onSelect,
   party,
   selectedSlotIndex,
 }: {
+  copy: PokeLoungeCopy;
   activePartySlotIndex: number;
   onSelect(slotIndex: number): void;
   party: ReturnType<GameStateStore["getCurrentLocalPlayer"]>["party"];
@@ -183,6 +224,7 @@ export function PartyHud({
         return (
           <PartyHudSlot
             key={slotIndex}
+            copy={copy}
             active={slotIndex === activePartySlotIndex}
             pokemon={pokemon}
             selected={slotIndex === selectedSlotIndex}
@@ -197,12 +239,14 @@ export function PartyHud({
 
 export function PartyHudSlot({
   active,
+  copy,
   onSelect,
   pokemon,
   selected,
   slotIndex,
 }: {
   active: boolean;
+  copy: PokeLoungeCopy;
   onSelect(slotIndex: number): void;
   pokemon: PlayerPokemon | null;
   selected: boolean;
@@ -212,7 +256,7 @@ export function PartyHudSlot({
     <PokemonSlot
       className={styles.worldPartyHudSlot}
       active={active}
-      emptyLabel={`슬롯 ${slotIndex + 1}`}
+      emptyLabel={copy.partySlotLabel(slotIndex + 1)}
       hp={
         pokemon
           ? {
@@ -223,16 +267,22 @@ export function PartyHudSlot({
           : undefined
       }
       level={pokemon?.level}
-      name={pokemon?.name}
+      name={pokemon ? localizePokemonName(pokemon.name, copy.locale) : undefined}
       selected={selected}
       sprite={pokemon ? <PokemonSprite pokemon={pokemon} size={42} /> : undefined}
-      status={pokemon && pokemon.status !== "normal" ? formatStatus(pokemon.status) : undefined}
+      status={
+        pokemon?.status && pokemon.status !== "normal"
+          ? copy.game.statusLabel[pokemon.status]
+          : undefined
+      }
       disabled={!pokemon}
       onClick={function handleClick() {
         return onSelect(slotIndex);
       }}
       aria-label={
-        pokemon ? `${pokemon.name} Lv.${pokemon.level} 상세` : `빈 파티 슬롯 ${slotIndex + 1}`
+        pokemon
+          ? copy.game.pokemonDetails(localizePokemonName(pokemon.name, copy.locale), pokemon.level)
+          : copy.game.emptyPartySlot(slotIndex + 1)
       }
     />
   );
@@ -240,12 +290,14 @@ export function PartyHudSlot({
 
 export function PokemonStatusPanel({
   activePartySlotIndex,
+  copy,
   onClose,
   onSetLead,
   pokemon,
   slotIndex,
 }: {
   activePartySlotIndex: number;
+  copy: PokeLoungeCopy;
   onClose(): void;
   onSetLead(): void;
   pokemon: PlayerPokemon | null;
@@ -258,13 +310,18 @@ export function PokemonStatusPanel({
 
   return (
     <PixelPanel className={styles.worldPokemonPanel} data-poke-lounge-pokemon-status="true">
-      <button type="button" className={styles.worldPanelClose} onClick={onClose} aria-label="닫기">
+      <button
+        type="button"
+        className={styles.worldPanelClose}
+        onClick={onClose}
+        aria-label={copy.settingsClose}
+      >
         ×
       </button>
       <div className={styles.worldPokemonHeading}>
         <PokemonSprite pokemon={pokemon} size={48} />
         <div>
-          <strong>{pokemon.name}</strong>
+          <strong>{localizePokemonName(pokemon.name, copy.locale)}</strong>
           <span>Lv.{pokemon.level}</span>
         </div>
       </div>
@@ -273,14 +330,16 @@ export function PokemonStatusPanel({
       <p>
         {experience.atMaxLevel ? "EXP MAX" : `EXP ${experience.current} / ${experience.required}`}
       </p>
-      <meter min={0} max={1} value={experience.ratio} aria-label="경험치" />
-      <p>상태 {formatStatus(pokemon.status)}</p>
-      <h3>기술</h3>
+      <meter min={0} max={1} value={experience.ratio} aria-label={copy.game.experience} />
+      <p>
+        {copy.game.status} {copy.game.statusLabel[pokemon.status ?? "normal"]}
+      </p>
+      <h3>{copy.game.moves}</h3>
       <ul>
         {(pokemon.moves ?? []).slice(0, 4).map(function mapItem(move) {
           return (
             <li key={move.id}>
-              <span>{move.name}</span>
+              <span>{localizeMoveName(move.name, copy.locale)}</span>
               <small>
                 {move.pp} / {move.maxPp}
               </small>
@@ -289,7 +348,11 @@ export function PokemonStatusPanel({
         })}
       </ul>
       <button type="button" disabled={!canSetLead} onClick={onSetLead}>
-        {isActive ? "현재 선두" : pokemon.status === "fainted" ? "선두 지정 불가" : "선두로 지정"}
+        {isActive
+          ? copy.game.currentLead
+          : pokemon.status === "fainted"
+            ? copy.game.leadUnavailable
+            : copy.mobile.setLead}
       </button>
     </PixelPanel>
   );
@@ -316,9 +379,11 @@ export function PokemonSprite({ pokemon, size }: { pokemon: PlayerPokemon; size:
 }
 
 export function WorldNoticeLayer({
+  copy,
   gameStateStore,
   ui,
 }: {
+  copy: PokeLoungeCopy;
   gameStateStore: GameStateStore;
   ui: WorldUiSnapshot;
 }) {
@@ -341,6 +406,7 @@ export function WorldNoticeLayer({
       {ui.nurseHealing.active ? <NurseHealingEffect key={ui.nurseHealing.effectCount} /> : null}
       {ui.tournamentAnnouncement && tournamentProjection ? (
         <TournamentBracketPanel
+          copy={copy}
           projection={tournamentProjection}
           text={ui.tournamentAnnouncement}
         />
@@ -397,12 +463,4 @@ export function WorldSurfaceRouter({
       />
     </div>
   );
-}
-
-function formatStatus(status: PlayerPokemon["status"]): string {
-  if (status === "fainted") return "전투불능";
-  if (status === "poisoned") return "독";
-  if (status === "burned") return "화상";
-  if (status === "paralyzed") return "마비";
-  return "정상";
 }

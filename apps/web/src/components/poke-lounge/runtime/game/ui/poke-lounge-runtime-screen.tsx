@@ -15,6 +15,11 @@ import {
 } from "../network/room-entry-screen";
 import { getWebRtcSignalingCopy } from "../network/web-rtc-signaling-panel";
 import { createRoomLobbyViewState, type RoomLobbyMutation } from "./room-lobby-screen";
+import {
+  localizePokemonName,
+  localizeTrainerName,
+  localizeTypeName,
+} from "../i18n/runtime-game-localization";
 
 export function PokeLoungeRuntimeScreen({
   roomShareAvailable,
@@ -35,10 +40,10 @@ export function PokeLoungeRuntimeScreen({
     );
   }
   if (state.phase === "starter") {
-    return <StarterSelectionScreen state={state} />;
+    return <StarterSelectionScreen copy={getCurrentRuntimeCopy()} state={state} />;
   }
   if (state.phase === "loading") {
-    return <RuntimeLoadingScreen state={state} />;
+    return <RuntimeLoadingScreen copy={getCurrentRuntimeCopy()} state={state} />;
   }
   if (state.phase === "error") {
     return <RuntimeErrorScreen state={state} />;
@@ -329,8 +334,10 @@ function DirectMultiplayerEntryScreen({
 }
 
 function StarterSelectionScreen({
+  copy,
   state,
 }: {
+  copy: PokeLoungeCopy;
   state: Extract<PokeLoungeRuntimeState, { phase: "starter" }>;
 }) {
   const [selectedStarterId, setSelectedStarterId] = useState(state.bootstrap.starters[0]?.id ?? "");
@@ -351,16 +358,17 @@ function StarterSelectionScreen({
         <header className="selection-header">
           <div className="title-block">
             <p className="kicker">Poke Lounge</p>
-            <h1>첫 파트너 선택</h1>
+            <h1>{copy.game.starterTitle}</h1>
           </div>
         </header>
         <div className="selection-body">
-          <StarterPreview starter={selectedStarter} onConfirm={state.onSelect} />
-          <div className="starter-grid" aria-label="Starter Pokemon options">
+          <StarterPreview copy={copy} starter={selectedStarter} onConfirm={state.onSelect} />
+          <div className="starter-grid" aria-label={copy.game.starterOptionsLabel}>
             {state.bootstrap.starters.map(function mapItem(starter) {
               return (
                 <StarterCard
                   key={starter.id}
+                  copy={copy}
                   starter={starter}
                   selected={starter.id === selectedStarter?.id}
                   onSelect={function handleSelect() {
@@ -379,9 +387,11 @@ function StarterSelectionScreen({
 }
 
 function StarterPreview({
+  copy,
   starter,
   onConfirm,
 }: {
+  copy: PokeLoungeCopy;
   starter: StarterPokemon | null;
   onConfirm(starter: StarterPokemon): void;
 }) {
@@ -390,9 +400,9 @@ function StarterPreview({
       <section
         className="starter-modal-preview"
         data-starter-preview
-        aria-label="Selected starter preview"
+        aria-label={copy.game.starterPreviewLabel}
       >
-        선택 가능한 스타터가 없습니다.
+        {copy.game.starterUnavailable}
       </section>
     );
   }
@@ -402,15 +412,17 @@ function StarterPreview({
       className="starter-modal-preview"
       data-starter-preview
       data-selected-starter={starter.id}
-      aria-label="Selected starter preview"
+      aria-label={copy.game.starterPreviewLabel}
     >
       <div className="starter-preview-stage">
-        <StarterSprite starter={starter} className="starter-preview-sprite" />
+        <StarterSprite copy={copy} starter={starter} className="starter-preview-sprite" />
       </div>
       <div className="starter-preview-meta">
-        <strong className="starter-preview-name">{starter.displayName}</strong>
+        <strong className="starter-preview-name">
+          {localizePokemonName(starter.displayName, copy.locale)}
+        </strong>
         <span className={`starter-type starter-type--${starter.type.toLowerCase()}`}>
-          {starter.type}
+          {localizeTypeName(starter.type, copy.locale)}
         </span>
         <button
           type="button"
@@ -422,7 +434,7 @@ function StarterPreview({
           }}
           data-starter-confirm
         >
-          이 포켓몬으로 시작
+          {copy.game.starterConfirm}
         </button>
       </div>
     </section>
@@ -430,10 +442,12 @@ function StarterPreview({
 }
 
 function StarterCard({
+  copy,
   starter,
   selected,
   onSelect,
 }: {
+  copy: PokeLoungeCopy;
   starter: StarterPokemon;
   selected: boolean;
   onSelect(): void;
@@ -448,7 +462,7 @@ function StarterCard({
       onClick={onSelect}
       data-starter-card={starter.id}
     >
-      <StarterSprite starter={starter} className="starter-sprite" hidden={missing} />
+      <StarterSprite copy={copy} starter={starter} className="starter-sprite" hidden={missing} />
       {/* The hidden native probe must preserve the original per-ROM-file error event. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -461,19 +475,21 @@ function StarterCard({
         }}
       />
       <span className="starter-asset-status" role="status" hidden={!missing}>
-        {missing ? `ROM asset missing: ${starter.assetPath}` : ""}
+        {missing ? copy.game.starterAssetMissing(starter.assetPath) : ""}
       </span>
-      <span className="starter-name">{starter.displayName}</span>
-      <span className="starter-type">{starter.type}</span>
+      <span className="starter-name">{localizePokemonName(starter.displayName, copy.locale)}</span>
+      <span className="starter-type">{localizeTypeName(starter.type, copy.locale)}</span>
     </button>
   );
 }
 
 function StarterSprite({
+  copy,
   starter,
   className,
   hidden,
 }: {
+  copy: PokeLoungeCopy;
   starter: StarterPokemon;
   className: string;
   hidden?: boolean;
@@ -483,7 +499,7 @@ function StarterSprite({
       className={className}
       style={{ backgroundImage: `url("${starter.assetPath}")` }}
       role="img"
-      aria-label={starter.displayName}
+      aria-label={localizePokemonName(starter.displayName, copy.locale)}
       hidden={hidden}
       data-asset-path={starter.assetPath}
     />
@@ -491,8 +507,10 @@ function StarterSprite({
 }
 
 function RuntimeLoadingScreen({
+  copy,
   state,
 }: {
+  copy: PokeLoungeCopy;
   state: Extract<PokeLoungeRuntimeState, { phase: "loading" }>;
 }) {
   const percent = Math.round(state.progress.ratio * 100);
@@ -506,7 +524,7 @@ function RuntimeLoadingScreen({
     >
       <div className="room-entry-panel game-startup-panel">
         <h1>Poke Lounge</h1>
-        <p className="room-entry-mode-copy">게임 리소스를 준비하는 중입니다.</p>
+        <p className="room-entry-mode-copy">{copy.game.resourcesPreparing}</p>
         <progress
           max={state.progress.total || 1}
           value={state.progress.loaded}
@@ -567,6 +585,12 @@ function RuntimeErrorScreen({
   );
 }
 
+function getCurrentRuntimeCopy(): PokeLoungeCopy {
+  return getPokeLoungeCopyForUrl(
+    new URL(typeof window === "undefined" ? "http://localhost/ko-KR" : window.location.href),
+  );
+}
+
 export function RoomLobbyScreen({
   roomShareAvailable,
   roomShareLabel,
@@ -578,9 +602,10 @@ export function RoomLobbyScreen({
   state: Extract<PokeLoungeRuntimeState, { phase: "lobby" }>;
   onRoomShare(): void;
 }) {
-  const copy = getPokeLoungeCopyForUrl(
+  const fullCopy = getPokeLoungeCopyForUrl(
     new URL(typeof window === "undefined" ? "http://localhost/ko-KR" : window.location.href),
-  ).lobby;
+  );
+  const copy = fullCopy.lobby;
   const [mutation, setMutation] = useState<RoomLobbyMutation>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const view = createRoomLobbyViewState(state.projection, mutation);
@@ -617,6 +642,7 @@ export function RoomLobbyScreen({
         <RoomLobbyHeader copy={copy} participantCount={view.participantCount} />
         <RoomLobbyParticipantList
           copy={copy}
+          locale={fullCopy.locale}
           mutation={mutation}
           projection={state.projection}
           onRemoveAi={function handleRemoveAi(aiPlayerId) {
@@ -666,11 +692,13 @@ export function RoomLobbyHeader({
 
 export function RoomLobbyParticipantList({
   copy,
+  locale,
   mutation,
   onRemoveAi,
   projection,
 }: {
   copy: PokeLoungeCopy["lobby"];
+  locale: PokeLoungeCopy["locale"];
   mutation: RoomLobbyMutation;
   onRemoveAi(aiPlayerId: string): void;
   projection: Extract<PokeLoungeRuntimeState, { phase: "lobby" }>["projection"];
@@ -692,6 +720,7 @@ export function RoomLobbyParticipantList({
           <RoomLobbyParticipantRow
             key={participant.playerId}
             copy={copy}
+            locale={locale}
             hostPlayerId={projection.hostPlayerId}
             canRemoveAi={projection.hostPlayerId === projection.ownPlayerId && mutation === null}
             onRemoveAi={onRemoveAi}
@@ -707,12 +736,14 @@ export function RoomLobbyParticipantRow({
   canRemoveAi,
   copy,
   hostPlayerId,
+  locale,
   onRemoveAi,
   participant,
 }: {
   canRemoveAi: boolean;
   copy: PokeLoungeCopy["lobby"];
   hostPlayerId: string | null;
+  locale: PokeLoungeCopy["locale"];
   onRemoveAi(aiPlayerId: string): void;
   participant: Extract<
     PokeLoungeRuntimeState,
@@ -735,7 +766,7 @@ export function RoomLobbyParticipantRow({
       data-player-id={participant.playerId}
       data-room-lobby-participant="true"
     >
-      <strong>{participant.displayName}</strong>
+      <strong>{localizeTrainerName(participant.displayName, locale)}</strong>
       <span className="room-lobby-badges">
         {badges.map(function mapItem(label) {
           return <RoomLobbyBadge key={label} label={label} />;

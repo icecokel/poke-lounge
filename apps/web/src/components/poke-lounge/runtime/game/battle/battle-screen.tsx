@@ -32,6 +32,10 @@ import {
   TOURNAMENT_BRIEFING_DURATION_MS,
 } from "../scenes/world-scene-tournament";
 import { TournamentBracketPanel } from "../tournament/tournament-bracket-panel";
+import {
+  localizeBattlePresentationState,
+  localizeMobileBattleUiState,
+} from "../i18n/runtime-game-localization";
 
 const logicalWidth = 256;
 const logicalHeight = 192;
@@ -52,8 +56,12 @@ export function BattleScreen({
     uiStore.getSnapshot,
     uiStore.getSnapshot,
   );
-  const presentation = snapshot.presentation;
-  const controls = snapshot.controls;
+  const presentation = snapshot.presentation
+    ? localizeBattlePresentationState(snapshot.presentation, copy.locale)
+    : null;
+  const controls = snapshot.controls
+    ? localizeMobileBattleUiState(snapshot.controls, copy.locale)
+    : null;
 
   if (!presentation || !controls) return null;
   const onAction = (action: MobileBattleUiAction) => {
@@ -69,17 +77,20 @@ export function BattleScreen({
       aria-label={copy.mobile.battleDeckLabel}
     >
       <BattleStage
+        copy={copy}
         controls={controls}
         desktop={desktop}
         onAction={onAction}
         presentation={presentation}
       />
-      {gameStateStore ? <BattleTournamentBriefing gameStateStore={gameStateStore} /> : null}
+      {gameStateStore ? (
+        <BattleTournamentBriefing copy={copy} gameStateStore={gameStateStore} />
+      ) : null}
       {desktop ? (
         <button
           type="button"
           className={styles.battleHelpButton}
-          aria-label="전투 도움말"
+          aria-label={copy.game.battleHelpLabel}
           data-poke-lounge-battle-help="true"
           onClick={function handleClick() {
             return onAction({ type: "toggle-help" });
@@ -92,7 +103,13 @@ export function BattleScreen({
   );
 }
 
-function BattleTournamentBriefing({ gameStateStore }: { gameStateStore: GameStateStore }) {
+function BattleTournamentBriefing({
+  copy,
+  gameStateStore,
+}: {
+  copy: PokeLoungeCopy;
+  gameStateStore: GameStateStore;
+}) {
   const state = useSyncExternalStore(
     gameStateStore.subscribe,
     gameStateStore.getState,
@@ -123,15 +140,19 @@ function BattleTournamentBriefing({ gameStateStore }: { gameStateStore: GameStat
   );
 
   const text = projection ? createTournamentBriefingText(projection, nowMs) : null;
-  return text && projection ? <TournamentBracketPanel projection={projection} text={text} /> : null;
+  return text && projection ? (
+    <TournamentBracketPanel copy={copy} projection={projection} text={text} />
+  ) : null;
 }
 
 export function BattleStage({
+  copy,
   controls,
   desktop,
   onAction,
   presentation,
 }: {
+  copy: PokeLoungeCopy;
   controls: MobileBattleUiState;
   desktop: boolean;
   onAction(action: MobileBattleUiAction): void;
@@ -147,11 +168,13 @@ export function BattleStage({
           <BattlePokemonLayer presentation={presentation} />
           <BattleCaptureEffect capture={presentation.capture} />
           <BattleHpPanel
+            copy={copy}
             combatant={presentation.opponent}
             rect={BATTLE_LAYOUT.opponentHpPanel}
             side="opponent"
           />
           <BattleHpPanel
+            copy={copy}
             combatant={presentation.player}
             rect={BATTLE_LAYOUT.playerHpPanel}
             side="player"
@@ -159,6 +182,7 @@ export function BattleStage({
         </>
       )}
       <BattleSurfaceRouter
+        copy={copy}
         controls={controls}
         desktop={desktop}
         onAction={onAction}
@@ -166,6 +190,7 @@ export function BattleStage({
       />
       {presentation.help.open && desktop ? (
         <BattleShortcutGuide
+          copy={copy}
           onClose={function handleClose() {
             return onAction({ type: "toggle-help" });
           }}
@@ -231,10 +256,12 @@ export function BattlePokemonSprite({
 }
 
 export function BattleHpPanel({
+  copy,
   combatant,
   rect,
   side,
 }: {
+  copy: PokeLoungeCopy;
   combatant: BattleCombatantPresentation;
   rect: BattleRect;
   side: "opponent" | "player";
@@ -250,7 +277,9 @@ export function BattleHpPanel({
       <strong>
         {combatant.name} <small>Lv.{combatant.level}</small>
       </strong>
-      {status ? <span style={{ color: status.color }}>{status.label}</span> : null}
+      {status ? (
+        <span style={{ color: status.color }}>{copy.game.statusLabel[combatant.status]}</span>
+      ) : null}
       <HealthBar
         className={styles.battleHpTrack}
         value={hpRatio(combatant.displayedHp, combatant.maxHp)}
@@ -261,11 +290,13 @@ export function BattleHpPanel({
 }
 
 export function BattleSurfaceRouter({
+  copy,
   controls,
   desktop,
   onAction,
   presentation,
 }: {
+  copy: PokeLoungeCopy;
   controls: MobileBattleUiState;
   desktop: boolean;
   onAction(action: MobileBattleUiAction): void;
@@ -275,7 +306,7 @@ export function BattleSurfaceRouter({
   if (!desktop) {
     return (
       <BattleMessagePanel
-        message={presentation.message ?? "아래 터치 화면에서 행동을 선택하세요."}
+        message={presentation.message ?? copy.game.battleTouchPrompt}
         locked={controls.isInputLocked}
         onConfirm={function handleConfirm() {
           return onAction({ type: "confirm-message" });
@@ -295,26 +326,26 @@ export function BattleSurfaceRouter({
     );
   }
   if (controls.isInputLocked || presentation.phase === "resolving") {
-    return <BattleWaitingPanel />;
+    return <BattleWaitingPanel copy={copy} />;
   }
   if (presentation.phase === "command") {
-    return <BattleCommandPanel controls={controls} onAction={onAction} />;
+    return <BattleCommandPanel copy={copy} controls={controls} onAction={onAction} />;
   }
   if (presentation.phase === "move-select") {
     return <BattleMovePanel controls={controls} onAction={onAction} />;
   }
   if (presentation.phase === "move-replace-select") {
-    return <BattleMoveReplacementPanel controls={controls} onAction={onAction} />;
+    return <BattleMoveReplacementPanel copy={copy} controls={controls} onAction={onAction} />;
   }
   if (presentation.phase === "party-select") {
-    return <BattlePartyPanel controls={controls} onAction={onAction} />;
+    return <BattlePartyPanel copy={copy} controls={controls} onAction={onAction} />;
   }
   if (presentation.phase === "bag-select") {
     return <BattleBagPanel controls={controls} onAction={onAction} />;
   }
   return (
     <BattleMessagePanel
-      message="전투가 종료되었습니다."
+      message={copy.game.battleEnded}
       locked={controls.isInputLocked}
       onConfirm={function handleConfirm() {
         return onAction({ type: "confirm-message" });
@@ -345,13 +376,20 @@ export function BattleMessagePanel({
 }
 
 export function BattleCommandPanel({
+  copy,
   controls,
   onAction,
 }: {
+  copy: PokeLoungeCopy;
   controls: MobileBattleUiState;
   onAction(action: MobileBattleUiAction): void;
 }) {
-  const labels = { bag: "가방", fight: "싸운다", pokemon: "포켓몬", run: "도망" };
+  const labels = {
+    bag: copy.mobile.bag,
+    fight: copy.mobile.fight,
+    pokemon: copy.mobile.party,
+    run: copy.mobile.run,
+  };
   return (
     <div
       className={`${styles.battleWindow} ${styles.battleOptionGrid}`}
@@ -409,9 +447,11 @@ export function BattleMovePanel({
 }
 
 export function BattleMoveReplacementPanel({
+  copy,
   controls,
   onAction,
 }: {
+  copy: PokeLoungeCopy;
   controls: MobileBattleUiState;
   onAction(action: MobileBattleUiAction): void;
 }) {
@@ -421,7 +461,9 @@ export function BattleMoveReplacementPanel({
       className={`${styles.battleWindow} ${styles.battleReplacementPanel}`}
       data-poke-lounge-battle-surface="move-replacement"
     >
-      <strong>{pending ? `${pending.newMoveName}을 배우려면 잊을 기술 선택` : "기술 교체"}</strong>
+      <strong>
+        {pending ? copy.game.moveLearnPrompt(pending.newMoveName) : copy.game.moveReplacementTitle}
+      </strong>
       <div className={styles.battleReplacementGrid}>
         {Array.from({ length: 4 }, function callback(_, index) {
           const move = controls.moves[index];
@@ -446,7 +488,7 @@ export function BattleMoveReplacementPanel({
             return onAction({ type: "go-back" });
           }}
         >
-          배우지 않는다
+          {copy.mobile.doNotLearnMove}
         </button>
       ) : null}
     </div>
@@ -454,17 +496,19 @@ export function BattleMoveReplacementPanel({
 }
 
 export function BattlePartyPanel({
+  copy,
   controls,
   onAction,
 }: {
+  copy: PokeLoungeCopy;
   controls: MobileBattleUiState;
   onAction(action: MobileBattleUiAction): void;
 }) {
   return (
     <div className={styles.battlePartyPanel} data-poke-lounge-battle-surface="party">
       <header>
-        <strong>교체할 포켓몬 선택</strong>
-        <span>{controls.isForcedPartySwitch ? "필수 교체" : "B 돌아가기"}</span>
+        <strong>{copy.game.chooseSwitchPokemon}</strong>
+        <span>{controls.isForcedPartySwitch ? copy.game.forcedSwitch : copy.game.backHint}</span>
       </header>
       <div>
         {controls.party.map(function mapItem(pokemon) {
@@ -494,7 +538,7 @@ export function BattlePartyPanel({
                   }}
                 />
               ) : null}
-              <strong>{pokemon.isEmpty ? "- 빈 슬롯" : pokemon.name}</strong>
+              <strong>{pokemon.isEmpty ? `- ${copy.game.emptySlot}` : pokemon.name}</strong>
               {!pokemon.isEmpty ? (
                 <small>
                   Lv.{pokemon.level} · HP {pokemon.currentHp}/{pokemon.maxHp}
@@ -551,13 +595,13 @@ export function BattleBagPanel({
   );
 }
 
-export function BattleWaitingPanel() {
+export function BattleWaitingPanel({ copy }: { copy: PokeLoungeCopy }) {
   return (
     <div
       className={`${styles.battleWindow} ${styles.battleMessagePanel}`}
       data-poke-lounge-battle-surface="waiting"
     >
-      전투 처리를 기다리는 중입니다.
+      {copy.game.battleProcessing}
     </div>
   );
 }
@@ -587,19 +631,21 @@ function BattleOptionButton({
 }
 
 export function BattleShortcutGuide({
+  copy,
   onClose,
   state,
 }: {
+  copy: PokeLoungeCopy;
   onClose(): void;
   state: BattlePresentationState;
 }) {
-  const rows = createShortcutGuideRows("battle", state.help.inputMode);
+  const rows = createShortcutGuideRows("battle", state.help.inputMode, copy.locale);
   return (
     <section className={styles.battleShortcutGuide} data-poke-lounge-battle-surface="help">
       <header>
-        <strong>{createShortcutGuideTitle("battle", state.help.inputMode)}</strong>
+        <strong>{createShortcutGuideTitle("battle", state.help.inputMode, copy.locale)}</strong>
         <button type="button" onClick={onClose}>
-          닫기
+          {copy.settingsClose}
         </button>
       </header>
       <dl>
@@ -612,7 +658,7 @@ export function BattleShortcutGuide({
           );
         })}
       </dl>
-      <p>{createShortcutGuideFooter(state.help.inputMode)}</p>
+      <p>{createShortcutGuideFooter(state.help.inputMode, copy.locale)}</p>
     </section>
   );
 }

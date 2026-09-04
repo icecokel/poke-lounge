@@ -32,6 +32,10 @@ import {
   type VirtualGamepadController,
 } from "../runtime/game/input/virtual-gamepad";
 import styles from "./mobile-game-shell.module.css";
+import {
+  localizeMobileBattleUiState,
+  localizeMobileWorldUiState,
+} from "../runtime/game/i18n/runtime-game-localization";
 
 type MobileScene = "battle" | "world" | null;
 
@@ -167,7 +171,7 @@ export function MobileGameShell({
   worldInput = virtualGamepadController,
   worldUiStore,
 }: MobileGameShellProps) {
-  const worldState = useSyncExternalStore(
+  const rawWorldState = useSyncExternalStore(
     worldUiStore?.subscribe ?? subscribeToNothing,
     function callback() {
       return worldUiStore?.getSnapshot().mobile ?? null;
@@ -176,6 +180,7 @@ export function MobileGameShell({
       return null;
     },
   );
+  const worldState = rawWorldState ? localizeMobileWorldUiState(rawWorldState, copy.locale) : null;
 
   const dispatchWorldAction = (action: MobileWorldUiAction) => {
     worldInput.reset();
@@ -495,9 +500,9 @@ export function MobileWorldScreen({
   let footer: ReactNode = null;
 
   if (state.screen === "help") {
-    content = <MobileWorldHelpScreen state={state} />;
+    content = <MobileWorldHelpScreen copy={copy} state={state} />;
   } else if (state.screen === "inventory-items") {
-    content = <MobileInventoryItemList onAction={onAction} state={state} />;
+    content = <MobileInventoryItemList copy={copy} onAction={onAction} state={state} />;
     footer = (
       <MobileWorldSceneFooter
         copy={copy}
@@ -536,7 +541,7 @@ export function MobileWorldScreen({
       />
     );
   } else if (state.screen === "shop") {
-    content = <MobileShopPanel onAction={onAction} state={state} />;
+    content = <MobileShopPanel copy={copy} onAction={onAction} state={state} />;
     footer = (
       <MobileWorldSceneFooter
         copy={copy}
@@ -562,7 +567,7 @@ export function MobileWorldScreen({
       />
     );
   } else if (state.screen === "dice") {
-    content = <MobileDicePanel onAction={onAction} state={state} />;
+    content = <MobileDicePanel copy={copy} onAction={onAction} state={state} />;
     footer = (
       <MobileWorldSceneFooter
         copy={copy}
@@ -598,10 +603,16 @@ export function MobileWorldScreen({
   );
 }
 
-export function MobileWorldHelpScreen({ state }: { state: MobileWorldUiState }) {
+export function MobileWorldHelpScreen({
+  copy,
+  state,
+}: {
+  copy: PokeLoungeCopy;
+  state: MobileWorldUiState;
+}) {
   return (
     <ul className={styles.helpList}>
-      {createShortcutGuideRows("world", state.inputMode).map(function mapItem(row) {
+      {createShortcutGuideRows("world", state.inputMode, copy.locale).map(function mapItem(row) {
         return (
           <li key={row.action}>
             <b>{row.action}</b>
@@ -614,9 +625,11 @@ export function MobileWorldHelpScreen({ state }: { state: MobileWorldUiState }) 
 }
 
 export function MobileInventoryItemList({
+  copy,
   onAction,
   state,
 }: {
+  copy: PokeLoungeCopy;
   onAction(action: MobileWorldUiAction): void;
   state: MobileWorldUiState;
 }) {
@@ -645,7 +658,7 @@ export function MobileInventoryItemList({
       </div>
       <div className={styles.inventoryDetail}>
         <p className={styles.detailText}>
-          {state.selectedItemDescription || "사용할 아이템이 없습니다."}
+          {state.selectedItemDescription || copy.game.noUsableItems}
         </p>
         <MobileWorldMessage message={state.message} />
       </div>
@@ -701,7 +714,7 @@ export function MobileInventoryMoveReplacement({
   state: MobileWorldUiState;
 }) {
   if (!state.moveReplacement) {
-    return <MobileWorldMessage message="기술 교체 정보를 불러올 수 없습니다." />;
+    return <MobileWorldMessage message={copy.game.moveReplacementUnavailable} />;
   }
 
   return (
@@ -737,9 +750,11 @@ export function MobileInventoryMoveReplacement({
 }
 
 export function MobileShopPanel({
+  copy,
   onAction,
   state,
 }: {
+  copy: PokeLoungeCopy;
   onAction(action: MobileWorldUiAction): void;
   state: MobileWorldUiState;
 }) {
@@ -760,7 +775,7 @@ export function MobileShopPanel({
             >
               <span>{item.name}</span>
               <small>
-                {formatMobilePokeDollars(item.price ?? 0)} · ×{item.count}
+                {formatMobilePokeDollars(item.price ?? 0, copy.locale)} · ×{item.count}
               </small>
             </button>
           );
@@ -849,7 +864,7 @@ export function MobilePcPanel({
             );
           })
         ) : (
-          <p className={styles.emptyList}>비어 있음</p>
+          <p className={styles.emptyList}>{copy.game.empty}</p>
         )}
       </div>
       <MobileWorldMessage message={state.message} />
@@ -858,9 +873,11 @@ export function MobilePcPanel({
 }
 
 export function MobileDicePanel({
+  copy,
   onAction,
   state,
 }: {
+  copy: PokeLoungeCopy;
   onAction(action: MobileWorldUiAction): void;
   state: MobileWorldUiState;
 }) {
@@ -869,8 +886,10 @@ export function MobileDicePanel({
       {state.dice ? (
         <>
           <p className={styles.diceMeta}>
-            기준 {state.dice.targetNumber} · 배팅{" "}
-            {formatMobilePokeDollars(state.dice.stakePokeDollars)}
+            {copy.game.diceTargetAndBet(
+              state.dice.targetNumber,
+              formatMobilePokeDollars(state.dice.stakePokeDollars, copy.locale),
+            )}
           </p>
           <div className={styles.compactList}>
             {state.dice.options.map(function mapItem(option) {
@@ -892,7 +911,7 @@ export function MobileDicePanel({
                   <span>{option.label}</span>
                   <small>
                     {option.winningCaseCount}/6 ·{" "}
-                    {formatMobilePokeDollars(option.rewardPokeDollars)}
+                    {formatMobilePokeDollars(option.rewardPokeDollars, copy.locale)}
                   </small>
                 </button>
               );
@@ -1021,7 +1040,7 @@ function MobileWorldSceneFooter({
 function MobileWorldMeta({ copy, value }: { copy: PokeLoungeCopy; value: number }) {
   return (
     <p className={styles.deckMeta}>
-      {copy.mobile.wallet} · {formatMobilePokeDollars(value)}
+      {copy.mobile.wallet} · {formatMobilePokeDollars(value, copy.locale)}
     </p>
   );
 }
@@ -1030,8 +1049,8 @@ function MobileWorldMessage({ message }: { message: string }) {
   return message ? <p className={styles.deckMessage}>{message}</p> : null;
 }
 
-function formatMobilePokeDollars(value: number): string {
-  return `₽ ${Math.max(0, Math.floor(value)).toLocaleString("en-US")}`;
+function formatMobilePokeDollars(value: number, locale: string): string {
+  return `₽ ${Math.max(0, Math.floor(value)).toLocaleString(locale)}`;
 }
 
 function formatMobileHp(
@@ -1055,7 +1074,7 @@ export function MobileBattleDeck({
   copy: PokeLoungeCopy;
   uiStore?: BattleUiStore;
 }) {
-  const battleState = useSyncExternalStore(
+  const rawBattleState = useSyncExternalStore(
     uiStore?.subscribe ?? subscribeToNothing,
     function callback() {
       return uiStore?.getSnapshot().controls ?? null;
@@ -1064,6 +1083,9 @@ export function MobileBattleDeck({
       return null;
     },
   );
+  const battleState = rawBattleState
+    ? localizeMobileBattleUiState(rawBattleState, copy.locale)
+    : null;
 
   const dispatchAction = (action: MobileBattleUiAction) => {
     void primePokeLoungeAudio();
@@ -1265,7 +1287,7 @@ export function MobileBattlePartyDeck({
               </span>
               <small>
                 {pokemon.isCurrent
-                  ? "ON FIELD"
+                  ? copy.game.currentBattler
                   : `${pokemon.currentHp}/${pokemon.maxHp}${pokemon.status ? ` · ${pokemon.status}` : ""}`}
               </small>
             </button>

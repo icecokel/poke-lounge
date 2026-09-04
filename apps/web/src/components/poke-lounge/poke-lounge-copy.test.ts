@@ -74,16 +74,37 @@ test("모든 로케일은 8명 정원과 시작 시 AI 자동 참가를 안내�
   }
 });
 
-test("모바일 전투 문구는 한국어 중심 런타임과 같은 언어를 사용한다", function testCase() {
-  for (const locale of ["ko-KR", "en-US", "ja-JP"] as const) {
-    const mobile = getPokeLoungeCopy(locale).mobile;
+test("모바일 전투 문구를 선택한 로케일로 제공한다", function testCase() {
+  const korean = getPokeLoungeCopy("ko-KR").mobile;
+  const english = getPokeLoungeCopy("en-US").mobile;
+  const japanese = getPokeLoungeCopy("ja-JP").mobile;
 
-    assert.equal(mobile.battleDeckLabel, "전투 조작");
+  assert.equal(korean.battleDeckLabel, "전투 조작");
+  assert.equal(english.battleDeckLabel, "Battle controls");
+  assert.equal(japanese.battleDeckLabel, "バトル操作");
+  assert.equal(
+    english.moveReplacementPrompt("Totodile", "Bite"),
+    "Totodile can learn Bite. Choose a move to forget.",
+  );
+  assert.equal(
+    japanese.moveReplacementPrompt("ワニノコ", "かみつく"),
+    "ワニノコはかみつくを覚えられます。忘れるわざを選んでください。",
+  );
+});
+
+test("영어와 일본어 정적 UI 문구에 한국어 기본값이 남지 않는다", function testCase() {
+  for (const locale of ["en-US", "ja-JP"] as const) {
+    const strings = collectStrings(getPokeLoungeCopy(locale));
     assert.equal(
-      mobile.moveReplacementPrompt("리아코", "물기"),
-      "리아코의 새 기술 물기. 잊을 기술을 선택하세요.",
+      strings.find(value => /[가-힣]/.test(value)),
+      undefined,
+      `${locale} copy contains Hangul`,
     );
-    assert.equal(mobile.forgetMove, "이 기술을 잊기");
-    assert.equal(mobile.doNotLearnMove, "배우지 않기");
   }
 });
+
+function collectStrings(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (!value || typeof value !== "object") return [];
+  return Object.values(value).flatMap(collectStrings);
+}

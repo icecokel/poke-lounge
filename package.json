@@ -27,6 +27,8 @@
     "e2e:five-player": "pnpm --filter @poke-lounge/web e2e:five-player",
     "generate:poke-lounge-rom-data": "python3 scripts/poke-lounge/extract-rom-game-data.py && prettier --write apps/web/public/game-data/pokemon-data.json apps/web/public/game-data/level-up-move-table.json apps/web/public/game-data/item-data.json apps/web/src/components/poke-lounge/runtime/game/battle/growthTable.json && pnpm generate:poke-lounge-competitive-catalog",
     "generate:poke-lounge-competitive-catalog": "node scripts/poke-lounge/generate-competitive-catalog.mjs --write",
+    "generate:poke-lounge-i18n": "python3 scripts/poke-lounge/generate-runtime-i18n.py",
+    "check:poke-lounge-i18n": "python3 scripts/poke-lounge/generate-runtime-i18n.py --check",
     "check:poke-lounge-competitive-catalog": "node scripts/poke-lounge/generate-competitive-catalog.mjs --check",
     "check:poke-lounge-battle-resolution": "node scripts/check-poke-lounge-battle-resolution.mjs types && pnpm build:poke-lounge-battle && node scripts/check-poke-lounge-battle-resolution.mjs runtime",
     "poke-lounge:audio:verify": "node scripts/poke-lounge/verify-audio-assets.mjs",

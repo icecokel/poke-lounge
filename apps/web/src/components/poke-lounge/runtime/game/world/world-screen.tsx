@@ -17,6 +17,7 @@ import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import type { GameStateStore } from "../state/game-state-store";
 import { WorldUiLayer } from "./world-ui";
 import type { WorldUiStore } from "./world-ui-store";
+import { localizeTrainerName } from "../i18n/runtime-game-localization";
 
 export function WorldScreen({
   atlas,
@@ -113,8 +114,8 @@ export function WorldScreen({
                     ref={registerMapRef(remotePlayerRefs.current, player.sessionId)}
                     displayName={
                       player.controller === "ai" && player.activity
-                        ? `${player.displayName} · ${copy.aiActivity[player.activity]}`
-                        : player.displayName
+                        ? `${localizeTrainerName(player.displayName, copy.locale)} · ${copy.aiActivity[player.activity]}`
+                        : localizeTrainerName(player.displayName, copy.locale)
                     }
                   />
                 );

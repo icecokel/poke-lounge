@@ -1,6 +1,12 @@
 import { findCurrentMatch } from "../network/tournament-projection";
 import type { GameState, PlayerPokemon } from "../state/game-state-store";
 import { resolvePokeLoungeLocale, type PokeLoungeLocale } from "../../../poke-lounge-copy";
+import {
+  localizeMoveName,
+  localizePokemonName,
+  localizeRuntimeText,
+  localizeTrainerName,
+} from "../i18n/runtime-game-localization";
 
 interface AccessibleSummaryCopy {
   trainerPreparing: string;
@@ -142,7 +148,8 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
 };
 
 export function createAccessibleGameSummary(state: GameState, locale?: string | null): string {
-  const copy = ACCESSIBLE_SUMMARY_COPY[resolvePokeLoungeLocale(locale)];
+  const resolvedLocale = resolvePokeLoungeLocale(locale);
+  const copy = ACCESSIBLE_SUMMARY_COPY[resolvedLocale];
   const player = state.playersById[state.currentPlayerId];
 
   if (!player) {
@@ -163,6 +170,7 @@ export function createAccessibleGameSummary(state: GameState, locale?: string | 
           return slot.pokemon;
         }).length,
         copy,
+        resolvedLocale,
       )
     : copy.noParty;
   const projection = state.tournament.serverProjection;
@@ -204,7 +212,7 @@ export function createAccessibleGameSummary(state: GameState, locale?: string | 
           : projection.roomStatus === "closed"
             ? copy.roomClosed
             : opponent
-              ? copy.opponent(opponent.displayName)
+              ? copy.opponent(localizeTrainerName(opponent.displayName, resolvedLocale))
               : copy.waitingForMatch;
   const roleSummary = ownParticipant?.role === "spectator" ? copy.spectator : copy.participant;
   const rankingSummary =
@@ -224,8 +232,11 @@ interface AccessibleSceneCopy {
   battleCommand(command: string): string;
   moveSelected(pp: string, maxPp: string): string;
   chooseMove: string;
+  moveReplacementSelected: string;
+  moveReplacementChecking: string;
   partySelected(currentHp: string, maxHp: string): string;
   chooseParty: string;
+  forcedSwitch(selection: string): string;
   bagSelected(quantity: string): string;
   chooseBagItem: string;
   bagTarget(hp: string): string;
@@ -243,9 +254,12 @@ const ACCESSIBLE_SCENE_COPY: Record<Exclude<PokeLoungeLocale, "ko-KR">, Accessib
     battleCommand: command => `Battle command selected: ${command}.`,
     moveSelected: (pp, maxPp) => `Move selected. PP ${pp}/${maxPp}.`,
     chooseMove: "Choose a move.",
+    moveReplacementSelected: "Selected the move to forget before learning the new move.",
+    moveReplacementChecking: "Confirming move replacement.",
     partySelected: (currentHp, maxHp) =>
       `Pokémon selected for switching. HP ${currentHp}/${maxHp}.`,
     chooseParty: "Choose a Pokémon to switch in.",
+    forcedSwitch: selection => `Your lead Pokémon fainted, so you must switch. ${selection}`,
     bagSelected: quantity => `Bag item selected. ${quantity} remaining.`,
     chooseBagItem: "Choose an item to use.",
     bagTarget: hp => `Bag target selected. HP ${hp}.`,
@@ -266,8 +280,11 @@ const ACCESSIBLE_SCENE_COPY: Record<Exclude<PokeLoungeLocale, "ko-KR">, Accessib
     battleCommand: command => `バトルコマンド「${command}」を選択。`,
     moveSelected: (pp, maxPp) => `わざを選択。PP ${pp}/${maxPp}。`,
     chooseMove: "使用するわざを選んでください。",
+    moveReplacementSelected: "新しいわざを覚えるため、忘れるわざを選びました。",
+    moveReplacementChecking: "わざの入れ替えを確認しています。",
     partySelected: (currentHp, maxHp) => `交代するポケモンを選択。HP ${currentHp}/${maxHp}。`,
     chooseParty: "交代するポケモンを選んでください。",
+    forcedSwitch: selection => `先頭のポケモンが倒れたため、交代が必要です。${selection}`,
     bagSelected: quantity => `バッグのどうぐを選択。残り ${quantity}個。`,
     chooseBagItem: "使用するどうぐを選んでください。",
     bagTarget: hp => `バッグの対象を選択。HP ${hp}。`,
@@ -320,6 +337,11 @@ export function localizePokeLoungeAccessibleSceneStatus(
     return copy.bagEmpty;
   }
 
+  const localizedRuntimeStatus = localizeRuntimeText(rawStatus, resolvedLocale);
+  if (localizedRuntimeStatus !== rawStatus) {
+    return localizedRuntimeStatus;
+  }
+
   return HANGUL_PATTERN.test(rawStatus) ? copy.gameUpdated : rawStatus;
 }
 
@@ -342,6 +364,14 @@ function localizeBattleInteraction(interaction: string, copy: AccessibleSceneCop
     return copy.chooseMove;
   }
 
+  if (/^.+을 배우기 위해 .+을 잊도록 선택했습니다\.$/.test(interaction)) {
+    return copy.moveReplacementSelected;
+  }
+
+  if (interaction === "기술 교체를 확인하는 중입니다.") {
+    return copy.moveReplacementChecking;
+  }
+
   const party = interaction.match(/^교체 대상 .+, HP (\d+)\/(\d+)\.$/);
   if (party) {
     return copy.partySelected(party[1], party[2]);
@@ -349,6 +379,11 @@ function localizeBattleInteraction(interaction: string, copy: AccessibleSceneCop
 
   if (interaction === "교체할 포켓몬을 선택하세요.") {
     return copy.chooseParty;
+  }
+
+  const forcedSwitch = interaction.match(/^선두 포켓몬이 쓰러져 반드시 교체해야 합니다\. (.+)$/);
+  if (forcedSwitch) {
+    return copy.forcedSwitch(localizeBattleInteraction(forcedSwitch[1], copy));
   }
 
   const bag = interaction.match(/^가방 .+ 선택\. 보유 (\d+)개\.$/);
@@ -367,6 +402,7 @@ function createPokemonSummary(
   pokemon: PlayerPokemon,
   partySize: number,
   copy: AccessibleSummaryCopy,
+  locale: PokeLoungeLocale,
 ): string {
   const hp =
     typeof pokemon.currentHp === "number" && typeof pokemon.maxHp === "number"
@@ -381,11 +417,17 @@ function createPokemonSummary(
         pokemon.moves
           .slice(0, 4)
           .map(function mapItem(move) {
-            return `${move.name} PP ${move.pp}/${move.maxPp}`;
+            return `${localizeMoveName(move.name, locale)} PP ${move.pp}/${move.maxPp}`;
           })
           .join(", "),
       )
     : "";
 
-  return copy.party(partySize, pokemon, hp, status, moves);
+  return copy.party(
+    partySize,
+    { ...pokemon, name: localizePokemonName(pokemon.name, locale) },
+    hp,
+    status,
+    moves,
+  );
 }

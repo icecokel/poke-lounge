@@ -76,6 +76,45 @@ export interface PokeLoungeCopy {
   resultRoomEntry: string;
   resultLobby: string;
   accessibleHelp: string;
+  game: {
+    starterTitle: string;
+    starterOptionsLabel: string;
+    starterPreviewLabel: string;
+    starterUnavailable: string;
+    starterConfirm: string;
+    starterAssetMissing(path: string): string;
+    resourcesPreparing: string;
+    battleHelpLabel: string;
+    battleTouchPrompt: string;
+    battleEnded: string;
+    moveLearnPrompt(moveName: string): string;
+    moveReplacementTitle: string;
+    chooseSwitchPokemon: string;
+    forcedSwitch: string;
+    backHint: string;
+    emptySlot: string;
+    battleProcessing: string;
+    currentBattler: string;
+    noUsableItems: string;
+    moveReplacementUnavailable: string;
+    empty: string;
+    diceTargetAndBet(target: number, bet: string): string;
+    pokemonDetails(name: string, level: number): string;
+    emptyPartySlot(slot: number): string;
+    experience: string;
+    status: string;
+    moves: string;
+    currentLead: string;
+    leadUnavailable: string;
+    effectUnsupported: string;
+    secondaryEffectUnsupported: string;
+    tournamentBracket: string;
+    startsAfter(time: string): string;
+    battlePreparing: string;
+    final: string;
+    bye: string;
+    statusLabel: Record<"normal" | "poisoned" | "burned" | "paralyzed" | "fainted", string>;
+  };
   mobile: {
     exploreDeckLabel: string;
     exploreHint: string;
@@ -275,6 +314,51 @@ const KOREAN_COPY: PokeLoungeCopy = {
   resultRoomEntry: "새 방 선택",
   resultLobby: "게임 로비로",
   accessibleHelp: "게임 조작 도움말은 H 키 또는 물음표 버튼으로 열 수 있습니다.",
+  game: {
+    starterTitle: "첫 파트너 선택",
+    starterOptionsLabel: "스타터 포켓몬 선택지",
+    starterPreviewLabel: "선택한 스타터 미리보기",
+    starterUnavailable: "선택 가능한 스타터가 없습니다.",
+    starterConfirm: "이 포켓몬으로 시작",
+    starterAssetMissing: path => `ROM 이미지 없음: ${path}`,
+    resourcesPreparing: "게임 리소스를 준비하는 중입니다.",
+    battleHelpLabel: "전투 도움말",
+    battleTouchPrompt: "아래 터치 화면에서 행동을 선택하세요.",
+    battleEnded: "전투가 종료되었습니다.",
+    moveLearnPrompt: moveName => `${moveName}을 배우려면 잊을 기술 선택`,
+    moveReplacementTitle: "기술 교체",
+    chooseSwitchPokemon: "교체할 포켓몬 선택",
+    forcedSwitch: "필수 교체",
+    backHint: "B 돌아가기",
+    emptySlot: "빈 슬롯",
+    battleProcessing: "전투 처리를 기다리는 중입니다.",
+    currentBattler: "전투 중",
+    noUsableItems: "사용할 아이템이 없습니다.",
+    moveReplacementUnavailable: "기술 교체 정보를 불러올 수 없습니다.",
+    empty: "비어 있음",
+    diceTargetAndBet: (target, bet) => `기준 ${target} · 배팅 ${bet}`,
+    pokemonDetails: (name, level) => `${name} Lv.${level} 상세`,
+    emptyPartySlot: slot => `빈 파티 슬롯 ${slot}`,
+    experience: "경험치",
+    status: "상태",
+    moves: "기술",
+    currentLead: "현재 선두",
+    leadUnavailable: "선두 지정 불가",
+    effectUnsupported: "효과 미지원",
+    secondaryEffectUnsupported: "부가 효과 미지원",
+    tournamentBracket: "토너먼트 대진",
+    startsAfter: time => `${time} 후 시작`,
+    battlePreparing: "전투 준비 중",
+    final: "결승",
+    bye: "부전승",
+    statusLabel: {
+      normal: "정상",
+      poisoned: "독",
+      burned: "화상",
+      paralyzed: "마비",
+      fainted: "전투불능",
+    },
+  },
   mobile: {
     exploreDeckLabel: "필드 조작",
     exploreHint: "방향 이동 · A 상호작용",
@@ -405,8 +489,6 @@ const KOREAN_COPY: PokeLoungeCopy = {
   },
 };
 
-// ponytail: 런타임 데이터와 메시지가 한국어뿐이라 모바일 인게임 문구도 한국어를 재사용한다.
-// 전체 런타임을 현지화할 때 로케일별 모바일 문구를 복원한다.
 const ENGLISH_COPY: PokeLoungeCopy = {
   ...KOREAN_COPY,
   locale: "en-US",
@@ -490,6 +572,97 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   resultRoomEntry: "Choose another room",
   resultLobby: "Game lobby",
   accessibleHelp: "Open the controls guide with H or the question-mark button.",
+  game: {
+    starterTitle: "Choose your first partner",
+    starterOptionsLabel: "Starter Pokémon options",
+    starterPreviewLabel: "Selected starter preview",
+    starterUnavailable: "No starter Pokémon are available.",
+    starterConfirm: "Start with this Pokémon",
+    starterAssetMissing: path => `ROM image missing: ${path}`,
+    resourcesPreparing: "Preparing game resources.",
+    battleHelpLabel: "Battle help",
+    battleTouchPrompt: "Choose an action on the touch controls below.",
+    battleEnded: "The battle has ended.",
+    moveLearnPrompt: moveName => `Choose a move to forget before learning ${moveName}`,
+    moveReplacementTitle: "Replace a move",
+    chooseSwitchPokemon: "Choose a Pokémon to switch in",
+    forcedSwitch: "Switch required",
+    backHint: "B Back",
+    emptySlot: "Empty slot",
+    battleProcessing: "Waiting for the battle to resolve.",
+    currentBattler: "On field",
+    noUsableItems: "There are no usable items.",
+    moveReplacementUnavailable: "Move replacement details are unavailable.",
+    empty: "Empty",
+    diceTargetAndBet: (target, bet) => `Target ${target} · Bet ${bet}`,
+    pokemonDetails: (name, level) => `${name} Lv.${level} details`,
+    emptyPartySlot: slot => `Empty party slot ${slot}`,
+    experience: "Experience",
+    status: "Status",
+    moves: "Moves",
+    currentLead: "Current lead",
+    leadUnavailable: "Cannot set as lead",
+    effectUnsupported: "Effect unsupported",
+    secondaryEffectUnsupported: "Secondary effect unsupported",
+    tournamentBracket: "Tournament bracket",
+    startsAfter: time => `Starts in ${time}`,
+    battlePreparing: "Preparing battle",
+    final: "Final",
+    bye: "Bye",
+    statusLabel: {
+      normal: "Normal",
+      poisoned: "Poisoned",
+      burned: "Burned",
+      paralyzed: "Paralyzed",
+      fainted: "Fainted",
+    },
+  },
+  mobile: {
+    exploreDeckLabel: "Field controls",
+    exploreHint: "Move · A to interact",
+    battleDeckLabel: "Battle controls",
+    moveUp: "Move up",
+    moveLeft: "Move left",
+    moveRight: "Move right",
+    moveDown: "Move down",
+    interact: "Talk",
+    bag: "Bag",
+    menu: "Menu",
+    next: "Next",
+    back: "Back",
+    fight: "Fight",
+    party: "Pokémon",
+    run: "Run",
+    chooseMove: "Choose a move",
+    chooseParty: "Choose Pokémon",
+    chooseItem: "Choose an item",
+    replaceMove: "Choose a move to forget",
+    moveReplacementPrompt: (pokemonName, newMoveName) =>
+      `${pokemonName} can learn ${newMoveName}. Choose a move to forget.`,
+    forgetMove: "Forget this move",
+    doNotLearnMove: "Do not learn",
+    confirmMoveReplacement: "Forget selected move",
+    help: "Controls",
+    battleHelpChoose: "Choose an action with the Fight, Bag, Pokémon, or Run buttons.",
+    battleHelpAdvance: "Read the battle message, then press Next.",
+    battleHelpBack: "Return from move, Bag, or Pokémon selection with Back.",
+    use: "Use",
+    buy: "Buy",
+    deposit: "Store",
+    withdraw: "Take out",
+    setLead: "Set lead",
+    roll: "Roll",
+    pcParty: "Party",
+    pcBox: "Box",
+    wallet: "Wallet",
+    waiting: "Waiting for the other trainer...",
+    roundWaiting: "Waiting for the other players...",
+    spectating: "Watching another player's match...",
+    spectatingCompleted: "The match you were watching has ended.",
+    preparing: "Preparing the battle...",
+    actionSending: "Sending your action to the server...",
+    connectionRecovering: "Restoring the connection...",
+  },
   startup: {
     title: "Could not start the game",
     description:
@@ -659,6 +832,97 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   resultRoomEntry: "別のルームを選ぶ",
   resultLobby: "ゲームロビーへ",
   accessibleHelp: "Hキーまたは「？」ボタンで操作ガイドを開けます。",
+  game: {
+    starterTitle: "最初のパートナーを選ぶ",
+    starterOptionsLabel: "最初のポケモン候補",
+    starterPreviewLabel: "選んだポケモンのプレビュー",
+    starterUnavailable: "選べるポケモンがいません。",
+    starterConfirm: "このポケモンで始める",
+    starterAssetMissing: path => `ROM画像がありません: ${path}`,
+    resourcesPreparing: "ゲームリソースを準備しています。",
+    battleHelpLabel: "バトル操作ガイド",
+    battleTouchPrompt: "下のタッチ画面で行動を選んでください。",
+    battleEnded: "バトルが終了しました。",
+    moveLearnPrompt: moveName => `${moveName}を覚えるために忘れるわざを選ぶ`,
+    moveReplacementTitle: "わざの入れ替え",
+    chooseSwitchPokemon: "交代するポケモンを選ぶ",
+    forcedSwitch: "交代必須",
+    backHint: "B 戻る",
+    emptySlot: "空きスロット",
+    battleProcessing: "バトル処理を待っています。",
+    currentBattler: "バトル中",
+    noUsableItems: "使えるどうぐがありません。",
+    moveReplacementUnavailable: "わざの入れ替え情報を読み込めません。",
+    empty: "空き",
+    diceTargetAndBet: (target, bet) => `基準 ${target} · ベット ${bet}`,
+    pokemonDetails: (name, level) => `${name} Lv.${level} 詳細`,
+    emptyPartySlot: slot => `空きパーティスロット ${slot}`,
+    experience: "経験値",
+    status: "状態",
+    moves: "わざ",
+    currentLead: "現在の先頭",
+    leadUnavailable: "先頭にできません",
+    effectUnsupported: "効果未対応",
+    secondaryEffectUnsupported: "追加効果未対応",
+    tournamentBracket: "トーナメント表",
+    startsAfter: time => `${time}後に開始`,
+    battlePreparing: "バトル準備中",
+    final: "決勝",
+    bye: "不戦勝",
+    statusLabel: {
+      normal: "正常",
+      poisoned: "どく",
+      burned: "やけど",
+      paralyzed: "まひ",
+      fainted: "ひんし",
+    },
+  },
+  mobile: {
+    exploreDeckLabel: "フィールド操作",
+    exploreHint: "方向で移動 · Aで話す",
+    battleDeckLabel: "バトル操作",
+    moveUp: "上へ移動",
+    moveLeft: "左へ移動",
+    moveRight: "右へ移動",
+    moveDown: "下へ移動",
+    interact: "話す",
+    bag: "バッグ",
+    menu: "メニュー",
+    next: "次へ",
+    back: "戻る",
+    fight: "たたかう",
+    party: "ポケモン",
+    run: "にげる",
+    chooseMove: "わざを選ぶ",
+    chooseParty: "ポケモンを交代",
+    chooseItem: "どうぐを選ぶ",
+    replaceMove: "忘れるわざを選ぶ",
+    moveReplacementPrompt: (pokemonName, newMoveName) =>
+      `${pokemonName}は${newMoveName}を覚えられます。忘れるわざを選んでください。`,
+    forgetMove: "このわざを忘れる",
+    doNotLearnMove: "覚えない",
+    confirmMoveReplacement: "選んだわざを忘れる",
+    help: "操作ガイド",
+    battleHelpChoose: "「たたかう」「バッグ」「ポケモン」「にげる」のボタンで行動を選びます。",
+    battleHelpAdvance: "バトルメッセージを確認して「次へ」を押します。",
+    battleHelpBack: "わざ・バッグ・ポケモン選択から「戻る」で前の画面に戻ります。",
+    use: "使う",
+    buy: "購入",
+    deposit: "預ける",
+    withdraw: "連れ出す",
+    setLead: "先頭にする",
+    roll: "振る",
+    pcParty: "手持ち",
+    pcBox: "ボックス",
+    wallet: "所持金",
+    waiting: "相手の選択を待っています...",
+    roundWaiting: "ほかのプレイヤーを待っています...",
+    spectating: "ほかのプレイヤーの試合を観戦しています...",
+    spectatingCompleted: "観戦中の試合が終了しました。",
+    preparing: "バトルを準備しています...",
+    actionSending: "行動をサーバーに送信しています...",
+    connectionRecovering: "接続を復旧しています...",
+  },
   startup: {
     title: "ゲームを開始できませんでした",
     description:

@@ -1,0 +1,4152 @@
+{
+  "items": {
+    "각성의돌": {
+      "en-US": {
+        "description": "A peculiar stone that makes certain species of Pokémon evolve. It sparkles like eyes.",
+        "name": "Dawn Stone"
+      },
+      "ja-JP": {
+        "description": "ある とくていの ポケモンを しんかさせる ふしぎな いし。 ひとみのように まばゆい。",
+        "name": "めざめいし"
+      }
+    },
+    "고급상처약": {
+      "en-US": {
+        "description": "A spray-type medicine for wounds. It restores the HP of one Pokémon by 200 points.",
+        "name": "Hyper Potion"
+      },
+      "ja-JP": {
+        "description": "スプレーしきの キズぐすり。 ポケモン １ひきの ＨＰを １２０だけ かいふくする。",
+        "name": "すごいキズぐすり"
+      }
+    },
+    "기력의조각": {
+      "en-US": {
+        "description": "A medicine that revives a fainted Pokémon. It restores half the Pokémon’s maximum HP.",
+        "name": "Revive"
+      },
+      "ja-JP": {
+        "description": "ひんしに なった ポケモン １ひきを げんきに したうえで ＨＰを はんぶんまで かいふくする。",
+        "name": "げんきのかけら"
+      }
+    },
+    "달의돌": {
+      "en-US": {
+        "description": "A peculiar stone that makes certain species of Pokémon evolve. It is as black as the night sky.",
+        "name": "Moon Stone"
+      },
+      "ja-JP": {
+        "description": "ある とくていの ポケモンを しんかさせる ふしぎな いし。 よぞらのように くろい。",
+        "name": "つきのいし"
+      }
+    },
+    "리프의돌": {
+      "en-US": {
+        "description": "A peculiar stone that makes certain species of Pokémon evolve. It has a leaf pattern.",
+        "name": "Leaf Stone"
+      },
+      "ja-JP": {
+        "description": "ある とくていの ポケモンを しんかさせる ふしぎな いし。 はっぱの もようが ある。",
+        "name": "リーフのいし"
+      }
+    },
+    "몬스터볼": {
+      "en-US": {
+        "description": "A device for catching wild Pokémon. It is thrown like a ball at the target. It is designed as a capsule system.",
+        "name": "Poké Ball"
+      },
+      "ja-JP": {
+        "description": "やせいの ポケモンに なげて つかまえる ための ボール。 カプセルしきに なっている。",
+        "name": "モンスターボール"
+      }
+    },
+    "물의돌": {
+      "en-US": {
+        "description": "A peculiar stone that makes certain species of Pokémon evolve. It is a clear, light blue.",
+        "name": "Water Stone"
+      },
+      "ja-JP": {
+        "description": "ある とくていの ポケモンを しんかさせる ふしぎな いし。 すんだ みずいろを している。",
+        "name": "みずのいし"
+      }
+    },
+    "불꽃의돌": {
+      "en-US": {
+        "description": "A peculiar stone that makes certain species of Pokémon evolve. It is colored orange.",
+        "name": "Fire Stone"
+      },
+      "ja-JP": {
+        "description": "ある とくていの ポケモンを しんかさせる ふしぎな いし。 だいだいいろを している。",
+        "name": "ほのおのいし"
+      }
+    },
+    "빛의돌": {
+      "en-US": {
+        "description": "A peculiar stone that makes certain species of Pokémon evolve. It shines with a dazzling light.",
+        "name": "Shiny Stone"
+      },
+      "ja-JP": {
+        "description": "ある とくていの ポケモンを しんかさせる ふしぎな いし。 ひかりのように まぶしい。",
+        "name": "ひかりのいし"
+      }
+    },
+    "상처약": {
+      "en-US": {
+        "description": "A spray-type medicine for wounds. It restores the HP of one Pokémon by just 20 points.",
+        "name": "Potion"
+      },
+      "ja-JP": {
+        "description": "スプレーしきの キズぐすり。 ポケモン １ひきの ＨＰを ２０だけ かいふくする。",
+        "name": "キズぐすり"
+      }
+    },
+    "어둠의돌": {
+      "en-US": {
+        "description": "A peculiar stone that makes certain species of Pokémon evolve. It is as dark as dark can be.",
+        "name": "Dusk Stone"
+      },
+      "ja-JP": {
+        "description": "ある とくていの ポケモンを しんかさせる ふしぎな いし。 やみのように くらい。",
+        "name": "やみのいし"
+      }
+    },
+    "이상한사탕": {
+      "en-US": {
+        "description": "A candy that is packed with energy. It raises the level of a single Pokémon by one.",
+        "name": "Rare Candy"
+      },
+      "ja-JP": {
+        "description": "エネルギーの つまった アメ。 あたえると ポケモン １ひきの レベルが １だけ あがる。",
+        "name": "ふしぎなアメ"
+      }
+    },
+    "좋은상처약": {
+      "en-US": {
+        "description": "A spray-type medicine for wounds. It restores the HP of one Pokémon by 50 points.",
+        "name": "Super Potion"
+      },
+      "ja-JP": {
+        "description": "スプレーしきの キズぐすり。 ポケモン １ひきの ＨＰを ６０だけ かいふくする。",
+        "name": "いいキズぐすり"
+      }
+    },
+    "천둥의돌": {
+      "en-US": {
+        "description": "A peculiar stone that makes certain species of Pokémon evolve. It has a thunderbolt pattern.",
+        "name": "Thunder Stone"
+      },
+      "ja-JP": {
+        "description": "ある とくていの ポケモンを しんかさせる ふしぎな いし。 いなずまの もようが ある。",
+        "name": "かみなりのいし"
+      }
+    },
+    "태양의돌": {
+      "en-US": {
+        "description": "A peculiar stone that makes certain species of Pokémon evolve. It is as red as the sun.",
+        "name": "Sun Stone"
+      },
+      "ja-JP": {
+        "description": "ある とくていの ポケモンを しんかさせる ふしぎな いし。 たいようのように あかい。",
+        "name": "たいようのいし"
+      }
+    },
+    "하이퍼볼": {
+      "en-US": {
+        "description": "An ultra-performance Ball that provides a higher Pokémon catch rate than a Great Ball.",
+        "name": "Ultra Ball"
+      },
+      "ja-JP": {
+        "description": "スーパーボールよりも さらに ポケモンを つかまえやすくなった すごく せいのうのいい ボール。",
+        "name": "ハイパーボール"
+      }
+    },
+    "해독제": {
+      "en-US": {
+        "description": "A spray-type medicine. It lifts the effect of poison from one Pokémon.",
+        "name": "Antidote"
+      },
+      "ja-JP": {
+        "description": "スプレーしきの くすり。 ポケモン １ひきの どくの じょうたいを かいふくする。",
+        "name": "どくけし"
+      }
+    }
+  },
+  "moves": {
+    "10만볼트": {
+      "en-US": "Thunderbolt",
+      "ja-JP": "１０まんボルト"
+    },
+    "HP회복": {
+      "en-US": "Recover",
+      "ja-JP": "じこさいせい"
+    },
+    "가드스웹": {
+      "en-US": "Guard Swap",
+      "ja-JP": "ガードスワップ"
+    },
+    "가로챔": {
+      "en-US": "Snatch",
+      "ja-JP": "よこどり"
+    },
+    "가시대포": {
+      "en-US": "Spike Cannon",
+      "ja-JP": "とげキャノン"
+    },
+    "가위자르기": {
+      "en-US": "Guillotine",
+      "ja-JP": "ハサミギロチン"
+    },
+    "각지기": {
+      "en-US": "Sharpen",
+      "ja-JP": "かくばる"
+    },
+    "간지르기": {
+      "en-US": "Tickle",
+      "ja-JP": "くすぐる"
+    },
+    "강철날개": {
+      "en-US": "Steel Wing",
+      "ja-JP": "はがねのつばさ"
+    },
+    "객기": {
+      "en-US": "Facade",
+      "ja-JP": "からげんき"
+    },
+    "거미집": {
+      "en-US": "Spider Web",
+      "ja-JP": "クモのす"
+    },
+    "거짓울음": {
+      "en-US": "Fake Tears",
+      "ja-JP": "うそなき"
+    },
+    "거품": {
+      "en-US": "Bubble",
+      "ja-JP": "あわ"
+    },
+    "거품광선": {
+      "en-US": "Bubble Beam",
+      "ja-JP": "バブルこうせん"
+    },
+    "검은눈빛": {
+      "en-US": "Mean Look",
+      "ja-JP": "くろいまなざし"
+    },
+    "겁나는얼굴": {
+      "en-US": "Scary Face",
+      "ja-JP": "こわいかお"
+    },
+    "경혈찌르기": {
+      "en-US": "Acupressure",
+      "ja-JP": "つぼをつく"
+    },
+    "고드름침": {
+      "en-US": "Icicle Spear",
+      "ja-JP": "つららばり"
+    },
+    "고민씨": {
+      "en-US": "Worry Seed",
+      "ja-JP": "なやみのタネ"
+    },
+    "고속스핀": {
+      "en-US": "Rapid Spin",
+      "ja-JP": "こうそくスピン"
+    },
+    "고속이동": {
+      "en-US": "Agility",
+      "ja-JP": "こうそくいどう"
+    },
+    "고양이돈받기": {
+      "en-US": "Pay Day",
+      "ja-JP": "ネコにこばん"
+    },
+    "공간절단": {
+      "en-US": "Spacial Rend",
+      "ja-JP": "あくうせつだん"
+    },
+    "공격지령": {
+      "en-US": "Attack Order",
+      "ja-JP": "こうげきしれい"
+    },
+    "공중날기": {
+      "en-US": "Fly",
+      "ja-JP": "そらをとぶ"
+    },
+    "광합성": {
+      "en-US": "Synthesis",
+      "ja-JP": "こうごうせい"
+    },
+    "괴력": {
+      "en-US": "Strength",
+      "ja-JP": "かいりき"
+    },
+    "괴상한바람": {
+      "en-US": "Ominous Wind",
+      "ja-JP": "あやしいかぜ"
+    },
+    "구르기": {
+      "en-US": "Rollout",
+      "ja-JP": "ころがる"
+    },
+    "구멍파기": {
+      "en-US": "Dig",
+      "ja-JP": "あなをほる"
+    },
+    "구슬던지기": {
+      "en-US": "Barrage",
+      "ja-JP": "たまなげ"
+    },
+    "그림자분신": {
+      "en-US": "Double Team",
+      "ja-JP": "かげぶんしん"
+    },
+    "금속음": {
+      "en-US": "Metal Sound",
+      "ja-JP": "きんぞくおん"
+    },
+    "금제": {
+      "en-US": "Embargo",
+      "ja-JP": "さしおさえ"
+    },
+    "기가드레인": {
+      "en-US": "Giga Drain",
+      "ja-JP": "ギガドレイン"
+    },
+    "기가임팩트": {
+      "en-US": "Giga Impact",
+      "ja-JP": "ギガインパクト"
+    },
+    "기관총": {
+      "en-US": "Bullet Seed",
+      "ja-JP": "タネマシンガン"
+    },
+    "기사회생": {
+      "en-US": "Reversal",
+      "ja-JP": "きしかいせい"
+    },
+    "기습": {
+      "en-US": "Sucker Punch",
+      "ja-JP": "ふいうち"
+    },
+    "기충전": {
+      "en-US": "Focus Energy",
+      "ja-JP": "きあいだめ"
+    },
+    "기합구슬": {
+      "en-US": "Focus Blast",
+      "ja-JP": "きあいだま"
+    },
+    "길동무": {
+      "en-US": "Destiny Bond",
+      "ja-JP": "みちづれ"
+    },
+    "김밥말이": {
+      "en-US": "Wrap",
+      "ja-JP": "まきつく"
+    },
+    "깃털댄스": {
+      "en-US": "Feather Dance",
+      "ja-JP": "フェザーダンス"
+    },
+    "깜짝베기": {
+      "en-US": "Night Slash",
+      "ja-JP": "つじぎり"
+    },
+    "깨물어부수기": {
+      "en-US": "Crunch",
+      "ja-JP": "かみくだく"
+    },
+    "깨트리다": {
+      "en-US": "Brick Break",
+      "ja-JP": "かわらわり"
+    },
+    "껍질끼우기": {
+      "en-US": "Clamp",
+      "ja-JP": "からではさむ"
+    },
+    "껍질에숨기": {
+      "en-US": "Withdraw",
+      "ja-JP": "からにこもる"
+    },
+    "꼬리흔들기": {
+      "en-US": "Tail Whip",
+      "ja-JP": "しっぽをふる"
+    },
+    "꽃잎댄스": {
+      "en-US": "Petal Dance",
+      "ja-JP": "はなびらのまい"
+    },
+    "꿀꺽": {
+      "en-US": "Swallow",
+      "ja-JP": "のみこむ"
+    },
+    "꿈먹기": {
+      "en-US": "Dream Eater",
+      "ja-JP": "ゆめくい"
+    },
+    "꿰뚫어보기": {
+      "en-US": "Foresight",
+      "ja-JP": "みやぶる"
+    },
+    "나쁜음모": {
+      "en-US": "Nasty Plot",
+      "ja-JP": "わるだくみ"
+    },
+    "나이트헤드": {
+      "en-US": "Night Shade",
+      "ja-JP": "ナイトヘッド"
+    },
+    "난동부리기": {
+      "en-US": "Thrash",
+      "ja-JP": "あばれる"
+    },
+    "날개쉬기": {
+      "en-US": "Roost",
+      "ja-JP": "はねやすめ"
+    },
+    "날개치기": {
+      "en-US": "Wing Attack",
+      "ja-JP": "つばさでうつ"
+    },
+    "날따름": {
+      "en-US": "Follow Me",
+      "ja-JP": "このゆびとまれ"
+    },
+    "날려버리기": {
+      "en-US": "Whirlwind",
+      "ja-JP": "ふきとばし"
+    },
+    "내던지기": {
+      "en-US": "Fling",
+      "ja-JP": "なげつける"
+    },
+    "냄새구별": {
+      "en-US": "Odor Sleuth",
+      "ja-JP": "かぎわける"
+    },
+    "냉동빔": {
+      "en-US": "Ice Beam",
+      "ja-JP": "れいとうビーム"
+    },
+    "냉동펀치": {
+      "en-US": "Ice Punch",
+      "ja-JP": "れいとうパンチ"
+    },
+    "노래하기": {
+      "en-US": "Sing",
+      "ja-JP": "うたう"
+    },
+    "녹기": {
+      "en-US": "Acid Armor",
+      "ja-JP": "とける"
+    },
+    "놀래키기": {
+      "en-US": "Astonish",
+      "ja-JP": "おどろかす"
+    },
+    "누르기": {
+      "en-US": "Body Slam",
+      "ja-JP": "のしかかり"
+    },
+    "눈보라": {
+      "en-US": "Blizzard",
+      "ja-JP": "ふぶき"
+    },
+    "눈사태": {
+      "en-US": "Avalanche",
+      "ja-JP": "ゆきなだれ"
+    },
+    "눈싸라기": {
+      "en-US": "Powder Snow",
+      "ja-JP": "こなゆき"
+    },
+    "다이빙": {
+      "en-US": "Dive",
+      "ja-JP": "ダイビング"
+    },
+    "다크홀": {
+      "en-US": "Dark Void",
+      "ja-JP": "ダークホール"
+    },
+    "단단해지기": {
+      "en-US": "Harden",
+      "ja-JP": "かたくなる"
+    },
+    "달의불빛": {
+      "en-US": "Moonlight",
+      "ja-JP": "つきのひかり"
+    },
+    "달콤한향기": {
+      "en-US": "Sweet Scent",
+      "ja-JP": "あまいかおり"
+    },
+    "대지의힘": {
+      "en-US": "Earth Power",
+      "ja-JP": "だいちのちから"
+    },
+    "대타출동": {
+      "en-US": "Substitute",
+      "ja-JP": "みがわり"
+    },
+    "대포무노포": {
+      "en-US": "Octazooka",
+      "ja-JP": "オクタンほう"
+    },
+    "대폭발": {
+      "en-US": "Explosion",
+      "ja-JP": "だいばくはつ"
+    },
+    "더블니들": {
+      "en-US": "Twineedle",
+      "ja-JP": "ダブルニードル"
+    },
+    "더블어택": {
+      "en-US": "Double Hit",
+      "ja-JP": "ダブルアタック"
+    },
+    "더스트슈트": {
+      "en-US": "Gunk Shot",
+      "ja-JP": "ダストシュート"
+    },
+    "덩굴채찍": {
+      "en-US": "Vine Whip",
+      "ja-JP": "つるのムチ"
+    },
+    "도깨비불": {
+      "en-US": "Will-O-Wisp",
+      "ja-JP": "おにび"
+    },
+    "도둑질": {
+      "en-US": "Thief",
+      "ja-JP": "どろぼう"
+    },
+    "도발": {
+      "en-US": "Taunt",
+      "ja-JP": "ちょうはつ"
+    },
+    "도우미": {
+      "en-US": "Helping Hand",
+      "ja-JP": "てだすけ"
+    },
+    "독가루": {
+      "en-US": "Poison Powder",
+      "ja-JP": "どくのこな"
+    },
+    "독가스": {
+      "en-US": "Poison Gas",
+      "ja-JP": "どくガス"
+    },
+    "독압정": {
+      "en-US": "Toxic Spikes",
+      "ja-JP": "どくびし"
+    },
+    "독엄니": {
+      "en-US": "Poison Fang",
+      "ja-JP": "どくどくのキバ"
+    },
+    "독찌르기": {
+      "en-US": "Poison Jab",
+      "ja-JP": "どくづき"
+    },
+    "독침": {
+      "en-US": "Poison Sting",
+      "ja-JP": "どくばり"
+    },
+    "돌떨구기": {
+      "en-US": "Rock Throw",
+      "ja-JP": "いわおとし"
+    },
+    "돌려차기": {
+      "en-US": "Rolling Kick",
+      "ja-JP": "まわしげり"
+    },
+    "돌진": {
+      "en-US": "Take Down",
+      "ja-JP": "とっしん"
+    },
+    "두번치기": {
+      "en-US": "Double Kick",
+      "ja-JP": "にどげり"
+    },
+    "뒀다쓰기": {
+      "en-US": "Last Resort",
+      "ja-JP": "とっておき"
+    },
+    "드래곤다이브": {
+      "en-US": "Dragon Rush",
+      "ja-JP": "ドラゴンダイブ"
+    },
+    "드래곤크루": {
+      "en-US": "Dragon Claw",
+      "ja-JP": "ドラゴンクロー"
+    },
+    "드레인펀치": {
+      "en-US": "Drain Punch",
+      "ja-JP": "ドレインパンチ"
+    },
+    "따라가때리기": {
+      "en-US": "Pursuit",
+      "ja-JP": "おいうち"
+    },
+    "따라하기": {
+      "en-US": "Mirror Move",
+      "ja-JP": "オウムがえし"
+    },
+    "땅가르기": {
+      "en-US": "Fissure",
+      "ja-JP": "じわれ"
+    },
+    "뛰어오르다": {
+      "en-US": "Bounce",
+      "ja-JP": "とびはねる"
+    },
+    "라스트버지": {
+      "en-US": "Luster Purge",
+      "ja-JP": "ラスターパージ"
+    },
+    "락블레스트": {
+      "en-US": "Rock Blast",
+      "ja-JP": "ロックブラスト"
+    },
+    "락클라임": {
+      "en-US": "Rock Climb",
+      "ja-JP": "ロッククライム"
+    },
+    "러스터캐논": {
+      "en-US": "Flash Cannon",
+      "ja-JP": "ラスターカノン"
+    },
+    "로케트박치기": {
+      "en-US": "Skull Bash",
+      "ja-JP": "ロケットずつき"
+    },
+    "록온": {
+      "en-US": "Lock-On",
+      "ja-JP": "ロックオン"
+    },
+    "록커트": {
+      "en-US": "Rock Polish",
+      "ja-JP": "ロックカット"
+    },
+    "리벤지": {
+      "en-US": "Revenge",
+      "ja-JP": "リベンジ"
+    },
+    "리사이클": {
+      "en-US": "Recycle",
+      "ja-JP": "リサイクル"
+    },
+    "리프레쉬": {
+      "en-US": "Refresh",
+      "ja-JP": "リフレッシュ"
+    },
+    "리프블레이드": {
+      "en-US": "Leaf Blade",
+      "ja-JP": "リーフブレード"
+    },
+    "리프스톰": {
+      "en-US": "Leaf Storm",
+      "ja-JP": "リーフストーム"
+    },
+    "리플렉터": {
+      "en-US": "Reflect",
+      "ja-JP": "リフレクター"
+    },
+    "마구찌르기": {
+      "en-US": "Fury Attack",
+      "ja-JP": "みだれづき"
+    },
+    "마구할퀴기": {
+      "en-US": "Fury Swipes",
+      "ja-JP": "みだれひっかき"
+    },
+    "마그넷봄": {
+      "en-US": "Magnet Bomb",
+      "ja-JP": "マグネットボム"
+    },
+    "마그마스톰": {
+      "en-US": "Magma Storm",
+      "ja-JP": "マグマストーム"
+    },
+    "마음의눈": {
+      "en-US": "Mind Reader",
+      "ja-JP": "こころのめ"
+    },
+    "마지막수단": {
+      "en-US": "Trump Card",
+      "ja-JP": "きりふだ"
+    },
+    "마하펀치": {
+      "en-US": "Mach Punch",
+      "ja-JP": "マッハパンチ"
+    },
+    "막치기": {
+      "en-US": "Pound",
+      "ja-JP": "はたく"
+    },
+    "망각술": {
+      "en-US": "Amnesia",
+      "ja-JP": "ドわすれ"
+    },
+    "매그니튜드": {
+      "en-US": "Magnitude",
+      "ja-JP": "マグニチュード"
+    },
+    "매직코트": {
+      "en-US": "Magic Coat",
+      "ja-JP": "マジックコート"
+    },
+    "맹독": {
+      "en-US": "Toxic",
+      "ja-JP": "どくどく"
+    },
+    "머드숏": {
+      "en-US": "Mud Shot",
+      "ja-JP": "マッドショット"
+    },
+    "멀리짖음": {
+      "en-US": "Howl",
+      "ja-JP": "とおぼえ"
+    },
+    "메가드레인": {
+      "en-US": "Mega Drain",
+      "ja-JP": "メガドレイン"
+    },
+    "메가톤킥": {
+      "en-US": "Mega Kick",
+      "ja-JP": "メガトンキック"
+    },
+    "메가톤펀치": {
+      "en-US": "Mega Punch",
+      "ja-JP": "メガトンパンチ"
+    },
+    "메가폰": {
+      "en-US": "Megahorn",
+      "ja-JP": "メガホーン"
+    },
+    "메지컬리프": {
+      "en-US": "Magical Leaf",
+      "ja-JP": "マジカルリーフ"
+    },
+    "메탈버스트": {
+      "en-US": "Metal Burst",
+      "ja-JP": "メタルバースト"
+    },
+    "메탈크로우": {
+      "en-US": "Metal Claw",
+      "ja-JP": "メタルクロー"
+    },
+    "멸망의노래": {
+      "en-US": "Perish Song",
+      "ja-JP": "ほろびのうた"
+    },
+    "명상": {
+      "en-US": "Calm Mind",
+      "ja-JP": "めいそう"
+    },
+    "모래바람": {
+      "en-US": "Sandstorm",
+      "ja-JP": "すなあらし"
+    },
+    "모래뿌리기": {
+      "en-US": "Sand Attack",
+      "ja-JP": "すなかけ"
+    },
+    "모래지옥": {
+      "en-US": "Sand Tomb",
+      "ja-JP": "すなじごく"
+    },
+    "목화포자": {
+      "en-US": "Cotton Spore",
+      "ja-JP": "わたほうし"
+    },
+    "몸통박치기": {
+      "en-US": "Tackle",
+      "ja-JP": "たいあたり"
+    },
+    "무릎차기": {
+      "en-US": "High Jump Kick",
+      "ja-JP": "とびひざげり"
+    },
+    "묵사발": {
+      "en-US": "Crush Grip",
+      "ja-JP": "にぎりつぶす"
+    },
+    "물기": {
+      "en-US": "Bite",
+      "ja-JP": "かみつく"
+    },
+    "물놀이": {
+      "en-US": "Water Sport",
+      "ja-JP": "みずあそび"
+    },
+    "물대포": {
+      "en-US": "Water Gun",
+      "ja-JP": "みずでっぽう"
+    },
+    "물의파동": {
+      "en-US": "Water Pulse",
+      "ja-JP": "みずのはどう"
+    },
+    "미라클아이": {
+      "en-US": "Miracle Eye",
+      "ja-JP": "ミラクルアイ"
+    },
+    "미래예지": {
+      "en-US": "Future Sight",
+      "ja-JP": "みらいよち"
+    },
+    "미러숏": {
+      "en-US": "Mirror Shot",
+      "ja-JP": "ミラーショット"
+    },
+    "미러코트": {
+      "en-US": "Mirror Coat",
+      "ja-JP": "ミラーコート"
+    },
+    "미스트볼": {
+      "en-US": "Mist Ball",
+      "ja-JP": "ミストボール"
+    },
+    "바꿔치기": {
+      "en-US": "Switcheroo",
+      "ja-JP": "すりかえ"
+    },
+    "바늘미사일": {
+      "en-US": "Pin Missile",
+      "ja-JP": "ミサイルばり"
+    },
+    "바늘팔": {
+      "en-US": "Needle Arm",
+      "ja-JP": "ニードルアーム"
+    },
+    "바다회오리": {
+      "en-US": "Whirlpool",
+      "ja-JP": "うずしお"
+    },
+    "바둥바둥": {
+      "en-US": "Flail",
+      "ja-JP": "じたばた"
+    },
+    "바람일으키기": {
+      "en-US": "Gust",
+      "ja-JP": "かぜおこし"
+    },
+    "바위깨기": {
+      "en-US": "Rock Smash",
+      "ja-JP": "いわくだき"
+    },
+    "바지락조개": {
+      "en-US": "Water Spout",
+      "ja-JP": "しおふき"
+    },
+    "바톤터치": {
+      "en-US": "Baton Pass",
+      "ja-JP": "バトンタッチ"
+    },
+    "박치기": {
+      "en-US": "Headbutt",
+      "ja-JP": "ずつき"
+    },
+    "반딧불": {
+      "en-US": "Tail Glow",
+      "ja-JP": "ほたるび"
+    },
+    "받아던지기": {
+      "en-US": "Vital Throw",
+      "ja-JP": "あてみなげ"
+    },
+    "발경": {
+      "en-US": "Force Palm",
+      "ja-JP": "はっけい"
+    },
+    "발버둥": {
+      "en-US": "Struggle",
+      "ja-JP": "わるあがき"
+    },
+    "방어": {
+      "en-US": "Protect",
+      "ja-JP": "まもる"
+    },
+    "방어지령": {
+      "en-US": "Defend Order",
+      "ja-JP": "ぼうぎょしれい"
+    },
+    "방전": {
+      "en-US": "Discharge",
+      "ja-JP": "ほうでん"
+    },
+    "배리어": {
+      "en-US": "Barrier",
+      "ja-JP": "バリアー"
+    },
+    "배북": {
+      "en-US": "Belly Drum",
+      "ja-JP": "はらだいこ"
+    },
+    "뱀눈초리": {
+      "en-US": "Glare",
+      "ja-JP": "へびにらみ"
+    },
+    "버섯포자": {
+      "en-US": "Spore",
+      "ja-JP": "キノコのほうし"
+    },
+    "버티기": {
+      "en-US": "Endure",
+      "ja-JP": "こらえる"
+    },
+    "번개": {
+      "en-US": "Thunder",
+      "ja-JP": "かみなり"
+    },
+    "번개엄니": {
+      "en-US": "Thunder Fang",
+      "ja-JP": "かみなりのキバ"
+    },
+    "번개펀치": {
+      "en-US": "Thunder Punch",
+      "ja-JP": "かみなりパンチ"
+    },
+    "벌레먹음": {
+      "en-US": "Bug Bite",
+      "ja-JP": "むしくい"
+    },
+    "벌레의야단법석": {
+      "en-US": "Bug Buzz",
+      "ja-JP": "むしのさざめき"
+    },
+    "벌크업": {
+      "en-US": "Bulk Up",
+      "ja-JP": "ビルドアップ"
+    },
+    "베어가르기": {
+      "en-US": "Slash",
+      "ja-JP": "きりさく"
+    },
+    "변신": {
+      "en-US": "Transform",
+      "ja-JP": "へんしん"
+    },
+    "보복": {
+      "en-US": "Payback",
+      "ja-JP": "しっぺがえし"
+    },
+    "보호색": {
+      "en-US": "Camouflage",
+      "ja-JP": "ほごしょく"
+    },
+    "본러쉬": {
+      "en-US": "Bone Rush",
+      "ja-JP": "ボーンラッシュ"
+    },
+    "볼트태클": {
+      "en-US": "Volt Tackle",
+      "ja-JP": "ボルテッカー"
+    },
+    "봉인": {
+      "en-US": "Imprison",
+      "ja-JP": "ふういん"
+    },
+    "부추기기": {
+      "en-US": "Flatter",
+      "ja-JP": "おだてる"
+    },
+    "분노": {
+      "en-US": "Rage",
+      "ja-JP": "いかり"
+    },
+    "분노의앞니": {
+      "en-US": "Super Fang",
+      "ja-JP": "いかりのまえば"
+    },
+    "분연": {
+      "en-US": "Lava Plume",
+      "ja-JP": "ふんえん"
+    },
+    "분화": {
+      "en-US": "Eruption",
+      "ja-JP": "ふんか"
+    },
+    "불꽃세례": {
+      "en-US": "Ember",
+      "ja-JP": "ひのこ"
+    },
+    "불꽃엄니": {
+      "en-US": "Fire Fang",
+      "ja-JP": "ほのおのキバ"
+    },
+    "불꽃펀치": {
+      "en-US": "Fire Punch",
+      "ja-JP": "ほのおのパンチ"
+    },
+    "불대문자": {
+      "en-US": "Fire Blast",
+      "ja-JP": "だいもんじ"
+    },
+    "불릿펀치": {
+      "en-US": "Bullet Punch",
+      "ja-JP": "バレットパンチ"
+    },
+    "불새": {
+      "en-US": "Sky Attack",
+      "ja-JP": "ゴッドバード"
+    },
+    "브레이브버드": {
+      "en-US": "Brave Bird",
+      "ja-JP": "ブレイブバード"
+    },
+    "브레이즈킥": {
+      "en-US": "Blaze Kick",
+      "ja-JP": "ブレイズキック"
+    },
+    "브레이크크루": {
+      "en-US": "Crush Claw",
+      "ja-JP": "ブレイククロー"
+    },
+    "블러스트번": {
+      "en-US": "Blast Burn",
+      "ja-JP": "ブラストバーン"
+    },
+    "블록": {
+      "en-US": "Block",
+      "ja-JP": "とおせんぼう"
+    },
+    "비밀의힘": {
+      "en-US": "Secret Power",
+      "ja-JP": "ひみつのちから"
+    },
+    "비바라기": {
+      "en-US": "Rain Dance",
+      "ja-JP": "あまごい"
+    },
+    "비축하기": {
+      "en-US": "Stockpile",
+      "ja-JP": "たくわえる"
+    },
+    "빛의장막": {
+      "en-US": "Light Screen",
+      "ja-JP": "ひかりのかべ"
+    },
+    "뼈다귀부메랑": {
+      "en-US": "Bonemerang",
+      "ja-JP": "ホネブーメラン"
+    },
+    "뼈다귀치기": {
+      "en-US": "Bone Club",
+      "ja-JP": "ホネこんぼう"
+    },
+    "뽐내기": {
+      "en-US": "Swagger",
+      "ja-JP": "いばる"
+    },
+    "뿌리박기": {
+      "en-US": "Ingrain",
+      "ja-JP": "ねをはる"
+    },
+    "뿔드릴": {
+      "en-US": "Horn Drill",
+      "ja-JP": "つのドリル"
+    },
+    "뿔찌르기": {
+      "en-US": "Horn Attack",
+      "ja-JP": "つのでつく"
+    },
+    "사념의박치기": {
+      "en-US": "Zen Headbutt",
+      "ja-JP": "しねんのずつき"
+    },
+    "사슬묶기": {
+      "en-US": "Disable",
+      "ja-JP": "かなしばり"
+    },
+    "사이코부스트": {
+      "en-US": "Psycho Boost",
+      "ja-JP": "サイコブースト"
+    },
+    "사이코시프트": {
+      "en-US": "Psycho Shift",
+      "ja-JP": "サイコシフト"
+    },
+    "사이코웨이브": {
+      "en-US": "Psywave",
+      "ja-JP": "サイコウェーブ"
+    },
+    "사이코커터": {
+      "en-US": "Psycho Cut",
+      "ja-JP": "サイコカッター"
+    },
+    "사이코키네시스": {
+      "en-US": "Psychic",
+      "ja-JP": "サイコキネシス"
+    },
+    "섀도다이브": {
+      "en-US": "Shadow Force",
+      "ja-JP": "シャドーダイブ"
+    },
+    "섀도볼": {
+      "en-US": "Shadow Ball",
+      "ja-JP": "シャドーボール"
+    },
+    "섀도크루": {
+      "en-US": "Shadow Claw",
+      "ja-JP": "シャドークロー"
+    },
+    "섀도펀치": {
+      "en-US": "Shadow Punch",
+      "ja-JP": "シャドーパンチ"
+    },
+    "선취": {
+      "en-US": "Me First",
+      "ja-JP": "さきどり"
+    },
+    "성스러운불꽃": {
+      "en-US": "Sacred Fire",
+      "ja-JP": "せいなるほのお"
+    },
+    "성장": {
+      "en-US": "Growth",
+      "ja-JP": "せいちょう"
+    },
+    "소금물": {
+      "en-US": "Brine",
+      "ja-JP": "しおみず"
+    },
+    "소닉붐": {
+      "en-US": "Sonic Boom",
+      "ja-JP": "ソニックブーム"
+    },
+    "소란피기": {
+      "en-US": "Uproar",
+      "ja-JP": "さわぐ"
+    },
+    "속여때리기": {
+      "en-US": "Feint Attack",
+      "ja-JP": "だましうち"
+    },
+    "속이다": {
+      "en-US": "Fake Out",
+      "ja-JP": "ねこだまし"
+    },
+    "손가락흔들기": {
+      "en-US": "Metronome",
+      "ja-JP": "ゆびをふる"
+    },
+    "손바닥치기": {
+      "en-US": "Arm Thrust",
+      "ja-JP": "つっぱり"
+    },
+    "솔라빔": {
+      "en-US": "Solar Beam",
+      "ja-JP": "ソーラービーム"
+    },
+    "수다": {
+      "en-US": "Chatter",
+      "ja-JP": "おしゃべり"
+    },
+    "수면가루": {
+      "en-US": "Sleep Powder",
+      "ja-JP": "ねむりごな"
+    },
+    "순간이동": {
+      "en-US": "Teleport",
+      "ja-JP": "テレポート"
+    },
+    "순풍": {
+      "en-US": "Tailwind",
+      "ja-JP": "おいかぜ"
+    },
+    "숟가락휘기": {
+      "en-US": "Kinesis",
+      "ja-JP": "スプーンまげ"
+    },
+    "스모그": {
+      "en-US": "Smog",
+      "ja-JP": "スモッグ"
+    },
+    "스카이업퍼": {
+      "en-US": "Sky Uppercut",
+      "ja-JP": "スカイアッパー"
+    },
+    "스케치": {
+      "en-US": "Sketch",
+      "ja-JP": "スケッチ"
+    },
+    "스킬스웹": {
+      "en-US": "Skill Swap",
+      "ja-JP": "スキルスワップ"
+    },
+    "스텔스록": {
+      "en-US": "Stealth Rock",
+      "ja-JP": "ステルスロック"
+    },
+    "스톤샤워": {
+      "en-US": "Rock Slide",
+      "ja-JP": "いわなだれ"
+    },
+    "스톤에지": {
+      "en-US": "Stone Edge",
+      "ja-JP": "ストーンエッジ"
+    },
+    "스파크": {
+      "en-US": "Spark",
+      "ja-JP": "スパーク"
+    },
+    "스피드스타": {
+      "en-US": "Swift",
+      "ja-JP": "スピードスター"
+    },
+    "승부굳히기": {
+      "en-US": "Assurance",
+      "ja-JP": "ダメおし"
+    },
+    "시간의포효": {
+      "en-US": "Roar of Time",
+      "ja-JP": "ときのほうこう"
+    },
+    "시그널빔": {
+      "en-US": "Signal Beam",
+      "ja-JP": "シグナルビーム"
+    },
+    "시드플레어": {
+      "en-US": "Seed Flare",
+      "ja-JP": "シードフレア"
+    },
+    "시저크로스": {
+      "en-US": "X-Scissor",
+      "ja-JP": "シザークロス"
+    },
+    "신비의부적": {
+      "en-US": "Safeguard",
+      "ja-JP": "しんぴのまもり"
+    },
+    "신속": {
+      "en-US": "Extreme Speed",
+      "ja-JP": "しんそく"
+    },
+    "신통력": {
+      "en-US": "Extrasensory",
+      "ja-JP": "じんつうりき"
+    },
+    "실뿜기": {
+      "en-US": "String Shot",
+      "ja-JP": "いとをはく"
+    },
+    "싫은소리": {
+      "en-US": "Screech",
+      "ja-JP": "いやなおと"
+    },
+    "심판의뭉치": {
+      "en-US": "Judgment",
+      "ja-JP": "さばきのつぶて"
+    },
+    "싸라기눈": {
+      "en-US": "Hail",
+      "ja-JP": "あられ"
+    },
+    "씨뿌리기": {
+      "en-US": "Leech Seed",
+      "ja-JP": "やどりぎのタネ"
+    },
+    "씨폭탄": {
+      "en-US": "Seed Bomb",
+      "ja-JP": "タネばくだん"
+    },
+    "아로마테라피": {
+      "en-US": "Aromatherapy",
+      "ja-JP": "アロマセラピー"
+    },
+    "아이스볼": {
+      "en-US": "Ice Ball",
+      "ja-JP": "アイスボール"
+    },
+    "아이언테일": {
+      "en-US": "Iron Tail",
+      "ja-JP": "アイアンテール"
+    },
+    "아이언헤드": {
+      "en-US": "Iron Head",
+      "ja-JP": "アイアンヘッド"
+    },
+    "아침햇살": {
+      "en-US": "Morning Sun",
+      "ja-JP": "あさのひざし"
+    },
+    "아쿠아링": {
+      "en-US": "Aqua Ring",
+      "ja-JP": "アクアリング"
+    },
+    "아쿠아제트": {
+      "en-US": "Aqua Jet",
+      "ja-JP": "アクアジェット"
+    },
+    "아쿠아테일": {
+      "en-US": "Aqua Tail",
+      "ja-JP": "アクアテール"
+    },
+    "아픔나누기": {
+      "en-US": "Pain Split",
+      "ja-JP": "いたみわけ"
+    },
+    "악마의키스": {
+      "en-US": "Lovely Kiss",
+      "ja-JP": "あくまのキッス"
+    },
+    "악몽": {
+      "en-US": "Nightmare",
+      "ja-JP": "あくむ"
+    },
+    "악의파동": {
+      "en-US": "Dark Pulse",
+      "ja-JP": "あくのはどう"
+    },
+    "안개제거": {
+      "en-US": "Defog",
+      "ja-JP": "きりばらい"
+    },
+    "안다리걸기": {
+      "en-US": "Low Kick",
+      "ja-JP": "けたぐり"
+    },
+    "알낳기": {
+      "en-US": "Soft-Boiled",
+      "ja-JP": "タマゴうみ"
+    },
+    "알폭탄": {
+      "en-US": "Egg Bomb",
+      "ja-JP": "タマゴばくだん"
+    },
+    "암석봉인": {
+      "en-US": "Rock Tomb",
+      "ja-JP": "がんせきふうじ"
+    },
+    "암석포": {
+      "en-US": "Rock Wrecker",
+      "ja-JP": "がんせきほう"
+    },
+    "암해머": {
+      "en-US": "Hammer Arm",
+      "ja-JP": "アームハンマー"
+    },
+    "압정뿌리기": {
+      "en-US": "Spikes",
+      "ja-JP": "まきびし"
+    },
+    "애교부리기": {
+      "en-US": "Charm",
+      "ja-JP": "あまえる"
+    },
+    "앵콜": {
+      "en-US": "Encore",
+      "ja-JP": "アンコール"
+    },
+    "야습": {
+      "en-US": "Shadow Sneak",
+      "ja-JP": "かげうち"
+    },
+    "양날박치기": {
+      "en-US": "Head Smash",
+      "ja-JP": "もろはのずつき"
+    },
+    "얼다바람": {
+      "en-US": "Icy Wind",
+      "ja-JP": "こごえるかぜ"
+    },
+    "얼음뭉치": {
+      "en-US": "Ice Shard",
+      "ja-JP": "こおりのつぶて"
+    },
+    "얼음엄니": {
+      "en-US": "Ice Fang",
+      "ja-JP": "こおりのキバ"
+    },
+    "엄청난힘": {
+      "en-US": "Superpower",
+      "ja-JP": "ばかぢから"
+    },
+    "에너지볼": {
+      "en-US": "Energy Ball",
+      "ja-JP": "エナジーボール"
+    },
+    "에어로블라스트": {
+      "en-US": "Aeroblast",
+      "ja-JP": "エアロブラスト"
+    },
+    "에어슬래시": {
+      "en-US": "Air Slash",
+      "ja-JP": "エアスラッシュ"
+    },
+    "에어컷터": {
+      "en-US": "Air Cutter",
+      "ja-JP": "エアカッター"
+    },
+    "역린": {
+      "en-US": "Outrage",
+      "ja-JP": "げきりん"
+    },
+    "역할": {
+      "en-US": "Role Play",
+      "ja-JP": "なりきり"
+    },
+    "연막": {
+      "en-US": "Smokescreen",
+      "ja-JP": "えんまく"
+    },
+    "연속뺨치기": {
+      "en-US": "Double Slap",
+      "ja-JP": "おうふくビンタ"
+    },
+    "연속자르기": {
+      "en-US": "Fury Cutter",
+      "ja-JP": "れんぞくぎり"
+    },
+    "연속펀치": {
+      "en-US": "Comet Punch",
+      "ja-JP": "れんぞくパンチ"
+    },
+    "열풍": {
+      "en-US": "Heat Wave",
+      "ja-JP": "ねっぷう"
+    },
+    "염동력": {
+      "en-US": "Confusion",
+      "ja-JP": "ねんりき"
+    },
+    "오로라빔": {
+      "en-US": "Aurora Beam",
+      "ja-JP": "オーロラビーム"
+    },
+    "오물공격": {
+      "en-US": "Sludge",
+      "ja-JP": "ヘドロこうげき"
+    },
+    "오물폭탄": {
+      "en-US": "Sludge Bomb",
+      "ja-JP": "ヘドロばくだん"
+    },
+    "오버히트": {
+      "en-US": "Overheat",
+      "ja-JP": "オーバーヒート"
+    },
+    "요가포즈": {
+      "en-US": "Meditate",
+      "ja-JP": "ヨガのポーズ"
+    },
+    "용성군": {
+      "en-US": "Draco Meteor",
+      "ja-JP": "りゅうせいぐん"
+    },
+    "용의분노": {
+      "en-US": "Dragon Rage",
+      "ja-JP": "りゅうのいかり"
+    },
+    "용의숨결": {
+      "en-US": "Dragon Breath",
+      "ja-JP": "りゅうのいぶき"
+    },
+    "용의춤": {
+      "en-US": "Dragon Dance",
+      "ja-JP": "りゅうのまい"
+    },
+    "용의파동": {
+      "en-US": "Dragon Pulse",
+      "ja-JP": "りゅうのはどう"
+    },
+    "용해액": {
+      "en-US": "Acid",
+      "ja-JP": "ようかいえき"
+    },
+    "우드해머": {
+      "en-US": "Wood Hammer",
+      "ja-JP": "ウッドハンマー"
+    },
+    "우유마시기": {
+      "en-US": "Milk Drink",
+      "ja-JP": "ミルクのみ"
+    },
+    "울부짖기": {
+      "en-US": "Roar",
+      "ja-JP": "ほえる"
+    },
+    "울음소리": {
+      "en-US": "Growl",
+      "ja-JP": "なきごえ"
+    },
+    "웅크리기": {
+      "en-US": "Defense Curl",
+      "ja-JP": "まるくなる"
+    },
+    "원념": {
+      "en-US": "Grudge",
+      "ja-JP": "おんねん"
+    },
+    "원시의힘": {
+      "en-US": "Ancient Power",
+      "ja-JP": "げんしのちから"
+    },
+    "원한": {
+      "en-US": "Spite",
+      "ja-JP": "うらみ"
+    },
+    "웨더볼": {
+      "en-US": "Weather Ball",
+      "ja-JP": "ウェザーボール"
+    },
+    "위액": {
+      "en-US": "Gastro Acid",
+      "ja-JP": "いえき"
+    },
+    "유턴": {
+      "en-US": "U-turn",
+      "ja-JP": "とんぼがえり"
+    },
+    "유혹": {
+      "en-US": "Captivate",
+      "ja-JP": "ゆうわく"
+    },
+    "은빛바람": {
+      "en-US": "Silver Wind",
+      "ja-JP": "ぎんいろのかぜ"
+    },
+    "은혜갚기": {
+      "en-US": "Return",
+      "ja-JP": "おんがえし"
+    },
+    "이상한빛": {
+      "en-US": "Confuse Ray",
+      "ja-JP": "あやしいひかり"
+    },
+    "이판사판태클": {
+      "en-US": "Double-Edge",
+      "ja-JP": "すてみタックル"
+    },
+    "인파이트": {
+      "en-US": "Close Combat",
+      "ja-JP": "インファイト"
+    },
+    "잎날가르기": {
+      "en-US": "Razor Leaf",
+      "ja-JP": "はっぱカッター"
+    },
+    "자기암시": {
+      "en-US": "Psych Up",
+      "ja-JP": "じこあんじ"
+    },
+    "자연의은혜": {
+      "en-US": "Natural Gift",
+      "ja-JP": "しぜんのめぐみ"
+    },
+    "자연의힘": {
+      "en-US": "Nature Power",
+      "ja-JP": "しぜんのちから"
+    },
+    "자이로볼": {
+      "en-US": "Gyro Ball",
+      "ja-JP": "ジャイロボール"
+    },
+    "자폭": {
+      "en-US": "Self-Destruct",
+      "ja-JP": "じばく"
+    },
+    "작아지기": {
+      "en-US": "Minimize",
+      "ja-JP": "ちいさくなる"
+    },
+    "잠깨움뺨치기": {
+      "en-US": "Wake-Up Slap",
+      "ja-JP": "めざましビンタ"
+    },
+    "잠꼬대": {
+      "en-US": "Sleep Talk",
+      "ja-JP": "ねごと"
+    },
+    "잠자기": {
+      "en-US": "Rest",
+      "ja-JP": "ねむる"
+    },
+    "잠재파워": {
+      "en-US": "Hidden Power",
+      "ja-JP": "めざめるパワー"
+    },
+    "잼잼펀치": {
+      "en-US": "Dizzy Punch",
+      "ja-JP": "ピヨピヨパンチ"
+    },
+    "저리가루": {
+      "en-US": "Stun Spore",
+      "ja-JP": "しびれごな"
+    },
+    "저주": {
+      "en-US": "Curse",
+      "ja-JP": "のろい"
+    },
+    "전격파": {
+      "en-US": "Shock Wave",
+      "ja-JP": "でんげきは"
+    },
+    "전광석화": {
+      "en-US": "Quick Attack",
+      "ja-JP": "でんこうせっか"
+    },
+    "전기쇼크": {
+      "en-US": "Thunder Shock",
+      "ja-JP": "でんきショック"
+    },
+    "전기자석파": {
+      "en-US": "Thunder Wave",
+      "ja-JP": "でんじは"
+    },
+    "전자부유": {
+      "en-US": "Magnet Rise",
+      "ja-JP": "でんじふゆう"
+    },
+    "전자포": {
+      "en-US": "Zap Cannon",
+      "ja-JP": "でんじほう"
+    },
+    "절대영도": {
+      "en-US": "Sheer Cold",
+      "ja-JP": "ぜったいれいど"
+    },
+    "점프킥": {
+      "en-US": "Jump Kick",
+      "ja-JP": "とびげり"
+    },
+    "정신차리기": {
+      "en-US": "Smelling Salts",
+      "ja-JP": "きつけ"
+    },
+    "제비반환": {
+      "en-US": "Aerial Ace",
+      "ja-JP": "つばめがえし"
+    },
+    "조수": {
+      "en-US": "Assist",
+      "ja-JP": "ねこのて"
+    },
+    "조이기": {
+      "en-US": "Bind",
+      "ja-JP": "しめつける"
+    },
+    "주술": {
+      "en-US": "Lucky Chant",
+      "ja-JP": "おまじない"
+    },
+    "죽기살기": {
+      "en-US": "Endeavor",
+      "ja-JP": "がむしゃら"
+    },
+    "중력": {
+      "en-US": "Gravity",
+      "ja-JP": "じゅうりょく"
+    },
+    "쥐어짜기": {
+      "en-US": "Wring Out",
+      "ja-JP": "しぼりとる"
+    },
+    "지구던지기": {
+      "en-US": "Seismic Toss",
+      "ja-JP": "ちきゅうなげ"
+    },
+    "지옥의바퀴": {
+      "en-US": "Submission",
+      "ja-JP": "じごくぐるま"
+    },
+    "지진": {
+      "en-US": "Earthquake",
+      "ja-JP": "じしん"
+    },
+    "진공파": {
+      "en-US": "Vacuum Wave",
+      "ja-JP": "しんくうは"
+    },
+    "진흙뿌리기": {
+      "en-US": "Mud-Slap",
+      "ja-JP": "どろかけ"
+    },
+    "진흙폭탄": {
+      "en-US": "Mud Bomb",
+      "ja-JP": "どろばくだん"
+    },
+    "집단구타": {
+      "en-US": "Beat Up",
+      "ja-JP": "ふくろだたき"
+    },
+    "짓밟기": {
+      "en-US": "Stomp",
+      "ja-JP": "ふみつけ"
+    },
+    "째려보기": {
+      "en-US": "Leer",
+      "ja-JP": "にらみつける"
+    },
+    "쪼기": {
+      "en-US": "Peck",
+      "ja-JP": "つつく"
+    },
+    "쪼아대기": {
+      "en-US": "Pluck",
+      "ja-JP": "ついばむ"
+    },
+    "찝게햄머": {
+      "en-US": "Crabhammer",
+      "ja-JP": "クラブハンマー"
+    },
+    "찝기": {
+      "en-US": "Vise Grip",
+      "ja-JP": "はさむ"
+    },
+    "차지빔": {
+      "en-US": "Charge Beam",
+      "ja-JP": "チャージビーム"
+    },
+    "참기": {
+      "en-US": "Bide",
+      "ja-JP": "がまん"
+    },
+    "천사의키스": {
+      "en-US": "Sweet Kiss",
+      "ja-JP": "てんしのキッス"
+    },
+    "철벽": {
+      "en-US": "Iron Defense",
+      "ja-JP": "てっぺき"
+    },
+    "초승달춤": {
+      "en-US": "Lunar Dance",
+      "ja-JP": "みかづきのまい"
+    },
+    "초음파": {
+      "en-US": "Supersonic",
+      "ja-JP": "ちょうおんぱ"
+    },
+    "최면술": {
+      "en-US": "Hypnosis",
+      "ja-JP": "さいみんじゅつ"
+    },
+    "추억의선물": {
+      "en-US": "Memento",
+      "ja-JP": "おきみやげ"
+    },
+    "충전": {
+      "en-US": "Charge",
+      "ja-JP": "じゅうでん"
+    },
+    "치료방울": {
+      "en-US": "Heal Bell",
+      "ja-JP": "いやしのすず"
+    },
+    "치유소원": {
+      "en-US": "Healing Wish",
+      "ja-JP": "いやしのねがい"
+    },
+    "카운터": {
+      "en-US": "Counter",
+      "ja-JP": "カウンター"
+    },
+    "칼등치기": {
+      "en-US": "False Swipe",
+      "ja-JP": "みねうち"
+    },
+    "칼바람": {
+      "en-US": "Razor Wind",
+      "ja-JP": "かまいたち"
+    },
+    "칼춤": {
+      "en-US": "Swords Dance",
+      "ja-JP": "つるぎのまい"
+    },
+    "코골기": {
+      "en-US": "Snore",
+      "ja-JP": "いびき"
+    },
+    "코멧펀치": {
+      "en-US": "Meteor Mash",
+      "ja-JP": "コメットパンチ"
+    },
+    "코스믹파워": {
+      "en-US": "Cosmic Power",
+      "ja-JP": "コスモパワー"
+    },
+    "쾌청": {
+      "en-US": "Sunny Day",
+      "ja-JP": "にほんばれ"
+    },
+    "크로스촙": {
+      "en-US": "Cross Chop",
+      "ja-JP": "クロスチョップ"
+    },
+    "크로스포이즌": {
+      "en-US": "Cross Poison",
+      "ja-JP": "クロスポイズン"
+    },
+    "탁류": {
+      "en-US": "Muddy Water",
+      "ja-JP": "だくりゅう"
+    },
+    "탁쳐서떨구기": {
+      "en-US": "Knock Off",
+      "ja-JP": "はたきおとす"
+    },
+    "탐내다": {
+      "en-US": "Covet",
+      "ja-JP": "ほしがる"
+    },
+    "태권당수": {
+      "en-US": "Karate Chop",
+      "ja-JP": "からてチョップ"
+    },
+    "태만함": {
+      "en-US": "Slack Off",
+      "ja-JP": "なまける"
+    },
+    "텍스처": {
+      "en-US": "Conversion",
+      "ja-JP": "テクスチャー"
+    },
+    "텍스처2": {
+      "en-US": "Conversion 2",
+      "ja-JP": "テクスチャー２"
+    },
+    "토해내기": {
+      "en-US": "Spit Up",
+      "ja-JP": "はきだす"
+    },
+    "튀어오르기": {
+      "en-US": "Splash",
+      "ja-JP": "はねる"
+    },
+    "트라이어택": {
+      "en-US": "Tri Attack",
+      "ja-JP": "トライアタック"
+    },
+    "트리플킥": {
+      "en-US": "Triple Kick",
+      "ja-JP": "トリプルキック"
+    },
+    "트릭": {
+      "en-US": "Trick",
+      "ja-JP": "トリック"
+    },
+    "트릭룸": {
+      "en-US": "Trick Room",
+      "ja-JP": "トリックルーム"
+    },
+    "트집": {
+      "en-US": "Torment",
+      "ja-JP": "いちゃもん"
+    },
+    "파괴광선": {
+      "en-US": "Hyper Beam",
+      "ja-JP": "はかいこうせん"
+    },
+    "파도타기": {
+      "en-US": "Surf",
+      "ja-JP": "なみのり"
+    },
+    "파동탄": {
+      "en-US": "Aura Sphere",
+      "ja-JP": "はどうだん"
+    },
+    "파멸의소원": {
+      "en-US": "Doom Desire",
+      "ja-JP": "はめつのねがい"
+    },
+    "파워스웹": {
+      "en-US": "Power Swap",
+      "ja-JP": "パワースワップ"
+    },
+    "파워젬": {
+      "en-US": "Power Gem",
+      "ja-JP": "パワージェム"
+    },
+    "파워트릭": {
+      "en-US": "Power Trick",
+      "ja-JP": "パワートリック"
+    },
+    "파워휩": {
+      "en-US": "Power Whip",
+      "ja-JP": "パワーウィップ"
+    },
+    "판별": {
+      "en-US": "Detect",
+      "ja-JP": "みきり"
+    },
+    "페인트": {
+      "en-US": "Feint",
+      "ja-JP": "フェイント"
+    },
+    "포이즌테일": {
+      "en-US": "Poison Tail",
+      "ja-JP": "ポイズンテール"
+    },
+    "폭발펀치": {
+      "en-US": "Dynamic Punch",
+      "ja-JP": "ばくれつパンチ"
+    },
+    "폭포오르기": {
+      "en-US": "Waterfall",
+      "ja-JP": "たきのぼり"
+    },
+    "풀묶기": {
+      "en-US": "Grass Knot",
+      "ja-JP": "くさむすび"
+    },
+    "풀베기": {
+      "en-US": "Cut",
+      "ja-JP": "いあいぎり"
+    },
+    "풀피리": {
+      "en-US": "Grass Whistle",
+      "ja-JP": "くさぶえ"
+    },
+    "프레젠트": {
+      "en-US": "Present",
+      "ja-JP": "プレゼント"
+    },
+    "플래시": {
+      "en-US": "Flash",
+      "ja-JP": "フラッシュ"
+    },
+    "플레어드라이브": {
+      "en-US": "Flare Blitz",
+      "ja-JP": "フレアドライブ"
+    },
+    "필살앞니": {
+      "en-US": "Hyper Fang",
+      "ja-JP": "ひっさつまえば"
+    },
+    "하드플랜트": {
+      "en-US": "Frenzy Plant",
+      "ja-JP": "ハードプラント"
+    },
+    "하이드로캐논": {
+      "en-US": "Hydro Cannon",
+      "ja-JP": "ハイドロカノン"
+    },
+    "하이드로펌프": {
+      "en-US": "Hydro Pump",
+      "ja-JP": "ハイドロポンプ"
+    },
+    "하이퍼보이스": {
+      "en-US": "Hyper Voice",
+      "ja-JP": "ハイパーボイス"
+    },
+    "하트스웹": {
+      "en-US": "Heart Swap",
+      "ja-JP": "ハートスワップ"
+    },
+    "하품": {
+      "en-US": "Yawn",
+      "ja-JP": "あくび"
+    },
+    "할퀴기": {
+      "en-US": "Scratch",
+      "ja-JP": "ひっかく"
+    },
+    "핥기": {
+      "en-US": "Lick",
+      "ja-JP": "したでなめる"
+    },
+    "헤롱헤롱": {
+      "en-US": "Attract",
+      "ja-JP": "メロメロ"
+    },
+    "혼내기": {
+      "en-US": "Punishment",
+      "ja-JP": "おしおき"
+    },
+    "화염방사": {
+      "en-US": "Flamethrower",
+      "ja-JP": "かえんほうしゃ"
+    },
+    "화염자동차": {
+      "en-US": "Flame Wheel",
+      "ja-JP": "かえんぐるま"
+    },
+    "화풀이": {
+      "en-US": "Frustration",
+      "ja-JP": "やつあたり"
+    },
+    "환상빔": {
+      "en-US": "Psybeam",
+      "ja-JP": "サイケこうせん"
+    },
+    "회복봉인": {
+      "en-US": "Heal Block",
+      "ja-JP": "かいふくふうじ"
+    },
+    "회복지령": {
+      "en-US": "Heal Order",
+      "ja-JP": "かいふくしれい"
+    },
+    "회오리": {
+      "en-US": "Twister",
+      "ja-JP": "たつまき"
+    },
+    "회오리불꽃": {
+      "en-US": "Fire Spin",
+      "ja-JP": "ほのおのうず"
+    },
+    "회전부리": {
+      "en-US": "Drill Peck",
+      "ja-JP": "ドリルくちばし"
+    },
+    "휘감기": {
+      "en-US": "Constrict",
+      "ja-JP": "からみつく"
+    },
+    "흉내내기": {
+      "en-US": "Mimic",
+      "ja-JP": "ものまね"
+    },
+    "흉내쟁이": {
+      "en-US": "Copycat",
+      "ja-JP": "まねっこ"
+    },
+    "흑안개": {
+      "en-US": "Haze",
+      "ja-JP": "くろいきり"
+    },
+    "흔들흔들댄스": {
+      "en-US": "Teeter Dance",
+      "ja-JP": "フラフラダンス"
+    },
+    "흙놀이": {
+      "en-US": "Mud Sport",
+      "ja-JP": "どろあそび"
+    },
+    "흡수": {
+      "en-US": "Absorb",
+      "ja-JP": "すいとる"
+    },
+    "흡혈": {
+      "en-US": "Leech Life",
+      "ja-JP": "きゅうけつ"
+    },
+    "희망사항": {
+      "en-US": "Wish",
+      "ja-JP": "ねがいごと"
+    },
+    "흰안개": {
+      "en-US": "Mist",
+      "ja-JP": "しろいきり"
+    },
+    "힘껏치기": {
+      "en-US": "Slam",
+      "ja-JP": "たたきつける"
+    },
+    "힘껏펀치": {
+      "en-US": "Focus Punch",
+      "ja-JP": "きあいパンチ"
+    }
+  },
+  "pokemon": {
+    "가디": {
+      "en-US": "Growlithe",
+      "ja-JP": "ガーディ"
+    },
+    "가디안": {
+      "en-US": "Gardevoir",
+      "ja-JP": "サーナイト"
+    },
+    "가보리": {
+      "en-US": "Aron",
+      "ja-JP": "ココドラ"
+    },
+    "가이오가": {
+      "en-US": "Kyogre",
+      "ja-JP": "カイオーガ"
+    },
+    "가재군": {
+      "en-US": "Corphish",
+      "ja-JP": "ヘイガニ"
+    },
+    "가재장군": {
+      "en-US": "Crawdaunt",
+      "ja-JP": "シザリガー"
+    },
+    "갈모매": {
+      "en-US": "Wingull",
+      "ja-JP": "キャモメ"
+    },
+    "강챙이": {
+      "en-US": "Poliwrath",
+      "ja-JP": "ニョロボン"
+    },
+    "강철톤": {
+      "en-US": "Steelix",
+      "ja-JP": "ハガネール"
+    },
+    "개무소": {
+      "en-US": "Wurmple",
+      "ja-JP": "ケムッソ"
+    },
+    "갱도라": {
+      "en-US": "Lairon",
+      "ja-JP": "コドラ"
+    },
+    "갸라도스": {
+      "en-US": "Gyarados",
+      "ja-JP": "ギャラドス"
+    },
+    "거대코뿌리": {
+      "en-US": "Rhyperior",
+      "ja-JP": "ドサイドン"
+    },
+    "거북왕": {
+      "en-US": "Blastoise",
+      "ja-JP": "カメックス"
+    },
+    "게을로": {
+      "en-US": "Slakoth",
+      "ja-JP": "ナマケロ"
+    },
+    "게을킹": {
+      "en-US": "Slaking",
+      "ja-JP": "ケッキング"
+    },
+    "겟핸보숭": {
+      "en-US": "Ambipom",
+      "ja-JP": "エテボース"
+    },
+    "고라파덕": {
+      "en-US": "Psyduck",
+      "ja-JP": "コダック"
+    },
+    "고래왕": {
+      "en-US": "Wailord",
+      "ja-JP": "ホエルオー"
+    },
+    "고래왕자": {
+      "en-US": "Wailmer",
+      "ja-JP": "ホエルコ"
+    },
+    "고오스": {
+      "en-US": "Gastly",
+      "ja-JP": "ゴース"
+    },
+    "고우스트": {
+      "en-US": "Haunter",
+      "ja-JP": "ゴースト"
+    },
+    "고지": {
+      "en-US": "Sandslash",
+      "ja-JP": "サンドパン"
+    },
+    "골덕": {
+      "en-US": "Golduck",
+      "ja-JP": "ゴルダック"
+    },
+    "골뱃": {
+      "en-US": "Golbat",
+      "ja-JP": "ゴルバット"
+    },
+    "괴력몬": {
+      "en-US": "Machamp",
+      "ja-JP": "カイリキー"
+    },
+    "구구": {
+      "en-US": "Pidgey",
+      "ja-JP": "ポッポ"
+    },
+    "귀뚤뚜기": {
+      "en-US": "Kricketot",
+      "ja-JP": "コロボーシ"
+    },
+    "귀뚤톡크": {
+      "en-US": "Kricketune",
+      "ja-JP": "コロトック"
+    },
+    "그라에나": {
+      "en-US": "Mightyena",
+      "ja-JP": "グラエナ"
+    },
+    "그란돈": {
+      "en-US": "Groudon",
+      "ja-JP": "グラードン"
+    },
+    "그랑블루": {
+      "en-US": "Granbull",
+      "ja-JP": "グランブル"
+    },
+    "근육몬": {
+      "en-US": "Machoke",
+      "ja-JP": "ゴーリキー"
+    },
+    "글라이거": {
+      "en-US": "Gligar",
+      "ja-JP": "グライガー"
+    },
+    "글라이온": {
+      "en-US": "Gliscor",
+      "ja-JP": "グライオン"
+    },
+    "글레이시아": {
+      "en-US": "Glaceon",
+      "ja-JP": "グレイシア"
+    },
+    "기라티나": {
+      "en-US": "Giratina",
+      "ja-JP": "ギラティナ"
+    },
+    "기라티나 오리진폼": {
+      "en-US": "Oshawott",
+      "ja-JP": "ミジュマル"
+    },
+    "깜까미": {
+      "en-US": "Sableye",
+      "ja-JP": "ヤミラミ"
+    },
+    "깜지곰": {
+      "en-US": "Teddiursa",
+      "ja-JP": "ヒメグマ"
+    },
+    "깝질무": {
+      "en-US": "Shellos",
+      "ja-JP": "カラナクシ"
+    },
+    "깨비드릴조": {
+      "en-US": "Fearow",
+      "ja-JP": "オニドリル"
+    },
+    "깨비참": {
+      "en-US": "Spearow",
+      "ja-JP": "オニスズメ"
+    },
+    "껍질몬": {
+      "en-US": "Shedinja",
+      "ja-JP": "ヌケニン"
+    },
+    "꼬렛": {
+      "en-US": "Rattata",
+      "ja-JP": "コラッタ"
+    },
+    "꼬리선": {
+      "en-US": "Sentret",
+      "ja-JP": "オタチ"
+    },
+    "꼬링크": {
+      "en-US": "Shinx",
+      "ja-JP": "コリンク"
+    },
+    "꼬마돌": {
+      "en-US": "Geodude",
+      "ja-JP": "イシツブテ"
+    },
+    "꼬몽울": {
+      "en-US": "Budew",
+      "ja-JP": "スボミー"
+    },
+    "꼬부기": {
+      "en-US": "Squirtle",
+      "ja-JP": "ゼニガメ"
+    },
+    "꼬지모": {
+      "en-US": "Sudowoodo",
+      "ja-JP": "ウソッキー"
+    },
+    "꼬지지": {
+      "en-US": "Bonsly",
+      "ja-JP": "ウソハチ"
+    },
+    "꼴깍몬": {
+      "en-US": "Gulpin",
+      "ja-JP": "ゴクリン"
+    },
+    "꾸꾸리": {
+      "en-US": "Swinub",
+      "ja-JP": "ウリムー"
+    },
+    "꿀꺽몬": {
+      "en-US": "Swalot",
+      "ja-JP": "マルノーム"
+    },
+    "나메일": {
+      "en-US": "Mothim",
+      "ja-JP": "ガーメイル"
+    },
+    "나무돌이": {
+      "en-US": "Grovyle",
+      "ja-JP": "ジュプトル"
+    },
+    "나무지기": {
+      "en-US": "Treecko",
+      "ja-JP": "キモリ"
+    },
+    "나무킹": {
+      "en-US": "Sceptile",
+      "ja-JP": "ジュカイン"
+    },
+    "나시": {
+      "en-US": "Exeggutor",
+      "ja-JP": "ナッシー"
+    },
+    "나옹": {
+      "en-US": "Meowth",
+      "ja-JP": "ニャース"
+    },
+    "나옹마": {
+      "en-US": "Glameow",
+      "ja-JP": "ニャルマー"
+    },
+    "나인테일": {
+      "en-US": "Ninetales",
+      "ja-JP": "キュウコン"
+    },
+    "날쌩마": {
+      "en-US": "Rapidash",
+      "ja-JP": "ギャロップ"
+    },
+    "내루미": {
+      "en-US": "Lickitung",
+      "ja-JP": "ベロリンガ"
+    },
+    "내룸벨트": {
+      "en-US": "Lickilicky",
+      "ja-JP": "ベロベルト"
+    },
+    "냄새꼬": {
+      "en-US": "Gloom",
+      "ja-JP": "クサイハナ"
+    },
+    "네오라이트": {
+      "en-US": "Lumineon",
+      "ja-JP": "ネオラント"
+    },
+    "네오비트": {
+      "en-US": "Illumise",
+      "ja-JP": "イルミーゼ"
+    },
+    "네이티": {
+      "en-US": "Natu",
+      "ja-JP": "ネイティ"
+    },
+    "네이티오": {
+      "en-US": "Xatu",
+      "ja-JP": "ネイティオ"
+    },
+    "노고치": {
+      "en-US": "Dunsparce",
+      "ja-JP": "ノコッチ"
+    },
+    "노공룡": {
+      "en-US": "Loudred",
+      "ja-JP": "ドゴーム"
+    },
+    "노라키": {
+      "en-US": "Stantler",
+      "ja-JP": "オドシシ"
+    },
+    "누오": {
+      "en-US": "Quagsire",
+      "ja-JP": "ヌオー"
+    },
+    "눈꼬마": {
+      "en-US": "Snorunt",
+      "ja-JP": "ユキワラシ"
+    },
+    "눈설왕": {
+      "en-US": "Abomasnow",
+      "ja-JP": "ユキノオー"
+    },
+    "눈쓰개": {
+      "en-US": "Snover",
+      "ja-JP": "ユキカブリ"
+    },
+    "눈여아": {
+      "en-US": "Froslass",
+      "ja-JP": "ユキメノコ"
+    },
+    "늪짱이": {
+      "en-US": "Marshtomp",
+      "ja-JP": "ヌマクロー"
+    },
+    "니드런♀": {
+      "en-US": "Nidoran♀",
+      "ja-JP": "ニドラン♀"
+    },
+    "니드런♂": {
+      "en-US": "Nidoran♂",
+      "ja-JP": "ニドラン♂"
+    },
+    "니드리나": {
+      "en-US": "Nidorina",
+      "ja-JP": "ニドリーナ"
+    },
+    "니드리노": {
+      "en-US": "Nidorino",
+      "ja-JP": "ニドリーノ"
+    },
+    "니드퀸": {
+      "en-US": "Nidoqueen",
+      "ja-JP": "ニドクイン"
+    },
+    "니드킹": {
+      "en-US": "Nidoking",
+      "ja-JP": "ニドキング"
+    },
+    "니로우": {
+      "en-US": "Murkrow",
+      "ja-JP": "ヤミカラス"
+    },
+    "다꼬리": {
+      "en-US": "Furret",
+      "ja-JP": "オオタチ"
+    },
+    "다크라이": {
+      "en-US": "Darkrai",
+      "ja-JP": "ダークライ"
+    },
+    "다크펫": {
+      "en-US": "Banette",
+      "ja-JP": "ジュペッタ"
+    },
+    "다탱구": {
+      "en-US": "Shiftry",
+      "ja-JP": "ダーテング"
+    },
+    "닥트리오": {
+      "en-US": "Dugtrio",
+      "ja-JP": "ダグトリオ"
+    },
+    "단단지": {
+      "en-US": "Shuckle",
+      "ja-JP": "ツボツボ"
+    },
+    "단데기": {
+      "en-US": "Metapod",
+      "ja-JP": "トランセル"
+    },
+    "대굴레오": {
+      "en-US": "Spheal",
+      "ja-JP": "タマザラシ"
+    },
+    "대짱이": {
+      "en-US": "Swampert",
+      "ja-JP": "ラグラージ"
+    },
+    "대코파스": {
+      "en-US": "Probopass",
+      "ja-JP": "ダイノーズ"
+    },
+    "대포무노": {
+      "en-US": "Octillery",
+      "ja-JP": "オクタン"
+    },
+    "덩쿠리": {
+      "en-US": "Tangela",
+      "ja-JP": "モンジャラ"
+    },
+    "덩쿠림보": {
+      "en-US": "Tangrowth",
+      "ja-JP": "モジャンボ"
+    },
+    "데구리": {
+      "en-US": "Graveler",
+      "ja-JP": "ゴローン"
+    },
+    "데기라스": {
+      "en-US": "Pupitar",
+      "ja-JP": "サナギラス"
+    },
+    "델빌": {
+      "en-US": "Houndour",
+      "ja-JP": "デルビル"
+    },
+    "델케티": {
+      "en-US": "Delcatty",
+      "ja-JP": "エネコロロ"
+    },
+    "도나리": {
+      "en-US": "Venomoth",
+      "ja-JP": "モルフォン"
+    },
+    "도롱마담": {
+      "en-US": "Wormadam",
+      "ja-JP": "ミノマダム"
+    },
+    "도롱마담 모래땅도롱": {
+      "en-US": "Pignite",
+      "ja-JP": "チャオブー"
+    },
+    "도롱마담 슈레도롱": {
+      "en-US": "Emboar",
+      "ja-JP": "エンブオー"
+    },
+    "도롱충이": {
+      "en-US": "Burmy",
+      "ja-JP": "ミノムッチ"
+    },
+    "도토링": {
+      "en-US": "Seedot",
+      "ja-JP": "タネボー"
+    },
+    "독개굴": {
+      "en-US": "Toxicroak",
+      "ja-JP": "ドクロッグ"
+    },
+    "독침붕": {
+      "en-US": "Beedrill",
+      "ja-JP": "スピアー"
+    },
+    "독케일": {
+      "en-US": "Dustox",
+      "ja-JP": "ドクケイル"
+    },
+    "독파리": {
+      "en-US": "Tentacruel",
+      "ja-JP": "ドククラゲ"
+    },
+    "돈크로우": {
+      "en-US": "Honchkrow",
+      "ja-JP": "ドンカラス"
+    },
+    "동미러": {
+      "en-US": "Bronzor",
+      "ja-JP": "ドーミラー"
+    },
+    "동탁군": {
+      "en-US": "Bronzong",
+      "ja-JP": "ドータクン"
+    },
+    "두개도스": {
+      "en-US": "Cranidos",
+      "ja-JP": "ズガイドス"
+    },
+    "두두": {
+      "en-US": "Doduo",
+      "ja-JP": "ドードー"
+    },
+    "두코": {
+      "en-US": "Skiploom",
+      "ja-JP": "ポポッコ"
+    },
+    "두트리오": {
+      "en-US": "Dodrio",
+      "ja-JP": "ドードリオ"
+    },
+    "둔타": {
+      "en-US": "Numel",
+      "ja-JP": "ドンメル"
+    },
+    "둥실라이드": {
+      "en-US": "Drifblim",
+      "ja-JP": "フワライド"
+    },
+    "드래피온": {
+      "en-US": "Drapion",
+      "ja-JP": "ドラピオン"
+    },
+    "디그다": {
+      "en-US": "Diglett",
+      "ja-JP": "ディグダ"
+    },
+    "디아루가": {
+      "en-US": "Dialga",
+      "ja-JP": "ディアルガ"
+    },
+    "딜리버드": {
+      "en-US": "Delibird",
+      "ja-JP": "デリバード"
+    },
+    "딥상어동": {
+      "en-US": "Gible",
+      "ja-JP": "フカマル"
+    },
+    "딱구리": {
+      "en-US": "Golem",
+      "ja-JP": "ゴローニャ"
+    },
+    "딱충이": {
+      "en-US": "Kakuna",
+      "ja-JP": "コクーン"
+    },
+    "또가스": {
+      "en-US": "Koffing",
+      "ja-JP": "ドガース"
+    },
+    "또도가스": {
+      "en-US": "Weezing",
+      "ja-JP": "マタドガス"
+    },
+    "뚜벅쵸": {
+      "en-US": "Oddish",
+      "ja-JP": "ナゾノクサ"
+    },
+    "라이츄": {
+      "en-US": "Raichu",
+      "ja-JP": "ライチュウ"
+    },
+    "라이코": {
+      "en-US": "Raikou",
+      "ja-JP": "ライコウ"
+    },
+    "라티아스": {
+      "en-US": "Latias",
+      "ja-JP": "ラティアス"
+    },
+    "라티오스": {
+      "en-US": "Latios",
+      "ja-JP": "ラティオス"
+    },
+    "라프라스": {
+      "en-US": "Lapras",
+      "ja-JP": "ラプラス"
+    },
+    "라플레시아": {
+      "en-US": "Vileplume",
+      "ja-JP": "ラフレシア"
+    },
+    "랄토스": {
+      "en-US": "Ralts",
+      "ja-JP": "ラルトス"
+    },
+    "랑딸랑": {
+      "en-US": "Chingling",
+      "ja-JP": "リーシャン"
+    },
+    "랜턴": {
+      "en-US": "Lanturn",
+      "ja-JP": "ランターン"
+    },
+    "램펄드": {
+      "en-US": "Rampardos",
+      "ja-JP": "ラムパルド"
+    },
+    "럭시오": {
+      "en-US": "Luxio",
+      "ja-JP": "ルクシオ"
+    },
+    "럭키": {
+      "en-US": "Chansey",
+      "ja-JP": "ラッキー"
+    },
+    "레디바": {
+      "en-US": "Ledyba",
+      "ja-JP": "レディバ"
+    },
+    "레디안": {
+      "en-US": "Ledian",
+      "ja-JP": "レディアン"
+    },
+    "레어코일": {
+      "en-US": "Magneton",
+      "ja-JP": "レアコイル"
+    },
+    "레지기가스": {
+      "en-US": "Regigigas",
+      "ja-JP": "レジギガス"
+    },
+    "레지락": {
+      "en-US": "Regirock",
+      "ja-JP": "レジロック"
+    },
+    "레지스틸": {
+      "en-US": "Registeel",
+      "ja-JP": "レジスチル"
+    },
+    "레지아이스": {
+      "en-US": "Regice",
+      "ja-JP": "レジアイス"
+    },
+    "레쿠쟈": {
+      "en-US": "Rayquaza",
+      "ja-JP": "レックウザ"
+    },
+    "레트라": {
+      "en-US": "Raticate",
+      "ja-JP": "ラッタ"
+    },
+    "렌트라": {
+      "en-US": "Luxray",
+      "ja-JP": "レントラー"
+    },
+    "로젤리아": {
+      "en-US": "Roselia",
+      "ja-JP": "ロゼリア"
+    },
+    "로즈레이드": {
+      "en-US": "Roserade",
+      "ja-JP": "ロズレイド"
+    },
+    "로토무": {
+      "en-US": "Rotom",
+      "ja-JP": "ロトム"
+    },
+    "로토스": {
+      "en-US": "Lombre",
+      "ja-JP": "ハスブレロ"
+    },
+    "로파파": {
+      "en-US": "Ludicolo",
+      "ja-JP": "ルンパッパ"
+    },
+    "롱스톤": {
+      "en-US": "Onix",
+      "ja-JP": "イワーク"
+    },
+    "루기아": {
+      "en-US": "Lugia",
+      "ja-JP": "ルギア"
+    },
+    "루나톤": {
+      "en-US": "Lunatone",
+      "ja-JP": "ルナトーン"
+    },
+    "루리리": {
+      "en-US": "Azurill",
+      "ja-JP": "ルリリ"
+    },
+    "루브도": {
+      "en-US": "Smeargle",
+      "ja-JP": "ドーブル"
+    },
+    "루주라": {
+      "en-US": "Jynx",
+      "ja-JP": "ルージュラ"
+    },
+    "루카리오": {
+      "en-US": "Lucario",
+      "ja-JP": "ルカリオ"
+    },
+    "리아코": {
+      "en-US": "Totodile",
+      "ja-JP": "ワニノコ"
+    },
+    "리오르": {
+      "en-US": "Riolu",
+      "ja-JP": "リオル"
+    },
+    "리자드": {
+      "en-US": "Charmeleon",
+      "ja-JP": "リザード"
+    },
+    "리자몽": {
+      "en-US": "Charizard",
+      "ja-JP": "リザードン"
+    },
+    "리피아": {
+      "en-US": "Leafeon",
+      "ja-JP": "リーフィア"
+    },
+    "릴리요": {
+      "en-US": "Cradily",
+      "ja-JP": "ユレイドル"
+    },
+    "릴링": {
+      "en-US": "Lileep",
+      "ja-JP": "リリーラ"
+    },
+    "링곰": {
+      "en-US": "Ursaring",
+      "ja-JP": "リングマ"
+    },
+    "마그마": {
+      "en-US": "Magmar",
+      "ja-JP": "ブーバー"
+    },
+    "마그마그": {
+      "en-US": "Slugma",
+      "ja-JP": "マグマッグ"
+    },
+    "마그마번": {
+      "en-US": "Magmortar",
+      "ja-JP": "ブーバーン"
+    },
+    "마그비": {
+      "en-US": "Magby",
+      "ja-JP": "ブビィ"
+    },
+    "마그카르고": {
+      "en-US": "Magcargo",
+      "ja-JP": "マグカルゴ"
+    },
+    "마그케인": {
+      "en-US": "Quilava",
+      "ja-JP": "マグマラシ"
+    },
+    "마기라스": {
+      "en-US": "Tyranitar",
+      "ja-JP": "バンギラス"
+    },
+    "마나피": {
+      "en-US": "Manaphy",
+      "ja-JP": "マナフィ"
+    },
+    "마릴": {
+      "en-US": "Marill",
+      "ja-JP": "マリル"
+    },
+    "마릴리": {
+      "en-US": "Azumarill",
+      "ja-JP": "マリルリ"
+    },
+    "마이농": {
+      "en-US": "Minun",
+      "ja-JP": "マイナン"
+    },
+    "마임맨": {
+      "en-US": "Mr. Mime",
+      "ja-JP": "バリヤード"
+    },
+    "마자": {
+      "en-US": "Wynaut",
+      "ja-JP": "ソーナノ"
+    },
+    "마자용": {
+      "en-US": "Wobbuffet",
+      "ja-JP": "ソーナンス"
+    },
+    "마크탕": {
+      "en-US": "Makuhita",
+      "ja-JP": "マクノシタ"
+    },
+    "만타인": {
+      "en-US": "Mantine",
+      "ja-JP": "マンタイン"
+    },
+    "맘모꾸리": {
+      "en-US": "Mamoswine",
+      "ja-JP": "マンムー"
+    },
+    "망나뇽": {
+      "en-US": "Dragonite",
+      "ja-JP": "カイリュー"
+    },
+    "망키": {
+      "en-US": "Mankey",
+      "ja-JP": "マンキー"
+    },
+    "먹고자": {
+      "en-US": "Munchlax",
+      "ja-JP": "ゴンベ"
+    },
+    "메가니움": {
+      "en-US": "Meganium",
+      "ja-JP": "メガニウム"
+    },
+    "메가자리": {
+      "en-US": "Yanmega",
+      "ja-JP": "メガヤンマ"
+    },
+    "메깅": {
+      "en-US": "Whiscash",
+      "ja-JP": "ナマズン"
+    },
+    "메꾸리": {
+      "en-US": "Piloswine",
+      "ja-JP": "イノムー"
+    },
+    "메리프": {
+      "en-US": "Mareep",
+      "ja-JP": "メリープ"
+    },
+    "메타그로스": {
+      "en-US": "Metagross",
+      "ja-JP": "メタグロス"
+    },
+    "메타몽": {
+      "en-US": "Ditto",
+      "ja-JP": "メタモン"
+    },
+    "메탕": {
+      "en-US": "Beldum",
+      "ja-JP": "ダンバル"
+    },
+    "메탕구": {
+      "en-US": "Metang",
+      "ja-JP": "メタング"
+    },
+    "모다피": {
+      "en-US": "Bellsprout",
+      "ja-JP": "マダツボミ"
+    },
+    "모래두지": {
+      "en-US": "Sandshrew",
+      "ja-JP": "サンド"
+    },
+    "모부기": {
+      "en-US": "Turtwig",
+      "ja-JP": "ナエトル"
+    },
+    "몬냥이": {
+      "en-US": "Purugly",
+      "ja-JP": "ブニャット"
+    },
+    "무스틈니": {
+      "en-US": "Carnivine",
+      "ja-JP": "マスキッパ"
+    },
+    "무우마": {
+      "en-US": "Misdreavus",
+      "ja-JP": "ムウマ"
+    },
+    "무우마직": {
+      "en-US": "Mismagius",
+      "ja-JP": "ムウマージ"
+    },
+    "무장조": {
+      "en-US": "Skarmory",
+      "ja-JP": "エアームド"
+    },
+    "물짱이": {
+      "en-US": "Mudkip",
+      "ja-JP": "ミズゴロウ"
+    },
+    "뮤": {
+      "en-US": "Mew",
+      "ja-JP": "ミュウ"
+    },
+    "뮤츠": {
+      "en-US": "Mewtwo",
+      "ja-JP": "ミュウツー"
+    },
+    "미꾸리": {
+      "en-US": "Barboach",
+      "ja-JP": "ドジョッチ"
+    },
+    "미뇽": {
+      "en-US": "Dratini",
+      "ja-JP": "ミニリュウ"
+    },
+    "미라몽": {
+      "en-US": "Dusclops",
+      "ja-JP": "サマヨール"
+    },
+    "밀로틱": {
+      "en-US": "Milotic",
+      "ja-JP": "ミロカロス"
+    },
+    "밀탱크": {
+      "en-US": "Miltank",
+      "ja-JP": "ミルタンク"
+    },
+    "바리톱스": {
+      "en-US": "Bastiodon",
+      "ja-JP": "トリデプス"
+    },
+    "발바로": {
+      "en-US": "Vigoroth",
+      "ja-JP": "ヤルキモノ"
+    },
+    "발챙이": {
+      "en-US": "Poliwag",
+      "ja-JP": "ニョロモ"
+    },
+    "밤선인": {
+      "en-US": "Cacturne",
+      "ja-JP": "ノクタス"
+    },
+    "방패톱스": {
+      "en-US": "Shieldon",
+      "ja-JP": "タテトプス"
+    },
+    "배루키": {
+      "en-US": "Tyrogue",
+      "ja-JP": "バルキー"
+    },
+    "버섯꼬": {
+      "en-US": "Shroomish",
+      "ja-JP": "キノココ"
+    },
+    "버섯모": {
+      "en-US": "Breloom",
+      "ja-JP": "キノガッサ"
+    },
+    "버터플": {
+      "en-US": "Butterfree",
+      "ja-JP": "バタフリー"
+    },
+    "번치코": {
+      "en-US": "Blaziken",
+      "ja-JP": "バシャーモ"
+    },
+    "베이리프": {
+      "en-US": "Bayleef",
+      "ja-JP": "ベイリーフ"
+    },
+    "별가사리": {
+      "en-US": "Staryu",
+      "ja-JP": "ヒトデマン"
+    },
+    "보만다": {
+      "en-US": "Salamence",
+      "ja-JP": "ボーマンダ"
+    },
+    "보송송": {
+      "en-US": "Flaaffy",
+      "ja-JP": "モココ"
+    },
+    "보스로라": {
+      "en-US": "Aggron",
+      "ja-JP": "ボスゴドラ"
+    },
+    "볼비트": {
+      "en-US": "Volbeat",
+      "ja-JP": "バルビート"
+    },
+    "부스터": {
+      "en-US": "Flareon",
+      "ja-JP": "ブースター"
+    },
+    "부우부": {
+      "en-US": "Hoothoot",
+      "ja-JP": "ホーホー"
+    },
+    "분홍장이": {
+      "en-US": "Gorebyss",
+      "ja-JP": "サクラビス"
+    },
+    "불꽃숭이": {
+      "en-US": "Chimchar",
+      "ja-JP": "ヒコザル"
+    },
+    "불량알": {
+      "en-US": "Snivy",
+      "ja-JP": "ツタージャ"
+    },
+    "붐볼": {
+      "en-US": "Electrode",
+      "ja-JP": "マルマイン"
+    },
+    "뷰티플라이": {
+      "en-US": "Beautifly",
+      "ja-JP": "アゲハント"
+    },
+    "브이젤": {
+      "en-US": "Buizel",
+      "ja-JP": "ブイゼル"
+    },
+    "브케인": {
+      "en-US": "Cyndaquil",
+      "ja-JP": "ヒノアラシ"
+    },
+    "블래키": {
+      "en-US": "Umbreon",
+      "ja-JP": "ブラッキー"
+    },
+    "블레이범": {
+      "en-US": "Typhlosion",
+      "ja-JP": "バクフーン"
+    },
+    "블루": {
+      "en-US": "Snubbull",
+      "ja-JP": "ブルー"
+    },
+    "비구술": {
+      "en-US": "Surskit",
+      "ja-JP": "アメタマ"
+    },
+    "비나방": {
+      "en-US": "Masquerain",
+      "ja-JP": "アメモース"
+    },
+    "비버니": {
+      "en-US": "Bidoof",
+      "ja-JP": "ビッパ"
+    },
+    "비버통": {
+      "en-US": "Bibarel",
+      "ja-JP": "ビーダル"
+    },
+    "비브라바": {
+      "en-US": "Vibrava",
+      "ja-JP": "ビブラーバ"
+    },
+    "비퀸": {
+      "en-US": "Vespiquen",
+      "ja-JP": "ビークイン"
+    },
+    "빈티나": {
+      "en-US": "Feebas",
+      "ja-JP": "ヒンバス"
+    },
+    "뽀뽀라": {
+      "en-US": "Smoochum",
+      "ja-JP": "ムチュール"
+    },
+    "뿔충이": {
+      "en-US": "Weedle",
+      "ja-JP": "ビードル"
+    },
+    "뿔카노": {
+      "en-US": "Rhyhorn",
+      "ja-JP": "サイホーン"
+    },
+    "쁘사이저": {
+      "en-US": "Pinsir",
+      "ja-JP": "カイロス"
+    },
+    "삐": {
+      "en-US": "Cleffa",
+      "ja-JP": "ピィ"
+    },
+    "삐딱구리": {
+      "en-US": "Croagunk",
+      "ja-JP": "グレッグル"
+    },
+    "삐삐": {
+      "en-US": "Clefairy",
+      "ja-JP": "ピッピ"
+    },
+    "사랑동이": {
+      "en-US": "Luvdisc",
+      "ja-JP": "ラブカス"
+    },
+    "샤미드": {
+      "en-US": "Vaporeon",
+      "ja-JP": "シャワーズ"
+    },
+    "샤크니아": {
+      "en-US": "Sharpedo",
+      "ja-JP": "サメハダー"
+    },
+    "샤프니아": {
+      "en-US": "Carvanha",
+      "ja-JP": "キバニア"
+    },
+    "선인왕": {
+      "en-US": "Cacnea",
+      "ja-JP": "サボネア"
+    },
+    "성원숭": {
+      "en-US": "Primeape",
+      "ja-JP": "オコリザル"
+    },
+    "세꿀버리": {
+      "en-US": "Combee",
+      "ja-JP": "ミツハニー"
+    },
+    "세레비": {
+      "en-US": "Celebi",
+      "ja-JP": "セレビィ"
+    },
+    "세비퍼": {
+      "en-US": "Seviper",
+      "ja-JP": "ハブネーク"
+    },
+    "셀러": {
+      "en-US": "Shellder",
+      "ja-JP": "シェルダー"
+    },
+    "소곤룡": {
+      "en-US": "Whismur",
+      "ja-JP": "ゴニョニョ"
+    },
+    "솔록": {
+      "en-US": "Solrock",
+      "ja-JP": "ソルロック"
+    },
+    "솜솜코": {
+      "en-US": "Jumpluff",
+      "ja-JP": "ワタッコ"
+    },
+    "수풀부기": {
+      "en-US": "Grotle",
+      "ja-JP": "ハヤシガメ"
+    },
+    "쉐이미": {
+      "en-US": "Shaymin",
+      "ja-JP": "シェイミ"
+    },
+    "쉐이미 스카이폼": {
+      "en-US": "Dewott",
+      "ja-JP": "フタチマル"
+    },
+    "쉘곤": {
+      "en-US": "Shelgon",
+      "ja-JP": "コモルー"
+    },
+    "슈륙챙이": {
+      "en-US": "Poliwhirl",
+      "ja-JP": "ニョロゾ"
+    },
+    "스라크": {
+      "en-US": "Scyther",
+      "ja-JP": "ストライク"
+    },
+    "스왈로": {
+      "en-US": "Swellow",
+      "ja-JP": "オオスバメ"
+    },
+    "스이쿤": {
+      "en-US": "Suicune",
+      "ja-JP": "スイクン"
+    },
+    "스컹뿡": {
+      "en-US": "Stunky",
+      "ja-JP": "スカンプー"
+    },
+    "스컹탱크": {
+      "en-US": "Skuntank",
+      "ja-JP": "スカタンク"
+    },
+    "스콜피": {
+      "en-US": "Skorupi",
+      "ja-JP": "スコルピ"
+    },
+    "스핀로토무": {
+      "en-US": "Lillipup",
+      "ja-JP": "ヨーテリー"
+    },
+    "슬리퍼": {
+      "en-US": "Hypno",
+      "ja-JP": "スリーパー"
+    },
+    "슬리프": {
+      "en-US": "Drowzee",
+      "ja-JP": "スリープ"
+    },
+    "시드라": {
+      "en-US": "Seadra",
+      "ja-JP": "シードラ"
+    },
+    "시라소몬": {
+      "en-US": "Hitmonlee",
+      "ja-JP": "サワムラー"
+    },
+    "시라칸": {
+      "en-US": "Relicanth",
+      "ja-JP": "ジーランス"
+    },
+    "식스테일": {
+      "en-US": "Vulpix",
+      "ja-JP": "ロコン"
+    },
+    "신뇽": {
+      "en-US": "Dragonair",
+      "ja-JP": "ハクリュー"
+    },
+    "실쿤": {
+      "en-US": "Silcoon",
+      "ja-JP": "カラサリス"
+    },
+    "썬더": {
+      "en-US": "Zapdos",
+      "ja-JP": "サンダー"
+    },
+    "썬더라이": {
+      "en-US": "Electrike",
+      "ja-JP": "ラクライ"
+    },
+    "썬더볼트": {
+      "en-US": "Manectric",
+      "ja-JP": "ライボルト"
+    },
+    "쏘드라": {
+      "en-US": "Horsea",
+      "ja-JP": "タッツー"
+    },
+    "쏘콘": {
+      "en-US": "Forretress",
+      "ja-JP": "フォレトス"
+    },
+    "씨레오": {
+      "en-US": "Sealeo",
+      "ja-JP": "トドグラー"
+    },
+    "씨카이저": {
+      "en-US": "Walrein",
+      "ja-JP": "トドゼルガ"
+    },
+    "아공이": {
+      "en-US": "Bagon",
+      "ja-JP": "タツベイ"
+    },
+    "아그놈": {
+      "en-US": "Azelf",
+      "ja-JP": "アグノム"
+    },
+    "아노딥스": {
+      "en-US": "Anorith",
+      "ja-JP": "アノプス"
+    },
+    "아라리": {
+      "en-US": "Exeggcute",
+      "ja-JP": "タマタマ"
+    },
+    "아르세우스": {
+      "en-US": "Arceus",
+      "ja-JP": "アルセウス"
+    },
+    "아르코": {
+      "en-US": "Bellossom",
+      "ja-JP": "キレイハナ"
+    },
+    "아리아도스": {
+      "en-US": "Ariados",
+      "ja-JP": "アリアドス"
+    },
+    "아말도": {
+      "en-US": "Armaldo",
+      "ja-JP": "アーマルド"
+    },
+    "아보": {
+      "en-US": "Ekans",
+      "ja-JP": "アーボ"
+    },
+    "아보크": {
+      "en-US": "Arbok",
+      "ja-JP": "アーボック"
+    },
+    "아이스크": {
+      "en-US": "Ninjask",
+      "ja-JP": "テッカニン"
+    },
+    "아차모": {
+      "en-US": "Torchic",
+      "ja-JP": "アチャモ"
+    },
+    "아쿠스타": {
+      "en-US": "Starmie",
+      "ja-JP": "スターミー"
+    },
+    "안농": {
+      "en-US": "Unown",
+      "ja-JP": "アンノーン"
+    },
+    "알": {
+      "en-US": "Victini",
+      "ja-JP": "ビクティニ"
+    },
+    "알통몬": {
+      "en-US": "Machop",
+      "ja-JP": "ワンリキー"
+    },
+    "암나이트": {
+      "en-US": "Omanyte",
+      "ja-JP": "オムナイト"
+    },
+    "암스타": {
+      "en-US": "Omastar",
+      "ja-JP": "オムスター"
+    },
+    "애버라스": {
+      "en-US": "Larvitar",
+      "ja-JP": "ヨーギラス"
+    },
+    "앤테이": {
+      "en-US": "Entei",
+      "ja-JP": "エンテイ"
+    },
+    "앱솔": {
+      "en-US": "Absol",
+      "ja-JP": "アブソル"
+    },
+    "야느와르몽": {
+      "en-US": "Dusknoir",
+      "ja-JP": "ヨノワール"
+    },
+    "야도란": {
+      "en-US": "Slowbro",
+      "ja-JP": "ヤドラン"
+    },
+    "야도킹": {
+      "en-US": "Slowking",
+      "ja-JP": "ヤドキング"
+    },
+    "야돈": {
+      "en-US": "Slowpoke",
+      "ja-JP": "ヤドン"
+    },
+    "야부엉": {
+      "en-US": "Noctowl",
+      "ja-JP": "ヨルノズク"
+    },
+    "어니부기": {
+      "en-US": "Wartortle",
+      "ja-JP": "カメール"
+    },
+    "어둠대신": {
+      "en-US": "Shuppet",
+      "ja-JP": "カゲボウズ"
+    },
+    "얼루기": {
+      "en-US": "Spinda",
+      "ja-JP": "パッチール"
+    },
+    "얼음귀신": {
+      "en-US": "Glalie",
+      "ja-JP": "オニゴーリ"
+    },
+    "에나비": {
+      "en-US": "Skitty",
+      "ja-JP": "エネコ"
+    },
+    "에레브": {
+      "en-US": "Electabuzz",
+      "ja-JP": "エレブー"
+    },
+    "에레키드": {
+      "en-US": "Elekid",
+      "ja-JP": "エレキッド"
+    },
+    "에레키블": {
+      "en-US": "Electivire",
+      "ja-JP": "エレキブル"
+    },
+    "에브이": {
+      "en-US": "Espeon",
+      "ja-JP": "エーフィ"
+    },
+    "에이팜": {
+      "en-US": "Aipom",
+      "ja-JP": "エイパム"
+    },
+    "엘레이드": {
+      "en-US": "Gallade",
+      "ja-JP": "エルレイド"
+    },
+    "엘리게이": {
+      "en-US": "Croconaw",
+      "ja-JP": "アリゲイツ"
+    },
+    "엠라이트": {
+      "en-US": "Mesprit",
+      "ja-JP": "エムリット"
+    },
+    "엠페르트": {
+      "en-US": "Empoleon",
+      "ja-JP": "エンペルト"
+    },
+    "연꽃몬": {
+      "en-US": "Lotad",
+      "ja-JP": "ハスボー"
+    },
+    "영치코": {
+      "en-US": "Combusken",
+      "ja-JP": "ワカシャモ"
+    },
+    "오뚝군": {
+      "en-US": "Baltoy",
+      "ja-JP": "ヤジロン"
+    },
+    "왕구리": {
+      "en-US": "Politoed",
+      "ja-JP": "ニョロトノ"
+    },
+    "왕눈해": {
+      "en-US": "Tentacool",
+      "ja-JP": "メノクラゲ"
+    },
+    "왕자리": {
+      "en-US": "Yanma",
+      "ja-JP": "ヤンヤンマ"
+    },
+    "왕콘치": {
+      "en-US": "Seaking",
+      "ja-JP": "アズマオウ"
+    },
+    "요가랑": {
+      "en-US": "Meditite",
+      "ja-JP": "アサナン"
+    },
+    "요가램": {
+      "en-US": "Medicham",
+      "ja-JP": "チャーレム"
+    },
+    "우츠동": {
+      "en-US": "Weepinbell",
+      "ja-JP": "ウツドン"
+    },
+    "우츠보트": {
+      "en-US": "Victreebel",
+      "ja-JP": "ウツボット"
+    },
+    "우파": {
+      "en-US": "Wooper",
+      "ja-JP": "ウパー"
+    },
+    "워시로토무": {
+      "en-US": "Patrat",
+      "ja-JP": "ミネズミ"
+    },
+    "윈디": {
+      "en-US": "Arcanine",
+      "ja-JP": "ウインディ"
+    },
+    "유크시": {
+      "en-US": "Uxie",
+      "ja-JP": "ユクシー"
+    },
+    "윤겔라": {
+      "en-US": "Kadabra",
+      "ja-JP": "ユンゲラー"
+    },
+    "이브이": {
+      "en-US": "Eevee",
+      "ja-JP": "イーブイ"
+    },
+    "이상해꽃": {
+      "en-US": "Venusaur",
+      "ja-JP": "フシギバナ"
+    },
+    "이상해씨": {
+      "en-US": "Bulbasaur",
+      "ja-JP": "フシギダネ"
+    },
+    "이상해풀": {
+      "en-US": "Ivysaur",
+      "ja-JP": "フシギソウ"
+    },
+    "이어롤": {
+      "en-US": "Buneary",
+      "ja-JP": "ミミロル"
+    },
+    "이어롭": {
+      "en-US": "Lopunny",
+      "ja-JP": "ミミロップ"
+    },
+    "입치트": {
+      "en-US": "Mawile",
+      "ja-JP": "クチート"
+    },
+    "잉어킹": {
+      "en-US": "Magikarp",
+      "ja-JP": "コイキング"
+    },
+    "잎새코": {
+      "en-US": "Nuzleaf",
+      "ja-JP": "コノハナ"
+    },
+    "자포코일": {
+      "en-US": "Magnezone",
+      "ja-JP": "ジバコイル"
+    },
+    "잠만보": {
+      "en-US": "Snorlax",
+      "ja-JP": "カビゴン"
+    },
+    "장크로다일": {
+      "en-US": "Feraligatr",
+      "ja-JP": "オーダイル"
+    },
+    "쟝고": {
+      "en-US": "Zangoose",
+      "ja-JP": "ザングース"
+    },
+    "전룡": {
+      "en-US": "Ampharos",
+      "ja-JP": "デンリュウ"
+    },
+    "점토도리": {
+      "en-US": "Claydol",
+      "ja-JP": "ネンドール"
+    },
+    "주뱃": {
+      "en-US": "Zubat",
+      "ja-JP": "ズバット"
+    },
+    "쥬레곤": {
+      "en-US": "Dewgong",
+      "ja-JP": "ジュゴン"
+    },
+    "쥬쥬": {
+      "en-US": "Seel",
+      "ja-JP": "パウワウ"
+    },
+    "쥬피썬더": {
+      "en-US": "Jolteon",
+      "ja-JP": "サンダース"
+    },
+    "지그제구리": {
+      "en-US": "Zigzagoon",
+      "ja-JP": "ジグザグマ"
+    },
+    "지라치": {
+      "en-US": "Jirachi",
+      "ja-JP": "ジラーチ"
+    },
+    "직구리": {
+      "en-US": "Linoone",
+      "ja-JP": "マッスグマ"
+    },
+    "진주몽": {
+      "en-US": "Clamperl",
+      "ja-JP": "パールル"
+    },
+    "질뻐기": {
+      "en-US": "Muk",
+      "ja-JP": "ベトベトン"
+    },
+    "질퍽이": {
+      "en-US": "Grimer",
+      "ja-JP": "ベトベター"
+    },
+    "찌르꼬": {
+      "en-US": "Starly",
+      "ja-JP": "ムックル"
+    },
+    "찌르버드": {
+      "en-US": "Staravia",
+      "ja-JP": "ムクバード"
+    },
+    "찌르호크": {
+      "en-US": "Staraptor",
+      "ja-JP": "ムクホーク"
+    },
+    "찌리리공": {
+      "en-US": "Voltorb",
+      "ja-JP": "ビリリダマ"
+    },
+    "체리꼬": {
+      "en-US": "Cherrim",
+      "ja-JP": "チェリム"
+    },
+    "체리버": {
+      "en-US": "Cherubi",
+      "ja-JP": "チェリンボ"
+    },
+    "초라기": {
+      "en-US": "Chinchou",
+      "ja-JP": "チョンチー"
+    },
+    "초염몽": {
+      "en-US": "Infernape",
+      "ja-JP": "ゴウカザル"
+    },
+    "총어": {
+      "en-US": "Remoraid",
+      "ja-JP": "テッポウオ"
+    },
+    "치렁": {
+      "en-US": "Chimecho",
+      "ja-JP": "チリーン"
+    },
+    "치코리타": {
+      "en-US": "Chikorita",
+      "ja-JP": "チコリータ"
+    },
+    "칠색조": {
+      "en-US": "Ho-Oh",
+      "ja-JP": "ホウオウ"
+    },
+    "침바루": {
+      "en-US": "Qwilfish",
+      "ja-JP": "ハリーセン"
+    },
+    "카스쿤": {
+      "en-US": "Cascoon",
+      "ja-JP": "マユルド"
+    },
+    "카포에라": {
+      "en-US": "Hitmontop",
+      "ja-JP": "カポエラー"
+    },
+    "캐스퐁": {
+      "en-US": "Castform",
+      "ja-JP": "ポワルン"
+    },
+    "캐이시": {
+      "en-US": "Abra",
+      "ja-JP": "ケーシィ"
+    },
+    "캐터피": {
+      "en-US": "Caterpie",
+      "ja-JP": "キャタピー"
+    },
+    "캥카": {
+      "en-US": "Kangaskhan",
+      "ja-JP": "ガルーラ"
+    },
+    "커트로토무": {
+      "en-US": "Herdier",
+      "ja-JP": "ハーデリア"
+    },
+    "켄타로스": {
+      "en-US": "Tauros",
+      "ja-JP": "ケンタロス"
+    },
+    "켈리몬": {
+      "en-US": "Kecleon",
+      "ja-JP": "カクレオン"
+    },
+    "코리갑": {
+      "en-US": "Donphan",
+      "ja-JP": "ドンファン"
+    },
+    "코뿌리": {
+      "en-US": "Rhydon",
+      "ja-JP": "サイドン"
+    },
+    "코산호": {
+      "en-US": "Corsola",
+      "ja-JP": "サニーゴ"
+    },
+    "코일": {
+      "en-US": "Magnemite",
+      "ja-JP": "コイル"
+    },
+    "코코리": {
+      "en-US": "Phanpy",
+      "ja-JP": "ゴマゾウ"
+    },
+    "코코파스": {
+      "en-US": "Nosepass",
+      "ja-JP": "ノズパス"
+    },
+    "코터스": {
+      "en-US": "Torkoal",
+      "ja-JP": "コータス"
+    },
+    "콘치": {
+      "en-US": "Goldeen",
+      "ja-JP": "トサキント"
+    },
+    "콘팡": {
+      "en-US": "Venonat",
+      "ja-JP": "コンパン"
+    },
+    "크랩": {
+      "en-US": "Krabby",
+      "ja-JP": "クラブ"
+    },
+    "크레세리아": {
+      "en-US": "Cresselia",
+      "ja-JP": "クレセリア"
+    },
+    "크로뱃": {
+      "en-US": "Crobat",
+      "ja-JP": "クロバット"
+    },
+    "키링키": {
+      "en-US": "Girafarig",
+      "ja-JP": "キリンリキ"
+    },
+    "킬리아": {
+      "en-US": "Kirlia",
+      "ja-JP": "キルリア"
+    },
+    "킹드라": {
+      "en-US": "Kingdra",
+      "ja-JP": "キングドラ"
+    },
+    "킹크랩": {
+      "en-US": "Kingler",
+      "ja-JP": "キングラー"
+    },
+    "타만타": {
+      "en-US": "Mantyke",
+      "ja-JP": "タマンタ"
+    },
+    "탕구리": {
+      "en-US": "Cubone",
+      "ja-JP": "カラカラ"
+    },
+    "텅구리": {
+      "en-US": "Marowak",
+      "ja-JP": "ガラガラ"
+    },
+    "테오키스": {
+      "en-US": "Deoxys",
+      "ja-JP": "デオキシス"
+    },
+    "테오키스 디펜스폼": {
+      "en-US": "Serperior",
+      "ja-JP": "ジャローダ"
+    },
+    "테오키스 스피드폼": {
+      "en-US": "Tepig",
+      "ja-JP": "ポカブ"
+    },
+    "테오키스 어택폼": {
+      "en-US": "Servine",
+      "ja-JP": "ジャノビー"
+    },
+    "테일로": {
+      "en-US": "Taillow",
+      "ja-JP": "スバメ"
+    },
+    "토게키스": {
+      "en-US": "Togekiss",
+      "ja-JP": "トゲキッス"
+    },
+    "토게틱": {
+      "en-US": "Togetic",
+      "ja-JP": "トゲチック"
+    },
+    "토게피": {
+      "en-US": "Togepi",
+      "ja-JP": "トゲピー"
+    },
+    "토대부기": {
+      "en-US": "Torterra",
+      "ja-JP": "ドダイトス"
+    },
+    "토중몬": {
+      "en-US": "Nincada",
+      "ja-JP": "ツチニン"
+    },
+    "톱치": {
+      "en-US": "Trapinch",
+      "ja-JP": "ナックラー"
+    },
+    "통통코": {
+      "en-US": "Hoppip",
+      "ja-JP": "ハネッコ"
+    },
+    "투구": {
+      "en-US": "Kabuto",
+      "ja-JP": "カブト"
+    },
+    "투구푸스": {
+      "en-US": "Kabutops",
+      "ja-JP": "カブトプス"
+    },
+    "트로피우스": {
+      "en-US": "Tropius",
+      "ja-JP": "トロピウス"
+    },
+    "트리토돈": {
+      "en-US": "Gastrodon",
+      "ja-JP": "トリトドン"
+    },
+    "파라섹트": {
+      "en-US": "Parasect",
+      "ja-JP": "パラセクト"
+    },
+    "파라스": {
+      "en-US": "Paras",
+      "ja-JP": "パラス"
+    },
+    "파르셀": {
+      "en-US": "Cloyster",
+      "ja-JP": "パルシェン"
+    },
+    "파비코": {
+      "en-US": "Swablu",
+      "ja-JP": "チルット"
+    },
+    "파비코리": {
+      "en-US": "Altaria",
+      "ja-JP": "チルタリス"
+    },
+    "파오리": {
+      "en-US": "Farfetch’d",
+      "ja-JP": "カモネギ"
+    },
+    "파이리": {
+      "en-US": "Charmander",
+      "ja-JP": "ヒトカゲ"
+    },
+    "파이숭이": {
+      "en-US": "Monferno",
+      "ja-JP": "モウカザル"
+    },
+    "파이어": {
+      "en-US": "Moltres",
+      "ja-JP": "ファイヤー"
+    },
+    "파치리스": {
+      "en-US": "Pachirisu",
+      "ja-JP": "パチリス"
+    },
+    "패리퍼": {
+      "en-US": "Pelipper",
+      "ja-JP": "ペリッパー"
+    },
+    "팬텀": {
+      "en-US": "Gengar",
+      "ja-JP": "ゲンガー"
+    },
+    "팽도리": {
+      "en-US": "Piplup",
+      "ja-JP": "ポッチャマ"
+    },
+    "팽태자": {
+      "en-US": "Prinplup",
+      "ja-JP": "ポッタイシ"
+    },
+    "펄기아": {
+      "en-US": "Palkia",
+      "ja-JP": "パルキア"
+    },
+    "페라페": {
+      "en-US": "Chatot",
+      "ja-JP": "ペラップ"
+    },
+    "페르시온": {
+      "en-US": "Persian",
+      "ja-JP": "ペルシアン"
+    },
+    "페이검": {
+      "en-US": "Spinarak",
+      "ja-JP": "イトマル"
+    },
+    "포니타": {
+      "en-US": "Ponyta",
+      "ja-JP": "ポニータ"
+    },
+    "포챠나": {
+      "en-US": "Poochyena",
+      "ja-JP": "ポチエナ"
+    },
+    "포푸니": {
+      "en-US": "Sneasel",
+      "ja-JP": "ニューラ"
+    },
+    "포푸니라": {
+      "en-US": "Weavile",
+      "ja-JP": "マニューラ"
+    },
+    "폭음룡": {
+      "en-US": "Exploud",
+      "ja-JP": "バクオング"
+    },
+    "폭타": {
+      "en-US": "Camerupt",
+      "ja-JP": "バクーダ"
+    },
+    "폴리곤": {
+      "en-US": "Porygon",
+      "ja-JP": "ポリゴン"
+    },
+    "폴리곤2": {
+      "en-US": "Porygon2",
+      "ja-JP": "ポリゴン２"
+    },
+    "폴리곤Z": {
+      "en-US": "Porygon-Z",
+      "ja-JP": "ポリゴンＺ"
+    },
+    "푸린": {
+      "en-US": "Jigglypuff",
+      "ja-JP": "プリン"
+    },
+    "푸크린": {
+      "en-US": "Wigglytuff",
+      "ja-JP": "プクリン"
+    },
+    "푸푸린": {
+      "en-US": "Igglybuff",
+      "ja-JP": "ププリン"
+    },
+    "프로스트로토무": {
+      "en-US": "Watchog",
+      "ja-JP": "ミルホッグ"
+    },
+    "프리져": {
+      "en-US": "Articuno",
+      "ja-JP": "フリーザー"
+    },
+    "프테라": {
+      "en-US": "Aerodactyl",
+      "ja-JP": "プテラ"
+    },
+    "플라이곤": {
+      "en-US": "Flygon",
+      "ja-JP": "フライゴン"
+    },
+    "플러시": {
+      "en-US": "Plusle",
+      "ja-JP": "プラスル"
+    },
+    "플로젤": {
+      "en-US": "Floatzel",
+      "ja-JP": "フローゼル"
+    },
+    "피그점프": {
+      "en-US": "Spoink",
+      "ja-JP": "バネブー"
+    },
+    "피그킹": {
+      "en-US": "Grumpig",
+      "ja-JP": "ブーピッグ"
+    },
+    "피오네": {
+      "en-US": "Phione",
+      "ja-JP": "フィオネ"
+    },
+    "피죤": {
+      "en-US": "Pidgeotto",
+      "ja-JP": "ピジョン"
+    },
+    "피죤투": {
+      "en-US": "Pidgeot",
+      "ja-JP": "ピジョット"
+    },
+    "피츄": {
+      "en-US": "Pichu",
+      "ja-JP": "ピチュー"
+    },
+    "피카츄": {
+      "en-US": "Pikachu",
+      "ja-JP": "ピカチュウ"
+    },
+    "피콘": {
+      "en-US": "Pineco",
+      "ja-JP": "クヌギダマ"
+    },
+    "픽시": {
+      "en-US": "Clefable",
+      "ja-JP": "ピクシー"
+    },
+    "핑복": {
+      "en-US": "Happiny",
+      "ja-JP": "ピンプク"
+    },
+    "하리뭉": {
+      "en-US": "Hariyama",
+      "ja-JP": "ハリテヤマ"
+    },
+    "하마돈": {
+      "en-US": "Hippowdon",
+      "ja-JP": "カバルドン"
+    },
+    "한바이트": {
+      "en-US": "Gabite",
+      "ja-JP": "ガバイト"
+    },
+    "한카리아스": {
+      "en-US": "Garchomp",
+      "ja-JP": "ガブリアス"
+    },
+    "핫삼": {
+      "en-US": "Scizor",
+      "ja-JP": "ハッサム"
+    },
+    "해골몽": {
+      "en-US": "Duskull",
+      "ja-JP": "ヨマワル"
+    },
+    "해너츠": {
+      "en-US": "Sunkern",
+      "ja-JP": "ヒマナッツ"
+    },
+    "해루미": {
+      "en-US": "Sunflora",
+      "ja-JP": "キマワリ"
+    },
+    "해피너스": {
+      "en-US": "Blissey",
+      "ja-JP": "ハピナス"
+    },
+    "헌테일": {
+      "en-US": "Huntail",
+      "ja-JP": "ハンテール"
+    },
+    "헤라크로스": {
+      "en-US": "Heracross",
+      "ja-JP": "ヘラクロス"
+    },
+    "헬가": {
+      "en-US": "Houndoom",
+      "ja-JP": "ヘルガー"
+    },
+    "형광어": {
+      "en-US": "Finneon",
+      "ja-JP": "ケイコウオ"
+    },
+    "홍수몬": {
+      "en-US": "Hitmonchan",
+      "ja-JP": "エビワラー"
+    },
+    "화강돌": {
+      "en-US": "Spiritomb",
+      "ja-JP": "ミカルゲ"
+    },
+    "후딘": {
+      "en-US": "Alakazam",
+      "ja-JP": "フーディン"
+    },
+    "흉내내": {
+      "en-US": "Mime Jr.",
+      "ja-JP": "マネネ"
+    },
+    "흔들풍손": {
+      "en-US": "Drifloon",
+      "ja-JP": "フワンテ"
+    },
+    "히드런": {
+      "en-US": "Heatran",
+      "ja-JP": "ヒードラン"
+    },
+    "히트로토무": {
+      "en-US": "Samurott",
+      "ja-JP": "ダイケンキ"
+    },
+    "히포포타스": {
+      "en-US": "Hippopotas",
+      "ja-JP": "ヒポポタス"
+    }
+  },
+  "source": {
+    "commit": "d4f9a4af58ade123fbc0558f68b1c69daa97d9e4",
+    "repository": "https://github.com/PokeAPI/pokeapi"
+  },
+  "types": {
+    "???": {
+      "en-US": "???",
+      "ja-JP": "???"
+    },
+    "강철": {
+      "en-US": "Steel",
+      "ja-JP": "はがね"
+    },
+    "격투": {
+      "en-US": "Fighting",
+      "ja-JP": "かくとう"
+    },
+    "고스트": {
+      "en-US": "Ghost",
+      "ja-JP": "ゴースト"
+    },
+    "노말": {
+      "en-US": "Normal",
+      "ja-JP": "ノーマル"
+    },
+    "독": {
+      "en-US": "Poison",
+      "ja-JP": "どく"
+    },
+    "드래곤": {
+      "en-US": "Dragon",
+      "ja-JP": "ドラゴン"
+    },
+    "땅": {
+      "en-US": "Ground",
+      "ja-JP": "じめん"
+    },
+    "물": {
+      "en-US": "Water",
+      "ja-JP": "みず"
+    },
+    "바위": {
+      "en-US": "Rock",
+      "ja-JP": "いわ"
+    },
+    "벌레": {
+      "en-US": "Bug",
+      "ja-JP": "むし"
+    },
+    "불꽃": {
+      "en-US": "Fire",
+      "ja-JP": "ほのお"
+    },
+    "비행": {
+      "en-US": "Flying",
+      "ja-JP": "ひこう"
+    },
+    "악": {
+      "en-US": "Dark",
+      "ja-JP": "あく"
+    },
+    "얼음": {
+      "en-US": "Ice",
+      "ja-JP": "こおり"
+    },
+    "에스퍼": {
+      "en-US": "Psychic",
+      "ja-JP": "エスパー"
+    },
+    "전기": {
+      "en-US": "Electric",
+      "ja-JP": "でんき"
+    },
+    "풀": {
+      "en-US": "Grass",
+      "ja-JP": "くさ"
+    }
+  }
+}

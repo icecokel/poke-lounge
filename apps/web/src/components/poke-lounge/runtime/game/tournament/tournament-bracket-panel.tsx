@@ -13,6 +13,8 @@ import {
   createTournamentBracketPreview,
   formatRemainingTime,
 } from "../scenes/world-scene-tournament";
+import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
+import { localizeRuntimeText, localizeTrainerName } from "../i18n/runtime-game-localization";
 
 interface OpeningPair {
   bye: boolean;
@@ -21,9 +23,11 @@ interface OpeningPair {
 }
 
 export function TournamentBracketPanel({
+  copy,
   projection,
   text,
 }: {
+  copy: PokeLoungeCopy;
   projection: TournamentStateRoomPayload;
   text: string;
 }) {
@@ -36,7 +40,7 @@ export function TournamentBracketPanel({
         data-poke-lounge-tournament-announcement="true"
         role="status"
       >
-        {text}
+        {localizeRuntimeText(text, copy.locale)}
       </PixelPanel>
     );
   }
@@ -62,29 +66,33 @@ export function TournamentBracketPanel({
       data-bracket-flow="outside-in"
       role="status"
     >
-      <span className={styles.srOnly}>{text}</span>
+      <span className={styles.srOnly}>{localizeRuntimeText(text, copy.locale)}</span>
       <div className={styles.tournamentBracketPanel} aria-hidden="true">
         <header className={styles.tournamentBracketHeader}>
           <span>
             ROUND {projection.roundIndex} / {ROUND_TOTAL_COUNT}
           </span>
-          <strong>토너먼트 대진</strong>
+          <strong>{copy.game.tournamentBracket}</strong>
           <span>
-            {remainingMs > 0 ? `${formatRemainingTime(remainingMs)} 후 시작` : "전투 준비 중"}
+            {remainingMs > 0
+              ? copy.game.startsAfter(formatRemainingTime(remainingMs))
+              : copy.game.battlePreparing}
           </span>
         </header>
         <div className={styles.tournamentBracketTree}>
           <TournamentBracketSide
+            copy={copy}
             ownPlayerId={projection.ownPlayerId}
             pairs={leftPairs}
             side="left"
             single={finalOnly}
           />
-          <div className={styles.tournamentBracketFinal} data-bracket-stage="결승">
+          <div className={styles.tournamentBracketFinal} data-bracket-stage="final">
             <span aria-hidden="true">🏆</span>
-            <strong>결승</strong>
+            <strong>{copy.game.final}</strong>
           </div>
           <TournamentBracketSide
+            copy={copy}
             ownPlayerId={projection.ownPlayerId}
             pairs={rightPairs}
             side="right"
@@ -93,8 +101,12 @@ export function TournamentBracketPanel({
         </div>
         {preview.ownPositionLabel || preview.cumulativeStatusLabel ? (
           <footer className={styles.tournamentBracketFooter}>
-            {preview.ownPositionLabel ? <strong>{preview.ownPositionLabel}</strong> : null}
-            {preview.cumulativeStatusLabel ? <span>{preview.cumulativeStatusLabel}</span> : null}
+            {preview.ownPositionLabel ? (
+              <strong>{localizeRuntimeText(preview.ownPositionLabel, copy.locale)}</strong>
+            ) : null}
+            {preview.cumulativeStatusLabel ? (
+              <span>{localizeRuntimeText(preview.cumulativeStatusLabel, copy.locale)}</span>
+            ) : null}
           </footer>
         ) : null}
       </div>
@@ -103,11 +115,13 @@ export function TournamentBracketPanel({
 }
 
 function TournamentBracketSide({
+  copy,
   ownPlayerId,
   pairs,
   side,
   single,
 }: {
+  copy: PokeLoungeCopy;
   ownPlayerId: string;
   pairs: OpeningPair[];
   side: "left" | "right";
@@ -117,7 +131,7 @@ function TournamentBracketSide({
     <section
       className={styles.tournamentBracketSide}
       data-bracket-side={side}
-      data-bracket-stage="8강·4강"
+      data-bracket-stage="quarterfinal-semifinal"
     >
       <ol className={styles.tournamentBracketEntrants}>
         {pairs.map(function mapPair(pair) {
@@ -132,14 +146,16 @@ function TournamentBracketSide({
                     key={participant.playerId}
                     className={styles.tournamentBracketParticipant}
                     data-own-player={participant.playerId === ownPlayerId || undefined}
-                    title={participant.displayName}
+                    title={localizeTrainerName(participant.displayName, copy.locale)}
                   >
                     <b>#{participant.seed}</b>
-                    <span>{participant.displayName}</span>
+                    <span>{localizeTrainerName(participant.displayName, copy.locale)}</span>
                   </span>
                 );
               })}
-              {pair.bye ? <span className={styles.tournamentBracketBye}>부전승</span> : null}
+              {pair.bye ? (
+                <span className={styles.tournamentBracketBye}>{copy.game.bye}</span>
+              ) : null}
             </li>
           );
         })}

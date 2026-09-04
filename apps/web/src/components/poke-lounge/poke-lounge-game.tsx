@@ -197,6 +197,7 @@ export function PokeLoungeGame() {
     ? (getSessionApiAccountId(apiSession, sessionToken) ?? null)
     : null;
   const copy = getPokeLoungeCopy(locale);
+  const sentenceEnd = copy.locale === "ja-JP" ? "。" : ".";
   const accessibleGameStatus = usePokeLoungeAccessibleStatus(locale);
   const pageRef = useRef<HTMLElement>(null);
   const gamePageHandleRef = useRef<PokeLoungeGamePageHandle | null>(null);
@@ -1409,8 +1410,9 @@ export function PokeLoungeGame() {
         role="status"
         aria-live="polite"
       >
-        {accessibleGameStatus} {multiplayerRoomId ? `${connectionLabel}. ` : ""}
-        {autosaveLabel}. {copy.accessibleHelp}
+        {accessibleGameStatus} {multiplayerRoomId ? `${connectionLabel}${sentenceEnd} ` : ""}
+        {autosaveLabel}
+        {sentenceEnd} {copy.accessibleHelp}
       </div>
     </main>
   );

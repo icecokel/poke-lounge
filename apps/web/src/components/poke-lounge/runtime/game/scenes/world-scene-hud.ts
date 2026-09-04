@@ -241,16 +241,17 @@ export function getPokemonExperienceProgress(pokemon: PlayerPokemon): PokemonExp
   return { current, required, ratio: current / required, atMaxLevel: false };
 }
 
-export function formatPokeDollars(pokeDollars: number): string {
-  return `₽ ${Math.max(0, Math.floor(pokeDollars)).toLocaleString("en-US")}`;
+export function formatPokeDollars(pokeDollars: number, locale = "en-US"): string {
+  return `₽ ${Math.max(0, Math.floor(pokeDollars)).toLocaleString(locale)}`;
 }
 
 export function formatRankScoreHud(
   { rank, score }: PlayerCompetitiveStats,
   mode: "solo" | "competitive" = "competitive",
+  locale = "en-US",
 ): string {
-  const rankLabel = rank === null ? "-" : rank.toLocaleString("en-US");
-  const scoreLabel = Math.max(0, Math.floor(score)).toLocaleString("en-US");
+  const rankLabel = rank === null ? "-" : rank.toLocaleString(locale);
+  const scoreLabel = Math.max(0, Math.floor(score)).toLocaleString(locale);
   return mode === "solo"
     ? "솔로 모드\n랭킹 미반영"
     : `계정 기록\n랭크 ${rankLabel} · 점수 ${scoreLabel}`;
