@@ -66,6 +66,26 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
     await enterPublicRoom(guestPage, "침착한 그린", temporaryPassword);
     const guestRoom = await readRoom(await guestRoomResponse);
     await expect(guestPage.locator("[data-room-lobby='true']")).toBeVisible();
+    expect(
+      await guestPage
+        .locator("[data-testid='poke-lounge-page']")
+        .evaluate(function evaluatePage(page) {
+          const frame = page.querySelector<HTMLElement>("[data-poke-lounge-game-frame='true']");
+          const dock = page.querySelector<HTMLElement>(
+            "[data-poke-lounge-mobile-control-dock='true']",
+          );
+          if (!frame || !dock) return Number.POSITIVE_INFINITY;
+          const styles = getComputedStyle(page);
+          return Math.abs(
+            page.getBoundingClientRect().height -
+              frame.getBoundingClientRect().height -
+              dock.getBoundingClientRect().height -
+              Number.parseFloat(styles.paddingTop) -
+              Number.parseFloat(styles.paddingBottom) -
+              Number.parseFloat(styles.rowGap),
+          );
+        }),
+    ).toBeLessThanOrEqual(1);
     await expect(hostPage.locator("[data-room-lobby-participant='true']")).toHaveCount(2);
     await expect(hostPage.locator("[data-room-lobby-badge='true']")).toHaveCount(7);
     await expect(hostPage.locator("[data-room-lobby-actions='true']")).toBeVisible();

@@ -1907,6 +1907,16 @@
     justify-self: stretch;
   }
 
+  .touchGameDevice[data-poke-lounge-room-lobby-open="true"] {
+    grid-template-rows: minmax(0, 1fr) 52px;
+  }
+
+  .touchGameDevice[data-poke-lounge-room-lobby-open="true"] .gameFrame {
+    height: 100%;
+    max-height: none;
+    aspect-ratio: auto;
+  }
+
   .touchGameDevice .gameFrame[data-poke-lounge-runtime-mounted="false"] {
     position: absolute;
     inset: var(--poke-lounge-mobile-letterbox-top) 0 var(--poke-lounge-mobile-letterbox-bottom);
