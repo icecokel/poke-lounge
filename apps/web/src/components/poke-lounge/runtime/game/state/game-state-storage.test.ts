@@ -107,6 +107,102 @@ test("포켓몬 성별은 저장하고 구버전의 성별 없는 포켓몬도 �
   assert.equal(loadedParty?.[1]?.pokemon?.gender, undefined);
 });
 
+test("localStorage 복원은 잘못된 기술 PP와 플레이어 필드를 거부한다", function testCase() {
+  for (const corrupt of [
+    function corruptMove(payload: StoredPayloadForTest) {
+      payload.playersById["player-1"].party[0].pokemon.moves[0].pp = "1";
+    },
+    function corruptWallet(payload: StoredPayloadForTest) {
+      payload.playersById["player-1"].wallet.pokeDollars = -1;
+    },
+  ]) {
+    const storage = createMemoryStorage();
+    const adapter = createWebStorageGameStateStorage({ storage });
+    const player = createDefaultLocalPlayer();
+    player.party = [
+      {
+        slotIndex: 0,
+        pokemon: {
+          speciesId: 155,
+          name: "브케인",
+          level: 10,
+          moves: [{ id: 33, name: "몸통박치기", pp: 7, maxPp: 35 }],
+        },
+      },
+    ];
+    adapter.saveLocalPlayers({
+      currentPlayerId: player.playerId,
+      playersById: { [player.playerId]: player },
+    });
+
+    const key = `${DEFAULT_GAME_STATE_STORAGE_KEY}:anonymous`;
+    const payload = JSON.parse(storage.getItem(key)!) as StoredPayloadForTest;
+    corrupt(payload);
+    storage.setItem(key, JSON.stringify(payload));
+
+    assert.equal(adapter.loadLocalPlayers(), null);
+  }
+});
+
+test("localStorage 복원은 중복 기술 ID를 첫 슬롯 하나로 정규화한다", function testCase() {
+  const storage = createMemoryStorage();
+  const adapter = createWebStorageGameStateStorage({ storage });
+  const player = createDefaultLocalPlayer();
+  player.party = [
+    {
+      slotIndex: 0,
+      pokemon: {
+        speciesId: 155,
+        name: "브케인",
+        level: 10,
+        moves: [
+          { id: 33, name: "몸통박치기", pp: 7, maxPp: 35 },
+          { id: 33, name: "몸통박치기", pp: 1, maxPp: 35 },
+        ],
+      },
+    },
+  ];
+  adapter.saveLocalPlayers({
+    currentPlayerId: player.playerId,
+    playersById: { [player.playerId]: player },
+  });
+
+  assert.deepEqual(
+    adapter.loadLocalPlayers()?.playersById[player.playerId]?.party[0]?.pokemon?.moves,
+    [{ id: 33, name: "몸통박치기", pp: 7, maxPp: 35 }],
+  );
+});
+
+test("기존 unscoped v2 저장은 검증 후 현재 scope로 이전한다", function testCase() {
+  const storage = createMemoryStorage();
+  const adapter = createWebStorageGameStateStorage({ storage });
+  const player = createDefaultLocalPlayer("legacy-player");
+  adapter.saveLocalPlayers({
+    currentPlayerId: player.playerId,
+    playersById: { [player.playerId]: player },
+  });
+
+  const scopedKey = `${DEFAULT_GAME_STATE_STORAGE_KEY}:anonymous`;
+  storage.setItem(DEFAULT_GAME_STATE_STORAGE_KEY, storage.getItem(scopedKey)!);
+  storage.removeItem(scopedKey);
+
+  assert.equal(adapter.loadLocalPlayers()?.currentPlayerId, player.playerId);
+  assert.equal(storage.getItem(DEFAULT_GAME_STATE_STORAGE_KEY), null);
+  assert.ok(storage.getItem(scopedKey));
+});
+
+interface StoredPayloadForTest {
+  playersById: Record<
+    string,
+    {
+      party: Array<{
+        pokemon: { moves: Array<{ pp: unknown }> };
+      }>;
+      wallet: { pokeDollars: unknown };
+    }
+  >;
+}
+
 function createMemoryStorage(): Storage {
   const values = new Map<string, string>();
 

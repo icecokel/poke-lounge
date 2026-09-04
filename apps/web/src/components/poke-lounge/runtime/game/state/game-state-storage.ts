@@ -1,4 +1,5 @@
 import type { GameStateStorage, LocalPlayersSaveState } from "./game-state-store";
+import { sanitizeLocalPlayersSaveState } from "./poke-lounge-save-snapshot";
 
 export const GAME_STATE_STORAGE_VERSION = 2;
 export const DEFAULT_GAME_STATE_STORAGE_KEY = "poke-lounge:game-state";
@@ -105,7 +106,18 @@ function readSavedPayload(
       return null;
     }
 
-    return payload as SavedGameStatePayload;
+    const localPlayers = sanitizeLocalPlayersSaveState({
+      currentPlayerId: payload.currentPlayerId,
+      playersById: payload.playersById,
+    });
+
+    return localPlayers
+      ? {
+          version: GAME_STATE_STORAGE_VERSION,
+          ownerScope,
+          ...localPlayers,
+        }
+      : null;
   } catch {
     storage.removeItem(key);
     return null;

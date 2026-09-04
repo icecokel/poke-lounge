@@ -176,6 +176,33 @@ test("직접 구성한 3개 기술은 정규 기술표로 덮어쓰지 않는다
   }
 });
 
+test("중복 저장 기술은 첫 슬롯 하나만 전투에 복원한다", async function testCase() {
+  await loadRuntimeGameData();
+
+  try {
+    const state = createBattleState({
+      ...createPlayerPokemon(155, "브케인"),
+      moves: [
+        { id: 33, name: "몸통박치기", pp: 7, maxPp: 35 },
+        { id: 33, name: "몸통박치기", pp: 1, maxPp: 35 },
+        { id: 43, name: "째려보기", pp: 8, maxPp: 30 },
+      ],
+    });
+
+    assert.deepEqual(
+      state.player.pokemon.moves.map(function mapItem(move) {
+        return { id: move.id, pp: move.pp };
+      }),
+      [
+        { id: 33, pp: 7 },
+        { id: 43, pp: 8 },
+      ],
+    );
+  } finally {
+    resetRuntimeGameDataJsonStateForTest();
+  }
+});
+
 test("화상·마비와 학습 기술을 보존하고 미지원 상태기술은 롬 데이터대로 비활성화한다", async function testCase() {
   await loadRuntimeGameData();
 

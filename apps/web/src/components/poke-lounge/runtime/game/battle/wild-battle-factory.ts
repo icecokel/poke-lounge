@@ -346,7 +346,17 @@ function createBattleMovesForPokemon({
   moveRecords: RomRefinedMoveCollection;
   storedMoves?: PlayerPokemonMove[];
 }): BattleMove[] {
-  const normalizedStoredMoves = (storedMoves ?? []).slice(0, MAX_POKEMON_MOVE_COUNT);
+  const seenStoredMoveIds = new Set<number>();
+  const normalizedStoredMoves = (storedMoves ?? [])
+    .filter(function filterItem(move) {
+      if (seenStoredMoveIds.has(move.id)) {
+        return false;
+      }
+
+      seenStoredMoveIds.add(move.id);
+      return true;
+    })
+    .slice(0, MAX_POKEMON_MOVE_COUNT);
   const shouldMigrateLegacyMoveSet =
     normalizedStoredMoves.length > 0 &&
     normalizedStoredMoves.length < Math.min(MAX_POKEMON_MOVE_COUNT, canonicalMoveIds.length) &&

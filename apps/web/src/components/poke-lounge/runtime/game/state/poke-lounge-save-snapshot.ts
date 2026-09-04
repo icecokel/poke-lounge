@@ -1,3 +1,4 @@
+import { GEN4_MOVE_MAX_PP, GEN4_PLAYABLE_MOVE_MAX_ID } from "@poke-lounge/battle/runtime-rom-data";
 import { PLAYER_PARTY_SLOT_COUNT, type PlayerFacing } from "../player/player-types";
 import {
   MAX_POKEMON_INDIVIDUAL_VALUE,
@@ -26,10 +27,17 @@ export interface PokeLoungeSaveSnapshot {
 export function buildPokeLoungeSaveSnapshot(
   gameStateStore: Pick<GameStateStore, "getState">,
 ): PokeLoungeSaveSnapshot {
+  const state = sanitizeLocalPlayersSaveState(
+    cloneJsonSerializableLocalPlayers(gameStateStore.getState()),
+  );
+  if (!state) {
+    throw new Error("Cannot build an invalid Poke Lounge save snapshot");
+  }
+
   return {
     version: POKE_LOUNGE_SAVE_SNAPSHOT_VERSION,
     game: "poke-lounge",
-    state: cloneJsonSerializableLocalPlayers(gameStateStore.getState()),
+    state,
   };
 }
 
@@ -200,6 +208,7 @@ function sanitizePokemonCollection(value: unknown[]): PlayerPokemon[] | null {
 }
 
 function sanitizePokemon(value: Record<string, unknown>): PlayerPokemon | null {
+  const moves = sanitizeMoves(value.moves);
   if (
     !isSupportedPokemonSpeciesId(value.speciesId) ||
     !isNonEmptyString(value.name) ||
@@ -211,7 +220,7 @@ function sanitizePokemon(value: Record<string, unknown>): PlayerPokemon | null {
     !isOptionalPokemonGender(value.gender) ||
     !isOptionalPokemonStatus(value.status) ||
     !isOptionalIndividualValues(value.individualValues) ||
-    !isOptionalMoves(value.moves)
+    moves === null
   ) {
     return null;
   }
@@ -235,30 +244,42 @@ function sanitizePokemon(value: Record<string, unknown>): PlayerPokemon | null {
     ...(value.gender === undefined ? {} : { gender: value.gender }),
     ...(value.status === undefined ? {} : { status: value.status }),
     ...(value.individualValues === undefined ? {} : { individualValues: value.individualValues }),
-    ...(value.moves === undefined ? {} : { moves: value.moves.map(sanitizeMove) }),
+    ...(moves === undefined ? {} : { moves }),
   };
 }
 
-function sanitizeMove(value: unknown): PlayerPokemonMove {
-  return value as PlayerPokemonMove;
-}
+function sanitizeMoves(value: unknown): PlayerPokemonMove[] | undefined | null {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value) || value.length > 4) {
+    return null;
+  }
 
-function isOptionalMoves(value: unknown): value is PlayerPokemonMove[] | undefined {
-  return (
-    value === undefined ||
-    (Array.isArray(value) &&
-      value.length <= 4 &&
-      value.every(function testItem(move) {
-        return (
-          isRecord(move) &&
-          isPositiveInteger(move.id) &&
-          isNonEmptyString(move.name) &&
-          isNonNegativeInteger(move.pp) &&
-          isNonNegativeInteger(move.maxPp) &&
-          move.pp <= move.maxPp
-        );
-      }))
-  );
+  const seenMoveIds = new Set<number>();
+  const moves: PlayerPokemonMove[] = [];
+  for (const move of value) {
+    if (
+      !isRecord(move) ||
+      !isPositiveInteger(move.id) ||
+      move.id > GEN4_PLAYABLE_MOVE_MAX_ID ||
+      !isNonEmptyString(move.name) ||
+      !isNonNegativeInteger(move.pp) ||
+      !isPositiveInteger(move.maxPp) ||
+      move.maxPp > GEN4_MOVE_MAX_PP ||
+      move.pp > move.maxPp
+    ) {
+      return null;
+    }
+    if (seenMoveIds.has(move.id)) {
+      continue;
+    }
+
+    seenMoveIds.add(move.id);
+    moves.push({ id: move.id, name: move.name, pp: move.pp, maxPp: move.maxPp });
+  }
+
+  return moves;
 }
 
 function sanitizeInventory(value: Record<string, unknown>): Record<string, number> | null {
