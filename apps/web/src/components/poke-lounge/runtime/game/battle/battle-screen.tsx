@@ -285,6 +285,9 @@ export function BattleHpPanel({
         value={hpRatio(combatant.displayedHp, combatant.maxHp)}
         aria-label={`${combatant.name} HP`}
       />
+      <small className={styles.battleTrainerName} data-poke-lounge-battle-trainer={side}>
+        {combatant.displayName}
+      </small>
     </PixelPanel>
   );
 }

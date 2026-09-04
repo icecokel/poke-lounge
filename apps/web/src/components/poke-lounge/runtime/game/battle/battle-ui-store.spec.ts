@@ -12,6 +12,7 @@ const presentation = {
   message: "야생 포켓몬이 나타났다!",
   opponent: {
     currentHp: 10,
+    displayName: "Player 2",
     displayedHp: 10,
     level: 3,
     maxHp: 10,
@@ -30,6 +31,7 @@ const presentation = {
   phase: "intro",
   player: {
     currentHp: 20,
+    displayName: "Player 1",
     displayedHp: 20,
     level: 5,
     maxHp: 20,

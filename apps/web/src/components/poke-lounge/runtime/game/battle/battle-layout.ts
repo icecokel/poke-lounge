@@ -16,7 +16,7 @@ const BATTLE_BOTTOM_WINDOW_HEIGHT = 58;
 const BATTLE_BOTTOM_WINDOW_Y = 192 - BATTLE_BOTTOM_WINDOW_HEIGHT;
 
 export const BATTLE_LAYOUT = {
-  opponentHpPanel: { x: 8, y: 14, width: 104, height: 28 },
+  opponentHpPanel: { x: 8, y: 14, width: 104, height: 34 },
   playerHpPanel: { x: 142, y: 96, width: 106, height: 34 },
   opponentSprite: { x: 164, y: 43, width: 72, height: 72, originX: 0.5, originY: 0.5 },
   playerSprite: { x: 64, y: 104, width: 80, height: 80, originX: 0.5, originY: 0.5 },

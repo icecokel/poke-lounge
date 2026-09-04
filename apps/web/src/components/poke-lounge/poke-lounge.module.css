@@ -214,6 +214,19 @@
   margin-top: 0.15em;
 }
 
+.battleTrainerName {
+  min-width: 0;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--pl-color-ink-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battleTrainerName[data-poke-lounge-battle-trainer="player"] {
+  text-align: right;
+}
+
 .battleWindow {
   position: absolute;
   left: 0;

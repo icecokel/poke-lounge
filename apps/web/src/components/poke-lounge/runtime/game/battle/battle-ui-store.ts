@@ -14,6 +14,7 @@ export interface BattleSpritePresentation {
 
 export interface BattleCombatantPresentation {
   currentHp: number;
+  displayName: string;
   displayedHp: number;
   level: number;
   maxHp: number;

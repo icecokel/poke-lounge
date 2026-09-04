@@ -1140,6 +1140,7 @@ export class BattleController {
       message: this.getVisibleBattleMessage(),
       opponent: {
         currentHp: this.state.opponent.pokemon.currentHp,
+        displayName: this.state.opponent.displayName,
         displayedHp: this.displayedHp.opponent,
         level: this.state.opponent.pokemon.level,
         maxHp: this.state.opponent.pokemon.maxHp,
@@ -1157,6 +1158,7 @@ export class BattleController {
       phase: this.state.phase,
       player: {
         currentHp: this.state.player.pokemon.currentHp,
+        displayName: this.state.player.displayName,
         displayedHp: this.displayedHp.player,
         level: this.state.player.pokemon.level,
         maxHp: this.state.player.pokemon.maxHp,

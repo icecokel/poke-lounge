@@ -387,6 +387,7 @@ export const storyBattlePresentation: BattlePresentationState = {
   message: null,
   opponent: {
     currentHp: 34,
+    displayName: "Player 2",
     displayedHp: 34,
     level: 17,
     maxHp: 46,
@@ -409,6 +410,7 @@ export const storyBattlePresentation: BattlePresentationState = {
   phase: "command",
   player: {
     currentHp: 45,
+    displayName: "Player 1",
     displayedHp: 45,
     level: 18,
     maxHp: 52,

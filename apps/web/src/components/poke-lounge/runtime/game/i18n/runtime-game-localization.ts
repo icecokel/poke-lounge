@@ -822,8 +822,16 @@ export function localizeBattlePresentationState(
   return {
     ...state,
     message: state.message ? localizeRuntimeText(state.message, locale) : null,
-    player: { ...state.player, name: localizePokemonName(state.player.name, locale) },
-    opponent: { ...state.opponent, name: localizePokemonName(state.opponent.name, locale) },
+    player: {
+      ...state.player,
+      displayName: localizeTrainerName(state.player.displayName, locale),
+      name: localizePokemonName(state.player.name, locale),
+    },
+    opponent: {
+      ...state.opponent,
+      displayName: localizeTrainerName(state.opponent.displayName, locale),
+      name: localizePokemonName(state.opponent.name, locale),
+    },
   };
 }
 
