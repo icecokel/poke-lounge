@@ -714,18 +714,15 @@ export function PokeLoungeGame() {
 
   useEffect(function runEffect() {
     const page = pageRef.current;
-    const parent = page?.parentElement;
 
-    if (!page || !parent) {
+    if (!page) {
       return;
     }
 
     const updateContainerSize = () => {
       const viewport = window.visualViewport;
-      const viewportLeft = viewport?.offsetLeft ?? 0;
-      const viewportTop = viewport?.offsetTop ?? 0;
-      const viewportRight = viewportLeft + (viewport?.width ?? window.innerWidth);
-      const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+      const width = viewport?.width ?? window.innerWidth;
+      const height = viewport?.height ?? window.innerHeight;
       const focusedInput = page.querySelector<HTMLElement>(
         '.room-entry-screen input[type="text"]:focus',
       );
@@ -738,34 +735,6 @@ export function PokeLoungeGame() {
 
       page.toggleAttribute("data-poke-lounge-keyboard-open", keyboardOpen);
 
-      if (
-        document.fullscreenElement === page ||
-        page.classList.contains("is-game-fullscreen-fallback")
-      ) {
-        page.style.setProperty(
-          POKE_LOUNGE_CONTAINER_WIDTH_VAR,
-          `${Math.floor(viewportRight - viewportLeft)}px`,
-        );
-        page.style.setProperty(
-          POKE_LOUNGE_CONTAINER_HEIGHT_VAR,
-          `${Math.floor(viewportBottom - viewportTop)}px`,
-        );
-        return;
-      }
-
-      const parentRect = parent.getBoundingClientRect();
-      const parentStyle = window.getComputedStyle(parent);
-      const paddingLeft = Number.parseFloat(parentStyle.paddingLeft) || 0;
-      const paddingRight = Number.parseFloat(parentStyle.paddingRight) || 0;
-      const paddingTop = Number.parseFloat(parentStyle.paddingTop) || 0;
-      const paddingBottom = Number.parseFloat(parentStyle.paddingBottom) || 0;
-      const visibleLeft = Math.max(parentRect.left + paddingLeft, viewportLeft);
-      const visibleRight = Math.min(parentRect.right - paddingRight, viewportRight);
-      const visibleTop = Math.max(parentRect.top + paddingTop, viewportTop);
-      const visibleBottom = Math.min(parentRect.bottom - paddingBottom, viewportBottom);
-      const width = Math.max(0, visibleRight - visibleLeft);
-      const height = Math.max(0, visibleBottom - visibleTop);
-
       page.style.setProperty(POKE_LOUNGE_CONTAINER_WIDTH_VAR, `${Math.floor(width)}px`);
       page.style.setProperty(POKE_LOUNGE_CONTAINER_HEIGHT_VAR, `${Math.floor(height)}px`);
 
@@ -776,8 +745,6 @@ export function PokeLoungeGame() {
 
     updateContainerSize();
 
-    const resizeObserver = new ResizeObserver(updateContainerSize);
-    resizeObserver.observe(parent);
     page.addEventListener("focusin", updateContainerSize);
     page.addEventListener("focusout", updateContainerSize);
     window.addEventListener("resize", updateContainerSize);
@@ -786,7 +753,6 @@ export function PokeLoungeGame() {
     document.addEventListener(GAME_FULLSCREEN_STATE_EVENT, updateContainerSize);
 
     return function callback() {
-      resizeObserver.disconnect();
       page.removeEventListener("focusin", updateContainerSize);
       page.removeEventListener("focusout", updateContainerSize);
       window.removeEventListener("resize", updateContainerSize);

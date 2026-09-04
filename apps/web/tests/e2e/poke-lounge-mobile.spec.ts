@@ -53,13 +53,13 @@ test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 �
   expect(
     await page.evaluate(async function evaluatePage() {
       if (!window.visualViewport) {
-        return false;
+        return null;
       }
 
       const viewportPrototype = Object.getPrototypeOf(window.visualViewport) as object;
       const heightDescriptor = Object.getOwnPropertyDescriptor(viewportPrototype, "height");
       if (!heightDescriptor) {
-        return false;
+        return null;
       }
 
       Object.defineProperty(viewportPrototype, "height", {
@@ -82,7 +82,7 @@ test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 �
       const frameRect = frame?.getBoundingClientRect();
       const passwordRect = password?.getBoundingClientRect();
       const submitRect = submit?.getBoundingClientRect();
-      const fits = Boolean(
+      const keyboardFits = Boolean(
         pageRect &&
         frameRect &&
         passwordRect &&
@@ -100,9 +100,23 @@ test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 �
       password?.blur();
       Object.defineProperty(viewportPrototype, "height", heightDescriptor);
       window.visualViewport.dispatchEvent(new Event("resize"));
-      return fits;
+      const restoredPageRect = page?.getBoundingClientRect();
+      const restoredFrameRect = frame?.getBoundingClientRect();
+
+      return {
+        keyboardFits,
+        viewportRestored: Boolean(
+          page &&
+          restoredPageRect &&
+          restoredFrameRect &&
+          !page.hasAttribute("data-poke-lounge-keyboard-open") &&
+          Math.abs(restoredPageRect.height - window.visualViewport.height) <= 1 &&
+          restoredFrameRect.top >= restoredPageRect.top - 1 &&
+          restoredFrameRect.bottom <= restoredPageRect.bottom + 1,
+        ),
+      };
     }),
-  ).toBe(true);
+  ).toEqual({ keyboardFits: true, viewportRestored: true });
   await expect(page.locator("[data-room-entry-multiplayer-submit]")).toBeVisible();
   await expect(page.locator("[data-room-entry-code]")).toHaveCount(0);
   await expect(page.locator("[data-room-entry-settings]")).toHaveCount(0);
