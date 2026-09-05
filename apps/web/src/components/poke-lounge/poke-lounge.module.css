@@ -2536,30 +2536,75 @@
 .page :global(.room-entry-create-screen) {
   padding: clamp(12px, 3vw, 32px);
   background:
+    linear-gradient(
+        90deg,
+        transparent 0 47%,
+        color-mix(in srgb, var(--pl-color-johto) 16%, transparent) 47% 53%,
+        transparent 53%
+      )
+      center / min(1120px, 92vw) 100% no-repeat,
     linear-gradient(135deg, rgb(255 255 255 / 3%) 25%, transparent 25%) 0 0 / 24px 24px,
     var(--pl-color-ink);
 }
 
 .page :global(.room-entry-create-panel) {
+  position: relative;
   grid-template-columns: minmax(260px, 0.82fr) minmax(420px, 1.18fr);
   gap: 0;
   width: min(980px, 100%);
   padding: 0;
-  border-color: var(--pl-color-ink);
-  border-radius: var(--pl-panel-radius);
+  border: 4px solid var(--pl-color-ink);
+  border-radius: 2px;
   background: var(--pl-color-surface);
-  box-shadow: var(--pl-panel-shadow);
+  box-shadow:
+    0 0 0 4px var(--pl-color-surface-raised),
+    0 0 0 8px var(--pl-color-johto-deep),
+    0 12px 0 var(--pl-color-ink);
   animation: room-entry-panel-in var(--pl-motion-panel) steps(3, end) both;
 }
 
 .page :global(.room-entry-intro) {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: clamp(18px, 3vw, 36px);
   min-width: 0;
   padding: clamp(22px, 3.5vw, 40px);
+  overflow: hidden;
+  border-right: 4px solid var(--pl-color-johto-deep);
   background: var(--pl-color-ink);
   color: var(--pl-color-surface-raised);
+}
+
+.page :global(.room-entry-intro)::before {
+  position: absolute;
+  right: -72px;
+  bottom: -58px;
+  width: 260px;
+  aspect-ratio: 1;
+  border: 16px solid var(--pl-color-surface-raised);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at center,
+      var(--pl-color-ink) 0 12%,
+      var(--pl-color-surface-raised) 12% 18%,
+      transparent 18%
+    ),
+    linear-gradient(
+      to bottom,
+      var(--pl-color-red) 0 44%,
+      var(--pl-color-ink) 44% 56%,
+      var(--pl-color-surface-raised) 56% 100%
+    );
+  content: "";
+  opacity: 0.08;
+  transform: rotate(-12deg);
+}
+
+.page :global(.room-entry-intro > *) {
+  position: relative;
+  z-index: 1;
 }
 
 .page :global(.room-entry-brand) {
@@ -2611,6 +2656,22 @@
   font-size: clamp(2.2rem, 4vw, 3.4rem);
   line-height: 0.98;
   letter-spacing: -0.08em;
+  text-shadow: 4px 4px 0 var(--pl-color-johto-deep);
+}
+
+.page :global(.room-entry-intro-heading h1)::after {
+  display: block;
+  width: 64px;
+  height: 6px;
+  margin-top: 18px;
+  background: linear-gradient(
+    90deg,
+    var(--pl-color-red) 0 30%,
+    var(--pl-color-gold) 30% 70%,
+    var(--pl-color-blue) 70%
+  );
+  box-shadow: 0 3px 0 var(--pl-color-johto-deep);
+  content: "";
 }
 
 .page :global(.room-entry-intro-heading p) {
@@ -2624,19 +2685,30 @@
 
 .page :global(.room-entry-intro .room-entry-notice) {
   margin-top: auto;
-  border-color: var(--pl-color-johto);
-  background: rgb(95 143 112 / 18%);
-  color: var(--pl-color-surface-muted);
+  border: 3px solid var(--pl-color-ink);
+  border-radius: 2px;
+  background: var(--pl-color-surface-raised);
+  box-shadow:
+    0 0 0 2px var(--pl-color-surface-raised),
+    5px 5px 0 var(--pl-color-johto-deep);
+  color: var(--pl-color-ink);
   font-size: 0.68rem;
 }
 
 .page :global(.room-entry-workspace) {
+  position: relative;
   display: grid;
   align-content: center;
   gap: 20px;
   min-width: 0;
   padding: clamp(22px, 3.5vw, 36px);
-  background: var(--pl-color-surface);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 7px,
+      color-mix(in srgb, var(--pl-color-shadow) 8%, transparent) 7px 8px
+    ),
+    var(--pl-color-surface);
 }
 
 .page :global(.room-entry-workspace-heading) {
@@ -2662,8 +2734,9 @@
   gap: 7px;
   padding: 6px 9px;
   border: 2px solid var(--pl-color-ink);
-  border-radius: 999px;
+  border-radius: 2px;
   background: var(--pl-color-gold-soft);
+  box-shadow: 2px 2px 0 var(--pl-color-ink);
   color: var(--pl-color-ink);
   font-size: 0.68rem;
   font-weight: 900;
@@ -2688,6 +2761,12 @@
   font-size: 0.8rem;
 }
 
+.page :global(.room-entry-create-panel .room-entry-field-label)::before {
+  margin-right: 7px;
+  color: var(--pl-color-red);
+  content: "\25B8";
+}
+
 .page :global(.room-entry-create-panel .room-entry-field-copy) {
   font-size: 0.68rem;
 }
@@ -2705,17 +2784,33 @@
 }
 
 .page :global(.room-entry-create-panel .room-entry-visibility-option) {
+  position: relative;
   min-height: 54px;
+  padding-right: 32px;
   border-color: var(--pl-color-ink);
+  border-radius: 2px;
   background: var(--pl-color-surface-raised);
+  box-shadow: 0 3px 0 var(--pl-color-shadow);
   transition:
     background var(--pl-motion-press) ease,
+    box-shadow var(--pl-motion-press) ease,
     transform var(--pl-motion-press) ease;
 }
 
 .page :global(.room-entry-create-panel .room-entry-visibility-option:has(input:checked)) {
   background: var(--pl-color-gold-soft);
-  box-shadow: inset 5px 0 var(--pl-color-johto);
+  box-shadow:
+    inset 6px 0 var(--pl-color-johto),
+    0 3px 0 var(--pl-color-ink);
+}
+
+.page :global(.room-entry-create-panel .room-entry-visibility-option:has(input:checked))::after {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  color: var(--pl-color-red);
+  content: "\25C6";
+  transform: translateY(-50%);
 }
 
 .page
@@ -2731,6 +2826,11 @@
   background: var(--pl-color-surface-raised);
 }
 
+.page :global(.room-entry-create-panel input:not([type="radio"])) {
+  border-radius: 2px;
+  box-shadow: inset 3px 3px 0 var(--pl-color-surface-muted);
+}
+
 .page :global(.room-entry-create-panel input:focus-visible) {
   outline: 3px solid var(--pl-color-focus);
   outline-offset: 2px;
@@ -2738,6 +2838,7 @@
 
 .page :global(.room-entry-create-panel button) {
   border-color: var(--pl-color-ink);
+  border-radius: 2px;
   background: var(--pl-color-surface-raised);
   box-shadow: 0 3px 0 var(--pl-color-ink);
   transition:
@@ -2762,6 +2863,9 @@
   min-height: 52px;
   padding: 10px 16px;
   background: var(--pl-color-gold);
+  box-shadow:
+    inset 7px 0 var(--pl-color-red),
+    0 4px 0 var(--pl-color-ink);
   font-size: 0.88rem;
   text-align: left;
 }
@@ -2769,6 +2873,11 @@
 .page :global(.room-entry-create-panel .room-entry-submit > span:last-child) {
   font-size: 1.35rem;
   line-height: 1;
+  transition: transform var(--pl-motion-press) steps(2, end);
+}
+
+.page :global(.room-entry-create-panel .room-entry-submit:hover:not(:disabled) > span:last-child) {
+  transform: translateX(4px);
 }
 
 .page :global(.room-entry-create-panel .room-entry-message) {
@@ -2784,6 +2893,24 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes room-entry-emblem-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7) rotate(-90deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .page :global(.room-entry-emblem) {
+    animation: room-entry-emblem-in 360ms steps(4, end) both;
   }
 }
 
@@ -3672,6 +3799,7 @@
     grid-template-columns: 1fr;
     gap: 0;
     padding: 0;
+    border-width: 3px;
   }
 
   .page :global(.room-entry-intro) {
@@ -3681,6 +3809,15 @@
     gap: 10px 14px;
     min-height: 0;
     padding: 14px 16px;
+    border-right: 0;
+    border-bottom: 4px solid var(--pl-color-johto-deep);
+  }
+
+  .page :global(.room-entry-intro)::before {
+    right: -44px;
+    bottom: -72px;
+    width: 160px;
+    border-width: 10px;
   }
 
   .page :global(.room-entry-brand) {
@@ -3699,6 +3836,14 @@
   .page :global(.room-entry-intro-heading h1) {
     max-width: none;
     font-size: 1.5rem;
+    text-shadow: 3px 3px 0 var(--pl-color-johto-deep);
+  }
+
+  .page :global(.room-entry-intro-heading h1)::after {
+    width: 42px;
+    height: 4px;
+    margin-top: 7px;
+    box-shadow: 0 2px 0 var(--pl-color-johto-deep);
   }
 
   .page :global(.room-entry-intro-heading p) {
@@ -3736,7 +3881,7 @@
 
   .page :global(.room-entry-create-panel .room-entry-visibility-option) {
     min-height: 44px;
-    padding: 7px 8px;
+    padding: 7px 28px 7px 8px;
   }
 
   .page :global(.room-entry-create-panel .room-entry-submit) {
