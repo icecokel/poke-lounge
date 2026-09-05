@@ -1,5 +1,15 @@
 import { expect, type Page, test } from "@playwright/test";
+import {
+  createRuntimeRomDataFixture,
+  fetchPublicGameDataFixture,
+} from "../../src/components/poke-lounge/runtime/game/testing/runtime-rom-data.fixture";
 import { gotoWithRetry } from "./test-helpers";
+
+let runtimeRomDataFixture: Awaited<ReturnType<typeof createRuntimeRomDataFixture>>;
+
+test.beforeAll(async function setUpRomData() {
+  runtimeRomDataFixture = await createRuntimeRomDataFixture(fetchPublicGameDataFixture);
+});
 
 type WorldSnapshot = {
   player: { x: number; y: number; facing: string } | null;
@@ -14,9 +24,32 @@ type WorldSnapshot = {
 
 test.beforeEach(async function setUpTest({ page }) {
   await page.setViewportSize({ width: 1280, height: 900 });
-  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
-  await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
-  await page.locator("[data-room-entry-solo]").click();
+  await page.route("**/poke-lounge/rom-data", function callback(route) {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: runtimeRomDataFixture }),
+    });
+  });
+  await page.route("**/poke-lounge/shops/*/items", function callback(route) {
+    const premium = new URL(route.request().url()).pathname.includes("/shops/premium/");
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: premium ? [80, 81, 82, 83, 84, 85, 107, 108, 109, 25, 28, 2, 50] : [17, 4, 18, 26],
+      }),
+    });
+  });
+  await page.route("**/api/local-test-mode", function callback(route) {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ available: true, active: true }),
+    });
+  });
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
   await chooseStarterIfNeeded(page);
   await expect(page.locator('#game-root[data-poke-lounge-game-surface="ready"]')).toBeVisible({
     timeout: 30_000,
@@ -118,7 +151,7 @@ test("desktop 월드의 6개 NPC 시설은 근접 상호작용에서만 열린�
 
   await openNearbySurface(page, { x: 512, y: 360 }, "shop", "basic", 4);
   await openNearbySurface(page, { x: 896, y: 360 }, "shop", "premium", 13);
-  await openNearbySurface(page, { x: 688, y: 292 }, "pc");
+  await openNearbySurface(page, { x: 384, y: 360 }, "pc");
   await openNearbySurface(page, { x: 768, y: 360 }, "dice");
 
   const nurseBefore = (await readWorldSnapshot(page))?.nurseHealing.effectCount ?? 0;

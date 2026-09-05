@@ -24,7 +24,7 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { GoogleAuthGuard } from '../auth/google-auth.guard';
+import { LocalTestAuthGuard } from '../auth/local-test-auth.guard';
 import { CompetitiveMatchService } from './competitive/competitive-match.service';
 import { BindCompetitiveSeatDto } from './dto/bind-competitive-seat.dto';
 import { CompetitiveAssignmentResponseDto } from './dto/competitive-assignment-response.dto';
@@ -174,7 +174,11 @@ export class PokeLoungeController {
   }
 
   @Post('rooms/:roomCode/competitive-seat')
-  @UseGuards(GoogleAuthGuard)
+  @UseGuards(LocalTestAuthGuard)
+  @ApiServiceUnavailableResponse({
+    description:
+      'Account authentication is disabled; anonymous play remains available.',
+  })
   @ApiBearerAuth()
   @ApiBody({ type: BindCompetitiveSeatDto })
   @ApiCreatedResponse({ type: CompetitiveAssignmentResponseDto })
@@ -195,7 +199,11 @@ export class PokeLoungeController {
   }
 
   @Post('rooms/:roomCode/matches/:matchId/actions')
-  @UseGuards(GoogleAuthGuard)
+  @UseGuards(LocalTestAuthGuard)
+  @ApiServiceUnavailableResponse({
+    description:
+      'Account authentication is disabled; anonymous play remains available.',
+  })
   @ApiBearerAuth()
   @ApiBody({ type: SubmitCompetitiveActionDto })
   @ApiCreatedResponse({ type: CompetitiveActionResponseDto })

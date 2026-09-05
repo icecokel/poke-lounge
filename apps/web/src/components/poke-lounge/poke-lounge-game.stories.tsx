@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { SessionProvider } from "next-auth/react";
 import { NextIntlClientProvider } from "next-intl";
 
 import messages from "../../../messages/ko-KR.json";
@@ -13,7 +12,9 @@ const meta = {
     globalThis.fetch = (input, init) =>
       String(input).endsWith("/api/local-test-mode")
         ? Promise.resolve(Response.json({ available: false, active: false }))
-        : fetch(input, init);
+        : String(input).endsWith("/api/local-test-mode/session")
+          ? Promise.resolve(Response.json(null))
+          : fetch(input, init);
     return () => {
       globalThis.fetch = fetch;
     };
@@ -28,13 +29,11 @@ const meta = {
   decorators: [
     function callback(Story) {
       return (
-        <SessionProvider session={null}>
-          <NextIntlClientProvider locale="ko-KR" messages={messages}>
-            <GameProvider>
-              <Story />
-            </GameProvider>
-          </NextIntlClientProvider>
-        </SessionProvider>
+        <NextIntlClientProvider locale="ko-KR" messages={messages}>
+          <GameProvider>
+            <Story />
+          </GameProvider>
+        </NextIntlClientProvider>
       );
     },
   ],

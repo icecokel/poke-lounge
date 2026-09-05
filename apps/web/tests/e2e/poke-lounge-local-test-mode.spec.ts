@@ -1,4 +1,14 @@
 import { expect, test } from "@playwright/test";
+import {
+  createRuntimeRomDataFixture,
+  fetchPublicGameDataFixture,
+} from "../../src/components/poke-lounge/runtime/game/testing/runtime-rom-data.fixture";
+
+let runtimeRomDataFixture: Awaited<ReturnType<typeof createRuntimeRomDataFixture>>;
+
+test.beforeAll(async function setUpRomData() {
+  runtimeRomDataFixture = await createRuntimeRomDataFixture(fetchPublicGameDataFixture);
+});
 
 const pokeLoungePath = "/ko-KR/game/poke-lounge";
 const stateApiUrl = "http://127.0.0.1:65535/game/poke-lounge/state";
@@ -9,6 +19,13 @@ test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 �
   let savedRevision = 0;
   let stateSaveCount = 0;
 
+  await page.route("**/poke-lounge/rom-data", function callback(route) {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data: runtimeRomDataFixture }),
+    });
+  });
   await page.route(stateApiUrl, async function callback(route) {
     const request = route.request();
     const origin = request.headers().origin ?? "http://127.0.0.1";
@@ -53,7 +70,7 @@ test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 �
   await expect(page.locator("[data-room-entry-mode='multiplayer']")).toBeVisible();
 
   const initialSession = await page.evaluate(async function evaluatePage() {
-    return (await fetch("/api/auth/session", { cache: "no-store" })).json();
+    return (await fetch("/api/local-test-mode/session", { cache: "no-store" })).json();
   });
   expect(initialSession).toBeNull();
 
@@ -61,7 +78,7 @@ test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 �
   await expect(page.locator("[data-screen='starter-selection']")).toBeVisible({ timeout: 30_000 });
 
   const activeSession = (await page.evaluate(async function evaluatePage() {
-    return (await fetch("/api/auth/session", { cache: "no-store" })).json();
+    return (await fetch("/api/local-test-mode/session", { cache: "no-store" })).json();
   })) as { localTestMode?: boolean; user?: { id?: string } };
   expect(activeSession.localTestMode).toBe(true);
   expect(activeSession.user?.id).toBe("poke-lounge-local-test-user");
@@ -99,7 +116,7 @@ test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 �
   await expect(page.locator("[data-room-entry-mode='multiplayer']")).toBeVisible();
 
   const exitedSession = await page.evaluate(async function evaluatePage() {
-    return (await fetch("/api/auth/session", { cache: "no-store" })).json();
+    return (await fetch("/api/local-test-mode/session", { cache: "no-store" })).json();
   });
   expect(exitedSession).toBeNull();
 });

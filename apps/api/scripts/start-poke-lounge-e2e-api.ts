@@ -8,7 +8,7 @@ import { Test } from '@nestjs/testing';
 import type { Request, Response } from 'express';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
-import { GoogleAuthGuard } from '../src/auth/google-auth.guard';
+import { LocalTestAuthGuard } from '../src/auth/local-test-auth.guard';
 import type { User } from '../src/auth/entities/user.entity';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
@@ -102,7 +102,7 @@ async function bootstrap(): Promise<void> {
   const testingModule = await Test.createTestingModule({
     imports: [AppModule],
   })
-    .overrideGuard(GoogleAuthGuard)
+    .overrideGuard(LocalTestAuthGuard)
     .useClass(PokeLoungeE2eAuthGuard)
     .compile();
   const app = testingModule.createNestApplication();

@@ -6,7 +6,10 @@ import {
   DEFAULT_GAME_STATE_STORAGE_KEY,
   migrateGameStateStorageToLocalStorage,
 } from "./game-state-storage";
-import { createAuthenticatedGameStateStorageScope } from "./default-game-state-store";
+import {
+  createAuthenticatedGameStateStorageScope,
+  createRoomGameStateStorageScope,
+} from "./default-game-state-store";
 import { createDefaultLocalPlayer } from "./game-state-store";
 
 test("browser storage save는 anonymous와 authenticated scope 사이에서 노출되지 않는다", function testCase() {
@@ -51,6 +54,51 @@ test("browser storage save는 anonymous와 authenticated scope 사이에서 노�
 
   scope = accountBScope;
   assert.equal(adapter.loadLocalPlayers()?.currentPlayerId, "account-b-player");
+});
+
+test("방 run UUID가 다르면 같은 계정의 포켓몬 진행도 서로 노출되지 않는다", function testCase() {
+  const storage = createMemoryStorage();
+  const accountScope = createAuthenticatedGameStateStorageScope("account-a");
+  const firstRunScope = createRoomGameStateStorageScope(
+    accountScope,
+    "11111111-1111-4111-8111-111111111111",
+  );
+  const secondRunScope = createRoomGameStateStorageScope(
+    accountScope,
+    "22222222-2222-4222-8222-222222222222",
+  );
+  let scope = firstRunScope;
+  const adapter = createWebStorageGameStateStorage({
+    storage,
+    getScope: () => scope,
+  });
+  const firstRunPlayer = createDefaultLocalPlayer("first-run-player");
+  firstRunPlayer.party = [
+    {
+      slotIndex: 0,
+      pokemon: { speciesId: 155, name: "브케인", level: 10 },
+    },
+  ];
+  adapter.saveLocalPlayers({
+    currentPlayerId: firstRunPlayer.playerId,
+    playersById: { [firstRunPlayer.playerId]: firstRunPlayer },
+  });
+
+  scope = secondRunScope;
+  assert.equal(adapter.loadLocalPlayers(), null);
+
+  const secondRunPlayer = createDefaultLocalPlayer("second-run-player");
+  adapter.saveLocalPlayers({
+    currentPlayerId: secondRunPlayer.playerId,
+    playersById: { [secondRunPlayer.playerId]: secondRunPlayer },
+  });
+
+  scope = firstRunScope;
+  assert.equal(adapter.loadLocalPlayers()?.currentPlayerId, firstRunPlayer.playerId);
+  assert.equal(
+    adapter.loadLocalPlayers()?.playersById[firstRunPlayer.playerId]?.party[0]?.pokemon?.speciesId,
+    155,
+  );
 });
 
 test("기존 sessionStorage 진행은 localStorage로 한 번 이전한다", function testCase() {

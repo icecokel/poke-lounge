@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import type { Request } from 'express';
 import { createTestCompetitivePartyInput } from '../../test/support/competitive-party.fixture';
-import { GoogleAuthGuard } from '../auth/google-auth.guard';
+import { LocalTestAuthGuard } from '../auth/local-test-auth.guard';
 import type { PokeLoungeRoomSnapshot } from './poke-lounge-room.repository';
 import type { PokeLoungeRoomService } from './poke-lounge-room.service';
 import type { CompetitiveMatchService } from './competitive/competitive-match.service';
@@ -484,7 +484,7 @@ describe('PokeLoungeController', function testSuite() {
     ]);
   });
 
-  it('guards competitive seat binding with GoogleAuthGuard', function testCase() {
+  it('guards competitive seat binding with LocalTestAuthGuard', function testCase() {
     const descriptor = Object.getOwnPropertyDescriptor(
       PokeLoungeController.prototype,
       'bindCompetitiveSeat',
@@ -494,7 +494,7 @@ describe('PokeLoungeController', function testSuite() {
       GUARDS_METADATA,
       descriptor?.value as object,
     ) as unknown[];
-    expect(guards).toContain(GoogleAuthGuard);
+    expect(guards).toContain(LocalTestAuthGuard);
   });
 
   it('submits a competitive action with req.user.id as the only actor source', async function testCase() {
@@ -517,7 +517,7 @@ describe('PokeLoungeController', function testSuite() {
     });
   });
 
-  it('guards competitive action submission with GoogleAuthGuard', function testCase() {
+  it('guards competitive action submission with LocalTestAuthGuard', function testCase() {
     const descriptor = Object.getOwnPropertyDescriptor(
       PokeLoungeController.prototype,
       'submitCompetitiveAction',
@@ -526,7 +526,7 @@ describe('PokeLoungeController', function testSuite() {
       GUARDS_METADATA,
       descriptor?.value as object,
     ) as unknown[];
-    expect(guards).toContain(GoogleAuthGuard);
+    expect(guards).toContain(LocalTestAuthGuard);
   });
 
   it('submits a password-room action with only its private session identity', async function testCase() {

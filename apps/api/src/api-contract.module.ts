@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { User } from './auth/entities/user.entity';
-import { GoogleAuthGuard } from './auth/google-auth.guard';
+import { LocalTestAuthGuard } from './auth/local-test-auth.guard';
 import { GameController } from './game/game.controller';
 import { GameService } from './game/game.service';
 import { CompetitiveMatchService } from './poke-lounge/competitive/competitive-match.service';
@@ -26,7 +26,7 @@ const guardStub = (provide: InjectionToken): Provider => ({
     stub(PokeLoungeRomDataService),
     stub(CompetitiveMatchService),
     stub(getRepositoryToken(User)),
-    guardStub(GoogleAuthGuard),
+    guardStub(LocalTestAuthGuard),
   ],
 })
 export class ApiContractModule {}

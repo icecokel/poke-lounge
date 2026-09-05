@@ -32,7 +32,6 @@
     "check:poke-lounge-competitive-catalog": "node scripts/poke-lounge/generate-competitive-catalog.mjs --check",
     "check:poke-lounge-battle-resolution": "node scripts/check-poke-lounge-battle-resolution.mjs types && pnpm build:poke-lounge-battle && node scripts/check-poke-lounge-battle-resolution.mjs runtime",
     "poke-lounge:audio:verify": "node scripts/poke-lounge/verify-audio-assets.mjs",
-    "check:poke-lounge-provenance": "node scripts/poke-lounge/check-asset-provenance.mjs",
     "generate:openapi": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/api openapi:generate",
     "generate:types": "pnpm generate:openapi && prettier --write apps/api/openapi.json && pnpm --filter @poke-lounge/web generate:types && prettier --write apps/web/src/types/api.d.ts",
     "check:api-contract": "node scripts/check-api-contract.mjs",

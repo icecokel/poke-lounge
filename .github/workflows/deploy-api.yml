@@ -1,20 +1,13 @@
 name: Deploy
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - apps/**
-      - packages/**
-      - scripts/**
-      - Dockerfile
-      - compose.yaml
-      - .dockerignore
-      - package.json
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
-      - .github/workflows/deploy-api.yml
+  workflow_call:
+    secrets:
+      DB_PASSWORD:
+        required: true
+
+permissions:
+  contents: read
 
 concurrency:
   group: deploy-poke-lounge
@@ -22,6 +15,8 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    timeout-minutes: 20
     runs-on: [self-hosted, linux, x64, poke-lounge]
     env:
       BIND_ADDRESS: ${{ vars.BIND_ADDRESS || '127.0.0.1' }}
@@ -33,6 +28,8 @@ jobs:
       COMPOSE_BAKE: "false" # ponytail: Remove after docker-buildx is installed on the runner.
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
 
       - name: Verify deployment configuration
         run: |

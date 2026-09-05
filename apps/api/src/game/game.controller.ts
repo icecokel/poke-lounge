@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiServiceUnavailableResponse,
   ApiCreatedResponse,
   ApiTags,
   ApiOkResponse,
@@ -27,7 +28,7 @@ import { GameHistoryResponseDto } from './dto/game-history-response.dto';
 import { GameRankingHistoryDto } from './dto/game-ranking-history.dto';
 import { PokeLoungeStateResponseDto } from './dto/poke-lounge-state-response.dto';
 import { SavePokeLoungeStateDto } from './dto/save-poke-lounge-state.dto';
-import { GoogleAuthGuard } from '../auth/google-auth.guard';
+import { LocalTestAuthGuard } from '../auth/local-test-auth.guard';
 import { GameType } from './enums/game-type.enum';
 import { User } from '../auth/entities/user.entity';
 import type { TransientPokeLoungeState } from './game.service';
@@ -49,7 +50,11 @@ export class GameController {
    * 게임 결과 저장 및 현재 등수 반환
    */
   @Post('result')
-  @UseGuards(GoogleAuthGuard)
+  @UseGuards(LocalTestAuthGuard)
+  @ApiServiceUnavailableResponse({
+    description:
+      'Account authentication is disabled; anonymous play remains available.',
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: '게임 결과 생성 및 랭킹 확인' })
   @ApiCreatedResponse({ type: GameHistoryResponseDto })
@@ -139,7 +144,11 @@ export class GameController {
   }
 
   @Put('poke-lounge/state')
-  @UseGuards(GoogleAuthGuard)
+  @UseGuards(LocalTestAuthGuard)
+  @ApiServiceUnavailableResponse({
+    description:
+      'Account authentication is disabled; anonymous play remains available.',
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Poke Lounge 상태 저장' })
   @ApiOkResponse({ type: PokeLoungeStateResponseDto })
@@ -156,7 +165,11 @@ export class GameController {
   }
 
   @Get('poke-lounge/state')
-  @UseGuards(GoogleAuthGuard)
+  @UseGuards(LocalTestAuthGuard)
+  @ApiServiceUnavailableResponse({
+    description:
+      'Account authentication is disabled; anonymous play remains available.',
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Poke Lounge 상태 조회' })
   @ApiOkResponse({ type: PokeLoungeStateResponseDto })

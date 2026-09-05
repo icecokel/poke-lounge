@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GameController } from './game.controller';
 import { GameService } from './game.service';
 import { CreateGameHistoryDto } from './dto/create-game-history.dto';
-import { GoogleAuthGuard } from '../auth/google-auth.guard';
+import { LocalTestAuthGuard } from '../auth/local-test-auth.guard';
 import {
   ExecutionContext,
   BadRequestException,
@@ -109,7 +109,7 @@ describe('GameController', function testSuite() {
         },
       ],
     })
-      .overrideGuard(GoogleAuthGuard)
+      .overrideGuard(LocalTestAuthGuard)
       .useValue({
         canActivate: (context: ExecutionContext) => {
           const req = context.switchToHttp().getRequest<TestRequest>();

@@ -145,142 +145,192 @@ function RoomEntryScreen({
           </div>
           <FanNotice copy={copy} />
         </header>
-        <section
-          className="room-entry-workspace"
-          data-room-entry-mode="multiplayer"
-          aria-label={copy.roomEntry.multiplayerTitle}
-        >
-          <header className="room-entry-workspace-heading">
-            <h2>{copy.roomEntry.multiplayerTitle}</h2>
-            <span className="room-entry-room-status">
-              <span aria-hidden="true" />
-              {copy.roomEntry.privateGameTitle}
-            </span>
-          </header>
-          <form className="room-entry-mode-content room-entry-form" onSubmit={selectMultiplayer}>
-            <LabeledField
-              id="poke-lounge-multiplayer-display-name"
-              label={copy.roomEntry.multiplayerNameLabel}
-              description={copy.roomEntry.multiplayerNameDescription}
-            >
-              <input
-                id="poke-lounge-multiplayer-display-name"
-                type="text"
-                autoComplete="off"
-                maxLength={12}
-                placeholder={copy.roomEntry.multiplayerNamePlaceholder}
-                value={displayName}
+        {state.localTestMode ? (
+          <section
+            className="room-entry-workspace room-entry-local-test"
+            data-room-entry-mode="solo"
+            data-room-entry-local-test="true"
+            data-local-test-mode-active={state.localTestMode.active || undefined}
+            aria-label={copy.roomEntry.localTestTitle}
+          >
+            <header className="room-entry-workspace-heading">
+              <h2>{copy.roomEntry.localTestTitle}</h2>
+            </header>
+            <p className="room-entry-field-copy">{copy.roomEntry.localTestDescription}</p>
+            <div className="room-entry-local-test-actions">
+              <button
+                type="button"
                 disabled={pending}
-                aria-invalid={!displayName.trim() || undefined}
-                onChange={function handleChange(event) {
-                  setDisplayName(event.currentTarget.value);
-                  setMessage("");
+                onClick={function handleClick() {
+                  playConfirmSound();
+                  setPending(true);
+                  setMessage(copy.roomEntry.preparing);
+                  state.localTestMode?.onStart();
                 }}
-                data-room-entry-display-name
-              />
-            </LabeledField>
-            <fieldset className="room-entry-visibility" data-room-entry-visibility>
-              <legend className="room-entry-field-label">
-                {copy.roomEntry.roomVisibilityLabel}
-              </legend>
-              <label className="room-entry-visibility-option">
-                <input
-                  type="radio"
-                  name="room-visibility"
-                  value="public"
-                  disabled
-                  data-room-entry-visibility-public
-                />
-                <span>{copy.roomEntry.publicGameTitle}</span>
-                <small>{copy.roomEntry.publicGameDescription}</small>
-              </label>
-              <label className="room-entry-visibility-option">
-                <input
-                  type="radio"
-                  name="room-visibility"
-                  value="private"
-                  defaultChecked
-                  disabled={pending}
-                  data-room-entry-visibility-private
-                />
-                <span>{copy.roomEntry.privateGameTitle}</span>
-              </label>
-            </fieldset>
-            <fieldset className="room-entry-visibility room-entry-duration" disabled={pending}>
-              <legend className="room-entry-field-label">
-                {copy.roomEntry.roundDurationLabel}
-              </legend>
-              {ROUND_DURATION_OPTIONS_MS.map((duration, index) => (
-                <label key={duration} className="room-entry-visibility-option">
-                  <input
-                    type="radio"
-                    name="round-duration"
-                    value={duration}
-                    checked={roundDurationMs === duration}
-                    onChange={() => setRoundDurationMs(duration)}
-                    data-room-entry-round-duration
-                  />
-                  <span>{copy.roomEntry.roundDurationOptions[index]}</span>
-                </label>
-              ))}
-            </fieldset>
-            <p className="room-entry-field-copy">{copy.roomEntry.roundDurationDescription}</p>
-            <LabeledField
-              id="poke-lounge-temporary-password"
-              label={copy.roomEntry.temporaryPasswordLabel}
-              description={copy.roomEntry.temporaryPasswordDescription}
-            >
-              <div className="room-entry-password-row">
-                <input
-                  id="poke-lounge-temporary-password"
-                  type="text"
-                  inputMode="text"
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  maxLength={TEMPORARY_PASSWORD_LENGTH}
-                  placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
-                  value={temporaryPassword}
-                  disabled={pending}
-                  aria-invalid={temporaryPassword.length !== TEMPORARY_PASSWORD_LENGTH || undefined}
-                  onChange={function handleChange(event) {
-                    setTemporaryPassword(normalizeTemporaryPassword(event.currentTarget.value));
-                    setMessage("");
-                  }}
-                  data-room-entry-temporary-password
-                />
+                data-room-entry-local-test-start
+              >
+                {state.localTestMode.active
+                  ? copy.roomEntry.localTestContinue
+                  : copy.roomEntry.localTestStart}
+              </button>
+              {state.localTestMode.active ? (
                 <button
                   type="button"
                   disabled={pending}
                   onClick={function handleClick() {
-                    setTemporaryPassword(createTemporaryPassword());
+                    playConfirmSound();
+                    setPending(true);
+                    setMessage(copy.roomEntry.preparing);
+                    state.localTestMode?.onExit();
+                  }}
+                  data-room-entry-local-test-exit
+                >
+                  {copy.roomEntry.localTestExit}
+                </button>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+        {!state.localTestMode?.active ? (
+          <section
+            className="room-entry-workspace"
+            data-room-entry-mode="multiplayer"
+            aria-label={copy.roomEntry.multiplayerTitle}
+          >
+            <header className="room-entry-workspace-heading">
+              <h2>{copy.roomEntry.multiplayerTitle}</h2>
+              <span className="room-entry-room-status">
+                <span aria-hidden="true" />
+                {copy.roomEntry.privateGameTitle}
+              </span>
+            </header>
+            <form className="room-entry-mode-content room-entry-form" onSubmit={selectMultiplayer}>
+              <LabeledField
+                id="poke-lounge-multiplayer-display-name"
+                label={copy.roomEntry.multiplayerNameLabel}
+                description={copy.roomEntry.multiplayerNameDescription}
+              >
+                <input
+                  id="poke-lounge-multiplayer-display-name"
+                  type="text"
+                  autoComplete="off"
+                  maxLength={12}
+                  placeholder={copy.roomEntry.multiplayerNamePlaceholder}
+                  value={displayName}
+                  disabled={pending}
+                  aria-invalid={!displayName.trim() || undefined}
+                  onChange={function handleChange(event) {
+                    setDisplayName(event.currentTarget.value);
                     setMessage("");
                   }}
-                  data-room-entry-temporary-password-generate
-                >
-                  {copy.roomEntry.temporaryPasswordGenerate}
-                </button>
-              </div>
-            </LabeledField>
-            <button
-              type="submit"
-              className="room-entry-submit"
-              disabled={pending}
-              data-room-entry-multiplayer-submit
+                  data-room-entry-display-name
+                />
+              </LabeledField>
+              <fieldset className="room-entry-visibility" data-room-entry-visibility>
+                <legend className="room-entry-field-label">
+                  {copy.roomEntry.roomVisibilityLabel}
+                </legend>
+                <label className="room-entry-visibility-option">
+                  <input
+                    type="radio"
+                    name="room-visibility"
+                    value="public"
+                    disabled
+                    data-room-entry-visibility-public
+                  />
+                  <span>{copy.roomEntry.publicGameTitle}</span>
+                  <small>{copy.roomEntry.publicGameDescription}</small>
+                </label>
+                <label className="room-entry-visibility-option">
+                  <input
+                    type="radio"
+                    name="room-visibility"
+                    value="private"
+                    defaultChecked
+                    disabled={pending}
+                    data-room-entry-visibility-private
+                  />
+                  <span>{copy.roomEntry.privateGameTitle}</span>
+                </label>
+              </fieldset>
+              <fieldset className="room-entry-visibility room-entry-duration" disabled={pending}>
+                <legend className="room-entry-field-label">
+                  {copy.roomEntry.roundDurationLabel}
+                </legend>
+                {ROUND_DURATION_OPTIONS_MS.map((duration, index) => (
+                  <label key={duration} className="room-entry-visibility-option">
+                    <input
+                      type="radio"
+                      name="round-duration"
+                      value={duration}
+                      checked={roundDurationMs === duration}
+                      onChange={() => setRoundDurationMs(duration)}
+                      data-room-entry-round-duration
+                    />
+                    <span>{copy.roomEntry.roundDurationOptions[index]}</span>
+                  </label>
+                ))}
+              </fieldset>
+              <p className="room-entry-field-copy">{copy.roomEntry.roundDurationDescription}</p>
+              <LabeledField
+                id="poke-lounge-temporary-password"
+                label={copy.roomEntry.temporaryPasswordLabel}
+                description={copy.roomEntry.temporaryPasswordDescription}
+              >
+                <div className="room-entry-password-row">
+                  <input
+                    id="poke-lounge-temporary-password"
+                    type="text"
+                    inputMode="text"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    maxLength={TEMPORARY_PASSWORD_LENGTH}
+                    placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
+                    value={temporaryPassword}
+                    disabled={pending}
+                    aria-invalid={
+                      temporaryPassword.length !== TEMPORARY_PASSWORD_LENGTH || undefined
+                    }
+                    onChange={function handleChange(event) {
+                      setTemporaryPassword(normalizeTemporaryPassword(event.currentTarget.value));
+                      setMessage("");
+                    }}
+                    data-room-entry-temporary-password
+                  />
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={function handleClick() {
+                      setTemporaryPassword(createTemporaryPassword());
+                      setMessage("");
+                    }}
+                    data-room-entry-temporary-password-generate
+                  >
+                    {copy.roomEntry.temporaryPasswordGenerate}
+                  </button>
+                </div>
+              </LabeledField>
+              <button
+                type="submit"
+                className="room-entry-submit"
+                disabled={pending}
+                data-room-entry-multiplayer-submit
+              >
+                <span>{copy.roomEntry.multiplayerConnect}</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </form>
+            <p
+              className="room-entry-message"
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+              data-room-entry-message="true"
             >
-              <span>{copy.roomEntry.multiplayerConnect}</span>
-              <span aria-hidden="true">→</span>
-            </button>
-          </form>
-          <p
-            className="room-entry-message"
-            role="alert"
-            aria-live="assertive"
-            aria-atomic="true"
-            data-room-entry-message="true"
-          >
-            {message}
-          </p>
-        </section>
+              {message}
+            </p>
+          </section>
+        ) : null}
       </div>
     </section>
   );

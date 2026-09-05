@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Server } from 'node:http';
 import request from 'supertest';
-import { GoogleAuthGuard } from '../src/auth/google-auth.guard';
+import { LocalTestAuthGuard } from '../src/auth/local-test-auth.guard';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { CompetitiveMatchService } from '../src/poke-lounge/competitive/competitive-match.service';
 import { PokeLoungeController } from '../src/poke-lounge/poke-lounge.controller';
@@ -148,7 +148,7 @@ describe('Poke Lounge request validation (e2e)', function testSuite() {
         },
       ],
     })
-      .overrideGuard(GoogleAuthGuard)
+      .overrideGuard(LocalTestAuthGuard)
       .useValue({ canActivate: () => true })
       .compile();
 

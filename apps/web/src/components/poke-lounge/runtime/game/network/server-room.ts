@@ -18,6 +18,7 @@ import {
   selectCompetitiveViewPlayerId,
 } from "./competitive-projection";
 import { createCompetitivePartySnapshot } from "./competitive-party-snapshot";
+import { createRoomRunId, isRoomRunId } from "../room-run-id";
 import {
   findCurrentMatch,
   isRoundReadinessDue,
@@ -67,6 +68,7 @@ interface ServerRoomState {
 export interface ServerRoomOptions {
   accountId?: string;
   roomId?: string;
+  roomRunId?: string;
   sessionId?: string;
   playerId?: string;
   createRoom?: boolean;
@@ -195,11 +197,13 @@ interface StoredServerRoomIdentity {
   activeRoom?: {
     roomCode: string;
     expiresAtMs: number;
+    runId: string;
   };
 }
 
 export interface StoredServerRoomResume {
   roomCode: string;
+  runId: string;
 }
 
 type InitialWorkflowStage = "open" | "competitive-seat" | "party" | "complete";
@@ -239,6 +243,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const identity = resolveServerIdentity(options);
   const sessionId = identity.sessionId;
   const serverPlayerId = identity.playerId;
+  const roomRunId = resolveServerRoomRunId(options);
   let localPlayerId = serverPlayerId;
   let activeRoomId = options.roomId ?? PENDING_ROOM_ID;
   const fetchImpl = options.fetch ?? fetch;
@@ -1389,6 +1394,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           activeRoom: {
             roomCode: state.roomCode,
             expiresAtMs: state.expiresAtMs,
+            runId: roomRunId,
           },
         },
         options.accountId,
@@ -3234,7 +3240,7 @@ export function readStoredServerRoomResume(accountId?: string): StoredServerRoom
     return null;
   }
 
-  return { roomCode: activeRoom.roomCode };
+  return { roomCode: activeRoom.roomCode, runId: activeRoom.runId };
 }
 
 function parseStoredActiveRoom(value: unknown): StoredServerRoomIdentity["activeRoom"] | null {
@@ -3248,7 +3254,8 @@ function parseStoredActiveRoom(value: unknown): StoredServerRoomIdentity["active
     typeof activeRoom.roomCode !== "string" ||
     !SERVER_ROOM_CODE_PATTERN.test(activeRoom.roomCode) ||
     typeof activeRoom.expiresAtMs !== "number" ||
-    !Number.isFinite(activeRoom.expiresAtMs)
+    !Number.isFinite(activeRoom.expiresAtMs) ||
+    !isRoomRunId(activeRoom.runId)
   ) {
     return null;
   }
@@ -3256,7 +3263,26 @@ function parseStoredActiveRoom(value: unknown): StoredServerRoomIdentity["active
   return {
     roomCode: activeRoom.roomCode,
     expiresAtMs: activeRoom.expiresAtMs,
+    runId: activeRoom.runId,
   };
+}
+
+function resolveServerRoomRunId(options: ServerRoomOptions): string {
+  if (options.roomRunId !== undefined) {
+    if (!isRoomRunId(options.roomRunId)) {
+      throw new Error("Poke Lounge server room requires a room run UUID");
+    }
+    return options.roomRunId;
+  }
+
+  if (options.resumeRoom) {
+    const activeRoom = readStoredIdentity(options.accountId)?.activeRoom;
+    if (activeRoom && (!options.roomId || activeRoom.roomCode === options.roomId)) {
+      return activeRoom.runId;
+    }
+  }
+
+  return createRoomRunId();
 }
 
 function getServerIdentityStorageKey(accountId?: string): string {

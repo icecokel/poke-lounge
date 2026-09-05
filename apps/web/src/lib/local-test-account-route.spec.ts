@@ -17,9 +17,9 @@ after(function callback() {
   process.env = originalEnvironment;
 });
 
-test("환경 변수만으로 Auth.js 세션을 로컬 테스트 계정으로 바꾸지 않는다", async function testCase() {
-  const { GET } = await import("@/app/api/auth/[...nextauth]/route");
-  const response = await GET(new NextRequest("http://localhost:3000/api/auth/session"));
+test("환경 변수만으로 로컬 테스트 세션을 활성화하지 않는다", async function testCase() {
+  const { GET } = await import("@/app/api/local-test-mode/session/route");
+  const response = await GET(new NextRequest("http://localhost:3000/api/local-test-mode/session"));
   const session = (await response.json()) as {
     user?: { id?: string };
     idToken?: string;
@@ -74,7 +74,7 @@ test("외부 Origin이나 전용 헤더가 없는 활성화 요청을 거부한�
 
 test("명시적 활성화 후에만 고정 테스트 계정 세션을 제공한다", async function testCase() {
   const localTestModeRoute = await import("@/app/api/local-test-mode/route");
-  const authRoute = await import("@/app/api/auth/[...nextauth]/route");
+  const authRoute = await import("@/app/api/local-test-mode/session/route");
   const activationResponse = await localTestModeRoute.POST(
     new NextRequest(localTestModeUrl, {
       body: "{}",
@@ -95,7 +95,7 @@ test("명시적 활성화 후에만 고정 테스트 계정 세션을 제공한�
   assert.match(activationResponse.headers.get("set-cookie") ?? "", /Path=\/api/i);
 
   const sessionResponse = await authRoute.GET(
-    new NextRequest("http://localhost:3000/api/auth/session", {
+    new NextRequest("http://localhost:3000/api/local-test-mode/session", {
       headers: { Cookie: cookie },
     }),
   );
@@ -142,7 +142,7 @@ test("명시적 종료 요청은 활성화 쿠키를 제거한다", async functi
 });
 
 test("session 외 auth GET은 제공하지 않는다", async function testCase() {
-  const { GET } = await import("@/app/api/auth/[...nextauth]/route");
+  const { GET } = await import("@/app/api/local-test-mode/session/route");
   const response = await GET(new NextRequest("http://localhost:3000/api/auth/providers"));
 
   assert.equal(response.status, 404);

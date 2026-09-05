@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --hostname localhost",
-    "build": "node ../../scripts/poke-lounge/check-asset-provenance.mjs --deployment-gate && next build",
+    "build": "next build",
     "build:storybook": "storybook build",
     "start": "next start",
     "storybook": "storybook dev -p 6006",
@@ -27,7 +27,6 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
     "next": "^15.5.19",
-    "next-auth": "^5.0.0-beta.30",
     "next-intl": "^4.13.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

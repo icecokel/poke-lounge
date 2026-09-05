@@ -6,7 +6,7 @@ import { Entity, PrimaryColumn, Column } from 'typeorm';
 @Entity()
 export class User {
   /**
-   * 고유 식별자 (구글 sub ID 사용)
+   * 기존 계정/개발 테스트 계정 식별자 (스키마 호환용)
    */
   @PrimaryColumn()
   id: string;
@@ -30,7 +30,7 @@ export class User {
   lastName: string;
 
   /**
-   * 구글 액세스 토큰 (필요시 사용)
+   * 기존 토큰 컬럼 (현재 미사용, 스키마 호환용으로 유지)
    */
   @Column({ nullable: true })
   accessToken: string;

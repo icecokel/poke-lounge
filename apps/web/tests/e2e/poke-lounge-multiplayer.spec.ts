@@ -542,6 +542,40 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     expect(storedValues).not.toContain(AUTH_ID_TOKEN);
   });
 
+  test("예상 못한 이탈은 같은 room run을 복구하고 새 방 생성은 새 UUID run에서 시작한다", async function testCase({
+    page,
+  }) {
+    const server = createMockServerState();
+
+    await mockServerRoom(page, server, { waitForResult: true, wrapped: true });
+    await startServerRoom(page, createServerRoomUrl());
+
+    const readRoomRunStorageKeys = () =>
+      page.evaluate(function evaluatePage() {
+        return Object.keys(localStorage).filter(function filterKey(key) {
+          return decodeURIComponent(key).includes(":room-run:");
+        });
+      });
+    const firstRunKeys = await readRoomRunStorageKeys();
+    expect(firstRunKeys).toHaveLength(1);
+
+    await page.reload();
+    await expect(page.locator('#game-root[data-poke-lounge-game-surface="ready"]')).toBeVisible({
+      timeout: 30000,
+    });
+    await expect(page.locator("[data-screen='starter-selection']")).toBeHidden();
+    expect(new URL(page.url()).searchParams.get("room")).toBe(ROOM_CODE);
+    expect(await readRoomRunStorageKeys()).toEqual(firstRunKeys);
+
+    await gotoWithRetry(page, createServerRoomUrl());
+    await confirmDirectMultiplayerEntry(page);
+    await expect(page.locator("[data-screen='starter-selection']")).toBeVisible({ timeout: 30000 });
+
+    const secondRunKeys = await readRoomRunStorageKeys();
+    expect(secondRunKeys).toHaveLength(2);
+    expect(new Set(secondRunKeys).size).toBe(2);
+  });
+
   test("competitive seat가 ineligible이면 server room은 casual world로 계속된다", async function testCase({
     page,
   }) {
@@ -3796,7 +3830,7 @@ function createMockServerState(): MockServerState {
 async function mockAuthenticatedPokeSession(page: Page): Promise<{ requestCount(): number }> {
   let requestCount = 0;
   const snapshot = buildPokeLoungeSaveSnapshot(createGameStateStore());
-  await page.route("**/api/auth/session", function callback(route) {
+  await page.route("**/api/local-test-mode/session", function callback(route) {
     requestCount += 1;
     return route.fulfill({
       status: 200,
