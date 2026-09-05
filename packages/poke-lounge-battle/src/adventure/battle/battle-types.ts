@@ -95,6 +95,7 @@ export interface BattleResult {
 export interface BattleExperienceReward {
   message: string;
   pokemon: BattlePokemon;
+  party?: BattlePartySlot[];
 }
 
 export interface BattleCaptureAttempt {
@@ -120,6 +121,7 @@ export interface BattleMessageHpSnapshot {
 
 export interface BattleScreenState {
   battleKind: BattleKind;
+  sharePartyExperience?: boolean;
   phase: BattlePhase;
   roundIndex: number;
   matchIndex: number;

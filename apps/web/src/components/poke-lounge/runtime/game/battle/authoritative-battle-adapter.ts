@@ -4,6 +4,7 @@ import {
   isCompetitiveMoveEffectSelectable,
 } from "@poke-lounge/battle/competitive-ruleset-config";
 import { getGen4FixedDamage } from "@poke-lounge/battle/gen4-battle-math";
+import { getCompetitiveActionPlayerIds } from "@poke-lounge/battle/actions";
 import type { CompetitiveAction, CompetitiveProjection } from "../network/local-preview-room";
 import { getBattlePokemonAssets } from "./battle-pokemon-assets";
 import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
@@ -24,13 +25,25 @@ import type {
 type CompetitivePlayer = CompetitiveProjection["currentState"]["playersById"][string];
 type CompetitivePokemon = CompetitivePlayer["team"][number];
 
+export function isWaitingForOpponentReplacement(
+  projection: CompetitiveProjection,
+  ownPlayerId: string,
+): boolean {
+  return (
+    !projection.terminal &&
+    !projection.currentState.terminal &&
+    projection.playerIds.includes(ownPlayerId) &&
+    !getCompetitiveActionPlayerIds(projection.currentState).includes(ownPlayerId)
+  );
+}
+
 export function isLegalAuthoritativeAction(
   projection: CompetitiveProjection,
   ownPlayerId: string,
   action: CompetitiveAction,
 ): boolean {
   const player = projection.currentState.playersById[ownPlayerId];
-  if (!player || projection.terminal) {
+  if (!player || projection.terminal || isWaitingForOpponentReplacement(projection, ownPlayerId)) {
     return false;
   }
 
@@ -77,6 +90,7 @@ export function toAuthoritativeBattleState(
   returnToWorld?: BattleScreenState["returnToWorld"],
   waitingMessage = "상대의 선택을 기다리는 중...",
   previousState?: BattleScreenState,
+  replacementMessage = "상대가 다음 포켓몬을 고르고 있습니다...",
 ): BattleScreenState {
   const ownPlayer = projection.currentState.playersById[ownPlayerId];
   const opponentId = projection.playerIds.find(function findItem(playerId) {
@@ -88,7 +102,11 @@ export function toAuthoritativeBattleState(
     throw new Error("Competitive projection does not contain both battle participants");
   }
 
-  const waiting = projection.submittedPlayerIds.includes(ownPlayerId);
+  const waitingForReplacement = isWaitingForOpponentReplacement(projection, ownPlayerId);
+  const waiting = projection.submittedPlayerIds.includes(ownPlayerId) || waitingForReplacement;
+  const replacing = ownPlayer.team.some(
+    pokemon => pokemon.slotIndex === ownPlayer.activeSlotIndex && pokemon.currentHp === 0,
+  );
   const terminal = projection.terminal ?? projection.currentState.terminal;
   const result = terminal
     ? {
@@ -109,7 +127,13 @@ export function toAuthoritativeBattleState(
 
   return {
     battleKind: "trainer",
-    phase: result ? "ended" : waiting ? "resolving" : (preservedSelectionPhase ?? "command"),
+    phase: result
+      ? "ended"
+      : waiting
+        ? "resolving"
+        : replacing
+          ? "party-select"
+          : (preservedSelectionPhase ?? "command"),
     roundIndex: projection.assignmentRevision,
     matchIndex: 0,
     turn: projection.currentTurn,
@@ -119,7 +143,7 @@ export function toAuthoritativeBattleState(
     messageQueue: result
       ? [result.winnerPlayerId === ownPlayerId ? "승리했습니다." : "패배했습니다."]
       : waiting
-        ? [waitingMessage]
+        ? [waitingForReplacement ? replacementMessage : waitingMessage]
         : [],
     selectedMoveId: null,
     tournamentMatchId: projection.matchId,

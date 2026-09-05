@@ -2,7 +2,7 @@ import { createCanonicalIdRecord, type CanonicalBattleState } from "./canonical-
 import { createInitialBattleState } from "./ruleset";
 import { normalizeCompetitiveParty, type CompetitivePartyInput } from "./competitive-party";
 import { resolveTurn, validateCompetitiveAction } from "./resolve-turn";
-import { type CanonicalCompetitiveAction } from "./actions";
+import { getCompetitiveActionPlayerIds, type CanonicalCompetitiveAction } from "./actions";
 import { type SeededRandom } from "./prng";
 
 const PLAYER_A = "player-a";
@@ -336,6 +336,28 @@ describe("competitive turn resolution V2", function testSuite() {
         action: { kind: "switch", slotIndex: 3 },
       });
     }).not.toThrow();
+    expect(getCompetitiveActionPlayerIds(state)).toEqual([PLAYER_A]);
+    expect(() =>
+      validateCompetitiveAction({
+        state,
+        playerId: PLAYER_B,
+        action: { kind: "move", moveId: 33 },
+      }),
+    ).toThrow("Wait for the opponent");
+    state.playersById[PLAYER_B]!.team[0]!.status = "poisoned";
+    const before = structuredClone(state.playersById[PLAYER_B]);
+    for (const submitted of [[], [[PLAYER_A, { kind: "switch", slotIndex: 3 }]]] as Array<
+      Array<[string, CanonicalCompetitiveAction]>
+    >) {
+      const resolved = resolveTurn({
+        state,
+        actionsByPlayerId: createCanonicalIdRecord(submitted),
+        random: constantRandom(0.99),
+      });
+      expect(resolved.state.playersById[PLAYER_A]!.activeSlotIndex).toBe(3);
+      expect(resolved.state.playersById[PLAYER_B]).toEqual(before);
+      expect(getCompetitiveActionPlayerIds(resolved.state)).toEqual([PLAYER_A, PLAYER_B]);
+    }
   });
 
   it("rejects unsupported status moves and permits struggle when they are all that remain", function testCase() {

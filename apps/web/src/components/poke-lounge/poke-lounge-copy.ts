@@ -153,6 +153,7 @@ export interface PokeLoungeCopy {
     pcBox: string;
     wallet: string;
     waiting: string;
+    waitingForReplacement: string;
     roundWaiting: string;
     spectating: string;
     spectatingLabel: string;
@@ -213,6 +214,9 @@ export interface PokeLoungeCopy {
     multiplayerTitle: string;
     multiplayerDescription: string;
     roomVisibilityLabel: string;
+    roundDurationLabel: string;
+    roundDurationOptions: [string, string, string];
+    roundDurationDescription: string;
     publicGameTitle: string;
     publicGameDescription: string;
     privateGameTitle: string;
@@ -399,6 +403,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     pcBox: "박스",
     wallet: "보유",
     waiting: "상대의 선택을 기다리는 중...",
+    waitingForReplacement: "상대가 다음 포켓몬을 고르고 있습니다...",
     roundWaiting: "다른 플레이어를 기다리는 중...",
     spectating: "다른 플레이어의 경기 관전 중...",
     spectatingLabel: "관전 중",
@@ -468,6 +473,9 @@ const KOREAN_COPY: PokeLoungeCopy = {
     localDescription:
       "같은 기기의 같은 브라우저 프로필에서 연 다른 탭끼리만 연결됩니다. 다른 기기나 브라우저 프로필에서는 참가할 수 없습니다.",
     multiplayerTitle: "비공개 방 만들기",
+    roundDurationLabel: "라운드 간 준비 시간",
+    roundDurationOptions: ["90초", "3분", "5분"],
+    roundDurationDescription: "90초 모드에서는 팀의 모든 포켓몬이 같은 양의 경험치를 받습니다.",
     multiplayerDescription: "현재는 비공개 방만 만들 수 있습니다.",
     roomVisibilityLabel: "공개 범위",
     publicGameTitle: "공개",
@@ -658,6 +666,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     pcBox: "Box",
     wallet: "Wallet",
     waiting: "Waiting for the other trainer...",
+    waitingForReplacement: "The other trainer is choosing their next Pokémon...",
     roundWaiting: "Waiting for the other players...",
     spectating: "Watching another player's match...",
     spectatingLabel: "Spectating",
@@ -727,6 +736,10 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     localDescription:
       "Only tabs opened in the same browser profile on this device can connect. Other devices and browser profiles cannot join.",
     multiplayerTitle: "Create a private room",
+    roundDurationLabel: "Preparation between rounds",
+    roundDurationOptions: ["90 sec", "3 min", "5 min"],
+    roundDurationDescription:
+      "In 90-second mode, every party Pokémon receives the full amount of experience.",
     multiplayerDescription: "Only private rooms can be created right now.",
     roomVisibilityLabel: "Visibility",
     publicGameTitle: "Public",
@@ -919,6 +932,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     pcBox: "ボックス",
     wallet: "所持金",
     waiting: "相手の選択を待っています...",
+    waitingForReplacement: "相手が次のポケモンを選んでいます...",
     roundWaiting: "ほかのプレイヤーを待っています...",
     spectating: "ほかのプレイヤーの試合を観戦しています...",
     spectatingLabel: "観戦中",
@@ -988,6 +1002,9 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     localDescription:
       "この端末の同じブラウザプロファイルで開いた別タブ同士だけが接続できます。他の端末やプロファイルからは参加できません。",
     multiplayerTitle: "非公開ルームを作成",
+    roundDurationLabel: "ラウンド間の準備時間",
+    roundDurationOptions: ["90秒", "3分", "5分"],
+    roundDurationDescription: "90秒モードでは、手持ちの全ポケモンが同じ量の経験値を獲得します。",
     multiplayerDescription: "現在作成できるのは非公開ルームのみです。",
     roomVisibilityLabel: "公開範囲",
     publicGameTitle: "公開",

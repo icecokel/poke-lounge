@@ -148,7 +148,10 @@ export function applyLevelUpEvolution({
       growthRate: targetRecord.growth_rate,
       baseStats: targetRecord.base_stats,
       maxHp: evolvedStats.maxHp,
-      currentHp: Math.min(evolvedStats.maxHp, pokemon.currentHp + maxHpIncrease),
+      currentHp:
+        pokemon.currentHp === 0
+          ? 0
+          : Math.min(evolvedStats.maxHp, pokemon.currentHp + maxHpIncrease),
       attack: evolvedStats.attack,
       defense: evolvedStats.defense,
       specialAttack: evolvedStats.specialAttack,

@@ -1,4 +1,8 @@
 import { useState, type FormEvent } from "react";
+import {
+  DEFAULT_ROUND_DURATION_MS,
+  ROUND_DURATION_OPTIONS_MS,
+} from "@poke-lounge/battle/round-settings";
 import { getPokeLoungeCopyForUrl, type PokeLoungeCopy } from "../../../poke-lounge-copy";
 import type { StarterPokemon } from "../../types";
 import { playPokeLoungeSfx, primePokeLoungeAudio } from "../audio/poke-lounge-audio";
@@ -85,6 +89,8 @@ function RoomEntryScreen({
     );
   });
   const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [roundDurationMs, setRoundDurationMs] =
+    useState<(typeof ROUND_DURATION_OPTIONS_MS)[number]>(DEFAULT_ROUND_DURATION_MS);
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const selectMultiplayer = async (event: FormEvent) => {
@@ -113,6 +119,7 @@ function RoomEntryScreen({
         inviteUrl: null,
         displayName: normalizedName,
         createRoom: true,
+        roundDurationMs,
       });
     } catch {
       setPending(false);
@@ -199,6 +206,25 @@ function RoomEntryScreen({
                 <span>{copy.roomEntry.privateGameTitle}</span>
               </label>
             </fieldset>
+            <fieldset className="room-entry-visibility room-entry-duration" disabled={pending}>
+              <legend className="room-entry-field-label">
+                {copy.roomEntry.roundDurationLabel}
+              </legend>
+              {ROUND_DURATION_OPTIONS_MS.map((duration, index) => (
+                <label key={duration} className="room-entry-visibility-option">
+                  <input
+                    type="radio"
+                    name="round-duration"
+                    value={duration}
+                    checked={roundDurationMs === duration}
+                    onChange={() => setRoundDurationMs(duration)}
+                    data-room-entry-round-duration
+                  />
+                  <span>{copy.roomEntry.roundDurationOptions[index]}</span>
+                </label>
+              ))}
+            </fieldset>
+            <p className="room-entry-field-copy">{copy.roomEntry.roundDurationDescription}</p>
             <LabeledField
               id="poke-lounge-temporary-password"
               label={copy.roomEntry.temporaryPasswordLabel}

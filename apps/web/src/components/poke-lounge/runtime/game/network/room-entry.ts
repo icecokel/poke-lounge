@@ -1,7 +1,8 @@
 export const ROOM_CODE_LENGTH = 6;
 export const TEMPORARY_PASSWORD_LENGTH = 6;
 export const ROOM_ROUND_DURATION_QUERY_PARAM = "roundMs";
-export const ROOM_ROUND_DURATION_OPTIONS_MS = [180_000, 300_000, 600_000, 900_000] as const;
+export { ROUND_DURATION_OPTIONS_MS as ROOM_ROUND_DURATION_OPTIONS_MS } from "@poke-lounge/battle/round-settings";
+import { ROUND_DURATION_OPTIONS_MS as ROOM_ROUND_DURATION_OPTIONS_MS } from "@poke-lounge/battle/round-settings";
 
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 

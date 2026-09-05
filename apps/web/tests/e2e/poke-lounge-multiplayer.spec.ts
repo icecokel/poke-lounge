@@ -2102,7 +2102,7 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
       wrapped: true,
     });
 
-    await startServerRoom(hostPage, createServerRoomUrl(600_000), "레드");
+    await startServerRoom(hostPage, createServerRoomUrl(300_000), "레드");
     await expectServerRoomUrl(hostPage);
     await expect
       .poll(
@@ -2169,7 +2169,7 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     expect(createRequest).toBeDefined();
     expect(JSON.parse(createRequest?.body ?? "{}")).toMatchObject({
       displayName: "레드",
-      roundDurationMs: 600_000,
+      roundDurationMs: 300_000,
     });
 
     const waitingRoom = createLobbyWaitingRoomState(server);

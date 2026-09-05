@@ -18,6 +18,7 @@ export const COMPETITIVE_RULESET_V2 = deepFreeze({
   participantCount: 2,
   partySize: { minimum: 1, maximum: 6 },
   moveCountMaximum: 4,
+  forcedReplacement: { separatePhase: true, residualDamage: false, timeout: "first-healthy-slot" },
   scores: { win: 100, loss: 50 },
   paralysisNoActionChance: 0.25,
   poisonDamageDivisor: 8,
@@ -72,4 +73,4 @@ export function isCompetitiveMoveEffectSelectable(move: CompetitiveMoveEffectDes
 
 // canonical JSON({ catalogHash, ruleset: COMPETITIVE_RULESET_V2 })의 SHA-256이다.
 export const COMPETITIVE_RULESET_HASH =
-  "f5011fa021d23fb38aa9bc4d6db8382bfa7b93e9041048939795416b6fc8d05e";
+  "caa92057632c9a8d0767cf517d250181ab97b57cad4227cfe73e67966277f065";

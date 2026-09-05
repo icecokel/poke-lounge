@@ -276,7 +276,17 @@ test("server projection은 한 번의 notify로 session과 active match에 원�
 });
 
 test("공식 라운드 진입은 로컬 파티의 HP, PP와 상태이상을 한 번만 회복한다", function testCase() {
-  const store = createGameStateStore();
+  const local = createDefaultLocalPlayer("local-player-only");
+  const store = createGameStateStore({
+    storage: {
+      loadLocalPlayers: () => ({
+        currentPlayerId: local.playerId,
+        playersById: { [local.playerId]: local },
+      }),
+      saveLocalPlayers: () => {},
+      clear: () => {},
+    },
+  });
   store.setStarterPokemon({
     speciesId: 155,
     name: "브케인",
@@ -286,6 +296,17 @@ test("공식 라운드 진입은 로컬 파티의 HP, PP와 상태이상을 한 
     status: "burned",
     moves: [{ id: 33, name: "몸통박치기", pp: 1, maxPp: 35 }],
   });
+  for (let i = 1; i < 6; i++) {
+    store.addPokemonToParty({
+      speciesId: 152,
+      name: "치코리타",
+      level: 10,
+      currentHp: 0,
+      maxHp: 35,
+      status: "fainted",
+      moves: [{ id: 33, name: "몸통박치기", pp: 0, maxPp: 35 }],
+    });
+  }
   store.applyTournamentSnapshotFromRoom(createPreparationProjection(3), 1_000);
 
   assert.deepEqual(store.applyTournamentSnapshotFromRoom(createProjection(4), 2_000), {
@@ -303,6 +324,13 @@ test("공식 라운드 진입은 로컬 파티의 HP, PP와 상태이상을 한 
 
   const restored = store.getCurrentLocalPlayer().party[0]?.pokemon;
   assert.ok(restored);
+  assert.equal(store.getState().currentPlayerId, "local-player-only");
+  assert.equal(store.getCurrentLocalPlayer().party.filter(slot => slot.pokemon).length, 6);
+  for (const slot of store.getCurrentLocalPlayer().party) {
+    assert.equal(slot.pokemon?.currentHp, slot.pokemon?.maxHp);
+    assert.equal(slot.pokemon?.status, "normal");
+    assert.equal(slot.pokemon?.moves?.[0].pp, 35);
+  }
   store.updateActivePokemon({ ...restored, currentHp: 20 });
   assert.deepEqual(store.applyTournamentSnapshotFromRoom(createProjection(5), 3_000), {
     ok: true,

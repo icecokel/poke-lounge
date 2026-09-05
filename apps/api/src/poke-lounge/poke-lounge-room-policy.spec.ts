@@ -409,11 +409,13 @@ describe('PokeLoungeRoomPolicy', function testSuite() {
     const damaged = room.partySnapshots['player-1'].competitiveParty;
     room.partySnapshots['player-1'].competitiveParty = {
       ...damaged,
-      members: damaged.members.map(function mapItem(member) {
+      members: Array.from({ length: 6 }, function mapItem(_, slotIndex) {
+        const member = damaged.members[0];
         return {
           ...member,
-          currentHp: 1,
-          status: 'burned' as const,
+          slotIndex,
+          currentHp: slotIndex === 0 ? 1 : 0,
+          status: slotIndex === 0 ? ('burned' as const) : ('fainted' as const),
           moves: member.moves.map(function mapItem(move) {
             return { ...move, pp: 0 };
           }),
@@ -424,6 +426,14 @@ describe('PokeLoungeRoomPolicy', function testSuite() {
     const advanced = advancePokeLoungeRoomClock(room, 1_000);
     const restored =
       advanced?.partySnapshots['player-1'].competitiveParty.members[0];
+    const restoredParty =
+      advanced?.partySnapshots['player-1'].competitiveParty.members;
+    expect(restoredParty).toHaveLength(6);
+    for (const member of restoredParty ?? []) {
+      expect(member.currentHp).toBe(member.maxHp);
+      expect(member.status).toBe('normal');
+      expect(member.moves[0].pp).toBe(25);
+    }
 
     expect(restored).toMatchObject({
       currentHp: restored?.maxHp,

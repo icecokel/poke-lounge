@@ -8,6 +8,8 @@ import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import { Queue, Worker, type Job } from 'bullmq';
 import { chooseAiCompetitiveAction } from '@poke-lounge/battle/ai-policy';
+import { getCompetitiveActionPlayerIds } from '@poke-lounge/battle/actions';
+import { sharesPartyExperience } from '@poke-lounge/battle/round-settings';
 import {
   advanceAiAdventure,
   aiCompetitiveParty,
@@ -149,7 +151,10 @@ export class PokeLoungeAiWorkerService
         ),
     );
     if (aiParticipants.length > 0) {
-      const context = await this.runtime.getContext();
+      const context = {
+        ...(await this.runtime.getContext()),
+        sharePartyExperience: sharesPartyExperience(room.round.durationMs),
+      };
       const saved = await this.liveState.getAiAdventures(roomCode);
       const states: typeof saved = {};
       const parties: typeof room.partySnapshots = {};
@@ -286,6 +291,9 @@ export class PokeLoungeAiWorkerService
         return (
           candidate.playerIds.includes(playerId) &&
           candidate.status !== 'completed' &&
+          getCompetitiveActionPlayerIds(candidate.currentState).includes(
+            playerId,
+          ) &&
           !candidate.submittedPlayerIds.includes(playerId)
         );
       },

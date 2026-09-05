@@ -111,7 +111,10 @@ export function applyPendingBattleExperienceReward(state: BattleScreenState): Ba
 
   return {
     ...state,
-    player: syncActivePartyPokemon(state.player, reward.pokemon),
+    player: syncActivePartyPokemon(
+      { ...state.player, party: reward.party ?? state.player.party },
+      reward.pokemon,
+    ),
     pendingExperienceReward: null,
   };
 }
@@ -1137,7 +1140,10 @@ function applyWildVictoryExperience(
       level: experienceResult.level,
       experience: experienceResult.experience,
       maxHp: nextStats.maxHp,
-      currentHp: Math.min(nextStats.maxHp, playerPokemon.currentHp + maxHpIncrease),
+      currentHp:
+        playerPokemon.currentHp === 0
+          ? 0
+          : Math.min(nextStats.maxHp, playerPokemon.currentHp + maxHpIncrease),
       attack: nextStats.attack,
       defense: nextStats.defense,
       specialAttack: nextStats.specialAttack,
@@ -1763,12 +1769,25 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
         })
       : 0;
   const resolvedPlayerPokemon = wildVictoryExperience?.pokemon ?? input.playerPokemon;
+  const partyExperience =
+    wildVictoryExperience && input.state.sharePartyExperience
+      ? player.party.map(slot => ({
+          ...slot,
+          pokemon: !slot.pokemon
+            ? null
+            : slot.slotIndex === player.activePartySlotIndex
+              ? resolvedPlayerPokemon
+              : applyWildVictoryExperience(slot.pokemon, input.opponentPokemon).pokemon,
+        }))
+      : undefined;
   const wildVictoryRewardMessage = wildVictoryExperience
-    ? formatWildVictoryRewardMessage(
-        resolvedPlayerPokemon.name,
-        wildVictoryExperience.experienceGained,
-        wildVictoryRewardPokeDollars,
-      )
+    ? partyExperience
+      ? `팀 전원이 각각 ${wildVictoryExperience.experienceGained} 경험치를 얻었다!${wildVictoryRewardPokeDollars > 0 ? `\n${formatBattlePokeDollars(wildVictoryRewardPokeDollars)}을 얻었다!` : ""}`
+      : formatWildVictoryRewardMessage(
+          resolvedPlayerPokemon.name,
+          wildVictoryExperience.experienceGained,
+          wildVictoryRewardPokeDollars,
+        )
     : "";
   const victoryMessages = wildVictoryExperience
     ? [
@@ -1797,6 +1816,7 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
       ? {
           message: wildVictoryRewardMessage,
           pokemon: resolvedPlayerPokemon,
+          ...(partyExperience ? { party: partyExperience } : {}),
         }
       : null,
     result: {

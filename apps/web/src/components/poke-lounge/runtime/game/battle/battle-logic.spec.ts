@@ -18,6 +18,7 @@ import {
 import { createSampleBattleState } from "./battle-sample-state";
 import type { BattlePokemon, BattleScreenState } from "./battle-types";
 import { getExperienceForLevel } from "./experience";
+import { sharesPartyExperience } from "@poke-lounge/battle/round-settings";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 
@@ -105,6 +106,58 @@ test("야생 전투 경험치와 레벨은 보상 문구가 표시될 때 적용
 
   assert.equal(resolvedState.player.pokemon.level, rewardedLevel);
   assert.equal(resolvedState.pendingExperienceReward, null);
+});
+
+test("90초 모드만 빈 슬롯을 제외한 팀 전원에게 경험치를 나누지 않고 지급한다", function testCase() {
+  for (const duration of [90_000, 180_000, 300_000]) {
+    const state = createSampleBattleState();
+    state.battleKind = "wild";
+    state.phase = "move-select";
+    state.sharePartyExperience = sharesPartyExperience(duration);
+    state.messageQueue = [];
+    const active = { ...clonePokemon(state.player.pokemon), speed: 999 };
+    active.moves[0] = { ...active.moves[0], power: 999, accuracy: 100 };
+    const reserve = clonePokemon(active);
+    reserve.experience = getExperienceForLevel(reserve.level + 1, reserve.growthRate) - 1;
+    const fainted = { ...clonePokemon(reserve), currentHp: 0, status: "fainted" as const };
+    state.player = {
+      ...state.player,
+      pokemon: active,
+      activePartySlotIndex: 0,
+      party: [
+        { slotIndex: 0, pokemon: active },
+        { slotIndex: 2, pokemon: reserve },
+        { slotIndex: 4, pokemon: fainted },
+        { slotIndex: 5, pokemon: null },
+      ],
+    };
+    const enemy = { ...state.opponent.pokemon, currentHp: 1, baseExpYield: 100 };
+    state.opponent = {
+      ...state.opponent,
+      pokemon: enemy,
+      activePartySlotIndex: 0,
+      party: [{ slotIndex: 0, pokemon: enemy }],
+    };
+    let result = choosePlayerMove(state, 0, { random: () => 0.5 });
+    const gained = result.result?.experienceGained;
+    assert.ok(gained && gained > 0);
+    assert.equal(result.player.party[1].pokemon?.experience, reserve.experience);
+    while (result.messageQueue.length) result = popBattleMessage(result);
+    for (const slot of result.player.party) {
+      if (!slot.pokemon) continue;
+      const before = state.player.party.find(
+        candidate => candidate.slotIndex === slot.slotIndex,
+      )!.pokemon!;
+      assert.equal(
+        slot.pokemon.experience - before.experience,
+        duration === 90_000 || slot.slotIndex === 0 ? gained : 0,
+      );
+    }
+    assert.equal(result.player.party[2].pokemon?.currentHp, 0);
+    assert.equal(result.player.party[2].pokemon?.status, "fainted");
+    assert.equal(result.player.party[3].pokemon, null);
+    assert.equal(result.player.party[1].pokemon!.level > reserve.level, duration === 90_000);
+  }
 });
 
 test("포획 판정은 애니메이션용 볼 종류와 실제 흔들림 횟수를 보존한다", function testCase() {

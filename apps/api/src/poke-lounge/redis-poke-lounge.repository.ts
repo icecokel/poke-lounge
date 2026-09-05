@@ -17,7 +17,10 @@ import {
   validateCompetitiveAction,
 } from '@poke-lounge/battle/resolve-turn';
 import { scoreRemainingHpPercentage } from '@poke-lounge/battle/tournament-scoring';
-import { type CanonicalCompetitiveAction } from '@poke-lounge/battle/actions';
+import {
+  getCompetitiveActionPlayerIds,
+  type CanonicalCompetitiveAction,
+} from '@poke-lounge/battle/actions';
 import { type NormalizedCompetitiveParty } from '@poke-lounge/battle/competitive-party';
 import type {
   CompetitiveActionRepository,
@@ -543,7 +546,10 @@ export class RedisPokeLoungeRepository
         return { outcome: 'illegal-action' };
       }
 
-      if (turnActions.length === 0) {
+      const requiredPlayerIds = getCompetitiveActionPlayerIds(
+        match.currentState,
+      );
+      if (turnActions.length + 1 < requiredPlayerIds.length) {
         match.status = 'active';
         touchRoom(document.room, nowMs);
         const response = toCompetitiveProjection(match, [actor.playerId]);
@@ -573,13 +579,15 @@ export class RedisPokeLoungeRepository
           committed: true,
         };
       }
-      if (turnActions.length !== 1) {
+      if (turnActions.length + 1 !== requiredPlayerIds.length) {
         return { outcome: 'turn-conflict' };
       }
 
       const actionsByPlayerId =
         createCanonicalIdRecord<CanonicalCompetitiveAction>([
-          [turnActions[0].actorPlayerId, turnActions[0].action],
+          ...turnActions.map(
+            (receipt) => [receipt.actorPlayerId, receipt.action] as const,
+          ),
           [actor.playerId, input.action],
         ]);
       const resolved = resolveCompetitiveTurn(
@@ -599,7 +607,7 @@ export class RedisPokeLoungeRepository
         resolvedAtMs: nowMs,
       });
       resolveTurnReceipts(
-        [turnActions[0], resolvedReceipt],
+        [...turnActions, resolvedReceipt],
         resolved.response,
         nowMs,
       );

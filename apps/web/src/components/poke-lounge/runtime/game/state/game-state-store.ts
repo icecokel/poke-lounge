@@ -1358,9 +1358,7 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
         roundPhase === "tournament" &&
         (state.round.phase !== "tournament" || state.round.roundIndex !== input.roundIndex) &&
         input.participants.some(function testItem(participant) {
-          return (
-            participant.playerId === state.currentPlayerId && participant.role === "participant"
-          );
+          return participant.playerId === input.ownPlayerId && participant.role === "participant";
         });
       const playersById = shouldRestoreCurrentParty
         ? {

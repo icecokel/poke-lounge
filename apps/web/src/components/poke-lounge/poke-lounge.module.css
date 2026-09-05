@@ -2700,6 +2700,10 @@
   grid-column: 1 / -1;
 }
 
+.page :global(.room-entry-create-panel .room-entry-duration) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .page :global(.room-entry-create-panel .room-entry-visibility-option) {
   min-height: 54px;
   border-color: var(--pl-color-ink);
