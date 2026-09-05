@@ -541,9 +541,8 @@
   position: absolute;
   width: 4.6875%;
   aspect-ratio: 1;
-  background: linear-gradient(to bottom, #d94b43 0 44%, #1c262d 44% 61%, #f7f4e8 61% 100%);
-  border: max(1px, 0.25cqw) solid #1c262d;
-  border-radius: 50%;
+  background-size: contain;
+  background-repeat: no-repeat;
   image-rendering: pixelated;
 }
 
@@ -671,16 +670,6 @@
   .battleSendOutBall {
     display: none;
   }
-}
-
-.battleCaptureBall[data-ball="ultraBall"] {
-  background: linear-gradient(
-    to bottom,
-    #303239 0 33%,
-    #f4cf58 33% 44%,
-    #1c262d 44% 61%,
-    #f7f4e8 61% 100%
-  );
 }
 
 .battleCaptureEffect > i {

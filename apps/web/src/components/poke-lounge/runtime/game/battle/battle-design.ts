@@ -5,6 +5,26 @@ export const EVOLUTION_BACKGROUND_ASSET_KEY = "evolution-background";
 export const BATTLE_WINDOW_FRAME_ASSET_KEY = "battle-window-frame-candidate";
 
 export const ROM_BATTLE_DESIGN_ASSETS = {
+  pokeball: {
+    key: "rom-pokeball",
+    path: "/assets/pokemon/battle/balls/pokeball.png",
+    role: "battle-ball",
+    sourceArchivePath: "a/0/1/8",
+    candidate: false,
+    notes: [
+      "Korean HeartGold item 4: NCGR 8, NCLR 9; transparent margin trimmed without resampling.",
+    ],
+  },
+  ultraBall: {
+    key: "rom-ultra-ball",
+    path: "/assets/pokemon/battle/balls/ultraBall.png",
+    role: "battle-ball",
+    sourceArchivePath: "a/0/1/8",
+    candidate: false,
+    notes: [
+      "Korean HeartGold item 2: NCGR 4, NCLR 5; transparent margin trimmed without resampling.",
+    ],
+  },
   background: {
     key: BATTLE_BACKGROUND_ASSET_KEY,
     path: "/assets/poke-lounge/screens/pbr_b_plist_gra.narc/screen_0010_gfx_0022_pal_0023.png",

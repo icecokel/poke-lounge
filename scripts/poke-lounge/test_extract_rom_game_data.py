@@ -135,5 +135,27 @@ class MoveParserTest(unittest.TestCase):
                 )
 
 
+class BallIconTest(unittest.TestCase):
+    def test_decodes_transparent_tiled_pixels_and_rejects_invalid_data(self) -> None:
+        character = bytearray(0x230)
+        character[:4] = b"RGCN"
+        character[16:20] = b"RAHC"
+        character[0x1C:0x20] = (3).to_bytes(4, "little")
+        character[0x28:0x2C] = (512).to_bytes(4, "little")
+        character[0x30] = 1
+        character[0x50] = 0x10
+        palette = bytearray(0x228)
+        palette[:4] = b"RLCN"
+        palette[16:20] = b"TTLP"
+        palette[0x2A:0x2C] = (31).to_bytes(2, "little")
+        image = extractor.decode_ball_icon(bytes(character), bytes(palette))
+        self.assertEqual(image.size, (10, 1))
+        self.assertEqual(image.getpixel((0, 0)), (248, 0, 0, 255))
+        self.assertEqual(image.getpixel((1, 0))[3], 0)
+        self.assertEqual(image.getpixel((9, 0)), (248, 0, 0, 255))
+        with self.assertRaises(ValueError):
+            extractor.decode_ball_icon(bytes(character[:-1]), bytes(palette))
+
+
 if __name__ == "__main__":
     unittest.main()
