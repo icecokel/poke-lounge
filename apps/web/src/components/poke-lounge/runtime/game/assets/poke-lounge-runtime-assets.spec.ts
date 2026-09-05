@@ -33,10 +33,12 @@ test("browser-native loader는 런타임 시작 전에 필수 JSON, 이미지, �
     });
 
     assert.equal(assets.audioBuffers.size, 8);
-    assert.equal(assets.images.size, 10);
+    assert.equal(assets.images.size, 12);
     assert.equal(assets.json.size, 9);
     assert.equal(assets.spriteSheets.length, 4);
-    assert.equal(loadedImagePaths.size, 14);
+    assert.equal(loadedImagePaths.size, 16);
+    assert.ok(loadedImagePaths.has("/assets/pokemon/battle/balls/pokeball.png"));
+    assert.ok(loadedImagePaths.has("/assets/pokemon/battle/balls/ultraBall.png"));
     assert.ok(loadedImagePaths.has(FIELD_MAP.tilesetUrl));
     assert.ok(loadedImagePaths.has(FIELD_MAP.player.atlasUrl));
     const progress = progressEvents.at(-1);

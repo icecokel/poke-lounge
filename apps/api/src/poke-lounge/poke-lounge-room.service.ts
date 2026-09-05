@@ -64,8 +64,11 @@ import type {
   UpdatePokeLoungePartySnapshotInput,
 } from './poke-lounge-room.types';
 import { CompetitiveProjectionService } from './competitive/competitive-projection.service';
+import {
+  DEFAULT_ROUND_DURATION_MS,
+  ROUND_DURATION_OPTIONS_MS,
+} from '@poke-lounge/battle/round-settings';
 
-const DEFAULT_ROUND_DURATION_MS = 180_000;
 const MIN_ROUND_DURATION_MS = 1;
 const MAX_ROUND_DURATION_MS = 3_600_000;
 const MAX_ROOM_OCCUPANTS = 8;
@@ -1794,6 +1797,10 @@ function normalizePartySnapshot(
 }
 
 function normalizeRoundDuration(roundDurationMs: number | undefined): number {
+  const selected = ROUND_DURATION_OPTIONS_MS.find(
+    (duration) => duration === roundDurationMs,
+  );
+  if (selected !== undefined) return selected;
   if (process.env.NODE_ENV !== 'test') {
     return DEFAULT_ROUND_DURATION_MS;
   }

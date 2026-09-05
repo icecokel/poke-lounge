@@ -400,6 +400,11 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name) => `${name}を持っていない！`,
   ),
   pattern(
+    /^팀 전원이 각각 (\d+) 경험치를 얻었다!$/,
+    (_, amount) => `Every party Pokémon gained ${amount} Exp. Points!`,
+    (_, amount) => `手持ちの全ポケモンがそれぞれ経験値${amount}をもらった！`,
+  ),
+  pattern(
     /^(.+) 경험치를 (\d+) 얻었다!$/,
     (_, name, amount) => `${name} gained ${amount} Exp. Points!`,
     (_, name, amount) => `${name}は経験値を${amount}もらった！`,

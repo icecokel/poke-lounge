@@ -46,6 +46,7 @@ export interface RomRefinedMoveCollection {
 }
 
 export interface CreateWildBattleStateInput {
+  sharePartyExperience?: boolean;
   encounter: WildEncounterCandidate;
   personalRecords: RomPersonalRecordCollection;
   moveRecords: RomRefinedMoveCollection;
@@ -60,6 +61,7 @@ const PLAYER_NAME = "치코리타";
 const PLAYER_LEVEL = 10;
 
 export function createWildBattleState({
+  sharePartyExperience = false,
   encounter,
   moveRecords,
   personalRecords,
@@ -86,6 +88,7 @@ export function createWildBattleState({
 
   return {
     battleKind: "wild",
+    sharePartyExperience,
     phase: "intro",
     roundIndex: 0,
     matchIndex: 0,

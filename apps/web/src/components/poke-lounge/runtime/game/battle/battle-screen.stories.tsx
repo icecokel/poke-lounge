@@ -97,6 +97,28 @@ export const Waiting: Story = {
     }),
 };
 
+export const WaitingForReplacement: Story = {
+  render: () =>
+    renderBattle({
+      controls: {
+        phase: "resolving",
+        isInputLocked: true,
+        message: "상대가 다음 포켓몬을 고르고 있습니다...",
+      },
+      presentation: {
+        phase: "resolving",
+        message: "상대가 다음 포켓몬을 고르고 있습니다...",
+        opponent: {
+          ...storyBattlePresentation.opponent,
+          displayedHp: 0,
+          currentHp: 0,
+          status: "fainted",
+        },
+        authoritative: { ...storyBattlePresentation.authoritative, inputPending: true },
+      },
+    }),
+};
+
 export const ShortcutGuide: Story = {
   render: () =>
     renderBattle({

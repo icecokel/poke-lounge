@@ -65,6 +65,60 @@ describe('RedisPokeLoungeRepository', function testSuite() {
     expect(redis.compareAndSetCalls).toBe(1);
   });
 
+  it('resolves a forced replacement with only the fainted side and replays it once', async function testCase() {
+    const redis = new InMemoryRedisRoomState();
+    const repository = new RedisPokeLoungeRepository(redis as never);
+    const room = roomSnapshot();
+    await repository.create({
+      room,
+      actorPlayerId: 'player-1',
+      idempotencyKey: 'create-1',
+      requestHash: 'create-hash',
+      nowMs: 0,
+    });
+    redis.seedOpenTurn(room.roomCode, {
+      matchId: 'match-1',
+      turn: 3,
+      startedAtMs: Date.now(),
+      replacing: true,
+    });
+    const input = {
+      roomCode: room.roomCode,
+      matchId: 'match-1',
+      accountId: 'account-1',
+      assignmentRevision: 1,
+      turn: 3,
+      clientCommandId: 'replace-1',
+      action: { kind: 'switch' as const, slotIndex: 1 },
+    };
+    await expect(
+      repository.submit({
+        ...input,
+        accountId: 'account-2',
+        action: { kind: 'move', moveId: 55 },
+      }),
+    ).resolves.toMatchObject({ outcome: 'illegal-action' });
+    const result = await repository.submit(input);
+    expect(result).toMatchObject({
+      committed: true,
+      response: {
+        currentTurn: 4,
+        submittedPlayerIds: [],
+        currentState: {
+          playersById: {
+            'player-1': { activeSlotIndex: 1 },
+            'player-2': { team: [{ moves: [{ moveId: 55, pp: 1 }] }] },
+          },
+        },
+      },
+    });
+    await expect(repository.submit(input)).resolves.toMatchObject({
+      outcome: 'replayed',
+      committed: false,
+      response: { currentTurn: 4 },
+    });
+  });
+
   it('restores and resolves a competitive turn even when nobody acts', async function testCase() {
     const redis = new InMemoryRedisRoomState();
     const repository = new RedisPokeLoungeRepository(redis as never);
@@ -196,7 +250,12 @@ class InMemoryRedisRoomState {
 
   seedOpenTurn(
     roomCode: string,
-    input: { matchId: string; turn: number; startedAtMs: number },
+    input: {
+      matchId: string;
+      turn: number;
+      startedAtMs: number;
+      replacing?: boolean;
+    },
   ): void {
     const current = this.rooms.get(roomCode);
     if (!current) {
@@ -210,6 +269,14 @@ class InMemoryRedisRoomState {
     };
     const state = createTestInitialBattleState(['player-1', 'player-2']);
     state.turn = input.turn;
+    if (input.replacing) {
+      const player = state.playersById['player-1'];
+      const active = player.team[0];
+      player.team = [
+        { ...active, currentHp: 0, status: 'fainted' },
+        { ...active, slotIndex: 1 },
+      ];
+    }
     const stateHash = hashCanonicalState(state);
     document.room.status = 'tournament';
     document.room.round.phase = 'tournament';

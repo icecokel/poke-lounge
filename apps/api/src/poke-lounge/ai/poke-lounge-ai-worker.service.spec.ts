@@ -116,7 +116,9 @@ it('advances without waiting for a human move and does not revise the room for m
   const t = setup();
   await t.service.processTick(1_250);
   await t.service.processTick(1_500);
-  expect(t.advance).toHaveBeenCalledWith(expect.anything(), 1_500, 1, true, {});
+  expect(t.advance).toHaveBeenCalledWith(expect.anything(), 1_500, 1, true, {
+    sharePartyExperience: false,
+  });
   expect(t.liveState.upsertPlayer).toHaveBeenLastCalledWith(
     expect.objectContaining({
       player: expect.objectContaining({
@@ -129,6 +131,18 @@ it('advances without waiting for a human move and does not revise the room for m
   expect(t.liveState.saveAiAdventures).toHaveBeenCalledTimes(2);
   expect(t.mutate).not.toHaveBeenCalled();
 });
+
+it.each([90_000, 180_000, 300_000])(
+  'uses the same party experience rule as humans in %s ms rooms',
+  async (duration) => {
+    const t = setup();
+    t.room.round.durationMs = duration;
+    await t.service.processTick(1_250);
+    expect(t.advance).toHaveBeenCalledWith(expect.anything(), 1_250, 1, true, {
+      sharePartyExperience: duration === 90_000,
+    });
+  },
+);
 
 it('commits changed parties and does not publish uncommitted simulation on a revision conflict', async () => {
   const t = setup();

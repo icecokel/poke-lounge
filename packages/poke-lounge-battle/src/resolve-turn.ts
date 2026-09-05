@@ -1,4 +1,4 @@
-import type { CanonicalCompetitiveAction } from "./actions";
+import { getCompetitiveActionPlayerIds, type CanonicalCompetitiveAction } from "./actions";
 import {
   applyBattleStatStageDelta,
   BATTLE_STAT_STAGE_KEYS,
@@ -221,6 +221,9 @@ function validateAction(
 ): void {
   const player = state.playersById[playerId]!;
   const active = activeCombatant(state, playerId);
+  if (!getCompetitiveActionPlayerIds(state).includes(playerId)) {
+    throw new Error("Wait for the opponent to replace its fainted combatant");
+  }
 
   switch (action.kind) {
     case "move": {
@@ -664,6 +667,17 @@ export function resolveTurn(input: {
   }
 
   const state = cloneState(stateWithSafeRecords, participantIds);
+  const replacing = participantIds.filter(
+    playerId => activeCombatant(state, playerId).currentHp === 0,
+  );
+  // A replacement is its own input phase; timeout chooses the first healthy reserve.
+  for (const playerId of replacing) {
+    if (!actionsByPlayerId[playerId]) {
+      const target = state.playersById[playerId]!.team.find(member => member.currentHp > 0);
+      if (!target) throw new Error("Fainted team is missing a terminal result");
+      state.playersById[playerId]!.activeSlotIndex = target.slotIndex;
+    }
+  }
   for (const playerId of actionPlayerIds) {
     const action = actionsByPlayerId[playerId]!;
     if (action.kind === "switch") {
@@ -685,7 +699,7 @@ export function resolveTurn(input: {
     );
   }
 
-  if (!state.terminal) {
+  if (!state.terminal && replacing.length === 0) {
     applyResidualDamage(state, participantIds);
   }
 

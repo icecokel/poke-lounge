@@ -1,0 +1,22 @@
+{
+  "romSha1": "5834fb3a2d751c48501d47d6a56898d7af6ccf9e",
+  "archive": "a/0/1/8",
+  "mappingSource": "https://github.com/pret/pokeheartgold/blob/master/src/item.c",
+  "processing": "Decode 32x32 4bpp tiled NCGR and BGR555 NCLR; palette index 0 transparent; trim transparent margin without resampling.",
+  "assets": {
+    "pokeball": {
+      "characterMember": 8,
+      "paletteMember": 9,
+      "width": 18,
+      "height": 18,
+      "sha256": "0834b3406e049c2e32ec2883324a08bf793b24b2258944e41384da1d743be601"
+    },
+    "ultraBall": {
+      "characterMember": 4,
+      "paletteMember": 5,
+      "width": 18,
+      "height": 18,
+      "sha256": "6d8572b525bd2ca83abfbac9136365310e104c329b3fda576e530fb875e629f1"
+    }
+  }
+}

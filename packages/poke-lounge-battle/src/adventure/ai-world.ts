@@ -52,6 +52,7 @@ export interface AiAdventureState {
 }
 
 export interface AiAdventureContext {
+  sharePartyExperience?: boolean;
   model: WorldMapModel;
   pokemonData: RomPersonalRecordCollection;
   moveData: RomRefinedMoveCollection;
@@ -228,6 +229,7 @@ export function advanceAiAdventure(
       if (!encounter) continue;
       state.battle = createWildBattleState({
         encounter,
+        sharePartyExperience: context.sharePartyExperience,
         personalRecords: context.pokemonData,
         moveRecords: context.moveData,
         playerParty: state.party,

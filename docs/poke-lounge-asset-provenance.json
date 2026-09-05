@@ -362,6 +362,33 @@
       "approvedAt": null
     },
     {
+      "publicPath": "assets/pokemon/battle/balls/manifest.json",
+      "sha256": "72ed295c5d2cd4f861f338a1309a4b1e161992ba03f428bb7b0b680fad6a2a47",
+      "source": "scripts/poke-lounge/extract-rom-game-data.py; local Korean HeartGold ROM SHA-1 5834fb3a2d751c48501d47d6a56898d7af6ccf9e; archive a/0/1/8; distribution rights unresolved",
+      "rightsStatus": "blocked",
+      "attribution": null,
+      "reviewer": null,
+      "approvedAt": null
+    },
+    {
+      "publicPath": "assets/pokemon/battle/balls/pokeball.png",
+      "sha256": "0834b3406e049c2e32ec2883324a08bf793b24b2258944e41384da1d743be601",
+      "source": "scripts/poke-lounge/extract-rom-game-data.py; local Korean HeartGold a/0/1/8 NCGR 8 and NCLR 9; palette index 0 transparent, trimmed without resampling; distribution rights unresolved",
+      "rightsStatus": "blocked",
+      "attribution": null,
+      "reviewer": null,
+      "approvedAt": null
+    },
+    {
+      "publicPath": "assets/pokemon/battle/balls/ultraBall.png",
+      "sha256": "6d8572b525bd2ca83abfbac9136365310e104c329b3fda576e530fb875e629f1",
+      "source": "scripts/poke-lounge/extract-rom-game-data.py; local Korean HeartGold a/0/1/8 NCGR 4 and NCLR 5; palette index 0 transparent, trimmed without resampling; distribution rights unresolved",
+      "rightsStatus": "blocked",
+      "attribution": null,
+      "reviewer": null,
+      "approvedAt": null
+    },
+    {
       "publicPath": "assets/pokemon/battle/evolution-background.png",
       "sha256": "4adbc1c17e33178a3a8d089e22c9c58c9de9d6932647feef652900e315dcfd58",
       "source": "game-data extractor under scripts/poke-lounge/; local HeartGold game source a/1/1/5; distribution rights unresolved",
@@ -642,7 +669,7 @@
     },
     {
       "publicPath": "maps/pokemmo-reference/town.json",
-      "sha256": "06fff1df29cc07ad50f4f0e4745116fb68beb38978bb3d2ea36e4582dc9e08d1",
+      "sha256": "3d0776bb80e2927a88519237dfce6bd8dce01f7d3305cd4754750b9a9a761d4c",
       "source": "docs/poke-lounge-asset-provenance.md; standalone migration audit; original source/license not present; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,

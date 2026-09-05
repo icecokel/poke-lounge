@@ -1,4 +1,5 @@
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
+import { sharesPartyExperience } from "@poke-lounge/battle/round-settings";
 import {
   BATTLE_LAYOUT,
   getBattleOptionIndexAtPoint,
@@ -109,6 +110,7 @@ import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
 import {
   canUseAuthoritativeStruggle,
   isLegalAuthoritativeAction,
+  isWaitingForOpponentReplacement,
   toAuthoritativeBattleState,
 } from "../battle/authoritative-battle-adapter";
 import {
@@ -472,6 +474,7 @@ export class BattleController {
       this.authoritativeInputPending =
         data.projection.status !== "completed" &&
         (this.authoritativeSpectating ||
+          isWaitingForOpponentReplacement(data.projection, data.ownPlayerId) ||
           data.projection.submittedPlayerIds.includes(data.ownPlayerId));
       this.authoritativeTerminalTransition =
         data.projection.status === "completed"
@@ -1336,6 +1339,9 @@ export class BattleController {
 
       return createWildBattleState({
         encounter: data.encounter,
+        sharePartyExperience: sharesPartyExperience(
+          this.gameStateStore.getState().round.preparationDurationMs,
+        ),
         playerPokemon:
           localPlayer.party.find(function findItem(slot) {
             return slot.slotIndex === localPlayer.activePartySlotIndex;
@@ -1368,6 +1374,7 @@ export class BattleController {
       returnToWorld,
       this.getBattleStatusCopy().waiting,
       previousState,
+      this.getBattleStatusCopy().waitingForReplacement,
     );
     if (!spectating) {
       return state;
@@ -1696,7 +1703,9 @@ export class BattleController {
           this.authoritativeSpectating = spectating;
           this.authoritativeInputPending =
             projection.status !== "completed" &&
-            (spectating || projection.submittedPlayerIds.includes(viewPlayerId));
+            (spectating ||
+              isWaitingForOpponentReplacement(projection, viewPlayerId) ||
+              projection.submittedPlayerIds.includes(viewPlayerId));
           if (projection.status === "completed") {
             const currentTerminal = this.authoritativeTerminalTransition;
             if (
@@ -2543,7 +2552,7 @@ export class BattleController {
     if (
       state.battleKind !== "wild" ||
       state.result?.reason !== "faint" ||
-      (state.result.levelsGained ?? 0) <= 0
+      (state.result.experienceGained ?? 0) <= 0
     ) {
       return state;
     }

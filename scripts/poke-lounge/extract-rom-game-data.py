@@ -52,6 +52,10 @@ ITEM_NAME_MESSAGE_INDEX = 220
 KOREAN_CHARACTER_MAP_PATH = "data/str2uni.bin"
 BATTLE_SPRITE_NARC_PATH = "a/0/0/4"
 EVOLUTION_PRESENTATION_NARC_PATH = "a/1/1/5"
+ITEM_ICON_NARC_PATH = "a/0/1/8"
+# HGSS src/item.c sItemNarcIds: Poké Ball (item 4), Ultra Ball (item 2).
+BALL_ICON_MEMBERS = {"pokeball": (8, 9), "ultraBall": (4, 5)}
+DEFAULT_BALL_ICON_DIRECTORY = REPO_ROOT / "apps/web/public/assets/pokemon/battle/balls"
 
 EXPECTED_ROM_SHA1 = "5834fb3a2d751c48501d47d6a56898d7af6ccf9e"
 EXPECTED_ARCHIVE_FILE_COUNTS = {
@@ -264,6 +268,8 @@ def main() -> None:
         description="Extract Poke Lounge game data from a local NDS ROM."
     )
     parser.add_argument("--rom", type=Path, default=DEFAULT_ROM_PATH)
+    parser.add_argument("--ball-icons-only", action="store_true")
+    parser.add_argument("--ball-icon-directory", type=Path, default=DEFAULT_BALL_ICON_DIRECTORY)
     parser.add_argument("--pokemon-data", type=Path, default=DEFAULT_POKEMON_DATA_PATH)
     parser.add_argument("--level-up-table", type=Path, default=DEFAULT_LEVEL_UP_MOVE_TABLE_PATH)
     parser.add_argument("--item-data", type=Path, default=DEFAULT_ITEM_DATA_PATH)
@@ -288,6 +294,9 @@ def main() -> None:
     rom_sha1 = hashlib.sha1(rom_bytes).hexdigest()
     validate_exact_value("ROM SHA-1", rom_sha1, EXPECTED_ROM_SHA1)
     rom = NintendoDSRom(rom_bytes)
+    extract_ball_icons(rom, resolve_repo_path(args.ball_icon_directory), rom_sha1)
+    if args.ball_icons_only:
+        return
 
     personal = NARC(bytes(rom.getFileByName(PERSONAL_NARC_PATH)))
     moves = NARC(bytes(rom.getFileByName(MOVE_NARC_PATH)))
@@ -459,6 +468,55 @@ def main() -> None:
         f"{len(level_up_move_table['species'])} level-up tables, and "
         f"{len(sprite_sheets)} battle sprite sheets with the evolution background."
     )
+
+
+def extract_ball_icons(rom: NintendoDSRom, directory: Path, rom_sha1: str) -> None:
+    archive = NARC(bytes(rom.getFileByName(ITEM_ICON_NARC_PATH)))
+    validate_exact_value("Item icon archive member count", len(archive.files), 797)
+    assets = {}
+    for name, (character_member, palette_member) in BALL_ICON_MEMBERS.items():
+        image = decode_ball_icon(bytes(archive.files[character_member]), bytes(archive.files[palette_member]))
+        destination = directory / f"{name}.png"
+        write_image(destination, image)
+        assets[name] = {
+            "characterMember": character_member,
+            "paletteMember": palette_member,
+            "width": image.width,
+            "height": image.height,
+            "sha256": hashlib.sha256(destination.read_bytes()).hexdigest(),
+        }
+    write_json(directory / "manifest.json", {
+        "romSha1": rom_sha1,
+        "archive": ITEM_ICON_NARC_PATH,
+        "mappingSource": "https://github.com/pret/pokeheartgold/blob/master/src/item.c",
+        "processing": "Decode 32x32 4bpp tiled NCGR and BGR555 NCLR; palette index 0 transparent; trim transparent margin without resampling.",
+        "assets": assets,
+    })
+    print(f"Extracted {len(assets)} ROM ball icons.")
+
+
+def decode_ball_icon(character_data: bytes, palette_data: bytes) -> Image.Image:
+    if (len(character_data) != 0x230 or character_data[:4] != b"RGCN"
+            or character_data[16:20] != b"RAHC" or read_u32le(character_data, 0x1C) != 3
+            or read_u32le(character_data, 0x28) != 512):
+        raise ValueError("Ball icon must be a 32x32 4bpp NCGR")
+    if (len(palette_data) != 0x228 or palette_data[:4] != b"RLCN"
+            or palette_data[16:20] != b"TTLP"):
+        raise ValueError("Ball icon palette must be an NCLR")
+    palette = decode_opaque_nitro_palette(palette_data[0x28:0x48])
+    palette[0] = (0, 0, 0, 0)
+    pixels = []
+    for y in range(32):
+        for x in range(32):
+            pixel_index = ((y // 8) * 4 + x // 8) * 64 + (y % 8) * 8 + x % 8
+            packed = character_data[0x30 + pixel_index // 2]
+            pixels.append(palette[(packed >> (4 * (pixel_index % 2))) & 15])
+    image = Image.new("RGBA", (32, 32))
+    image.putdata(pixels)
+    bounds = image.getbbox()
+    if not bounds:
+        raise ValueError("Ball icon is empty")
+    return image.crop(bounds)
 
 
 def parse_pokemon_records(

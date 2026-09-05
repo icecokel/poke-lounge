@@ -241,7 +241,9 @@ export function BattlePokemonLayer({ presentation }: { presentation: BattlePrese
             {fromBall ? (
               <span
                 className={styles.battleSendOutBall}
+                data-poke-lounge-send-out-ball={side}
                 style={{
+                  backgroundImage: `url(${ROM_BATTLE_DESIGN_ASSETS.pokeball.path})`,
                   left: `${(combatant.sprite.x / logicalWidth) * 100}%`,
                   top: `${(combatant.sprite.y / logicalHeight) * 100}%`,
                 }}
@@ -718,6 +720,7 @@ export function BattleCaptureEffect({ capture }: { capture: BattleCapturePresent
           className={styles.battleCaptureBall}
           data-ball={capture.ballItemId}
           style={{
+            backgroundImage: `url(${capture.ballItemId === "ultraBall" ? ROM_BATTLE_DESIGN_ASSETS.ultraBall.path : ROM_BATTLE_DESIGN_ASSETS.pokeball.path})`,
             left: `${(capture.ballX / logicalWidth) * 100}%`,
             top: `${(capture.ballY / logicalHeight) * 100}%`,
             transform: `translate(-50%, -50%) rotate(${capture.ballRotation}rad)`,

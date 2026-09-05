@@ -191,8 +191,8 @@
           "type": "storage-pc",
           "visible": true,
           "width": 0,
-          "x": 688,
-          "y": 256
+          "x": 384,
+          "y": 320
         },
         {
           "height": 0,

@@ -69,7 +69,10 @@ test("서버 방 URL은 선택 화면 없이 생성과 코드 입장을 유지�
       roomCode: "ABC123",
     },
   );
-  assert.equal(readRoomRoundDurationMs(new URLSearchParams("roundMs=600000")), 600_000);
+  for (const duration of [90_000, 180_000, 300_000]) {
+    assert.equal(readRoomRoundDurationMs(new URLSearchParams(`roundMs=${duration}`)), duration);
+  }
+  assert.equal(readRoomRoundDurationMs(new URLSearchParams("roundMs=600000")), null);
   assert.equal(readRoomRoundDurationMs(new URLSearchParams("roundMs=123")), null);
 });
 

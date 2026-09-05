@@ -238,6 +238,8 @@ test("캐터피가 Lv.6에서 Lv.11이 되면 레벨별 기술 습득과 두 번
         speciesId: 10,
         name: "캐터피",
         level: 11,
+        currentHp: 0,
+        status: "fainted",
         moves: [33, 81].map(function mapItem(moveId) {
           return createBattleMoveFromRom(moveId, moveRecords);
         }),
@@ -248,6 +250,8 @@ test("캐터피가 Lv.6에서 Lv.11이 되면 레벨별 기술 습득과 두 번
     assert.equal(progression.evolved, true);
     assert.equal(progression.pokemon.speciesId, 12);
     assert.equal(progression.pokemon.name, "버터플");
+    assert.equal(progression.pokemon.currentHp, 0);
+    assert.equal(progression.pokemon.status, "fainted");
     assert.deepEqual(
       progression.pokemon.moves.map(function mapItem(move) {
         return move.id;

@@ -245,17 +245,22 @@ describe('PokeLoungeRoomService', function testSuite() {
     expect(replayed.participants).toHaveLength(1);
   });
 
-  it('fixes production round preparation to three minutes', async function testCase() {
-    const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
+  it.each([undefined, 1_000, 90_000, 180_000, 300_000])(
+    'accepts production preparation options and defaults to 90 seconds (%s)',
+    async function testCase(duration) {
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
 
-    try {
-      const room = await createRoom({ roundDurationMs: 1_000 });
-      expect(room.round.durationMs).toBe(180_000);
-    } finally {
-      process.env.NODE_ENV = originalNodeEnv;
-    }
-  });
+      try {
+        const room = await createRoom({ roundDurationMs: duration });
+        expect(room.round.durationMs).toBe(
+          duration && duration >= 90_000 ? duration : 90_000,
+        );
+      } finally {
+        process.env.NODE_ENV = originalNodeEnv;
+      }
+    },
+  );
 
   it('uses supplied nicknames for a room creator and a newly joined player', async function testCase() {
     const created = await service.createRoom(
@@ -500,7 +505,7 @@ describe('PokeLoungeRoomService', function testSuite() {
 
     expect(started).toMatchObject({
       status: 'round-started',
-      round: { startedAtMs: 6, endsAtMs: 180_006 },
+      round: { startedAtMs: 6, endsAtMs: 90_006 },
     });
     expect(JSON.stringify(guestAcknowledged)).not.toContain(
       'presencePendingUntilMs',

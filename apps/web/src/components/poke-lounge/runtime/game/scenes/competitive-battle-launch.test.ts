@@ -303,6 +303,34 @@ test("WorldScene은 handed-off old key만 완료하고 next assignment를 한 �
   assert.equal(cache.begin(nextEvent), false);
 });
 
+test("상대 포켓몬 교체 전에는 선택을 막고 새 포켓몬이 나온 뒤 재개한다", function testCase() {
+  const projection = createProjection(
+    "11111111-1111-4111-8111-111111111111",
+    "game-round-1-bracket-1-match-1",
+    ["seed-4", "seed-5"],
+  );
+  const opponent = projection.currentState.playersById["seed-5"];
+  const active = opponent.team[0];
+  opponent.team = [
+    { ...active, currentHp: 0, status: "fainted" },
+    { ...active, slotIndex: 1 },
+  ];
+  assert.equal(toAuthoritativeBattleState(projection, "seed-4").phase, "resolving");
+  assert.match(toAuthoritativeBattleState(projection, "seed-4").messageQueue[0], /다음 포켓몬/);
+  assert.equal(
+    isLegalAuthoritativeAction(projection, "seed-4", { kind: "move", moveId: 55 }),
+    false,
+  );
+  assert.equal(toAuthoritativeBattleState(projection, "seed-5").phase, "party-select");
+  assert.equal(
+    isLegalAuthoritativeAction(projection, "seed-5", { kind: "switch", slotIndex: 1 }),
+    true,
+  );
+  opponent.activeSlotIndex = 1;
+  projection.currentTurn += 1;
+  assert.equal(toAuthoritativeBattleState(projection, "seed-4").phase, "command");
+});
+
 test("공식 배정은 해당 플레이어의 진행 중인 로컬 전투만 선점한다", function testCase() {
   const event: CompetitiveRoomProjectionEvent = {
     projection: createProjection(
