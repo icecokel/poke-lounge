@@ -6,6 +6,7 @@ export interface MultiplayerRoomFactoryOptions {
   searchParams: Pick<URLSearchParams, "get">;
   accountId?: string;
   roomId?: string;
+  roomRunId?: string;
   persistRoomCodeInUrl?: boolean;
   resumeRoom?: boolean;
   sharedWorldOnly?: boolean;
@@ -30,6 +31,7 @@ export function createMultiplayerRoom(options: MultiplayerRoomFactoryOptions): M
     return createServerRoom({
       accountId: options.accountId,
       roomId: options.roomId ?? roomEntry.roomCode ?? undefined,
+      roomRunId: options.roomRunId,
       sessionId: options.searchParams.get("serverSessionId") ?? undefined,
       playerId: options.searchParams.get("serverPlayerId") ?? undefined,
       createRoom: roomEntry.createRoom === true,

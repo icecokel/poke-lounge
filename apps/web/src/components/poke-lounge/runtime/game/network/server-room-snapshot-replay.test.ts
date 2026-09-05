@@ -761,6 +761,7 @@ test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 �
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const timers = createManualRecoveryTimers();
   const values = new Map<string, string>();
+  const roomRunId = "11111111-1111-4111-8111-111111111111";
   Object.defineProperty(globalThis, "window", {
     configurable: true,
     value: {
@@ -789,6 +790,7 @@ test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 �
       roomId: "ROOM01",
       playerId: "player-1",
       sessionId: "session-1",
+      roomRunId,
       fetch: async () => jsonResponse(snapshots.initial),
       socketFactory: () => socket,
     });
@@ -803,7 +805,7 @@ test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 �
     );
     socket.pushSnapshot(completed);
 
-    assert.deepEqual(readStoredServerRoomResume(), { roomCode: "ROOM01" });
+    assert.deepEqual(readStoredServerRoomResume(), { roomCode: "ROOM01", runId: roomRunId });
     assert.equal(values.has("poke-lounge:server-room-identity"), true);
 
     socket.pushSnapshot({ ...completed, revision: 18, status: "closed" });
@@ -812,6 +814,36 @@ test("완료 방은 새로고침 복구 대상으로 보존하고 closed에서 �
     assert.equal(values.has("poke-lounge:server-room-identity"), false);
   } finally {
     room?.dispose();
+    restoreWindow(originalWindow);
+  }
+});
+
+test("run UUID가 없는 구버전 active room은 새 방 진행도로 복구하지 않는다", async function testCase() {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const values = new Map<string, string>([
+    [
+      "poke-lounge:server-room-identity",
+      JSON.stringify({
+        sessionId: "legacy-session",
+        playerId: "legacy-player",
+        activeRoom: { roomCode: "ROOM01", expiresAtMs: 253_402_300_799_999 },
+      }),
+    ],
+  ]);
+
+  try {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        location: { href: "http://web.test/game", search: "" },
+        localStorage: createStorage(values),
+        sessionStorage: createEmptyStorage(),
+      },
+    });
+    const { readStoredServerRoomResume } = await import("./server-room");
+
+    assert.equal(readStoredServerRoomResume(), null);
+  } finally {
     restoreWindow(originalWindow);
   }
 });
@@ -826,7 +858,11 @@ test("브라우저 종료 뒤 대기실 자리가 만료돼도 저장 identity�
       JSON.stringify({
         sessionId: "session-1",
         playerId: "player-1",
-        activeRoom: { roomCode: "ROOM01", expiresAtMs: 253_402_300_799_999 },
+        activeRoom: {
+          roomCode: "ROOM01",
+          expiresAtMs: 253_402_300_799_999,
+          runId: "22222222-2222-4222-8222-222222222222",
+        },
       }),
     ],
   ]);

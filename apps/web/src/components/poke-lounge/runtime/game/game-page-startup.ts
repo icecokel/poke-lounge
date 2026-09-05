@@ -49,7 +49,11 @@ import {
 } from "./network/room-entry";
 import { shouldResetRoomEntrySession, type RoomEntrySelection } from "./network/room-entry-screen";
 import { createWebRtcRoom, isWebRtcRoom } from "./network/web-rtc-room";
-import { getDefaultGameStateStore } from "./state/default-game-state-store";
+import { createRoomRunId } from "./room-run-id";
+import {
+  getDefaultGameStateStore,
+  setDefaultGameStateRoomRunId,
+} from "./state/default-game-state-store";
 import type { GameStateStore, PlayerPokemon } from "./state/game-state-store";
 import {
   dispatchPokeLoungeNotice,
@@ -98,6 +102,7 @@ export async function startGamePage(
   location: GamePageLocation,
   dependencies: StartGamePageDependencies = {},
 ): Promise<GamePageHandle> {
+  const usesDefaultGameStateStore = dependencies.gameStateStore === undefined;
   const gameStateStore = dependencies.gameStateStore ?? getDefaultGameStateStore();
   const initialScene = readInitialGameScene(location);
   const battleE2eScenario = readInitialBattleE2eScenario(location);
@@ -115,6 +120,7 @@ export async function startGamePage(
   let activeMultiplayerRoom: ReturnType<typeof createMultiplayerRoom> | null = null;
   let requestRoomLeaveAction: (() => void) | null = null;
   let temporaryRoomCode: string | undefined;
+  let activeRoomRunId: string | null = null;
   let resumingStoredRoom = false;
   let activeViewportSize = dependencies.viewportSize;
   let localTestModeState: LocalTestModeState = { available: false, active: false };
@@ -164,6 +170,30 @@ export async function startGamePage(
       runtimeAssetsAbortController = null;
       throw error;
     }
+  };
+
+  const activateRoomRun = (roomRunId: string) => {
+    activeRoomRunId = roomRunId;
+    if (!usesDefaultGameStateStore) {
+      return;
+    }
+
+    setDefaultGameStateRoomRunId(roomRunId);
+    gameStateStore.reloadLocalPlayersFromStorage();
+  };
+  const restoreOwnerGameState = (clearRoomRun: boolean) => {
+    if (!activeRoomRunId) {
+      return;
+    }
+
+    if (usesDefaultGameStateStore) {
+      if (clearRoomRun) {
+        gameStateStore.reset();
+      }
+      setDefaultGameStateRoomRunId(null);
+      gameStateStore.reloadLocalPlayersFromStorage();
+    }
+    activeRoomRunId = null;
   };
 
   const handle: GamePageHandle = {
@@ -232,6 +262,7 @@ export async function startGamePage(
       idToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.idToken : undefined,
       getIdToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.getIdToken : undefined,
       roomId: temporaryRoomCode,
+      roomRunId: activeRoomRunId ?? undefined,
       persistRoomCodeInUrl: temporaryRoomCode ? false : undefined,
       resumeRoom: resumingStoredRoom,
       sharedWorldOnly: Boolean(temporaryRoomCode),
@@ -305,6 +336,7 @@ export async function startGamePage(
       });
       temporaryRoomCode = undefined;
       resumingStoredRoom = false;
+      restoreOwnerGameState(true);
       clearRoomEntrySearchParams(currentUrl);
       replaceBrowserUrl(currentUrl);
       game?.destroy();
@@ -446,6 +478,7 @@ export async function startGamePage(
       description: copy.startup.description,
       onRetry: retry,
       onReturnToEntry: () => {
+        restoreOwnerGameState(true);
         clearRoomEntrySearchParams(currentUrl);
         replaceBrowserUrl(currentUrl);
         showRoomEntry();
@@ -507,6 +540,12 @@ export async function startGamePage(
     }
 
     roomEntrySelectionPending = true;
+
+    if (isCompetitiveRoomEntryMode(selection.mode)) {
+      activateRoomRun(createRoomRunId());
+    } else {
+      restoreOwnerGameState(true);
+    }
 
     if (selection.displayName) {
       const localPlayer = gameStateStore.getCurrentLocalPlayer();
@@ -664,19 +703,21 @@ export async function startGamePage(
     const storedResume = readStoredServerRoomResume(dependencies.accountId);
     const canResumeStoredRoom =
       !localTestModeState.active &&
-      !gameStateStore.canChooseStarter() &&
       storedResume !== null &&
       (roomEntry.mode === "unset" ||
         (roomEntry.mode === "server-room" &&
-          (roomEntry.createRoom === true || roomEntry.roomCode === storedResume.roomCode)));
+          roomEntry.createRoom !== true &&
+          roomEntry.quickPlay !== true &&
+          roomEntry.roomCode === storedResume.roomCode));
 
-    if (canResumeStoredRoom) {
+    if (canResumeStoredRoom && storedResume) {
+      activateRoomRun(storedResume.runId);
       temporaryRoomCode = storedResume.roomCode;
       resumingStoredRoom = true;
       currentUrl.searchParams.set("network", "server");
-      currentUrl.searchParams.set("create", "1");
+      currentUrl.searchParams.delete("create");
       currentUrl.searchParams.delete("quick");
-      currentUrl.searchParams.delete("room");
+      currentUrl.searchParams.set("room", storedResume.roomCode);
       roomEntrySelectionPending = true;
       startGameAfterStarterSelection(currentUrl);
       return;
@@ -703,6 +744,7 @@ export async function startGamePage(
     }
 
     if (isCompetitiveRoomEntryMode(roomEntry.mode)) {
+      activateRoomRun(createRoomRunId());
       startGameAfterStarterSelection(currentUrl);
       return;
     }
