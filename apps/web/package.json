@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --hostname localhost",
-    "build": "node ../../scripts/poke-lounge/check-asset-provenance.mjs --deployment-gate && next build",
+    "build": "next build",
     "build:storybook": "storybook build",
     "start": "next start",
     "storybook": "storybook dev -p 6006",

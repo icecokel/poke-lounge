@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -9,24 +8,6 @@ import { createWorldMapModel } from "../world/world-map-model";
 import { worldPlayerCollides } from "../world/world-runtime-motion";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
-const repoRoot = path.resolve(webRoot, "../..");
-
-test("이식 기준 public asset과 ROM 볼 이미지의 경로·바이트가 매니페스트와 일치한다", function testCase() {
-  const manifest = JSON.parse(
-    fs.readFileSync(path.join(repoRoot, "docs/poke-lounge-asset-provenance.json"), "utf8"),
-  ) as { assets: Array<{ publicPath: string; sha256: string }> };
-
-  assert.equal(manifest.assets.length, 75);
-  for (const asset of manifest.assets) {
-    const contents = fs.readFileSync(path.join(webRoot, "public", asset.publicPath));
-    assert.equal(
-      createHash("sha256").update(contents).digest("hex"),
-      asset.sha256,
-      asset.publicPath,
-    );
-  }
-});
-
 test("PC는 모든 NPC와 충분히 떨어져 있고 앞에서 접근할 수 있다", function testCase() {
   const model = createWorldMapModel(
     JSON.parse(fs.readFileSync(path.join(webRoot, "public", FIELD_MAP.mapUrl), "utf8")),

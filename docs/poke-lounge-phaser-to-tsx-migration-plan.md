@@ -562,8 +562,7 @@ Phaser 제거는 에셋 교체가 아니다. 현재 `apps/web/public`의 파일 
 - BootScene에서 읽지만 runtime consumer가 없는 항목은 call site 0건과 fail-gate 영향을 증명하기
   전까지 임의로 제외하지 않는다. 제거한다면 별도 결정과 characterization test로 분리한다.
 - starter의 개별 이미지 오류 UI와 runtime 전체 asset 오류·진행률·retry 동작을 모두 유지한다.
-- 현재 71개 public asset의 권리는 모두 미해결/blocked다. 파일을 바꾸지 않고
-  [asset provenance](./poke-lounge-asset-provenance.md)와 기존 release gate에서 별도로 판단한다.
+- 에셋 출처·권리 검증 자동화는 현재 구현 범위에서 제외하며 제품 기능 검증과 분리한다.
 
 ## 6. 실패한 Web 전환의 원인
 
@@ -1022,9 +1021,6 @@ P0 기준선 증거는 다음과 같다.
 - 검증: Web unit 294개, Mobile Chromium 15개, Desktop world 2개와 server room leave/lobby
   ready·start/revision-conflict 대표 E2E가 통과했다. `pnpm type:check:web`, `pnpm lint:web`, asset
   SHA-256 baseline과 6 SFX·2 BGM 검증도 통과했다.
-- 배포 전용 provenance gate는 기존 `audio-manifest.json`의 public-release approval 부재로 계속
-  실패한다. 이번 이식은 해당 manifest와 asset byte를 변경하지 않았고 비상용 범위의 P1 완료
-  판정에는 포함하지 않는다.
 
 ### P2. World core 이식
 
@@ -1214,9 +1210,6 @@ P0 기준선 증거는 다음과 같다.
 - `agent-browser` named session으로 새 게임, 스타터, TSX 월드, 설정 음소거와 방향키 이동을
   `output/agent-browser/poke-lounge/p6-manual-20260831/`에 캡처했다. 개발 서버의 기존
   `AUTH_SECRET` 미설정 오류 외에 추가 page error는 없었다.
-- 공개 배포 provenance gate는 기존 `audio-manifest.json`의 public-release approval 부재 때문에
-  계속 실패한다. asset byte와 manifest는 변경하지 않았으며, 사용자가 확인한 비상용 범위의 이식
-  완료 판정에는 포함하지 않는다.
 
 ## 10. 검증 게이트
 

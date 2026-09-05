@@ -82,7 +82,6 @@ pnpm test:api:e2e
 | `pnpm test`                                | 배틀, Web과 API 단위 테스트           |
 | `pnpm check:api-contract`                  | OpenAPI 생성물과 Web 타입 계약 확인   |
 | `pnpm check:poke-lounge-battle-resolution` | 공통 전투 규칙의 타입·런타임 확인     |
-| `pnpm check:poke-lounge-provenance`        | 공개 에셋 출처와 권리 기록 검증       |
 
 ## 문서
 
@@ -94,13 +93,6 @@ pnpm test:api:e2e
 - [릴리스 게이트](docs/poke-lounge-release-gate.md)
 - [전체 문서 색인](docs/README.md)
 
-## 공개 출시 상태
+## 현재 개발 우선순위
 
-현재 71개 공개 에셋의 배포 권리가 확인되지 않아 출시 상태는 `UNRESOLVED`다. 공개 배포 전
-에셋을 교체·제거하거나 권리 근거와 release owner 승인을 기록해야 한다.
-
-권리 상태를 빌드 차단 조건으로 적용하는 환경에서는 다음 변수를 설정한다.
-
-```bash
-POKE_LOUNGE_PROVENANCE_STRICT=1 pnpm build
-```
+에셋 출처·권리 검증 자동화는 빠른 기능 구현을 위해 현재 제거했다. 필요해지는 시점에 별도 작업으로 다시 도입한다.

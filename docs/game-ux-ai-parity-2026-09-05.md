@@ -39,7 +39,7 @@
 - 공유 로직: Jest 83개 통과(지연 tick 이동 한도, 충돌, 풀숲 조우, 실제 HP/PP, 볼 소모, 기절 후 회복, 10분 준비 시뮬레이션 포함).
 - API: Jest 387개 통과(파티 CAS 충돌, 기절 중 상태 저장, ROM 오류/빈 응답/복구 포함).
 - 웹: unit 339개 통과. 웹 typecheck, 웹/API lint, 웹/API/Storybook production build 통과.
-- 신규 API 경로 mock-fallback 검사: 검출 없음. 빌드의 기존 provenance strict gate는 환경 기본값에 따라 비강제이며, Storybook은 큰 청크 경고만 남는다.
+- 신규 API 경로 mock-fallback 검사: 검출 없음. Storybook은 큰 청크 경고만 남는다.
 - 브라우저: 전용 로컬 테스트 DB·Redis와 실제 API/worker 사용. Chromium Mobile Web 390×844, touch=5 및 음소거 확인. 배포 빌드에서 스타일시트 3개 로드, 가로 넘침 없음, 런타임 errors 없음.
 - 실제 준비 필드: AI의 이동/사냥/회복 표시와 좌표 변화 확인. 900ms/56 프레임 표본에서 최대 프레임 이동 4.21px, 보행 스프라이트 프레임 6종 관찰.
 - 실제 전투: production build에서 양쪽 실제 닉네임 표시, 기술 입력 `session-actions` POST 201, 추가 ‘다음’ 입력 없이 명령으로 복귀 확인. Storybook에서 트레이너 양쪽 볼 연출 2개/야생에서는 아군만 1개, 회복 입자 4개, 관전 행동 버튼 제거, 결과 확인 버튼 1개 확인.

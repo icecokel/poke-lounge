@@ -125,9 +125,8 @@ ID token은 저장하지 않으며, 멀티플레이의 최종 상태는 서버 s
 [Poke Lounge 화면 경계 정책](./poke-lounge-viewport-layout.md), 키보드·모바일 입력은
 [플레이와 성장 규칙](./poke-lounge-rules/play-and-growth.md)을 따른다.
 
-필드와 전투 오디오는 첫 사용자 입력 뒤 활성화한다. 현재 런타임 오디오의 기술적 출처와 공개
-배포 권리 상태는 [Poke Lounge Audio Sources](./poke-lounge-audio-sources.md)와
-[Asset Provenance](./poke-lounge-asset-provenance.md)에서 관리한다.
+필드와 전투 오디오는 첫 사용자 입력 뒤 활성화한다. 현재 런타임 오디오의 기술적 추출 경로는
+[Poke Lounge Audio Sources](./poke-lounge-audio-sources.md)에서 관리한다.
 
 ## 검증과 현재 범위
 
@@ -154,13 +153,9 @@ ID token은 저장하지 않으며, 멀티플레이의 최종 상태는 서버 s
 - UI와 인게임 용어·상태 문구는 URL 로케일에 따라 한국어·영어·일본어로 표시된다.
 - 물리 모바일 기기와 실제 네트워크 품질의 장시간 game-feel 검증은 별도다.
 
-## 공개 출시 조건
+## 후속 출시 작업
 
-기술 상태와 권리 상태는 별도다. 공개 출시 전에는 미해결 에셋의 교체·제거 또는 권리 근거,
-provenance 기록, release owner 승인과 필요한 법률·상표 검토가 필요하다.
-
-`pnpm check:poke-lounge-provenance`는 미해결 항목 때문에 의도적으로 실패한다. 기본 Web
-build가 이를 자동 차단하지 않는 것은 권리 승인이 아니다.
+에셋 출처·권리 검증 자동화는 현재 개발 범위에서 제거했다. 공개 출시를 준비할 때 별도 작업으로 다시 검토한다.
 
 ## Source of truth
 
@@ -170,8 +165,6 @@ build가 이를 자동 차단하지 않는 것은 권리 승인이 아니다.
 | 현재 제품·구현 경계 | 이 문서                                                                     |
 | 플레이어 E2E 검증   | [플레이어 E2E 테스트 시나리오](./poke-lounge-multiplayer-test-scenarios.md) |
 | 점수와 공개 랭킹    | [Game Score Policy](./game-score-policy.md)                                 |
-| 공개 출시 권리      | [Poke Lounge Release Gate](./poke-lounge-release-gate.md)                   |
-| 에셋 인벤토리       | [Poke Lounge Asset Provenance](./poke-lounge-asset-provenance.md)           |
 | Web runtime         | `apps/web/src/components/poke-lounge/runtime/game/`                         |
 | 서버 room과 경쟁전  | `apps/api/src/poke-lounge/`                                                 |
 | 공통 전투·대진 규칙 | `packages/poke-lounge-battle/`                                              |

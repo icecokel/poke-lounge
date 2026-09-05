@@ -19,8 +19,6 @@ origin을 기준으로 설정한다.
 | --------------------- | --------------------------------- |
 | `NEXT_PUBLIC_API_URL` | 브라우저가 호출할 공개 API origin |
 
-공개 배포를 권리 상태와 함께 차단하려면 `POKE_LOUNGE_PROVENANCE_STRICT=1`을 설정한다.
-
 ## API
 
 API와 턴 워커는 같은 image와 Compose 환경을 사용한다. 실제 값은 저장소에 커밋하지 않고

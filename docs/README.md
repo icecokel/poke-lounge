@@ -18,7 +18,6 @@
 - [배포와 환경 변수](./deployment-and-env.md)
 - [운영 런북](./operations-runbook.md)
 - [릴리스 게이트](./poke-lounge-release-gate.md)
-- [에셋 출처 감사](./poke-lounge-asset-provenance.md)
 - [오디오 출처](./poke-lounge-audio-sources.md)
 
 ## VSCoke에서 이관한 과거 계획과 설계

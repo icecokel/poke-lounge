@@ -40,7 +40,3 @@ python3 scripts/poke-lounge/render-audio-cues.py --mode all
 | `battle-start`      | SFX  | `1815` `SEQ_SE_DP_VSDEMO03`   | `sfx/battle-start.mp3`      |
 | `battle-hit`        | SFX  | `2256` `SEQ_SE_GS_TACKLEHIT`  | `sfx/battle-hit.mp3`        |
 | `pokemon-faint`     | SFX  | `1796` `SEQ_SE_DP_HINSI`      | `sfx/pokemon-faint.mp3`     |
-
-공개 파일의 현재 해시와 권리 상태는
-[`docs/poke-lounge-asset-provenance.json`](./poke-lounge-asset-provenance.json)에서
-추적합니다.
