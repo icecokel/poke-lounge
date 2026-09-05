@@ -1,20 +1,16 @@
-import {
-  appendAiCapturedPokemon,
-  chooseAiCompetitiveAction,
-  createAiStarterParty,
-} from "./ai-policy";
+import { chooseAiCompetitiveAction, createAiStarterParty } from "./ai-policy";
 
 describe("AI battle policy", function testSuite() {
-  it("creates a valid starter, captures into the next slot, and switches after fainting", function testCase() {
+  it("rolls player-equivalent starter IVs and switches after fainting", function testCase() {
     const starter = createAiStarterParty(function random() {
       return 0;
     });
-    const party = appendAiCapturedPokemon(starter, 25, 8);
-    const [active, replacement] = party.members;
+    const active = starter.members[0]!;
+    const replacement = { ...createAiStarterParty(() => 0.9).members[0]!, slotIndex: 1 };
 
     expect(starter.members[0]?.speciesId).toBe(152);
-    expect(party.members).toHaveLength(2);
-    expect(replacement).toMatchObject({ slotIndex: 1, speciesId: 25, level: 8 });
+    expect(active.individualValues.hp).toBe(0);
+    expect(replacement.individualValues.hp).toBe(28);
     expect(
       chooseAiCompetitiveAction(
         {

@@ -161,6 +161,18 @@ export function BattleStage({
   return (
     <div className={styles.battleStage}>
       <BattleBackground evolution={Boolean(presentation.evolution)} />
+      {presentation.authoritative.spectating ? (
+        <div
+          className={styles.battleSpectatorBanner}
+          role="status"
+          data-poke-lounge-spectating="true"
+        >
+          <span aria-hidden="true">◉</span> {copy.mobile.spectatingLabel}
+          <small>
+            {presentation.player.displayName} vs {presentation.opponent.displayName}
+          </small>
+        </div>
+      ) : null}
       {presentation.evolution ? (
         <BattleEvolutionScene evolution={presentation.evolution} />
       ) : (
@@ -217,18 +229,51 @@ export function BattleBackground({ evolution }: { evolution: boolean }) {
 export function BattlePokemonLayer({ presentation }: { presentation: BattlePresentationState }) {
   return (
     <div className={styles.battlePokemonLayer} aria-hidden="true">
-      <BattlePokemonSprite side="opponent" view={presentation.opponent.sprite} />
-      <BattlePokemonSprite side="player" view={presentation.player.sprite} />
+      {(["opponent", "player"] as const).map(side => {
+        const combatant = presentation[side];
+        const fromBall = side === "player" || presentation.battleKind !== "wild";
+        if (fromBall && presentation.entrance.active) return null;
+        return (
+          <div
+            key={`${side}:${combatant.activeSlotIndex}:${combatant.sprite.sprite.path}:${combatant.sprite.sprite.frame}`}
+          >
+            <BattlePokemonSprite side={side} view={combatant.sprite} fromBall={fromBall} />
+            {fromBall ? (
+              <span
+                className={styles.battleSendOutBall}
+                style={{
+                  left: `${(combatant.sprite.x / logicalWidth) * 100}%`,
+                  top: `${(combatant.sprite.y / logicalHeight) * 100}%`,
+                }}
+              />
+            ) : null}
+            {combatant.healing ? (
+              <span
+                className={styles.battleHealingEffect}
+                data-poke-lounge-healing={side}
+                style={toCenteredRectStyle(combatant.sprite)}
+              >
+                <i>+</i>
+                <i>+</i>
+                <i>+</i>
+                <i>+</i>
+              </span>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 export function BattlePokemonSprite({
   alpha,
+  fromBall = false,
   side,
   view,
 }: {
   alpha?: number;
+  fromBall?: boolean;
   side: "evolution" | "opponent" | "party" | "player";
   view: BattleSpritePresentation;
 }) {
@@ -243,6 +288,7 @@ export function BattlePokemonSprite({
     <span
       className={styles.battlePokemonSprite}
       data-poke-lounge-battle-pokemon={side}
+      data-from-ball={fromBall || undefined}
       style={{
         ...toCenteredRectStyle(view),
         backgroundImage: `url(${view.sprite.path})`,
@@ -271,6 +317,7 @@ export function BattleHpPanel({
     <PixelPanel
       className={styles.battleHpPanel}
       data-poke-lounge-battle-hp-panel={side}
+      data-healing={combatant.healing || undefined}
       style={toRectStyle(rect)}
       aria-label={`${combatant.name} HP ${Math.round(combatant.displayedHp)}/${combatant.maxHp}`}
     >
@@ -306,17 +353,7 @@ export function BattleSurfaceRouter({
   presentation: BattlePresentationState;
 }) {
   if (presentation.evolution) return null;
-  if (!desktop) {
-    return (
-      <BattleMessagePanel
-        message={presentation.message ?? copy.game.battleTouchPrompt}
-        locked={controls.isInputLocked}
-        onConfirm={function handleConfirm() {
-          return onAction({ type: "confirm-message" });
-        }}
-      />
-    );
-  }
+  if (!desktop) return null;
   if (presentation.message) {
     return (
       <BattleMessagePanel

@@ -14,8 +14,7 @@ import type { WebRtcRoom } from "../network/web-rtc-room";
 import { PokeLoungeRuntimeControls, PokeLoungeRuntimeScreen } from "./poke-lounge-runtime-screen";
 
 const meta = {
-  title: "Poke Lounge/Runtime Screens",
-  tags: ["autodocs"],
+  title: "Poke Lounge/Screens/Runtime",
   parameters: { layout: "fullscreen" },
   decorators: [
     function callback(Story) {

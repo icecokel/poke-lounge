@@ -10,8 +10,7 @@ import {
   getRuntimeShopItemIds,
   hasRuntimeShopItemIds,
 } from "../items/runtime-items";
-import type { PokemonIndividualValues } from "../battle/individual-values";
-import type { PokemonGender } from "../battle/pokemon-gender";
+import { healPokemon } from "@poke-lounge/battle/adventure/player/heal-pokemon";
 import { isSupportedPokemonSpeciesId } from "../battle/pokemon-species";
 import {
   ROUND_TOTAL_COUNT,
@@ -43,32 +42,15 @@ import {
   findCurrentMatch,
   type TournamentStateRoomPayload,
 } from "../network/tournament-projection";
-
-export interface PlayerPokemon {
-  speciesId: number;
-  name: string;
-  level: number;
-  gender?: PokemonGender;
-  maxHp?: number;
-  currentHp?: number;
-  attack?: number;
-  defense?: number;
-  speed?: number;
-  experience?: number;
-  growthRate?: number;
-  status?: PlayerPokemonStatus;
-  individualValues?: PokemonIndividualValues;
-  moves?: PlayerPokemonMove[];
-}
-
-export type PlayerPokemonStatus = "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
-
-export interface PlayerPokemonMove {
-  id: number;
-  name: string;
-  pp: number;
-  maxPp: number;
-}
+import type {
+  PlayerPokemon,
+  PlayerPokemonMove,
+} from "@poke-lounge/battle/adventure/player/pokemon-types";
+export type {
+  PlayerPokemon,
+  PlayerPokemonMove,
+  PlayerPokemonStatus,
+} from "@poke-lounge/battle/adventure/player/pokemon-types";
 
 export interface RemotePlayerPokemonSummary {
   speciesId: number;
@@ -2093,7 +2075,15 @@ function hasAppliedTournamentRoundResult(state: GameState, roundIndex: number): 
   );
 }
 
-function resolvePlayerDisplayName(state: GameState, playerId: string): string {
+export function resolvePlayerDisplayName(
+  state: GameState,
+  playerId: string,
+  fallback = playerId,
+): string {
+  const participant = state.tournament.serverProjection?.participants.find(
+    participant => participant.playerId === playerId,
+  );
+  if (participant) return participant.displayName;
   const localDisplayName = state.playersById[playerId]?.displayName;
 
   if (localDisplayName) {
@@ -2103,7 +2093,7 @@ function resolvePlayerDisplayName(state: GameState, playerId: string): string {
   return (
     Object.values(state.remotePlayers).find(function findItem(player) {
       return player.playerId === playerId;
-    })?.displayName ?? playerId
+    })?.displayName ?? fallback
   );
 }
 
@@ -2214,26 +2204,6 @@ function normalizeBoxIndex(boxIndex: number): number | null {
   return boxIndex;
 }
 
-function healPokemon(pokemon: PlayerPokemon): PlayerPokemon {
-  const maxHp = normalizeHealMaxHp(pokemon.maxHp);
-
-  return {
-    ...pokemon,
-    ...(maxHp === null ? {} : { currentHp: maxHp }),
-    status: "normal",
-    ...(pokemon.moves
-      ? {
-          moves: pokemon.moves.map(function mapItem(move) {
-            return {
-              ...move,
-              pp: move.maxPp,
-            };
-          }),
-        }
-      : {}),
-  };
-}
-
 export function healLocalPlayer(localPlayer: LocalPlayerState): LocalPlayerState {
   return {
     ...localPlayer,
@@ -2244,14 +2214,6 @@ export function healLocalPlayer(localPlayer: LocalPlayerState): LocalPlayerState
       };
     }),
   };
-}
-
-function normalizeHealMaxHp(maxHp: unknown): number | null {
-  if (typeof maxHp !== "number" || !Number.isFinite(maxHp)) {
-    return null;
-  }
-
-  return Math.max(0, Math.floor(maxHp));
 }
 
 function setActivePartyPokemon(

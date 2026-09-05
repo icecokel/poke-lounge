@@ -16,8 +16,7 @@ import themeStyles from "./poke-lounge-theme.module.css";
 import { storyCopy, storyNoop, storyParty } from "./poke-lounge-story-fixtures";
 
 const meta = {
-  title: "Poke Lounge/Game Shell",
-  tags: ["autodocs"],
+  title: "Poke Lounge/Screens/Game Shell",
   parameters: { layout: "fullscreen" },
   decorators: [
     function callback(Story) {
@@ -159,11 +158,6 @@ export const Settings: Story = {
       multiplayer
       open
       party={storyParty}
-      ranking={[
-        { id: "1", name: "금빛 트레이너", rank: 1, score: 1_850 },
-        { id: "2", name: "나", rank: 7, score: 1_240 },
-      ]}
-      rankingStatus="ready"
       roomShareAvailable
       roomShareStatus="idle"
       roomLeaveLabel="방 나가기"
@@ -175,7 +169,6 @@ export const Settings: Story = {
       onExit={storyNoop}
       onFullscreenToggle={storyNoop}
       onOpenChange={storyNoop}
-      onRankingRetry={storyNoop}
       onRoomShare={storyNoop}
       onUiSizeToggle={storyNoop}
       onVolumeCycle={storyNoop}

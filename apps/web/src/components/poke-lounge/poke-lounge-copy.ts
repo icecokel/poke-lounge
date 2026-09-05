@@ -155,6 +155,7 @@ export interface PokeLoungeCopy {
     waiting: string;
     roundWaiting: string;
     spectating: string;
+    spectatingLabel: string;
     spectatingCompleted: string;
     preparing: string;
     actionSending: string;
@@ -276,7 +277,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
   hydrationDecideLater: "나중에 결정",
   hydrationIdentityError: "계정 저장 식별 정보를 확인하지 못했습니다. 다시 로그인해 주세요.",
   noticeConfirm: "확인",
-  settingsTitle: "설정과 검증 랭킹",
+  settingsTitle: "설정",
   settingsDescription: "화면과 소리를 조절하고 현재 방·저장 상태를 확인합니다.",
   settingsFullscreen: "전체화면",
   settingsUiSizeAria: "UI 사이즈 2단계",
@@ -386,7 +387,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     confirmMoveReplacement: "선택한 기술 잊기",
     help: "조작 안내",
     battleHelpChoose: "화면의 싸운다·가방·포켓몬·도망 버튼으로 행동을 선택합니다.",
-    battleHelpAdvance: "전투 문구를 확인한 뒤 다음 버튼을 누릅니다.",
+    battleHelpAdvance: "전투 문구는 자동으로 진행됩니다. 결과 화면에서만 확인을 누릅니다.",
     battleHelpBack: "기술·가방·포켓몬 선택에서 이전 화면으로 돌아갑니다.",
     use: "사용",
     buy: "구매",
@@ -400,6 +401,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     waiting: "상대의 선택을 기다리는 중...",
     roundWaiting: "다른 플레이어를 기다리는 중...",
     spectating: "다른 플레이어의 경기 관전 중...",
+    spectatingLabel: "관전 중",
     spectatingCompleted: "관전 중인 경기가 종료되었습니다.",
     preparing: "전투를 준비하는 중...",
     actionSending: "행동을 서버에 전송하는 중...",
@@ -534,7 +536,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   hydrationDecideLater: "Decide later",
   hydrationIdentityError: "We could not verify the account save identity. Sign in again.",
   noticeConfirm: "OK",
-  settingsTitle: "Settings and verified ranking",
+  settingsTitle: "Settings",
   settingsDescription: "Adjust the display and sound, and check the current room and save status.",
   settingsFullscreen: "Fullscreen",
   settingsUiSizeAria: "Two-step UI size",
@@ -644,7 +646,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     confirmMoveReplacement: "Forget selected move",
     help: "Controls",
     battleHelpChoose: "Choose an action with the Fight, Bag, Pokémon, or Run buttons.",
-    battleHelpAdvance: "Read the battle message, then press Next.",
+    battleHelpAdvance: "Battle messages advance automatically. Confirm only the final result.",
     battleHelpBack: "Return from move, Bag, or Pokémon selection with Back.",
     use: "Use",
     buy: "Buy",
@@ -658,6 +660,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     waiting: "Waiting for the other trainer...",
     roundWaiting: "Waiting for the other players...",
     spectating: "Watching another player's match...",
+    spectatingLabel: "Spectating",
     spectatingCompleted: "The match you were watching has ended.",
     preparing: "Preparing the battle...",
     actionSending: "Sending your action to the server...",
@@ -794,7 +797,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   hydrationIdentityError:
     "アカウント保存の識別情報を確認できません。もう一度ログインしてください。",
   noticeConfirm: "確認",
-  settingsTitle: "設定と検証済みランキング",
+  settingsTitle: "設定",
   settingsDescription: "画面と音を調整し、現在のルームと保存状況を確認します。",
   settingsFullscreen: "全画面表示",
   settingsUiSizeAria: "2段階のUIサイズ",
@@ -904,7 +907,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     confirmMoveReplacement: "選んだわざを忘れる",
     help: "操作ガイド",
     battleHelpChoose: "「たたかう」「バッグ」「ポケモン」「にげる」のボタンで行動を選びます。",
-    battleHelpAdvance: "バトルメッセージを確認して「次へ」を押します。",
+    battleHelpAdvance: "バトルメッセージは自動で進みます。結果画面でのみ確認を押します。",
     battleHelpBack: "わざ・バッグ・ポケモン選択から「戻る」で前の画面に戻ります。",
     use: "使う",
     buy: "購入",
@@ -918,6 +921,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     waiting: "相手の選択を待っています...",
     roundWaiting: "ほかのプレイヤーを待っています...",
     spectating: "ほかのプレイヤーの試合を観戦しています...",
+    spectatingLabel: "観戦中",
     spectatingCompleted: "観戦中の試合が終了しました。",
     preparing: "バトルを準備しています...",
     actionSending: "行動をサーバーに送信しています...",

@@ -251,10 +251,24 @@ export function formatRankScoreHud(
   locale = "en-US",
 ): string {
   const rankLabel = rank === null ? "-" : rank.toLocaleString(locale);
-  const scoreLabel = Math.max(0, Math.floor(score)).toLocaleString(locale);
+  const scoreLabel = Math.max(0, score).toLocaleString(locale, { maximumFractionDigits: 2 });
   return mode === "solo"
     ? "솔로 모드\n랭킹 미반영"
-    : `계정 기록\n랭크 ${rankLabel} · 점수 ${scoreLabel}`;
+    : `현재 게임\n랭크 ${rankLabel} · 점수 ${scoreLabel}`;
+}
+
+export function getCurrentGameRankScore(
+  state: ReturnType<GameStateStore["getState"]>,
+): PlayerCompetitiveStats {
+  const playerId = state.tournament.serverProjection?.ownPlayerId ?? state.currentPlayerId;
+  const scores = state.tournament.scoresByPlayerId;
+  const score = scores[playerId] ?? 0;
+  return {
+    score,
+    rank: Object.hasOwn(scores, playerId)
+      ? 1 + Object.values(scores).filter(value => value > score).length
+      : null,
+  };
 }
 
 export function formatRoundHudText(

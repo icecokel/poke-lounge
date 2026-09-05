@@ -13,6 +13,8 @@ export interface BattleSpritePresentation {
 }
 
 export interface BattleCombatantPresentation {
+  activeSlotIndex?: number;
+  healing?: boolean;
   currentHp: number;
   displayName: string;
   displayedHp: number;

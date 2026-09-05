@@ -8,6 +8,30 @@ if (typeof document !== "undefined") {
 
 const preview: Preview = {
   parameters: {
+    options: {
+      storySort: {
+        order: [
+          "Poke Lounge",
+          [
+            "Components",
+            [
+              "Pixel Button",
+              "Pixel Panel",
+              "Health Bar",
+              "Pokemon Slot",
+              "Message Box",
+              "Status Badge",
+              "Tournament Bracket",
+            ],
+            "Screens",
+            ["*"],
+            "Flows",
+            ["*"],
+          ],
+          "UI",
+        ],
+      },
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,

@@ -121,13 +121,6 @@ const getMobileJoystickKeyboardOffset = (
   };
 };
 
-export interface MobileRankingEntry {
-  id: string;
-  rank: number;
-  name: string;
-  score: number;
-}
-
 interface MobileSettingsProps {
   autosaveLabel: string;
   connectionLabel: string;
@@ -140,11 +133,8 @@ interface MobileSettingsProps {
   onRetryHydration(): void;
   onRoomShare(): void;
   onVolumeCycle(): void;
-  onRetryRanking(): void;
   open: boolean;
   partySlots: PokeLoungePartySlotSummary[];
-  ranking: MobileRankingEntry[];
-  rankingStatus: "idle" | "loading" | "ready" | "error";
   roomShareAvailable: boolean;
   roomShareStatus: "idle" | "success" | "error";
   roomLeaveLabel: string | null;
@@ -1100,31 +1090,34 @@ export function MobileBattleDeck({
     return <MobileBattleHelpDeck copy={copy} onAction={dispatchAction} />;
   }
 
-  if (battleState.message) {
-    return <MobileBattleMessageDeck copy={copy} onAction={dispatchAction} state={battleState} />;
-  }
-
-  if (battleState.isInputLocked || battleState.phase === "resolving") {
-    return <MobileBattleWaitingDeck copy={copy} />;
-  }
-
-  if (battleState.phase === "command") {
-    return <MobileBattleCommandDeck copy={copy} onAction={dispatchAction} state={battleState} />;
-  }
-
-  if (battleState.phase === "move-select" || battleState.phase === "move-replace-select") {
-    return <MobileBattleMoveDeck copy={copy} onAction={dispatchAction} state={battleState} />;
-  }
-
-  if (battleState.phase === "party-select") {
-    return <MobileBattlePartyDeck copy={copy} onAction={dispatchAction} state={battleState} />;
-  }
-
-  if (battleState.phase === "bag-select") {
-    return <MobileBattleBagDeck copy={copy} onAction={dispatchAction} state={battleState} />;
-  }
-
-  return <MobileBattleWaitingDeck copy={copy} />;
+  const pending =
+    Boolean(battleState.message) || battleState.isInputLocked || battleState.phase === "resolving";
+  const deck =
+    battleState.phase === "move-select" || battleState.phase === "move-replace-select" ? (
+      <MobileBattleMoveDeck copy={copy} onAction={dispatchAction} state={battleState} />
+    ) : battleState.phase === "party-select" ? (
+      <MobileBattlePartyDeck copy={copy} onAction={dispatchAction} state={battleState} />
+    ) : battleState.phase === "bag-select" ? (
+      <MobileBattleBagDeck copy={copy} onAction={dispatchAction} state={battleState} />
+    ) : (
+      <MobileBattleCommandDeck copy={copy} onAction={dispatchAction} state={battleState} />
+    );
+  return (
+    <div className={styles.battleDeck}>
+      <MobileBattleMessageDeck copy={copy} onAction={dispatchAction} state={battleState} />
+      {battleState.spectating ? (
+        <div className={styles.spectatorDeck}>
+          <span aria-hidden="true">◉</span>
+          <strong>{copy.mobile.spectating}</strong>
+          <p>{copy.mobile.battleHelpAdvance}</p>
+        </div>
+      ) : (
+        <fieldset className={styles.battleControls} disabled={pending} aria-busy={pending}>
+          {deck}
+        </fieldset>
+      )}
+    </div>
+  );
 }
 
 function MobileBattleBackButton({
@@ -1169,22 +1162,27 @@ export function MobileBattleCommandDeck({
     run: copy.mobile.run,
   };
   return (
-    <div className={styles.commandDeck} data-poke-lounge-mobile-deck="battle-command">
-      {state.commands.map(function mapItem(command, index) {
-        return (
-          <button
-            key={command.id}
-            type="button"
-            className={styles.commandButton}
-            data-selected={command.selected}
-            onClick={function handleClick() {
-              return onAction({ type: "select-command", index });
-            }}
-          >
-            {labels[command.id]}
-          </button>
-        );
-      })}
+    <div className={styles.selectionDeck} data-poke-lounge-mobile-deck="battle-command">
+      <div className={styles.deckHeading}>
+        <strong>{copy.mobile.battleDeckLabel}</strong>
+      </div>
+      <div className={styles.commandDeck}>
+        {state.commands.map(function mapItem(command, index) {
+          return (
+            <button
+              key={command.id}
+              type="button"
+              className={styles.commandButton}
+              data-selected={command.selected}
+              onClick={function handleClick() {
+                return onAction({ type: "select-command", index });
+              }}
+            >
+              {labels[command.id]}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1365,7 +1363,7 @@ export function MobileBattleHelpDeck({
           <span>{copy.mobile.battleHelpChoose}</span>
         </li>
         <li>
-          <b>{copy.mobile.next}</b>
+          <b>{copy.noticeConfirm}</b>
           <span>{copy.mobile.battleHelpAdvance}</span>
         </li>
         <li>
@@ -1386,21 +1384,24 @@ export function MobileBattleMessageDeck({
   onAction(action: MobileBattleUiAction): void;
   state: MobileBattleUiState;
 }) {
-  if (!state.message) return null;
   return (
     <div className={styles.messageDeck} data-poke-lounge-mobile-deck="battle-message">
-      <p data-poke-lounge-mobile-battle-message="true">{state.message}</p>
-      <button
-        type="button"
-        className={styles.nextButton}
-        aria-label={`${state.message} ${copy.mobile.next}`}
-        onClick={function handleClick() {
-          return onAction({ type: "confirm-message" });
-        }}
-        disabled={state.isInputLocked}
-      >
-        {copy.mobile.next} <span>›</span>
-      </button>
+      <p role="status" data-poke-lounge-mobile-battle-message="true">
+        {state.message ?? copy.mobile.battleHelpChoose}
+      </p>
+      {state.requiresConfirmation ? (
+        <button
+          type="button"
+          className={styles.nextButton}
+          aria-label={copy.noticeConfirm}
+          onClick={function handleClick() {
+            return onAction({ type: "confirm-message" });
+          }}
+          disabled={state.isInputLocked}
+        >
+          {copy.noticeConfirm} <span>›</span>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -1436,13 +1437,10 @@ function MobileSettingsScreen({
   onClose,
   onExit,
   onRetryHydration,
-  onRetryRanking,
   onRoomShare,
   onVolumeCycle,
   open,
   partySlots,
-  ranking,
-  rankingStatus,
   roomShareAvailable,
   roomShareStatus,
   roomLeaveLabel,
@@ -1517,39 +1515,6 @@ function MobileSettingsScreen({
         ) : null}
       </div>
       <PokeLoungePartySlotMenu copy={copy} party={partySlots} />
-      <section className={styles.rankingSection} aria-labelledby="poke-lounge-mobile-ranking-title">
-        <div className={styles.rankingHeader}>
-          <h3 id="poke-lounge-mobile-ranking-title">{copy.settingsRankingTitle}</h3>
-          <span>{copy.settingsRankingCaption}</span>
-        </div>
-        {rankingStatus === "loading" || rankingStatus === "idle" ? (
-          <p>{copy.settingsRankingLoading}</p>
-        ) : null}
-        {rankingStatus === "error" ? (
-          <div className={styles.rankingRetry}>
-            <p>{copy.settingsRankingError}</p>
-            <Button type="button" variant="outline" onClick={onRetryRanking}>
-              {copy.settingsRankingRetry}
-            </Button>
-          </div>
-        ) : null}
-        {rankingStatus === "ready" && ranking.length === 0 ? (
-          <p>{copy.settingsRankingEmpty}</p>
-        ) : null}
-        {rankingStatus === "ready" && ranking.length > 0 ? (
-          <ol className={styles.rankingList}>
-            {ranking.map(function mapItem(entry) {
-              return (
-                <li key={entry.id}>
-                  <span>#{entry.rank}</span>
-                  <strong>{entry.name}</strong>
-                  <b>{entry.score.toLocaleString(copy.locale)}</b>
-                </li>
-              );
-            })}
-          </ol>
-        ) : null}
-      </section>
       <div className={styles.settingsOptions}>
         <Button
           type="button"

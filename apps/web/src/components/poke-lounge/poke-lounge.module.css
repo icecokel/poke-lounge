@@ -536,7 +536,8 @@
   pointer-events: none;
 }
 
-.battleCaptureBall {
+.battleCaptureBall,
+.battleSendOutBall {
   position: absolute;
   width: 4.6875%;
   aspect-ratio: 1;
@@ -544,6 +545,132 @@
   border: max(1px, 0.25cqw) solid #1c262d;
   border-radius: 50%;
   image-rendering: pixelated;
+}
+
+.battleSendOutBall {
+  animation: battle-send-out-ball 640ms ease-out both;
+}
+
+.battlePokemonSprite[data-from-ball="true"] {
+  animation: battle-send-out-pokemon 640ms ease-out both;
+  transform-origin: center bottom;
+}
+
+.battleSpectatorBanner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  width: max-content;
+  max-width: 88%;
+  padding: 0.15em 0.6em;
+  border: 2px solid var(--pl-color-ink);
+  background: var(--pl-color-surface-raised);
+  font-size: max(9px, 0.45em);
+  font-weight: 900;
+  transform: translateX(-50%);
+}
+
+.battleSpectatorBanner small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.battleHealingEffect {
+  position: absolute;
+  border-radius: 50%;
+  color: #42713d;
+  background: radial-gradient(ellipse, rgb(183 216 151 / 70%), transparent 70%);
+}
+
+.battleHealingEffect i {
+  position: absolute;
+  left: 15%;
+  bottom: 0;
+  font-style: normal;
+  font-weight: 900;
+  text-shadow: 0 0 2px white;
+  animation: battle-heal-rise 560ms ease-out infinite;
+}
+
+.battleHealingEffect i:nth-child(2) {
+  left: 40%;
+  animation-delay: -140ms;
+}
+.battleHealingEffect i:nth-child(3) {
+  left: 65%;
+  animation-delay: -280ms;
+}
+.battleHealingEffect i:nth-child(4) {
+  left: 85%;
+  animation-delay: -420ms;
+}
+.battleHpPanel[data-healing="true"] {
+  box-shadow: 0 0 2cqw #b7d897;
+}
+
+@keyframes battle-send-out-ball {
+  0% {
+    opacity: 1;
+    transform: translate(-250%, -300%) rotate(-180deg) scale(0.5);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0) scale(1);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.5);
+    filter: brightness(3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2);
+  }
+}
+
+@keyframes battle-send-out-pokemon {
+  0%,
+  45% {
+    transform: scale(0);
+    filter: brightness(0) invert(1);
+  }
+  75% {
+    transform: scale(1.1);
+    filter: brightness(2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes battle-heal-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-160%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .battlePokemonSprite[data-from-ball="true"],
+  .battleHealingEffect i {
+    animation: none;
+  }
+  .battleSendOutBall {
+    display: none;
+  }
 }
 
 .battleCaptureBall[data-ball="ultraBall"] {
@@ -1101,6 +1228,9 @@
   width: 80px;
   height: 80px;
   transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgb(183 216 151 / 75%), transparent 70%);
+  box-shadow: 0 0 32px rgb(183 216 151 / 50%);
 }
 
 .worldNurseEffect i {
@@ -1108,7 +1238,7 @@
   width: 8px;
   height: 8px;
   background: #fff176;
-  animation: worldNurseSparkle 720ms ease-out forwards;
+  animation: worldNurseSparkle 1000ms ease-out forwards;
   transform: rotate(45deg);
 }
 

@@ -13,18 +13,19 @@ import {
 } from "../poke-lounge-story-fixtures";
 import { createWorldUiStore } from "../runtime/game/world/world-ui-store";
 import type { MobileBattleUiState } from "../runtime/game/ui/mobile-battle-ui";
-import { MobileBattleDeck, MobileGameShell, MobileWorldScreen } from "./mobile-game-shell";
+import { MobileGameShell, MobileWorldScreen } from "./mobile-game-shell";
+import { BattleScreen } from "../runtime/game/battle/battle-screen";
+import type { BattlePresentationState } from "../runtime/game/battle/battle-ui-store";
 
 const meta = {
-  title: "Poke Lounge/Mobile",
-  tags: ["autodocs"],
+  title: "Poke Lounge/Screens/Mobile",
   parameters: { layout: "fullscreen" },
   decorators: [
     function callback(Story) {
       return (
         <main
           className={`${styles.page} ${styles.touchGameDevice} ${themeStyles.theme}`}
-          style={{ width: 390, minHeight: 844, margin: "0 auto" }}
+          style={{ width: "100%", maxWidth: 390, margin: "0 auto" }}
         >
           <Story />
         </main>
@@ -48,14 +49,8 @@ const settings = {
   onRetryHydration: storyNoop,
   onRoomShare: storyNoop,
   onVolumeCycle: storyNoop,
-  onRetryRanking: storyNoop,
   open: false,
   partySlots: storyParty,
-  ranking: [
-    { id: "1", name: "금빛 트레이너", rank: 1, score: 1_850 },
-    { id: "2", name: "나", rank: 7, score: 1_240 },
-  ],
-  rankingStatus: "ready" as const,
   roomShareAvailable: true,
   roomShareStatus: "idle" as const,
   roomLeaveLabel: "방 나가기",
@@ -79,16 +74,33 @@ function renderWorldSurface(screen: typeof storyMobileWorldState.screen, title: 
   );
 }
 
-function renderBattleDeck(overrides: Partial<MobileBattleUiState>) {
+function renderBattleDeck(
+  overrides: Partial<MobileBattleUiState>,
+  presentationOverrides: Partial<BattlePresentationState> = {},
+) {
   const controls = { ...storyBattleControls, ...overrides };
+  const uiStore = createStoryBattleUiStore(
+    {
+      ...storyBattlePresentation,
+      phase: controls.phase,
+      message: controls.message,
+      ...presentationOverrides,
+    },
+    controls,
+  );
   return (
-    <MobileBattleDeck
-      copy={storyCopy}
-      uiStore={createStoryBattleUiStore(
-        { ...storyBattlePresentation, phase: controls.phase, message: controls.message },
-        controls,
-      )}
-    />
+    <>
+      <div className={styles.gameFrame}>
+        <BattleScreen copy={storyCopy} desktop={false} uiStore={uiStore} />
+      </div>
+      <MobileGameShell
+        activeScene="battle"
+        copy={storyCopy}
+        battleUiStore={uiStore}
+        settings={settings}
+        onOpenSettings={storyNoop}
+      />
+    </>
   );
 }
 
@@ -179,4 +191,30 @@ export const BattleHelp: Story = {
 
 export const BattleWaiting: Story = {
   render: () => renderBattleDeck({ phase: "resolving", message: null, isInputLocked: true }),
+};
+
+export const BattleResult: Story = {
+  render: () =>
+    renderBattleDeck({ phase: "ended", message: "승리했습니다.", requiresConfirmation: true }),
+};
+
+export const Spectating: Story = {
+  render: () =>
+    renderBattleDeck(
+      {
+        phase: "resolving",
+        message: storyCopy.mobile.spectating,
+        spectating: true,
+        isInputLocked: true,
+      },
+      { authoritative: { ...storyBattlePresentation.authoritative, spectating: true } },
+    ),
+};
+
+export const Healing: Story = {
+  render: () =>
+    renderBattleDeck(
+      { phase: "resolving", message: "치코리타의 체력이 회복되고 있다!", isInputLocked: true },
+      { player: { ...storyBattlePresentation.player, healing: true } },
+    ),
 };

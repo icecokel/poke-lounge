@@ -11,7 +11,6 @@ import {
   isAuthSessionError,
   type ApiTokenSession,
 } from "@/lib/auth-token";
-import { getGameRanking, type GameHistory } from "@/services/score-service";
 import { loadPokeLoungeState } from "@/services/poke-lounge-state-service";
 import {
   createPokeLoungeAutosaveLifecycle,
@@ -120,7 +119,6 @@ type PokeLoungeGamePageHandle = {
   setViewportSize(viewportSize: GameViewportDisplaySize): void;
 };
 type PokeLoungeRoomShareStatus = "idle" | "success" | "error";
-type PokeLoungeRankingStatus = "idle" | "loading" | "ready" | "error";
 type PokeLoungeConnectionSummary = {
   connectionStatus: "offline" | "connecting" | "online";
   roomId: string | null;
@@ -177,10 +175,6 @@ function readStoredUiSize(): PokeLoungeUiSize | null {
 
   const stored = window.sessionStorage.getItem(POKE_LOUNGE_UI_SIZE_STORAGE_KEY);
   return stored === "normal" || stored === "large" ? stored : null;
-}
-
-function getRankingDisplayName(entry: GameHistory, fallbackName: string): string {
-  return entry.user.displayName.trim() || fallbackName;
 }
 
 export function PokeLoungeGame() {
@@ -240,9 +234,6 @@ export function PokeLoungeGame() {
   });
   const [leaveRequest, setLeaveRequest] = useState<PokeLoungeRoomLeaveRequestDetail | null>(null);
   const [notice, setNotice] = useState<PokeLoungeNoticeDetail | null>(null);
-  const [rankingStatus, setRankingStatus] = useState<PokeLoungeRankingStatus>("idle");
-  const [rankingAttempt, setRankingAttempt] = useState(0);
-  const [ranking, setRanking] = useState<GameHistory[]>([]);
   const [gameStartupAttempt, setGameStartupAttempt] = useState(0);
   const [gameStartupError, setGameStartupError] = useState(false);
   const [runtimeState, setRuntimeState] = useState<PokeLoungeRuntimeState>({
@@ -622,37 +613,6 @@ export function PokeLoungeGame() {
       document.removeEventListener(POKE_LOUNGE_NOTICE_EVENT, handleNotice);
     };
   }, []);
-
-  useEffect(
-    function runEffect() {
-      if (!settingsOpen) {
-        return;
-      }
-
-      let cancelled = false;
-      setRankingStatus("loading");
-      void getGameRanking("POKE_LOUNGE")
-        .then(function handleResolved(rows) {
-          if (cancelled) {
-            return;
-          }
-
-          setRanking(rows.slice(0, 5));
-          setRankingStatus("ready");
-        })
-        .catch(function handleRejected() {
-          if (!cancelled) {
-            setRanking([]);
-            setRankingStatus("error");
-          }
-        });
-
-      return function callback() {
-        cancelled = true;
-      };
-    },
-    [rankingAttempt, settingsOpen],
-  );
 
   useEffect(function runEffect() {
     setTouchGameDevice(
@@ -1227,23 +1187,10 @@ export function PokeLoungeGame() {
             onClose: handleMobileSettingsClose,
             onExit: handleGameExitRequest,
             onRetryHydration: handleStateHydrationRetry,
-            onRetryRanking: () =>
-              setRankingAttempt(function callback(attempt) {
-                return attempt + 1;
-              }),
             onRoomShare: handleRoomShare,
             onVolumeCycle: handleVolumeCycle,
             open: settingsOpen,
             partySlots: settingsPartySlots,
-            ranking: ranking.map(function mapItem(entry) {
-              return {
-                id: `${entry.rank}-${entry.createdAt}`,
-                name: getRankingDisplayName(entry, copy.unknownTrainer),
-                rank: entry.rank,
-                score: entry.score,
-              };
-            }),
-            rankingStatus,
             roomShareAvailable: Boolean(roomShareUrl),
             roomShareStatus,
             roomLeaveLabel,
@@ -1307,15 +1254,6 @@ export function PokeLoungeGame() {
           multiplayer={Boolean(multiplayerRoomId)}
           open={settingsOpen}
           party={settingsPartySlots}
-          ranking={ranking.map(function mapItem(entry) {
-            return {
-              id: `${entry.rank}-${entry.createdAt}`,
-              name: getRankingDisplayName(entry, copy.unknownTrainer),
-              rank: entry.rank,
-              score: entry.score,
-            };
-          })}
-          rankingStatus={rankingStatus}
           roomShareAvailable={Boolean(roomShareUrl)}
           roomShareStatus={roomShareStatus}
           roomLeaveLabel={roomLeaveLabel}
@@ -1327,11 +1265,6 @@ export function PokeLoungeGame() {
           onExit={handleGameExitRequest}
           onFullscreenToggle={handleFullscreenToggle}
           onOpenChange={setSettingsOpen}
-          onRankingRetry={function handleRankingRetry() {
-            return setRankingAttempt(function callback(attempt) {
-              return attempt + 1;
-            });
-          }}
           onRoomShare={handleRoomShare}
           onUiSizeToggle={handleUiSizeToggle}
           onVolumeCycle={handleVolumeCycle}

@@ -32,12 +32,11 @@ test("최종 결과는 한국어 순위와 방 점수 및 공개 랭킹 반영 �
     standings,
     roundScores: { "player-1": 100, "player-2": 50 },
     cumulativeScores: { "player-1": 100, "player-2": 50 },
-    publicRankingIncluded: true,
   });
 
   assert.equal(panel.title, "최종 결과");
   assert.equal(panel.nextActionLabel, "챔피언십 종료");
-  assert.equal(panel.rankingLabel, "공개 랭킹 반영");
+  assert.equal(panel.rankingLabel, "현재 게임 누적 점수");
   assert.equal(
     formatTournamentResultRow(panel.rows[0]!),
     "우승 · 1위 Player 1 · 이번 +100 · 방 점수 100",
@@ -61,7 +60,7 @@ test("남은 체력 비율 점수의 소수 값을 유지한다", function testC
   );
 });
 
-test("일반 토너먼트 결과는 공개 랭킹 미반영으로 안내한다", function testCase() {
+test("토너먼트 결과는 현재 게임의 누적 점수임을 안내한다", function testCase() {
   const panel = createTournamentResultPanelViewModel({
     roundIndex: 2,
     totalRounds: 3,
@@ -71,5 +70,5 @@ test("일반 토너먼트 결과는 공개 랭킹 미반영으로 안내한다",
 
   assert.equal(panel.title, "라운드 2/3 결과");
   assert.equal(panel.nextActionLabel, "다음 라운드 시작");
-  assert.equal(panel.rankingLabel, "공개 랭킹 미반영");
+  assert.equal(panel.rankingLabel, "현재 게임 누적 점수");
 });

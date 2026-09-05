@@ -11,13 +11,6 @@ import { PokeLoungePartySlotMenu } from "./party-slot-menu";
 import type { PokeLoungePartySlotSummary } from "./runtime/game/ui/mobile-world-ui";
 import styles from "./poke-lounge.module.css";
 
-interface SettingsRankingEntry {
-  id: string;
-  name: string;
-  rank: number;
-  score: number;
-}
-
 export function PokeLoungeSettingsDialog({
   autosaveLabel,
   connectionLabel,
@@ -27,8 +20,6 @@ export function PokeLoungeSettingsDialog({
   multiplayer,
   open,
   party,
-  ranking,
-  rankingStatus,
   roomShareAvailable,
   roomShareStatus,
   roomLeaveLabel,
@@ -40,7 +31,6 @@ export function PokeLoungeSettingsDialog({
   onExit,
   onFullscreenToggle,
   onOpenChange,
-  onRankingRetry,
   onRoomShare,
   onUiSizeToggle,
   onVolumeCycle,
@@ -53,8 +43,6 @@ export function PokeLoungeSettingsDialog({
   multiplayer: boolean;
   open: boolean;
   party: PokeLoungePartySlotSummary[];
-  ranking: SettingsRankingEntry[];
-  rankingStatus: "idle" | "loading" | "ready" | "error";
   roomShareAvailable: boolean;
   roomShareStatus: "idle" | "success" | "error";
   roomLeaveLabel: string | null;
@@ -66,7 +54,6 @@ export function PokeLoungeSettingsDialog({
   onExit(): void;
   onFullscreenToggle(): void;
   onOpenChange(open: boolean): void;
-  onRankingRetry(): void;
   onRoomShare(): void;
   onUiSizeToggle(): void;
   onVolumeCycle(): void;
@@ -153,36 +140,6 @@ export function PokeLoungeSettingsDialog({
             <span>{autosaveLabel}</span>
           </div>
           <PokeLoungePartySlotMenu copy={copy} party={party} />
-          <section className={styles.rankingSection} aria-labelledby="poke-lounge-ranking-title">
-            <div className={styles.rankingHeader}>
-              <h3 id="poke-lounge-ranking-title">{copy.settingsRankingTitle}</h3>
-              <span>{copy.settingsRankingCaption}</span>
-            </div>
-            {rankingStatus === "loading" ? (
-              <p className={styles.rankingEmpty}>{copy.settingsRankingLoading}</p>
-            ) : rankingStatus === "error" ? (
-              <div className={styles.rankingEmpty}>
-                <p>{copy.settingsRankingError}</p>
-                <Button type="button" variant="outline" onClick={onRankingRetry}>
-                  {copy.settingsRankingRetry}
-                </Button>
-              </div>
-            ) : ranking.length === 0 ? (
-              <p className={styles.rankingEmpty}>{copy.settingsRankingEmpty}</p>
-            ) : (
-              <ol className={styles.rankingList}>
-                {ranking.map(function mapItem(entry) {
-                  return (
-                    <li key={entry.id}>
-                      <span>#{entry.rank}</span>
-                      <strong>{entry.name}</strong>
-                      <b>{entry.score.toLocaleString(copy.locale)}</b>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-          </section>
           <Button
             type="button"
             variant="outline"

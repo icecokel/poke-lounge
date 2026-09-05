@@ -29,9 +29,7 @@ export interface CreateTournamentResultTitleInput {
 }
 
 export type CreateTournamentResultPanelViewModelInput = CreateTournamentResultRowsInput &
-  CreateTournamentResultTitleInput & {
-    publicRankingIncluded?: boolean;
-  };
+  CreateTournamentResultTitleInput;
 
 export interface TournamentResultPanelViewModel {
   title: string;
@@ -72,7 +70,6 @@ export function createTournamentResultPanelViewModel({
   roundIndex,
   totalRounds,
   final,
-  publicRankingIncluded = false,
   standings,
   roundScores,
   cumulativeScores,
@@ -81,7 +78,7 @@ export function createTournamentResultPanelViewModel({
     title: createTournamentResultTitle({ roundIndex, totalRounds, final }),
     final,
     nextActionLabel: final ? "챔피언십 종료" : "다음 라운드 시작",
-    rankingLabel: publicRankingIncluded ? "공개 랭킹 반영" : "공개 랭킹 미반영",
+    rankingLabel: "현재 게임 누적 점수",
     rows: createTournamentResultRows({ standings, roundScores, cumulativeScores }),
   };
 }

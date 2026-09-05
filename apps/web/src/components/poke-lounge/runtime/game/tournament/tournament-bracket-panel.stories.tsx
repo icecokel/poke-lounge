@@ -10,10 +10,18 @@ import {
 import { TournamentBracketPanel } from "./tournament-bracket-panel";
 
 const meta = {
-  title: "Poke Lounge/Tournament",
+  title: "Poke Lounge/Components/Tournament Bracket",
   component: TournamentBracketPanel,
   tags: ["autodocs"],
-  parameters: { layout: "fullscreen" },
+  parameters: {
+    layout: "fullscreen",
+    controls: { include: ["text"] },
+    docs: {
+      description: {
+        component: "토너먼트 대진, 내 위치, 다음 전투까지 남은 시간을 보여주는 패널입니다.",
+      },
+    },
+  },
   decorators: [
     function callback(Story) {
       return (

@@ -7,11 +7,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import { Queue, Worker, type Job } from 'bullmq';
+import { chooseAiCompetitiveAction } from '@poke-lounge/battle/ai-policy';
 import {
-  appendAiCapturedPokemon,
-  chooseAiCompetitiveAction,
-} from '@poke-lounge/battle/ai-policy';
-import { resolveCaptureAttempt } from '@poke-lounge/battle/capture';
+  advanceAiAdventure,
+  aiCompetitiveParty,
+  createAiAdventure,
+} from '@poke-lounge/battle/adventure/ai-world';
+import { AI_REMOTE_PLAYER_INTERPOLATION_MS } from '@poke-lounge/battle/adventure/world/player-motion';
+import { canonicalize } from '@poke-lounge/battle/canonical-state';
+import { PokeLoungeAiRuntimeService } from './poke-lounge-ai-runtime.service';
 import { hashPokeLoungeRoomCommand } from '../poke-lounge-room-command';
 import { PokeLoungeLiveStateService } from '../poke-lounge-live-state.service';
 import type { PokeLoungeRoomSnapshot } from '../poke-lounge-room.repository';
@@ -22,29 +26,7 @@ import { CompetitiveMatchService } from '../competitive/competitive-match.servic
 const AI_QUEUE_NAME = 'poke-lounge-ai';
 const AI_JOB_NAME = 'tick';
 const AI_SCHEDULER_ID = 'poke-lounge-ai-tick';
-const AI_TICK_MS = 1_000;
-const AI_HUNT_CYCLE_MS = 20_000;
-const AI_HUNT_DURATION_MS = 5_000;
-const AI_SPEED_PX_PER_SECOND = 104;
-const WORLD_START_POSITION = { x: 656, y: 446 } as const;
-const AI_TALL_GRASS_AREA = {
-  x: 704,
-  y: 384,
-  width: 320,
-  height: 96,
-} as const;
-const AI_ROUTE = [
-  { x: 720, y: 400 },
-  { x: 864, y: 400 },
-  { x: 1008, y: 400 },
-  { x: 1008, y: 464 },
-  { x: 864, y: 464 },
-  { x: 720, y: 464 },
-] as const;
-const ENCOUNTER_SPECIES_IDS = [
-  10, 13, 16, 19, 25, 43, 69, 74, 129, 133, 161, 163, 165, 167, 179, 183, 187,
-  194, 209, 231, 263, 265, 276, 285, 293, 304, 309, 396, 399, 403,
-] as const;
+const AI_TICK_MS = AI_REMOTE_PLAYER_INTERPOLATION_MS;
 
 @Injectable()
 export class PokeLoungeAiWorkerService
@@ -59,6 +41,7 @@ export class PokeLoungeAiWorkerService
     private readonly repository: RedisPokeLoungeRepository,
     private readonly liveState: PokeLoungeLiveStateService,
     private readonly competitiveMatches: CompetitiveMatchService,
+    private readonly runtime: PokeLoungeAiRuntimeService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -155,204 +138,141 @@ export class PokeLoungeAiWorkerService
       room.roomCode,
       room.expiresAtMs,
     );
-    const worldMovementStarted = world.players.some(function testItem(player) {
-      return (
-        player.x !== WORLD_START_POSITION.x ||
-        player.y !== WORLD_START_POSITION.y
-      );
-    });
-    const spawnedPlayerIds = new Set(
-      world.players.map(function mapItem(player) {
-        return player.playerId;
-      }),
-    );
     await Promise.all(
       world.players
-        .filter(function filterItem(player) {
-          return (
-            player.controller === 'ai' && !activeAiIds.has(player.playerId)
-          );
-        })
+        .filter(
+          (player) =>
+            player.controller === 'ai' && !activeAiIds.has(player.playerId),
+        )
         .map((player) =>
           this.liveState.removePlayer(room.roomCode, player.playerId),
         ),
     );
     if (aiParticipants.length > 0) {
-      await Promise.all(
-        aiParticipants.map(
-          async function mapItem(
-            this: PokeLoungeAiWorkerService,
-            participant: (typeof aiParticipants)[number],
-          ): Promise<void> {
-            await this.publishWorldState(
-              room,
-              participant.playerId,
-              nowMs,
-              worldMovementStarted &&
-                spawnedPlayerIds.has(participant.playerId),
-            );
-            await this.submitCompetitiveAction(
-              room,
-              participant.playerId,
-              participant.sessionId,
-              nowMs,
-            );
-          }.bind(this),
-        ),
-      );
-      if (room.status === 'round-started') {
-        let currentRoom = room;
-        for (const participant of aiParticipants) {
-          currentRoom =
-            (await this.tryCapture(currentRoom, participant.playerId, nowMs)) ??
-            currentRoom;
+      const context = await this.runtime.getContext();
+      const saved = await this.liveState.getAiAdventures(roomCode);
+      const states: typeof saved = {};
+      const parties: typeof room.partySnapshots = {};
+      for (const participant of aiParticipants) {
+        const snapshot = room.partySnapshots[participant.playerId];
+        if (!snapshot) throw new Error('AI party snapshot is missing');
+        const state =
+          saved[participant.playerId] ??
+          createAiAdventure(snapshot.competitiveParty, nowMs, context);
+        // Private world parties, like human parties, are not overwritten by PvP damage.
+        advanceAiAdventure(
+          state,
+          nowMs,
+          room.round.index,
+          room.status === 'round-started',
+          context,
+        );
+        states[participant.playerId] = state;
+        // Tournament parties belong to the competitive authority until the next preparation.
+        if (room.status === 'round-started' || room.status === 'waiting') {
+          const competitiveParty = aiCompetitiveParty(state);
+          if (
+            competitiveParty &&
+            canonicalize(competitiveParty) !==
+              canonicalize(snapshot.competitiveParty)
+          ) {
+            parties[participant.playerId] = {
+              ...snapshot,
+              competitiveParty,
+              updatedAtMs: nowMs,
+            };
+          }
         }
       }
+      let currentRoom = room;
+      if (Object.keys(parties).length > 0) {
+        const result = await this.repository.mutate({
+          operation: 'party-snapshot',
+          roomCode,
+          actorPlayerId: aiParticipants[0].playerId,
+          idempotencyKey: `ai-party:${nowMs}`,
+          requestHash: hashPokeLoungeRoomCommand({
+            operation: 'party-snapshot',
+            roomCode,
+            body: parties,
+          }),
+          expectedRevision: room.revision,
+          nowMs,
+          apply(current) {
+            Object.assign(current.partySnapshots, parties);
+            current.updatedAtMs = nowMs;
+            return current;
+          },
+        });
+        if (!result) return;
+        if (
+          result.outcome === 'revision-conflict' ||
+          result.outcome === 'idempotency-conflict'
+        ) {
+          if (result.committedChange)
+            await this.liveState.publishRoomCommit({
+              roomCode,
+              revision: result.snapshot.revision,
+            });
+          return;
+        }
+        currentRoom = result.snapshot;
+        if (result.committedChange)
+          await this.liveState.publishRoomCommit({
+            roomCode,
+            revision: currentRoom.revision,
+          });
+      }
+      // The queue has one active tick. Persist private simulation separately from public room revisions.
+      await this.liveState.saveAiAdventures(
+        roomCode,
+        currentRoom.expiresAtMs,
+        states,
+      );
+      for (const participant of aiParticipants) {
+        const state = states[participant.playerId];
+        const active = state.party.find(
+          (slot) => slot.slotIndex === state.activeSlotIndex,
+        )?.pokemon;
+        await this.liveState.upsertPlayer({
+          roomCode,
+          expiresAtMs: currentRoom.expiresAtMs,
+          player: {
+            playerId: participant.playerId,
+            displayName: participant.displayName,
+            controller: 'ai',
+            activity: state.activity,
+            map: 'town',
+            ...state.position,
+            facing: state.facing,
+            ...(active
+              ? {
+                  activePokemon: {
+                    speciesId: active.speciesId,
+                    level: active.level,
+                  },
+                }
+              : {}),
+            updatedAtMs: nowMs,
+          },
+        });
+        await this.submitCompetitiveAction(
+          currentRoom,
+          participant.playerId,
+          participant.sessionId,
+          nowMs,
+        );
+      }
     }
-
     const latest = await this.repository.getAndAdvance(roomCode, nowMs);
-    if (!latest.snapshot || latest.snapshot.status === 'closed') {
-      await this.liveState.deleteRoom(roomCode);
-    }
-  }
-
-  private async publishWorldState(
-    room: PokeLoungeRoomSnapshot,
-    playerId: string,
-    nowMs: number,
-    worldMovementStarted: boolean,
-  ): Promise<void> {
-    const participant = room.participants.find(function findItem(candidate) {
-      return candidate.playerId === playerId;
-    })!;
-    const party = room.partySnapshots[playerId]?.competitiveParty;
-    const active = party?.members.find(function findItem(member) {
-      return member.slotIndex === party.activeSlotIndex;
-    });
-    const elapsedMs = Math.max(0, nowMs - (room.round.startedAtMs ?? nowMs));
-    const inPreparation = room.status === 'round-started';
-    const cycleOffset = elapsedMs % AI_HUNT_CYCLE_MS;
-    const inHuntWindow =
-      inPreparation && cycleOffset >= AI_HUNT_CYCLE_MS - AI_HUNT_DURATION_MS;
-    const position = worldMovementStarted
-      ? positionOnRoute(
-          inHuntWindow
-            ? elapsedMs - cycleOffset + AI_HUNT_CYCLE_MS - AI_HUNT_DURATION_MS
-            : elapsedMs,
-          stableNumber(playerId) % 10_000,
-        )
-      : { ...WORLD_START_POSITION, facing: 'front' as const };
-    const hunting =
-      worldMovementStarted && inHuntWindow && isInAiTallGrass(position);
-    await this.liveState.upsertPlayer({
-      roomCode: room.roomCode,
-      expiresAtMs: room.expiresAtMs,
-      player: {
-        playerId,
-        displayName: participant.displayName,
-        controller: 'ai',
-        activity:
-          room.status === 'tournament'
-            ? 'tournament'
-            : hunting
-              ? 'hunting'
-              : inPreparation && worldMovementStarted
-                ? 'moving'
-                : 'idle',
-        map: 'town',
-        ...position,
-        ...(active
-          ? {
-              activePokemon: {
-                speciesId: active.speciesId,
-                level: active.level,
-              },
-            }
-          : {}),
-        updatedAtMs: nowMs,
-      },
-    });
-  }
-
-  private async tryCapture(
-    room: PokeLoungeRoomSnapshot,
-    playerId: string,
-    nowMs: number,
-  ): Promise<PokeLoungeRoomSnapshot | null> {
-    const startedAtMs = room.round.startedAtMs;
-    const snapshot = room.partySnapshots[playerId];
-    if (
-      !startedAtMs ||
-      !snapshot ||
-      snapshot.competitiveParty.members.length >= 6
-    )
-      return null;
-    const cycle = Math.floor((nowMs - startedAtMs) / AI_HUNT_CYCLE_MS);
-    const boundaryMs = startedAtMs + cycle * AI_HUNT_CYCLE_MS;
-    if (cycle < 1 || snapshot.updatedAtMs >= boundaryMs) return null;
-    const huntPosition = positionOnRoute(
-      cycle * AI_HUNT_CYCLE_MS - AI_HUNT_DURATION_MS,
-      stableNumber(playerId) % 10_000,
-    );
-    if (!isInAiTallGrass(huntPosition)) return null;
-    const seed = stableNumber(`${playerId}:${room.round.index}:${cycle}`);
-    let roll = seed;
-    const capture = resolveCaptureAttempt({
-      maxHp: 100,
-      currentHp: 35,
-      catchRate: 190,
-      random16: function random16() {
-        roll = (roll * 1664525 + 1013904223) >>> 0;
-        return roll % 65536;
-      },
-    });
-    if (!capture.caught) return null;
-    const speciesId =
-      ENCOUNTER_SPECIES_IDS[seed % ENCOUNTER_SPECIES_IDS.length];
-    const averageLevel = Math.round(
-      snapshot.competitiveParty.members.reduce(function reduceItems(
-        total,
-        member,
-      ) {
-        return total + member.level;
-      }, 0) / snapshot.competitiveParty.members.length,
-    );
-    const nextParty = appendAiCapturedPokemon(
-      snapshot.competitiveParty,
-      speciesId,
-      Math.max(1, averageLevel - (seed % 6)),
-    );
-    const idempotencyKey = `ai-capture-r${room.round.index}-c${cycle}`;
-    const body = { playerId, speciesId, cycle };
-    const result = await this.repository.mutate({
-      operation: 'party-snapshot',
-      roomCode: room.roomCode,
-      actorPlayerId: playerId,
-      idempotencyKey,
-      requestHash: hashPokeLoungeRoomCommand({
-        operation: 'party-snapshot',
-        roomCode: room.roomCode,
-        body,
-      }),
-      expectedRevision: room.revision,
-      nowMs,
-      apply: function apply(current) {
-        const currentSnapshot = current.partySnapshots[playerId];
-        if (!currentSnapshot || currentSnapshot.updatedAtMs >= boundaryMs)
-          return current;
-        currentSnapshot.competitiveParty = nextParty;
-        currentSnapshot.updatedAtMs = nowMs;
-        current.updatedAtMs = nowMs;
-        return current;
-      },
-    });
-    if (result?.committedChange) {
+    if (latest.committedChange && latest.snapshot) {
       await this.liveState.publishRoomCommit({
-        roomCode: room.roomCode,
-        revision: result.snapshot.revision,
+        roomCode,
+        revision: latest.snapshot.revision,
       });
     }
-    return result?.snapshot ?? null;
+    if (!latest.snapshot || latest.snapshot.status === 'closed')
+      await this.liveState.deleteRoom(roomCode);
   }
 
   private async submitCompetitiveAction(
@@ -397,61 +317,5 @@ function stableNumber(value: string): number {
   return Number.parseInt(
     createHash('sha256').update(value).digest('hex').slice(0, 8),
     16,
-  );
-}
-
-function positionOnRoute(
-  elapsedMs: number,
-  offsetMs: number,
-): {
-  x: number;
-  y: number;
-  facing: 'front' | 'back' | 'left' | 'right';
-} {
-  const segmentLengths = AI_ROUTE.map(function mapItem(point, index) {
-    const next = AI_ROUTE[(index + 1) % AI_ROUTE.length];
-    return Math.hypot(next.x - point.x, next.y - point.y);
-  });
-  const routeLength = segmentLengths.reduce(function reduceItems(
-    total,
-    length,
-  ) {
-    return total + length;
-  }, 0);
-  let distance =
-    (((elapsedMs + offsetMs) / 1_000) * AI_SPEED_PX_PER_SECOND) % routeLength;
-  for (let index = 0; index < AI_ROUTE.length; index += 1) {
-    const length = segmentLengths[index];
-    if (distance > length) {
-      distance -= length;
-      continue;
-    }
-    const from = AI_ROUTE[index];
-    const to = AI_ROUTE[(index + 1) % AI_ROUTE.length];
-    const progress = length === 0 ? 0 : distance / length;
-    const deltaX = to.x - from.x;
-    const deltaY = to.y - from.y;
-    return {
-      x: from.x + deltaX * progress,
-      y: from.y + deltaY * progress,
-      facing:
-        Math.abs(deltaX) > Math.abs(deltaY)
-          ? deltaX > 0
-            ? 'right'
-            : 'left'
-          : deltaY > 0
-            ? 'front'
-            : 'back',
-    };
-  }
-  return { ...AI_ROUTE[0], facing: 'front' };
-}
-
-function isInAiTallGrass(position: { x: number; y: number }): boolean {
-  return (
-    position.x >= AI_TALL_GRASS_AREA.x &&
-    position.x < AI_TALL_GRASS_AREA.x + AI_TALL_GRASS_AREA.width &&
-    position.y >= AI_TALL_GRASS_AREA.y &&
-    position.y < AI_TALL_GRASS_AREA.y + AI_TALL_GRASS_AREA.height
   );
 }

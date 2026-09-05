@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from 'redis';
+import type { AiAdventureState } from '@poke-lounge/battle/adventure/ai-world';
 
 const WORLD_EPOCH_FIELD = '_epoch';
 const WORLD_SEQUENCE_FIELD = '_seq';
@@ -613,7 +614,36 @@ export class PokeLoungeLiveStateService implements OnModuleDestroy {
 
   async deleteRoom(roomCode: string): Promise<void> {
     const client = this.requireCommandClient();
-    await client.del(worldKey(normalizeRoomCode(roomCode)));
+    const key = worldKey(normalizeRoomCode(roomCode));
+    await client.del([key, `${key}:ai`]);
+  }
+
+  async getAiAdventures(
+    roomCode: string,
+  ): Promise<Record<string, AiAdventureState>> {
+    const data = await this.requireCommandClient().get(
+      `${worldKey(normalizeRoomCode(roomCode))}:ai`,
+    );
+    return data === null
+      ? {}
+      : (JSON.parse(data) as Record<string, AiAdventureState>);
+  }
+
+  async saveAiAdventures(
+    roomCode: string,
+    expiresAtMs: number,
+    states: Record<string, AiAdventureState>,
+  ): Promise<void> {
+    await this.requireCommandClient().set(
+      `${worldKey(normalizeRoomCode(roomCode))}:ai`,
+      JSON.stringify(states),
+      {
+        expiration: {
+          type: 'EXAT',
+          value: normalizeExpiresAtSeconds(expiresAtMs),
+        },
+      },
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
