@@ -873,15 +873,6 @@ export class PokeLoungeRoomService {
         if (participant.role !== 'participant') {
           throw new BadRequestException('Spectators cannot become ready');
         }
-        if (
-          normalized.ready &&
-          !room.partySnapshots[participant.playerId]?.competitiveParty.members
-            .length
-        ) {
-          throw new BadRequestException(
-            'Party snapshot is required before becoming ready',
-          );
-        }
 
         participant.ready = normalized.ready;
         room.updatedAtMs = nowMs;
@@ -1020,16 +1011,6 @@ export class PokeLoungeRoomService {
         ) {
           throw new BadRequestException(
             'All participants must be ready before starting',
-          );
-        }
-        if (
-          participants.some(function testItem(candidate) {
-            return !room.partySnapshots[candidate.playerId]?.competitiveParty
-              .members.length;
-          })
-        ) {
-          throw new BadRequestException(
-            'All participants need a party snapshot before starting',
           );
         }
 

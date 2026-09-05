@@ -801,6 +801,16 @@ export function localizeMobileBattleUiState(
       status: pokemon.status ? localizePokemonStatus(pokemon.status, locale) : null,
     })),
     items: state.items.map(item => ({ ...item, name: localizeItemName(item.name, locale) })),
+    learnedMove: state.learnedMove
+      ? {
+          ...state.learnedMove,
+          pokemonName: localizePokemonName(state.learnedMove.pokemonName, locale),
+          newMoveName: localizeMoveName(state.learnedMove.newMoveName, locale),
+          newMoveType: state.learnedMove.newMoveType
+            ? localizeTypeName(state.learnedMove.newMoveType, locale)
+            : undefined,
+        }
+      : null,
     moveReplacement: state.moveReplacement
       ? {
           ...state.moveReplacement,

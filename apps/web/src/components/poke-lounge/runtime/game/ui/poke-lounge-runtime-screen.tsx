@@ -1,4 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { RoomControlsGuide } from "./room-controls-guide";
+import { getRoomControlsCopy } from "./room-controls-copy";
+import { useState, type FormEvent, type ReactNode } from "react";
 import {
   DEFAULT_ROUND_DURATION_MS,
   ROUND_DURATION_OPTIONS_MS,
@@ -682,6 +684,8 @@ export function RoomLobbyScreen({
     new URL(typeof window === "undefined" ? "http://localhost/ko-KR" : window.location.href),
   );
   const copy = fullCopy.lobby;
+  const [showControls, setShowControls] = useState(false);
+  const controlsCopy = getRoomControlsCopy(fullCopy.locale);
   const [mutation, setMutation] = useState<RoomLobbyMutation>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const view = createRoomLobbyViewState(state.projection, mutation);
@@ -704,9 +708,7 @@ export function RoomLobbyScreen({
     ? view.startDisabledReason
       ? copy.startDisabledReason[view.startDisabledReason]
       : copy.hostReady
-    : !view.ownPartyReady
-      ? copy.ownPartyMissingReason
-      : copy.guestWaiting;
+    : copy.guestWaiting;
 
   return (
     <section
@@ -715,18 +717,39 @@ export function RoomLobbyScreen({
       aria-labelledby="room-lobby-title"
     >
       <div className="room-lobby-panel">
-        <RoomLobbyHeader copy={copy} participantCount={view.participantCount} />
-        <RoomLobbyParticipantList
-          copy={copy}
-          locale={fullCopy.locale}
-          mutation={mutation}
-          projection={state.projection}
-          onRemoveAi={function handleRemoveAi(aiPlayerId) {
-            return void runMutation("ai-remove", function callback() {
-              return state.onRemoveAi(aiPlayerId);
-            });
-          }}
-        />
+        <RoomLobbyHeader copy={copy} participantCount={view.participantCount}>
+          <button
+            type="button"
+            className="room-lobby-controls-toggle"
+            data-room-lobby-controls
+            aria-expanded={showControls}
+            aria-controls={showControls ? "room-controls-guide" : undefined}
+            onClick={function toggleControls() {
+              setShowControls(function toggle(current) {
+                return !current;
+              });
+            }}
+          >
+            {showControls ? controlsCopy.close : controlsCopy.open}
+          </button>
+        </RoomLobbyHeader>
+        {showControls ? (
+          <RoomControlsGuide locale={fullCopy.locale} />
+        ) : (
+          <>
+            <RoomLobbyParticipantList
+              copy={copy}
+              locale={fullCopy.locale}
+              mutation={mutation}
+              projection={state.projection}
+              onRemoveAi={function handleRemoveAi(aiPlayerId) {
+                return void runMutation("ai-remove", function callback() {
+                  return state.onRemoveAi(aiPlayerId);
+                });
+              }}
+            />
+          </>
+        )}
         <RoomLobbyActions
           copy={copy}
           onAddAi={function handleAddAi() {
@@ -745,23 +768,29 @@ export function RoomLobbyScreen({
           roomShareLabel={roomShareLabel}
           view={view}
         />
-        <RoomLobbyStatus errorMessage={errorMessage} status={status} />
+        <RoomLobbyStatus
+          errorMessage={errorMessage}
+          status={`${status} ${copy.starterSelectionHint}`}
+        />
       </div>
     </section>
   );
 }
 
 export function RoomLobbyHeader({
+  children,
   copy,
   participantCount,
 }: {
   copy: PokeLoungeCopy["lobby"];
   participantCount: number;
+  children?: ReactNode;
 }) {
   return (
     <header className="room-lobby-header">
       <h2 id="room-lobby-title">{copy.title}</h2>
       <p>{copy.participantCount(participantCount)}</p>
+      {children}
     </header>
   );
 }
@@ -831,7 +860,6 @@ export function RoomLobbyParticipantRow({
     participant.controller === "ai" ? copy.aiBadge : null,
     participant.ready ? copy.ready : copy.notReady,
     participant.connected ? copy.connected : copy.disconnected,
-    participant.partyReady ? copy.partyReady : copy.partyMissing,
   ].filter(function filterItem(label): label is string {
     return Boolean(label);
   });

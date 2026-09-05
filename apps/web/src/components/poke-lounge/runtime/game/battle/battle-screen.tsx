@@ -1,5 +1,7 @@
 "use client";
 
+import { MoveLearningPanel, LearnedMoveNotice } from "../ui/move-learning-panel";
+
 import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import styles from "../../../poke-lounge.module.css";
@@ -356,6 +358,21 @@ export function BattleSurfaceRouter({
 }) {
   if (presentation.evolution) return null;
   if (!desktop) return null;
+  if (controls.learnedMove && presentation.message) {
+    return (
+      <div className={styles.battleMoveLearningSurface}>
+        <LearnedMoveNotice
+          copy={copy}
+          move={controls.learnedMove}
+          message={presentation.message}
+          disabled={controls.isInputLocked}
+          onContinue={function acknowledgeMove() {
+            onAction({ type: "confirm-message" });
+          }}
+        />
+      </div>
+    );
+  }
   if (presentation.message) {
     return (
       <BattleMessagePanel
@@ -497,42 +514,30 @@ export function BattleMoveReplacementPanel({
   controls: MobileBattleUiState;
   onAction(action: MobileBattleUiAction): void;
 }) {
-  const pending = controls.moveReplacement;
+  if (!controls.moveReplacement) return null;
   return (
     <div
-      className={`${styles.battleWindow} ${styles.battleReplacementPanel}`}
+      className={styles.battleMoveLearningSurface}
       data-poke-lounge-battle-surface="move-replacement"
     >
-      <strong>
-        {pending ? copy.game.moveLearnPrompt(pending.newMoveName) : copy.game.moveReplacementTitle}
-      </strong>
-      <div className={styles.battleReplacementGrid}>
-        {Array.from({ length: 4 }, function callback(_, index) {
-          const move = controls.moves[index];
-          return (
-            <BattleOptionButton
-              key={move?.index ?? `empty-${index}`}
-              disabled={!move}
-              label={move?.name ?? "-"}
-              selected={Boolean(move?.selected)}
-              onClick={function handleClick() {
-                return move && onAction({ type: "select-move-replacement", index: move.index });
-              }}
-            />
-          );
-        })}
-      </div>
-      {controls.canGoBack ? (
-        <button
-          type="button"
-          className={styles.battleInlineBack}
-          onClick={function handleClick() {
-            return onAction({ type: "go-back" });
-          }}
-        >
-          {copy.mobile.doNotLearnMove}
-        </button>
-      ) : null}
+      <MoveLearningPanel
+        copy={copy}
+        pending={controls.moveReplacement}
+        moves={controls.moves}
+        disabled={controls.isInputLocked}
+        onSelect={function chooseMove(index) {
+          onAction({ type: "select-move-replacement", index });
+        }}
+        onConfirm={function approveMove() {
+          onAction({ type: "confirm-move-replacement" });
+        }}
+        onCancel={function cancelMove() {
+          onAction({ type: "go-back" });
+        }}
+        onSkip={function skipMove() {
+          onAction({ type: "go-back" });
+        }}
+      />
     </div>
   );
 }

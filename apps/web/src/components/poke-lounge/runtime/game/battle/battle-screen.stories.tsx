@@ -199,3 +199,43 @@ export const Spectating: Story = {
       },
     }),
 };
+
+export const MoveReplacementConfirmation: Story = {
+  render: function renderConfirmation() {
+    return renderBattle({
+      controls: {
+        phase: "move-replace-select",
+        canGoBack: true,
+        moveReplacement: {
+          pokemonName: "치코리타",
+          newMoveName: "매지컬리프",
+          newMoveType: "풀",
+          newMovePp: 20,
+          newMoveMaxPp: 20,
+          confirmationIndex: 0,
+        },
+      },
+      presentation: { phase: "move-replace-select" },
+    });
+  },
+};
+export const MoveLearned: Story = {
+  render: function renderLearnedMove() {
+    const message = "치코리타는 몸통박치기를 잊고 매지컬리프를 배웠다!";
+    return renderBattle({
+      controls: {
+        phase: "ended",
+        message,
+        requiresConfirmation: true,
+        learnedMove: {
+          pokemonName: "치코리타",
+          newMoveName: "매지컬리프",
+          newMoveType: "풀",
+          newMovePp: 20,
+          newMoveMaxPp: 20,
+        },
+      },
+      presentation: { phase: "ended", message },
+    });
+  },
+};

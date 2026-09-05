@@ -3994,3 +3994,36 @@
     font-size: 0.75rem;
   }
 }
+
+.battleMoveLearningSurface {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  display: flex;
+  align-items: safe center;
+  justify-content: center;
+  padding: clamp(10px, 2.5cqw, 22px);
+  overflow: auto;
+  background: rgb(14 28 19 / 88%);
+}
+.battleMoveLearningSurface > section {
+  max-width: 650px;
+  flex-shrink: 0;
+}
+
+.page :global(.room-lobby-controls-toggle) {
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 2px solid #365b3d;
+  border-radius: 6px;
+  background: #e6f1dd;
+  color: #213c27;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.page :global(.room-lobby-header) {
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}

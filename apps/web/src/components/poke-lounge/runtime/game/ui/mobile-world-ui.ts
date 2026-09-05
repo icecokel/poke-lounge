@@ -47,6 +47,9 @@ export interface MobileWorldMoveOption {
 }
 
 export interface MobileWorldMoveReplacementState {
+  confirmationIndex?: number | null;
+  newMovePp?: number;
+  newMoveMaxPp?: number;
   moves: MobileWorldMoveOption[];
   newMoveName: string;
   pokemonName: string;
@@ -104,6 +107,7 @@ export type MobileWorldUiAction =
   | { type: "select-inventory-move"; index: number }
   | { type: "use-inventory-item" }
   | { type: "skip-inventory-move" }
+  | { type: "confirm-inventory-move" }
   | { type: "select-inventory-party"; slotIndex: number }
   | { type: "select-shop-item"; index: number }
   | { type: "purchase-shop-item" }

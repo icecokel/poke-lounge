@@ -1687,6 +1687,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   };
 
   const submitPartySnapshot = async (snapshot: PlayerSnapshot, idempotencyKey?: string) => {
+    // Empty hands are valid in the lobby; only publish after the game starts
+    // and the player has actually confirmed a starter.
+    if (
+      !(snapshot.party ?? []).some(function hasPokemon(slot) {
+        return slot.pokemon != null;
+      })
+    )
+      return;
     const isLocked =
       latestState?.status === "tournament" ||
       latestState?.status === "completed" ||

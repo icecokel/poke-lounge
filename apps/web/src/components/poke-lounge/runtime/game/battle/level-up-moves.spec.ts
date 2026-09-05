@@ -259,6 +259,15 @@ test("캐터피가 Lv.6에서 Lv.11이 되면 레벨별 기술 습득과 두 번
       [33, 81, 106, 93],
     );
     assert.deepEqual(progression.pendingMoveLearnings, []);
+    assert.deepEqual(
+      progression.learnedMoves.map(function learned(move) {
+        return [move.pokemonName, move.newMove.id, move.message];
+      }),
+      [
+        ["단데기", 106, "단데기는 단단해지기를 배웠다!"],
+        ["버터플", 93, "버터플은 염동력을 배웠다!"],
+      ],
+    );
     assert.deepEqual(progression.messages, [
       "...오잉!?\n캐터피의 모습이...!",
       "축하합니다! 캐터피\n단데기로 진화했습니다!",

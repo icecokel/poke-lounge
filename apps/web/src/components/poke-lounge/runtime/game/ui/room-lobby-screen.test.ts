@@ -43,7 +43,7 @@ function createProjection(): TournamentStateRoomPayload {
   };
 }
 
-test("방장은 혼자여도 접속·파티·준비가 끝나면 시작할 수 있다", function testCase() {
+test("방장은 혼자여도 접속·준비가 끝나면 시작할 수 있다", function testCase() {
   const soloProjection = createProjection();
   soloProjection.participants.splice(1);
   assert.equal(createRoomLobbyViewState(soloProjection).startDisabledReason, null);
@@ -62,8 +62,18 @@ test("방장은 혼자여도 접속·파티·준비가 끝나면 시작할 수 �
   assert.equal(createRoomLobbyViewState(projection).startDisabledReason, "connection");
   projection.participants[1]!.connected = true;
   projection.participants[1]!.partyReady = false;
-  assert.equal(createRoomLobbyViewState(projection).startDisabledReason, "party");
+  assert.equal(createRoomLobbyViewState(projection).startDisabledReason, null);
   projection.participants[1]!.partyReady = true;
   projection.participants[1]!.ready = false;
   assert.equal(createRoomLobbyViewState(projection).startDisabledReason, "ready");
+});
+
+test("포켓몬을 고르지 않은 빈 파티도 준비할 수 있다", function readyWithoutStarter() {
+  const room = createProjection();
+  room.participants[0]!.partyReady = false;
+  room.participants[1]!.partyReady = false;
+  assert.equal(createRoomLobbyViewState(room).readyDisabled, false);
+  assert.equal(createRoomLobbyViewState(room).startDisabledReason, null);
+  room.ownPlayerId = "spectator";
+  assert.equal(createRoomLobbyViewState(room).readyDisabled, true);
 });

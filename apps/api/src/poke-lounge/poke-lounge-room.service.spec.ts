@@ -1286,16 +1286,21 @@ describe('PokeLoungeRoomService', function testSuite() {
     },
   );
 
-  it('requires a waiting room, a synced party, every ready participant, and the current host', async function testCase() {
+  it('requires a waiting room, a valid session, every ready participant, and the current host', async function testCase() {
     await createRoom({ roundDurationMs: 1_000 });
 
     await expect(
       service.setReady(
         'ROOM01',
-        { playerId: 'player-1', sessionId: 'session-1', ready: true, nowMs: 1 },
+        {
+          playerId: 'player-1',
+          sessionId: 'wrong-session',
+          ready: true,
+          nowMs: 1,
+        },
         command(0, 2),
       ),
-    ).rejects.toThrow('Party snapshot is required before becoming ready');
+    ).rejects.toThrow('Ready sessionId does not match this participant');
     await expect(
       service.startRoom(
         'ROOM01',
@@ -1354,21 +1359,63 @@ describe('PokeLoungeRoomService', function testSuite() {
     const withoutGuestParty = repository.snapshot('ROOM01')!;
     delete withoutGuestParty.partySnapshots['player-2'];
     repository.seed(withoutGuestParty);
-    await expect(
-      service.startRoom(
-        'ROOM01',
-        { playerId: 'player-1', sessionId: 'session-1', nowMs: 9 },
-        command(withoutGuestParty.revision, 11),
-      ),
-    ).rejects.toThrow('All participants need a party snapshot before starting');
-    expect(repository.snapshot('ROOM01')?.participants).toHaveLength(2);
+    const started = await service.startRoom(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', nowMs: 9 },
+      command(withoutGuestParty.revision, 11),
+    );
+    expect(started.status).toBe('round-started');
+    expect(started.participants).toHaveLength(4);
+    expect(started.partySnapshots['player-2']).toBeUndefined();
+  });
+
+  it('allows empty-party lobby readiness and publishes starters only after host start', async function starterAfterStart() {
+    await createRoom({ roundDurationMs: 1000 });
+    const joined = await service.joinRoom(
+      'ROOM01',
+      { playerId: 'player-2', sessionId: 'session-2', nowMs: 1 },
+      command(0, 200),
+    );
+    const hostReady = await service.setReady(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', ready: true, nowMs: 2 },
+      command(joined.revision, 201),
+    );
+    const ready = await service.setReady(
+      'ROOM01',
+      { playerId: 'player-2', sessionId: 'session-2', ready: true, nowMs: 3 },
+      command(hostReady.revision, 202),
+    );
+    expect(ready.partySnapshots).toEqual({});
+    const started = await service.startRoom(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', nowMs: 4 },
+      command(ready.revision, 203),
+    );
+    expect(started.status).toBe('round-started');
+    expect(started.partySnapshots['player-1']).toBeUndefined();
+    expect(started.partySnapshots['player-2']).toBeUndefined();
+    const withHost = await updateTestParty(
+      'player-1',
+      'session-1',
+      started.revision,
+      204,
+      5,
+    );
+    const withGuest = await updateTestParty(
+      'player-2',
+      'session-2',
+      withHost.revision,
+      205,
+      6,
+    );
     expect(
-      repository
-        .snapshot('ROOM01')
-        ?.participants.some(function testItem(participant) {
-          return participant.controller === 'ai';
-        }),
-    ).toBe(false);
+      withGuest.partySnapshots['player-1'].competitiveParty.members,
+    ).toHaveLength(1);
+    expect(
+      withGuest.partySnapshots['player-2'].competitiveParty.members,
+    ).toHaveLength(1);
+    expect(withGuest.status).toBe('round-started');
   });
 
   it('rejects new participants after host start and still allows an existing identity to reconnect', async function testCase() {

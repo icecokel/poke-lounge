@@ -8,7 +8,7 @@ export interface RoomLobbyViewState {
   ownPartyReady: boolean;
   isHost: boolean;
   readyDisabled: boolean;
-  startDisabledReason: "connection" | "party" | "ready" | "mutation" | null;
+  startDisabledReason: "connection" | "ready" | "mutation" | null;
 }
 
 export interface RoomLobbyRuntimeState {
@@ -37,21 +37,17 @@ export function createRoomLobbyViewState(
           })
         ? "connection"
         : participants.some(function testItem(participant) {
-              return !participant.partyReady;
+              return !participant.ready;
             })
-          ? "party"
-          : participants.some(function testItem(participant) {
-                return !participant.ready;
-              })
-            ? "ready"
-            : null;
+          ? "ready"
+          : null;
 
   return {
     participantCount: participants.length,
     ownReady: ownParticipant?.ready ?? false,
     ownPartyReady: ownParticipant?.partyReady ?? false,
     isHost: projection.hostPlayerId === projection.ownPlayerId,
-    readyDisabled: mutation !== null || !ownParticipant?.connected || !ownParticipant.partyReady,
+    readyDisabled: mutation !== null || !ownParticipant?.connected,
     startDisabledReason,
   };
 }

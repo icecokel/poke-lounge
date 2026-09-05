@@ -189,7 +189,7 @@ export interface PokeLoungeCopy {
     autoFillNotice: string;
     hostReady: string;
     guestWaiting: string;
-    ownPartyMissingReason: string;
+    starterSelectionHint: string;
     mutationFailed: string;
     startDisabledReason: Record<"connection" | "party" | "ready" | "mutation", string>;
   };
@@ -441,7 +441,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
       "시작 시 1~3명은 4명까지, 4~7명은 8명까지 AI가 자동 참가하며 준비 단계부터 함께 플레이합니다.",
     hostReady: "모든 조건이 갖춰졌습니다.",
     guestWaiting: "방장이 챔피언십을 시작할 때까지 기다려 주세요.",
-    ownPartyMissingReason: "파티가 서버에 반영되면 준비할 수 있습니다.",
+    starterSelectionHint: "포켓몬은 게임 시작 후 선택합니다.",
     mutationFailed: "요청을 반영하지 못했습니다. 최신 대기실 상태를 확인해 주세요.",
     startDisabledReason: {
       connection: "연결이 끊긴 참가자가 있습니다.",
@@ -704,7 +704,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
       "When the room starts, AI fills 1–3 players to 4 and 4–7 players to 8, then joins from preparation onward.",
     hostReady: "Everyone is ready to start.",
     guestWaiting: "Wait for the host to start the championship.",
-    ownPartyMissingReason: "You can ready up after your party reaches the server.",
+    starterSelectionHint: "Choose your Pokémon after the host starts the game.",
     mutationFailed: "The request failed. Check the latest lobby state and try again.",
     startDisabledReason: {
       connection: "A player is disconnected.",
@@ -970,7 +970,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
       "開始時に1～3人なら4人、4～7人なら8人までAIが自動参加し、準備段階から一緒にプレイします。",
     hostReady: "開始条件がそろいました。",
     guestWaiting: "ホストが開始するまでお待ちください。",
-    ownPartyMissingReason: "パーティがサーバーに反映されると準備できます。",
+    starterSelectionHint: "ポケモンはゲーム開始後に選びます。",
     mutationFailed: "リクエストに失敗しました。最新のロビー状態を確認してください。",
     startDisabledReason: {
       connection: "切断中の参加者がいます。",

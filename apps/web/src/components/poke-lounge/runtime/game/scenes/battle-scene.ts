@@ -1,3 +1,9 @@
+import {
+  createMoveReplacementConfirmation,
+  isMoveReplacementConfirmationCurrent,
+  type MoveReplacementConfirmation,
+  type MoveLearningSummary,
+} from "../ui/move-learning-model";
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
 import { sharesPartyExperience } from "@poke-lounge/battle/round-settings";
 import {
@@ -422,6 +428,8 @@ export class BattleController {
   private fullRenderCount = 0;
   private animationFrameUpdateCount = 0;
   private pendingMoveLearnings: PendingMoveLearning[] = [];
+  private moveReplacementConfirmation: MoveReplacementConfirmation | null = null;
+  private learnedMovesByMessage = new Map<string, MoveLearningSummary>();
   private levelUpMoveLearningApplied = false;
   private persistWorldPositionOnReturn = true;
   private authoritativeProjection: CompetitiveProjection | null = null;
@@ -517,6 +525,8 @@ export class BattleController {
     this.evolutionTransition = null;
     this.evolutionAnimationPending = false;
     this.pendingMoveLearnings = [];
+    this.moveReplacementConfirmation = null;
+    this.learnedMovesByMessage.clear();
     this.levelUpMoveLearningApplied = false;
     this.lastAccessibleStatus = "";
     this.cancelHpTweens();
@@ -678,6 +688,7 @@ export class BattleController {
             pokemonName: this.getCurrentPendingMoveLearning()?.pokemonName ?? "",
             newMoveName: this.getCurrentPendingMoveLearning()?.newMove.name ?? "",
             selectedMoveIndex: this.selectedMoveIndex,
+            confirmationIndex: this.moveReplacementConfirmation?.index ?? null,
           }
         : null,
       result: this.state.result ? { ...this.state.result } : null,
@@ -762,6 +773,8 @@ export class BattleController {
     this.evolutionTransition = null;
     this.evolutionAnimationPending = false;
     this.pendingMoveLearnings = [];
+    this.moveReplacementConfirmation = null;
+    this.learnedMovesByMessage.clear();
     this.levelUpMoveLearningApplied = false;
     this.persistWorldPositionOnReturn = true;
     this.state = createBattleScenarioStateForTest(scenario);
@@ -909,7 +922,9 @@ export class BattleController {
     if (
       action.type === "select-move-replacement" &&
       this.state.phase === "move-replace-select" &&
-      this.state.player.pokemon.moves[action.index]
+      !this.moveReplacementConfirmation &&
+      Number.isInteger(action.index) &&
+      this.getMoveSelectionPokemon().moves[action.index]
     ) {
       this.selectedMoveIndex = action.index;
       playBattleConfirmSound();
@@ -917,6 +932,15 @@ export class BattleController {
       return;
     }
 
+    if (
+      action.type === "confirm-move-replacement" &&
+      this.state.phase === "move-replace-select" &&
+      this.moveReplacementConfirmation
+    ) {
+      playBattleConfirmSound();
+      this.confirmMoveReplacement();
+      return;
+    }
     if (action.type === "select-party" && this.state.phase === "party-select") {
       const slot = this.getBattlePartySlotViews()[action.index];
       if (!slot || !slot.canSwitch) {
@@ -973,7 +997,9 @@ export class BattleController {
       phase,
       message: this.getVisibleBattleMessage(),
       isHelpOpen: this.shortcutGuideOpen,
+      learnedMove: this.getVisibleLearnedMove(),
       requiresConfirmation:
+        Boolean(this.getVisibleLearnedMove()) ||
         this.state.messageQueue[0] === BATTLE_END_CONFIRM_MESSAGE ||
         this.authoritativeProjection?.status === "completed",
       spectating: this.authoritativeSpectating,
@@ -1006,7 +1032,7 @@ export class BattleController {
           };
         }.bind(this),
       ),
-      moves: this.state.player.pokemon.moves.map(
+      moves: this.getMoveSelectionPokemon().moves.map(
         function mapItem(
           this: BattleController,
           move: BattleMove,
@@ -1036,7 +1062,7 @@ export class BattleController {
             selected: index === this.selectedMoveIndex,
             disabled:
               isMobileBattleMoveDisabled(phase, move.pp) ||
-              move.competitiveEffectSupport === "unsupported-primary",
+              (phase === "move-select" && move.competitiveEffectSupport === "unsupported-primary"),
           };
         }.bind(this),
       ),
@@ -1100,6 +1126,7 @@ export class BattleController {
         ? {
             pokemonName: pendingMoveLearning.pokemonName,
             newMoveName: pendingMoveLearning.newMove.name,
+            confirmationIndex: this.moveReplacementConfirmation?.index ?? null,
             newMovePp: pendingMoveLearning.newMove.pp,
             newMoveMaxPp: pendingMoveLearning.newMove.maxPp,
             newMoveType: pendingMoveLearning.newMove.type,
@@ -1975,7 +2002,8 @@ export class BattleController {
           this.state.phase === "resolving" ||
           this.state.phase === "ended")) ||
       this.state.messageQueue.length === 0 ||
-      this.state.messageQueue[0] === BATTLE_END_CONFIRM_MESSAGE
+      this.state.messageQueue[0] === BATTLE_END_CONFIRM_MESSAGE ||
+      this.getVisibleLearnedMove() !== null
     ) {
       return;
     }
@@ -2631,6 +2659,9 @@ export class BattleController {
           return slot;
         }
 
+        for (const learned of progression.learnedMoves) {
+          this.learnedMovesByMessage.set(learned.message, this.toMoveLearningSummary(learned));
+        }
         learningMessages.push(...progression.messages);
         progression.pendingMoveLearnings.forEach(
           function visitItem(this: BattleController, { newMove }: PendingBattleMoveLearning): void {
@@ -2672,6 +2703,9 @@ export class BattleController {
         previousLevel,
       });
 
+      for (const learned of progression.learnedMoves) {
+        this.learnedMovesByMessage.set(learned.message, this.toMoveLearningSummary(learned));
+      }
       if (progression.messages.length > 0) {
         activePokemon = progression.pokemon;
         learningMessages.push(...progression.messages);
@@ -2729,7 +2763,7 @@ export class BattleController {
   }
 
   private confirmMoveReplacement(): void {
-    const pending = this.pendingMoveLearnings.shift();
+    const pending = this.getCurrentPendingMoveLearning();
 
     if (!pending) {
       this.setBattleState({ ...this.state, phase: "ended" });
@@ -2740,12 +2774,32 @@ export class BattleController {
       return slot.slotIndex === pending.slotIndex;
     });
     const targetPokemon = targetSlot?.pokemon ?? this.state.player.pokemon;
-    const replacedMove = targetPokemon.moves[this.selectedMoveIndex];
-
-    if (!replacedMove) {
-      this.skipMoveReplacement(pending);
+    if (!this.moveReplacementConfirmation) {
+      this.moveReplacementConfirmation = createMoveReplacementConfirmation(
+        targetPokemon.moves,
+        pending.newMove,
+        this.selectedMoveIndex,
+      );
+      this.keyboard.clearPresses();
+      resetVirtualGamepad();
+      this.render();
       return;
     }
+    if (
+      !isMoveReplacementConfirmationCurrent(
+        this.moveReplacementConfirmation,
+        targetPokemon.moves,
+        pending.newMove,
+      )
+    ) {
+      this.moveReplacementConfirmation = null;
+      this.render();
+      return;
+    }
+    this.selectedMoveIndex = this.moveReplacementConfirmation.index;
+    const replacedMove = targetPokemon.moves[this.selectedMoveIndex]!;
+    this.moveReplacementConfirmation = null;
+    this.pendingMoveLearnings.shift();
 
     const nextPokemon = {
       ...targetPokemon,
@@ -2768,6 +2822,7 @@ export class BattleController {
       pending.newMove.name,
     );
 
+    this.learnedMovesByMessage.set(message, this.toMoveLearningSummary(pending));
     this.selectedMoveIndex = 0;
     this.setBattleState({
       ...this.state,
@@ -2801,11 +2856,42 @@ export class BattleController {
     });
   }
 
+  private toMoveLearningSummary(learning: {
+    pokemonName: string;
+    newMove: BattleMove;
+  }): MoveLearningSummary {
+    return {
+      pokemonName: learning.pokemonName,
+      newMoveName: learning.newMove.name,
+      newMovePp: learning.newMove.pp,
+      newMoveMaxPp: learning.newMove.maxPp,
+      newMoveType: learning.newMove.type,
+    };
+  }
+  private getVisibleLearnedMove(): MoveLearningSummary | null {
+    return this.learnedMovesByMessage.get(this.state.messageQueue[0] ?? "") ?? null;
+  }
+  private getMoveSelectionPokemon(): BattlePokemon {
+    const pending =
+      this.state.phase === "move-replace-select" ? this.getCurrentPendingMoveLearning() : null;
+    return (
+      (pending
+        ? this.state.player.party.find(function targetSlot(slot) {
+            return slot.slotIndex === pending.slotIndex;
+          })?.pokemon
+        : null) ?? this.state.player.pokemon
+    );
+  }
   private getCurrentPendingMoveLearning(): PendingMoveLearning | null {
     return this.pendingMoveLearnings[0] ?? null;
   }
 
   private goBack(): void {
+    if (this.moveReplacementConfirmation) {
+      this.moveReplacementConfirmation = null;
+      this.render();
+      return;
+    }
     if (isForcedPartySwitch(this.state)) {
       return;
     }
@@ -2855,7 +2941,8 @@ export class BattleController {
   }
 
   private updateMoveSelection(): void {
-    const maxMoveIndex = Math.max(0, this.state.player.pokemon.moves.length - 1);
+    if (this.moveReplacementConfirmation || this.state.messageQueue.length > 0) return;
+    const maxMoveIndex = Math.max(0, this.getMoveSelectionPokemon().moves.length - 1);
 
     if (consumeVirtualGamepadPress("left") || this.keyboard.consume("ArrowLeft", "KeyA")) {
       this.selectedMoveIndex =

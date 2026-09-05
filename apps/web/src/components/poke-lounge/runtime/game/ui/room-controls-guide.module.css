@@ -1,0 +1,69 @@
+.guide {
+  min-height: 0;
+  min-width: 0;
+  padding: 4px 4px 8px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  color: #1b2e20;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.description {
+  margin: 0 0 10px;
+  color: #3f5542;
+}
+.modes {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.modes button {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 2px solid #365b3d;
+  border-radius: 6px;
+  background: #fff;
+  color: #213c27;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.modes button[aria-pressed="true"] {
+  background: #365b3d;
+  color: white;
+}
+.sections {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.sections section {
+  padding: 10px;
+  border: 1px solid #a4b59d;
+  border-radius: 8px;
+  background: #edf4e8;
+}
+.sections h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.sections dl {
+  margin: 0;
+}
+.sections dl > div {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 8px;
+}
+.sections dt {
+  font-weight: 700;
+}
+.sections dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .sections {
+    grid-template-columns: 1fr;
+  }
+}

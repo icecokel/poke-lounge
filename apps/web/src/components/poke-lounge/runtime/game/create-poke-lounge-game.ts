@@ -48,6 +48,7 @@ export interface PokeLoungeGameOptions {
   multiplayerRoom?: MultiplayerRoom;
   onGameResult?: (result: PokeLoungeGameResult) => void;
   onRoomLobbyStateChange?: (state: RoomLobbyRuntimeState | null) => void;
+  onStarterSelectionRequested?: (onComplete: () => void) => void;
   serverAuthoritativeRounds?: boolean;
   viewportSize?: GameViewportDisplaySize;
   worldFrameStore: WorldFrameStore;
@@ -91,6 +92,7 @@ export function createPokeLoungeGame(
     competitiveRoundsEnabled: options.competitiveRoundsEnabled,
     keyboard,
     onRoomLobbyStateChange: options.onRoomLobbyStateChange,
+    onStarterSelectionRequested: options.onStarterSelectionRequested,
     onStartBattle: startBattle,
     ownerDocument: parent.ownerDocument,
     runtimeAssets: options.runtimeAssets,

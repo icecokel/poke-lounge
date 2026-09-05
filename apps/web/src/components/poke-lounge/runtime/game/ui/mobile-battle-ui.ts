@@ -1,3 +1,4 @@
+import type { MoveLearningSummary } from "./move-learning-model";
 import type { BattleCommand, BattlePhase, BattleSpriteRef } from "../battle/battle-types";
 
 export type MobileBattleDeckPhase = Extract<
@@ -65,7 +66,9 @@ export interface MobileBattleUiState {
   moves: MobileBattleMoveOption[];
   party: MobileBattlePartyOption[];
   items: MobileBattleItemOption[];
+  learnedMove?: MoveLearningSummary | null;
   moveReplacement: {
+    confirmationIndex?: number | null;
     pokemonName: string;
     newMoveName: string;
     newMovePp: number;
@@ -82,7 +85,8 @@ export type MobileBattleUiAction =
   | { type: "select-move"; index: number }
   | { type: "select-party"; index: number }
   | { type: "select-item"; index: number }
-  | { type: "select-move-replacement"; index: number };
+  | { type: "select-move-replacement"; index: number }
+  | { type: "confirm-move-replacement" };
 
 export function isMobileBattleMoveDisabled(phase: MobileBattleDeckPhase, pp: number): boolean {
   return phase === "move-select" && pp <= 0;

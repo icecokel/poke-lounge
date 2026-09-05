@@ -1021,13 +1021,12 @@ test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고�
 
 test("Poke Lounge 모바일은 새 기술 습득 결과를 조작 도크에 표시한다", async function testCase({
   page,
-}) {
+}, testInfo) {
+  await mockLocalAccountTestRuntime(page);
   await gotoWithRetry(
     page,
-    "/ko-KR/game/poke-lounge?scene=battle&e2eBattle=wild-move-learning&e2e=1",
+    "/ko-KR/game/poke-lounge?scene=battle&e2eBattle=wild-move-learning&e2e=1&localTest=1",
   );
-  await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
-  await page.locator("[data-room-entry-solo]").click();
   await chooseStarterIfNeeded(page);
   await expect(page.locator('#game-root[data-poke-lounge-game-surface="ready"]')).toBeVisible({
     timeout: 30_000,
@@ -1122,13 +1121,49 @@ test("Poke Lounge 모바일은 새 기술 습득 결과를 조작 도크에 표�
   await expect(moveReplacement).toContainText(
     "마그케인의 새 기술 화염자동차. 잊을 기술을 선택하세요.",
   );
-  await expect(moveReplacement).toContainText("화염자동차 · PP 25/25 · 불꽃");
+  await expect(moveReplacement).toContainText("PP 25/25");
+  await expect(moveReplacement).toContainText("불꽃");
 
   const replacementButton = page.getByRole("button", {
     name: "연막 · 이 기술을 잊기 → 화염자동차",
   });
   await expect(replacementButton).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("move-selection-mobile.png") });
+  const layout = await page
+    .locator("[data-poke-lounge-move-learning='select']")
+    .evaluate(function measure(panel) {
+      const rect = panel.getBoundingClientRect();
+      return {
+        width: rect.width,
+        height: rect.height,
+        x: rect.x,
+        y: rect.y,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        fontSize: getComputedStyle(panel).fontSize,
+      };
+    });
+  console.log("move learning layout", testInfo.project.name, layout);
+  expect(layout.width).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.x).toBeGreaterThanOrEqual(0);
+  expect(layout.y + layout.height).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(Number.parseFloat(layout.fontSize)).toBeGreaterThanOrEqual(14);
+  const movesBefore = await readLearningBattleMoves(page);
   await replacementButton.click();
+  const confirmation = page.locator("[data-poke-lounge-move-learning='confirm']");
+  await expect(confirmation).toContainText("「연막」 기술을 잊고 「화염자동차」 기술을 배울까요?");
+  await page.screenshot({ path: testInfo.outputPath("move-confirmation-mobile.png") });
+  expect(await readLearningBattleMoves(page)).toEqual(movesBefore);
+  await confirmation.getByRole("button", { name: "다시 선택", exact: true }).click();
+  await expect(confirmation).toHaveCount(0);
+  expect(await readLearningBattleMoves(page)).toEqual(movesBefore);
+  await replacementButton.click();
+  await confirmation.getByRole("button", { name: "교체 승인", exact: true }).click();
+  const learned = page.locator("[data-poke-lounge-move-learned='true']");
+  await expect(learned).toBeVisible();
+  await page.waitForTimeout(1800);
+  await expect(learned).toBeVisible();
+  expect(await readLearningBattleMoves(page)).not.toEqual(movesBefore);
   await expect(page.locator("[data-poke-lounge-mobile-battle-message='true']")).toContainText(
     "마그케인은 연막을 잊고 화염자동차를 배웠다!",
   );
@@ -1235,9 +1270,8 @@ test("Poke Lounge 모바일 진화는 한국판 ROM 문구의 줄바꿈을 유�
 test("이상한사탕 레벨업은 모바일 가방에서 잊을 기술을 직접 선택한다", async function testCase({
   page,
 }) {
-  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
-  await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
-  await page.locator("[data-room-entry-solo]").click();
+  await mockLocalAccountTestRuntime(page);
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
   await chooseStarterIfNeeded(page);
   await expect(page.locator("[data-poke-lounge-mobile-deck='explore']")).toBeVisible({
     timeout: 30_000,
@@ -1305,8 +1339,16 @@ test("이상한사탕 레벨업은 모바일 가방에서 잊을 기술을 직�
   );
   await expect(replacementScreen).toBeVisible();
   await expect(replacementScreen).toContainText("화염자동차");
+  const itemProgressBefore = await readInventoryLearningProgress(page);
   await replacementScreen.getByRole("button", { name: /연막/ }).click();
-  await replacementScreen.getByRole("button", { name: "선택한 기술 잊기" }).click();
+  await expect(replacementScreen).toContainText(
+    "「연막」 기술을 잊고 「화염자동차」 기술을 배울까요?",
+  );
+  expect(await readInventoryLearningProgress(page)).toEqual(itemProgressBefore);
+  await replacementScreen.getByRole("button", { name: "다시 선택", exact: true }).click();
+  expect(await readInventoryLearningProgress(page)).toEqual(itemProgressBefore);
+  await replacementScreen.getByRole("button", { name: /연막/ }).click();
+  await replacementScreen.getByRole("button", { name: "교체 승인", exact: true }).click();
   await expect(itemScreen).toBeVisible();
 
   const progress = await page.evaluate(function evaluatePage() {
@@ -1838,5 +1880,33 @@ async function mockLocalAccountTestRuntime(page: Page): Promise<void> {
       contentType: "application/json",
       body: JSON.stringify({ success: true, data }),
     });
+  });
+}
+
+async function readLearningBattleMoves(page: Page) {
+  return page.evaluate(function readMoves() {
+    return (
+      window as Window & {
+        __POKE_LOUNGE_E2E__?: {
+          getBattleSnapshot(): { player: { moves: Array<{ id: number; name: string }> } } | null;
+        };
+      }
+    ).__POKE_LOUNGE_E2E__?.getBattleSnapshot()?.player.moves;
+  });
+}
+async function readInventoryLearningProgress(page: Page) {
+  return page.evaluate(function readProgress() {
+    const state = (
+      window as Window & {
+        __POKE_LOUNGE_E2E__?: {
+          getGameStateSnapshot(): {
+            currentPlayerId: string;
+            playersById: Record<string, { inventory: Record<string, number>; party: unknown[] }>;
+          };
+        };
+      }
+    ).__POKE_LOUNGE_E2E__?.getGameStateSnapshot();
+    const player = state?.playersById[state.currentPlayerId];
+    return { inventory: player?.inventory, party: player?.party };
   });
 }

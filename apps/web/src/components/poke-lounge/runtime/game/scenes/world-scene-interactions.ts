@@ -1,4 +1,9 @@
 import {
+  createMoveReplacementConfirmation,
+  isMoveReplacementConfirmationCurrent,
+  type MoveReplacementConfirmation,
+} from "../ui/move-learning-model";
+import {
   playBattleCancelSound,
   playBattleConfirmSound,
   playPartyHealSound,
@@ -197,6 +202,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private inventorySelectedIndex = 0;
   private inventoryPartySlotIndex = 0;
   private inventoryMoveReplaceIndex = 0;
+  private inventoryMoveConfirmation: MoveReplacementConfirmation | null = null;
   private inventoryMoveReplacementDecisions: Array<number | null> = [];
   private inventoryTargetItemId: KnownShopItemId | null = null;
   private pendingInventoryItemId: string | null = null;
@@ -327,16 +333,27 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     }
 
     if (action.type === "select-inventory-move") {
-      if (!this.inventoryOpen || this.inventoryFocus !== "move-replace") {
+      if (
+        !this.inventoryOpen ||
+        this.inventoryFocus !== "move-replace" ||
+        this.inventoryMoveConfirmation
+      )
         return;
-      }
-
       const pokemon = this.getInventoryMoveReplacementPokemon();
-      this.inventoryMoveReplaceIndex = clampSelectionIndex(
-        action.index,
-        pokemon?.moves?.length ?? 0,
-      );
-      this.renderInventoryUi();
+      if (!Number.isInteger(action.index) || !pokemon?.moves?.[action.index]) return;
+      this.inventoryMoveReplaceIndex = action.index;
+      this.confirmInventoryMoveReplacement();
+      return;
+    }
+    if (action.type === "confirm-inventory-move") {
+      if (
+        this.inventoryOpen &&
+        this.inventoryFocus === "move-replace" &&
+        this.inventoryMoveConfirmation
+      ) {
+        playBattleConfirmSound();
+        this.confirmInventoryMoveReplacement();
+      }
       return;
     }
 
@@ -648,6 +665,9 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
                 };
               }.bind(this),
             ),
+            confirmationIndex: this.inventoryMoveConfirmation?.index ?? null,
+            newMovePp: pendingMoveReplacement.pp,
+            newMoveMaxPp: pendingMoveReplacement.maxPp,
             newMoveName: pendingMoveReplacement.name,
             pokemonName: moveReplacementPokemon.name,
           }
@@ -1474,6 +1494,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.pendingInventoryItemId = null;
     this.pendingInventoryMovePokemon = null;
     this.pendingInventoryMoveReplacements = [];
+    this.inventoryMoveConfirmation = null;
     this.inventoryMessage = "";
     this.renderInventoryUi();
   }
@@ -1487,6 +1508,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.pendingInventoryItemId = null;
     this.pendingInventoryMovePokemon = null;
     this.pendingInventoryMoveReplacements = [];
+    this.inventoryMoveConfirmation = null;
     this.inventoryMessage = "";
     this.destroyInventoryUi();
     dispatchPokeLoungeAccessibleStatus(document, "필드 탐색");
@@ -1511,6 +1533,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private moveInventorySelection(delta: number): void {
+    if (this.inventoryMoveConfirmation) return;
     if (this.inventoryFocus === "move-replace") {
       const pokemon = this.getInventoryMoveReplacementPokemon();
       const moveCount = pokemon?.moves?.length ?? 0;
@@ -1640,6 +1663,28 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       return;
     }
 
+    if (!this.inventoryMoveConfirmation) {
+      this.inventoryMoveConfirmation = createMoveReplacementConfirmation(
+        pokemon.moves ?? [],
+        pendingMove,
+        this.inventoryMoveReplaceIndex,
+      );
+      this.renderInventoryUi();
+      return;
+    }
+    if (
+      !isMoveReplacementConfirmationCurrent(
+        this.inventoryMoveConfirmation,
+        pokemon.moves ?? [],
+        pendingMove,
+      )
+    ) {
+      this.inventoryMoveConfirmation = null;
+      this.renderInventoryUi();
+      return;
+    }
+    this.inventoryMoveReplaceIndex = this.inventoryMoveConfirmation.index;
+    this.inventoryMoveConfirmation = null;
     this.pendingInventoryMovePokemon = {
       ...pokemon,
       moves: (pokemon.moves ?? []).map(
@@ -1666,6 +1711,11 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private skipInventoryMoveReplacement(): void {
+    if (this.inventoryMoveConfirmation) {
+      this.inventoryMoveConfirmation = null;
+      this.renderInventoryUi();
+      return;
+    }
     const skippedMove = this.pendingInventoryMoveReplacements.shift();
 
     if (!skippedMove) {
@@ -1750,6 +1800,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.pendingInventoryItemId = null;
     this.pendingInventoryMovePokemon = null;
     this.pendingInventoryMoveReplacements = [];
+    this.inventoryMoveConfirmation = null;
     this.inventoryMoveReplaceIndex = 0;
   }
 

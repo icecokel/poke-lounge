@@ -57,6 +57,7 @@ export interface BattleE2eSnapshot {
     pokemonName: string;
     newMoveName: string;
     selectedMoveIndex: number;
+    confirmationIndex?: number | null;
   } | null;
   result: BattleScreenState["result"];
   returnToWorld: BattleScreenState["returnToWorld"];

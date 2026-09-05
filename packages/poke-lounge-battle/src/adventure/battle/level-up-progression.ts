@@ -1,6 +1,10 @@
 import type { PlayerPokemon, PlayerPokemonMove } from "../player/pokemon-types";
 import type { BattleMove, BattlePokemon } from "./battle-types";
-import { planLevelUpBattleMoves, planLevelUpPlayerMoves } from "./level-up-moves";
+import {
+  formatLearnedMoveMessage,
+  planLevelUpBattleMoves,
+  planLevelUpPlayerMoves,
+} from "./level-up-moves";
 import {
   applyLevelUpEvolution,
   applyPlayerLevelUpEvolution,
@@ -13,9 +17,14 @@ export interface PendingBattleMoveLearning {
   newMove: BattleMove;
 }
 
+export interface LearnedBattleMove extends PendingBattleMoveLearning {
+  message: string;
+}
+
 export interface PlanLevelUpBattleProgressionResult {
   pokemon: BattlePokemon;
   pendingMoveLearnings: PendingBattleMoveLearning[];
+  learnedMoves: LearnedBattleMove[];
   messages: string[];
   evolved: boolean;
 }
@@ -44,6 +53,7 @@ export function planLevelUpBattleProgression({
 }): PlanLevelUpBattleProgressionResult {
   let nextPokemon = pokemon;
   const pendingMoveLearnings: PendingBattleMoveLearning[] = [];
+  const learnedMoves: LearnedBattleMove[] = [];
   const messages: string[] = [];
   const knownMoveIds = new Set(
     pokemon.moves.map(function mapItem(move) {
@@ -64,6 +74,19 @@ export function planLevelUpBattleProgression({
         previousLevel: currentLevel - 1,
         moveRecords,
       });
+      for (const move of moveLearningResult.pokemon.moves) {
+        if (
+          !nextPokemon.moves.some(function sameMove(known) {
+            return known.id === move.id;
+          })
+        ) {
+          learnedMoves.push({
+            pokemonName: nextPokemon.name,
+            newMove: move,
+            message: formatLearnedMoveMessage(nextPokemon.name, move.name),
+          });
+        }
+      }
       nextPokemon = moveLearningResult.pokemon;
       nextPokemon.moves.forEach(function visitItem(move) {
         return knownMoveIds.add(move.id);
@@ -103,6 +126,7 @@ export function planLevelUpBattleProgression({
   return {
     pokemon: nextPokemon,
     pendingMoveLearnings,
+    learnedMoves,
     messages,
     evolved,
   };

@@ -289,6 +289,40 @@ export async function startGamePage(
     setBattleSceneMarker(mount, false);
     mount.dataset.pokeLoungeResourceStatus = "loading";
     let gameplayState: PokeLoungeGameplayRuntimeState = { battle, phase: initialScene, world };
+    let starterState: PokeLoungeRuntimeState | null = null;
+    function emitCurrentGameplayState(): void {
+      if (!destroyed && activeMultiplayerRoom === multiplayerRoom) {
+        emitRuntimeState(starterState ?? gameplayState);
+      }
+    }
+    function requestInGameStarterSelection(onComplete: () => void): void {
+      void showStarterSelection(
+        function finishInGameStarterSelection() {
+          if (destroyed || activeMultiplayerRoom !== multiplayerRoom) return;
+          starterState = null;
+          onComplete();
+          emitCurrentGameplayState();
+        },
+        function publishInGameStarterSelection(state) {
+          if (destroyed || activeMultiplayerRoom !== multiplayerRoom) return;
+          starterState = state;
+          emitCurrentGameplayState();
+        },
+      ).catch(function handleStarterLoadError() {
+        if (destroyed || activeMultiplayerRoom !== multiplayerRoom) return;
+        starterState = {
+          phase: "error",
+          description: copy.startup.description,
+          onRetry: function retryStarterSelection() {
+            requestInGameStarterSelection(onComplete);
+          },
+          onReturnToEntry: function leaveAfterStarterError() {
+            leaveAndReturnToRoomEntry();
+          },
+        };
+        emitCurrentGameplayState();
+      });
+    }
     const game = (dependencies.createPokeLoungeGame ?? createPokeLoungeGame)(mount, {
       ...(battleE2eScenario ? { battleE2eScenario } : {}),
       competitiveRoundsEnabled,
@@ -296,6 +330,7 @@ export async function startGamePage(
       initialScene,
       multiplayerRoom,
       onGameResult: roomEntry.mode === "server-room" ? undefined : dependencies.onGameResult,
+      onStarterSelectionRequested: requestInGameStarterSelection,
       onRoomLobbyStateChange: lobby => {
         if (destroyed) {
           return;
@@ -309,7 +344,7 @@ export async function startGamePage(
         gameplayState = lobby
           ? { ...controls, ...lobby, phase: "lobby" }
           : { ...controls, phase: "world" };
-        emitRuntimeState(gameplayState);
+        emitCurrentGameplayState();
       },
       serverAuthoritativeRounds: roomEntry.mode === "server-room",
       battleUiStore,
@@ -322,6 +357,8 @@ export async function startGamePage(
     });
     activeGame = game;
     const returnToRoomEntry = () => {
+      starterSelectionRequestId += 1;
+      starterState = null;
       removeFreshSessionListener?.();
       removeFreshSessionListener = null;
       removeServerRoomErrorListener?.();
@@ -391,7 +428,7 @@ export async function startGamePage(
         ...(detail.recoverable && detail.retry
           ? {
               onRetry: () => {
-                emitRuntimeState(gameplayState);
+                emitCurrentGameplayState();
                 detail.retry?.();
               },
             }
@@ -407,7 +444,7 @@ export async function startGamePage(
       "CONNECTION_STATUS",
       function handleEvent({ connectionStatus }) {
         if (connectionStatus === "online") {
-          emitRuntimeState(gameplayState);
+          emitCurrentGameplayState();
         }
       },
     );
@@ -452,7 +489,7 @@ export async function startGamePage(
         },
       };
     }
-    emitRuntimeState(gameplayState);
+    emitCurrentGameplayState();
   };
   const showStartupError = (retry: () => void) => {
     if (destroyed) {
@@ -485,9 +522,12 @@ export async function startGamePage(
       },
     });
   };
-  const showStarterSelection = async (afterSelection: () => void) => {
+  const showStarterSelection = async (
+    afterSelection: () => void,
+    publish: (state: PokeLoungeRuntimeState) => void = emitRuntimeState,
+  ) => {
     const requestId = (starterSelectionRequestId += 1);
-    emitRuntimeState({ phase: "loading", progress: { loaded: 0, total: 1, ratio: 0 } });
+    publish({ phase: "loading", progress: { loaded: 0, total: 1, ratio: 0 } });
     const [bootstrap] = await Promise.all([
       (dependencies.loadBootstrapData ?? loadBootstrapData)(),
       loadRuntimeGameData(),
@@ -497,7 +537,7 @@ export async function startGamePage(
     }
 
     let completed = false;
-    emitRuntimeState({
+    publish({
       phase: "starter",
       bootstrap,
       onSelect: starter => {
@@ -513,7 +553,12 @@ export async function startGamePage(
     });
   };
   const startGameAfterStarterSelection = (gameUrl: URL) => {
-    if (!gameStateStore.canChooseStarter()) {
+    // Joining a server room never requires choosing a starter. The authoritative
+    // room-start projection opens the selection on the existing connection.
+    if (
+      readRoomEntryFromLocation(gameUrl).mode === "server-room" ||
+      !gameStateStore.canChooseStarter()
+    ) {
       void startGame(gameUrl).catch(function handleRejected() {
         showStartupError(function callback() {
           return startGameAfterStarterSelection(gameUrl);

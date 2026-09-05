@@ -1,3 +1,4 @@
+import { shouldSelectStarterAfterRoomStart } from "../starter-selection-flow";
 import { playPokeLoungeBgm, stopPokeLoungeBgm } from "../audio/poke-lounge-audio";
 import { GAME_VIEWPORT_SIZE, type GameViewportDisplaySize } from "../game-viewport";
 import {
@@ -87,6 +88,7 @@ export interface WorldSceneOptions {
   competitiveRoundsEnabled?: boolean;
   keyboard: RuntimeKeyboard;
   onRoomLobbyStateChange?: (state: RoomLobbyRuntimeState | null) => void;
+  onStarterSelectionRequested?: (onComplete: () => void) => void;
   onStartBattle(data: object): void;
   ownerDocument: Document;
   runtimeAssets: PokeLoungeRuntimeAssets;
@@ -159,6 +161,7 @@ export class WorldController {
   private hud!: WorldSceneHudController;
   private tournament: WorldSceneTournamentController | null = null;
   private roomLobbyOpen = false;
+  private starterSelectionPending = false;
   private facing: PlayerFacing = "front";
   private lastSentAt = 0;
   private lastPositionPersistedAt = 0;
@@ -261,6 +264,12 @@ export class WorldController {
     });
     this.options.worldUiStore.setActionHandler(
       function callback(this: WorldController, action: WorldUiAction): void {
+        if (
+          this.roomLobbyOpen ||
+          this.starterSelectionPending ||
+          this.gameStateStore.canChooseStarter()
+        )
+          return;
         if (action.type === "open-pokemon-status")
           this.hud.openPokemonStatusPanel(action.slotIndex);
         else if (action.type === "set-pokemon-status-lead")
@@ -328,7 +337,8 @@ export class WorldController {
     this.roomConnected = true;
     this.bindLocalSnapshotSync();
     this.flushPendingRoomMessages();
-    this.interactions.showInitialShortcutGuideIfNeeded();
+    if (!this.gameStateStore.canChooseStarter())
+      this.interactions.showInitialShortcutGuideIfNeeded();
   }
 
   update(time: number, delta = 1000 / 60): void {
@@ -1070,9 +1080,10 @@ export class WorldController {
   }
 
   private updateWorldRuntime(time: number, delta: number): void {
-    let inputLocked = this.roomLobbyOpen;
+    const awaitingStarter = this.starterSelectionPending || this.gameStateStore.canChooseStarter();
+    let inputLocked = this.roomLobbyOpen || awaitingStarter;
     let input: WorldMovementInput = { down: false, left: false, right: false, up: false };
-    if (!this.roomLobbyOpen) {
+    if (!inputLocked) {
       this.updateRoundClock(Date.now());
       inputLocked = this.encounters.isBattleIntroPlaying();
       if (!inputLocked) inputLocked = this.interactions.handleInput();
@@ -1166,6 +1177,24 @@ export class WorldController {
       if (this.roomLobbyOpen) {
         this.options.onRoomLobbyStateChange?.(null);
         this.roomLobbyOpen = false;
+      }
+      if (
+        !this.starterSelectionPending &&
+        this.options.onStarterSelectionRequested &&
+        shouldSelectStarterAfterRoomStart(payload, this.gameStateStore.canChooseStarter())
+      ) {
+        this.starterSelectionPending = true;
+        this.options.keyboard.clearPresses();
+        resetVirtualGamepad();
+        this.options.onStarterSelectionRequested(
+          function finishStarterSelection(this: WorldController): void {
+            if (this.shutdownComplete) return;
+            this.starterSelectionPending = false;
+            this.options.keyboard.clearPresses();
+            resetVirtualGamepad();
+            this.interactions.showInitialShortcutGuideIfNeeded();
+          }.bind(this),
+        );
       }
       return;
     }

@@ -32,6 +32,7 @@ type PokeLoungeWindow = Window & {
     };
     getGameStateSnapshot(): {
       currentPlayerId: string;
+      playersById: Record<string, { party: unknown[] }>;
       round: {
         phase: string;
       };
@@ -2214,9 +2215,35 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     await expect(hostLobby).toBeVisible();
     await expect(guestLobby).toBeVisible();
     await expect(hostLobby).toContainText("참가자 2/8");
+    await expect(hostLobby).toContainText("포켓몬은 게임 시작 후 선택합니다.");
+    await expect(hostPage.locator("[data-screen='starter-selection']")).toHaveCount(0);
+    await expect(guestPage.locator("[data-screen='starter-selection']")).toHaveCount(0);
+    expect(server.partySnapshotBodies).toHaveLength(0);
+    for (const page of [hostPage, guestPage]) {
+      expect(
+        await page.evaluate(function readParty() {
+          const state = (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__!.getGameStateSnapshot();
+          return state.playersById[state.currentPlayerId].party;
+        }),
+      ).toHaveLength(0);
+    }
     await expect(hostLobby).toContainText("4~7명은 8명까지 AI가 자동 참가");
     await expect(hostLobby).toContainText("레드");
     await expect(hostLobby).toContainText("그린");
+    for (const lobby of [hostLobby, guestLobby]) {
+      await lobby.page().bringToFront();
+      const toggle = lobby.locator("[data-room-lobby-controls]");
+      await toggle.click({ timeout: 8000 });
+      const guide = lobby.locator("[data-room-controls-guide='true']");
+      await expect(guide).toBeVisible();
+      await guide.getByRole("button", { name: "키보드", exact: true }).click();
+      await expect(guide).toContainText("Enter");
+      await guide.getByRole("button", { name: "터치", exact: true }).click();
+      await expect(guide).toContainText("D-pad");
+      await expect(lobby.locator("[data-room-lobby-ready='true']")).toBeVisible();
+      await toggle.click({ timeout: 8000 });
+      await expect(guide).toHaveCount(0);
+    }
     await expect(hostPage.locator("[data-room-lobby-start='true']")).toBeDisabled();
     await expect(guestPage.locator("[data-room-lobby-start='true']")).toHaveCount(0);
     await expect(hostPage.locator("#game-root [data-room-leave='true']")).toHaveCount(0);
@@ -2309,6 +2336,26 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     await expect(hostLobby).toBeHidden();
     await emitSocketSnapshot(guestPage, createLobbyStartedRoomState(server));
     await expect(guestLobby).toBeHidden();
+    for (const page of [hostPage, guestPage]) {
+      const starter = page.locator("[data-screen='starter-selection']");
+      await expect(starter).toBeVisible();
+      const position = await getWorldPlayerPosition(page);
+      await page.keyboard.press("ArrowRight");
+      expect(await getWorldPlayerPosition(page)).toEqual(position);
+      await page.locator("[data-starter-confirm]").click();
+      await expect(starter).toHaveCount(0);
+      expect(
+        await page.evaluate(function selectedParty() {
+          const state = (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__!.getGameStateSnapshot();
+          return state.playersById[state.currentPlayerId].party;
+        }),
+      ).toHaveLength(1);
+    }
+    await expect
+      .poll(function publishedStarterCount() {
+        return server.partySnapshotBodies.length;
+      })
+      .toBe(2);
     expect(
       server.commandRequests.filter(function filterItem(request) {
         return request.suffix === "/ready";
@@ -2322,6 +2369,91 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
 
     await hostPage.context().close();
     await guestPage.context().close();
+  });
+
+  test("포켓몬 선택 시점은 새로고침과 재연결 후에도 유지된다", async function starterSelectionResume({
+    browser,
+  }) {
+    const server = createMockServerState();
+    const page = await newMockedPage(browser, server, { lobbyLifecycle: true, wrapped: true });
+    const starter = page.locator("[data-screen='starter-selection']");
+    const lobby = page.locator("[data-room-lobby='true']");
+    try {
+      await startServerRoom(page, createServerRoomUrl(), "레드");
+      await expect(lobby).toBeVisible();
+      const identity = await getRoomSnapshot(page);
+      await page.reload();
+      await expect(lobby).toBeVisible();
+      await expect(starter).toHaveCount(0);
+      expect(await getRoomSnapshot(page)).toEqual(identity);
+      expect(server.partySnapshotBodies).toHaveLength(0);
+      await page.locator("[data-room-lobby-ready='true']").click();
+      await expect(page.locator("[data-room-lobby-start='true']")).toBeEnabled();
+      await page.locator("[data-room-lobby-start='true']").click();
+      await expect(starter).toBeVisible();
+      await disconnectSocket(page);
+      await reconnectSocket(page);
+      await expect
+        .poll(function connectedAgain() {
+          return getSocketState(page).then(function readConnected(state) {
+            return state.connected;
+          });
+        })
+        .toBe(true);
+      await expect(starter).toBeVisible();
+      expect(server.partySnapshotBodies).toHaveLength(0);
+      await page.reload();
+      await expect(starter).toBeVisible();
+      expect(await getRoomSnapshot(page)).toEqual(identity);
+      await page.locator("[data-starter-confirm]").click();
+      await expect(starter).toHaveCount(0);
+      await expect
+        .poll(function publishedParty() {
+          return server.partySnapshotBodies.length;
+        })
+        .toBe(1);
+      const partyBefore = await page.evaluate(function selectedPokemon() {
+        const state = (
+          window as Window & {
+            __POKE_LOUNGE_E2E__: {
+              getGameStateSnapshot(): {
+                currentPlayerId: string;
+                playersById: Record<string, { party: unknown[] }>;
+              };
+            };
+          }
+        ).__POKE_LOUNGE_E2E__.getGameStateSnapshot();
+        return state.playersById[state.currentPlayerId].party;
+      });
+      await page.reload();
+      await expect(page.locator('#game-root[data-poke-lounge-game-surface="ready"]')).toBeVisible();
+      await expect
+        .poll(function resumedConnection() {
+          return getSocketState(page).then(function readConnected(state) {
+            return state.connected;
+          });
+        })
+        .toBe(true);
+      await expect(starter).toHaveCount(0);
+      expect(
+        await page.evaluate(function preservedPokemon() {
+          const state = (
+            window as Window & {
+              __POKE_LOUNGE_E2E__: {
+                getGameStateSnapshot(): {
+                  currentPlayerId: string;
+                  playersById: Record<string, { party: unknown[] }>;
+                };
+              };
+            }
+          ).__POKE_LOUNGE_E2E__.getGameStateSnapshot();
+          return state.playersById[state.currentPlayerId].party;
+        }),
+      ).toEqual(partyBefore);
+      expect(await getRoomSnapshot(page)).toEqual(identity);
+    } finally {
+      await page.context().close();
+    }
   });
 
   test("모바일 대기실 공유 버튼은 확정된 방 딥링크를 복사한다", async function testCase({
@@ -2750,6 +2882,8 @@ async function confirmDirectMultiplayerEntry(page: Page, displayName?: string): 
     await nameInput.fill(displayName);
   }
 
+  // Dismiss the software keyboard before tapping a layout-dependent submit button.
+  await nameInput.blur();
   await page.locator("[data-room-entry-direct-multiplayer-submit='true']").click();
 }
 
@@ -3683,6 +3817,7 @@ async function newMockedPage(
   const context = await browser.newContext(
     options.mobile
       ? {
+          ...devices["iPhone 13"],
           hasTouch: true,
           isMobile: true,
           viewport: { width: 390, height: 844 },

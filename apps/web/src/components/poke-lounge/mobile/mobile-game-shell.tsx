@@ -1,5 +1,7 @@
 "use client";
 
+import { MoveLearningPanel, LearnedMoveNotice } from "../runtime/game/ui/move-learning-panel";
+
 import {
   useEffect,
   useRef,
@@ -517,19 +519,7 @@ export function MobileWorldScreen({
     );
   } else if (state.screen === "inventory-move-replace") {
     content = <MobileInventoryMoveReplacement copy={copy} onAction={onAction} state={state} />;
-    footer = (
-      <MobileWorldSceneFooter
-        backLabel={copy.mobile.doNotLearnMove}
-        copy={copy}
-        onBack={function handleBack() {
-          return onAction({ type: "skip-inventory-move" });
-        }}
-        onConfirm={function handleConfirm() {
-          return onAction({ type: "use-inventory-item" });
-        }}
-        confirmLabel={copy.mobile.confirmMoveReplacement}
-      />
-    );
+    footer = null;
   } else if (state.screen === "shop") {
     content = <MobileShopPanel copy={copy} onAction={onAction} state={state} />;
     footer = (
@@ -703,39 +693,26 @@ export function MobileInventoryMoveReplacement({
   onAction(action: MobileWorldUiAction): void;
   state: MobileWorldUiState;
 }) {
-  if (!state.moveReplacement) {
+  if (!state.moveReplacement)
     return <MobileWorldMessage message={copy.game.moveReplacementUnavailable} />;
-  }
-
   return (
-    <>
-      <p className={styles.detailText}>
-        {copy.mobile.moveReplacementPrompt(
-          state.moveReplacement.pokemonName,
-          state.moveReplacement.newMoveName,
-        )}
-      </p>
-      <div className={styles.compactList}>
-        {state.moveReplacement.moves.map(function mapItem(move) {
-          return (
-            <button
-              key={move.id}
-              type="button"
-              className={styles.listButton}
-              data-poke-lounge-move-replacement={move.id}
-              data-selected={move.selected}
-              onClick={function handleClick() {
-                return onAction({ type: "select-inventory-move", index: move.index });
-              }}
-            >
-              <span>{move.name}</span>
-              <small>{move.selected ? copy.mobile.forgetMove : ""}</small>
-            </button>
-          );
-        })}
-      </div>
-      <MobileWorldMessage message={state.message} />
-    </>
+    <MoveLearningPanel
+      copy={copy}
+      pending={state.moveReplacement}
+      moves={state.moveReplacement.moves}
+      onSelect={function chooseMove(index) {
+        onAction({ type: "select-inventory-move", index });
+      }}
+      onConfirm={function approveMove() {
+        onAction({ type: "confirm-inventory-move" });
+      }}
+      onCancel={function cancelMove() {
+        onAction({ type: "back" });
+      }}
+      onSkip={function skipMove() {
+        onAction({ type: "skip-inventory-move" });
+      }}
+    />
   );
 }
 
@@ -1090,6 +1067,45 @@ export function MobileBattleDeck({
     return <MobileBattleHelpDeck copy={copy} onAction={dispatchAction} />;
   }
 
+  if (battleState.learnedMove && battleState.message) {
+    return (
+      <LearnedMoveNotice
+        copy={copy}
+        move={battleState.learnedMove}
+        message={battleState.message}
+        disabled={battleState.isInputLocked}
+        onContinue={function acknowledgeMove() {
+          dispatchAction({ type: "confirm-message" });
+        }}
+      />
+    );
+  }
+  if (
+    battleState.phase === "move-replace-select" &&
+    !battleState.message &&
+    battleState.moveReplacement
+  ) {
+    return (
+      <MoveLearningPanel
+        copy={copy}
+        pending={battleState.moveReplacement}
+        moves={battleState.moves}
+        disabled={battleState.isInputLocked}
+        onSelect={function chooseMove(index) {
+          dispatchAction({ type: "select-move-replacement", index });
+        }}
+        onConfirm={function approveMove() {
+          dispatchAction({ type: "confirm-move-replacement" });
+        }}
+        onCancel={function cancelMove() {
+          dispatchAction({ type: "go-back" });
+        }}
+        onSkip={function skipMove() {
+          dispatchAction({ type: "go-back" });
+        }}
+      />
+    );
+  }
   const pending =
     Boolean(battleState.message) || battleState.isInputLocked || battleState.phase === "resolving";
   const deck =

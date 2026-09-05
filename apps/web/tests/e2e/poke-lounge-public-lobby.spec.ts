@@ -103,7 +103,7 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
         }),
     ).toBeLessThanOrEqual(1);
     await expect(hostPage.locator("[data-room-lobby-participant='true']")).toHaveCount(2);
-    await expect(hostPage.locator("[data-room-lobby-badge='true']")).toHaveCount(7);
+    await expect(hostPage.locator("[data-room-lobby-badge='true']")).toHaveCount(5);
     await expect(hostPage.locator("[data-room-lobby-actions='true']")).toBeVisible();
     await expect(guestPage.locator("[data-room-lobby-share='true']")).toBeVisible();
     await expect(hostPage.locator("[data-room-lobby-status='true']")).toBeVisible();
@@ -166,6 +166,18 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
         )
         .toEqual(expectedClock);
       await expect(page.locator("[data-room-lobby='true']")).toBeHidden();
+      const starter = page.locator("[data-screen='starter-selection']");
+      await expect(starter).toBeVisible();
+      const partyResponse = page.waitForResponse(function starterSaved(response) {
+        return (
+          response.request().method() === "POST" &&
+          new URL(response.url()).pathname.endsWith("/party-snapshot") &&
+          response.ok()
+        );
+      });
+      await page.locator("[data-starter-confirm]").click();
+      await partyResponse;
+      await expect(starter).toHaveCount(0);
     }
 
     expect(
@@ -195,32 +207,8 @@ async function enterPublicRoom(
   await page.locator("[data-room-entry-temporary-password='true']").fill(temporaryPassword);
   await page.locator("[data-room-entry-multiplayer-submit='true']").click();
 
-  const starterSelection = page.locator("[data-screen='starter-selection']");
-  const surface = page.locator('#game-root[data-poke-lounge-game-surface="ready"]');
-  await expect
-    .poll(async function pollExpectation() {
-      if (
-        await starterSelection.isVisible().catch(function handleRejected() {
-          return false;
-        })
-      )
-        return "starter";
-      if (
-        await surface.isVisible().catch(function handleRejected() {
-          return false;
-        })
-      )
-        return "surface";
-      return null;
-    })
-    .not.toBeNull();
-  if (
-    await starterSelection.isVisible().catch(function handleRejected() {
-      return false;
-    })
-  ) {
-    await page.locator("[data-starter-confirm]").click();
-  }
+  await expect(page.locator("[data-room-lobby='true']")).toBeVisible();
+  await expect(page.locator("[data-screen='starter-selection']")).toHaveCount(0);
 }
 
 function isRoomCreationResponse(response: {

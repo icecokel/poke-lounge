@@ -1,0 +1,135 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: clamp(12px, 2.5cqw, 22px);
+  border: 3px solid #28583c;
+  border-radius: 12px;
+  background: #f8fbef;
+  color: #17251c;
+  font-size: clamp(14px, 2cqw, 20px);
+  line-height: 1.5;
+  box-shadow: 0 5px 0 #17251c;
+  overflow-wrap: anywhere;
+}
+.heading {
+  display: grid;
+  gap: 6px;
+}
+.heading h2 {
+  margin: 0;
+  font-size: 1.25em;
+}
+.badge {
+  width: fit-content;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: #28583c;
+  color: white;
+  font-weight: 800;
+}
+.newMove,
+.oldMove {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 2px solid #ad8639;
+  background: #fff0bd;
+}
+.newMove > strong {
+  font-size: 1.4em;
+}
+.newMove > p {
+  margin: 2px 0 0;
+  font-size: 0.9em;
+}
+.oldMove {
+  border-color: #a4b0a1;
+  background: #edf0e8;
+}
+.question {
+  margin: 0;
+  font-size: 1.05em;
+  font-weight: 700;
+  white-space: pre-line;
+}
+.moves {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.moves button {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 9px 12px;
+  border: 2px solid #80957e;
+  border-radius: 7px;
+  background: white;
+  text-align: left;
+}
+.moves button[data-selected="true"] {
+  border-color: #28583c;
+  box-shadow: inset 4px 0 #28583c;
+}
+.moves small {
+  font-size: 0.8em;
+  color: #42573e;
+}
+.comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.comparison strong {
+  font-size: 1.1em;
+}
+.hint {
+  margin: 0;
+  color: #43553f;
+  font-size: 0.85em;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.actions button,
+.skip {
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 2px solid #28583c;
+  border-radius: 7px;
+  background: white;
+  font-weight: 700;
+}
+.actions button {
+  flex: 1;
+}
+.actions [data-primary="true"] {
+  background: #28583c;
+  color: white;
+}
+.skip {
+  align-self: flex-start;
+  border-color: #9aaa91;
+}
+.panel button {
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+.panel button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.panel button:focus-visible {
+  outline: 3px solid #bb7414;
+  outline-offset: 3px;
+}

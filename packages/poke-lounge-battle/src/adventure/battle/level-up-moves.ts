@@ -394,7 +394,7 @@ function createPlayerPokemonMoveFromRuntimeData(moveId: number): PlayerPokemonMo
   };
 }
 
-function formatLearnedMoveMessage(pokemonName: string, moveName: string): string {
+export function formatLearnedMoveMessage(pokemonName: string, moveName: string): string {
   return `${pokemonName}${topicParticle(pokemonName)} ${moveName}${objectParticle(moveName)} 배웠다!`;
 }
 
