@@ -746,6 +746,9 @@ export function PokeLoungeGame() {
       let pendingSettingsOpen: number | null = null;
 
       const handleKeyDown = (event: KeyboardEvent) => {
+        // Full-height tasks own Escape and native button keys, not the world menu.
+        if (event.defaultPrevented || document.querySelector("[data-poke-lounge-mobile-task]"))
+          return;
         if (event.key === "Escape" && touchGameDevice && settingsOpen) {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -1149,6 +1152,14 @@ export function PokeLoungeGame() {
       ref={pageRef}
       className={`${styles.page} ${themeStyles.theme} ${touchGameDevice ? styles.touchGameDevice : ""}`}
       data-testid="poke-lounge-page"
+      data-poke-lounge-play-layout={
+        touchGameDevice &&
+        (runtimeState.phase === "world" || runtimeState.phase === "battle") &&
+        !finalResult &&
+        !gameStartupError
+          ? "true"
+          : undefined
+      }
       data-poke-lounge-ui-size={uiSize}
       data-poke-lounge-mobile-shell={touchGameDevice ? "true" : undefined}
       data-poke-lounge-room-lobby-open={runtimeState.phase === "lobby" ? "true" : undefined}
@@ -1165,17 +1176,19 @@ export function PokeLoungeGame() {
         }}
         onRoomShare={handleRoomShare}
       />
-      {touchGameDevice && gameRuntimeMounted ? (
+      {touchGameDevice &&
+      gameRuntimeMounted &&
+      (runtimeState.phase === "world" || runtimeState.phase === "battle") &&
+      !finalResult &&
+      !gameStartupError ? (
         <MobileGameShell
+          gameStateStore={runtimeState.world?.gameStateStore ?? getDefaultGameStateStore()}
+          competitive={runtimeState.world?.competitiveRoundsEnabled ?? false}
           activeScene={activeGameScene}
           battleUiStore={battleUiStore}
           copy={copy}
           onOpenSettings={handleMobileSettingsOpen}
-          worldInput={
-            runtimeState.phase === "world" || runtimeState.phase === "lobby"
-              ? runtimeState.world?.input
-              : undefined
-          }
+          worldInput={runtimeState.phase === "world" ? runtimeState.world?.input : undefined}
           worldUiStore={worldUiStore}
           settings={{
             autosaveLabel,

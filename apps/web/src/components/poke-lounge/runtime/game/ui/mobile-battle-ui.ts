@@ -54,6 +54,10 @@ export interface MobileBattleItemOption {
 }
 
 export interface MobileBattleUiState {
+  /** Changes when the active battle, turn, or input phase changes. */
+  selectionKey?: string;
+  turnEndsAtMs?: number | null;
+  canSubmitAction?: boolean;
   phase: MobileBattleDeckPhase;
   message: string | null;
   requiresConfirmation?: boolean;

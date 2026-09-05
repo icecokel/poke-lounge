@@ -1,0 +1,603 @@
+.taskScreen {
+  position: fixed;
+  inset: var(--poke-lounge-mobile-letterbox-top, 0px) 0
+    var(--poke-lounge-mobile-letterbox-bottom, 0px);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: #f3f6ec;
+  color: #17231c;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  font-size: 1rem;
+  line-height: 1.45;
+  overflow: hidden;
+  isolation: isolate;
+}
+.taskScreen *,
+.battleDock *,
+.playBar * {
+  box-sizing: border-box;
+}
+.taskScreen h1,
+.taskScreen p {
+  margin: 0;
+}
+.taskScreen button,
+.battleDock button,
+.playBar button {
+  font: inherit;
+}
+.taskHeader {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+  border-bottom: 2px solid #17231c;
+  background: #fffef5;
+}
+.taskHeader h1 {
+  min-width: 0;
+  font-size: 1.25rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.taskContext {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  border-bottom: 1px solid #b0bdaa;
+  background: #e5eddc;
+  font-size: 0.875rem;
+}
+.taskBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px max(16px, env(safe-area-inset-right)) 20px max(16px, env(safe-area-inset-left));
+  scroll-padding-block: 12px;
+}
+.taskBody > * + * {
+  margin-top: 12px;
+}
+.taskFooter {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 8px;
+  padding: 12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
+  border-top: 2px solid #aab9a1;
+  background: #fffef5;
+}
+.selectionSummary {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.backButton,
+.primaryButton,
+.dangerButton,
+.textButton,
+.menuButton {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 2px solid #324b36;
+  border-radius: 10px;
+  background: #fffef5;
+  color: #17231c;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.backButton {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.backButton > span:first-child {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.primaryButton,
+.dangerButton {
+  min-height: 56px;
+  width: 100%;
+  background: #315a3b;
+  color: #fff;
+  font-weight: 700;
+}
+.dangerButton {
+  background: #953e2e;
+  border-color: #70281b;
+}
+.textButton {
+  background: transparent;
+}
+.primaryButton:disabled,
+.dangerButton:disabled {
+  background: #dce5d5;
+  border-color: #71846a;
+  color: #43533e;
+  cursor: default;
+}
+.taskScreen button:focus-visible,
+.battleDock button:focus-visible,
+.playBar button:focus-visible,
+.pokemonCard:focus-visible,
+.itemRow:focus-visible {
+  outline: 3px solid #a45a14;
+  outline-offset: 3px;
+}
+.taskHeader h1:focus {
+  outline: none;
+}
+.cardList {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-content: start;
+}
+.pokemonCard,
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 96px;
+  padding: 12px;
+  border: 2px solid #899d80;
+  border-radius: 12px;
+  background: #fffef5;
+  color: #17231c;
+  text-align: left;
+  font: inherit;
+  line-height: 1.4;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.pokemonCard:disabled,
+.itemRow:disabled {
+  opacity: 1;
+  color: #354931;
+  background: #e7eddf;
+  border-style: dashed;
+  cursor: default;
+}
+.pokemonCard[data-selected="true"],
+.itemRow[data-selected="true"] {
+  border-color: #315a3b;
+  background: #f0f6df;
+  box-shadow: inset 4px 0 0 #315a3b;
+}
+.thumbnail {
+  display: grid;
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  aspect-ratio: 1;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  place-items: center;
+}
+.pokemonInfo,
+.itemInfo {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 5px;
+}
+.cardTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+.cardTitle strong,
+.itemInfo strong {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+.cardTitle small,
+.cardMeta,
+.itemInfo small {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.cardMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.hpTrack {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: #b9c6b1;
+  overflow: hidden;
+}
+.hpTrack > span {
+  display: block;
+  height: 100%;
+  background: #386b40;
+}
+.badge,
+.selectedBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid #819879;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.selectedBadge {
+  background: #315a3b;
+  border-color: #315a3b;
+  color: white;
+}
+.itemRow {
+  min-height: 72px;
+}
+.itemIcon {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  color: #315a3b;
+}
+.itemInfo small {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.itemCount {
+  flex: 0 0 auto;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+.emptyNotice {
+  padding: 16px;
+  border: 1px solid #a6b69d;
+  border-radius: 10px;
+  background: #fffef5;
+}
+.battleContext {
+  display: grid;
+  gap: 6px;
+}
+.matchup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.matchup small {
+  font-size: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.timer {
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.battleDock {
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  color: #17231c;
+  line-height: 1.4;
+}
+.commandGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(64px, auto));
+  gap: 8px;
+  width: min(100%, 520px);
+  margin: auto;
+  align-content: end;
+  min-height: 100%;
+}
+.commandButton {
+  min-width: 0;
+  min-height: 64px;
+  padding: 12px;
+  border: 2px solid #17231c;
+  border-radius: 12px;
+  background: #fffef5;
+  color: #17231c;
+  font-weight: 750;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #17231c;
+  touch-action: manipulation;
+}
+.commandButton[data-command="fight"] {
+  background: #e8aa75;
+}
+.commandButton[data-command="bag"] {
+  background: #f4dc83;
+}
+.commandButton[data-command="pokemon"] {
+  background: #b8d5c4;
+}
+.commandButton[data-command="run"] {
+  background: #e3e9df;
+}
+.moveDeck {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+}
+.dockHeading {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dockHeading strong {
+  font-size: 1rem;
+}
+.moveGrid {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(72px, auto);
+  gap: 8px;
+  align-content: start;
+}
+.moveButton {
+  display: grid;
+  min-width: 0;
+  min-height: 72px;
+  align-content: center;
+  gap: 4px;
+  padding: 10px;
+  border: 2px solid #819879;
+  border-radius: 10px;
+  background: #fffef5;
+  color: #17231c;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.moveButton strong {
+  font-size: 1rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.moveButton small {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.moveButton:disabled {
+  background: #e7eddf;
+  border-style: dashed;
+  cursor: default;
+}
+.emptySlot {
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  border: 1px dashed #87967e;
+  border-radius: 10px;
+  color: #53634e;
+  font-size: 0.875rem;
+}
+.progressSurface {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 12px;
+}
+.progressSurface > p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.progress {
+  padding: 16px;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.message {
+  display: grid;
+  gap: 12px;
+}
+.message p {
+  margin: 0;
+  font-size: 1rem;
+  white-space: pre-line;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.helpList {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.helpList li {
+  padding: 16px;
+  border: 1px solid #9dad93;
+  border-radius: 10px;
+  background: #fffef5;
+}
+.helpList p {
+  margin: 8px 0 0;
+}
+.eventLog {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-left: 24px;
+}
+.eventLog li {
+  white-space: pre-line;
+}
+.playBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 12px;
+  background: #f3f6ec;
+  border-bottom: 2px solid #17231c;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  color: #17231c;
+}
+.playStatus {
+  white-space: pre-line;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.menuButton {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+}
+.settingsList {
+  display: grid;
+  gap: 12px;
+}
+.settingsList > button {
+  min-height: 56px;
+  white-space: normal;
+  height: auto;
+  font-size: 1rem;
+}
+.settingsStatus {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #a5b599;
+  border-radius: 10px;
+  background: #fffef5;
+  font-size: 0.875rem;
+  white-space: pre-line;
+}
+@media (min-width: 768px) {
+  .taskBody,
+  .taskFooter {
+    padding-inline: max(24px, calc((100% - 720px) / 2));
+  }
+}
+@media (max-width: 359px) {
+  .taskHeader {
+    gap: 8px;
+  }
+  .taskHeader .backButton {
+    padding-inline: 10px;
+  }
+  .taskHeader .backButton > span:last-child {
+    display: none;
+  }
+  .taskBody {
+    padding: 12px;
+  }
+  .pokemonCard {
+    gap: 8px;
+    padding: 10px;
+  }
+  .thumbnail {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .taskScreen *,
+  .battleDock * {
+    scroll-behavior: auto;
+    transition: none;
+  }
+}
+
+.worldTask button {
+  min-height: 56px;
+}
+.worldTask button span {
+  font-size: 1rem;
+  white-space: normal;
+}
+.worldTask button small,
+.worldTask p {
+  font-size: 0.875rem;
+  white-space: pre-line;
+}
+.worldTask li {
+  background: #fffef5;
+}
+.worldTask li b {
+  font-size: 1rem;
+}
+.worldTask li span {
+  font-size: 0.875rem;
+}
+.taskScreen :global([data-poke-lounge-move-learning]),
+.taskScreen :global([data-poke-lounge-move-learned]) {
+  min-height: 0;
+  font-size: 1rem;
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+}
+.taskScreen :global([data-poke-lounge-move-learning]) button,
+.taskScreen :global([data-poke-lounge-move-learned]) button {
+  min-height: 56px;
+  font-size: 1rem;
+}
+.taskScreen :global([data-poke-lounge-move-choice]) {
+  min-height: 72px;
+}
+.taskScreen :global([data-poke-lounge-move-learning]) small {
+  font-size: 0.875rem;
+}
+
+/* Optional matchup context yields space to the decision itself on short screens.
+   Deadlines remain visible; cards still carry the full Pokémon/HP information. */
+@media (max-height: 600px) {
+  .taskContext:has(.battleContext) {
+    padding-block: 4px;
+  }
+  .matchup {
+    display: none;
+  }
+  .taskHeader h1 {
+    font-size: 1.125rem;
+  }
+  .taskFooter {
+    padding-block: 8px;
+  }
+  .taskBody {
+    padding-block: 12px;
+  }
+}

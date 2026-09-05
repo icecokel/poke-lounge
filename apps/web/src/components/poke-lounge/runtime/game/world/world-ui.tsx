@@ -104,13 +104,19 @@ export function WorldHud({
 
   return (
     <div className={styles.worldHud} data-poke-lounge-world-hud="true">
-      <CurrencyHud copy={copy} value={player.wallet.pokeDollars} />
-      <RankScoreHud
-        copy={copy}
-        competitive={competitiveRoundsEnabled}
-        stats={getCurrentGameRankScore(state)}
-      />
-      {competitiveRoundsEnabled ? <RoundHud copy={copy} gameStateStore={gameStateStore} /> : null}
+      {desktop ? (
+        <>
+          <CurrencyHud copy={copy} value={player.wallet.pokeDollars} />
+          <RankScoreHud
+            copy={copy}
+            competitive={competitiveRoundsEnabled}
+            stats={getCurrentGameRankScore(state)}
+          />
+          {competitiveRoundsEnabled ? (
+            <RoundHud copy={copy} gameStateStore={gameStateStore} />
+          ) : null}
+        </>
+      ) : null}
       {desktop ? (
         <PartyHud
           copy={copy}

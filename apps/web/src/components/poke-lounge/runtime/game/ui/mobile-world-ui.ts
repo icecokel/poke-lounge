@@ -1,6 +1,8 @@
 import type { DiceGamblePrediction } from "../gamble/dice-gamble";
 import { PLAYER_PARTY_SLOT_COUNT, type PlayerPokemonSlot } from "../player/player-types";
 import type { PlayerPokemon } from "../state/game-state-store";
+import { getBattlePokemonAssets } from "../battle/battle-pokemon-assets";
+import type { BattleSpriteRef } from "../battle/battle-types";
 import type { ShortcutGuideInputMode } from "./shortcut-guide";
 
 export type MobileWorldUiScreen =
@@ -26,6 +28,7 @@ export interface MobileWorldItemOption {
 }
 
 export interface PokeLoungePartySlotSummary {
+  sprite?: BattleSpriteRef | null;
   canSetAsLead: boolean;
   currentHp: number | null;
   isActive: boolean;
@@ -133,6 +136,7 @@ export function createPokeLoungePartySlotSummaries({
       })?.pokemon ?? null;
 
     return {
+      sprite: pokemon ? getBattlePokemonAssets(pokemon.speciesId).front : null,
       canSetAsLead:
         pokemon !== null && pokemon.status !== "fainted" && slotIndex !== activePartySlotIndex,
       currentHp: pokemon?.currentHp ?? null,

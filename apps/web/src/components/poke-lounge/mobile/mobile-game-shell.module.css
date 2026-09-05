@@ -3,7 +3,7 @@
   z-index: 40;
   display: grid;
   min-height: 0;
-  grid-template-rows: 52px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   color: #17201a;
   overflow: hidden;
   background:
@@ -1031,5 +1031,62 @@
   .deckMeta {
     max-width: 92px;
     font-size: 0.57rem;
+  }
+}
+
+/* Field controls are independent of the game scale. */
+.exploreDeck {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px 12px 12px;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+.exploreDeck .activePokemon {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+.exploreDeck .activePokemon strong {
+  font-size: 1rem;
+}
+.exploreDeck .activePokemon span {
+  font-size: 0.875rem;
+}
+.exploreDeck .controlCluster {
+  align-self: center;
+  gap: 12px;
+}
+.exploreDeck .joystick {
+  width: clamp(112px, 34vw, 144px);
+}
+.exploreDeck .primaryAction,
+.exploreDeck .secondaryAction,
+.exploreDeck .partyAction {
+  min-height: 56px;
+  border-radius: 12px;
+  padding: 8px;
+}
+.exploreDeck .primaryAction {
+  min-height: 64px;
+}
+.exploreDeck .fieldActions {
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 8px;
+}
+.exploreDeck .fieldActions > button > span {
+  font-size: 1rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+@media (orientation: landscape) {
+  .exploreDeck .joystick {
+    width: min(124px, 42%);
   }
 }

@@ -994,6 +994,21 @@ export class BattleController {
     const inventory = this.gameStateStore.getCurrentLocalPlayer().inventory;
     const pendingMoveLearning = this.getCurrentPendingMoveLearning();
     const state: MobileBattleUiState = {
+      selectionKey: [
+        this.sceneGeneration,
+        this.authoritativeProjection?.matchId ?? "local",
+        this.authoritativeProjection?.currentTurn ?? this.state.turn,
+        this.state.player.activePartySlotIndex,
+        phase,
+      ].join(":"),
+      turnEndsAtMs:
+        this.authoritativeProjection?.status !== "completed"
+          ? (this.authoritativeProjection?.turnEndsAtMs ?? null)
+          : null,
+      canSubmitAction:
+        this.state.messageQueue.length === 0 &&
+        !this.authoritativeInputPending &&
+        (!this.authoritativeProjection || this.authoritativeConnectionStatus === "online"),
       phase,
       message: this.getVisibleBattleMessage(),
       isHelpOpen: this.shortcutGuideOpen,

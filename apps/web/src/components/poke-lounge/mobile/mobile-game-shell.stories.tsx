@@ -24,6 +24,8 @@ const meta = {
     function callback(Story) {
       return (
         <main
+          data-testid="poke-lounge-page"
+          data-poke-lounge-play-layout="true"
           className={`${styles.page} ${styles.touchGameDevice} ${themeStyles.theme}`}
           style={{ width: "100%", maxWidth: 390, margin: "0 auto" }}
         >

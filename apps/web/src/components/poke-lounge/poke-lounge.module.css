@@ -2079,7 +2079,7 @@
   }
 
   .touchGameDevice[data-poke-lounge-room-lobby-open="true"] {
-    grid-template-rows: minmax(0, 1fr) 52px;
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .touchGameDevice[data-poke-lounge-room-lobby-open="true"] .gameFrame {
@@ -4216,4 +4216,66 @@
 .page :global(.room-lobby-header) {
   flex-wrap: wrap;
   gap: 6px 12px;
+}
+
+/* Mobile play template: status / square viewport / controls. Tasks own the full
+   viewport independently; menu contents must never shrink the game or buttons. */
+.touchGameDevice[data-poke-lounge-play-layout="true"] {
+  --poke-lounge-mobile-status-height: 48px;
+  --poke-lounge-mobile-screen-gap: 8px;
+  --poke-lounge-mobile-dock-min-height: 224px;
+}
+@media (orientation: portrait) {
+  .touchGameDevice[data-poke-lounge-play-layout="true"] {
+    --poke-lounge-mobile-screen-width: min(
+      var(--poke-lounge-mobile-content-width),
+      max(
+        0px,
+        calc(
+          var(--poke-lounge-container-height) - var(--poke-lounge-mobile-letterbox-top) -
+            var(--poke-lounge-mobile-letterbox-bottom) - var(--poke-lounge-mobile-status-height) -
+            var(--poke-lounge-mobile-dock-min-height) - 16px
+        )
+      )
+    );
+    grid-template-rows: auto var(--poke-lounge-mobile-screen-height) minmax(
+        var(--poke-lounge-mobile-dock-min-height),
+        1fr
+      );
+  }
+  .touchGameDevice[data-poke-lounge-play-layout="true"] > :global([data-poke-lounge-play-status]) {
+    grid-row: 1;
+    grid-column: 1;
+    width: 100%;
+  }
+  .touchGameDevice[data-poke-lounge-play-layout="true"] .gameFrame {
+    grid-row: 2;
+  }
+  .touchGameDevice[data-poke-lounge-play-layout="true"]
+    > :global([data-poke-lounge-mobile-control-dock]) {
+    grid-row: 3;
+  }
+}
+@media (orientation: landscape) {
+  .touchGameDevice[data-poke-lounge-play-layout="true"] {
+    --poke-lounge-frame-available-height: max(
+      0px,
+      calc(var(--poke-lounge-tablet-content-height) - var(--poke-lounge-mobile-status-height) - 8px)
+    );
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .touchGameDevice[data-poke-lounge-play-layout="true"] > :global([data-poke-lounge-play-status]) {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .touchGameDevice[data-poke-lounge-play-layout="true"] .gameFrame {
+    grid-row: 2;
+    width: min(100%, var(--poke-lounge-frame-available-height));
+    max-height: var(--poke-lounge-frame-available-height);
+  }
+  .touchGameDevice[data-poke-lounge-play-layout="true"]
+    > :global([data-poke-lounge-mobile-control-dock]) {
+    grid-row: 2;
+  }
 }

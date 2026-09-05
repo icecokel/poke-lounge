@@ -684,6 +684,7 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   await page.locator("[data-poke-lounge-mobile-deck-close='true']").click();
   await expect(controls).toBeVisible();
 
+  await page.locator("[data-poke-lounge-mobile-menu='true']").click();
   await page.locator("[data-poke-lounge-mobile-help='true']").click();
   await expectMobileFullscreenScene(
     page,
@@ -698,7 +699,8 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   await page.locator("[data-poke-lounge-mobile-party='true']").click();
   const partyScreen = page.locator("[data-poke-lounge-mobile-deck='world-party']");
   await expectMobileFullscreenScene(page, partyScreen);
-  await expect(partyScreen.locator("[data-empty]")).toHaveCount(5);
+  await expect(partyScreen.locator("[data-empty]")).toHaveCount(0);
+  await expect(partyScreen.locator("[data-poke-lounge-pokemon-card]")).toHaveCount(1);
   await expectNoModalDialog(page);
   await page.locator("[data-poke-lounge-mobile-deck-close='true']").click();
   await expect(controls).toBeVisible();
@@ -707,11 +709,7 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   const settingsScreen = page.locator("[data-poke-lounge-mobile-settings-screen='true']");
   await expectMobileFullscreenScene(page, settingsScreen);
   await expect(settingsScreen.locator("[data-fullscreen-toggle]")).toHaveCount(0);
-  await expect(settingsScreen.locator("[data-poke-lounge-party-slot]")).toHaveCount(6);
-  await expect(settingsScreen.locator("[data-poke-lounge-party-slot='0']")).toHaveAttribute(
-    "data-active",
-    "true",
-  );
+  await expect(settingsScreen.locator("[data-poke-lounge-party-slot]")).toHaveCount(0);
   const volumeButton = settingsScreen.getByRole("button", { name: /소리/ });
   await expect
     .poll(async function pollExpectation() {
@@ -875,11 +873,12 @@ test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고�
   await expectControlDeckStaysBelowField(page, commandDeck);
   await expect(page.locator("[data-mobile-touch-controls='true']")).toHaveCount(0);
 
+  await page.locator("[data-poke-lounge-mobile-menu='true']").click();
   await page.locator("[data-poke-lounge-mobile-help='true']").click();
   const battleHelp = page.locator("[data-poke-lounge-mobile-deck='battle-help']");
   await expect(battleHelp).toBeVisible();
   await expect(battleHelp).toContainText("화면의 싸운다·가방·포켓몬·도망 버튼");
-  await expectControlDeckStaysBelowField(page, battleHelp);
+  await expectMobileFullscreenScene(page, battleHelp);
   await battleHelp.locator("li").last().scrollIntoViewIfNeeded();
   await expect(battleHelp.locator("li").last()).toBeVisible();
   await battleHelp.locator("[data-poke-lounge-mobile-battle-help-close='true']").click();
@@ -893,6 +892,7 @@ test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고�
   });
   await expectControlDeckStaysBelowField(page, moveDeck);
   const moveSlotGeometry = await expectBattleGrid(moveDeck, "moves", 4);
+  expect(moveSlotGeometry.height).toBeGreaterThanOrEqual(72);
 
   await moveDeck.getByRole("button", { name: /뒤로/ }).click();
   await expect(commandDeck).toBeVisible();
@@ -900,49 +900,45 @@ test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고�
 
   const itemDeck = page.locator("[data-poke-lounge-mobile-deck='battle-bag']");
   await expect(itemDeck).toBeVisible({ timeout: 10_000 });
-  await expectControlDeckStaysBelowField(page, itemDeck);
-  const itemSlotGeometry = await expectBattleGrid(itemDeck, "items", 7);
-  const itemGrid = itemDeck.locator("[data-poke-lounge-mobile-option-grid='items']");
-  const lastItem = itemGrid.getByRole("button").last();
+  await expectMobileFullscreenScene(page, itemDeck);
+  const itemRows = itemDeck.locator("[data-poke-lounge-item-row]");
+  expect(await itemRows.count()).toBeGreaterThan(0);
+  expect((await readBattleSlotGeometry(itemRows.first())).height).toBeGreaterThanOrEqual(72);
+  await expect(itemDeck.locator("[data-poke-lounge-confirm-item]")).toBeDisabled();
+  const lastItem = itemRows.last();
   await lastItem.scrollIntoViewIfNeeded();
-  const [itemGridBounds, lastItemBounds] = await Promise.all([
-    itemGrid.boundingBox(),
-    lastItem.boundingBox(),
-  ]);
-
-  expect(itemGridBounds).not.toBeNull();
-  expect(lastItemBounds).not.toBeNull();
-  expect(lastItemBounds!.y).toBeGreaterThanOrEqual(itemGridBounds!.y - 1);
-  expect(lastItemBounds!.y + lastItemBounds!.height).toBeLessThanOrEqual(
-    itemGridBounds!.y + itemGridBounds!.height + 1,
-  );
+  await expect(lastItem).toBeVisible();
+  await expectTaskFooterFits(itemDeck);
+  await page.screenshot({ path: testInfo.outputPath("bag-task.png") });
 
   await itemDeck.getByRole("button", { name: /뒤로/ }).click();
   await expect(commandDeck).toBeVisible();
   await commandDeck.getByRole("button", { name: "포켓몬" }).click();
-
   const partyDeck = page.locator("[data-poke-lounge-mobile-deck='battle-party']");
-  await expect(partyDeck).toBeVisible({ timeout: 10_000 });
-  const partySlotGeometry = await readBattleSlotGeometry(
-    partyDeck.locator("button[data-current]").first(),
-  );
-
-  // Moves use two rows; party/items use three. Keep their columns aligned without
-  // requiring different row counts to have the same height.
-  for (const geometry of [moveSlotGeometry, itemSlotGeometry]) {
-    expect(geometry.x).toBe(partySlotGeometry.x);
-    expect(geometry.y).toBe(partySlotGeometry.y);
-    expect(geometry.width).toBe(partySlotGeometry.width);
-    expect(geometry.height).toBeGreaterThanOrEqual(44);
-  }
-  expect(partySlotGeometry.height).toBeGreaterThanOrEqual(44);
-  await expectControlDeckStaysBelowField(page, partyDeck);
-  await expectControlsFit(page);
+  await expectMobileFullscreenScene(page, partyDeck);
+  await expect(partyDeck.locator("[data-poke-lounge-pokemon-card]")).toHaveCount(1);
+  await expect(partyDeck).not.toContainText("0/0");
+  await expect(partyDeck).toContainText("교체할 수 있는 포켓몬이 없습니다");
+  const card = partyDeck.locator("[data-poke-lounge-pokemon-card]").first();
+  expect((await readBattleSlotGeometry(card)).height).toBeGreaterThanOrEqual(96);
+  await expect(card.locator("strong")).not.toHaveText("");
+  await expect(partyDeck.locator("[data-poke-lounge-confirm-party]")).toBeDisabled();
+  await expectTaskFooterFits(partyDeck);
+  await page.screenshot({ path: testInfo.outputPath("party-task.png") });
 
   await partyDeck.getByRole("button", { name: /뒤로/ }).click();
   await expect(commandDeck).toBeVisible();
   await commandDeck.getByRole("button", { name: "가방" }).click();
+  const beforeItem = await readInventoryLearningProgress(page);
   await itemDeck.getByRole("button", { name: /몬스터볼/ }).click();
+  expect(await readInventoryLearningProgress(page)).toEqual(beforeItem);
+  await expect(itemDeck.locator("[data-poke-lounge-confirm-item]")).toBeEnabled();
+  await itemDeck
+    .locator("[data-poke-lounge-confirm-item]")
+    .evaluate((button: HTMLButtonElement) => {
+      button.click();
+      button.click();
+    });
   await expect(page.locator("[data-poke-lounge-battle-capture='true']")).toBeVisible();
   await expect
     .poll(
@@ -1966,3 +1962,184 @@ async function expectControlsFit(page: Page): Promise<void> {
     )
     .toBe(true);
 }
+
+async function expectTaskFooterFits(task: Locator): Promise<void> {
+  const footer = task.locator("[data-poke-lounge-task-footer]");
+  await expect(footer).toBeVisible();
+  const metrics = await task.evaluate(element => {
+    const taskBounds = element.getBoundingClientRect();
+    const footer = element.querySelector<HTMLElement>("[data-poke-lounge-task-footer]")!;
+    const bounds = footer.getBoundingClientRect();
+    return {
+      fits: bounds.top >= taskBounds.top && bounds.bottom <= taskBounds.bottom + 1,
+      buttons: [...footer.querySelectorAll("button")].every(
+        button => button.getBoundingClientRect().height >= 56,
+      ),
+    };
+  });
+  expect(metrics).toEqual({ fits: true, buttons: true });
+}
+
+test("모바일 정책: 포켓몬 후보 선택·취소·회전은 턴을 쓰지 않고 확정만 한 번 실행한다", async ({
+  page,
+}, testInfo) => {
+  await mockLocalAccountTestRuntime(page);
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
+  await chooseStarterIfNeeded(page);
+  await page.evaluate(() => {
+    const controller = (
+      window as Window & {
+        __POKE_LOUNGE_E2E__?: import("../../src/components/poke-lounge/runtime/game/testing/poke-lounge-e2e-controller").PokeLoungeE2eController;
+      }
+    ).__POKE_LOUNGE_E2E__!;
+    const state = controller.getGameStateSnapshot();
+    const player = state.playersById[state.currentPlayerId];
+    const original = player.party.find(slot => slot.pokemon)?.pokemon;
+    if (!original) throw new Error("Starter Pokémon missing from test fixture");
+    controller.setCurrentLocalPlayerForTest({
+      ...player,
+      party: Array.from({ length: 6 }, (_, slotIndex) => ({
+        slotIndex,
+        pokemon:
+          slotIndex === 0
+            ? { ...original, currentHp: original.maxHp, status: "normal" }
+            : slotIndex === 2 || slotIndex === 5
+              ? {
+                  ...original,
+                  speciesId: slotIndex === 2 ? 1 : 7,
+                  name: slotIndex === 2 ? "이상해씨" : "꼬부기",
+                  currentHp: slotIndex === 2 ? 0 : original.maxHp,
+                  status: slotIndex === 2 ? "fainted" : "normal",
+                }
+              : null,
+      })),
+    });
+  });
+  await page.setViewportSize({ width: 320, height: 568 });
+  expect(await startMobileWildBattleForTest(page)).toBe(true);
+  const command = page.locator("[data-poke-lounge-mobile-deck='battle-command']");
+  await expect(command).toBeVisible();
+  await command.getByRole("button", { name: "포켓몬", exact: true }).click();
+  const task = page.locator("[data-poke-lounge-mobile-task='battle-party']");
+  await expectMobileFullscreenScene(page, task);
+  await expect(task.locator("[data-poke-lounge-pokemon-card]")).toHaveCount(3);
+  await expect(task.locator("[data-poke-lounge-pokemon-card='2']")).toBeDisabled();
+  await expect(task.locator("[data-poke-lounge-pokemon-card='2']")).toContainText("전투불능");
+  await expect(task).not.toContainText("0/0");
+  const before = await readMobileBattleProgress(page);
+  await task.locator("[data-poke-lounge-pokemon-card='5']").click();
+  expect(await readMobileBattleProgress(page)).toEqual(before);
+  await expect(task.locator("[data-poke-lounge-confirm-party]")).toBeEnabled();
+  expect(
+    await task.evaluate(element =>
+      Array.from(element.parentElement!.children)
+        .filter(sibling => sibling !== element && sibling instanceof HTMLElement)
+        .every(sibling => (sibling as HTMLElement).inert),
+    ),
+  ).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(task).toHaveCount(0);
+  expect(await readMobileBattleProgress(page)).toEqual(before);
+  await expect(command.locator("[data-command='pokemon']")).toBeFocused();
+  await command.locator("[data-command='pokemon']").click();
+  await expect(task.locator("[data-poke-lounge-confirm-party]")).toBeDisabled();
+  await task.locator("[data-poke-lounge-pokemon-card='5']").click();
+  for (const size of [
+    { width: 768, height: 1024 },
+    { width: 667, height: 375 },
+    { width: 320, height: 568 },
+  ]) {
+    await page.setViewportSize(size);
+    await expect(task.locator("[data-poke-lounge-pokemon-card='5']")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expectTaskFooterFits(task);
+    expect(await readMobileBattleProgress(page)).toEqual(before);
+  }
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "200%";
+  });
+  await expectTaskFooterFits(task);
+  await expect(task.locator("[data-poke-lounge-pokemon-card='5']")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.screenshot({ path: testInfo.outputPath("party-320-text-200.png") });
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty("font-size");
+  });
+  await page.screenshot({ path: testInfo.outputPath("party-320-selected.png") });
+  await task.locator("[data-poke-lounge-confirm-party]").evaluate((button: HTMLButtonElement) => {
+    button.click();
+    button.click();
+  });
+  await expect.poll(async () => (await readMobileBattleProgress(page))?.slot).toBe(5);
+  await expect
+    .poll(async () => (await readMobileBattleProgress(page))?.turn)
+    .toBe(before!.turn + 1);
+});
+
+test("모바일 정책: 작은 화면의 기술 선택은 압축 대신 작업형으로 전환한다", async ({
+  page,
+}, testInfo) => {
+  await mockLocalAccountTestRuntime(page);
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
+  await chooseStarterIfNeeded(page);
+  await page.setViewportSize({ width: 320, height: 568 });
+  expect(await startMobileWildBattleForTest(page)).toBe(true);
+  const command = page.locator("[data-poke-lounge-mobile-deck='battle-command']");
+  await expect(command).toBeVisible();
+  await expect(page.locator("[data-poke-lounge-mobile-battle-message]")).toHaveCount(0);
+  await command.getByRole("button", { name: "싸운다", exact: true }).click();
+  const task = page.locator("[data-poke-lounge-mobile-task='battle-moves-expanded']");
+  await expectMobileFullscreenScene(page, task);
+  const buttons = task.locator("[data-poke-lounge-mobile-option-grid='moves'] button");
+  await expect(buttons).toHaveCount(4);
+  for (const button of await buttons.all())
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(72);
+  await page.screenshot({ path: testInfo.outputPath("moves-320-expanded.png") });
+  await page.keyboard.press("Escape");
+  await expect(command).toBeVisible();
+  await command.getByRole("button", { name: "도망", exact: true }).click();
+  const escapeTask = page.locator("[data-poke-lounge-mobile-task='battle-run']");
+  await expectMobileFullscreenScene(page, escapeTask);
+  await page.keyboard.press("Escape");
+  await expect(escapeTask).toHaveCount(0);
+  await expect(command).toBeVisible();
+});
+
+async function readMobileBattleProgress(page: Page) {
+  return page.evaluate(() => {
+    const controller = (
+      window as Window & {
+        __POKE_LOUNGE_E2E__?: import("../../src/components/poke-lounge/runtime/game/testing/poke-lounge-e2e-controller").PokeLoungeE2eController;
+      }
+    ).__POKE_LOUNGE_E2E__;
+    const battle = controller?.getBattleSnapshot();
+    return battle
+      ? { turn: battle.turn, slot: battle.player.activePartySlotIndex, hp: battle.player.currentHp }
+      : null;
+  });
+}
+
+test("모바일 정책: 320px 화면에서 글자를 확대해도 필드 조작과 작업 버튼은 유지된다", async ({
+  page,
+}) => {
+  await mockLocalAccountTestRuntime(page);
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
+  await chooseStarterIfNeeded(page);
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "200%";
+  });
+  await expectUndistortedWorld(page);
+  await expectControlsFit(page);
+  await page.locator("[data-poke-lounge-mobile-party='true']").click();
+  const task = page.locator("[data-poke-lounge-mobile-task='world-party']");
+  await expectMobileFullscreenScene(page, task);
+  const card = task.locator("[data-poke-lounge-pokemon-card]").first();
+  expect(await card.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await task.locator("[data-poke-lounge-mobile-deck-close]").click();
+  await expectControlsFit(page);
+});
