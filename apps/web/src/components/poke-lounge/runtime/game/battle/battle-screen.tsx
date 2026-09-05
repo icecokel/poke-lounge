@@ -2,12 +2,20 @@
 
 import { MoveLearningPanel, LearnedMoveNotice } from "../ui/move-learning-panel";
 
-import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import styles from "../../../poke-lounge.module.css";
 import { primePokeLoungeAudio } from "../audio/poke-lounge-audio";
 import { BATTLE_LAYOUT, getBattleStatusTextView, hpRatio, type BattleRect } from "./battle-layout";
 import { ROM_BATTLE_DESIGN_ASSETS } from "./battle-design";
+import {
+  DESKTOP_BATTLE_STAGE_LAYOUT,
+  MOBILE_BATTLE_STAGE_LAYOUT,
+  toBattlePointStyle,
+  toBattleRectStyle,
+  toCenteredBattleRectStyle,
+  type BattleStageLayout,
+} from "./battle-stage-layout";
 import type {
   BattleCapturePresentation,
   BattleCombatantPresentation,
@@ -40,7 +48,6 @@ import {
 } from "../i18n/runtime-game-localization";
 
 const logicalWidth = 256;
-const logicalHeight = 192;
 
 export function BattleScreen({
   copy,
@@ -160,8 +167,12 @@ export function BattleStage({
   onAction(action: MobileBattleUiAction): void;
   presentation: BattlePresentationState;
 }) {
+  const layout = desktop ? DESKTOP_BATTLE_STAGE_LAYOUT : MOBILE_BATTLE_STAGE_LAYOUT;
   return (
-    <div className={styles.battleStage}>
+    <div
+      className={styles.battleStage}
+      data-poke-lounge-battle-layout={desktop ? "desktop" : "mobile"}
+    >
       <BattleBackground evolution={Boolean(presentation.evolution)} />
       {presentation.authoritative.spectating ? (
         <div
@@ -179,18 +190,20 @@ export function BattleStage({
         <BattleEvolutionScene evolution={presentation.evolution} />
       ) : (
         <>
-          <BattlePokemonLayer presentation={presentation} />
-          <BattleCaptureEffect capture={presentation.capture} />
+          <BattlePokemonLayer presentation={presentation} layout={layout} />
+          <BattleCaptureEffect capture={presentation.capture} layout={layout} />
           <BattleHpPanel
             copy={copy}
             combatant={presentation.opponent}
             rect={BATTLE_LAYOUT.opponentHpPanel}
+            layout={layout}
             side="opponent"
           />
           <BattleHpPanel
             copy={copy}
             combatant={presentation.player}
             rect={BATTLE_LAYOUT.playerHpPanel}
+            layout={layout}
             side="player"
           />
         </>
@@ -221,6 +234,7 @@ export function BattleBackground({ evolution }: { evolution: boolean }) {
     <div
       aria-hidden="true"
       className={styles.battleBackground}
+      data-poke-lounge-battle-background={evolution ? "evolution" : "field"}
       style={{
         backgroundImage: `url(${evolution ? ROM_BATTLE_DESIGN_ASSETS.evolutionBackground.path : ROM_BATTLE_DESIGN_ASSETS.background.path})`,
       }}
@@ -228,7 +242,13 @@ export function BattleBackground({ evolution }: { evolution: boolean }) {
   );
 }
 
-export function BattlePokemonLayer({ presentation }: { presentation: BattlePresentationState }) {
+export function BattlePokemonLayer({
+  presentation,
+  layout = DESKTOP_BATTLE_STAGE_LAYOUT,
+}: {
+  presentation: BattlePresentationState;
+  layout?: BattleStageLayout;
+}) {
   return (
     <div className={styles.battlePokemonLayer} aria-hidden="true">
       {(["opponent", "player"] as const).map(side => {
@@ -239,15 +259,19 @@ export function BattlePokemonLayer({ presentation }: { presentation: BattlePrese
           <div
             key={`${side}:${combatant.activeSlotIndex}:${combatant.sprite.sprite.path}:${combatant.sprite.sprite.frame}`}
           >
-            <BattlePokemonSprite side={side} view={combatant.sprite} fromBall={fromBall} />
+            <BattlePokemonSprite
+              side={side}
+              view={combatant.sprite}
+              fromBall={fromBall}
+              layout={layout}
+            />
             {fromBall ? (
               <span
                 className={styles.battleSendOutBall}
                 data-poke-lounge-send-out-ball={side}
                 style={{
                   backgroundImage: `url(${ROM_BATTLE_DESIGN_ASSETS.pokeball.path})`,
-                  left: `${(combatant.sprite.x / logicalWidth) * 100}%`,
-                  top: `${(combatant.sprite.y / logicalHeight) * 100}%`,
+                  ...toBattlePointStyle(combatant.sprite, layout),
                 }}
               />
             ) : null}
@@ -255,7 +279,7 @@ export function BattlePokemonLayer({ presentation }: { presentation: BattlePrese
               <span
                 className={styles.battleHealingEffect}
                 data-poke-lounge-healing={side}
-                style={toCenteredRectStyle(combatant.sprite)}
+                style={toCenteredBattleRectStyle(combatant.sprite, layout)}
               >
                 <i>+</i>
                 <i>+</i>
@@ -273,11 +297,13 @@ export function BattlePokemonLayer({ presentation }: { presentation: BattlePrese
 export function BattlePokemonSprite({
   alpha,
   fromBall = false,
+  layout = DESKTOP_BATTLE_STAGE_LAYOUT,
   side,
   view,
 }: {
   alpha?: number;
   fromBall?: boolean;
+  layout?: BattleStageLayout;
   side: "evolution" | "opponent" | "party" | "player";
   view: BattleSpritePresentation;
 }) {
@@ -294,7 +320,7 @@ export function BattlePokemonSprite({
       data-poke-lounge-battle-pokemon={side}
       data-from-ball={fromBall || undefined}
       style={{
-        ...toCenteredRectStyle(view),
+        ...toCenteredBattleRectStyle(view, layout),
         backgroundImage: `url(${view.sprite.path})`,
         backgroundPosition: `${positionX}% ${positionY}%`,
         backgroundSize: `${columns * 100}% ${rows * 100}%`,
@@ -308,11 +334,13 @@ export function BattlePokemonSprite({
 export function BattleHpPanel({
   copy,
   combatant,
+  layout = DESKTOP_BATTLE_STAGE_LAYOUT,
   rect,
   side,
 }: {
   copy: PokeLoungeCopy;
   combatant: BattleCombatantPresentation;
+  layout?: BattleStageLayout;
   rect: BattleRect;
   side: "opponent" | "player";
 }) {
@@ -322,7 +350,7 @@ export function BattleHpPanel({
       className={styles.battleHpPanel}
       data-poke-lounge-battle-hp-panel={side}
       data-healing={combatant.healing || undefined}
-      style={toRectStyle(rect)}
+      style={toBattleRectStyle(rect, layout)}
       aria-label={`${combatant.name} HP ${Math.round(combatant.displayedHp)}/${combatant.maxHp}`}
     >
       <strong>
@@ -710,7 +738,13 @@ export function BattleShortcutGuide({
   );
 }
 
-export function BattleCaptureEffect({ capture }: { capture: BattleCapturePresentation | null }) {
+export function BattleCaptureEffect({
+  capture,
+  layout = DESKTOP_BATTLE_STAGE_LAYOUT,
+}: {
+  capture: BattleCapturePresentation | null;
+  layout?: BattleStageLayout;
+}) {
   if (!capture) return null;
   const rayColor = capture.caught ? "#f4cf58" : "#ffffff";
   const resultProgress = capture.resultProgress;
@@ -726,8 +760,7 @@ export function BattleCaptureEffect({ capture }: { capture: BattleCapturePresent
           data-ball={capture.ballItemId}
           style={{
             backgroundImage: `url(${capture.ballItemId === "ultraBall" ? ROM_BATTLE_DESIGN_ASSETS.ultraBall.path : ROM_BATTLE_DESIGN_ASSETS.pokeball.path})`,
-            left: `${(capture.ballX / logicalWidth) * 100}%`,
-            top: `${(capture.ballY / logicalHeight) * 100}%`,
+            ...toBattlePointStyle({ x: capture.ballX, y: capture.ballY }, layout),
             transform: `translate(-50%, -50%) rotate(${capture.ballRotation}rad)`,
           }}
         />
@@ -739,9 +772,8 @@ export function BattleCaptureEffect({ capture }: { capture: BattleCapturePresent
                 key={index}
                 style={{
                   background: rayColor,
-                  left: `${(capture.ballX / logicalWidth) * 100}%`,
+                  ...toBattlePointStyle({ x: capture.ballX, y: capture.ballY }, layout),
                   opacity: 1 - resultProgress * 0.55,
-                  top: `${(capture.ballY / logicalHeight) * 100}%`,
                   transform: `rotate(${index * 45}deg) translateX(${((7 + resultProgress * 13) / logicalWidth) * 100}cqw)`,
                 }}
               />
@@ -834,23 +866,5 @@ function createEvolutionEnergyLines(progress: number) {
         y2: 82 + Math.sin(angle) * outerRadius,
       };
     }),
-  };
-}
-
-function toRectStyle(rect: BattleRect): CSSProperties {
-  return {
-    height: `${(rect.height / logicalHeight) * 100}%`,
-    left: `${(rect.x / logicalWidth) * 100}%`,
-    top: `${(rect.y / logicalHeight) * 100}%`,
-    width: `${(rect.width / logicalWidth) * 100}%`,
-  };
-}
-
-function toCenteredRectStyle(rect: BattleSpritePresentation): CSSProperties {
-  return {
-    height: `${(rect.height / logicalHeight) * 100}%`,
-    left: `${((rect.x - rect.width / 2) / logicalWidth) * 100}%`,
-    top: `${((rect.y - rect.height / 2) / logicalHeight) * 100}%`,
-    width: `${(rect.width / logicalWidth) * 100}%`,
   };
 }

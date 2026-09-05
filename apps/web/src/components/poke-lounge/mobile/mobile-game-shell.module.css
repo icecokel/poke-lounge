@@ -81,39 +81,16 @@
 .exploreDeck {
   display: grid;
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: clamp(14px, 3dvh, 24px);
+  grid-template-rows: minmax(0, 1fr);
   padding: clamp(14px, 3dvh, 26px) clamp(14px, 5vw, 28px) 16px;
-}
-
-.fieldContext {
-  display: grid;
-  min-height: 66px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid rgba(23, 35, 28, 0.28);
-  border-radius: 12px;
-  background: rgba(248, 251, 240, 0.76);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.66);
-}
-
-.exploreHint {
-  margin: 0;
-  color: #4a5b4d;
-  font-size: 0.68rem;
-  font-weight: 800;
-  line-height: 1.35;
 }
 
 .activePokemon {
   display: grid;
   min-width: 90px;
   gap: 2px;
-  padding-left: 12px;
-  border-left: 1px solid rgba(23, 35, 28, 0.2);
-  text-align: right;
+  text-align: left;
+  letter-spacing: normal;
 }
 
 .activePokemon strong,
@@ -980,7 +957,7 @@
   .shell {
     grid-column: 1;
     grid-row: 2;
-    width: var(--poke-lounge-mobile-screen-width);
+    width: 100%;
     min-height: 0;
     margin: 0;
     align-self: stretch;
@@ -988,7 +965,7 @@
   }
 }
 
-@media (orientation: landscape) and (min-width: 768px) {
+@media (orientation: landscape) {
   .shell {
     grid-column: 2;
     grid-row: 1;
@@ -1007,6 +984,10 @@
 
   .controlCluster {
     gap: 12px;
+  }
+
+  .joystick {
+    width: min(150px, 42%);
   }
 
   .fieldActions {

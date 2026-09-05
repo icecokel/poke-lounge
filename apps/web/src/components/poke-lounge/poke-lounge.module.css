@@ -167,6 +167,32 @@
   background-size: 100% 100%;
 }
 
+/* Keep the source header at its original scale; extend only its flat field.
+   The baked-in bottom message stripes belong to the desktop layout, not the dock. */
+.battleStage[data-poke-lounge-battle-layout="mobile"] .battleBackground {
+  background-size: cover;
+}
+
+.battleStage[data-poke-lounge-battle-layout="mobile"]
+  .battleBackground[data-poke-lounge-battle-background="field"] {
+  background-position: top center;
+  background-size: 100% auto;
+  background-color: #f8f8e0;
+}
+
+.battleStage[data-poke-lounge-battle-layout="mobile"]
+  .battleBackground[data-poke-lounge-battle-background="field"]::after {
+  position: absolute;
+  inset: 18.75cqw 0 0;
+  content: "";
+  background: #f8f8e0;
+}
+
+/* The evolution SVG and its sprites share a centered, undistorted 4:3 plane. */
+.battleStage[data-poke-lounge-battle-layout="mobile"] .battleEvolutionScene {
+  inset: 12.5% 0;
+}
+
 .battlePokemonLayer {
   pointer-events: none;
 }
@@ -2010,12 +2036,24 @@
           env(safe-area-inset-right, 0px)
       )
     );
-    --poke-lounge-mobile-screen-width: min(var(--poke-lounge-mobile-available-inline-size), 768px);
-    --poke-lounge-mobile-screen-height: calc(var(--poke-lounge-mobile-screen-width) * 3 / 4);
+    --poke-lounge-mobile-content-width: min(var(--poke-lounge-mobile-available-inline-size), 768px);
+    /* Reserve usable controller space on short phones and portrait tablets. */
+    --poke-lounge-mobile-screen-width: min(
+      var(--poke-lounge-mobile-content-width),
+      max(
+        0px,
+        calc(
+          var(--poke-lounge-container-height) - var(--poke-lounge-mobile-letterbox-top) -
+            var(--poke-lounge-mobile-letterbox-bottom) - var(--poke-lounge-mobile-screen-gap) -
+            256px
+        )
+      )
+    );
+    --poke-lounge-mobile-screen-height: var(--poke-lounge-mobile-screen-width);
     --poke-lounge-frame-available-height: var(--poke-lounge-mobile-screen-height);
 
     display: grid;
-    grid-template-columns: minmax(0, var(--poke-lounge-mobile-screen-width));
+    grid-template-columns: minmax(0, var(--poke-lounge-mobile-content-width));
     grid-template-rows:
       var(--poke-lounge-mobile-screen-height)
       minmax(0, 1fr);
@@ -2034,9 +2072,10 @@
     height: var(--poke-lounge-mobile-screen-height);
     max-width: 100%;
     max-height: var(--poke-lounge-mobile-screen-height);
+    aspect-ratio: 1;
     margin: 0;
-    align-self: stretch;
-    justify-self: stretch;
+    align-self: center;
+    justify-self: center;
   }
 
   .touchGameDevice[data-poke-lounge-room-lobby-open="true"] {
@@ -2044,6 +2083,7 @@
   }
 
   .touchGameDevice[data-poke-lounge-room-lobby-open="true"] .gameFrame {
+    width: 100%;
     height: 100%;
     max-height: none;
     aspect-ratio: auto;
@@ -2054,15 +2094,18 @@
     inset: var(--poke-lounge-mobile-letterbox-top) 0 var(--poke-lounge-mobile-letterbox-bottom);
     width: auto;
     height: auto;
+    aspect-ratio: auto;
+    align-self: stretch;
+    justify-self: stretch;
     max-width: none;
     max-height: none;
     margin: 0;
   }
 }
 
-@media (orientation: landscape) and (min-width: 768px) {
+@media (orientation: landscape) {
   .touchGameDevice {
-    --poke-lounge-tablet-controls-width: clamp(300px, 34vw, 380px);
+    --poke-lounge-tablet-controls-width: clamp(260px, 34vw, 380px);
     --poke-lounge-tablet-gap: clamp(8px, 1.5vw, 16px);
     --poke-lounge-tablet-content-height: max(
       0px,
@@ -2085,7 +2128,8 @@
   .touchGameDevice .gameFrame {
     grid-column: 1;
     grid-row: 1;
-    width: min(100%, calc(var(--poke-lounge-tablet-content-height) * 4 / 3));
+    width: min(100%, var(--poke-lounge-tablet-content-height));
+    aspect-ratio: 1;
     height: auto;
     max-height: var(--poke-lounge-tablet-content-height);
     align-self: center;
@@ -2118,7 +2162,8 @@
 .page:global(.is-game-fullscreen-fallback).touchGameDevice .gameFrame {
   grid-column: 1;
   grid-row: 1;
-  width: min(100vw, calc(100dvh * 4 / 3), var(--poke-lounge-max-display-width));
+  width: min(100vw, 100dvh, var(--poke-lounge-max-display-width));
+  aspect-ratio: 1;
   height: auto;
   max-height: 100dvh;
   margin: 0;

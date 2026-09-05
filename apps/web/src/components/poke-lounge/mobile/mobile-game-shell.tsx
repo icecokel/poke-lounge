@@ -180,6 +180,7 @@ export function MobileGameShell({
     worldUiStore?.dispatch(action);
   };
   const isWorldSceneOpen = activeScene === "world" && worldState?.screen !== "explore";
+  const activePokemon = worldState?.party.find(pokemon => pokemon.isActive && !pokemon.isEmpty);
 
   return (
     <>
@@ -190,7 +191,22 @@ export function MobileGameShell({
       >
         <div className={styles.topBar}>
           <span className={styles.screenBadge}>
-            {activeScene === "battle" ? copy.mobile.battleDeckLabel : copy.mobile.exploreDeckLabel}
+            {activeScene !== "battle" && activePokemon ? (
+              <span className={styles.activePokemon} data-poke-lounge-mobile-lead="true">
+                <strong>{activePokemon.name}</strong>
+                <span>
+                  {formatMobileHp(
+                    activePokemon.currentHp,
+                    activePokemon.maxHp,
+                    activePokemon.status,
+                  )}
+                </span>
+              </span>
+            ) : activeScene === "battle" ? (
+              copy.mobile.battleDeckLabel
+            ) : (
+              copy.mobile.exploreDeckLabel
+            )}
           </span>
           <div className={styles.utilityActions}>
             <button
@@ -231,12 +247,7 @@ export function MobileGameShell({
         {activeScene === "battle" ? (
           <MobileBattleDeck copy={copy} uiStore={battleUiStore} />
         ) : (
-          <MobileExploreDeck
-            copy={copy}
-            input={worldInput}
-            onAction={dispatchWorldAction}
-            worldState={worldState}
-          />
+          <MobileExploreDeck copy={copy} input={worldInput} onAction={dispatchWorldAction} />
         )}
       </section>
       {isWorldSceneOpen && worldState ? (
@@ -251,33 +262,13 @@ function MobileExploreDeck({
   copy,
   input,
   onAction,
-  worldState,
 }: {
   copy: PokeLoungeCopy;
   input: VirtualGamepadController;
   onAction(action: MobileWorldUiAction): void;
-  worldState: MobileWorldUiState | null;
 }) {
-  const activePokemon = worldState?.party.find(function findItem(pokemon) {
-    return pokemon.isActive && !pokemon.isEmpty;
-  });
-  const hasActivePokemonHp = activePokemon?.currentHp !== null && activePokemon?.maxHp !== null;
-
   return (
     <div className={styles.exploreDeck} data-poke-lounge-mobile-deck="explore">
-      <div className={styles.fieldContext}>
-        <p className={styles.exploreHint}>{copy.mobile.exploreHint}</p>
-        {activePokemon ? (
-          <div className={styles.activePokemon}>
-            <strong>{activePokemon.name}</strong>
-            {hasActivePokemonHp ? (
-              <span>
-                {formatMobileHp(activePokemon.currentHp, activePokemon.maxHp, activePokemon.status)}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
       <div className={styles.controlCluster}>
         <MobileDirectionalJoystick ariaLabel={copy.mobile.exploreDeckLabel} input={input} />
         <div className={styles.fieldActions}>
