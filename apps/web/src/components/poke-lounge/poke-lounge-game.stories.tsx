@@ -7,8 +7,7 @@ import { GameProvider } from "@/contexts/game-context";
 import { PokeLoungeGame } from "./poke-lounge-game";
 
 const meta = {
-  title: "Poke Lounge/Full Game",
-  tags: ["autodocs"],
+  title: "Poke Lounge/Flows/Full Game",
   beforeEach() {
     const fetch = globalThis.fetch;
     globalThis.fetch = (input, init) =>

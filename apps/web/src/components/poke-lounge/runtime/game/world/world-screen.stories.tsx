@@ -12,8 +12,7 @@ import {
 import { WorldScreen } from "./world-screen";
 
 const meta = {
-  title: "Poke Lounge/World",
-  tags: ["autodocs"],
+  title: "Poke Lounge/Screens/World",
   parameters: { layout: "fullscreen" },
   decorators: [
     function callback(Story) {
