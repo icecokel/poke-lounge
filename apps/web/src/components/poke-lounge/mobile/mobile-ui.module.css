@@ -1,5 +1,5 @@
 .taskScreen {
-  position: fixed;
+  position: absolute;
   inset: var(--poke-lounge-mobile-letterbox-top, 0px) 0
     var(--poke-lounge-mobile-letterbox-bottom, 0px);
   z-index: 100;
@@ -306,7 +306,7 @@
   gap: 8px;
   width: min(100%, 520px);
   margin: auto;
-  align-content: end;
+  align-content: start;
   min-height: 100%;
 }
 .commandButton {

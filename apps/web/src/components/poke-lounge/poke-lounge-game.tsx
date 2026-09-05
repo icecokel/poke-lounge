@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { bindMobileViewport } from "./mobile/mobile-viewport";
 import { useLocale } from "next-intl";
 import { useLocalTestSession } from "@/lib/use-local-test-session";
 import { useGame } from "@/contexts/game-context";
@@ -101,8 +102,6 @@ const POKE_LOUNGE_VOLUME_STEPS = [0, POKE_LOUNGE_DEFAULT_VOLUME, 0.4, 0.6, 0.8, 
 const POKE_LOUNGE_DEFAULT_VOLUME_LEVEL_INDEX = POKE_LOUNGE_VOLUME_STEPS.indexOf(
   POKE_LOUNGE_DEFAULT_VOLUME,
 );
-const POKE_LOUNGE_CONTAINER_WIDTH_VAR = "--poke-lounge-container-width";
-const POKE_LOUNGE_CONTAINER_HEIGHT_VAR = "--poke-lounge-container-height";
 const POKE_LOUNGE_VOLUME_STORAGE_KEY = "poke-lounge:volume-level";
 const POKE_LOUNGE_UI_SIZE_STORAGE_KEY = "poke-lounge:ui-size";
 let activeGameStateStorageScope: string = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
@@ -194,6 +193,7 @@ export function PokeLoungeGame() {
   const sentenceEnd = copy.locale === "ja-JP" ? "。" : ".";
   const accessibleGameStatus = usePokeLoungeAccessibleStatus(locale);
   const pageRef = useRef<HTMLElement>(null);
+  const viewportUpdateRef = useRef<(() => void) | null>(null);
   const gamePageHandleRef = useRef<PokeLoungeGamePageHandle | null>(null);
   const gameStateStorageScopeRef = useRef(activeGameStateStorageScope);
   const accountTokensRef = useRef(new Map<string, string>());
@@ -672,58 +672,24 @@ export function PokeLoungeGame() {
     [setGamePlaying],
   );
 
-  useEffect(function runEffect() {
+  useLayoutEffect(() => {
     const page = pageRef.current;
-
-    if (!page) {
-      return;
-    }
-
-    const updateContainerSize = () => {
-      const viewport = window.visualViewport;
-      const width = viewport?.width ?? window.innerWidth;
-      const height = viewport?.height ?? window.innerHeight;
-      const focusedInput = page.querySelector<HTMLElement>(
-        '.room-entry-screen input[type="text"]:focus',
-      );
-      const keyboardOpen = Boolean(
-        focusedInput ||
-        (page.hasAttribute("data-poke-lounge-keyboard-open") &&
-          viewport &&
-          viewport.height < window.innerHeight),
-      );
-
-      page.toggleAttribute("data-poke-lounge-keyboard-open", keyboardOpen);
-
-      page.style.setProperty(POKE_LOUNGE_CONTAINER_WIDTH_VAR, `${Math.floor(width)}px`);
-      page.style.setProperty(POKE_LOUNGE_CONTAINER_HEIGHT_VAR, `${Math.floor(height)}px`);
-
-      if (viewport && viewport.height < window.innerHeight) {
-        focusedInput?.scrollIntoView({ block: "center" });
-      }
+    if (!page) return;
+    const binding = bindMobileViewport(page, {
+      mobile: touchGameDevice,
+      fullscreenEvent: GAME_FULLSCREEN_STATE_EVENT,
+    });
+    viewportUpdateRef.current = binding.update;
+    return () => {
+      viewportUpdateRef.current = null;
+      binding.dispose();
     };
+  }, [touchGameDevice]);
 
-    updateContainerSize();
-
-    page.addEventListener("focusin", updateContainerSize);
-    page.addEventListener("focusout", updateContainerSize);
-    window.addEventListener("resize", updateContainerSize);
-    window.visualViewport?.addEventListener("resize", updateContainerSize);
-    document.addEventListener("fullscreenchange", updateContainerSize);
-    document.addEventListener(GAME_FULLSCREEN_STATE_EVENT, updateContainerSize);
-
-    return function callback() {
-      page.removeEventListener("focusin", updateContainerSize);
-      page.removeEventListener("focusout", updateContainerSize);
-      window.removeEventListener("resize", updateContainerSize);
-      window.visualViewport?.removeEventListener("resize", updateContainerSize);
-      document.removeEventListener("fullscreenchange", updateContainerSize);
-      document.removeEventListener(GAME_FULLSCREEN_STATE_EVENT, updateContainerSize);
-      page.style.removeProperty(POKE_LOUNGE_CONTAINER_WIDTH_VAR);
-      page.style.removeProperty(POKE_LOUNGE_CONTAINER_HEIGHT_VAR);
-      page.removeAttribute("data-poke-lounge-keyboard-open");
-    };
-  }, []);
+  // An entry field may be unmounted without a blur event when the game starts.
+  useLayoutEffect(() => {
+    viewportUpdateRef.current?.();
+  }, [runtimeState.phase]);
 
   useEffect(
     function runEffect() {

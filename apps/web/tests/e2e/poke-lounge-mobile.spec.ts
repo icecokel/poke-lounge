@@ -2143,3 +2143,202 @@ test("모바일 정책: 320px 화면에서 글자를 확대해도 필드 조작�
   await task.locator("[data-poke-lounge-mobile-deck-close]").click();
   await expectControlsFit(page);
 });
+
+// Browser toolbars/keyboard can change the visual viewport without changing the
+// layout viewport used by Playwright's setViewportSize. Exercise that gap too.
+async function setVisibleMobileViewport(
+  page: Page,
+  viewport: {
+    width?: number;
+    height: number;
+    offsetTop?: number;
+    offsetLeft?: number;
+    scale?: number;
+  },
+  eventName: "scroll" | "resize" = "scroll",
+): Promise<void> {
+  await page.evaluate(
+    ({ viewport, eventName }) => {
+      const visual = window.visualViewport;
+      if (!visual) throw new Error("VisualViewport unavailable");
+      for (const [property, value] of Object.entries({
+        width: window.innerWidth,
+        offsetTop: 0,
+        offsetLeft: 0,
+        scale: 1,
+        ...viewport,
+      })) {
+        Object.defineProperty(visual, property, { configurable: true, get: () => value });
+      }
+      visual.dispatchEvent(new Event(eventName));
+    },
+    { viewport, eventName },
+  );
+}
+
+async function expectVisibleMobilePlayBounds(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const viewport = window.visualViewport;
+        const root = document.querySelector<HTMLElement>("[data-testid='poke-lounge-page']");
+        const frame = root?.querySelector<HTMLElement>("[data-poke-lounge-game-frame]");
+        const bar = root?.querySelector<HTMLElement>("[data-poke-lounge-play-status]");
+        const commands = [...(root?.querySelectorAll<HTMLElement>("[data-command]") ?? [])];
+        if (!viewport || !root || !frame || !bar || commands.length !== 4) return false;
+        const r = root.getBoundingClientRect();
+        const f = frame.getBoundingClientRect();
+        return (
+          Math.abs(r.top - viewport.offsetTop) < 1 &&
+          Math.abs(r.height - viewport.height) < 1 &&
+          Math.abs(f.width - f.height) < 1 &&
+          [bar, frame, ...commands].every(element => {
+            const b = element.getBoundingClientRect();
+            return (
+              b.width > 0 &&
+              b.height > 0 &&
+              b.top >= viewport.offsetTop - 1 &&
+              b.bottom <= viewport.offsetTop + viewport.height + 1 &&
+              b.left >= viewport.offsetLeft - 1 &&
+              b.right <= viewport.offsetLeft + viewport.width + 1
+            );
+          })
+        );
+      }),
+    )
+    .toBe(true);
+}
+
+test("모바일 뷰포트: 주소창 높이·위치만 바뀌어도 전투 네 버튼과 작업 푸터가 보인다", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockLocalAccountTestRuntime(page);
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
+  await chooseStarterIfNeeded(page);
+  expect(await startMobileWildBattleForTest(page)).toBe(true);
+  const command = page.locator("[data-poke-lounge-mobile-deck='battle-command']");
+  await expect(command).toBeVisible({ timeout: 30_000 });
+  // No window resize or visualViewport resize event: toolbar scroll alone.
+  await setVisibleMobileViewport(page, { height: 644, offsetTop: 60 });
+  await page.screenshot({ path: testInfo.outputPath("toolbar-visible-battle.png") });
+  await expectVisibleMobilePlayBounds(page);
+  const before = await readMobileBattleProgress(page);
+  for (const name of ["pokemon", "bag"] as const) {
+    await command.locator(`[data-command='${name}']`).click();
+    const task = page.locator(
+      `[data-poke-lounge-mobile-task='battle-${name === "pokemon" ? "party" : "bag"}']`,
+    );
+    await expect(task).toBeVisible();
+    await expect
+      .poll(() =>
+        task.evaluate(element => {
+          const viewport = window.visualViewport!;
+          const rect = element.getBoundingClientRect();
+          const footer = element.querySelector("footer")?.getBoundingClientRect();
+          return (
+            rect.top >= viewport.offsetTop &&
+            rect.bottom <= viewport.offsetTop + viewport.height + 1 &&
+            !!footer &&
+            footer.top >= viewport.offsetTop &&
+            footer.bottom <= viewport.offsetTop + viewport.height + 1
+          );
+        }),
+      )
+      .toBe(true);
+    await task.getByRole("button", { name: "뒤로", exact: true }).click();
+  }
+  for (const size of [
+    { height: 572, offsetTop: 90 },
+    { height: 740, offsetTop: 0 },
+    { height: 644, offsetTop: 0 },
+  ]) {
+    await setVisibleMobileViewport(page, size);
+    await expectVisibleMobilePlayBounds(page);
+  }
+  expect(await readMobileBattleProgress(page)).toEqual(before);
+  await page.screenshot({ path: testInfo.outputPath("toolbar-restored-battle.png") });
+});
+
+test("모바일 뷰포트: 입력 종료 후 주소창 높이 차이를 키보드로 유지하지 않는다", async ({
+  page,
+}) => {
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1");
+  const input = page.locator("[data-room-entry-display-name]");
+  const root = page.getByTestId("poke-lounge-page");
+  await expect(input).toBeVisible({ timeout: 30_000 });
+  await input.focus();
+  await setVisibleMobileViewport(page, { height: 420, offsetTop: 80 }, "resize");
+  await expect(root).toHaveAttribute("data-poke-lounge-keyboard-open", "");
+  await input.blur();
+  await setVisibleMobileViewport(page, { height: 640, offsetTop: 0 });
+  await expect(root).not.toHaveAttribute("data-poke-lounge-keyboard-open");
+});
+
+test("모바일 뷰포트: 핀치 확대는 레이아웃 축소나 키보드 모드로 상쇄하지 않는다", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockLocalAccountTestRuntime(page);
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
+  await chooseStarterIfNeeded(page);
+  const root = page.getByTestId("poke-lounge-page");
+  const before = await root.boundingBox();
+  expect(before).not.toBeNull();
+  await setVisibleMobileViewport(
+    page,
+    { width: 195, height: 422, offsetTop: 80, scale: 2 },
+    "resize",
+  );
+  await expect
+    .poll(async () => {
+      const after = await root.boundingBox();
+      return (
+        after &&
+        before &&
+        Math.abs(after.width - before.width) < 1 &&
+        Math.abs(after.height - before.height) < 1
+      );
+    })
+    .toBe(true);
+  await expect(root).not.toHaveAttribute("data-poke-lounge-keyboard-open");
+});
+
+test("모바일 뷰포트: 바깥 화면은 밀리지 않고 메뉴 목록은 스크롤되며 이탈 시 잠금을 해제한다", async ({
+  page,
+}) => {
+  await mockLocalAccountTestRuntime(page);
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
+  await chooseStarterIfNeeded(page);
+  const root = page.getByTestId("poke-lounge-page");
+  await expect(root).toHaveCSS("position", "fixed");
+  await root.evaluate(element => {
+    element.scrollTop = 80;
+    element.scrollLeft = 20;
+  });
+  await expect
+    .poll(() => root.evaluate(element => [element.scrollTop, element.scrollLeft]))
+    .toEqual([0, 0]);
+  await page.locator("[data-poke-lounge-mobile-menu='true']").click();
+  const menu = page.locator("[data-poke-lounge-mobile-settings-screen='true']");
+  const body = menu.locator("[data-poke-lounge-task-body]");
+  // If settings fits, make the visible viewport shorter rather than changing
+  // product contents. Only the task body's own scroll position may change.
+  await setVisibleMobileViewport(page, { height: 430 }, "resize");
+  await body.evaluate(element => {
+    element.scrollTop = 100;
+  });
+  await expect.poll(() => body.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => root.evaluate(element => element.scrollTop)).toBe(0);
+  await menu.locator("[data-poke-lounge-mobile-game-exit]").click();
+  await page.locator("[data-poke-lounge-game-exit-confirm]").click();
+  await expect(page).toHaveURL(/\/ko-KR\/game$/);
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        html: document.documentElement.style.overflow,
+        body: document.body.style.overflow,
+      })),
+    )
+    .toEqual({ html: "", body: "" });
+});

@@ -1351,6 +1351,19 @@
   text-align: center;
 }
 
+.page.touchGameDevice {
+  /* Use visual-viewport coordinates, independent of document/keyboard scrolling.
+     Tasks are absolute children so their footers share these exact bounds. */
+  position: fixed;
+  inset: var(--poke-lounge-viewport-top, 0px) auto auto var(--poke-lounge-viewport-left, 0px);
+  width: var(--poke-lounge-container-width);
+  height: var(--poke-lounge-container-height);
+  min-height: 0;
+  overflow: hidden;
+  overflow: clip;
+  overscroll-behavior: none;
+}
+
 .touchGameDevice {
   --poke-lounge-mobile-letterbox-top: max(16px, env(safe-area-inset-top, 0px));
   --poke-lounge-mobile-letterbox-bottom: max(16px, env(safe-area-inset-bottom, 0px));
