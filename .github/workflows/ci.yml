@@ -7,11 +7,20 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: ci-verify-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     env:
       NEXT_PUBLIC_API_URL: http://127.0.0.1:3001
+      NEXT_TELEMETRY_DISABLED: "1"
+      LOCAL_TEST_AUTH_TOKEN: ""
     steps:
       - uses: actions/checkout@v4
 
@@ -27,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared battle package
+        run: pnpm build:poke-lounge-battle
+
       - name: Formatting (advisory)
         continue-on-error: true
         run: pnpm format:check
@@ -35,7 +47,6 @@ jobs:
         run: |
           pnpm exec prettier --check ".github/workflows/**/*.{yml,yaml}"
           pnpm lint
-          pnpm type:check:web
           pnpm check:api-contract
           python3 scripts/poke-lounge/test_extract_rom_game_data.py
           pnpm --filter @poke-lounge/api rom-data:check
@@ -44,7 +55,22 @@ jobs:
           pnpm check:poke-lounge-battle-resolution
           pnpm poke-lounge:audio:verify
 
-      - name: Unit tests and build
-        run: |
-          pnpm test
-          pnpm build
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Production build without account authentication
+        run: pnpm build
+
+      # next build generates the route types referenced by next-env.d.ts on a clean checkout.
+      - name: Web type check
+        run: pnpm type:check:web
+
+      - name: Storybook build used by Docker
+        run: pnpm --filter @poke-lounge/web build:storybook
+
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    uses: ./.github/workflows/deploy-api.yml
+    secrets:
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}

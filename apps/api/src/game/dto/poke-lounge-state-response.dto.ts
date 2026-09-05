@@ -9,7 +9,7 @@ export class PokeLoungeStateResponseDto {
 
   @ApiProperty({
     description: '상태를 저장한 사용자 ID',
-    example: 'google-sub-id',
+    example: 'poke-lounge-local-test-user',
   })
   userId: string;
 

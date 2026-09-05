@@ -3830,7 +3830,7 @@ function createMockServerState(): MockServerState {
 async function mockAuthenticatedPokeSession(page: Page): Promise<{ requestCount(): number }> {
   let requestCount = 0;
   const snapshot = buildPokeLoungeSaveSnapshot(createGameStateStore());
-  await page.route("**/api/auth/session", function callback(route) {
+  await page.route("**/api/local-test-mode/session", function callback(route) {
     requestCount += 1;
     return route.fulfill({
       status: 200,

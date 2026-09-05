@@ -61,8 +61,8 @@ UI leave와 room `closed`까지 한 번 진행하는 실행이다. **반복 검�
 - direct room URL, 수동 WebRTC와 내부 경쟁 API
 - 사용자 간 파티·재화·인벤토리 공유
 
-공통 셸이 `/api/auth/session`을 조회할 수는 있지만, 멀티플레이 접속 성공 조건으로 로그인이나
-Authorization header를 요구해서는 안 된다.
+운영 셸은 계정 세션을 조회하지 않는다. 로컬 개발 테스트에서만 `/api/local-test-mode/session`을
+사용한다. 멀티플레이 접속 성공 조건으로 로그인이나 Authorization header를 요구해서는 안 된다.
 
 ## 3. 상태와 우선순위
 

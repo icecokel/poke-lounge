@@ -12,7 +12,7 @@ import { PokeLoungeRedisModule } from '../poke-lounge/poke-lounge-redis.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([GameHistory]),
-    // 구글 인증 가드를 사용하기 위해 AuthModule 주입
+    // 명시적 개발 테스트 계정만 지원하며 운영 계정 API는 비활성화한다.
     AuthModule,
     PokeLoungeRedisModule,
   ],

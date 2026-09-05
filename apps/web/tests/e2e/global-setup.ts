@@ -1,6 +1,6 @@
 import type { FullConfig } from "@playwright/test";
 
-const warmupRoutes = ["/ko-KR", "/ko-KR/game/poke-lounge", "/api/auth/session"];
+const warmupRoutes = ["/ko-KR", "/ko-KR/game/poke-lounge", "/api/local-test-mode/session"];
 
 const delay = (ms: number) =>
   new Promise(function resolvePromise(resolve) {

@@ -534,7 +534,7 @@ export interface components {
       id: string;
       /**
        * @description 상태를 저장한 사용자 ID
-       * @example google-sub-id
+       * @example poke-lounge-local-test-user
        */
       userId: string;
       /** @description Poke Lounge 클라이언트의 저장 상태 */
@@ -1187,6 +1187,13 @@ export interface operations {
           };
         };
       };
+      /** @description Account authentication is disabled; anonymous play remains available. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   GameController_getPokeLoungeState: {
@@ -1212,6 +1219,13 @@ export interface operations {
       };
       /** @description 저장된 Poke Lounge 상태가 없음 */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Account authentication is disabled; anonymous play remains available. */
+      503: {
         headers: {
           [name: string]: unknown;
         };
@@ -1243,6 +1257,13 @@ export interface operations {
             data: components["schemas"]["PokeLoungeStateResponseDto"];
           };
         };
+      };
+      /** @description Account authentication is disabled; anonymous play remains available. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };
@@ -1482,6 +1503,13 @@ export interface operations {
           };
         };
       };
+      /** @description Account authentication is disabled; anonymous play remains available. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   PokeLoungeController_submitCompetitiveAction: {
@@ -1511,6 +1539,13 @@ export interface operations {
             data: components["schemas"]["CompetitiveActionResponseDto"];
           };
         };
+      };
+      /** @description Account authentication is disabled; anonymous play remains available. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

@@ -96,6 +96,9 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Account authentication is disabled; anonymous play remains available."
           }
         },
         "security": [
@@ -141,6 +144,9 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Account authentication is disabled; anonymous play remains available."
           }
         },
         "security": [
@@ -177,6 +183,9 @@
           },
           "404": {
             "description": "저장된 Poke Lounge 상태가 없음"
+          },
+          "503": {
+            "description": "Account authentication is disabled; anonymous play remains available."
           }
         },
         "security": [
@@ -546,6 +555,9 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Account authentication is disabled; anonymous play remains available."
           }
         },
         "security": [
@@ -607,6 +619,9 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Account authentication is disabled; anonymous play remains available."
           }
         },
         "security": [
@@ -1587,7 +1602,7 @@
           "userId": {
             "type": "string",
             "description": "상태를 저장한 사용자 ID",
-            "example": "google-sub-id"
+            "example": "poke-lounge-local-test-user"
           },
           "state": {
             "type": "object",

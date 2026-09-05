@@ -17,7 +17,7 @@ const localEnvironment: LocalTestAccountEnvironment = {
   LOCAL_TEST_AUTH_TOKEN: localTestAuthToken,
   NEXT_PUBLIC_API_URL: "http://127.0.0.1:3001",
 };
-const sessionUrl = new URL("http://localhost:3000/api/auth/session");
+const sessionUrl = new URL("http://localhost:3000/api/local-test-mode/session");
 const nowMs = 1_800_000_000_000;
 const nonce = "abcdefghijklmnopqrstuv";
 
@@ -97,7 +97,7 @@ test("development 외 환경에서는 로컬 테스트 계정을 비활성화한
   }
 });
 
-test("session 외 Auth.js 경로는 로컬 테스트 세션을 만들지 않는다", function testCase() {
+test("전용 session 외 경로는 로컬 테스트 세션을 만들지 않는다", function testCase() {
   const providersUrl = new URL("http://localhost:3000/api/auth/providers");
   const cookieValue = createLocalTestModeCookieValue(providersUrl, localEnvironment);
 
@@ -107,13 +107,16 @@ test("session 외 Auth.js 경로는 로컬 테스트 세션을 만들지 않는�
 test("loopback이 아닌 Web 요청에서는 로컬 테스트 계정을 비활성화한다", function testCase() {
   assert.equal(
     isLocalTestAccountAvailable(
-      new URL("https://preview.example.com/api/auth/session"),
+      new URL("https://preview.example.com/api/local-test-mode/session"),
       localEnvironment,
     ),
     false,
   );
   assert.equal(
-    isLocalTestAccountAvailable(new URL("http://[::1]:3000/api/auth/session"), localEnvironment),
+    isLocalTestAccountAvailable(
+      new URL("http://[::1]:3000/api/local-test-mode/session"),
+      localEnvironment,
+    ),
     false,
   );
 });

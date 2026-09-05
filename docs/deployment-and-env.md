@@ -3,8 +3,29 @@
 Poke Lounge는 Web, API, 턴 워커, PostgreSQL과 Redis를 Docker Compose로 함께 배포한다.
 
 ```text
-main -> icenux self-hosted runner -> Docker Compose
+main -> CI verify -> icenux self-hosted runner -> Docker Compose
 ```
+
+## CI와 배포 실행
+
+PR은 검증만 실행한다. main push 또는 main에서 수동으로 실행한 CI는 verify 성공 후에만
+재사용 workflow인 deploy-api.yml을 호출하며, 검증한 동일 커밋 SHA를 배포한다.
+수동 배포는 GitHub Actions의 CI에서 main을 선택해 실행한다. Deploy를 직접 실행하는 우회 경로는 없다.
+
+CI는 공통 전투 패키지를 먼저 빌드하고 정적 검사·단위 테스트·전체 production build를 실행한다.
+Web type check는 Next.js route type 생성 이후에 실행하며 Docker에서 사용하는 Storybook도 빌드한다.
+에셋 권리 승인 게이트와 Google 인증 시크릿은 사용하지 않는다. 포맷 검사는 기존처럼 advisory다.
+
+## 익명 플레이와 계정 API
+
+운영 Web은 계정 세션 요청 없이 익명으로 시작한다. 개인 진행은 기존 브라우저 로컬 저장을 사용하며,
+멀티플레이 room UUID와 private sessionId 검증은 그대로 유지한다.
+Google 토큰 검증과 NextAuth 의존성은 제거했다. 기존 계정 저장·결과·계정 기반 경쟁 API는
+인증 없이 개방하지 않고 503 ACCOUNT_AUTH_DISABLED를 반환한다. DB 스키마와 기존 계정 데이터는 유지한다.
+
+개발 환경에서 명시적으로 활성화한 로컬 테스트 계정만 기존 테스트용 저장 API를 사용할 수 있다.
+LOCAL_TEST_AUTH_TOKEN은 선택 사항이고 production에서는 무시한다. 테스트 세션은
+/api/local-test-mode/session에서만 제공하며 /api/auth/* 경로는 제거했다.
 
 ## 운영 주소
 

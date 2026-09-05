@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
-import { useSession } from "next-auth/react";
+import { useLocalTestSession } from "@/lib/use-local-test-session";
 import { useGame } from "@/contexts/game-context";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -181,7 +181,7 @@ export function PokeLoungeGame() {
   const { setGamePlaying } = useGame();
   const locale = useLocale();
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status } = useLocalTestSession();
   const apiSession = session as ApiTokenSession | null;
   const localTestModeActive = apiSession?.localTestMode === true;
   const sessionToken = getSessionApiIdToken(apiSession, Date.now(), {

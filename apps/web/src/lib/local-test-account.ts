@@ -171,7 +171,7 @@ export function createLocalTestAccountSession(
   environment: LocalTestAccountEnvironment = process.env,
 ): LocalTestAccountSession | null {
   if (
-    requestUrl.pathname !== "/api/auth/session" ||
+    requestUrl.pathname !== "/api/local-test-mode/session" ||
     !isLocalTestModeCookieValid(requestUrl, cookieValue, environment)
   ) {
     return null;

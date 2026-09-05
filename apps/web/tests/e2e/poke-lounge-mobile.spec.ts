@@ -3,6 +3,10 @@ import path from "node:path";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { MOBILE_GAME_VIEWPORT_SIZE } from "../../src/components/poke-lounge/runtime/game/game-viewport";
 import { gotoWithRetry } from "./test-helpers";
+import {
+  createRuntimeRomDataFixture,
+  fetchPublicGameDataFixture,
+} from "../../src/components/poke-lounge/runtime/game/testing/runtime-rom-data.fixture";
 
 type WorldSnapshot = {
   player: { x: number; y: number; facing: string } | null;
@@ -171,9 +175,10 @@ test("Poke Lounge 모바일 로딩이 멈춰도 런처로 이탈할 수 있다",
   }
 });
 
-test("Poke Lounge는 계정 상태 hydration 뒤에만 런타임 에셋을 요청한다", async function testCase({
+test("Poke Lounge는 로컬 테스트 계정 상태 hydration 뒤에만 런타임 에셋을 요청한다", async function testCase({
   page,
 }) {
+  await mockLocalAccountTestRuntime(page);
   const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(
     JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 60 * 60, sub: "poke-player" }),
@@ -184,7 +189,7 @@ test("Poke Lounge는 계정 상태 hydration 뒤에만 런타임 에셋을 요�
   });
   let runtimeAssetRequests = 0;
 
-  await page.route("**/api/auth/session", function callback(route) {
+  await page.route("**/api/local-test-mode/session", function callback(route) {
     return route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -193,6 +198,7 @@ test("Poke Lounge는 계정 상태 hydration 뒤에만 런타임 에셋을 요�
         expires: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         idToken: `${header}.${payload}.signature`,
         idTokenExpiresAt: Math.floor(Date.now() / 1000) + 60 * 60,
+        localTestMode: true,
       }),
     });
   });
@@ -217,7 +223,7 @@ test("Poke Lounge는 계정 상태 hydration 뒤에만 런타임 에셋을 요�
     await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
     expect(runtimeAssetRequests).toBe(0);
 
-    await page.locator("[data-room-entry-solo]").click();
+    await page.locator("[data-room-entry-local-test-start]").click();
     await chooseStarterIfNeeded(page, { dismissInitialHelp: false });
     await expect
       .poll(function pollExpectation() {
@@ -226,7 +232,7 @@ test("Poke Lounge는 계정 상태 hydration 뒤에만 런타임 에셋을 요�
       .toBeGreaterThan(0);
   } finally {
     releaseState?.();
-    await page.unroute("**/api/auth/session");
+    await page.unroute("**/api/local-test-mode/session");
     await page.unroute("**/game/poke-lounge/state");
     await page.unroute("**/assets/poke-lounge/audio/audio-manifest.json");
   }
@@ -472,14 +478,17 @@ test("Poke Lounge 모바일 메뉴에서 런처로 나간다", async function te
   await expect(page).toHaveURL(/\/ko-KR\/game$/);
 });
 
-test("Poke Lounge 모바일 설정에서 계정 저장을 다시 연결한다", async function testCase({ page }) {
+test("Poke Lounge 모바일 설정에서 로컬 테스트 계정 저장을 다시 연결한다", async function testCase({
+  page,
+}) {
+  await mockLocalAccountTestRuntime(page);
   const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(
     JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 60 * 60, sub: "poke-player" }),
   ).toString("base64url");
   let getAttempts = 0;
 
-  await page.route("**/api/auth/session", function callback(route) {
+  await page.route("**/api/local-test-mode/session", function callback(route) {
     return route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -488,6 +497,7 @@ test("Poke Lounge 모바일 설정에서 계정 저장을 다시 연결한다", 
         expires: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         idToken: `${header}.${payload}.signature`,
         idTokenExpiresAt: Math.floor(Date.now() / 1000) + 60 * 60,
+        localTestMode: true,
       }),
     });
   });
@@ -512,7 +522,7 @@ test("Poke Lounge 모바일 설정에서 계정 저장을 다시 연결한다", 
 
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0");
   await expect(page.locator("[data-room-entry-screen='true']")).toBeVisible({ timeout: 30_000 });
-  await page.locator("[data-room-entry-solo]").click();
+  await page.locator("[data-room-entry-local-test-start]").click();
   await chooseStarterIfNeeded(page);
   await page.locator("[data-poke-lounge-mobile-menu='true']").click();
 
@@ -1810,5 +1820,23 @@ async function startMobileWildBattleForTest(page: Page): Promise<boolean> {
     });
 
     return true;
+  });
+}
+
+async function mockLocalAccountTestRuntime(page: Page): Promise<void> {
+  const data = await createRuntimeRomDataFixture(fetchPublicGameDataFixture);
+  await page.route("**/api/local-test-mode", function allowLocalTestEntry(route) {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ available: true, active: true }),
+    });
+  });
+  await page.route("**/poke-lounge/rom-data", function provideRuntimeData(route) {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, data }),
+    });
   });
 }

@@ -70,7 +70,7 @@ test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 �
   await expect(page.locator("[data-room-entry-mode='multiplayer']")).toBeVisible();
 
   const initialSession = await page.evaluate(async function evaluatePage() {
-    return (await fetch("/api/auth/session", { cache: "no-store" })).json();
+    return (await fetch("/api/local-test-mode/session", { cache: "no-store" })).json();
   });
   expect(initialSession).toBeNull();
 
@@ -78,7 +78,7 @@ test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 �
   await expect(page.locator("[data-screen='starter-selection']")).toBeVisible({ timeout: 30_000 });
 
   const activeSession = (await page.evaluate(async function evaluatePage() {
-    return (await fetch("/api/auth/session", { cache: "no-store" })).json();
+    return (await fetch("/api/local-test-mode/session", { cache: "no-store" })).json();
   })) as { localTestMode?: boolean; user?: { id?: string } };
   expect(activeSession.localTestMode).toBe(true);
   expect(activeSession.user?.id).toBe("poke-lounge-local-test-user");
@@ -116,7 +116,7 @@ test("명시적 활성화로만 싱글 테스트 모드에 진입하고 멀티 �
   await expect(page.locator("[data-room-entry-mode='multiplayer']")).toBeVisible();
 
   const exitedSession = await page.evaluate(async function evaluatePage() {
-    return (await fetch("/api/auth/session", { cache: "no-store" })).json();
+    return (await fetch("/api/local-test-mode/session", { cache: "no-store" })).json();
   });
   expect(exitedSession).toBeNull();
 });

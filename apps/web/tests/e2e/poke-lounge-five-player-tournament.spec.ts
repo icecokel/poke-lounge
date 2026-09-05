@@ -1085,7 +1085,7 @@ async function createTester(input: {
     viewport: input.viewport,
   });
   const token = `poke-lounge-e2e-token-${input.id}`;
-  await context.route("**/api/auth/session", function callback(route) {
+  await context.route("**/api/local-test-mode/session", function callback(route) {
     return route.fulfill({
       status: 200,
       contentType: "application/json",

@@ -105,7 +105,7 @@ Poke Lounge는 장편 스토리 RPG나 정적 포켓몬 관리 화면이 아니�
 
 ```text
 Next.js dynamic import
-  → NextAuth 세션 판정
+  → 익명 플레이 준비 (로컬 개발 테스트 계정만 별도 조회)
   → 익명/계정별 저장 scope 결정
   → 서버 저장 hydration · 충돌 해결 · 로컬 fallback
   → 터치 기기 판정

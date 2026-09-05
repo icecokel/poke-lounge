@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(request: NextRequest): Promise<Response> {
   const noStoreHeaders = { "Cache-Control": "private, no-cache, no-store" };
-  if (request.nextUrl.pathname !== "/api/auth/session") {
+  if (request.nextUrl.pathname !== "/api/local-test-mode/session") {
     return NextResponse.json({ error: "Not found" }, { status: 404, headers: noStoreHeaders });
   }
 
