@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { winstonConfig } from './common/utils/winston.config';
 import { GameModule } from './game/game.module';
+import { PokeLoungeMcpController } from './mcp/poke-lounge-mcp.controller';
 import { PokeLoungeModule } from './poke-lounge/poke-lounge.module';
 
 @Module({
@@ -40,7 +41,7 @@ import { PokeLoungeModule } from './poke-lounge/poke-lounge.module';
     GameModule,
     PokeLoungeModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, PokeLoungeMcpController],
   providers: [AppService],
 })
 export class AppModule {}
