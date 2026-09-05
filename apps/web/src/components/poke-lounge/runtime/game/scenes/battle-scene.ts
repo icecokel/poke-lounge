@@ -75,6 +75,7 @@ import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-asse
 import { getDefaultGameStateStore } from "../state/default-game-state-store";
 import {
   getShopItemById,
+  resolvePlayerDisplayName,
   type GameStateStore,
   type LocalPlayerState,
   type PlayerPokemon,
@@ -969,6 +970,10 @@ export class BattleController {
       phase,
       message: this.getVisibleBattleMessage(),
       isHelpOpen: this.shortcutGuideOpen,
+      requiresConfirmation:
+        this.state.messageQueue[0] === BATTLE_END_CONFIRM_MESSAGE ||
+        this.authoritativeProjection?.status === "completed",
+      spectating: this.authoritativeSpectating,
       isInputLocked:
         this.battleEntrancePlaying ||
         this.captureAnimationPlaying ||
@@ -1140,7 +1145,16 @@ export class BattleController {
       message: this.getVisibleBattleMessage(),
       opponent: {
         currentHp: this.state.opponent.pokemon.currentHp,
-        displayName: this.state.opponent.displayName,
+        healing: this.getDisplayedHpTarget("opponent") > this.displayedHp.opponent,
+        activeSlotIndex: this.state.opponent.activePartySlotIndex,
+        displayName:
+          this.state.battleKind === "wild"
+            ? this.state.opponent.displayName
+            : resolvePlayerDisplayName(
+                this.gameStateStore.getState(),
+                this.state.opponent.playerId,
+                this.state.opponent.displayName,
+              ),
         displayedHp: this.displayedHp.opponent,
         level: this.state.opponent.pokemon.level,
         maxHp: this.state.opponent.pokemon.maxHp,
@@ -1157,8 +1171,20 @@ export class BattleController {
       },
       phase: this.state.phase,
       player: {
+        activeSlotIndex: this.state.player.activePartySlotIndex,
+        healing: this.getDisplayedHpTarget("player") > this.displayedHp.player,
         currentHp: this.state.player.pokemon.currentHp,
-        displayName: this.state.player.displayName,
+        displayName: this.authoritativeProjection
+          ? resolvePlayerDisplayName(
+              this.gameStateStore.getState(),
+              this.authoritativeSpectating
+                ? this.state.player.playerId
+                : (this.authoritativeOwnPlayerId ?? this.state.player.playerId),
+              this.authoritativeSpectating
+                ? this.state.player.displayName
+                : this.gameStateStore.getCurrentLocalPlayer().displayName,
+            )
+          : this.gameStateStore.getCurrentLocalPlayer().displayName,
         displayedHp: this.displayedHp.player,
         level: this.state.player.pokemon.level,
         maxHp: this.state.player.pokemon.maxHp,
@@ -1495,10 +1521,10 @@ export class BattleController {
         );
         this.state = { ...this.state, phase: "party-select" };
       } else {
-        this.state = {
+        this.setBattleState({
           ...this.state,
           messageQueue: ["서버 대전에서는 사용할 수 없습니다."],
-        };
+        });
       }
       this.render();
       return;
@@ -1547,11 +1573,11 @@ export class BattleController {
         return;
       }
 
-      this.state = {
+      this.setBattleState({
         ...this.state,
         phase: "command",
         messageQueue: ["선택한 행동을 사용할 수 없습니다."],
-      };
+      });
       this.render();
       return;
     }
@@ -1935,7 +1961,10 @@ export class BattleController {
     this.messageAutoAdvanceTimer = null;
 
     if (
-      this.authoritativeProjection ||
+      (this.authoritativeProjection &&
+        (this.authoritativeInputPending ||
+          this.state.phase === "resolving" ||
+          this.state.phase === "ended")) ||
       this.state.messageQueue.length === 0 ||
       this.state.messageQueue[0] === BATTLE_END_CONFIRM_MESSAGE
     ) {
@@ -1969,7 +1998,11 @@ export class BattleController {
           return;
         }
 
-        this.advanceBattleMessage();
+        if (this.authoritativeProjection) {
+          this.setBattleState({ ...this.state, messageQueue: this.state.messageQueue.slice(1) });
+        } else {
+          this.advanceBattleMessage();
+        }
       }.bind(this),
     );
     this.messageAutoAdvanceTimer = timer;
@@ -2009,10 +2042,10 @@ export class BattleController {
           existingStatusCommitTween.stop();
         }
 
-        if (animateHpDecrease && targetHp < displayedHp) {
+        if (animateHpDecrease && targetHp !== displayedHp) {
           this.hpAnimationStartedCount += 1;
-          this.playHitAnimation(side);
-          if (this.shouldPlayAttackHitSound(side)) {
+          if (targetHp < displayedHp) this.playHitAnimation(side);
+          if (targetHp < displayedHp && this.shouldPlayAttackHitSound(side)) {
             playBattleHitSound();
           }
           const tween = animateRuntimeValue({

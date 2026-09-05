@@ -14,6 +14,7 @@ import { CompetitiveProjectionService } from './competitive/competitive-projecti
 import { PokeLoungeRoomEventsService } from './poke-lounge-room-events.service';
 import { POKE_LOUNGE_ROOM_EVENT_PUBLISHER } from './poke-lounge-room-event.publisher';
 import { PokeLoungeAiWorkerService } from './ai/poke-lounge-ai-worker.service';
+import { PokeLoungeAiRuntimeService } from './ai/poke-lounge-ai-runtime.service';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { PokeLoungeAiWorkerService } from './ai/poke-lounge-ai-worker.service';
     CompetitiveTurnWorkerService,
     CompetitiveMatchService,
     PokeLoungeAiWorkerService,
+    PokeLoungeAiRuntimeService,
   ],
 })
 export class PokeLoungeTurnWorkerModule {}

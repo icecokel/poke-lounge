@@ -55,6 +55,8 @@ export interface MobileBattleItemOption {
 export interface MobileBattleUiState {
   phase: MobileBattleDeckPhase;
   message: string | null;
+  requiresConfirmation?: boolean;
+  spectating?: boolean;
   isHelpOpen: boolean;
   isInputLocked: boolean;
   canGoBack: boolean;

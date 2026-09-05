@@ -9,24 +9,18 @@ import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
 import {
   isCompetitiveMoveSelectable,
   normalizeCompetitiveParty,
-  type CompetitiveIndividualValues,
   type NormalizedCompetitiveParty,
 } from "./competitive-party";
 
+import { createRandomIndividualValues } from "./adventure/battle/individual-values";
+
 const STARTER_SPECIES_IDS = [152, 155, 158] as const;
-const AVERAGE_IVS: CompetitiveIndividualValues = {
-  hp: 15,
-  attack: 15,
-  defense: 15,
-  specialAttack: 15,
-  specialDefense: 15,
-  speed: 15,
-};
 
 export function createAiStarterParty(random: () => number): NormalizedCompetitiveParty {
   const speciesId = STARTER_SPECIES_IDS[Math.floor(random() * STARTER_SPECIES_IDS.length)]!;
   const species = COMPETITIVE_SPECIES_CATALOG[speciesId]!;
-  const stats = calculateGen4BattleStats(species.baseStats, 10, AVERAGE_IVS);
+  const individualValues = createRandomIndividualValues(random);
+  const stats = calculateGen4BattleStats(species.baseStats, 10, individualValues);
   const moveId = speciesId === 158 ? 10 : 33;
 
   return normalizeCompetitiveParty({
@@ -39,56 +33,7 @@ export function createAiStarterParty(random: () => number): NormalizedCompetitiv
         level: 10,
         currentHp: stats.maxHp,
         status: "normal",
-        individualValues: AVERAGE_IVS,
-        moves: [{ moveId, pp: COMPETITIVE_MOVE_CATALOG[moveId]!.maxPp }],
-      },
-    ],
-  });
-}
-
-export function appendAiCapturedPokemon(
-  party: NormalizedCompetitiveParty,
-  speciesId: number,
-  level: number,
-): NormalizedCompetitiveParty {
-  if (party.members.length >= 6) return party;
-  const species = COMPETITIVE_SPECIES_CATALOG[speciesId];
-  if (!species) return party;
-  const slotIndex = Array.from({ length: 6 }, function callback(_, index) {
-    return index;
-  }).find(function findItem(index) {
-    return !party.members.some(function testItem(member) {
-      return member.slotIndex === index;
-    });
-  });
-  if (slotIndex === undefined) return party;
-  const moveId = 33;
-  const stats = calculateGen4BattleStats(species.baseStats, level, AVERAGE_IVS);
-
-  return normalizeCompetitiveParty({
-    version: 2,
-    activeSlotIndex: party.activeSlotIndex,
-    members: [
-      ...party.members.map(function mapItem(member) {
-        return {
-          slotIndex: member.slotIndex,
-          speciesId: member.speciesId,
-          level: member.level,
-          currentHp: member.currentHp,
-          status: member.status,
-          individualValues: member.individualValues,
-          moves: member.moves.map(function mapMove(move) {
-            return { moveId: move.moveId, pp: move.pp };
-          }),
-        };
-      }),
-      {
-        slotIndex,
-        speciesId,
-        level,
-        currentHp: stats.maxHp,
-        status: "normal" as const,
-        individualValues: AVERAGE_IVS,
+        individualValues,
         moves: [{ moveId, pp: COMPETITIVE_MOVE_CATALOG[moveId]!.maxPp }],
       },
     ],

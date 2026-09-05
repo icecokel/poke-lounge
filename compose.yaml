@@ -19,6 +19,7 @@ x-api-environment: &api-environment
   DB_DATABASE: ${DB_DATABASE:-poke_lounge}
   DB_SYNCHRONIZE: "false"
   REDIS_URL: redis://redis:6379
+  AI_RUNTIME_API_URL: http://api:3001
 
 services:
   postgres:
@@ -91,6 +92,8 @@ services:
     command: ["pnpm", "--filter", "@poke-lounge/api", "start:turn-worker"]
     environment: *api-environment
     depends_on:
+      api:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
       redis:

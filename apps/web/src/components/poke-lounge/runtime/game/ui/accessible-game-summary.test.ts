@@ -8,7 +8,7 @@ import {
   localizePokeLoungeAccessibleSceneStatus,
 } from "./accessible-game-summary";
 
-test("접근성 요약은 솔로 파티의 HP와 기술 PP 및 랭킹 제외를 설명한다", function testCase() {
+test("접근성 요약은 솔로 파티의 HP와 기술 PP를 설명한다", function testCase() {
   const store = createGameStateStore();
   store.setStarterPokemon({
     speciesId: 155,
@@ -28,7 +28,7 @@ test("접근성 요약은 솔로 파티의 HP와 기술 PP 및 랭킹 제외를 
   const summary = createAccessibleGameSummary(store.getState());
 
   assert.match(summary, /솔로 플레이/);
-  assert.match(summary, /공개 랭킹 미반영/);
+  assert.doesNotMatch(summary, /공개 랭킹/);
   assert.match(summary, /선두 브케인 레벨 10/);
   assert.match(summary, /HP 24\/30/);
   assert.match(summary, /몸통박치기 PP 31\/35/);
@@ -118,6 +118,7 @@ test("부전승 플레이어에게 다른 참가자의 현재 경기를 상대�
   const summary = createAccessibleGameSummary(store.getState());
 
   assert.match(summary, /다음 대진 대기 중/);
+  assert.match(summary, /현재 게임의 누적 점수/);
   assert.doesNotMatch(summary, /현재 상대 Player/);
 });
 

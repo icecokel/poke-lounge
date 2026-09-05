@@ -9,7 +9,7 @@ import {
   type RoomMessage,
   type RoomUnsubscribe,
 } from "../network/local-preview-room";
-import { FIELD_MAP } from "../world/field-map";
+import { FIELD_MAP, NURSE_HEAL_DURATION_MS } from "../world/field-map";
 import { WILD_ENCOUNTER_TABLES_JSON_ASSET } from "../world/wild-encounter-tables";
 import {
   createDefaultLocalPlayer,
@@ -799,7 +799,7 @@ export class WorldController {
     _nursePosition: { x: number; y: number },
     onComplete: () => void,
   ): void {
-    window.setTimeout(onComplete, 720);
+    window.setTimeout(onComplete, NURSE_HEAL_DURATION_MS);
   }
 
   private bindRoom(): void {

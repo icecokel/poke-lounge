@@ -1,4 +1,5 @@
 import { createTournamentBracketState } from "@poke-lounge/battle/tournament-bracket";
+import { getBattlePokemonAssets } from "./runtime/game/battle/battle-pokemon-assets";
 
 import { getPokeLoungeCopy } from "./poke-lounge-copy";
 import type { GameBootstrapData } from "./runtime/types";
@@ -350,11 +351,7 @@ export const storyBattleControls: MobileBattleUiState = {
       canSwitch: pokemon.slotIndex === 1,
       sprite: pokemon.isEmpty
         ? null
-        : {
-            assetKey: `party-${pokemon.slotIndex}`,
-            frame: 0,
-            path: `/assets/pokemon/front/${pokemon.slotIndex === 0 ? 152 : 155}.png`,
-          },
+        : getBattlePokemonAssets(pokemon.slotIndex === 0 ? 152 : 155).front,
     };
   }),
   items: [
@@ -395,11 +392,7 @@ export const storyBattlePresentation: BattlePresentationState = {
     sprite: {
       alpha: 1,
       height: 72,
-      sprite: {
-        assetKey: "cyndaquil-front",
-        frame: 0,
-        path: "/assets/pokemon/battle/155/front-default-normal.png",
-      },
+      sprite: getBattlePokemonAssets(155).front,
       tint: null,
       width: 72,
       x: 164,
@@ -418,11 +411,7 @@ export const storyBattlePresentation: BattlePresentationState = {
     sprite: {
       alpha: 1,
       height: 80,
-      sprite: {
-        assetKey: "chikorita-back",
-        frame: 0,
-        path: "/assets/pokemon/battle/152/back-default-normal.png",
-      },
+      sprite: getBattlePokemonAssets(152).back,
       tint: null,
       width: 80,
       x: 64,

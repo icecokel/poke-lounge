@@ -240,8 +240,6 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       standings,
       roundScores: state.tournament.lastRoundScores,
       cumulativeScores: state.tournament.scoresByPlayerId,
-      publicRankingIncluded:
-        state.tournament.serverProjection?.competitionKind === "ranked-head-to-head",
     });
     this.setAnnouncement(
       [
@@ -497,7 +495,6 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       standings: createVisibleTournamentStandings(state),
       roundScores: state.tournament.lastRoundScores,
       cumulativeScores: state.tournament.scoresByPlayerId,
-      publicRankingIncluded: projection.competitionKind === "ranked-head-to-head",
     });
     this.setAnnouncement(
       [
@@ -598,7 +595,7 @@ export function createServerTournamentAnnouncementText({
   }
 
   if (casualBattleAvailable === false) {
-    lines.push("원격 캐주얼전 미지원 · 로그인 후 재참가 또는 방 나가기");
+    lines.push("원격 캐주얼전 미지원 · 방에 다시 참가하거나 방 나가기");
   }
 
   return lines.join("\n");
@@ -635,6 +632,10 @@ export interface TournamentBracketPreview {
 export function createTournamentBracketPreview(
   projection: TournamentStateRoomPayload,
 ): TournamentBracketPreview | null {
+  if (projection.roundIndex < 1) {
+    return null;
+  }
+
   const participants = projection.participants.filter(function filterItem(participant) {
     return participant.role === "participant" && participant.connected && participant.partyReady;
   });
@@ -860,18 +861,18 @@ function createOwnTournamentStatusLabel(
 
 function createCompetitionKindLabel(kind: TournamentCompetitionKind): string {
   if (kind === "ranked-head-to-head") {
-    return "서버 권위전 · 공개 랭킹 반영";
+    return "서버 대전 · 현재 게임 점수 반영";
   }
 
   if (kind === "tournament-unranked") {
-    return "서버 권위전 · 공개 랭킹 미반영";
+    return "서버 대전 · 현재 게임 점수 반영";
   }
 
   if (kind === "casual-unranked") {
-    return "캐주얼전 · 공개 랭킹 미반영";
+    return "캐주얼 대전";
   }
 
-  return "경기 권위 확정 대기 · 공개 랭킹 반영 여부 확인 중";
+  return "서버 대전 준비 중";
 }
 
 export function formatRemainingTime(remainingMs: number): string {

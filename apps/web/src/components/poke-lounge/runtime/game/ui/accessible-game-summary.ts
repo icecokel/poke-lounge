@@ -22,8 +22,7 @@ interface AccessibleSummaryCopy {
   waitingForMatch: string;
   spectator: string;
   participant: string;
-  ranked: string;
-  unranked: string;
+  scoring: string;
   party(
     partySize: number,
     pokemon: PlayerPokemon,
@@ -43,7 +42,7 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
   "ko-KR": {
     trainerPreparing: "트레이너 정보를 준비하는 중입니다.",
     noParty: "파티 포켓몬을 선택하지 않았습니다.",
-    solo: "솔로 플레이, 공개 랭킹 미반영.",
+    solo: "솔로 플레이.",
     room: connectionStatus => `멀티플레이, ${connectionStatus}.`,
     tournament: "토너먼트.",
     waiting: (ready, total) => `대기실, 준비 ${ready}/${total}.`,
@@ -54,8 +53,7 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
     waitingForMatch: "다음 대진 대기 중.",
     spectator: "내 상태 관전.",
     participant: "내 상태 참가.",
-    ranked: "공개 랭킹 반영 경기.",
-    unranked: "공개 랭킹 미반영 경기.",
+    scoring: "현재 게임의 누적 점수입니다.",
     party: (partySize, pokemon, hp, status, moves) =>
       `파티 ${partySize}마리. 선두 ${pokemon.name} 레벨 ${pokemon.level}, ${hp}${status}.${moves}`,
     hp: (currentHp, maxHp) => `HP ${currentHp}/${maxHp}`,
@@ -78,7 +76,7 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
   "en-US": {
     trainerPreparing: "Preparing trainer information.",
     noParty: "No party Pokémon selected.",
-    solo: "Solo play, not included in the public ranking.",
+    solo: "Solo play.",
     room: connectionStatus => `Multiplayer, ${connectionStatus}.`,
     tournament: "Tournament.",
     waiting: (ready, total) => `Lobby, ${ready} of ${total} ready.`,
@@ -89,8 +87,7 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
     waitingForMatch: "Waiting for the next match.",
     spectator: "Your role: spectator.",
     participant: "Your role: participant.",
-    ranked: "This match counts toward the public ranking.",
-    unranked: "This match does not count toward the public ranking.",
+    scoring: "Scores are cumulative within this game.",
     party: (partySize, pokemon, hp, status, moves) =>
       `Party of ${partySize}. Lead ${pokemon.name}, level ${pokemon.level}, ${hp}${status}.${moves}`,
     hp: (currentHp, maxHp) => `HP ${currentHp}/${maxHp}`,
@@ -113,7 +110,7 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
   "ja-JP": {
     trainerPreparing: "トレーナー情報を準備しています。",
     noParty: "パーティのポケモンが選択されていません。",
-    solo: "ソロプレイ、公開ランキング対象外。",
+    solo: "ソロプレイ。",
     room: connectionStatus => `マルチプレイ、${connectionStatus}。`,
     tournament: "トーナメント。",
     waiting: (ready, total) => `ロビー、準備完了 ${ready}/${total}。`,
@@ -124,8 +121,7 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
     waitingForMatch: "次の対戦を待っています。",
     spectator: "自分の役割は観戦者です。",
     participant: "自分の役割は参加者です。",
-    ranked: "公開ランキング対象の試合です。",
-    unranked: "公開ランキング対象外の試合です。",
+    scoring: "スコアは今回のゲーム内で累計されます。",
     party: (partySize, pokemon, hp, status, moves) =>
       `パーティ ${partySize}匹。先頭 ${pokemon.name}、レベル ${pokemon.level}、${hp}${status}。${moves}`,
     hp: (currentHp, maxHp) => `HP ${currentHp}/${maxHp}`,
@@ -215,10 +211,8 @@ export function createAccessibleGameSummary(state: GameState, locale?: string | 
               ? copy.opponent(localizeTrainerName(opponent.displayName, resolvedLocale))
               : copy.waitingForMatch;
   const roleSummary = ownParticipant?.role === "spectator" ? copy.spectator : copy.participant;
-  const rankingSummary =
-    projection.competitionKind === "ranked-head-to-head" ? copy.ranked : copy.unranked;
 
-  return `${copy.tournament} ${stageSummary} ${roleSummary} ${rankingSummary} ${partySummary}`;
+  return `${copy.tournament} ${stageSummary} ${roleSummary} ${copy.scoring} ${partySummary}`;
 }
 
 interface AccessibleSceneCopy {

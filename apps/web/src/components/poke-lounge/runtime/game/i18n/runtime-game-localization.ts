@@ -243,9 +243,9 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
     "en-US": "Battle rules · trained party · levels retained",
     "ja-JP": "バトルルール · 育成した手持ち · レベル維持",
   },
-  "원격 캐주얼전 미지원 · 로그인 후 재참가 또는 방 나가기": {
-    "en-US": "Remote casual battles are unavailable · sign in and rejoin, or leave the room",
-    "ja-JP": "リモートカジュアル戦は未対応 · ログインして再参加するか、ルームを退出してください",
+  "원격 캐주얼전 미지원 · 방에 다시 참가하거나 방 나가기": {
+    "en-US": "Remote casual battles are unavailable · rejoin or leave the room",
+    "ja-JP": "リモートカジュアル戦は未対応 · 再参加するか、ルームを退出してください",
   },
   "대진 확정 대기": { "en-US": "Waiting for the bracket", "ja-JP": "組み合わせ確定待ち" },
   "대기실 · 모든 사람이 준비하면 방장이 시작": {
@@ -257,25 +257,21 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
   "방이 종료되었습니다": { "en-US": "The room has closed", "ja-JP": "ルームが終了しました" },
   "대진 준비 중": { "en-US": "Preparing bracket", "ja-JP": "組み合わせ準備中" },
   "참가 정보 확인 중": { "en-US": "Checking participant details", "ja-JP": "参加情報を確認中" },
-  "서버 권위전 · 공개 랭킹 반영": {
-    "en-US": "Server-authoritative match · counts toward public ranking",
-    "ja-JP": "サーバー権威試合 · 公開ランキング対象",
+  "서버 대전 · 현재 게임 점수 반영": {
+    "en-US": "Server match · counts toward this game's score",
+    "ja-JP": "サーバー対戦 · 今回のゲームのスコアに反映",
   },
-  "서버 권위전 · 공개 랭킹 미반영": {
-    "en-US": "Server-authoritative match · not included in public ranking",
-    "ja-JP": "サーバー権威試合 · 公開ランキング対象外",
+  "캐주얼 대전": {
+    "en-US": "Casual match",
+    "ja-JP": "カジュアル対戦",
   },
-  "캐주얼전 · 공개 랭킹 미반영": {
-    "en-US": "Casual match · not included in public ranking",
-    "ja-JP": "カジュアル戦 · 公開ランキング対象外",
-  },
-  "경기 권위 확정 대기 · 공개 랭킹 반영 여부 확인 중": {
-    "en-US": "Waiting for match verification · checking public ranking eligibility",
-    "ja-JP": "試合検証待ち · 公開ランキング対象を確認中",
+  "서버 대전 준비 중": {
+    "en-US": "Preparing server match",
+    "ja-JP": "サーバー対戦を準備中",
   },
   "솔로 모드": { "en-US": "Solo mode", "ja-JP": "ソロモード" },
   "랭킹 미반영": { "en-US": "Not included in ranking", "ja-JP": "ランキング対象外" },
-  "계정 기록": { "en-US": "Account record", "ja-JP": "アカウント記録" },
+  "현재 게임": { "en-US": "Current game", "ja-JP": "今回のゲーム" },
   "토너먼트 진행": { "en-US": "Tournament in progress", "ja-JP": "トーナメント進行中" },
   결과: { "en-US": "Result", "ja-JP": "結果" },
   "최종 결과": { "en-US": "Final results", "ja-JP": "最終結果" },
@@ -286,13 +282,9 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
   },
   "챔피언십 종료": { "en-US": "Finish championship", "ja-JP": "チャンピオンシップ終了" },
   "다음 라운드 시작": { "en-US": "Start next round", "ja-JP": "次のラウンドを開始" },
-  "공개 랭킹 반영": {
-    "en-US": "Counts toward public ranking",
-    "ja-JP": "公開ランキング対象",
-  },
-  "공개 랭킹 미반영": {
-    "en-US": "Not included in public ranking",
-    "ja-JP": "公開ランキング対象外",
+  "현재 게임 누적 점수": {
+    "en-US": "Cumulative score in this game",
+    "ja-JP": "今回のゲームの累計スコア",
   },
   "라운지 마을 · 서쪽 야생초원": {
     "en-US": "Lounge Town · West Wilds",

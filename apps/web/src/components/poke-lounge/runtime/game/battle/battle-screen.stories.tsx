@@ -13,8 +13,7 @@ import type { BattlePresentationState } from "./battle-ui-store";
 import { BattleScreen } from "./battle-screen";
 
 const meta = {
-  title: "Poke Lounge/Battle",
-  tags: ["autodocs"],
+  title: "Poke Lounge/Screens/Battle",
   parameters: { layout: "fullscreen" },
   decorators: [
     function callback(Story) {
@@ -146,5 +145,35 @@ export const Entrance: Story = {
     renderBattle({
       controls: { phase: "intro", isInputLocked: true },
       presentation: { phase: "intro", entrance: { active: true, progress: 0.42 } },
+    }),
+};
+
+export const TrainerSendOut: Story = {
+  render: () => renderBattle({ presentation: { battleKind: "trainer" } }),
+};
+
+export const WildEncounter: Story = {
+  render: () => renderBattle({ presentation: { battleKind: "wild" } }),
+};
+
+export const Healing: Story = {
+  render: () =>
+    renderBattle({
+      controls: { isInputLocked: true },
+      presentation: {
+        player: { ...storyBattlePresentation.player, healing: true },
+        message: "치코리타의 체력이 회복되고 있다!",
+      },
+    }),
+};
+
+export const Spectating: Story = {
+  render: () =>
+    renderBattle({
+      controls: { isInputLocked: true },
+      presentation: {
+        message: storyCopy.mobile.spectating,
+        authoritative: { ...storyBattlePresentation.authoritative, spectating: true },
+      },
     }),
 };

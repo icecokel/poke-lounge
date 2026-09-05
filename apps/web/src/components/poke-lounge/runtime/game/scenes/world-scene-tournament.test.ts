@@ -8,6 +8,7 @@ import {
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 import { createGameStateStore } from "../state/game-state-store";
 import {
+  createTournamentBracketPreview,
   createServerTournamentAnnouncementText,
   createWorldSceneTournament,
 } from "./world-scene-tournament";
@@ -60,6 +61,17 @@ function createProjection(participantCount = 5): TournamentStateRoomPayload {
   };
 }
 
+test("대기 중인 0 라운드는 대진 미리보기를 생성하지 않는다", function testCase() {
+  const projection = createProjection();
+  projection.roundIndex = 0;
+  projection.roomStatus = "waiting";
+  projection.roomRound.index = 0;
+  projection.roomRound.phase = "waiting";
+  projection.tournament.bracket = null;
+
+  assert.equal(createTournamentBracketPreview(projection), null);
+});
+
 test("5인 서버 대진 안내는 canonical bye와 현재 상대를 7줄 이내로 표시한다", function testCase() {
   const projection = createProjection();
   const text = createServerTournamentAnnouncementText({
@@ -73,7 +85,7 @@ test("5인 서버 대진 안내는 canonical bye와 현재 상대를 7줄 이내
   assert.match(text, /참가 5\/8 · 준비 5\/5 · 접속 5\/5 · 관전 0/);
   assert.match(text, /현재 경기 · #4 Player 4 vs #5 Player 5/);
   assert.match(text, /내 상태 · #4 Player 4 · 상대 #5 Player 5/);
-  assert.match(text, /서버 권위전 · 공개 랭킹 미반영/);
+  assert.match(text, /서버 대전 · 현재 게임 점수 반영/);
   assert.match(text, /전투 규칙 · 육성 파티 · 레벨 유지/);
   assert.ok(text.split("\n").length <= 7);
 
@@ -129,8 +141,8 @@ test("원격 party가 없는 casual active match는 미지원과 로그인·나�
   });
 
   assert.match(text, /원격 캐주얼전 미지원/);
-  assert.match(text, /로그인 후 재참가 또는 방 나가기/);
-  assert.match(text, /캐주얼전 · 공개 랭킹 미반영/);
+  assert.match(text, /방에 다시 참가하거나 방 나가기/);
+  assert.match(text, /캐주얼 대전/);
   assert.doesNotMatch(text, /육성 파티/);
   assert.ok(text.split("\n").length <= 7);
 });

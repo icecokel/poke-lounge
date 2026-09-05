@@ -45,7 +45,11 @@ import {
 } from "../ui/mobile-world-ui";
 import { dispatchPokeLoungeAccessibleStatus } from "../ui/poke-lounge-ui-events";
 import { createShortcutGuideTitle, type ShortcutGuideInputMode } from "../ui/shortcut-guide";
-import { FIELD_MAP, resolveFieldEncounterAreaId } from "../world/field-map";
+import {
+  FIELD_MAP,
+  NURSE_INTERACTION_DISTANCE,
+  resolveFieldEncounterAreaId,
+} from "../world/field-map";
 import { formatPokemonHp, formatPokeDollars } from "./world-scene-hud";
 import type { WorldE2eSnapshot } from "../testing/poke-lounge-e2e-controller";
 import type { ObjectLayerLookup } from "./world-scene";
@@ -1224,7 +1228,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       Math.hypot(
         playerPosition.x - this.shopkeeperPosition.x,
         playerPosition.y - this.shopkeeperPosition.y,
-      ) <= 56
+      ) <= NURSE_INTERACTION_DISTANCE
     );
   }
 
