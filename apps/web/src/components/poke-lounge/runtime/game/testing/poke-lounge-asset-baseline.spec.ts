@@ -5,6 +5,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { FIELD_MAP } from "../world/field-map";
+import { createWorldMapModel } from "../world/world-map-model";
+import { worldPlayerCollides } from "../world/world-runtime-motion";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../..");
@@ -23,6 +25,18 @@ test("이식 기준 public asset과 ROM 볼 이미지의 경로·바이트가 �
       asset.publicPath,
     );
   }
+});
+
+test("PC는 모든 NPC와 충분히 떨어져 있고 앞에서 접근할 수 있다", function testCase() {
+  const model = createWorldMapModel(
+    JSON.parse(fs.readFileSync(path.join(webRoot, "public", FIELD_MAP.mapUrl), "utf8")),
+  );
+  const pc = model.npcs.find(npc => npc.name === "storagePc")!;
+  assert.ok(pc);
+  for (const npc of model.npcs) {
+    if (npc !== pc) assert.ok(Math.hypot(pc.x - npc.x, pc.y - npc.y) >= 128);
+  }
+  assert.equal(worldPlayerCollides({ x: pc.x, y: pc.y + 32 }, model), false);
 });
 
 test("town map과 hero atlas의 DOM 이식 좌표 계약을 고정한다", function testCase() {

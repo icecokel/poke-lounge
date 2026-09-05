@@ -669,7 +669,7 @@
     },
     {
       "publicPath": "maps/pokemmo-reference/town.json",
-      "sha256": "06fff1df29cc07ad50f4f0e4745116fb68beb38978bb3d2ea36e4582dc9e08d1",
+      "sha256": "3d0776bb80e2927a88519237dfce6bd8dce01f7d3305cd4754750b9a9a761d4c",
       "source": "docs/poke-lounge-asset-provenance.md; standalone migration audit; original source/license not present; distribution rights unresolved",
       "rightsStatus": "blocked",
       "attribution": null,
