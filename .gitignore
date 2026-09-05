@@ -15,3 +15,6 @@ test-results
 # Raw ROM and generated extraction inputs stay local.
 data/processed/
 data/roms/
+
+# Internal project documentation stays local.
+docs/
