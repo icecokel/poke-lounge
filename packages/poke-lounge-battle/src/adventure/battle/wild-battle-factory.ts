@@ -1,3 +1,4 @@
+import { findBattleReadyPartySlot } from "../player/battle-ready-party";
 import type { WildEncounterCandidate } from "../world/wild-encounters";
 import type { PlayerPokemon, PlayerPokemonMove } from "../player/pokemon-types";
 import type { PlayerPokemonSlot } from "../player/player-types";
@@ -239,6 +240,8 @@ function resolveStoredActivePartySlotIndex(
   playerParty: Array<PlayerPokemonSlot<PlayerPokemon>>,
   activePartySlotIndex?: number,
 ): number {
+  const readySlot = findBattleReadyPartySlot(playerParty, activePartySlotIndex);
+  if (readySlot) return readySlot.slotIndex;
   if (
     typeof activePartySlotIndex === "number" &&
     Number.isInteger(activePartySlotIndex) &&

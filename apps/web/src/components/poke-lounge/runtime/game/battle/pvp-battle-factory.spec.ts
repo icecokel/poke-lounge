@@ -111,3 +111,52 @@ function readPublicJson(publicPath: string): unknown {
     fs.readFileSync(path.join(webRoot, "public", publicPath.replace(/^\//, "")), "utf8"),
   );
 }
+
+test("기절한 선두 대신 살아 있는 팀원으로 전투에 진입하고 소개 이름도 일치한다", () => {
+  const player = createDefaultLocalPlayer("player-1");
+  const opponent = createDefaultLocalPlayer("player-2");
+  player.party = [
+    {
+      slotIndex: 0,
+      pokemon: { ...createPokemon(4, "파이리", 52, "불꽃세례"), currentHp: 0, status: "fainted" },
+    },
+    { slotIndex: 3, pokemon: { ...createPokemon(7, "꼬부기", 55, "물대포"), currentHp: 5 } },
+  ];
+  opponent.party = [
+    {
+      slotIndex: 0,
+      pokemon: { ...createPokemon(152, "치코리타", 33, "몸통박치기"), currentHp: 0 },
+    },
+    { slotIndex: 5, pokemon: { ...createPokemon(155, "브케인", 52, "불꽃세례"), currentHp: 5 } },
+  ];
+  const before = structuredClone([player, opponent]);
+  const state = createPvpBattleState({
+    roundIndex: 1,
+    matchIndex: 0,
+    player,
+    opponent,
+    personalRecords,
+    moveRecords,
+  });
+  assert.equal(state.player.activePartySlotIndex, 3);
+  assert.equal(state.opponent.activePartySlotIndex, 5);
+  assert.equal(state.player.pokemon.currentHp, 5);
+  assert.equal(state.player.party[0].pokemon?.currentHp, 0);
+  assert.equal(state.result, null);
+  assert.match(state.messageQueue[0], /브케인/);
+  assert.match(state.messageQueue[1], /꼬부기/);
+  assert.deepEqual([player, opponent], before);
+  player.party[1].pokemon!.currentHp = 0;
+  assert.throws(
+    () =>
+      createPvpBattleState({
+        roundIndex: 1,
+        matchIndex: 0,
+        player,
+        opponent,
+        personalRecords,
+        moveRecords,
+      }),
+    /no battle-ready Pokemon/,
+  );
+});

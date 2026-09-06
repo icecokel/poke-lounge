@@ -25,6 +25,7 @@ import {
   getAuthoritativeHpLossTargets,
   getPreviousCombatantPokemon,
 } from "../battle/authoritative-hp-feedback";
+import { moveBattleBagSelection } from "../battle/battle-bag-selection";
 import { getPartyExperienceRatio, sharesPartyExperience } from "@poke-lounge/battle/round-settings";
 import {
   BATTLE_LAYOUT,
@@ -3194,15 +3195,22 @@ export class BattleController {
   }
 
   private updateBagSelection(): void {
-    const battleBagItemIds = this.getBattleBagItemIds();
-    if (consumeVirtualGamepadPress("up") || this.keyboard.consume("ArrowUp", "KeyW")) {
-      this.selectedBagItemIndex = Math.max(0, this.selectedBagItemIndex - 1);
-      this.render();
-    }
-    if (consumeVirtualGamepadPress("down") || this.keyboard.consume("ArrowDown", "KeyS")) {
-      this.selectedBagItemIndex = Math.min(
-        Math.max(0, battleBagItemIds.length - 1),
-        this.selectedBagItemIndex + 1,
+    const count = this.getBattleBagItemIds().length;
+    const columns = usesPokeLoungeMobileShell(this.ownerDocument) ? 1 : 2;
+    const keys = {
+      up: ["ArrowUp", "KeyW"],
+      down: ["ArrowDown", "KeyS"],
+      left: ["ArrowLeft", "KeyA"],
+      right: ["ArrowRight", "KeyD"],
+    } as const;
+    for (const direction of ["up", "down", "left", "right"] as const) {
+      if (!consumeVirtualGamepadPress(direction) && !this.keyboard.consume(...keys[direction]))
+        continue;
+      this.selectedBagItemIndex = moveBattleBagSelection(
+        this.selectedBagItemIndex,
+        direction,
+        count,
+        columns,
       );
       this.render();
     }

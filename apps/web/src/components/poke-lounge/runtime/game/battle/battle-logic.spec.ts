@@ -994,3 +994,45 @@ function drainBattleMessages(state: BattleScreenState): BattleScreenState {
 
   return nextState;
 }
+
+test("기절한 선두가 남은 복구 상태에서도 행동을 소비하지 않고 살아 있는 팀원 교체를 요구한다", () => {
+  const state = createSampleBattleState();
+  const lead = { ...clonePokemon(state.player.pokemon), currentHp: 0, status: "fainted" as const };
+  const reserve = {
+    ...clonePokemon(state.player.pokemon),
+    currentHp: 1,
+    status: "normal" as const,
+  };
+  state.player = {
+    ...state.player,
+    pokemon: lead,
+    activePartySlotIndex: 0,
+    party: [
+      { slotIndex: 0, pokemon: lead },
+      { slotIndex: 5, pokemon: reserve },
+    ],
+  };
+  state.messageQueue = [];
+  for (const restored of [
+    chooseBattleCommand({ ...state, phase: "command" }, "fight"),
+    choosePlayerMove({ ...state, phase: "move-select" }, 0, { random: () => 0.5 }),
+    chooseBattleBagItem({ ...state, phase: "bag-select" }, "potion", { itemCount: 5 }),
+  ]) {
+    assert.equal(restored.phase, "party-select");
+    assert.equal(restored.result, null);
+    assert.equal(restored.turn, state.turn);
+    assert.deepEqual(restored.opponent, state.opponent);
+    assert.deepEqual(restored.player.pokemon.moves, lead.moves);
+    assert.equal(restored.usedInventoryItemId, null);
+    const switched = choosePartySlot(drainBattleMessages(restored), 5);
+    assert.equal(switched.player.activePartySlotIndex, 5);
+    assert.equal(switched.player.pokemon.currentHp, 1);
+    assert.equal(switched.result, null);
+    assert.equal(switched.turn, state.turn);
+  }
+  state.player.party[1].pokemon = { ...reserve, currentHp: 0, status: "fainted" };
+  assert.equal(
+    chooseBattleCommand({ ...state, phase: "command" }, "fight").result?.loserPlayerId,
+    state.player.playerId,
+  );
+});

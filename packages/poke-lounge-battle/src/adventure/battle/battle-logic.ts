@@ -128,6 +128,8 @@ export function chooseBattleCommand(
     return state;
   }
 
+  if (!canPokemonBattle(state.player.pokemon)) return requirePlayerReplacement(state);
+
   if (command === "run") {
     if (state.battleKind !== "wild") {
       return {
@@ -214,6 +216,7 @@ export function chooseBattleBagItem(
     return state;
   }
 
+  if (!canPokemonBattle(state.player.pokemon)) return requirePlayerReplacement(state);
   const itemCount = normalizeInventoryCount(options.itemCount ?? 0);
 
   if (itemId === "pokeball") {
@@ -344,6 +347,18 @@ function chooseCaptureBallItem(
   });
 }
 
+function requirePlayerReplacement(state: BattleScreenState): BattleScreenState {
+  return createPlayerFaintState({
+    state,
+    playerPokemon: state.player.pokemon,
+    opponentPokemon: state.opponent.pokemon,
+    messageQueue: [],
+    selectedMoveId: null,
+    turn: state.turn,
+    usedInventoryItemId: null,
+  });
+}
+
 export function isForcedPartySwitch(state: BattleScreenState): boolean {
   return state.phase === "party-select" && !canPokemonBattle(state.player.pokemon);
 }
@@ -458,6 +473,7 @@ export function choosePlayerMove(
     return state;
   }
 
+  if (!canPokemonBattle(state.player.pokemon)) return requirePlayerReplacement(state);
   const random = options.random ?? Math.random;
   const selectedMove = state.player.pokemon.moves[moveIndex];
   const playerMove =

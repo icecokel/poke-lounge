@@ -487,11 +487,13 @@
 .battleBagPanel {
   z-index: 20;
   display: grid;
-  grid-template-rows: repeat(4, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 0.1em;
 }
 
 .battleBagPanel > button {
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -501,6 +503,16 @@
   border: 0;
   font: inherit;
   text-align: left;
+}
+
+.battleBagPanel > button > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.battleBagPanel > button > small {
+  flex-shrink: 0;
+  margin-left: 0.25em;
 }
 
 .battleBagPanel > button[data-selected="true"] {

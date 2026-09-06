@@ -1,3 +1,4 @@
+import { findBattleReadyPartySlot } from "@poke-lounge/battle/adventure/player/battle-ready-party";
 import type { BattleResultReason } from "../battle/battle-types";
 import {
   createRoundScoreUpdatedAuthorityPayloads,
@@ -338,8 +339,8 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
     if (
       !player ||
       !opponent ||
-      !hasActiveTournamentPokemon(player) ||
-      !hasActiveTournamentPokemon(opponent)
+      !hasBattleReadyTournamentPokemon(player) ||
+      !hasBattleReadyTournamentPokemon(opponent)
     ) {
       return false;
     }
@@ -393,7 +394,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
         return left.playerId.localeCompare(right.playerId, undefined, { numeric: true });
       });
 
-    return [...localPlayers, ...remotePlayers].filter(hasActiveTournamentPokemon).slice(0, 8);
+    return [...localPlayers, ...remotePlayers].filter(hasBattleReadyTournamentPokemon).slice(0, 8);
   }
 
   private getTournamentBattlePlayer(playerId: string): LocalPlayerState | undefined {
@@ -428,8 +429,8 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
     if (
       !player ||
       !opponent ||
-      !hasActiveTournamentPokemon(player) ||
-      !hasActiveTournamentPokemon(opponent)
+      !hasBattleReadyTournamentPokemon(player) ||
+      !hasBattleReadyTournamentPokemon(opponent)
     ) {
       return false;
     }
@@ -933,20 +934,8 @@ function createVisibleTournamentStandings(state: GameState): TournamentStanding[
   });
 }
 
-function hasActiveTournamentPokemon(player: LocalPlayerState): boolean {
-  const activePokemon = player.party.find(function findItem(slot) {
-    return slot.slotIndex === player.activePartySlotIndex;
-  })?.pokemon;
-
-  if (!activePokemon || activePokemon.status === "fainted") {
-    return false;
-  }
-
-  if (typeof activePokemon.currentHp === "number" && activePokemon.currentHp <= 0) {
-    return false;
-  }
-
-  return true;
+export function hasBattleReadyTournamentPokemon(player: LocalPlayerState): boolean {
+  return findBattleReadyPartySlot(player.party, player.activePartySlotIndex) !== null;
 }
 
 function toTournamentLocalPlayerFromSnapshot(

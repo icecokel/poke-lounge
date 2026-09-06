@@ -5151,3 +5151,47 @@ test("롬 서버 연출: 기술·빗나감·상태 피해를 순서대로 재생
   await expect(effect).toHaveCount(0);
   expect((await read())?.effectStartedCount).toBe(3);
 });
+
+test("선두 전투불능 회귀: 서버 토너먼트도 생존 팀원이 있으면 패배하지 않고 교체한다", async ({
+  page,
+}, info) => {
+  const server = createMockServerState();
+  await mockAuthenticatedPokeSession(page);
+  await mockServerRoom(page, server, {
+    competitive: true,
+    competitiveImmediately: true,
+    waitForResult: true,
+    wrapped: true,
+  });
+  await startServerRoom(page);
+  await waitForActiveScene(page, "battle");
+  await waitForBattleReady(page);
+  const projection = createServerCompetitiveProjection(server);
+  const own = projection.currentState.playersById[projection.playerIds[0]]!;
+  own.team.find(member => member.slotIndex === own.activeSlotIndex)!.currentHp = 0;
+  own.team.find(member => member.slotIndex === own.activeSlotIndex)!.status = "fainted";
+  expect(
+    parseCompetitiveProjection(projection).currentState.playersById[projection.playerIds[0]]!
+      .team[0]!.currentHp,
+  ).toBe(0);
+  expect(own.team.some(member => member.currentHp > 0)).toBe(true);
+  projection.currentTurn += 1;
+  projection.currentState.turn = projection.currentTurn;
+  projection.stateHash = "d".repeat(64);
+  server.revision += 1;
+  await emitSocketSnapshot(page, { ...createTournamentRoomState(server), competitive: projection });
+  await expect.poll(async () => (await getBattleSnapshot(page))?.phase).toBe("party-select");
+  expect(await getBattleSnapshot(page)).toMatchObject({ result: null, player: { currentHp: 0 } });
+  const choices = page.locator('[data-poke-lounge-battle-surface="party"] button:enabled');
+  await expect(choices).toHaveCount(1, { timeout: 15000 });
+  await page.screenshot({ path: info.outputPath("server-forced-replacement.png") });
+  await choices.click();
+  await expect.poll(() => server.competitiveActionBodies.length).toBe(1);
+  const reserve = own.team.find(member => member.currentHp > 0)!;
+  expect(server.competitiveActionBodies[0]?.action).toEqual({
+    kind: "switch",
+    slotIndex: reserve.slotIndex,
+  });
+  expect((await getBattleSnapshot(page))?.result).toBeNull();
+  expect(await getActiveSceneKey(page)).toBe("battle");
+});

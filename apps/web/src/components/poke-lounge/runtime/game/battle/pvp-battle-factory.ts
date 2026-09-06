@@ -1,3 +1,4 @@
+import { findBattleReadyPartySlot } from "@poke-lounge/battle/adventure/player/battle-ready-party";
 import type { LocalPlayerState } from "../state/game-state-store";
 import { BATTLE_PARTY_SLOT_COUNT } from "./battle-party";
 import type { BattleParticipant, BattlePartySlot, BattleScreenState } from "./battle-types";
@@ -26,6 +27,13 @@ export function createPvpBattleState({
   personalRecords,
   moveRecords,
 }: CreatePvpBattleStateInput): BattleScreenState {
+  const playerParticipant = createBattleParticipant(player, "Player", personalRecords, moveRecords);
+  const opponentParticipant = createBattleParticipant(
+    opponent,
+    "Opponent",
+    personalRecords,
+    moveRecords,
+  );
   return {
     battleKind: "trainer",
     phase: "intro",
@@ -33,11 +41,11 @@ export function createPvpBattleState({
     matchIndex,
     turn: 1,
     runAttemptCount: 0,
-    player: createBattleParticipant(player, "Player", personalRecords, moveRecords),
-    opponent: createBattleParticipant(opponent, "Opponent", personalRecords, moveRecords),
+    player: playerParticipant,
+    opponent: opponentParticipant,
     messageQueue: [
-      `${opponent.displayName}가 ${getActivePokemonName(opponent)}을 내보냈다!`,
-      `가랏! ${getActivePokemonName(player)}!`,
+      `${opponent.displayName}가 ${opponentParticipant.pokemon.name}을 내보냈다!`,
+      `가랏! ${playerParticipant.pokemon.name}!`,
     ],
     selectedMoveId: null,
     ...(matchId ? { tournamentMatchId: matchId } : {}),
@@ -52,18 +60,13 @@ function createBattleParticipant(
   moveRecords: RomRefinedMoveCollection,
 ): BattleParticipant {
   const party = createConvertedParty(localPlayer.party, personalRecords, moveRecords);
-  const activePokemon = party.find(function findItem(slot) {
-    return slot.slotIndex === localPlayer.activePartySlotIndex;
-  })?.pokemon;
+  const activeSlot = findBattleReadyPartySlot(party, localPlayer.activePartySlotIndex);
+  const activePokemon = activeSlot?.pokemon;
 
   if (!activePokemon) {
     throw new Error(
-      `${participantLabel} "${localPlayer.displayName}" has no active Pokemon in slot ${localPlayer.activePartySlotIndex}`,
+      `${participantLabel} "${localPlayer.displayName}" has no battle-ready Pokemon in the party`,
     );
-  }
-
-  if (activePokemon.status === "fainted" || activePokemon.currentHp <= 0) {
-    throw new Error(`${participantLabel} "${localPlayer.displayName}" active Pokemon has fainted`);
   }
 
   return {
@@ -71,7 +74,7 @@ function createBattleParticipant(
     displayName: localPlayer.displayName,
     pokemon: activePokemon,
     party,
-    activePartySlotIndex: localPlayer.activePartySlotIndex,
+    activePartySlotIndex: activeSlot!.slotIndex,
   };
 }
 
@@ -92,12 +95,4 @@ function createConvertedParty(
         : null,
     };
   });
-}
-
-function getActivePokemonName(localPlayer: LocalPlayerState): string {
-  return (
-    localPlayer.party.find(function findItem(slot) {
-      return slot.slotIndex === localPlayer.activePartySlotIndex;
-    })?.pokemon?.name ?? localPlayer.displayName
-  );
 }

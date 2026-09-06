@@ -1,5 +1,7 @@
 "use client";
 
+import { BATTLE_BAG_PAGE_SIZE } from "./battle-bag-selection";
+
 import { BattleMoveEffects } from "./battle-move-effects";
 import { MoveLearningPanel, LearnedMoveNotice } from "../ui/move-learning-panel";
 
@@ -746,31 +748,33 @@ export function BattleBagPanel({
       return item.selected;
     }),
   );
-  const pageStart = Math.floor(selectedIndex / 4) * 4;
+  const pageStart = Math.floor(selectedIndex / BATTLE_BAG_PAGE_SIZE) * BATTLE_BAG_PAGE_SIZE;
   return (
     <div
       className={`${styles.battleWindow} ${styles.battleBagPanel}`}
       data-poke-lounge-battle-surface="bag"
     >
-      {controls.items.slice(pageStart, pageStart + 4).map(function mapItem(item) {
-        return (
-          <button
-            key={item.id}
-            type="button"
-            data-selected={item.selected}
-            disabled={item.disabled}
-            onClick={function handleClick() {
-              return onAction({ type: "select-item", index: item.index });
-            }}
-          >
-            <span>
-              {item.selected ? "▶ " : "  "}
-              {item.name}
-            </span>
-            <small>×{item.count}</small>
-          </button>
-        );
-      })}
+      {controls.items
+        .slice(pageStart, pageStart + BATTLE_BAG_PAGE_SIZE)
+        .map(function mapItem(item) {
+          return (
+            <button
+              key={item.id}
+              type="button"
+              data-selected={item.selected}
+              disabled={item.disabled}
+              onClick={function handleClick() {
+                return onAction({ type: "select-item", index: item.index });
+              }}
+            >
+              <span>
+                {item.selected ? "▶ " : "  "}
+                {item.name}
+              </span>
+              <small>×{item.count}</small>
+            </button>
+          );
+        })}
     </div>
   );
 }

@@ -457,3 +457,22 @@ test("대진 UI는 초기 대진을 재생성하지 않고 진출과 탈락을 �
   projection.participants = projection.participants.map(p => ({ ...p, connected: false }));
   assert.equal(createTournamentBracketPreview(projection)!.bracket, projection.tournament.bracket);
 });
+
+test("로컬 대회 참가 자격은 선두가 아니라 전체 파티의 생존 여부로 판단한다", async () => {
+  const { hasBattleReadyTournamentPokemon } = await import("./world-scene-tournament");
+  const store = createGameStateStore();
+  const player = structuredClone(store.getCurrentLocalPlayer());
+  player.party = [
+    {
+      slotIndex: 0,
+      pokemon: { speciesId: 152, name: "치코리타", level: 10, currentHp: 0, status: "fainted" },
+    },
+    {
+      slotIndex: 5,
+      pokemon: { speciesId: 25, name: "피카츄", level: 10, currentHp: 1, status: "normal" },
+    },
+  ];
+  assert.equal(hasBattleReadyTournamentPokemon(player), true);
+  player.party[1].pokemon!.currentHp = 0;
+  assert.equal(hasBattleReadyTournamentPokemon(player), false);
+});
