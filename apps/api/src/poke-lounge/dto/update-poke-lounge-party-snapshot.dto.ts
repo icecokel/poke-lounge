@@ -104,7 +104,79 @@ class CompetitivePartyMoveDto {
   pp!: number;
 }
 
+class CompetitiveEffortValuesDto {
+  @ApiProperty({ minimum: 0, maximum: 255 })
+  @IsInt()
+  @Min(0)
+  @Max(255)
+  hp!: number;
+  @ApiProperty({ minimum: 0, maximum: 255 })
+  @IsInt()
+  @Min(0)
+  @Max(255)
+  attack!: number;
+  @ApiProperty({ minimum: 0, maximum: 255 })
+  @IsInt()
+  @Min(0)
+  @Max(255)
+  defense!: number;
+  @ApiProperty({ minimum: 0, maximum: 255 })
+  @IsInt()
+  @Min(0)
+  @Max(255)
+  speed!: number;
+  @ApiProperty({ minimum: 0, maximum: 255 })
+  @IsInt()
+  @Min(0)
+  @Max(255)
+  specialAttack!: number;
+  @ApiProperty({ minimum: 0, maximum: 255 })
+  @IsInt()
+  @Min(0)
+  @Max(255)
+  specialDefense!: number;
+}
 class CompetitivePartyMemberDto implements CompetitivePartyMemberInput {
+  @ApiPropertyOptional({ enum: ['male', 'female', 'genderless'] })
+  @IsOptional()
+  @IsIn(['male', 'female', 'genderless'])
+  gender?: 'male' | 'female' | 'genderless';
+  @ApiPropertyOptional({ minimum: 0, maximum: 24 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(24)
+  natureId?: number;
+  @ApiPropertyOptional({ minimum: 0, maximum: 123 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(123)
+  abilityId?: number;
+  @ApiPropertyOptional({ minimum: 0, maximum: 536 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(536)
+  heldItemId?: number;
+  @ApiPropertyOptional({ minimum: 0, maximum: 7 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(7)
+  statusTurns?: number;
+  @ApiPropertyOptional({ minimum: 0, maximum: 255 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(255)
+  happiness?: number;
+  @ApiPropertyOptional({ type: CompetitiveEffortValuesDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CompetitiveEffortValuesDto)
+  effortValues?: CompetitiveEffortValuesDto;
+
   @ApiProperty({ example: 0, minimum: 0, maximum: 5 })
   @IsInt()
   @Min(0)
@@ -129,10 +201,28 @@ class CompetitivePartyMemberDto implements CompetitivePartyMemberInput {
   currentHp!: number;
 
   @ApiProperty({
-    enum: ['normal', 'poisoned', 'burned', 'paralyzed', 'fainted'],
+    enum: [
+      'normal',
+      'poisoned',
+      'badlyPoisoned',
+      'burned',
+      'paralyzed',
+      'asleep',
+      'frozen',
+      'fainted',
+    ],
     example: 'normal',
   })
-  @IsIn(['normal', 'poisoned', 'burned', 'paralyzed', 'fainted'])
+  @IsIn([
+    'normal',
+    'poisoned',
+    'badlyPoisoned',
+    'burned',
+    'paralyzed',
+    'asleep',
+    'frozen',
+    'fainted',
+  ])
   status!: CompetitivePartyMemberInput['status'];
 
   @ApiProperty({ type: CompetitiveIndividualValuesDto })

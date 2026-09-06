@@ -687,7 +687,11 @@ export function BattlePartyPanel({
   return (
     <div className={styles.battlePartyPanel} data-poke-lounge-battle-surface="party">
       <header>
-        <strong>{copy.game.chooseSwitchPokemon}</strong>
+        <strong>
+          {controls.itemTargetName
+            ? `${controls.itemTargetName} · ${copy.locale === "ko-KR" ? "사용할 포켓몬" : copy.locale === "ja-JP" ? "使うポケモン" : "Choose target"}`
+            : copy.game.chooseSwitchPokemon}
+        </strong>
         <span>
           {controls.isForcedPartySwitch ? copy.game.forcedSwitch : `X · ${copy.mobile.back}`}
         </span>
@@ -724,7 +728,9 @@ export function BattlePartyPanel({
               {!pokemon.isEmpty ? (
                 <small>
                   Lv.{pokemon.level} · HP {pokemon.currentHp}/{pokemon.maxHp}
-                  {pokemon.status && pokemon.status !== "normal" ? ` · ${pokemon.status}` : ""}
+                  {pokemon.status && pokemon.status !== "normal"
+                    ? ` · ${copy.game.statusLabel[pokemon.status as keyof typeof copy.game.statusLabel] ?? pokemon.status}`
+                    : ""}
                 </small>
               ) : null}
             </button>

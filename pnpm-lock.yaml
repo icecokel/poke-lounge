@@ -139,7 +139,7 @@ importers:
         version: 7.2.2
       ts-jest:
         specifier: ^29.2.5
-        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.0)(@jest/types@30.5.0)(babel-jest@30.5.0(@babel/core@7.29.7))(jest-util@30.5.0)(jest@30.5.0(@types/node@22.20.1))(typescript@5.9.3)
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.0)(@jest/types@30.5.0)(babel-jest@30.5.0(@babel/core@7.29.7))(jest-util@30.5.0)(jest@30.5.0(@types/node@22.20.1)(ts-node@10.9.2(@swc/core@1.16.1)(@types/node@22.20.1)(typescript@5.9.3)))(typescript@5.9.3)
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@swc/core@1.16.1)(@types/node@22.20.1)(typescript@5.9.3)
@@ -248,6 +248,10 @@ importers:
         version: 5.9.3
 
   packages/poke-lounge-battle:
+    dependencies:
+      "@pkmn/sim":
+        specifier: 0.10.11
+        version: 0.10.11
     devDependencies:
       "@types/jest":
         specifier: ^30.0.0
@@ -260,7 +264,7 @@ importers:
         version: 30.5.0(@types/node@22.20.1)(ts-node@10.9.2(@swc/core@1.16.1)(@types/node@22.20.1)(typescript@5.9.3))
       ts-jest:
         specifier: ^29.2.5
-        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.0)(@jest/types@30.5.0)(babel-jest@30.5.0(@babel/core@7.29.7))(jest-util@30.5.0)(jest@30.5.0(@types/node@22.20.1))(typescript@5.9.3)
+        version: 29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.0)(@jest/types@30.5.0)(babel-jest@30.5.0(@babel/core@7.29.7))(jest-util@30.5.0)(jest@30.5.0(@types/node@22.20.1)(ts-node@10.9.2(@swc/core@1.16.1)(@types/node@22.20.1)(typescript@5.9.3)))(typescript@5.9.3)
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
@@ -2605,6 +2609,30 @@ packages:
         integrity: sha512-SEeaJLb3qBNF/OaXnaR1NmmBbFYk1zC0ZH/52fATcRPLFg/p791YrcyFFy44Bo9sLaGuSuLp5Q6axbb/O+v/RA==,
       }
     engines: { node: ^14.18.0 || >=16.0.0 }
+
+  "@pkmn/sets@5.2.0":
+    resolution:
+      {
+        integrity: sha512-WHAW6bZu0WCo/3b+LTW7BE0fBhYZnWH1lCXIu2an8/wTiZ/+s1eTcQYj7W/YQKxWT5dm/La03AZ6CeqdJip9CQ==,
+      }
+
+  "@pkmn/sim@0.10.11":
+    resolution:
+      {
+        integrity: sha512-v45jqIgFnEB3hc7e97QlWDnfkIef6mfZ0WjWHWw+f21cYyksGVLzxIEulR9xuOazeszA+ycDx6O6B3JOJAS5Xg==,
+      }
+
+  "@pkmn/streams@1.1.0":
+    resolution:
+      {
+        integrity: sha512-Pp9k7gt4xd76DqTU+LQEUyzuaauM4bV1MlehVtX1NS7o9zMFtjw50MfaEQ62dIMZyzxNjsJGoLGBeY1iSYLsRA==,
+      }
+
+  "@pkmn/types@4.0.0":
+    resolution:
+      {
+        integrity: sha512-gR2s/pxJYEegek1TtsYCQupNR3d5hMlcJFsiD+2LyfKr4tc+gETTql47tWLX5mFSbPcbXh7f4+7txlMIDoZx/g==,
+      }
 
   "@playwright/test@1.62.1":
     resolution:
@@ -9531,6 +9559,12 @@ packages:
     peerDependencies:
       typescript: ">=4.8.4"
 
+  ts-chacha20@1.2.0:
+    resolution:
+      {
+        integrity: sha512-PTyPoWYHc2we8P2NTn5hpYG211popWbkjiw+k63xqjeMrx9pPtXSclz9F3fu0Tpr+vfR1xxcQFwsEkh1cXMLqw==,
+      }
+
   ts-dedent@2.3.0:
     resolution:
       {
@@ -11727,6 +11761,20 @@ snapshots:
     optional: true
 
   "@pkgr/core@0.3.6": {}
+
+  "@pkmn/sets@5.2.0":
+    dependencies:
+      "@pkmn/types": 4.0.0
+
+  "@pkmn/sim@0.10.11":
+    dependencies:
+      "@pkmn/sets": 5.2.0
+      "@pkmn/streams": 1.1.0
+      ts-chacha20: 1.2.0
+
+  "@pkmn/streams@1.1.0": {}
+
+  "@pkmn/types@4.0.0": {}
 
   "@playwright/test@1.62.1":
     dependencies:
@@ -16266,9 +16314,11 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
+  ts-chacha20@1.2.0: {}
+
   ts-dedent@2.3.0: {}
 
-  ts-jest@29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.0)(@jest/types@30.5.0)(babel-jest@30.5.0(@babel/core@7.29.7))(jest-util@30.5.0)(jest@30.5.0(@types/node@22.20.1))(typescript@5.9.3):
+  ts-jest@29.4.12(@babel/core@7.29.7)(@jest/transform@30.5.0)(@jest/types@30.5.0)(babel-jest@30.5.0(@babel/core@7.29.7))(jest-util@30.5.0)(jest@30.5.0(@types/node@22.20.1)(ts-node@10.9.2(@swc/core@1.16.1)(@types/node@22.20.1)(typescript@5.9.3)))(typescript@5.9.3):
     dependencies:
       bs-logger: 0.2.6
       fast-json-stable-stringify: 2.1.0

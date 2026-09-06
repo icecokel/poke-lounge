@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { COMPETITIVE_RULESET_HASH } from "@poke-lounge/battle/competitive-ruleset-config";
+import { LEGACY_COMPETITIVE_RULESET_HASH as COMPETITIVE_RULESET_HASH } from "@poke-lounge/battle/competitive-ruleset-config";
 import {
   createTournamentBracketState,
   getReadyTournamentMatches,

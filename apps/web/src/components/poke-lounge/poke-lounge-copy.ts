@@ -113,7 +113,7 @@ export interface PokeLoungeCopy {
     battlePreparing: string;
     final: string;
     bye: string;
-    statusLabel: Record<"normal" | "poisoned" | "burned" | "paralyzed" | "fainted", string>;
+    statusLabel: Record<import("@poke-lounge/battle/gen4/types").Gen4Status, string>;
   };
   mobile: {
     exploreDeckLabel: string;
@@ -359,6 +359,9 @@ const KOREAN_COPY: PokeLoungeCopy = {
     statusLabel: {
       normal: "정상",
       poisoned: "독",
+      badlyPoisoned: "맹독",
+      asleep: "잠듦",
+      frozen: "얼음",
       burned: "화상",
       paralyzed: "마비",
       fainted: "전투불능",
@@ -623,6 +626,9 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     statusLabel: {
       normal: "Normal",
       poisoned: "Poisoned",
+      badlyPoisoned: "Badly poisoned",
+      asleep: "Asleep",
+      frozen: "Frozen",
       burned: "Burned",
       paralyzed: "Paralyzed",
       fainted: "Fainted",
@@ -889,6 +895,9 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     statusLabel: {
       normal: "正常",
       poisoned: "どく",
+      badlyPoisoned: "もうどく",
+      asleep: "ねむり",
+      frozen: "こおり",
       burned: "やけど",
       paralyzed: "まひ",
       fainted: "ひんし",

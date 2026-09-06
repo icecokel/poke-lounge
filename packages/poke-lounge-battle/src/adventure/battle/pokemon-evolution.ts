@@ -1,3 +1,4 @@
+import { evolvedGen4Ability } from "../../gen4/traits";
 import { getBattlePokemonAssets } from "./battle-pokemon-assets";
 import type { BattlePokemon, BattleSpriteRef } from "./battle-types";
 import { calculateGen4BattleStats, type Gen4BaseStats } from "./gen4-pokemon-stats";
@@ -134,6 +135,8 @@ export function applyLevelUpEvolution({
     targetRecord.base_stats,
     pokemon.level,
     pokemon.individualValues,
+    pokemon.effortValues,
+    pokemon.natureId,
   );
   const maxHpIncrease = Math.max(0, evolvedStats.maxHp - pokemon.maxHp);
   const assets = resolveBattlePokemonAssets(rule.targetSpeciesId, pokemon);
@@ -142,6 +145,7 @@ export function applyLevelUpEvolution({
     pokemon: {
       ...pokemon,
       speciesId: rule.targetSpeciesId,
+      abilityId: evolvedGen4Ability(pokemon.speciesId, rule.targetSpeciesId, pokemon.abilityId),
       name: evolvedName,
       catchRate: targetRecord.catch_rate,
       baseExpYield: targetRecord.base_exp,
@@ -265,8 +269,16 @@ export function applyPlayerLevelUpStats<TPokemon extends PlayerPokemon>({
     species.baseStats,
     Math.max(1, previousLevel),
     individualValues,
+    pokemon.effortValues,
+    pokemon.natureId,
   );
-  const nextStats = calculateGen4BattleStats(species.baseStats, pokemon.level, individualValues);
+  const nextStats = calculateGen4BattleStats(
+    species.baseStats,
+    pokemon.level,
+    individualValues,
+    pokemon.effortValues,
+    pokemon.natureId,
+  );
   const previousMaxHp = normalizePositiveHp(pokemon.maxHp) ?? previousStats.maxHp;
   const previousCurrentHp = normalizeNonNegativeHp(pokemon.currentHp) ?? previousMaxHp;
   const maxHpIncrease = Math.max(0, nextStats.maxHp - previousMaxHp);
@@ -307,9 +319,17 @@ function applyPlayerPokemonEvolution<TPokemon extends PlayerPokemon>({
     targetSpecies.baseStats,
     pokemon.level,
     individualValues,
+    pokemon.effortValues,
+    pokemon.natureId,
   );
   const currentCalculatedMaxHp = currentSpecies
-    ? calculateGen4BattleStats(currentSpecies.baseStats, pokemon.level, individualValues).maxHp
+    ? calculateGen4BattleStats(
+        currentSpecies.baseStats,
+        pokemon.level,
+        individualValues,
+        pokemon.effortValues,
+        pokemon.natureId,
+      ).maxHp
     : evolvedStats.maxHp;
   const currentMaxHp = normalizePositiveHp(pokemon.maxHp) ?? currentCalculatedMaxHp;
   const currentHp = normalizeNonNegativeHp(pokemon.currentHp) ?? currentMaxHp;
@@ -324,6 +344,7 @@ function applyPlayerPokemonEvolution<TPokemon extends PlayerPokemon>({
     pokemon: {
       ...pokemon,
       speciesId: rule.targetSpeciesId,
+      abilityId: evolvedGen4Ability(pokemon.speciesId, rule.targetSpeciesId, pokemon.abilityId),
       name: evolvedName,
       maxHp: evolvedStats.maxHp,
       currentHp: evolvedCurrentHp,

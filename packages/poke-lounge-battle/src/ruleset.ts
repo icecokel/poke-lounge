@@ -24,6 +24,7 @@ export function getCompetitiveMoveDefinition(
 
 export function createInitialBattleState(
   participants: readonly [CompetitiveBattleParticipantInput, CompetitiveBattleParticipantInput],
+  rulesetVersion: 2 | 3 = COMPETITIVE_RULESET_VERSION,
 ): CanonicalBattleState {
   if (
     participants.some(function testItem(participant) {
@@ -49,7 +50,7 @@ export function createInitialBattleState(
   );
 
   return {
-    rulesetVersion: COMPETITIVE_RULESET_VERSION,
+    rulesetVersion,
     turn: 0,
     participantIds,
     playersById,
@@ -77,6 +78,7 @@ function createCanonicalPlayerState(
       })
       .map(function mapItem(member) {
         return {
+          ...member,
           slotIndex: member.slotIndex,
           speciesId: member.speciesId,
           level: member.level,

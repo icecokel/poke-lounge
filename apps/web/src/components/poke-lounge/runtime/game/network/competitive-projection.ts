@@ -1,3 +1,5 @@
+import { parseGen4ActionRequest } from "@poke-lounge/battle/gen4/request";
+import { LEGACY_COMPETITIVE_RULESET_HASH } from "@poke-lounge/battle/competitive-ruleset-config";
 import { parseResolvedTurnPresentation } from "@poke-lounge/battle/battle-presentation";
 import {
   COMPETITIVE_RULESET_HASH,
@@ -74,14 +76,18 @@ export function parseCompetitiveProjectionContract(
     !UUID_V4_PATTERN.test(matchId) ||
     !BRACKET_MATCH_ID_PATTERN.test(bracketMatchId) ||
     (kind !== "ranked-head-to-head" && kind !== "tournament-unranked") ||
-    rulesetVersion !== COMPETITIVE_RULESET_VERSION ||
-    rulesetHash !== COMPETITIVE_RULESET_HASH ||
+    !(
+      (rulesetVersion === COMPETITIVE_RULESET_VERSION &&
+        rulesetHash === COMPETITIVE_RULESET_HASH) ||
+      (rulesetVersion === 2 && rulesetHash === LEGACY_COMPETITIVE_RULESET_HASH)
+    ) ||
     !isCompetitiveStatus(status)
   ) {
     throw schemaError();
   }
 
   const currentState = parseCurrentState(projection.currentState, playerIds, currentTurn);
+  if (currentState.rulesetVersion !== rulesetVersion) throw schemaError();
   const terminal = parseTerminal(projection.terminal, playerIds, 1);
   const stateTerminal = parseTerminal(currentState.terminal, playerIds, 1);
 
@@ -358,7 +364,7 @@ function parseCurrentState(
   const participantIds = parsePlayerIds(state.participantIds);
   const turn = requireNonnegativeSafeInteger(state.turn);
   if (
-    state.rulesetVersion !== COMPETITIVE_RULESET_VERSION ||
+    (state.rulesetVersion !== COMPETITIVE_RULESET_VERSION && state.rulesetVersion !== 2) ||
     turn !== currentTurn ||
     participantIds[0] !== playerIds[0] ||
     participantIds[1] !== playerIds[1]
@@ -374,7 +380,7 @@ function parseCurrentState(
   );
 
   return {
-    rulesetVersion: COMPETITIVE_RULESET_VERSION,
+    rulesetVersion: state.rulesetVersion as 2 | 3,
     turn,
     participantIds,
     playersById: parsedPlayers,
@@ -395,7 +401,18 @@ function parsePlayer(
   value: unknown,
   expectedPlayerId: string,
 ): CompetitiveProjection["currentState"]["playersById"][string] {
-  const player = requireRecord(value, ["activeSlotIndex", "playerId", "team"], 3);
+  const player = requireRecord(
+    value,
+    [
+      "activeSlotIndex",
+      "playerId",
+      "team",
+      ...(value && typeof value === "object" && Object.hasOwn(value, "actionRequest")
+        ? ["actionRequest"]
+        : []),
+    ],
+    3,
+  );
   const playerId = requireString(player.playerId);
   const activeSlotIndex = requireNonnegativeSafeInteger(player.activeSlotIndex);
   if (
@@ -412,6 +429,9 @@ function parsePlayer(
     playerId,
     activeSlotIndex,
     team: parseTeam(player.team, activeSlotIndex),
+    ...(player.actionRequest
+      ? { actionRequest: parseGen4ActionRequest(player.actionRequest) }
+      : {}),
   };
 }
 
@@ -708,7 +728,9 @@ function isCompetitivePokemonStatus(
 ): value is CompetitiveProjection["currentState"]["playersById"][string]["team"][number]["status"] {
   return currentHp === 0
     ? value === "fainted"
-    : value === "normal" || value === "poisoned" || value === "burned" || value === "paralyzed";
+    : ["normal", "poisoned", "badlyPoisoned", "burned", "paralyzed", "asleep", "frozen"].includes(
+        value as string,
+      );
 }
 
 function isCompetitiveStatus(value: unknown): value is CompetitiveProjection["status"] {

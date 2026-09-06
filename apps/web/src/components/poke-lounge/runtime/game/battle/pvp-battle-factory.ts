@@ -1,3 +1,4 @@
+import { initializeGen4Adventure } from "@poke-lounge/battle/gen4/adventure";
 import { findBattleReadyPartySlot } from "@poke-lounge/battle/adventure/player/battle-ready-party";
 import type { LocalPlayerState } from "../state/game-state-store";
 import { BATTLE_PARTY_SLOT_COUNT } from "./battle-party";
@@ -34,7 +35,7 @@ export function createPvpBattleState({
     personalRecords,
     moveRecords,
   );
-  return {
+  return initializeGen4Adventure({
     battleKind: "trainer",
     phase: "intro",
     roundIndex,
@@ -50,7 +51,7 @@ export function createPvpBattleState({
     selectedMoveId: null,
     ...(matchId ? { tournamentMatchId: matchId } : {}),
     result: null,
-  };
+  });
 }
 
 function createBattleParticipant(

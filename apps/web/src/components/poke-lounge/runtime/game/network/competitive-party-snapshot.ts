@@ -1,3 +1,4 @@
+import { normalizeGen4Traits } from "@poke-lounge/battle/gen4/traits";
 import type { CompetitivePartyInput } from "@poke-lounge/battle/competitive-party";
 import type { PlayerSnapshot } from "./local-preview-room";
 
@@ -25,6 +26,7 @@ export function createCompetitivePartySnapshot(snapshot: PlayerSnapshot): Compet
 
       return [
         {
+          ...normalizeGen4Traits(pokemon.speciesId, pokemon),
           slotIndex: slot.slotIndex,
           speciesId: pokemon.speciesId,
           level: pokemon.level,

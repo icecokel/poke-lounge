@@ -1,3 +1,5 @@
+import { initializeGen4Canonical } from '@poke-lounge/battle/gen4/canonical';
+import { createSeededRandom } from '@poke-lounge/battle/prng';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import {
   COMPETITIVE_RULESET_HASH,
@@ -61,7 +63,10 @@ describe('CompetitiveMatchService', function testSuite() {
         });
 
         expect(match.initialState).toEqual(
-          createTestInitialBattleState(['player-a', 'player-b']),
+          initializeGen4Canonical(
+            createTestInitialBattleState(['player-a', 'player-b']),
+            createSeededRandom(`${match.serverSeed}:initial`),
+          ),
         );
         expect(match.initialStateHash).toBe(
           hashCanonicalState(match.initialState),
@@ -102,6 +107,11 @@ describe('CompetitiveMatchService', function testSuite() {
     expect(JSON.stringify(result)).not.toContain('account-a');
     expect(JSON.stringify(result)).not.toContain('session-a');
     expect(JSON.stringify(result)).not.toContain('serverSeed');
+    expect(JSON.stringify(result)).not.toContain('gen4Session');
+    expect(JSON.stringify(result)).not.toContain('prng');
+    expect(
+      result?.currentState.playersById['player-a']?.actionRequest?.kind,
+    ).toBe('move');
     expect(JSON.stringify(result)).not.toContain('clientCommandId');
     expect(repository.bindSeatAndAssign.mock.calls[0]?.[0]).toMatchObject({
       roomCode: 'ROOM01',

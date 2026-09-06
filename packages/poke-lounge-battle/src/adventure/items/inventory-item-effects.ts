@@ -14,7 +14,7 @@ export type InventoryItemEffectId =
   | "revive"
   | "rareCandy"
   | EvolutionStoneItemId;
-export type InventoryItemTargetStatus = "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+export type InventoryItemTargetStatus = import("../../gen4/types").Gen4Status;
 
 export interface InventoryItemTarget {
   name: string;
@@ -298,7 +298,7 @@ function applyAntidote<TPokemon extends InventoryItemTarget>(
   pokemon: TPokemon,
   displayName: string,
 ): ApplyInventoryItemEffectResult<TPokemon> {
-  if (pokemon.status !== "poisoned") {
+  if (pokemon.status !== "poisoned" && pokemon.status !== "badlyPoisoned") {
     return {
       ok: false,
       itemId: "antidote",

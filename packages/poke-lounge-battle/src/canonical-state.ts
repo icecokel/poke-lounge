@@ -1,3 +1,4 @@
+import type { Gen4Traits } from "./gen4/types";
 import type { ResolvedTurnPresentation } from "./battle-presentation";
 import { createHash } from "node:crypto";
 import { canonicalize } from "./canonical-json";
@@ -25,7 +26,8 @@ export interface CanonicalMoveState {
   pp: number;
 }
 
-export interface CanonicalCombatantState {
+export interface CanonicalCombatantState extends Gen4Traits {
+  individualValues?: import("./gen4/types").Gen4StatValues;
   slotIndex: number;
   speciesId: number;
   level: number;
@@ -43,6 +45,7 @@ export interface CanonicalCombatantState {
 }
 
 export interface CanonicalPlayerState {
+  actionRequest?: import("./gen4/types").Gen4ActionRequest;
   playerId: string;
   activeSlotIndex: number;
   team: readonly CanonicalCombatantState[];
@@ -58,7 +61,9 @@ export interface CanonicalTerminalResult {
 export interface CanonicalBattleState {
   /** Resolved visual telemetry, deliberately excluded from gameplay hashing. */
   lastTurnPresentation?: ResolvedTurnPresentation;
-  rulesetVersion: 2;
+  rulesetVersion: 2 | 3;
+  gen4Session?: import("./gen4/types").Gen4Session;
+  gen4Turn?: number;
   turn: number;
   participantIds: readonly [string, string];
   playersById: CanonicalIdRecord<CanonicalPlayerState>;

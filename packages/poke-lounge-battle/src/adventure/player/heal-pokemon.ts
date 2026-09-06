@@ -7,6 +7,7 @@ export function healPokemon<T extends PlayerPokemon>(pokemon: T): T {
       ? { currentHp: Math.max(0, Math.floor(pokemon.maxHp)) }
       : {}),
     status: "normal",
+    ...(pokemon.statusTurns !== undefined ? { statusTurns: 0 } : {}),
     ...(pokemon.moves ? { moves: pokemon.moves.map(move => ({ ...move, pp: move.maxPp })) } : {}),
   };
 }

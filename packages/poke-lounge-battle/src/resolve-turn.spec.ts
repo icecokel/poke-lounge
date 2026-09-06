@@ -1,5 +1,6 @@
 import { createCanonicalIdRecord, type CanonicalBattleState } from "./canonical-state";
-import { createInitialBattleState } from "./ruleset";
+import { createInitialBattleState as createState } from "./ruleset";
+const createInitialBattleState: typeof createState = participants => createState(participants, 2);
 import { normalizeCompetitiveParty, type CompetitivePartyInput } from "./competitive-party";
 import { resolveTurn, validateCompetitiveAction } from "./resolve-turn";
 import { getCompetitiveActionPlayerIds, type CanonicalCompetitiveAction } from "./actions";

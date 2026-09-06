@@ -128,3 +128,23 @@ test("명령 단계에서만 실행 가능하며 메시지 표시용 하위 호�
   );
   assert.equal(canChooseBattleAction(state({ phase: "command" })), true);
 });
+
+test("아이템 대상은 현재 포켓몬·기절한 팀원도 효과가 있을 때 선택하고 대상 화면 밖에서는 무효다", async () => {
+  const { selectionContext } = await import("./mobile-selection-model");
+  for (const patch of [{ isCurrent: true }, { isFainted: true, currentHp: 0 }]) {
+    const current = state({
+      itemTargetName: "상처약",
+      party: [{ ...pokemon, ...patch, canSwitch: true }],
+    });
+    const itemCandidate = { ...candidate, context: selectionContext(current) };
+    assert.deepEqual(candidateAction(itemCandidate, current), { type: "select-party", index: 4 });
+    assert.equal(candidateAction(itemCandidate, { ...current, itemTargetName: null }), null);
+    assert.equal(
+      candidateAction(itemCandidate, {
+        ...current,
+        party: [{ ...pokemon, ...patch, canSwitch: false }],
+      }),
+      null,
+    );
+  }
+});

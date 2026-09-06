@@ -1714,6 +1714,66 @@
         },
         "required": ["playerId", "representativePokemon", "partySize", "updatedAtMs"]
       },
+      "Gen4RequestedMoveDto": {
+        "type": "object",
+        "properties": {
+          "moveId": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 467
+          },
+          "pp": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "maxPp": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "disabled": {
+            "type": "boolean"
+          }
+        },
+        "required": ["moveId", "pp", "maxPp", "disabled"]
+      },
+      "Gen4ActionRequestDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["move", "switch", "wait", "ended"]
+          },
+          "moves": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Gen4RequestedMoveDto"
+            }
+          },
+          "switchSlots": {
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "trapped": {
+            "type": "boolean"
+          },
+          "forcedMoveId": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 467
+          },
+          "recharge": {
+            "type": "boolean"
+          }
+        },
+        "required": ["kind", "moves", "switchSlots", "trapped", "forcedMoveId", "recharge"]
+      },
       "CompetitiveAnimationEventDto": {
         "type": "object",
         "properties": {
@@ -1744,7 +1804,16 @@
           },
           "status": {
             "type": "string",
-            "enum": ["normal", "poisoned", "burned", "paralyzed", "fainted"]
+            "enum": [
+              "normal",
+              "poisoned",
+              "badlyPoisoned",
+              "burned",
+              "paralyzed",
+              "asleep",
+              "frozen",
+              "fainted"
+            ]
           },
           "hit": {
             "type": "boolean"
@@ -1766,11 +1835,29 @@
           },
           "actorStatus": {
             "type": "string",
-            "enum": ["normal", "poisoned", "burned", "paralyzed", "fainted"]
+            "enum": [
+              "normal",
+              "poisoned",
+              "badlyPoisoned",
+              "burned",
+              "paralyzed",
+              "asleep",
+              "frozen",
+              "fainted"
+            ]
           },
           "targetStatus": {
             "type": "string",
-            "enum": ["normal", "poisoned", "burned", "paralyzed", "fainted"]
+            "enum": [
+              "normal",
+              "poisoned",
+              "badlyPoisoned",
+              "burned",
+              "paralyzed",
+              "asleep",
+              "frozen",
+              "fainted"
+            ]
           }
         },
         "required": [
@@ -1797,7 +1884,7 @@
             "minimum": 0
           },
           "events": {
-            "maxItems": 12,
+            "maxItems": 64,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CompetitiveAnimationEventDto"
@@ -1898,7 +1985,16 @@
           },
           "status": {
             "type": "string",
-            "enum": ["normal", "poisoned", "burned", "paralyzed", "fainted"]
+            "enum": [
+              "normal",
+              "poisoned",
+              "badlyPoisoned",
+              "burned",
+              "paralyzed",
+              "asleep",
+              "frozen",
+              "fainted"
+            ]
           },
           "statStages": {
             "$ref": "#/components/schemas/CompetitiveBattleStatStagesDto"
@@ -1924,6 +2020,9 @@
       "CompetitivePlayerStateDto": {
         "type": "object",
         "properties": {
+          "actionRequest": {
+            "$ref": "#/components/schemas/Gen4ActionRequestDto"
+          },
           "playerId": {
             "type": "string"
           },
@@ -1971,8 +2070,8 @@
           },
           "rulesetVersion": {
             "type": "number",
-            "example": 2,
-            "enum": [2]
+            "example": 3,
+            "enum": [2, 3]
           },
           "turn": {
             "type": "number",
@@ -2825,7 +2924,7 @@
         "properties": {
           "kind": {
             "type": "string",
-            "enum": ["move", "switch"]
+            "enum": ["move", "switch", "continue"]
           },
           "moveId": {
             "oneOf": [
@@ -2978,6 +3077,42 @@
         },
         "required": ["playerId", "sessionId"]
       },
+      "CompetitiveEffortValuesDto": {
+        "type": "object",
+        "properties": {
+          "hp": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "attack": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "defense": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "speed": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "specialAttack": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "specialDefense": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 255
+          }
+        },
+        "required": ["hp", "attack", "defense", "speed", "specialAttack", "specialDefense"]
+      },
       "CompetitiveIndividualValuesDto": {
         "type": "object",
         "properties": {
@@ -3040,6 +3175,38 @@
       "CompetitivePartyMemberDto": {
         "type": "object",
         "properties": {
+          "gender": {
+            "type": "string",
+            "enum": ["male", "female", "genderless"]
+          },
+          "natureId": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 24
+          },
+          "abilityId": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 123
+          },
+          "heldItemId": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 536
+          },
+          "statusTurns": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 7
+          },
+          "happiness": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "effortValues": {
+            "$ref": "#/components/schemas/CompetitiveEffortValuesDto"
+          },
           "slotIndex": {
             "type": "number",
             "example": 0,
@@ -3065,7 +3232,16 @@
           },
           "status": {
             "type": "string",
-            "enum": ["normal", "poisoned", "burned", "paralyzed", "fainted"],
+            "enum": [
+              "normal",
+              "poisoned",
+              "badlyPoisoned",
+              "burned",
+              "paralyzed",
+              "asleep",
+              "frozen",
+              "fainted"
+            ],
             "example": "normal"
           },
           "individualValues": {

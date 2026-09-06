@@ -37,8 +37,8 @@ class CompetitiveMoveIdConstraint implements ValidatorConstraintInterface {
 }
 
 export class CompetitiveActionDto {
-  @ApiProperty({ enum: ['move', 'switch'] })
-  @IsIn(['move', 'switch'])
+  @ApiProperty({ enum: ['move', 'switch', 'continue'] })
+  @IsIn(['move', 'switch', 'continue'])
   kind!: CanonicalCompetitiveAction['kind'];
 
   @ApiPropertyOptional({ oneOf: [{ type: 'number' }, { type: 'string' }] })
@@ -76,7 +76,9 @@ class CompetitiveActionShapeConstraint implements ValidatorConstraintInterface {
 
     return record.kind === 'move'
       ? keys.join(',') === 'kind,moveId'
-      : record.kind === 'switch' && keys.join(',') === 'kind,slotIndex';
+      : record.kind === 'switch'
+        ? keys.join(',') === 'kind,slotIndex'
+        : record.kind === 'continue' && keys.join(',') === 'kind';
   }
 
   defaultMessage(): string {
@@ -129,5 +131,6 @@ export function toCanonicalCompetitiveAction(
   if (action.kind === 'switch' && action.slotIndex !== undefined) {
     return { kind: 'switch', slotIndex: action.slotIndex };
   }
+  if (action.kind === 'continue') return { kind: 'continue' };
   throw new Error('Competitive action DTO was not validated');
 }

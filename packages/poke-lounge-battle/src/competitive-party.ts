@@ -1,3 +1,6 @@
+import { GEN4_ROM_SPECIES, GEN4_ROM_ITEMS } from "./gen4/rom-catalog.generated";
+import { normalizeGen4Traits } from "./gen4/traits";
+import { validGen4EffortValues, type Gen4Traits } from "./gen4/types";
 import {
   COMPETITIVE_MOVE_CATALOG,
   COMPETITIVE_SPECIES_CATALOG,
@@ -26,10 +29,9 @@ export interface CompetitiveIndividualValues {
   speed: number;
 }
 
-export type CompetitivePersistentStatus =
-  "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+export type CompetitivePersistentStatus = import("./gen4/types").Gen4Status;
 
-export interface CompetitivePartyMemberInput {
+export interface CompetitivePartyMemberInput extends Gen4Traits {
   slotIndex: number;
   speciesId: number;
   level: number;
@@ -48,7 +50,7 @@ export interface CompetitivePartyInput {
   members: CompetitivePartyMemberInput[];
 }
 
-export interface NormalizedCompetitivePartyMember {
+export interface NormalizedCompetitivePartyMember extends Gen4Traits {
   slotIndex: number;
   speciesId: number;
   level: number;
@@ -140,11 +142,33 @@ export function normalizeCompetitiveParty(
       throw new CompetitivePartyValidationError("iv-out-of-range");
     }
 
+    if (member.effortValues !== undefined && !validGen4EffortValues(member.effortValues))
+      throw new CompetitivePartyValidationError("iv-out-of-range");
+    if (
+      member.natureId !== undefined &&
+      (!Number.isInteger(member.natureId) || member.natureId < 0 || member.natureId > 24)
+    )
+      throw new CompetitivePartyValidationError("iv-out-of-range");
+    if (
+      member.abilityId !== undefined &&
+      !GEN4_ROM_SPECIES[member.speciesId]!.abilities.includes(member.abilityId)
+    )
+      throw new CompetitivePartyValidationError("species-unsupported");
+    if (
+      member.heldItemId !== undefined &&
+      member.heldItemId !== 0 &&
+      !GEN4_ROM_ITEMS[member.heldItemId]
+    )
+      throw new CompetitivePartyValidationError("species-unsupported");
+    const traits = normalizeGen4Traits(member.speciesId, member);
     const stats = calculateGen4BattleStats(
       species.baseStats,
       member.level,
       member.individualValues,
+      traits.effortValues,
+      traits.natureId,
     );
+    if (member.speciesId === 292) stats.maxHp = 1;
     if (
       !Number.isSafeInteger(member.currentHp) ||
       member.currentHp < 0 ||
@@ -177,6 +201,7 @@ export function normalizeCompetitiveParty(
     });
 
     return {
+      ...traits,
       slotIndex: member.slotIndex,
       speciesId: member.speciesId,
       level: member.level,
@@ -272,5 +297,13 @@ function hasMatchingStatusAndHp(status: CompetitivePersistentStatus, currentHp: 
   if (currentHp === 0) {
     return status === "fainted";
   }
-  return ["normal", "poisoned", "burned", "paralyzed"].includes(status);
+  return [
+    "normal",
+    "poisoned",
+    "badlyPoisoned",
+    "burned",
+    "paralyzed",
+    "asleep",
+    "frozen",
+  ].includes(status);
 }

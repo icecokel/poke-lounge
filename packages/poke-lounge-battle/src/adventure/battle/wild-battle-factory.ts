@@ -1,3 +1,5 @@
+import { initializeGen4Adventure } from "../../gen4/adventure";
+import { createGen4Traits, normalizeGen4Traits, sampleGen4WildHeldItem } from "../../gen4/traits";
 import { findBattleReadyPartySlot } from "../player/battle-ready-party";
 import type { WildEncounterCandidate } from "../world/wild-encounters";
 import type { PlayerPokemon, PlayerPokemonMove } from "../player/pokemon-types";
@@ -81,6 +83,13 @@ export function createWildBattleState({
     playerPokemon: storedPlayerPokemon,
   });
   const opponentPokemon = createBattlePokemon({
+    traits: {
+      ...createGen4Traits(encounter.speciesId),
+      heldItemId: sampleGen4WildHeldItem(
+        encounter.speciesId,
+        playerBattleSetup.pokemon.abilityId === 14,
+      ),
+    },
     level: encounter.level,
     moveIds: resolveWildBattleMoveIds(encounter.speciesId, encounter.level),
     moveRecords,
@@ -89,7 +98,7 @@ export function createWildBattleState({
     speciesId: encounter.speciesId,
   });
 
-  return {
+  return initializeGen4Adventure({
     battleKind: "wild",
     sharePartyExperience,
     ...(partyExperienceRatio !== undefined ? { partyExperienceRatio } : {}),
@@ -119,7 +128,7 @@ export function createWildBattleState({
     selectedMoveId: null,
     result: null,
     ...(returnToWorld ? { returnToWorld } : {}),
-  };
+  });
 }
 
 function createPlayerBattleSetup({
@@ -163,6 +172,7 @@ function createPlayerBattleSetup({
   }
 
   const pokemon = createBattlePokemon({
+    traits: playerPokemon ? normalizeGen4Traits(playerPokemon.speciesId, playerPokemon) : undefined,
     currentHp: playerPokemon?.currentHp,
     gender: playerPokemon?.gender,
     individualValues: playerPokemon?.individualValues,
@@ -220,6 +230,7 @@ export function createStoredBattlePokemon({
   pokemon: PlayerPokemon;
 }): BattlePokemon {
   return createBattlePokemon({
+    traits: normalizeGen4Traits(pokemon.speciesId, pokemon),
     currentHp: pokemon.currentHp,
     gender: pokemon.gender,
     individualValues: normalizeIndividualValues(pokemon.individualValues, function callback() {
@@ -262,6 +273,7 @@ function resolveStoredActivePartySlotIndex(
 }
 
 function createBattlePokemon({
+  traits: storedTraits,
   level,
   currentHp,
   gender: storedGender,
@@ -275,6 +287,7 @@ function createBattlePokemon({
   status,
   moveIds,
 }: {
+  traits?: import("../../gen4/types").Gen4Traits;
   level: number;
   currentHp?: number;
   gender?: PokemonGender;
@@ -293,12 +306,21 @@ function createBattlePokemon({
     throw new Error(`Missing ROM personal record for species ${speciesId}`);
   }
   const individualValues = normalizeIndividualValues(storedIndividualValues);
-  const stats = calculateGen4BattleStats(personalRecord.base_stats, level, individualValues);
+  const traits = normalizeGen4Traits(speciesId, storedTraits ?? createGen4Traits(speciesId));
+  const stats = calculateGen4BattleStats(
+    personalRecord.base_stats,
+    level,
+    individualValues,
+    traits.effortValues,
+    traits.natureId,
+  );
+  if (speciesId === 292) stats.maxHp = 1;
   const assets = getBattlePokemonAssets(speciesId);
   const growthRate = personalRecord.growth_rate;
   const resolvedCurrentHp = clampHp(currentHp ?? stats.maxHp, stats.maxHp);
 
   return {
+    ...traits,
     speciesId,
     name,
     level,

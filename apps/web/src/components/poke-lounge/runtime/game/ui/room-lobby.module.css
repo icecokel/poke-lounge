@@ -751,3 +751,141 @@
     gap: 6px;
   }
 }
+
+/* The roster is primary content: identity and status use two lines, not three. */
+.participant,
+.participant:has(.removeButton) {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  min-height: 72px;
+  gap: 10px;
+  padding: 10px 12px;
+  align-items: center;
+}
+.participant[data-room-lobby-self="true"] {
+  padding: 9px 11px;
+}
+.participant .identity {
+  min-width: 0;
+}
+.participant .name {
+  flex-wrap: nowrap;
+  align-items: baseline;
+}
+.participant .name strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+  line-height: 1.35;
+}
+.participant .self {
+  flex: 0 0 auto;
+}
+.participant .roles {
+  gap: 4px 10px;
+  align-items: center;
+  margin-top: 5px;
+}
+.participant .participantStatus {
+  grid-column: auto;
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+.participant .removeButton {
+  grid-row: auto;
+  grid-column: auto;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+.participant .avatar {
+  width: 40px;
+  height: 40px;
+}
+@container room-surface (max-width: 520px) {
+  .header {
+    padding: 8px 12px 5px;
+    gap: 9px;
+  }
+  .header .eyebrow {
+    display: none;
+  }
+  .header h1 {
+    font-size: 1.125rem;
+  }
+  .iconButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .roomBar {
+    padding: 0 12px 8px;
+    gap: 4px 10px;
+  }
+  .tools {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .tools button,
+  .rosterHeader button {
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+  .rosterHeader {
+    padding-bottom: 7px;
+  }
+  .rosterHeader h2 {
+    font-size: 0.875rem;
+  }
+  .rosterHeader p {
+    font-size: 0.75rem;
+  }
+  .participants {
+    gap: 7px;
+    padding: 3px 3px 8px;
+  }
+  .participant,
+  .participant:has(.removeButton) {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    min-height: 68px;
+    padding: 9px;
+    gap: 8px;
+  }
+  .participant[data-room-lobby-self="true"] {
+    padding: 8px;
+  }
+  .participant .avatar {
+    width: 32px;
+    height: 36px;
+  }
+  .participant .name strong {
+    font-size: 0.9375rem;
+  }
+  .participant .roles {
+    font-size: 0.6875rem;
+    gap: 3px 7px;
+    margin-top: 4px;
+  }
+  .participant .participantStatus {
+    font-size: 0.6875rem;
+  }
+  .autoFill {
+    padding: 6px 0;
+    font-size: 0.6875rem;
+  }
+  .footer {
+    padding: 8px 12px 9px;
+    gap: 6px;
+  }
+  .footer .status {
+    font-size: 0.8125rem;
+    line-height: 1.3;
+  }
+  .footer .actions button {
+    min-height: 46px;
+    padding: 8px 10px;
+  }
+  .footer .nextStep {
+    font-size: 0.6875rem;
+    line-height: 1.25;
+  }
+}

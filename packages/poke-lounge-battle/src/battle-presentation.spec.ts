@@ -40,8 +40,8 @@ it.each([null, undefined, 3, "effect", [], { turn: 2 }, { turn: 2, events: {} }]
 it("drops stale/future animations and bounds the event queue", () => {
   expect(parse([moveEvent()], 1)).toBeUndefined();
   expect(parse([moveEvent()], 3)).toBeUndefined();
-  expect(parse(Array.from({ length: 12 }, moveEvent))?.events).toHaveLength(12);
-  expect(parse(Array.from({ length: 13 }, moveEvent))).toBeUndefined();
+  expect(parse(Array.from({ length: 64 }, moveEvent))?.events).toHaveLength(64);
+  expect(parse(Array.from({ length: 65 }, moveEvent))).toBeUndefined();
   expect(parse([])).toEqual({ turn: 2, events: [] });
 });
 

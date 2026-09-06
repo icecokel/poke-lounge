@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { canonicalize } from "./canonical-state";
 import { COMPETITIVE_CATALOG_HASH } from "./competitive-catalog.generated";
-import { COMPETITIVE_RULESET_HASH, COMPETITIVE_RULESET_V2 } from "./competitive-ruleset-config";
+import { COMPETITIVE_RULESET_HASH, COMPETITIVE_RULESET_V3 } from "./competitive-ruleset-config";
 import { createInitialBattleState } from "./ruleset";
 import { normalizeCompetitiveParty, type CompetitivePartyInput } from "./competitive-party";
 
@@ -75,12 +75,12 @@ describe("competitive ruleset V2", function testSuite() {
     });
   });
 
-  it("binds the ruleset hash to the canonical V2 config and generated catalog hash", function testCase() {
+  it("binds the ruleset hash to the canonical V3 config and generated catalog hash", function testCase() {
     const expected = createHash("sha256")
       .update(
         canonicalize({
           catalogHash: COMPETITIVE_CATALOG_HASH,
-          ruleset: COMPETITIVE_RULESET_V2,
+          ruleset: COMPETITIVE_RULESET_V3,
         }),
         "utf8",
       )

@@ -203,7 +203,7 @@ test("중복 저장 기술은 첫 슬롯 하나만 전투에 복원한다", asyn
   }
 });
 
-test("화상·마비와 학습 기술을 보존하고 미지원 상태기술은 롬 데이터대로 비활성화한다", async function testCase() {
+test("화상·마비와 학습 기술을 보존하고 상태기술도 ROM 규칙으로 사용할 수 있다", async function testCase() {
   await loadRuntimeGameData();
 
   try {
@@ -227,10 +227,7 @@ test("화상·마비와 학습 기술을 보존하고 미지원 상태기술은 
     );
     assert.equal(dittoState.player.pokemon.moves[0]?.category, "status");
     assert.equal(dittoState.player.pokemon.moves[0]?.power, 0);
-    assert.equal(
-      dittoState.player.pokemon.moves[0]?.competitiveEffectSupport,
-      "unsupported-primary",
-    );
+    assert.equal(dittoState.player.pokemon.moves[0]?.competitiveEffectSupport, undefined);
 
     const mixedMoveState = createBattleState({
       ...createPlayerPokemon(152, "치코리타"),
@@ -246,10 +243,7 @@ test("화상·마비와 학습 기술을 보존하고 미지원 상태기술은 
       }),
       [33, 235],
     );
-    assert.equal(
-      mixedMoveState.player.pokemon.moves[1]?.competitiveEffectSupport,
-      "unsupported-primary",
-    );
+    assert.equal(mixedMoveState.player.pokemon.moves[1]?.competitiveEffectSupport, undefined);
   } finally {
     resetRuntimeGameDataJsonStateForTest();
   }

@@ -1,3 +1,4 @@
+import { resolveGen4CompetitiveTurn, validateGen4CompetitiveAction } from "./gen4/canonical";
 import type { ResolvedAnimationEvent, PresentationStatus } from "./battle-presentation";
 import { getCompetitiveActionPlayerIds, type CanonicalCompetitiveAction } from "./actions";
 import {
@@ -20,7 +21,14 @@ import {
   COMPETITIVE_MOVE_CATALOG,
   COMPETITIVE_SPECIES_CATALOG,
 } from "./competitive-catalog.generated";
-import { canUseCompetitiveStruggle, isCompetitiveMoveSelectable } from "./competitive-party";
+import { isLegacyCompetitiveMoveEffectSelectable } from "./competitive-ruleset-config";
+function isCompetitiveMoveSelectable(moveId: number): boolean {
+  const move = COMPETITIVE_MOVE_CATALOG[moveId];
+  return Boolean(move && isLegacyCompetitiveMoveEffectSelectable(move));
+}
+function canUseCompetitiveStruggle(moves: readonly { moveId: number; pp: number }[]): boolean {
+  return moves.every(m => m.pp <= 0 || !isCompetitiveMoveSelectable(m.moveId));
+}
 import { calculateGen4Damage, checkGen4Accuracy, getGen4FixedDamage } from "./gen4-battle-math";
 import { calculateGen4TypeEffectiveness } from "./gen4-type-chart";
 import type { SeededRandom } from "./prng";
@@ -48,7 +56,7 @@ function randomValue(random: SeededRandom): number {
 }
 
 function sortedParticipantIds(state: CanonicalBattleState): readonly [string, string] {
-  if (state.rulesetVersion !== COMPETITIVE_RULESET_VERSION) {
+  if (state.rulesetVersion !== 2) {
     throw new Error("Unsupported competitive ruleset version");
   }
   if (
@@ -186,7 +194,7 @@ function cloneState(
   );
 
   return {
-    rulesetVersion: COMPETITIVE_RULESET_VERSION,
+    rulesetVersion: 2,
     turn: state.turn,
     participantIds,
     playersById,
@@ -271,6 +279,8 @@ function validateAction(
       }
       return;
     }
+    case "continue":
+      throw Error("Legacy rules do not accept forced continuation actions");
     default:
       return rejectUnsupportedAction(action);
   }
@@ -635,6 +645,7 @@ export function validateCompetitiveAction(input: {
   playerId: string;
   action: CanonicalCompetitiveAction;
 }): void {
+  if (input.state.rulesetVersion === 3) return validateGen4CompetitiveAction(input);
   if (input.state.terminal) {
     throw new Error("Cannot submit an action after a terminal result");
   }
@@ -655,6 +666,7 @@ export function resolveTurn(input: {
   actionsByPlayerId: CanonicalIdRecord<CanonicalCompetitiveAction>;
   random: SeededRandom;
 }): ResolvedTurnV2 {
+  if (input.state.rulesetVersion === 3) return resolveGen4CompetitiveTurn(input);
   const stateWithSafeRecords: CanonicalBattleState = {
     ...input.state,
     playersById: createCanonicalIdRecord(Object.entries(input.state.playersById)),

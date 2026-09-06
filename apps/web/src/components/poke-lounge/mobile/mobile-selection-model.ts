@@ -10,7 +10,8 @@ export type BattleCandidate = {
   index: number;
 };
 export function selectionContext(state: MobileBattleUiState): string {
-  return state.selectionKey ?? state.phase;
+  const base = state.selectionKey ?? state.phase;
+  return state.itemTargetName ? `${base}:item:${state.itemTargetName}` : base;
 }
 export function pokemonIdentity(pokemon: MobileBattleUiState["party"][number]): string {
   return `${pokemon.slotIndex}:${pokemon.name}:${pokemon.level}:${pokemon.sprite?.path ?? ""}:${pokemon.sprite?.frame ?? ""}`;
@@ -43,10 +44,9 @@ export function candidateAction(
     const pokemon = state.party.find(p => p.slotIndex === candidate.index);
     return pokemon &&
       !pokemon.isEmpty &&
-      !pokemon.isFainted &&
-      !pokemon.isCurrent &&
+      (state.itemTargetName ||
+        (!pokemon.isFainted && !pokemon.isCurrent && pokemon.currentHp > 0)) &&
       pokemon.canSwitch &&
-      pokemon.currentHp > 0 &&
       pokemonIdentity(pokemon) === candidate.identity
       ? { type: "select-party", index: pokemon.slotIndex }
       : null;

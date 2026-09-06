@@ -1,5 +1,5 @@
 /** Cosmetic, resolved-action telemetry. Never used to decide damage, PP, turn order or a winner. */
-export type PresentationStatus = "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+export type PresentationStatus = import("./gen4/types").Gen4Status;
 export interface ResolvedAnimationEvent {
   kind: "move" | "status";
   actorPlayerId: string;
@@ -37,10 +37,19 @@ export function parseResolvedTurnPresentation(
 ): ResolvedTurnPresentation | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const v = value as Record<string, unknown>;
-  if (v.turn !== currentTurn - 1 || !Array.isArray(v.events) || v.events.length > 12)
+  if (v.turn !== currentTurn - 1 || !Array.isArray(v.events) || v.events.length > 64)
     return undefined;
   const result: ResolvedAnimationEvent[] = [];
-  const statuses = ["normal", "poisoned", "burned", "paralyzed", "fainted"];
+  const statuses = [
+    "normal",
+    "poisoned",
+    "badlyPoisoned",
+    "burned",
+    "paralyzed",
+    "asleep",
+    "frozen",
+    "fainted",
+  ];
   for (const input of v.events) {
     if (!input || typeof input !== "object" || Array.isArray(input)) return undefined;
     const e = input as Record<string, unknown>;
@@ -66,10 +75,12 @@ export function parseResolvedTurnPresentation(
         return undefined;
     if (
       (e.kind === "move" &&
-        (e.moveId === 0 || e.status !== "normal" || e.actorPlayerId === e.targetPlayerId)) ||
+        (e.moveId === 0 ||
+          e.status !== "normal" ||
+          (e.actorPlayerId === e.targetPlayerId && e.actorSlotIndex !== e.targetSlotIndex))) ||
       (e.kind === "status" &&
         (e.moveId !== 0 ||
-          !["poisoned", "burned", "paralyzed"].includes(e.status as string) ||
+          !statuses.includes(e.status as string) ||
           e.actorPlayerId !== e.targetPlayerId))
     )
       return undefined;

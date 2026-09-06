@@ -52,15 +52,9 @@ test("ROM 한국어 기술명은 코드형 fallback 대신 상대 기술명에 �
     assert.equal(createBattleMoveFromRom(18, moveRecords).priority, -6);
     assert.equal(createBattleMoveFromRom(95, moveRecords).accuracy, 60);
     assert.equal(pokemonData.moves["111"]?.range, 16);
-    assert.equal(
-      createBattleMoveFromRom(97, moveRecords).competitiveEffectSupport,
-      "unsupported-primary",
-    );
+    assert.equal(createBattleMoveFromRom(97, moveRecords).competitiveEffectSupport, undefined);
     assert.equal(createBattleMoveFromRom(82, moveRecords).competitiveEffectSupport, undefined);
-    assert.equal(
-      createBattleMoveFromRom(69, moveRecords).competitiveEffectSupport,
-      "unsupported-primary",
-    );
+    assert.equal(createBattleMoveFromRom(69, moveRecords).competitiveEffectSupport, undefined);
   } finally {
     resetRuntimeGameDataJsonStateForTest();
   }

@@ -1,3 +1,4 @@
+import { normalizeGen4Traits } from "@poke-lounge/battle/gen4/traits";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { PlayerSnapshot } from "./local-preview-room";
@@ -71,6 +72,7 @@ test("육성 파티를 서버가 신뢰하는 최소 V2 입력으로만 변환�
     activeSlotIndex: 2,
     members: [
       {
+        ...normalizeGen4Traits(7),
         slotIndex: 0,
         speciesId: 7,
         level: 11,
@@ -90,6 +92,7 @@ test("육성 파티를 서버가 신뢰하는 최소 V2 입력으로만 변환�
         ],
       },
       {
+        ...normalizeGen4Traits(158),
         slotIndex: 2,
         speciesId: 158,
         level: 13,

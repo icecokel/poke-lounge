@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  COMPETITIVE_RULESET_HASH,
+  LEGACY_COMPETITIVE_RULESET_HASH as COMPETITIVE_RULESET_HASH,
   COMPETITIVE_STRUGGLE_MOVE_ID,
 } from "@poke-lounge/battle/competitive-ruleset-config";
 import {

@@ -1,3 +1,6 @@
+import { restoreGen4FieldPokemon } from "@poke-lounge/battle/gen4/adventure";
+import { canUseGen4ItemOnMember } from "@poke-lounge/battle/gen4/engine";
+import { RUNTIME_ITEM_ROM_IDS } from "../items/runtime-items";
 import { getTournamentGatheringContext } from "../world/tournament-gathering";
 import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
 import { getRomHitFrame, ROM_HIT_DURATION_MS } from "../battle/rom-hit-animation";
@@ -602,6 +605,7 @@ export class BattleController {
     }
 
     if (
+      this.activeBattleEffect ||
       this.isHpAnimationPlaying() ||
       this.isHitAnimationPlaying() ||
       this.isStatusCommitPlaying()
@@ -631,6 +635,21 @@ export class BattleController {
       return;
     }
 
+    const forcedRequest = this.getCurrentActionRequest();
+    if (
+      !this.shortcutGuideOpen &&
+      !this.authoritativeInputPending &&
+      !this.authoritativeSpectating &&
+      this.state.phase === "command" &&
+      this.state.messageQueue.length === 0 &&
+      (forcedRequest?.recharge || forcedRequest?.forcedMoveId != null)
+    ) {
+      if (this.authoritativeProjection) {
+        if (this.authoritativeConnectionStatus === "online")
+          this.submitAuthoritativeAction({ kind: "continue" });
+      } else this.setBattleState(chooseBattleCommand(this.state, "fight"));
+      return;
+    }
     if (
       (this.keyboard.consume("KeyI") || consumeVirtualGamepadPress("bag")) &&
       this.state.phase === "command" &&
@@ -638,7 +657,12 @@ export class BattleController {
     ) {
       playBattleConfirmSound();
       this.selectedBagItemIndex = 0;
-      this.setBattleState(chooseBattleCommand(this.state, "bag"));
+      if (this.authoritativeProjection)
+        this.setBattleState({
+          ...this.state,
+          messageQueue: ["서버 대전에서는 가방을 사용할 수 없습니다."],
+        });
+      else this.setBattleState(chooseBattleCommand(this.state, "bag"));
       return;
     }
 
@@ -697,6 +721,7 @@ export class BattleController {
       selectedBagItemIndex: this.selectedBagItemIndex,
       selectedPartySlotIndex: this.selectedPartySlotIndex,
       isForcedPartySwitch: isForcedPartySwitch(this.state),
+
       partySlots: this.getBattlePartySlotViews().map(function mapItem(slot) {
         return {
           slotIndex: slot.slotIndex,
@@ -942,7 +967,7 @@ export class BattleController {
 
     if (action.type === "select-move" && this.state.phase === "move-select") {
       const move = this.state.player.pokemon.moves[action.index];
-      if (!move || move.pp <= 0) {
+      if (!move || this.isMoveUnavailable(move)) {
         return;
       }
 
@@ -1061,6 +1086,9 @@ export class BattleController {
         this.isStatusCommitPlaying() ||
         this.authoritativeInputPending ||
         this.shortcutGuideOpen,
+      itemTargetName: this.state.pendingBattleItemId
+        ? (getShopItemById(this.state.pendingBattleItemId)?.displayName ?? null)
+        : null,
       canGoBack:
         this.state.messageQueue.length === 0 &&
         !isForcedPartySwitch(this.state) &&
@@ -1110,8 +1138,9 @@ export class BattleController {
                   : null,
             selected: index === this.selectedMoveIndex,
             disabled:
-              isMobileBattleMoveDisabled(phase, move.pp) ||
-              (phase === "move-select" && move.competitiveEffectSupport === "unsupported-primary"),
+              phase === "move-select"
+                ? this.isMoveUnavailable(move)
+                : isMobileBattleMoveDisabled(phase, move.pp),
           };
         }.bind(this),
       ),
@@ -1194,6 +1223,8 @@ export class BattleController {
   }
 
   private createBattlePresentationState(): BattlePresentationState {
+    const visiblePlayer = this.getVisibleBattlePokemon("player");
+    const visibleOpponent = this.getVisibleBattlePokemon("opponent");
     const entranceProgress = clampUnit(this.battleEntranceProgress);
     const entranceOffset = Math.round((1 - entranceProgress) * 18);
     const entranceAlpha = 0.35 + entranceProgress * 0.65;
@@ -1202,11 +1233,11 @@ export class BattleController {
     const captureOpponent = this.getCaptureOpponentRenderEffect();
     const playerBox = getVisibleBoundsAlignedBattleSpriteRenderBox(
       BATTLE_LAYOUT.playerSprite,
-      getBattlePokemonAlphaBounds(this.state.player.pokemon.backSprite),
+      getBattlePokemonAlphaBounds(visiblePlayer.backSprite),
     );
     const opponentBox = getVisibleBoundsAlignedBattleSpriteRenderBox(
       BATTLE_LAYOUT.opponentSprite,
-      getBattlePokemonAlphaBounds(this.state.opponent.pokemon.frontSprite),
+      getBattlePokemonAlphaBounds(visibleOpponent.frontSprite),
     );
     const evolution = this.createBattleEvolutionPresentation();
 
@@ -1225,9 +1256,9 @@ export class BattleController {
       help: { inputMode: this.getShortcutGuideInputMode(), open: this.shortcutGuideOpen },
       message: this.getVisibleBattleMessage(),
       opponent: {
-        currentHp: this.state.opponent.pokemon.currentHp,
+        currentHp: visibleOpponent.currentHp,
         healing: this.getDisplayedHpTarget("opponent") > this.displayedHp.opponent,
-        activeSlotIndex: this.state.opponent.activePartySlotIndex,
+        activeSlotIndex: this.getVisibleBattleSlot("opponent"),
         displayName:
           this.state.battleKind === "wild"
             ? this.state.opponent.displayName
@@ -1237,13 +1268,13 @@ export class BattleController {
                 this.state.opponent.displayName,
               ),
         displayedHp: this.displayedHp.opponent,
-        level: this.state.opponent.pokemon.level,
-        maxHp: this.state.opponent.pokemon.maxHp,
-        name: this.state.opponent.pokemon.name,
+        level: visibleOpponent.level,
+        maxHp: visibleOpponent.maxHp,
+        name: visibleOpponent.name,
         sprite: this.createBattleSpritePresentation({
           alpha: entranceAlpha * opponentHit.alpha * captureOpponent.alpha,
           height: opponentBox.height * captureOpponent.scale,
-          sprite: this.state.opponent.pokemon.frontSprite,
+          sprite: visibleOpponent.frontSprite,
           width: opponentBox.width * captureOpponent.scale,
           x: opponentBox.x + entranceOffset + opponentHit.offsetX,
           y: opponentBox.y,
@@ -1252,10 +1283,10 @@ export class BattleController {
       },
       phase: this.state.phase,
       player: {
-        experience: getBattleExperienceProgress(this.state.player.pokemon),
-        activeSlotIndex: this.state.player.activePartySlotIndex,
+        experience: getBattleExperienceProgress(visiblePlayer),
+        activeSlotIndex: this.getVisibleBattleSlot("player"),
         healing: this.getDisplayedHpTarget("player") > this.displayedHp.player,
-        currentHp: this.state.player.pokemon.currentHp,
+        currentHp: visiblePlayer.currentHp,
         displayName: this.authoritativeProjection
           ? resolvePlayerDisplayName(
               this.gameStateStore.getState(),
@@ -1268,13 +1299,13 @@ export class BattleController {
             )
           : this.gameStateStore.getCurrentLocalPlayer().displayName,
         displayedHp: this.displayedHp.player,
-        level: this.state.player.pokemon.level,
-        maxHp: this.state.player.pokemon.maxHp,
-        name: this.state.player.pokemon.name,
+        level: visiblePlayer.level,
+        maxHp: visiblePlayer.maxHp,
+        name: visiblePlayer.name,
         sprite: this.createBattleSpritePresentation({
           alpha: entranceAlpha * playerHit.alpha,
           height: playerBox.height,
-          sprite: this.state.player.pokemon.backSprite,
+          sprite: visiblePlayer.backSprite,
           width: playerBox.width,
           x: playerBox.x - entranceOffset + playerHit.offsetX,
           y: playerBox.y,
@@ -1577,12 +1608,22 @@ export class BattleController {
         this.gameStateStore.consumeInventoryItem(nextState.usedInventoryItemId, 1);
       }
 
+      if (nextState.pendingBattleItemId) {
+        const romId = RUNTIME_ITEM_ROM_IDS[nextState.pendingBattleItemId as RuntimeItemId];
+        this.selectedPartySlotIndex =
+          nextState.player.party.find(
+            slot => slot.pokemon && canUseGen4ItemOnMember(romId, slot.pokemon),
+          )?.slotIndex ?? 0;
+      }
       this.setBattleState(nextState);
       return;
     }
 
     if (this.state.phase === "party-select") {
-      this.setBattleState(choosePartySlot(this.state, this.selectedPartySlotIndex));
+      const nextState = choosePartySlot(this.state, this.selectedPartySlotIndex);
+      if (nextState.usedInventoryItemId)
+        this.gameStateStore.consumeInventoryItem(nextState.usedInventoryItemId, 1);
+      this.setBattleState(nextState);
       return;
     }
 
@@ -1622,7 +1663,14 @@ export class BattleController {
         const activePokemon = player?.team.find(function findItem(pokemon) {
           return pokemon.slotIndex === player.activeSlotIndex;
         });
-        if (activePokemon && canUseAuthoritativeStruggle(activePokemon.moves)) {
+        if (player?.actionRequest?.recharge || player?.actionRequest?.forcedMoveId != null) {
+          this.submitAuthoritativeAction({ kind: "continue" });
+          return;
+        }
+        if (
+          player?.actionRequest?.moves.some(m => m.moveId === 165) ||
+          (activePokemon && canUseAuthoritativeStruggle(activePokemon.moves))
+        ) {
           this.submitAuthoritativeAction({
             kind: "move",
             moveId: COMPETITIVE_STRUGGLE_MOVE_ID,
@@ -1652,9 +1700,11 @@ export class BattleController {
       const activePokemon = player?.team.find(function findItem(pokemon) {
         return pokemon.slotIndex === player.activeSlotIndex;
       });
-      const moveId = canUseAuthoritativeStruggle(activePokemon?.moves ?? [])
-        ? COMPETITIVE_STRUGGLE_MOVE_ID
-        : activePokemon?.moves[this.selectedMoveIndex]?.moveId;
+      const moveId =
+        player?.actionRequest?.moves.some(m => m.moveId === 165) ||
+        canUseAuthoritativeStruggle(activePokemon?.moves ?? [])
+          ? COMPETITIVE_STRUGGLE_MOVE_ID
+          : activePokemon?.moves[this.selectedMoveIndex]?.moveId;
       if (
         moveId === COMPETITIVE_STRUGGLE_MOVE_ID ||
         (typeof moveId === "number" && Number.isSafeInteger(moveId))
@@ -1670,7 +1720,7 @@ export class BattleController {
   }
 
   private submitAuthoritativeAction(
-    action: { kind: "move"; moveId: number | "struggle" } | { kind: "switch"; slotIndex: number },
+    action: import("@poke-lounge/battle/actions").CanonicalCompetitiveAction,
   ): void {
     const projection = this.authoritativeProjection;
     const ownPlayerId = this.authoritativeOwnPlayerId;
@@ -2066,6 +2116,20 @@ export class BattleController {
           this.displayedStatus[side] = nextState[side].pokemon.status;
         }
       }
+    }
+    if (!this.authoritativeProjection) {
+      for (const side of BATTLE_HP_SIDES)
+        if (this.getVisibleBattleSlot(side) !== this.getVisibleBattleSlot(side, nextState)) {
+          this.hpTweens[side]?.stop();
+          delete this.hpTweens[side];
+          const snap = nextState.messageHpSnapshots?.[0];
+          this.displayedHp[side] =
+            (side === "player" ? snap?.playerCurrentHp : snap?.opponentCurrentHp) ??
+            nextState[side].pokemon.currentHp;
+          this.displayedStatus[side] =
+            (side === "player" ? snap?.playerStatus : snap?.opponentStatus) ??
+            nextState[side].pokemon.status;
+        }
     }
     this.state = nextState;
     if (shouldPlayCaptureAnimation) {
@@ -2639,6 +2703,24 @@ export class BattleController {
       return;
     }
 
+    if (this.state.mechanicsVersion === 3 && this.state.gen4Session) {
+      for (const side of [0, 1] as const) {
+        const key = side === 0 ? "player" : "opponent",
+          old = this.state[key];
+        const party = old.party.map(slot => ({
+          ...slot,
+          pokemon: slot.pokemon ? restoreGen4FieldPokemon(this.state, side, slot.slotIndex) : null,
+        }));
+        this.state = {
+          ...this.state,
+          [key]: {
+            ...old,
+            party,
+            pokemon: party.find(slot => slot.slotIndex === old.activePartySlotIndex)!.pokemon!,
+          },
+        };
+      }
+    }
     const localPlayer = this.gameStateStore.getCurrentLocalPlayer();
     const previousCurrentPlayerId = this.gameStateStore.getState().currentPlayerId;
 
@@ -3105,7 +3187,11 @@ export class BattleController {
         return;
       }
 
-      this.setBattleState({ ...this.state, phase: "command" });
+      this.setBattleState({
+        ...this.state,
+        phase: this.state.pendingBattleItemId ? "bag-select" : "command",
+        pendingBattleItemId: null,
+      });
     }
   }
 
@@ -3350,14 +3436,52 @@ export class BattleController {
   }
 
   private getBattlePartySlotViews(): BattlePartySlotView[] {
-    return createBattlePartySlotViews({
+    const views = createBattlePartySlotViews({
       activePartySlotIndex: this.state.player.activePartySlotIndex,
       panel: BATTLE_LAYOUT.partyWindow,
       party: this.state.player.party,
       selectedPartySlotIndex: this.selectedPartySlotIndex,
     });
+    const itemId = this.state.pendingBattleItemId;
+    const request = this.getCurrentActionRequest();
+    return views.map(view => ({
+      ...view,
+      canSwitch: itemId
+        ? Boolean(
+            view.pokemon &&
+            canUseGen4ItemOnMember(RUNTIME_ITEM_ROM_IDS[itemId as RuntimeItemId], view.pokemon),
+          )
+        : request
+          ? request.switchSlots.includes(view.slotIndex)
+          : view.canSwitch,
+    }));
   }
 
+  private getVisibleBattleSlot(side: "player" | "opponent", state = this.state): number {
+    const snapshot = state.messageHpSnapshots?.[0];
+    return (
+      (side === "player" ? snapshot?.playerPartySlotIndex : snapshot?.opponentPartySlotIndex) ??
+      state[side].activePartySlotIndex
+    );
+  }
+  private getVisibleBattlePokemon(side: "player" | "opponent", state = this.state): BattlePokemon {
+    return (
+      state[side].party.find(slot => slot.slotIndex === this.getVisibleBattleSlot(side, state))
+        ?.pokemon ?? state[side].pokemon
+    );
+  }
+  private getCurrentActionRequest() {
+    return this.authoritativeProjection && this.authoritativeOwnPlayerId
+      ? this.authoritativeProjection.currentState.playersById[this.authoritativeOwnPlayerId]
+          ?.actionRequest
+      : this.state.gen4Requests?.[0];
+  }
+  private isMoveUnavailable(move: BattleMove): boolean {
+    const request = this.getCurrentActionRequest();
+    return request
+      ? !request.moves.some(m => m.moveId === move.id && !m.disabled && m.pp > 0)
+      : move.pp <= 0 || move.competitiveEffectSupport === "unsupported-primary";
+  }
   private getBattleBagItemIds(): BattleBagItemId[] {
     const inventory = this.gameStateStore.getCurrentLocalPlayer().inventory;
     const owned = BATTLE_BAG_ITEM_IDS.filter(itemId => (inventory[itemId] ?? 0) > 0);

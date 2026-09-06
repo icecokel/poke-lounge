@@ -1,3 +1,6 @@
+import { initializeGen4Canonical } from '@poke-lounge/battle/gen4/canonical';
+import { createSeededRandom } from '@poke-lounge/battle/prng';
+import { resolveTurn } from '@poke-lounge/battle/resolve-turn';
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
@@ -267,15 +270,34 @@ class InMemoryRedisRoomState {
       matches: Record<string, Record<string, unknown>>;
       actions: Record<string, Record<string, unknown>>;
     };
-    const state = createTestInitialBattleState(['player-1', 'player-2']);
+    let state = createTestInitialBattleState(['player-1', 'player-2']);
     state.turn = input.turn;
     if (input.replacing) {
       const player = state.playersById['player-1'];
       const active = player.team[0];
       player.team = [
-        { ...active, currentHp: 0, status: 'fainted' },
+        { ...active, currentHp: 1 },
         { ...active, slotIndex: 1 },
       ];
+    }
+    if (input.replacing) {
+      state.playersById['player-2'].team[0].moves = [{ moveId: 55, pp: 2 }];
+      state = initializeGen4Canonical(
+        state,
+        createSeededRandom('replacement-fixture'),
+      );
+      state = resolveTurn({
+        state,
+        actionsByPlayerId: {
+          'player-1': { kind: 'move', moveId: 55 },
+          'player-2': { kind: 'move', moveId: 55 },
+        },
+        random: createSeededRandom('replacement-fixture-turn'),
+      }).state;
+      expect(state.playersById['player-1'].actionRequest?.kind).toBe('switch');
+      expect(state.playersById['player-2'].actionRequest?.kind).toBe('wait');
+      state.turn = input.turn;
+      delete state.lastTurnPresentation;
     }
     const stateHash = hashCanonicalState(state);
     document.room.status = 'tournament';

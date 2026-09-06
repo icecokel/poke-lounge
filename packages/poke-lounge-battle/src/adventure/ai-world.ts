@@ -1,3 +1,4 @@
+import { normalizeGen4Traits } from "../gen4/traits";
 import { normalizeCompetitiveParty, type NormalizedCompetitiveParty } from "../competitive-party";
 import {
   chooseBattleBagItem,
@@ -342,6 +343,7 @@ export function aiCompetitiveParty(state: AiAdventureState): NormalizedCompetiti
               level: slot.pokemon.level,
               currentHp: slot.pokemon.currentHp,
               status: slot.pokemon.status,
+              ...normalizeGen4Traits(slot.pokemon.speciesId, slot.pokemon),
               individualValues: slot.pokemon.individualValues,
               moves: slot.pokemon.moves.map(move => ({ moveId: move.id, pp: move.pp })),
             },

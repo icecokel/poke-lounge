@@ -1,5 +1,5 @@
 import { devices, expect, type Browser, type Page, type Request, test } from "@playwright/test";
-import { COMPETITIVE_RULESET_HASH } from "@poke-lounge/battle/competitive-ruleset-config";
+import { LEGACY_COMPETITIVE_RULESET_HASH as COMPETITIVE_RULESET_HASH } from "@poke-lounge/battle/competitive-ruleset-config";
 import {
   createTournamentBracketState,
   getReadyTournamentMatches,
@@ -5194,4 +5194,237 @@ test("선두 전투불능 회귀: 서버 토너먼트도 생존 팀원이 있으
   });
   expect((await getBattleSnapshot(page))?.result).toBeNull();
   expect(await getActiveSceneKey(page)).toBe("battle");
+});
+
+for (const viewport of [
+  { width: 390, height: 630 },
+  { width: 390, height: 844 },
+  { width: 1280, height: 900 },
+]) {
+  test(`HGSS 로비 공간: ${viewport.width}x${viewport.height} 참가자 4명과 8명`, async ({
+    browser,
+  }, info) => {
+    const server = createMockServerState();
+    const context = await browser.newContext({
+      viewport,
+      hasTouch: viewport.width < 600,
+      isMobile: viewport.width < 600,
+    });
+    const page = await context.newPage();
+    await mockServerRoom(page, server, { lobbyLifecycle: true, wrapped: true });
+    await startServerRoom(page, createServerRoomUrl(90000), "명랑한 탐험가");
+    await expect(page.locator("[data-room-lobby]")).toBeVisible();
+    const pushRoster = async (count: number) => {
+      while (server.joinedParticipants.length < count) {
+        const n = server.joinedParticipants.length;
+        server.joinedParticipants.push({
+          playerId: `roster-ai-${n}`,
+          sessionId: `roster-session-${n}`,
+          displayName:
+            ["", "쌍둥이 아롱&다롱", "낚시꾼 태명", "배틀을 좋아하는 포켓몬 트레이너"][n] ??
+            `트레이너 ${n}`,
+          joinedAtMs: n,
+        });
+      }
+      server.revision++;
+      const room = createLobbyWaitingRoomState(server);
+      await emitSocketSnapshot(page, {
+        ...room,
+        participants: room.participants.map((p, n) => ({
+          ...p,
+          controller: n === 0 ? "human" : "ai",
+          ready: n !== 0,
+        })),
+      });
+    };
+    await pushRoster(4);
+    await expect(page.locator("[data-room-lobby-participant]")).toHaveCount(4);
+    const list = page.locator("[data-room-lobby-participants]");
+    const first = page.locator("[data-room-lobby-participant]").first();
+    const fourth = page.locator("[data-room-lobby-participant]").nth(3);
+    const listBox = (await list.boundingBox())!,
+      firstBox = (await first.boundingBox())!,
+      fourthBox = (await fourth.boundingBox())!;
+    expect(firstBox.y).toBeGreaterThanOrEqual(listBox.y - 1);
+    // At a short Safari-sized viewport the roster still receives at least three complete rows.
+    expect(listBox.height).toBeGreaterThanOrEqual(viewport.height === 630 ? 200 : 275);
+    if (viewport.height >= 844)
+      expect(fourthBox.y + fourthBox.height).toBeLessThanOrEqual(listBox.y + listBox.height + 1);
+    await page.screenshot({ path: info.outputPath("lobby-four.png") });
+    await pushRoster(8);
+    await expect(page.locator("[data-room-lobby-participant]")).toHaveCount(8);
+    await page.locator("[data-room-lobby-participant]").last().scrollIntoViewIfNeeded();
+    for (const row of await page.locator("[data-room-lobby-participant]").all()) {
+      expect(await row.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+      const removal = row.locator("[data-room-lobby-ai-remove]");
+      if (await removal.count()) {
+        const size = (await removal.boundingBox())!;
+        expect(size.width).toBeGreaterThanOrEqual(44);
+        expect(size.height).toBeGreaterThanOrEqual(44);
+        const name = (await row.locator("strong").boundingBox())!;
+        expect(name.x + name.width).toBeLessThanOrEqual(size.x + 1);
+      }
+    }
+    const finalBox = (await page.locator("[data-room-lobby-participant]").last().boundingBox())!,
+      footer = (await page.locator("[data-room-lobby-actions]").boundingBox())!;
+    expect(finalBox.y + finalBox.height).toBeLessThanOrEqual(footer.y + 1);
+    await page.screenshot({ path: info.outputPath("lobby-eight-scrolled.png") });
+    await context.close();
+  });
+}
+
+test("HGSS 실제 V3 서버 실행: 공중날기 자동 이어가기와 유턴 교체", async ({ page }, info) => {
+  test.setTimeout(70000);
+  const { initializeGen4Canonical } = await import("@poke-lounge/battle/gen4/canonical");
+  const { createInitialBattleState } = await import("@poke-lounge/battle/ruleset");
+  const { createSeededRandom } = await import("@poke-lounge/battle/prng");
+  const { normalizeCompetitiveParty } = await import("@poke-lounge/battle/competitive-party");
+  const { COMPETITIVE_MOVE_CATALOG } =
+    await import("@poke-lounge/battle/competitive-catalog.generated");
+  const { COMPETITIVE_RULESET_HASH: liveHash } =
+    await import("@poke-lounge/battle/competitive-ruleset-config");
+  const { resolveTurn } = await import("@poke-lounge/battle/resolve-turn");
+  const { hashCanonicalState } = await import("@poke-lounge/battle/canonical-state");
+  const server = createMockServerState();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await mockAuthenticatedPokeSession(page);
+  await mockServerRoom(page, server, {
+    competitive: true,
+    competitiveImmediately: true,
+    waitForResult: true,
+    wrapped: true,
+  });
+  await startServerRoom(page);
+  await waitForActiveScene(page, "battle");
+  await waitForBattleReady(page);
+  const template = createServerCompetitiveProjection(server),
+    [own, foe] = template.playerIds;
+  const party = (moveIds: number[]) =>
+    normalizeCompetitiveParty({
+      version: 2,
+      activeSlotIndex: 0,
+      members: [0, 4].map(slotIndex => ({
+        slotIndex,
+        speciesId: slotIndex ? 143 : 151,
+        level: 50,
+        currentHp: 1,
+        status: "normal",
+        individualValues: {
+          hp: 31,
+          attack: 31,
+          defense: 31,
+          speed: 31,
+          specialAttack: 31,
+          specialDefense: 31,
+        },
+        moves: (slotIndex ? [150] : moveIds).map(moveId => ({
+          moveId,
+          pp: COMPETITIVE_MOVE_CATALOG[moveId]!.maxPp,
+        })),
+      })),
+    });
+  let canonical = createInitialBattleState([
+    { playerId: own, party: party([19, 369, 202, 86]) },
+    { playerId: foe, party: party([150]) },
+  ]);
+  for (const p of Object.values(canonical.playersById))
+    for (const m of p.team) {
+      m.maxHp = 1000;
+      m.currentHp = 1000;
+    }
+  canonical.playersById[own].team[0].speed = 200;
+  canonical.playersById[foe].team[0].speed = 20;
+  canonical.turn = template.currentTurn + 1;
+  canonical = initializeGen4Canonical(canonical, createSeededRandom("browser-gen4"));
+  const projection = (): CompetitiveProjection => ({
+    ...template,
+    playerIds: [...canonical.participantIds],
+    rulesetVersion: 3,
+    rulesetHash: liveHash,
+    currentTurn: canonical.turn,
+    stateHash: hashCanonicalState(canonical),
+    submittedPlayerIds: [],
+    currentState: {
+      rulesetVersion: 3,
+      turn: canonical.turn,
+      participantIds: [...canonical.participantIds],
+      terminal: null,
+      ...(canonical.lastTurnPresentation
+        ? { lastTurnPresentation: canonical.lastTurnPresentation }
+        : {}),
+      playersById: Object.fromEntries(
+        canonical.participantIds.map(id => {
+          const p = canonical.playersById[id];
+          return [
+            id,
+            {
+              playerId: id,
+              activeSlotIndex: p.activeSlotIndex,
+              actionRequest: p.actionRequest,
+              team: p.team.map(m => ({
+                slotIndex: m.slotIndex,
+                speciesId: m.speciesId,
+                level: m.level,
+                currentHp: m.currentHp,
+                maxHp: m.maxHp,
+                status: m.status,
+                statStages: m.statStages,
+                moves: m.moves.map(x => ({ ...x })),
+              })),
+            },
+          ];
+        }),
+      ),
+    },
+  });
+  expect(parseCompetitiveProjection(projection()).rulesetVersion).toBe(3);
+  const sent: import("@poke-lounge/battle/actions").CanonicalCompetitiveAction[] = [];
+  await page.route("**/poke-lounge/rooms/**/actions**", async route => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const body = (await route.request().postDataJSON()) as {
+      action: import("@poke-lounge/battle/actions").CanonicalCompetitiveAction;
+    };
+    sent.push(body.action);
+    const actions: Record<
+      string,
+      import("@poke-lounge/battle/actions").CanonicalCompetitiveAction
+    > = { [own]: body.action };
+    if (canonical.playersById[foe].actionRequest?.kind === "move")
+      actions[foe] = { kind: "move", moveId: 150 };
+    canonical = resolveTurn({
+      state: canonical,
+      actionsByPlayerId: actions,
+      random: createSeededRandom("browser-turn"),
+    }).state;
+    await route.fulfill({
+      json: { success: true, data: projection() },
+    });
+  });
+  server.revision++;
+  await emitSocketSnapshot(page, {
+    ...createTournamentRoomState(server),
+    competitive: projection(),
+  });
+  await expect.poll(async () => (await getBattleSnapshot(page))?.turn).toBe(canonical.turn);
+  const commands = page.locator('[data-poke-lounge-battle-surface="command"]');
+  await expect(commands).toBeVisible();
+  await commands.getByRole("button").first().click();
+  const moves = page.locator('[data-poke-lounge-battle-surface="moves"]');
+  await moves.getByRole("button").filter({ hasText: "공중날기" }).click();
+  await expect.poll(() => sent.length, { timeout: 20000 }).toBe(2);
+  expect(sent).toEqual([{ kind: "move", moveId: 19 }, { kind: "continue" }]);
+  expect(canonical.playersById[own].team[0].moves[0].pp).toBe(14);
+  expect(canonical.playersById[foe].team[0].currentHp).toBeLessThan(1000);
+  await expect(commands).toBeVisible({ timeout: 20000 });
+  await commands.getByRole("button").first().click();
+  await moves.getByRole("button").filter({ hasText: "유턴" }).click();
+  const replacement = page.locator('[data-poke-lounge-battle-surface="party"]');
+  await expect(replacement).toBeVisible({ timeout: 20000 });
+  expect(canonical.playersById[own].team[0].currentHp).toBeGreaterThan(0);
+  await page.screenshot({ path: info.outputPath("v3-uturn-replacement.png") });
+  await replacement.getByRole("button").filter({ hasText: "잠만보" }).click();
+  await expect.poll(() => canonical.playersById[own].activeSlotIndex).toBe(4);
+  expect(sent.at(-1)).toEqual({ kind: "switch", slotIndex: 4 });
+  await expect(commands).toBeVisible({ timeout: 20000 });
+  await page.screenshot({ path: info.outputPath("v3-shared-engine-complete.png") });
 });

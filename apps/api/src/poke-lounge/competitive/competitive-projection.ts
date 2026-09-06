@@ -162,6 +162,9 @@ function toPublicBattleState(
           {
             playerId,
             activeSlotIndex: player.activeSlotIndex,
+            ...(player.actionRequest
+              ? { actionRequest: structuredClone(player.actionRequest) }
+              : {}),
             team: player.team.map(function mapItem(combatant) {
               return {
                 speciesId: combatant.speciesId,

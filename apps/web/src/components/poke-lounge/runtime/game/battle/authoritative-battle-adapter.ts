@@ -1,7 +1,9 @@
+import { isGen4ActionLegal } from "@poke-lounge/battle/gen4/request";
 import {
   COMPETITIVE_RULESET_V2,
   COMPETITIVE_STRUGGLE_MOVE_ID,
   isCompetitiveMoveEffectSelectable,
+  isLegacyCompetitiveMoveEffectSelectable,
 } from "@poke-lounge/battle/competitive-ruleset-config";
 import { getGen4FixedDamage } from "@poke-lounge/battle/gen4-battle-math";
 import { getCompetitiveActionPlayerIds } from "@poke-lounge/battle/actions";
@@ -47,6 +49,21 @@ export function isLegalAuthoritativeAction(
     return false;
   }
 
+  if (player.actionRequest) {
+    if (action.kind === "continue")
+      return isGen4ActionLegal(player.actionRequest, { kind: "continue" });
+    if (action.kind === "switch" && Number.isInteger(action.slotIndex))
+      return isGen4ActionLegal(player.actionRequest, {
+        kind: "switch",
+        slotIndex: action.slotIndex!,
+      });
+    if (
+      action.kind === "move" &&
+      (typeof action.moveId === "number" || action.moveId === "struggle")
+    )
+      return isGen4ActionLegal(player.actionRequest, { kind: "move", moveId: action.moveId });
+    return false;
+  }
   if (action.kind === "move") {
     const activePokemon = player.team.find(function findItem(pokemon) {
       return pokemon.slotIndex === player.activeSlotIndex;
@@ -64,7 +81,9 @@ export function isLegalAuthoritativeAction(
         return (
           move.moveId === action.moveId &&
           move.pp > 0 &&
-          isRuntimeCompetitiveMoveSelectable(move.moveId)
+          (projection.rulesetVersion === 2
+            ? isLegacyCompetitiveMoveEffectSelectable(getRuntimePokemonMoveDetails(move.moveId)!)
+            : isRuntimeCompetitiveMoveSelectable(move.moveId))
         );
       }),
     );
@@ -104,9 +123,11 @@ export function toAuthoritativeBattleState(
 
   const waitingForReplacement = isWaitingForOpponentReplacement(projection, ownPlayerId);
   const waiting = projection.submittedPlayerIds.includes(ownPlayerId) || waitingForReplacement;
-  const replacing = ownPlayer.team.some(
-    pokemon => pokemon.slotIndex === ownPlayer.activeSlotIndex && pokemon.currentHp === 0,
-  );
+  const replacing =
+    ownPlayer.actionRequest?.kind === "switch" ||
+    ownPlayer.team.some(
+      pokemon => pokemon.slotIndex === ownPlayer.activeSlotIndex && pokemon.currentHp === 0,
+    );
   const terminal = projection.terminal ?? projection.currentState.terminal;
   const result = terminal
     ? {
@@ -127,6 +148,9 @@ export function toAuthoritativeBattleState(
 
   return {
     battleKind: "trainer",
+    ...(ownPlayer.actionRequest && opponent.actionRequest
+      ? { gen4Requests: [ownPlayer.actionRequest, opponent.actionRequest] as const }
+      : {}),
     phase: result
       ? "ended"
       : waiting
@@ -138,8 +162,8 @@ export function toAuthoritativeBattleState(
     matchIndex: 0,
     turn: projection.currentTurn,
     runAttemptCount: 0,
-    player: toBattleParticipant(ownPlayer, "Player"),
-    opponent: toBattleParticipant(opponent, "Opponent"),
+    player: toBattleParticipant(ownPlayer, "Player", projection.rulesetVersion),
+    opponent: toBattleParticipant(opponent, "Opponent", projection.rulesetVersion),
     messageQueue: result
       ? [result.winnerPlayerId === ownPlayerId ? "승리했습니다." : "패배했습니다."]
       : waiting
@@ -152,7 +176,11 @@ export function toAuthoritativeBattleState(
   };
 }
 
-function toBattleParticipant(player: CompetitivePlayer, fallbackName: string): BattleParticipant {
+function toBattleParticipant(
+  player: CompetitivePlayer,
+  fallbackName: string,
+  version: number,
+): BattleParticipant {
   const party = Array.from({ length: 6 }, function callback(_, slotIndex): BattlePartySlot {
     return {
       slotIndex,
@@ -163,6 +191,7 @@ function toBattleParticipant(player: CompetitivePlayer, fallbackName: string): B
             player.team.find(function findItem(candidate) {
               return candidate.slotIndex === slotIndex;
             })!,
+            version,
           )
         : null,
     };
@@ -182,7 +211,7 @@ function toBattleParticipant(player: CompetitivePlayer, fallbackName: string): B
   };
 }
 
-function toBattlePokemon(pokemon: CompetitivePokemon): BattlePokemon {
+function toBattlePokemon(pokemon: CompetitivePokemon, version: number): BattlePokemon {
   const speciesId = pokemon.speciesId;
   const species = getRuntimePokemonSpeciesSummary(speciesId);
   if (!species) {
@@ -232,7 +261,10 @@ function toBattlePokemon(pokemon: CompetitivePokemon): BattlePokemon {
     status: pokemon.status,
     frontSprite: assets.front,
     backSprite: assets.back,
-    moves: pokemon.moves.map(toBattleMove),
+    moves: pokemon.moves.map(move => ({
+      ...toBattleMove(move),
+      ...(version >= 3 ? { competitiveEffectSupport: undefined } : {}),
+    })),
   };
 }
 
@@ -279,7 +311,7 @@ function isRuntimeCompetitiveMoveSelectable(moveId: number): boolean {
 function getCompetitiveEffectSupport(
   move: NonNullable<ReturnType<typeof getRuntimePokemonMoveDetails>>,
 ): Pick<BattleMove, "competitiveEffectSupport"> {
-  if (!isCompetitiveMoveEffectSelectable(move)) {
+  if (!isLegacyCompetitiveMoveEffectSelectable(move)) {
     return { competitiveEffectSupport: "unsupported-primary" };
   }
 

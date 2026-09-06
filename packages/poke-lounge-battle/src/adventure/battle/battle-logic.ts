@@ -1,3 +1,11 @@
+import { restoreGen4FieldPokemon } from "../../gen4/adventure";
+import { getGen4EscapeInfo } from "../../gen4/engine";
+import { GEN4_ROM_ITEMS } from "../../gen4/rom-catalog.generated";
+import { resolveGen4Adventure, ensureGen4Adventure } from "../../gen4/adventure";
+import { canUseGen4ItemOnMember, validateGen4Action } from "../../gen4/engine";
+import { awardGen4EffortValues } from "../../gen4/traits";
+import { RUNTIME_ITEM_ROM_IDS, type RuntimeItemId } from "../items/runtime-items";
+import type { Gen4Action } from "../../gen4/types";
 import type {
   BattleCaptureAttempt,
   BattleCommand,
@@ -130,6 +138,20 @@ export function chooseBattleCommand(
 
   if (!canPokemonBattle(state.player.pokemon)) return requirePlayerReplacement(state);
 
+  if (state.mechanicsVersion === 3) {
+    const req = state.gen4Requests?.[0];
+    const escape = state.gen4Session ? getGen4EscapeInfo(state.gen4Session) : null;
+    if (req && (req.recharge || req.forcedMoveId !== null))
+      return resolveGen4Action(state, { kind: "continue" }, options.random);
+    if (
+      command === "run" &&
+      (escape?.trapped ?? req?.trapped) &&
+      !(escape?.guaranteed ?? hasGuaranteedGen4Escape(state.player.pokemon))
+    )
+      return { ...state, messageQueue: ["도망칠 수 없다!"] };
+    if (command === "pokemon" && req?.trapped)
+      return { ...state, messageQueue: ["교체할 수 없다!"] };
+  }
   if (command === "run") {
     if (state.battleKind !== "wild") {
       return {
@@ -140,15 +162,37 @@ export function chooseBattleCommand(
       };
     }
 
-    const runAttempt = resolveRunAttempt({
-      playerSpeed: state.player.pokemon.speed,
-      opponentSpeed: state.opponent.pokemon.speed,
-      runAttemptCount: state.runAttemptCount,
-      randomByte: options.randomByte?.(),
-    });
+    const runAttempt =
+      state.mechanicsVersion === 3 &&
+      (state.gen4Session
+        ? getGen4EscapeInfo(state.gen4Session).guaranteed
+        : hasGuaranteedGen4Escape(state.player.pokemon))
+        ? {
+            escaped: true,
+            nextRunAttemptCount: state.runAttemptCount,
+            chanceByte: 256,
+            randomByte: null,
+          }
+        : resolveRunAttempt({
+            playerSpeed: state.player.pokemon.speed,
+            opponentSpeed: state.opponent.pokemon.speed,
+            runAttemptCount: state.runAttemptCount,
+            randomByte: options.randomByte?.(),
+          });
 
     if (!runAttempt.escaped) {
-      return resolveFailedRunTurn(state, runAttempt.nextRunAttemptCount);
+      if (state.mechanicsVersion !== 3)
+        return resolveFailedRunTurn(state, runAttempt.nextRunAttemptCount);
+      const next = resolveGen4Action(state, { kind: "wait" }, options.random);
+      return {
+        ...next,
+        runAttemptCount: runAttempt.nextRunAttemptCount,
+        messageQueue: ["도망칠 수 없었다!", ...next.messageQueue],
+        messageHpSnapshots: [
+          createBattleMessageHpSnapshot(state.player.pokemon, state.opponent.pokemon),
+          ...(next.messageHpSnapshots ?? []),
+        ],
+      };
     }
 
     return {
@@ -218,6 +262,23 @@ export function chooseBattleBagItem(
 
   if (!canPokemonBattle(state.player.pokemon)) return requirePlayerReplacement(state);
   const itemCount = normalizeInventoryCount(options.itemCount ?? 0);
+  if (state.mechanicsVersion === 3 && itemId !== "pokeball" && itemId !== "ultraBall") {
+    const romId = RUNTIME_ITEM_ROM_IDS[itemId as RuntimeItemId];
+    if (itemCount <= 0)
+      return { ...state, messageQueue: ["아이템이 없다!"], usedInventoryItemId: null };
+    if (
+      !romId ||
+      !state.player.party.some(slot => slot.pokemon && canUseGen4ItemOnMember(romId, slot.pokemon))
+    )
+      return { ...state, messageQueue: ["효과가 없다."], usedInventoryItemId: null };
+    return {
+      ...state,
+      phase: "party-select",
+      pendingBattleItemId: itemId,
+      messageQueue: [],
+      usedInventoryItemId: null,
+    };
+  }
 
   if (itemId === "pokeball") {
     return chooseCaptureBallItem(state, itemCount, options, {
@@ -299,10 +360,16 @@ function chooseCaptureBallItem(
   }
 
   const captureAttempt = resolveGen4CaptureAttempt({
+    cartridgeRules: state.mechanicsVersion === 3,
     maxHp: state.opponent.pokemon.maxHp,
     currentHp: state.opponent.pokemon.currentHp,
     catchRate: state.opponent.pokemon.catchRate,
     ballBonus: ball.ballBonus,
+    statusBonus: ["asleep", "frozen"].includes(state.opponent.pokemon.status)
+      ? 2
+      : ["poisoned", "badlyPoisoned", "paralyzed", "burned"].includes(state.opponent.pokemon.status)
+        ? 1.5
+        : 1,
     random16: options.captureRandom16,
   });
 
@@ -334,12 +401,31 @@ function chooseCaptureBallItem(
         winnerPlayerId: state.player.playerId,
         loserPlayerId: state.opponent.playerId,
         reason: "capture",
-        capturedPokemon: state.opponent.pokemon,
+        capturedPokemon:
+          state.mechanicsVersion === 3 ? restoreGen4FieldPokemon(state, 1) : state.opponent.pokemon,
         rewardPokeDollars,
       },
     };
   }
 
+  if (state.mechanicsVersion === 3) {
+    const resolved = resolveGen4Action(state, { kind: "wait" });
+    return {
+      ...resolved,
+      usedInventoryItemId: ball.itemId,
+      captureAttempt: { ballItemId: ball.itemId, caught: false, shakes: captureAttempt.shakes },
+      messageQueue: [
+        `${ball.displayName}을 던졌다!`,
+        "아쉽다! 포켓몬이 볼에서 빠져나왔다!",
+        ...resolved.messageQueue,
+      ],
+      messageHpSnapshots: [
+        createBattleMessageHpSnapshot(state.player.pokemon, state.opponent.pokemon),
+        createBattleMessageHpSnapshot(state.player.pokemon, state.opponent.pokemon),
+        ...(resolved.messageHpSnapshots ?? []),
+      ],
+    };
+  }
   return resolveFailedCaptureTurn(state, ball, {
     ballItemId: ball.itemId,
     caught: false,
@@ -360,7 +446,11 @@ function requirePlayerReplacement(state: BattleScreenState): BattleScreenState {
 }
 
 export function isForcedPartySwitch(state: BattleScreenState): boolean {
-  return state.phase === "party-select" && !canPokemonBattle(state.player.pokemon);
+  return (
+    state.phase === "party-select" &&
+    !state.pendingBattleItemId &&
+    (state.gen4Requests?.[0].kind === "switch" || !canPokemonBattle(state.player.pokemon))
+  );
 }
 
 export function choosePartySlot(state: BattleScreenState, slotIndex: number): BattleScreenState {
@@ -368,6 +458,18 @@ export function choosePartySlot(state: BattleScreenState, slotIndex: number): Ba
     return state;
   }
 
+  if (state.mechanicsVersion === 3) {
+    if (state.pendingBattleItemId) {
+      const itemId = state.pendingBattleItemId;
+      const pokemon = state.player.party.find(slot => slot.slotIndex === slotIndex)?.pokemon;
+      const romId = RUNTIME_ITEM_ROM_IDS[itemId as RuntimeItemId];
+      if (!pokemon || !romId || !canUseGen4ItemOnMember(romId, pokemon))
+        return { ...state, messageQueue: ["효과가 없다."] };
+      const resolved = resolveGen4Action(state, { kind: "item", itemId: romId, slotIndex });
+      return { ...resolved, usedInventoryItemId: resolved.pendingBattleItemId ? null : itemId };
+    }
+    return resolveGen4Action(state, { kind: "switch", slotIndex });
+  }
   if (!isValidBattlePartySlotIndex(slotIndex)) {
     return blockPartySwitch(state, "교체할 수 없다.");
   }
@@ -474,6 +576,24 @@ export function choosePlayerMove(
   }
 
   if (!canPokemonBattle(state.player.pokemon)) return requirePlayerReplacement(state);
+  if (state.mechanicsVersion === 3) {
+    const request = state.gen4Requests?.[0];
+    if (request?.recharge || request?.forcedMoveId != null)
+      return resolveGen4Action(state, { kind: "continue" }, options.random);
+    const move = state.player.pokemon.moves[moveIndex];
+    const available = request?.moves.filter(m => !m.disabled && m.pp > 0) ?? [];
+    return resolveGen4Action(
+      state,
+      {
+        kind: "move",
+        moveId:
+          available.length === 1 && available[0]!.moveId === 165
+            ? "struggle"
+            : (move?.id ?? "struggle"),
+      },
+      options.random,
+    );
+  }
   const random = options.random ?? Math.random;
   const selectedMove = state.player.pokemon.moves[moveIndex];
   const playerMove =
@@ -1172,6 +1292,8 @@ function applyWildVictoryExperience(
     playerPokemon.baseStats,
     experienceResult.level,
     playerPokemon.individualValues,
+    playerPokemon.effortValues,
+    playerPokemon.natureId,
   );
   const maxHpIncrease = Math.max(0, nextStats.maxHp - playerPokemon.maxHp);
 
@@ -1838,7 +1960,11 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
 
   const wildVictoryExperience =
     input.state.battleKind === "wild"
-      ? applyWildVictoryExperience(input.playerPokemon, input.opponentPokemon)
+      ? applyWildVictoryExperience(
+          input.playerPokemon,
+          input.opponentPokemon,
+          input.state.mechanicsVersion === 3 && input.playerPokemon.currentHp <= 0 ? 0 : 1,
+        )
       : null;
   const wildVictoryRewardPokeDollars =
     input.state.battleKind === "wild"
@@ -1857,13 +1983,15 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
           ...slot,
           pokemon: !slot.pokemon
             ? null
-            : slot.slotIndex === player.activePartySlotIndex
-              ? resolvedPlayerPokemon
-              : applyWildVictoryExperience(
-                  slot.pokemon,
-                  input.opponentPokemon,
-                  partyExperienceRatio,
-                ).pokemon,
+            : input.state.mechanicsVersion === 3 && slot.pokemon.currentHp <= 0
+              ? slot.pokemon
+              : slot.slotIndex === player.activePartySlotIndex
+                ? resolvedPlayerPokemon
+                : applyWildVictoryExperience(
+                    slot.pokemon,
+                    input.opponentPokemon,
+                    partyExperienceRatio,
+                  ).pokemon,
         }))
       : undefined;
   const wildVictoryRewardMessage = wildVictoryExperience
@@ -2073,4 +2201,94 @@ function moveAnimationCue(
     hit: result.connected !== false && !result.blocked,
     damage: result.damage,
   };
+}
+
+/** Live battles share the cartridge-generation executor; legacy snapshots remain replayable. */
+function resolveGen4Action(
+  input: BattleScreenState,
+  action: Gen4Action,
+  random: () => number = Math.random,
+): BattleScreenState {
+  const ready = ensureGen4Adventure(input, random);
+  try {
+    validateGen4Action(ready.gen4Requests![0], action);
+  } catch {
+    return { ...input, messageQueue: ["지금은 그 행동을 할 수 없다."], usedInventoryItemId: null };
+  }
+  const resolved = resolveGen4Adventure(ready, action, random);
+  let state = resolved.state;
+  if (!resolved.ended) return state;
+  if (resolved.escapedBy !== undefined)
+    return {
+      ...state,
+      phase: "ended",
+      messageQueue: appendBattleEndConfirmMessage(state.messageQueue),
+      result: {
+        winnerPlayerId: state.player.playerId,
+        loserPlayerId: state.opponent.playerId,
+        reason: "run",
+      },
+    };
+  if (resolved.winner === null) {
+    // The HGSS non-link draw path is the player's blackout/loss, not a free rematch.
+    return createPlayerFaintState({
+      state,
+      playerPokemon: state.player.pokemon,
+      opponentPokemon: state.opponent.pokemon,
+      messageQueue: state.messageQueue,
+      selectedMoveId: null,
+      turn: state.turn,
+      usedInventoryItemId: null,
+    });
+  }
+  if (resolved.winner === 0 && state.battleKind === "wild") {
+    const party = state.player.party.map(slot => ({
+      ...slot,
+      pokemon:
+        slot.pokemon &&
+        slot.pokemon.currentHp > 0 &&
+        state.participatedPartySlots?.includes(slot.slotIndex)
+          ? {
+              ...slot.pokemon,
+              effortValues: awardGen4EffortValues(
+                slot.pokemon.effortValues,
+                state.opponent.pokemon.speciesId,
+              ),
+            }
+          : slot.pokemon,
+    }));
+    state = {
+      ...state,
+      player: syncActivePartyPokemon(
+        { ...state.player, party },
+        party.find(s => s.slotIndex === state.player.activePartySlotIndex)!.pokemon!,
+      ),
+    };
+  }
+  const params = {
+    state,
+    playerPokemon: state.player.pokemon,
+    opponentPokemon: state.opponent.pokemon,
+    messageQueue: state.messageQueue,
+    selectedMoveId:
+      action.kind === "move" ? (action.moveId === "struggle" ? 165 : action.moveId) : null,
+    turn: state.turn,
+    usedInventoryItemId: null,
+  };
+  const end =
+    resolved.winner === 0 ? createOpponentFaintState(params) : createPlayerFaintState(params);
+  return {
+    ...end,
+    messageHpSnapshots: [
+      ...(state.messageHpSnapshots ?? []),
+      ...Array.from(
+        { length: Math.max(0, end.messageQueue.length - state.messageQueue.length) },
+        () => createBattleMessageHpSnapshot(state.player.pokemon, state.opponent.pokemon),
+      ),
+    ],
+  };
+}
+
+function hasGuaranteedGen4Escape(pokemon: BattlePokemon): boolean {
+  return pokemon.abilityId === 50 || GEN4_ROM_ITEMS[pokemon.heldItemId ?? 0]?.holdEffect === 63;
 }

@@ -605,6 +605,21 @@ export interface components {
       /** @example 1720000002000 */
       updatedAtMs: number;
     };
+    Gen4RequestedMoveDto: {
+      moveId: number;
+      pp: number;
+      maxPp: number;
+      disabled: boolean;
+    };
+    Gen4ActionRequestDto: {
+      /** @enum {string} */
+      kind: "move" | "switch" | "wait" | "ended";
+      moves: components["schemas"]["Gen4RequestedMoveDto"][];
+      switchSlots: number[];
+      trapped: boolean;
+      forcedMoveId: number | null;
+      recharge: boolean;
+    };
     CompetitiveAnimationEventDto: {
       /** @enum {string} */
       kind: "move" | "status";
@@ -614,15 +629,39 @@ export interface components {
       targetSlotIndex: number;
       moveId: number;
       /** @enum {string} */
-      status: "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+      status:
+        | "normal"
+        | "poisoned"
+        | "badlyPoisoned"
+        | "burned"
+        | "paralyzed"
+        | "asleep"
+        | "frozen"
+        | "fainted";
       hit: boolean;
       damage: number;
       actorHp: number;
       targetHp: number;
       /** @enum {string} */
-      actorStatus: "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+      actorStatus:
+        | "normal"
+        | "poisoned"
+        | "badlyPoisoned"
+        | "burned"
+        | "paralyzed"
+        | "asleep"
+        | "frozen"
+        | "fainted";
       /** @enum {string} */
-      targetStatus: "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+      targetStatus:
+        | "normal"
+        | "poisoned"
+        | "badlyPoisoned"
+        | "burned"
+        | "paralyzed"
+        | "asleep"
+        | "frozen"
+        | "fainted";
     };
     CompetitiveTurnPresentationDto: {
       turn: number;
@@ -648,11 +687,20 @@ export interface components {
       maxHp: number;
       currentHp: number;
       /** @enum {string} */
-      status: "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+      status:
+        | "normal"
+        | "poisoned"
+        | "badlyPoisoned"
+        | "burned"
+        | "paralyzed"
+        | "asleep"
+        | "frozen"
+        | "fainted";
       statStages: components["schemas"]["CompetitiveBattleStatStagesDto"];
       moves: components["schemas"]["CompetitiveMoveStateDto"][];
     };
     CompetitivePlayerStateDto: {
+      actionRequest?: components["schemas"]["Gen4ActionRequestDto"];
       playerId: string;
       activeSlotIndex: number;
       team: components["schemas"]["CompetitiveCombatantStateDto"][];
@@ -669,10 +717,10 @@ export interface components {
     CompetitiveBattleStateDto: {
       lastTurnPresentation?: components["schemas"]["CompetitiveTurnPresentationDto"];
       /**
-       * @example 2
+       * @example 3
        * @enum {number}
        */
-      rulesetVersion: 2;
+      rulesetVersion: 2 | 3;
       turn: number;
       participantIds: string[];
       playersById: {
@@ -992,7 +1040,7 @@ export interface components {
     };
     CompetitiveActionDto: {
       /** @enum {string} */
-      kind: "move" | "switch";
+      kind: "move" | "switch" | "continue";
       moveId?: number | string;
       slotIndex?: number;
     };
@@ -1049,6 +1097,14 @@ export interface components {
       /** @example session-a */
       sessionId: string;
     };
+    CompetitiveEffortValuesDto: {
+      hp: number;
+      attack: number;
+      defense: number;
+      speed: number;
+      specialAttack: number;
+      specialDefense: number;
+    };
     CompetitiveIndividualValuesDto: {
       /** @example 31 */
       hp: number;
@@ -1070,6 +1126,14 @@ export interface components {
       pp: number;
     };
     CompetitivePartyMemberDto: {
+      /** @enum {string} */
+      gender?: "male" | "female" | "genderless";
+      natureId?: number;
+      abilityId?: number;
+      heldItemId?: number;
+      statusTurns?: number;
+      happiness?: number;
+      effortValues?: components["schemas"]["CompetitiveEffortValuesDto"];
       /** @example 0 */
       slotIndex: number;
       /** @example 7 */
@@ -1082,7 +1146,15 @@ export interface components {
        * @example normal
        * @enum {string}
        */
-      status: "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+      status:
+        | "normal"
+        | "poisoned"
+        | "badlyPoisoned"
+        | "burned"
+        | "paralyzed"
+        | "asleep"
+        | "frozen"
+        | "fainted";
       individualValues: components["schemas"]["CompetitiveIndividualValuesDto"];
       moves: components["schemas"]["CompetitivePartyMoveDto"][];
     };

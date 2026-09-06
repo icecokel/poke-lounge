@@ -18,6 +18,7 @@ async function enter(page: Page) {
   await page.locator("[data-starter-confirm]").click();
   await expect(page.locator("[data-world-local-player]")).toBeVisible();
   await page.evaluate(() => {
+    Math.random = () => 0.99;
     const c = (window as GameWindow).__POKE_LOUNGE_E2E__,
       s = c.getGameStateSnapshot(),
       p = s.playersById[s.currentPlayerId]!;
@@ -137,6 +138,12 @@ for (const mobile of [false, true])
           .first()
           .click();
       }
+      await expect.poll(async () => (await snapshot(page))?.phase).toBe("party-select");
+      const targetPanel = mobile
+        ? page.locator('[data-poke-lounge-mobile-task="battle-party"]')
+        : page.locator('[data-poke-lounge-battle-surface="party"]');
+      await targetPanel.getByRole("button").filter({ hasText: "잉어킹" }).click();
+      if (mobile) await page.locator("[data-poke-lounge-confirm-party]").click();
       await expect
         .poll(async () => (await snapshot(page))?.isForcedPartySwitch, { timeout: 20000 })
         .toBe(true);
@@ -166,7 +173,7 @@ for (const mobile of [false, true])
       const resumed = await snapshot(page);
       expect(resumed?.result).toBeNull();
       expect(resumed?.player.currentHp).toBeGreaterThan(0);
-      expect(resumed?.turn).toBe(faint?.turn);
+      expect(resumed?.turn).toBe((faint?.turn ?? 0) + 1);
       expect(resumed?.player.name).toBe("피카츄");
       expect(await page.locator("[data-poke-lounge-battle-screen]").count()).toBe(1);
     } finally {

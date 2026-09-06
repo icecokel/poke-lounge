@@ -67,6 +67,9 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
     },
     pokemonStatus: {
       poisoned: "독",
+      badlyPoisoned: "맹독",
+      asleep: "잠듦",
+      frozen: "얼음",
       burned: "화상",
       paralyzed: "마비",
       fainted: "전투불능",
@@ -101,6 +104,9 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
     },
     pokemonStatus: {
       poisoned: "poisoned",
+      badlyPoisoned: "badly poisoned",
+      asleep: "asleep",
+      frozen: "frozen",
       burned: "burned",
       paralyzed: "paralyzed",
       fainted: "fainted",
@@ -135,6 +141,9 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
     },
     pokemonStatus: {
       poisoned: "どく",
+      badlyPoisoned: "もうどく",
+      asleep: "ねむり",
+      frozen: "こおり",
       burned: "やけど",
       paralyzed: "まひ",
       fainted: "ひんし",

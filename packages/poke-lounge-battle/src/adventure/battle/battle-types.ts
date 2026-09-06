@@ -1,3 +1,4 @@
+import type { Gen4Traits } from "../../gen4/types";
 import type { PlayerPokemonSlot } from "../player/player-types";
 import type { BattleAnimationCue } from "../../battle-presentation";
 import type { BattleStatStages } from "../../battle-stat-stages";
@@ -15,7 +16,7 @@ export type BattlePhase =
   | "resolving"
   | "ended";
 export type BattleKind = "sample" | "wild" | "trainer";
-export type BattlePokemonStatus = "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+export type BattlePokemonStatus = import("../../gen4/types").Gen4Status;
 export type BattleResultReason = "faint" | "timeout" | "forfeit" | "run" | "capture";
 export type BattleCommand = "fight" | "bag" | "pokemon" | "run";
 
@@ -47,7 +48,7 @@ export interface BattleMove {
   competitiveEffectSupport?: "unsupported-primary" | "unsupported-secondary";
 }
 
-export interface BattlePokemon {
+export interface BattlePokemon extends Gen4Traits {
   speciesId: number;
   name: string;
   level: number;
@@ -113,6 +114,8 @@ export interface BattleReturnToWorld {
 }
 
 export interface BattleMessageHpSnapshot {
+  playerPartySlotIndex?: number;
+  opponentPartySlotIndex?: number;
   animation?: BattleAnimationCue;
   playerCurrentHp: number;
   playerStatus: BattlePokemonStatus;
@@ -122,6 +125,15 @@ export interface BattleMessageHpSnapshot {
 }
 
 export interface BattleScreenState {
+  mechanicsVersion?: 3;
+  gen4Session?: import("../../gen4/types").Gen4Session;
+  gen4Requests?: [
+    import("../../gen4/types").Gen4ActionRequest,
+    import("../../gen4/types").Gen4ActionRequest,
+  ];
+  gen4Turn?: number;
+  participatedPartySlots?: number[];
+  pendingBattleItemId?: string | null;
   battleKind: BattleKind;
   sharePartyExperience?: boolean;
   partyExperienceRatio?: 0 | 0.5 | 1;

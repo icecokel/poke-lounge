@@ -408,24 +408,25 @@ function ParticipantRow({
           {ai ? <span data-room-lobby-badge="true">{copy.aiBadge}</span> : null}
           {spectator ? <span>{text.spectators}</span> : null}
           {!host && !ai && !spectator ? <span>{text.human}</span> : null}
+          <span className={styles.participantStatus} data-room-lobby-badge="true">
+            {state === "offline" ? (
+              <WifiOff size={16} aria-hidden="true" />
+            ) : state === "ready" ? (
+              <Check size={16} aria-hidden="true" />
+            ) : (
+              <Clock3 size={16} aria-hidden="true" />
+            )}
+            {state === "offline"
+              ? copy.disconnected
+              : spectator
+                ? text.spectators
+                : state === "ready"
+                  ? copy.ready
+                  : copy.notReady}
+          </span>
         </div>
       </div>
-      <span className={styles.participantStatus} data-room-lobby-badge="true">
-        {state === "offline" ? (
-          <WifiOff size={16} aria-hidden="true" />
-        ) : state === "ready" ? (
-          <Check size={16} aria-hidden="true" />
-        ) : (
-          <Clock3 size={16} aria-hidden="true" />
-        )}
-        {state === "offline"
-          ? copy.disconnected
-          : spectator
-            ? text.spectators
-            : state === "ready"
-              ? copy.ready
-              : copy.notReady}
-      </span>
+
       {ai && canRemove ? (
         <button
           type="button"

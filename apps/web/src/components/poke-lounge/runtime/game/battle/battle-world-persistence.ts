@@ -1,3 +1,4 @@
+import { normalizeGen4Traits } from "@poke-lounge/battle/gen4/traits";
 import type { BattleParticipant, BattlePokemon } from "./battle-types";
 import type {
   AddPokemonToPartyResult,
@@ -66,6 +67,7 @@ export function persistCapturedPokemonToWorld({
 
 export function toPlayerPokemon(pokemon: BattlePokemon): PlayerPokemon {
   return {
+    ...normalizeGen4Traits(pokemon.speciesId, pokemon),
     speciesId: pokemon.speciesId,
     name: pokemon.name,
     level: pokemon.level,

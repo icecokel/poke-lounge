@@ -37,6 +37,7 @@ export function calculateGen4BattleStats(
   level: number,
   iv: PokemonStatValuesInput = DEFAULT_GEN4_IVS,
   ev: PokemonStatValuesInput = DEFAULT_GEN4_EVS,
+  natureId = 0,
 ): Gen4BattleStats {
   return calculateSharedGen4BattleStats(
     {
@@ -50,6 +51,7 @@ export function calculateGen4BattleStats(
     level,
     toStatValues(iv, DEFAULT_GEN4_IV),
     toStatValues(ev, DEFAULT_GEN4_EV),
+    natureId,
   );
 }
 

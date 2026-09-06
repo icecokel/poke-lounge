@@ -58,9 +58,18 @@ class CompetitiveCombatantStateDto {
   currentHp!: number;
 
   @ApiProperty({
-    enum: ['normal', 'poisoned', 'burned', 'paralyzed', 'fainted'],
+    enum: [
+      'normal',
+      'poisoned',
+      'badlyPoisoned',
+      'burned',
+      'paralyzed',
+      'asleep',
+      'frozen',
+      'fainted',
+    ],
   })
-  status!: 'normal' | 'poisoned' | 'burned' | 'paralyzed' | 'fainted';
+  status!: import('@poke-lounge/battle/gen4/types').Gen4Status;
 
   @ApiProperty({ type: CompetitiveBattleStatStagesDto })
   statStages!: CompetitiveBattleStatStagesDto;
@@ -69,7 +78,26 @@ class CompetitiveCombatantStateDto {
   moves!: CompetitiveMoveStateDto[];
 }
 
+class Gen4RequestedMoveDto {
+  @ApiProperty({ minimum: 0, maximum: 467 }) moveId!: number;
+  @ApiProperty({ minimum: 0, maximum: 64 }) pp!: number;
+  @ApiProperty({ minimum: 0, maximum: 64 }) maxPp!: number;
+  @ApiProperty() disabled!: boolean;
+}
+class Gen4ActionRequestDto {
+  @ApiProperty({ enum: ['move', 'switch', 'wait', 'ended'] }) kind!:
+    'move' | 'switch' | 'wait' | 'ended';
+  @ApiProperty({ type: [Gen4RequestedMoveDto], maxItems: 4 })
+  moves!: Gen4RequestedMoveDto[];
+  @ApiProperty({ type: [Number], maxItems: 6 }) switchSlots!: number[];
+  @ApiProperty() trapped!: boolean;
+  @ApiProperty({ type: Number, nullable: true, minimum: 1, maximum: 467 })
+  forcedMoveId!: number | null;
+  @ApiProperty() recharge!: boolean;
+}
 class CompetitivePlayerStateDto {
+  @ApiPropertyOptional({ type: Gen4ActionRequestDto })
+  actionRequest?: Gen4ActionRequestDto;
   @ApiProperty()
   playerId!: string;
 
@@ -105,7 +133,16 @@ class CompetitiveAnimationEventDto {
   @ApiProperty({ minimum: 0, maximum: 5 }) targetSlotIndex!: number;
   @ApiProperty({ minimum: 0, maximum: 470 }) moveId!: number;
   @ApiProperty({
-    enum: ['normal', 'poisoned', 'burned', 'paralyzed', 'fainted'],
+    enum: [
+      'normal',
+      'poisoned',
+      'badlyPoisoned',
+      'burned',
+      'paralyzed',
+      'asleep',
+      'frozen',
+      'fainted',
+    ],
   })
   status!: string;
   @ApiProperty() hit!: boolean;
@@ -113,25 +150,43 @@ class CompetitiveAnimationEventDto {
   @ApiProperty({ minimum: 0, maximum: 65535 }) actorHp!: number;
   @ApiProperty({ minimum: 0, maximum: 65535 }) targetHp!: number;
   @ApiProperty({
-    enum: ['normal', 'poisoned', 'burned', 'paralyzed', 'fainted'],
+    enum: [
+      'normal',
+      'poisoned',
+      'badlyPoisoned',
+      'burned',
+      'paralyzed',
+      'asleep',
+      'frozen',
+      'fainted',
+    ],
   })
   actorStatus!: string;
   @ApiProperty({
-    enum: ['normal', 'poisoned', 'burned', 'paralyzed', 'fainted'],
+    enum: [
+      'normal',
+      'poisoned',
+      'badlyPoisoned',
+      'burned',
+      'paralyzed',
+      'asleep',
+      'frozen',
+      'fainted',
+    ],
   })
   targetStatus!: string;
 }
 class CompetitiveTurnPresentationDto {
   @ApiProperty({ minimum: 0 }) turn!: number;
-  @ApiProperty({ type: [CompetitiveAnimationEventDto], maxItems: 12 })
+  @ApiProperty({ type: [CompetitiveAnimationEventDto], maxItems: 64 })
   events!: CompetitiveAnimationEventDto[];
 }
 
 class CompetitiveBattleStateDto {
   @ApiPropertyOptional({ type: CompetitiveTurnPresentationDto })
   lastTurnPresentation?: CompetitiveTurnPresentationDto;
-  @ApiProperty({ example: 2, enum: [2] })
-  rulesetVersion!: 2;
+  @ApiProperty({ example: 3, enum: [2, 3] })
+  rulesetVersion!: 2 | 3;
 
   @ApiProperty({ minimum: 0 })
   turn!: number;
@@ -150,6 +205,8 @@ class CompetitiveBattleStateDto {
 }
 
 @ApiExtraModels(
+  Gen4RequestedMoveDto,
+  Gen4ActionRequestDto,
   CompetitiveAnimationEventDto,
   CompetitiveTurnPresentationDto,
   CompetitiveMoveStateDto,

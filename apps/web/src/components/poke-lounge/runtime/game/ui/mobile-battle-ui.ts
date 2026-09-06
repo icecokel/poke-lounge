@@ -66,6 +66,7 @@ export interface MobileBattleUiState {
   isInputLocked: boolean;
   canGoBack: boolean;
   isForcedPartySwitch: boolean;
+  itemTargetName?: string | null;
   commands: MobileBattleCommandOption[];
   moves: MobileBattleMoveOption[];
   party: MobileBattlePartyOption[];

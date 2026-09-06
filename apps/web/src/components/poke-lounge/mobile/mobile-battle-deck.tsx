@@ -390,7 +390,11 @@ export function MobileBattlePartyDeck(props: DeckProps) {
       : undefined;
   return (
     <MobileTaskScreen
-      title={copy.mobile.chooseParty}
+      title={
+        state.itemTargetName
+          ? `${state.itemTargetName} · ${copy.locale === "ko-KR" ? "대상 선택" : copy.locale === "ja-JP" ? "対象" : "Target"}`
+          : copy.mobile.chooseParty
+      }
       name="battle-party"
       backLabel={copy.mobile.back}
       onBack={back}
@@ -408,13 +412,27 @@ export function MobileBattlePartyDeck(props: DeckProps) {
             onClick={selection.submit}
             data-poke-lounge-confirm-party="true"
           >
-            {selection.submitting ? copy.mobile.actionSending : text.switchPokemon}
+            {selection.submitting
+              ? copy.mobile.actionSending
+              : state.itemTargetName
+                ? text.useItem
+                : text.switchPokemon}
           </button>
         </>
       }
     >
+      {state.itemTargetName ? (
+        <p role="status">
+          {state.itemTargetName} ·{" "}
+          {copy.locale === "ko-KR"
+            ? "사용할 포켓몬을 선택하세요"
+            : copy.locale === "ja-JP"
+              ? "使うポケモンを選んでください"
+              : "Choose a target Pokémon"}
+        </p>
+      ) : null}
       {state.isForcedPartySwitch ? <p role="status">{text.forcedSwitch}</p> : null}
-      {!party.some(pokemon => pokemon.canSwitch && !pokemon.isCurrent && !pokemon.isFainted) ? (
+      {!party.some(pokemon => pokemon.canSwitch) ? (
         <p className={styles.emptyNotice} role="status">
           {text.noSwitch}
         </p>
@@ -427,9 +445,7 @@ export function MobileBattlePartyDeck(props: DeckProps) {
             pokemon={pokemon}
             slotIndex={pokemon.slotIndex}
             selected={selection.candidate?.index === pokemon.slotIndex}
-            disabled={
-              !pokemon.canSwitch || pokemon.isFainted || pokemon.isCurrent || selection.submitting
-            }
+            disabled={!pokemon.canSwitch || selection.submitting}
             badge={pokemon.isCurrent ? copy.game.currentBattler : undefined}
             reason={
               pokemon.isFainted

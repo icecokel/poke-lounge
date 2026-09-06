@@ -46,6 +46,7 @@ export function chooseAiCompetitiveAction(
       Record<
         string,
         {
+          actionRequest?: import("./gen4/types").Gen4ActionRequest;
           activeSlotIndex: number;
           team: readonly {
             slotIndex: number;
@@ -67,6 +68,14 @@ export function chooseAiCompetitiveAction(
   });
   if (!active) throw new Error("AI active Pokemon is missing");
 
+  const request = player.actionRequest;
+  if (request?.recharge || request?.forcedMoveId != null) return { kind: "continue" };
+  if (request?.kind === "switch") {
+    if (request.switchSlots[0] === undefined) throw Error("No legal replacement");
+    return { kind: "switch", slotIndex: request.switchSlots[0] };
+  }
+  if (request?.kind === "wait" || request?.kind === "ended")
+    throw Error("AI is not being asked to act");
   if (active.currentHp <= 0) {
     const replacement = player.team
       .filter(function filterItem(member) {
@@ -84,7 +93,9 @@ export function chooseAiCompetitiveAction(
 
   const move = [...active.moves]
     .filter(function filterItem(candidate) {
-      return candidate.pp > 0 && isCompetitiveMoveSelectable(candidate.moveId);
+      return request
+        ? request.moves.some(m => m.moveId === candidate.moveId && !m.disabled && m.pp > 0)
+        : candidate.pp > 0 && isCompetitiveMoveSelectable(candidate.moveId);
     })
     .sort(function compareItems(left, right) {
       return (

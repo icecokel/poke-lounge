@@ -1,3 +1,5 @@
+import { initializeGen4Canonical } from '@poke-lounge/battle/gen4/canonical';
+import { createSeededRandom } from '@poke-lounge/battle/prng';
 import { randomBytes, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -218,7 +220,8 @@ function throwActionError(outcome: CompetitiveActionFailure): never {
 export function createCompetitiveAssignment(
   context: CompetitiveAssignmentCreateContext,
 ): CompetitiveMatchAssignment {
-  const initialState = createInitialBattleState(
+  const serverSeed = randomBytes(32).toString('hex');
+  const draftState = createInitialBattleState(
     context.players.map(function mapItem(player) {
       return {
         playerId: player.playerId,
@@ -229,6 +232,10 @@ export function createCompetitiveAssignment(
       { playerId: string; party: (typeof context.parties)[string] },
     ],
   );
+  const initialState = initializeGen4Canonical(
+    draftState,
+    createSeededRandom(`${serverSeed}:initial`),
+  );
   const initialStateHash = hashCanonicalState(initialState);
 
   return {
@@ -237,7 +244,7 @@ export function createCompetitiveAssignment(
     playerAccounts: context.players,
     rulesetVersion: COMPETITIVE_RULESET_VERSION,
     rulesetHash: COMPETITIVE_RULESET_HASH,
-    serverSeed: randomBytes(32).toString('hex'),
+    serverSeed,
     initialState,
     initialStateHash,
     currentState: structuredClone(initialState),
