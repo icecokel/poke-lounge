@@ -1,4 +1,8 @@
 import {
+  isTournamentGatheringDue,
+  getTournamentGatherPosition,
+} from '@poke-lounge/battle/tournament-gathering';
+import {
   Injectable,
   Logger,
   type OnModuleDestroy,
@@ -169,9 +173,20 @@ export class PokeLoungeAiWorkerService
           state,
           nowMs,
           room.round.index,
-          room.status === 'round-started',
+          room.status === 'round-started' &&
+            !isTournamentGatheringDue(room.status, room.round, nowMs),
           context,
         );
+        if (isTournamentGatheringDue(room.status, room.round, nowMs)) {
+          const position = getTournamentGatherPosition(
+            participant.playerId,
+            room.participants.map((p) => p.playerId),
+          );
+          state.position = { x: position.x, y: position.y };
+          state.facing = position.facing;
+          state.path = [];
+          state.battle = null;
+        }
         states[participant.playerId] = state;
         // Tournament parties belong to the competitive authority until the next preparation.
         if (room.status === 'round-started' || room.status === 'waiting') {

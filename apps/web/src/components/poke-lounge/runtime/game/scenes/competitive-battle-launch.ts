@@ -1,3 +1,4 @@
+import { isTournamentGatheringDue } from "@poke-lounge/battle/tournament-gathering";
 import type { CompetitiveRoomProjectionEvent } from "../network/local-preview-room";
 import { isRoundReadinessDue } from "../network/tournament-projection";
 
@@ -26,7 +27,7 @@ export function shouldPreemptLocalBattleForRound(
   nowMs: number,
   preemptionQueued: boolean,
 ): boolean {
-  return !preemptionQueued && isRoundReadinessDue(roomStatus, roomRound, nowMs);
+  return !preemptionQueued && isTournamentGatheringDue(roomStatus, roomRound, nowMs);
 }
 
 export function createCompetitiveBattleLaunchCache(): CompetitiveBattleLaunchCache {

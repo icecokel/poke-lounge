@@ -13,6 +13,7 @@ export interface BattleSpritePresentation {
 }
 
 export interface BattleCombatantPresentation {
+  experience?: import("./battle-experience").BattleExperienceProgress;
   activeSlotIndex?: number;
   healing?: boolean;
   currentHp: number;

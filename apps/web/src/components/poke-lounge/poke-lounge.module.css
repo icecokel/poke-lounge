@@ -3962,3 +3962,83 @@
 .page[data-poke-lounge-starter-open="true"] .statusRail {
   display: none;
 }
+
+/* Battle HUD: HP values stay on the right; only the player's growth is displayed. */
+.battleHpPanel {
+  padding-block: 1%;
+}
+.battleHpRow {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  min-width: 0;
+}
+.battleHpRow .battleHpTrack {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: max(5px, 1cqw);
+  margin: 0;
+}
+.battleHpValue {
+  flex: 0 0 auto;
+  font-size: 0.8em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.battleExperienceRow {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  min-width: 0;
+}
+.battleExperienceRow small {
+  font-size: 0.58em;
+  line-height: 1;
+  font-weight: 800;
+}
+.battleExperienceTrack {
+  display: block;
+  flex: 1 1 0;
+  height: max(3px, 0.65cqw);
+  min-width: 0;
+  overflow: hidden;
+  background: #d9e7ed;
+  border: 1px solid #527b90;
+  border-radius: 2px;
+}
+.battleExperienceTrack > i {
+  display: block;
+  height: 100%;
+  background: #77cefa;
+  transition: width 240ms linear;
+}
+.battleBackButton {
+  position: absolute;
+  right: 2%;
+  bottom: 31.5%;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  min-height: 28px;
+  padding: 0.35em 0.75em;
+  border: 1px solid #24313b;
+  border-radius: 6px;
+  background: #fffef4;
+  color: #24313b;
+  font-size: 0.65em;
+  cursor: pointer;
+}
+.battleBackButton kbd {
+  font: inherit;
+  font-weight: 900;
+}
+@media (prefers-reduced-motion: reduce) {
+  .battleExperienceTrack > i {
+    transition: none;
+  }
+}

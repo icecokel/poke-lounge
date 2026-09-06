@@ -3,7 +3,7 @@ import {
   type GameViewportSizePreset,
 } from "./runtime/game/game-viewport";
 
-export const POKE_LOUNGE_SETTINGS_VERSION = 1 as const;
+export const POKE_LOUNGE_SETTINGS_VERSION = 2 as const;
 export const POKE_LOUNGE_SETTINGS_STORAGE_KEY = "poke-lounge:settings";
 export const POKE_LOUNGE_LEGACY_VOLUME_STORAGE_KEY = "poke-lounge:volume-level";
 export const POKE_LOUNGE_LEGACY_UI_SIZE_STORAGE_KEY = "poke-lounge:ui-size";
@@ -17,7 +17,7 @@ export const POKE_LOUNGE_VOLUME_STEPS = [
   1,
 ] as const;
 
-export interface PokeLoungeSettingsV1 {
+export interface PokeLoungeSettingsV2 {
   version: typeof POKE_LOUNGE_SETTINGS_VERSION;
   audio: {
     masterVolume: number;
@@ -27,7 +27,7 @@ export interface PokeLoungeSettingsV1 {
   };
 }
 
-export type PokeLoungeSettings = PokeLoungeSettingsV1;
+export type PokeLoungeSettings = PokeLoungeSettingsV2;
 
 interface StorageReader {
   getItem(key: string): string | null;
@@ -65,7 +65,8 @@ export function readPokeLoungeSettings(storage: PokeLoungeSettingsStorage): Poke
     return versioned;
   }
 
-  const migrated = migrateLegacyPokeLoungeSettings(storage);
+  // A different/missing schema version starts from current defaults, never legacy values.
+  const migrated = createDefaultPokeLoungeSettings();
   writePokeLoungeSettings(storage.localStorage, migrated);
   removeLegacySettings(storage);
   return migrated;
@@ -78,7 +79,7 @@ export function writePokeLoungeSettings(
   storage.setItem(POKE_LOUNGE_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 }
 
-export function parsePokeLoungeSettings(raw: string | null): PokeLoungeSettingsV1 | null {
+export function parsePokeLoungeSettings(raw: string | null): PokeLoungeSettingsV2 | null {
   if (!raw) {
     return null;
   }
@@ -127,29 +128,6 @@ export function getPokeLoungeVolumeLevelIndex(masterVolume: number): number {
   });
 
   return closestIndex;
-}
-
-function migrateLegacyPokeLoungeSettings(storage: PokeLoungeSettingsStorage): PokeLoungeSettingsV1 {
-  const settings = createDefaultPokeLoungeSettings();
-  const legacyVolumeLevel = Number.parseInt(
-    storage.localStorage.getItem(POKE_LOUNGE_LEGACY_VOLUME_STORAGE_KEY) ?? "",
-    10,
-  );
-  const legacyUiSize = storage.sessionStorage.getItem(POKE_LOUNGE_LEGACY_UI_SIZE_STORAGE_KEY);
-
-  if (
-    Number.isInteger(legacyVolumeLevel) &&
-    legacyVolumeLevel >= 0 &&
-    legacyVolumeLevel < POKE_LOUNGE_VOLUME_STEPS.length
-  ) {
-    settings.audio.masterVolume = POKE_LOUNGE_VOLUME_STEPS[legacyVolumeLevel];
-  }
-
-  if (isGameViewportSizePreset(legacyUiSize)) {
-    settings.display.uiSize = legacyUiSize;
-  }
-
-  return settings;
 }
 
 function removeLegacySettings(storage: PokeLoungeSettingsStorage): void {

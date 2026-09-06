@@ -1996,14 +1996,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   showInitialShortcutGuideIfNeeded(): void {
-    if (
-      !this.usesMobileWorldDeck() &&
-      !this.gameStateStore.hasCurrentLocalPlayerViewedShortcutGuide()
-    ) {
-      this.openShortcutGuide();
-      return;
-    }
-
+    // Startup/round changes never interrupt play. Help is explicitly opened with H/menu.
     this.publishMobileWorldUiState();
   }
 

@@ -43,6 +43,7 @@ export interface WorldSceneEncounters {
 export interface WorldSceneEncounterController extends WorldSceneEncounters {
   initialize(position: { x: number; y: number }): void;
   isBattleIntroPlaying(): boolean;
+  cancelForTournament(): void;
   getE2eSnapshot(): WorldSceneEncounterSnapshot;
   startWildBattleForTest(input: WildBattleStartInput): void;
   playBattleIntroTransition(onComplete: () => void): void;
@@ -177,6 +178,12 @@ class DefaultWorldSceneEncounters implements WorldSceneEncounterController {
         onComplete();
       }.bind(this),
     );
+  }
+
+  cancelForTournament(): void {
+    this.lifecycleGeneration += 1;
+    this.battleIntroPlaying = false;
+    this.encounterLocked = true;
   }
 
   destroy(): void {

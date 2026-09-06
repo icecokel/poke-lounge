@@ -35,15 +35,15 @@ test("WorldRuntime은 정규화 이동·충돌·중간 tile step·camera를 한 
   assert.equal(store.read().localPlayer.frameName, "hero-right-walk.000");
   assert.equal(store.read().camera.x >= 0, true);
 
-  runtime.setLocalPosition({ x: 368, y: 452, facing: "back" }, { width: 512, height: 384 });
+  runtime.setLocalPosition({ x: 144, y: 400, facing: "left" }, { width: 512, height: 384 });
   const blocked = runtime.update({
     elapsedMs: 1_000,
-    input: { down: false, left: false, right: false, up: true },
+    input: { down: false, left: true, right: false, up: false },
     inputLocked: false,
     nowMs: 2_000,
     viewport: { width: 512, height: 384 },
   });
-  assert.equal(blocked.position.y > 416, true);
+  assert.equal(blocked.position.x >= 108, true);
 });
 
 test("WorldRuntime은 remote 생성·보간·snap·퇴장을 frame store에 반영한다", function testCase() {

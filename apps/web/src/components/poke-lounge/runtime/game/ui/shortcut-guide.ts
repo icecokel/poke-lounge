@@ -34,7 +34,7 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         battle: [
           { action: "선택", keys: "방향키" },
           { action: "결정", keys: "Enter / Space / Z" },
-          { action: "뒤로", keys: "Esc / Backspace" },
+          { action: "뒤로", keys: "X / Backspace" },
           { action: "도움말", keys: "H" },
         ],
       },
@@ -87,7 +87,7 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         battle: [
           { action: "Select", keys: "Arrow keys" },
           { action: "Confirm", keys: "Enter / Space / Z" },
-          { action: "Back", keys: "Esc / Backspace" },
+          { action: "Back", keys: "X / Backspace" },
           { action: "Help", keys: "H" },
         ],
       },
@@ -140,7 +140,7 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         battle: [
           { action: "選択", keys: "矢印キー" },
           { action: "決定", keys: "Enter / Space / Z" },
-          { action: "戻る", keys: "Esc / Backspace" },
+          { action: "戻る", keys: "X / Backspace" },
           { action: "ヘルプ", keys: "H" },
         ],
       },

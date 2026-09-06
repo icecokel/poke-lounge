@@ -1,3 +1,7 @@
+import { getTournamentGatheringContext } from "../world/tournament-gathering";
+import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
+import { getRomHitFrame, ROM_HIT_DURATION_MS } from "../battle/rom-hit-animation";
+import { getBattleExperienceProgress } from "../battle/battle-experience";
 import {
   createMoveReplacementConfirmation,
   isMoveReplacementConfirmationCurrent,
@@ -133,10 +137,7 @@ import type {
 } from "../network/local-preview-room";
 import type { CompetitiveBattleLaunchKey } from "./competitive-battle-launch";
 import type { BattleE2eScenario, BattleE2eSnapshot } from "../testing/poke-lounge-e2e-controller";
-import {
-  isCompetitiveAssignmentForPlayer,
-  shouldPreemptLocalBattleForRound,
-} from "./competitive-battle-launch";
+import { isCompetitiveAssignmentForPlayer } from "./competitive-battle-launch";
 import {
   isRoundReadinessDue,
   type TournamentStateRoomPayload,
@@ -162,7 +163,6 @@ export const BATTLE_CONFIRM_KEY_CODES = ["Enter", "Space", "KeyZ"] as const;
 const BATTLE_HP_DECREASE_TWEEN_MS = 560;
 const BATTLE_HIT_TWEEN_MS = 300;
 const BATTLE_MESSAGE_AUTO_ADVANCE_MS = 850;
-const BATTLE_HIT_SHAKE_PIXELS = 4;
 const BATTLE_ENTRANCE_TWEEN_MS = 640;
 const E2E_SINGLE_LEVEL_BASE_EXP_YIELD = Math.ceil(500 / WILD_BATTLE_EXPERIENCE_MULTIPLIER);
 const BATTLE_BAG_ITEM_IDS = [
@@ -552,6 +552,7 @@ export class BattleController {
   }
 
   update(): void {
+    if (this.preemptLocalBattleForTournament(Date.now())) return;
     if (
       usesPokeLoungeMobileShell(this.ownerDocument) &&
       hasPokeLoungeMobileFullscreenScene(this.ownerDocument)
@@ -594,7 +595,7 @@ export class BattleController {
         this.consumeKeyboardConfirm() ||
         consumeVirtualGamepadPress("confirm") ||
         consumeVirtualGamepadPress("back") ||
-        this.keyboard.consume("Escape", "Backspace")
+        this.keyboard.consume("KeyX", "Backspace")
       ) {
         playBattleCancelSound();
         this.closeShortcutGuide();
@@ -619,7 +620,7 @@ export class BattleController {
       this.confirmSelection();
     }
 
-    if (consumeVirtualGamepadPress("back") || this.keyboard.consume("Escape", "Backspace")) {
+    if (consumeVirtualGamepadPress("back") || this.keyboard.consume("KeyX", "Backspace")) {
       playBattleCancelSound();
       this.goBack();
     }
@@ -855,6 +856,7 @@ export class BattleController {
   }
 
   public handleBattleUiAction(action: MobileBattleUiAction): void {
+    if (this.preemptLocalBattleForTournament(Date.now())) return;
     if (
       this.battleEntrancePlaying ||
       this.captureAnimationPlaying ||
@@ -1216,6 +1218,7 @@ export class BattleController {
       },
       phase: this.state.phase,
       player: {
+        experience: getBattleExperienceProgress(this.state.player.pokemon),
         activeSlotIndex: this.state.player.activePartySlotIndex,
         healing: this.getDisplayedHpTarget("player") > this.displayedHp.player,
         currentHp: this.state.player.pokemon.currentHp,
@@ -1826,6 +1829,31 @@ export class BattleController {
     );
   }
 
+  private preemptLocalBattleForTournament(nowMs: number): boolean {
+    if (
+      !this.sceneLifecycleActive ||
+      this.authoritativeProjection ||
+      this.state.tournamentMatchId ||
+      !this.state.returnToWorld
+    )
+      return false;
+    if (this.competitivePreemptionQueued) return true;
+    const gathering = getTournamentGatheringContext(this.gameStateStore.getState(), nowMs);
+    if (!gathering) return false;
+    this.competitivePreemptionQueued = true;
+    // No more selection, queued messages, capture or experience resolution after the cutoff.
+    this.messageAutoAdvanceTimer?.stop();
+    this.messageAutoAdvanceTimer = null;
+    this.gameStateStore.healCurrentParty();
+    const destination = getTournamentGatherPosition(gathering.ownPlayerId, gathering.playerIds);
+    const generation = this.sceneGeneration;
+    queueMicrotask(() => {
+      if (!this.isSceneLifecycleCurrent(generation)) return;
+      this.options.onReturnToWorld({ spawnPosition: destination });
+    });
+    return true;
+  }
+
   private bindCompetitiveAssignmentPreemption(): void {
     if (!this.multiplayerRoom) {
       return;
@@ -1835,45 +1863,8 @@ export class BattleController {
       this.multiplayerRoom.on(
         "TOURNAMENT_STATE",
         function handleEvent(this: BattleController, payload: TournamentStateRoomPayload): void {
-          const sceneGeneration = this.sceneGeneration;
-          const nowMs = Date.now();
-          const destination = this.state.returnToWorld;
-          this.gameStateStore.applyTournamentSnapshotFromRoom(payload, nowMs);
-
-          if (
-            !destination ||
-            !shouldPreemptLocalBattleForRound(
-              payload.roomStatus,
-              payload.roomRound,
-              nowMs,
-              this.competitivePreemptionQueued,
-            )
-          ) {
-            return;
-          }
-
-          this.competitivePreemptionQueued = true;
-          this.persistCapturedPokemon();
-          this.gameStateStore.healCurrentParty();
-          this.state = {
-            ...this.state,
-            phase: "resolving",
-            messageQueue: [this.getBattleStatusCopy().roundWaiting],
-          };
-          this.render();
-          queueMicrotask(
-            function runMicrotask(this: BattleController): void {
-              if (!this.isSceneLifecycleCurrent(sceneGeneration)) return;
-
-              this.options.onReturnToWorld({
-                spawnPosition: {
-                  x: destination.x,
-                  y: destination.y,
-                  facing: destination.facing,
-                },
-              });
-            }.bind(this),
-          );
+          const result = this.gameStateStore.applyTournamentSnapshotFromRoom(payload, Date.now());
+          if (result.ok) this.preemptLocalBattleForTournament(Date.now());
         }.bind(this),
       ),
       this.multiplayerRoom.on(
@@ -2035,6 +2026,7 @@ export class BattleController {
         }
 
         this.messageAutoAdvanceTimer = null;
+        if (this.preemptLocalBattleForTournament(Date.now())) return;
         if (
           this.battleEntrancePlaying ||
           this.captureAnimationPlaying ||
@@ -2096,21 +2088,28 @@ export class BattleController {
 
         if (animateHpDecrease && targetHp !== displayedHp) {
           this.hpAnimationStartedCount += 1;
-          if (targetHp < displayedHp) this.playHitAnimation(side);
-          if (targetHp < displayedHp && this.shouldPlayAttackHitSound(side)) {
+          const attackHit = targetHp < displayedHp && this.shouldPlayAttackHitSound(side);
+          const hitDelay = attackHit ? ROM_HIT_DURATION_MS : 0;
+          if (attackHit) this.playHitAnimation(side);
+          if (attackHit) {
             playBattleHitSound();
           }
           const tween = animateRuntimeValue({
-            from: displayedHp,
-            to: targetHp,
-            duration: BATTLE_HP_DECREASE_TWEEN_MS,
-            ease: "cubic-out",
+            from: 0,
+            to: 1,
+            duration: BATTLE_HP_DECREASE_TWEEN_MS + hitDelay,
+            ease: "linear",
             onUpdate: value => {
               if (this.hpTweens[side] !== tween) {
                 return;
               }
 
-              this.displayedHp[side] = value;
+              const hpProgress = clampUnit(
+                (value * (BATTLE_HP_DECREASE_TWEEN_MS + hitDelay) - hitDelay) /
+                  BATTLE_HP_DECREASE_TWEEN_MS,
+              );
+              this.displayedHp[side] =
+                displayedHp + (targetHp - displayedHp) * (1 - (1 - hpProgress) ** 3);
               this.animationFrameUpdateCount += 1;
               this.publishBattlePresentationState();
             },
@@ -2272,8 +2271,8 @@ export class BattleController {
     this.hitAnimationStartedCount += 1;
 
     const tween = animateRuntimeValue({
-      duration: BATTLE_HIT_TWEEN_MS,
-      ease: "sine-out",
+      duration: ROM_HIT_DURATION_MS,
+      ease: "linear",
       onUpdate: progress => {
         if (hitEffect.tween !== tween) {
           return;
@@ -3126,13 +3125,13 @@ export class BattleController {
   }
 
   private getHitRenderEffect(side: BattleHpSide): { alpha: number; offsetX: number } {
-    const progress = clampUnit(this.hitEffects[side].progress);
-    if (progress <= 0 || progress >= 1) return { alpha: 1, offsetX: 0 };
-    const shake = Math.sin(progress * Math.PI * 7) * BATTLE_HIT_SHAKE_PIXELS * (1 - progress);
-    return {
-      alpha: progress < 0.35 ? 0.58 : 1,
-      offsetX: Math.round(shake * (side === "player" ? -1 : 1)),
-    };
+    const effect = this.hitEffects[side];
+    if (!effect.tween) return { alpha: 1, offsetX: 0 };
+    const reduced =
+      this.options.parent.ownerDocument.defaultView?.matchMedia?.(
+        "(prefers-reduced-motion: reduce)",
+      ).matches ?? false;
+    return getRomHitFrame(effect.progress * ROM_HIT_DURATION_MS, reduced);
   }
 
   private getCaptureOpponentRenderEffect(): { alpha: number; scale: number } {

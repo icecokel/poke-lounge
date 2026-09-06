@@ -108,6 +108,97 @@ describe('PokeLoungeGateway', function testSuite() {
     jest.useRealTimers();
   });
 
+  it('clamps late movement during gathering and releases it in the next round', async () => {
+    const preparing = publicRoom({
+      status: 'round-started',
+      round: {
+        index: 1,
+        phase: 'round-started',
+        durationMs: 60000,
+        startedAtMs: Date.now() - 56000,
+        endsAtMs: Date.now() + 4000,
+      },
+    });
+    roomService.authorizeSubscription.mockResolvedValue(preparing);
+    roomService.acknowledgeParticipantPresence.mockResolvedValue(preparing);
+    const client = socket();
+    await gateway.subscribe(client.value, validSubscription());
+    const movement = {
+      type: 'PLAYER_MOVED',
+      snapshot: { map: 'town', x: 1100, y: 500, facing: 'left' },
+    };
+    await gateway.relayPlayerEvent(client.value, movement);
+    expect(liveState.upsertPlayer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        player: expect.objectContaining({
+          playerId: 'player-1',
+          map: 'town',
+          x: 592,
+          y: 304,
+          facing: 'back',
+        }) as unknown,
+      }),
+    );
+    events.publishCommitted(
+      roomSnapshot({
+        revision: 8,
+        status: 'round-started',
+        round: {
+          index: 2,
+          phase: 'round-started',
+          durationMs: 60000,
+          startedAtMs: Date.now(),
+          endsAtMs: Date.now() + 60000,
+        },
+      }),
+    );
+    await gateway.relayPlayerEvent(client.value, movement);
+    expect(liveState.upsertPlayer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        player: expect.objectContaining({
+          x: 1100,
+          y: 500,
+          facing: 'left',
+        }) as unknown,
+      }),
+    );
+  });
+
+  it('gathers a stationary player without waiting for their next movement packet', async () => {
+    const preparing = publicRoom({
+      status: 'round-started',
+      round: {
+        index: 1,
+        phase: 'round-started',
+        durationMs: 60000,
+        startedAtMs: Date.now() - 56000,
+        endsAtMs: Date.now() + 4000,
+      },
+    });
+    roomService.authorizeSubscription.mockResolvedValue(preparing);
+    roomService.acknowledgeParticipantPresence.mockResolvedValue(preparing);
+    const client = socket();
+    await gateway.subscribe(client.value, validSubscription());
+    await (
+      gateway as unknown as {
+        gatherWorldPlayers(room: string, now: number): Promise<void>;
+      }
+    ).gatherWorldPlayers('ROOM01', Date.now());
+    expect(liveState.upsertPlayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        player: expect.objectContaining({
+          playerId: 'player-1',
+          x: 592,
+          y: 304,
+        }) as unknown,
+      }),
+    );
+    expect(namespaceEmit).toHaveBeenCalledWith(
+      'room.player-event',
+      expect.objectContaining({ type: 'PLAYER_MOVEMENT_ENDED' }),
+    );
+  });
+
   it('authorizes, normalizes, and sends the same initial revision to two subscribers', async function testCase() {
     const first = socket();
     const second = socket();

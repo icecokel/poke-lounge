@@ -184,6 +184,15 @@ export function PokeLoungeGame() {
   const [finalResult, setFinalResult] = useState<FinalResultState | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
+  useEffect(() => {
+    const closeOverlays = () => {
+      setSettingsOpen(false);
+      setExitConfirmationOpen(false);
+      resetVirtualGamepad();
+    };
+    document.addEventListener("poke-lounge:tournament-gathering", closeOverlays);
+    return () => document.removeEventListener("poke-lounge:tournament-gathering", closeOverlays);
+  }, []);
   const [fullscreenActive, setFullscreenActive] = useState(false);
   const [touchGameDevice, setTouchGameDevice] = useState(false);
   const [touchGameDeviceResolved, setTouchGameDeviceResolved] = useState(false);

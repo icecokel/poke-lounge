@@ -1,3 +1,5 @@
+import { getTournamentGatheringContext } from "../world/tournament-gathering";
+import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
 import { shouldSelectStarterAfterRoomStart } from "../starter-selection-flow";
 import { playPokeLoungeBgm, stopPokeLoungeBgm } from "../audio/poke-lounge-audio";
 import { GAME_VIEWPORT_SIZE, type GameViewportDisplaySize } from "../game-viewport";
@@ -152,6 +154,7 @@ export function resolveWorldSpawn(
 }
 
 export class WorldController {
+  private tournamentGatheringKey: string | null = null;
   private remotePlayerSnapshots = new Map<string, PlayerSnapshot>();
   private unsubscribers: RoomUnsubscribe[] = [];
   private roomConnected = false;
@@ -265,6 +268,7 @@ export class WorldController {
     this.options.worldUiStore.setActionHandler(
       function callback(this: WorldController, action: WorldUiAction): void {
         if (
+          this.tournamentGatheringKey !== null ||
           this.roomLobbyOpen ||
           this.starterSelectionPending ||
           this.gameStateStore.canChooseStarter()
@@ -658,6 +662,7 @@ export class WorldController {
   }
 
   private updateRoundClock(nowMs: number): void {
+    this.syncTournamentGathering(nowMs);
     this.hud.updateRound(nowMs);
 
     if (!this.competitiveRoundsEnabled) {
@@ -1074,9 +1079,45 @@ export class WorldController {
   }
 
   private upsertRemotePlayer(snapshot: PlayerSnapshot, movement: "interpolate" | "snap"): void {
+    const gathering = getTournamentGatheringContext(this.gameStateStore.getState(), Date.now());
+    if (gathering) {
+      snapshot = {
+        ...snapshot,
+        ...getTournamentGatherPosition(
+          snapshot.playerId ?? snapshot.sessionId,
+          gathering.playerIds,
+        ),
+      };
+      movement = "snap";
+    }
     this.remotePlayerSnapshots.set(snapshot.sessionId, clonePlayerSnapshot(snapshot));
     this.options.worldRuntime.upsertRemotePlayer(snapshot, movement, performance.now());
     this.gameStateStore.upsertRemotePlayer(toRemotePlayerState(snapshot));
+  }
+
+  private syncTournamentGathering(nowMs: number): void {
+    if (!this.started || !this.competitiveRoundsEnabled) return;
+    const gathering = getTournamentGatheringContext(this.gameStateStore.getState(), nowMs);
+    if (!gathering) {
+      if (this.tournamentGatheringKey !== null) {
+        this.tournamentGatheringKey = null;
+        this.encounters.initialize(this.options.worldRuntime.readLocalPlayer().position);
+      }
+      return;
+    }
+    const key = gathering.key;
+    if (this.tournamentGatheringKey === key) return;
+    this.tournamentGatheringKey = key;
+    this.encounters.cancelForTournament();
+    this.interactions.destroy();
+    this.options.ownerDocument.dispatchEvent(new CustomEvent("poke-lounge:tournament-gathering"));
+    this.options.keyboard.clearPresses();
+    const destination = getTournamentGatherPosition(gathering.ownPlayerId, gathering.playerIds);
+    this.options.worldRuntime.setLocalPosition(destination, this.getViewportSize());
+    this.facing = destination.facing;
+    for (const remote of this.remotePlayerSnapshots.values())
+      this.upsertRemotePlayer(remote, "snap");
+    this.sendRoomMessage("PLAYER_MOVEMENT_ENDED", this.createLocalPlayerSnapshot());
   }
 
   private updateWorldRuntime(time: number, delta: number): void {
@@ -1085,7 +1126,7 @@ export class WorldController {
     let input: WorldMovementInput = { down: false, left: false, right: false, up: false };
     if (!inputLocked) {
       this.updateRoundClock(Date.now());
-      inputLocked = this.encounters.isBattleIntroPlaying();
+      inputLocked = this.tournamentGatheringKey !== null || this.encounters.isBattleIntroPlaying();
       if (!inputLocked) inputLocked = this.interactions.handleInput();
       if (!inputLocked) input = this.readMovementInput();
     }
@@ -1379,6 +1420,15 @@ export class WorldController {
   }
 
   private startBattleScene(data: object): void {
+    const gathering = getTournamentGatheringContext(this.gameStateStore.getState(), Date.now());
+    if (
+      ((data as { battleKind?: string }).battleKind === "wild" ||
+        (!("battleKind" in data) && "encounter" in data)) &&
+      gathering
+    ) {
+      this.syncTournamentGathering(Date.now());
+      return;
+    }
     if (this.e2eBattleLaunchTracking) {
       const launch = readPokeLoungeBattleLaunchSnapshot(data);
       if (launch) this.e2eBattleLaunches.push(launch);

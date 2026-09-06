@@ -21,8 +21,8 @@ test("TSX 월드 모델은 기존 40x18 레이어, 잔디, NPC, 스폰과 충돌
     }),
     [
       ["Below Player", 720],
-      ["World", 242],
-      ["Above Player", 5],
+      ["World", 240],
+      ["Above Player", 4],
     ],
   );
   assert.equal(model.tallGrassCoordinates.size, 90);

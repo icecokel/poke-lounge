@@ -757,7 +757,7 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
     })
     .toEqual({
       settings: {
-        version: 1,
+        version: 2,
         audio: { masterVolume: 0 },
         display: { uiSize: "large" },
       },

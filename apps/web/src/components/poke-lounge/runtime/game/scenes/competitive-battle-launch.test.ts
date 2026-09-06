@@ -361,10 +361,10 @@ test("공식 배정은 해당 플레이어의 진행 중인 로컬 전투만 선
   );
 });
 
-test("라운드 준비가 끝나면 로컬 전투를 월드로 돌려보낸다", function testCase() {
+test("대진표 안내 시작 5초 전 경계에서 로컬 전투를 월드로 돌려보낸다", function testCase() {
   const round = { phase: "round-started" as const, endsAtMs: 10_000 };
 
   assert.equal(shouldPreemptLocalBattleForRound("round-started", round, 10_000, false), true);
-  assert.equal(shouldPreemptLocalBattleForRound("round-started", round, 9_999, false), false);
+  assert.equal(shouldPreemptLocalBattleForRound("round-started", round, 4_999, false), false);
   assert.equal(shouldPreemptLocalBattleForRound("round-started", round, 10_000, true), false);
 });

@@ -51,7 +51,8 @@ interface TournamentAnnouncement {
   destroy(): void;
 }
 
-export const TOURNAMENT_BRIEFING_DURATION_MS = 5_000;
+export { TOURNAMENT_BRIEFING_DURATION_MS } from "@poke-lounge/battle/tournament-gathering";
+import { TOURNAMENT_BRIEFING_DURATION_MS } from "@poke-lounge/battle/tournament-gathering";
 const TOURNAMENT_RESULT_DURATION_MS = 10_000;
 
 export interface WorldSceneTournamentDependencies {

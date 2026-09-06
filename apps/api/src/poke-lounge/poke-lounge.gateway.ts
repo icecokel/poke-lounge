@@ -1,4 +1,9 @@
 import {
+  isTournamentGatheringDue,
+  getTournamentGatherPosition,
+} from '@poke-lounge/battle/tournament-gathering';
+import type { PokeLoungePublicRoomState } from './poke-lounge-room.types';
+import {
   Logger,
   type OnApplicationBootstrap,
   type OnModuleDestroy,
@@ -108,6 +113,10 @@ export class PokeLoungeGateway
   private readonly presenceGroups = new Map<string, PresenceGroup>();
   private readonly closedRooms = new Set<string>();
   private readonly roomMetadataRevisions = new Map<string, number>();
+  private readonly gatheringRooms = new Map<
+    string,
+    PokeLoungePublicRoomState
+  >();
   private worldCursorTimer: ReturnType<typeof setInterval> | null = null;
   private worldCursorInFlight = false;
   private readonly handleServerRoomMetadata = (input: unknown): void => {
@@ -140,6 +149,7 @@ export class PokeLoungeGateway
           return;
         }
 
+        this.rememberGatheringRoom(event.room);
         this.server.local
           .to(roomName(event.room.roomCode))
           .emit('room.snapshot', { room: event.room });
@@ -214,6 +224,7 @@ export class PokeLoungeGateway
   }
 
   onModuleDestroy(): void {
+    this.gatheringRooms.clear();
     this.server?.off(SERVER_ROOM_METADATA_EVENT, this.handleServerRoomMetadata);
     this.unsubscribeFromRoomEvents?.();
     this.unsubscribeFromRoomEvents = null;
@@ -320,6 +331,7 @@ export class PokeLoungeGateway
         participant?.displayName ?? subscription.playerId;
       socketData.pokeLoungeSubscribed = true;
       socketData.pokeLoungeExpiresAtMs = committedRoom.expiresAtMs;
+      this.rememberGatheringRoom(committedRoom);
       socket.emit('room.snapshot', { room: committedRoom });
       socket.emit(
         'room.world-snapshot',
@@ -387,6 +399,11 @@ export class PokeLoungeGateway
           displayName,
           controller: 'human',
           ...event.snapshot,
+          ...(this.gatheringPosition(
+            room.replace(/^room:/, ''),
+            playerId,
+            Date.now(),
+          ) ?? {}),
           updatedAtMs: Date.now(),
         },
       });
@@ -703,6 +720,76 @@ export class PokeLoungeGateway
     );
   }
 
+  private rememberGatheringRoom(room: PokeLoungePublicRoomState): void {
+    const previous = this.gatheringRooms.get(room.roomCode);
+    if (previous && previous.revision > room.revision) return;
+    if (room.status === 'closed') {
+      this.gatheringRooms.delete(room.roomCode);
+      return;
+    }
+    this.gatheringRooms.set(room.roomCode, room);
+  }
+
+  private gatheringPosition(roomCode: string, playerId: string, nowMs: number) {
+    const room = this.gatheringRooms.get(roomCode);
+    if (!room || !isTournamentGatheringDue(room.status, room.round, nowMs))
+      return null;
+    return getTournamentGatherPosition(
+      playerId,
+      room.participants.map((p) => p.playerId),
+    );
+  }
+
+  private async gatherWorldPlayers(
+    roomCode: string,
+    nowMs: number,
+  ): Promise<void> {
+    const room = this.gatheringRooms.get(roomCode);
+    if (!room || !isTournamentGatheringDue(room.status, room.round, nowMs))
+      return;
+    const snapshot = await this.liveState.getSnapshot(
+      roomCode,
+      liveStateExpiresAtMs(room.expiresAtMs),
+    );
+    for (const participant of room.participants) {
+      if (this.gatheringRooms.get(roomCode) !== room) return; // A new round superseded the async read.
+      if (!participant.connected) continue;
+      const position = getTournamentGatherPosition(
+        participant.playerId,
+        room.participants.map((p) => p.playerId),
+      );
+      const before = snapshot.players.find(
+        (p) => p.playerId === participant.playerId,
+      );
+      if (
+        before?.map === position.map &&
+        before.x === position.x &&
+        before.y === position.y &&
+        before.facing === position.facing
+      )
+        continue;
+      const stored = await this.liveState.upsertPlayer({
+        roomCode,
+        expiresAtMs: liveStateExpiresAtMs(room.expiresAtMs),
+        player: {
+          ...before,
+          playerId: participant.playerId,
+          displayName: participant.displayName,
+          controller: participant.controller ?? 'human',
+          ...position,
+          updatedAtMs: nowMs,
+        },
+      });
+      this.server.to(roomName(roomCode)).emit('room.player-event', {
+        type: 'PLAYER_MOVEMENT_ENDED',
+        roomCode,
+        worldEpoch: stored.worldEpoch,
+        worldSeq: stored.worldSeq,
+        snapshot: { ...stored, sessionId: stored.playerId },
+      });
+    }
+  }
+
   private async publishWorldCursors(): Promise<void> {
     if (this.worldCursorInFlight) {
       return;
@@ -726,6 +813,7 @@ export class PokeLoungeGateway
             this: PokeLoungeGateway,
             roomCode: string,
           ): Promise<void> {
+            await this.gatherWorldPlayers(roomCode, Date.now());
             const cursor = await this.liveState.getCursor(roomCode);
             this.server
               .to(roomName(roomCode))

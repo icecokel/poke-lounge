@@ -775,6 +775,7 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     browser,
   }) {
     const server = createMockServerState();
+    server.preparationEndsAtMs = Date.now() + 120_000;
     const hostContext = await browser.newContext();
     const guestContext = await browser.newContext();
     const hostPage = await hostContext.newPage();
@@ -803,6 +804,17 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
       })
       .toBe(1);
     expect(await getActiveSceneKey(hostPage)).toBe("world");
+    await expect(
+      hostPage.locator("[data-world-local-player], [data-starter-confirm]").first(),
+    ).toBeVisible({ timeout: 20000 });
+    if (await hostPage.locator("[data-starter-confirm]").isVisible())
+      await hostPage.locator("[data-starter-confirm]").click();
+    await expect(hostPage.locator("[data-world-local-player]")).toBeVisible({ timeout: 20000 });
+    server.revision += 1;
+    await emitSocketSnapshot(hostPage, createPreparingRoomState(server));
+    await hostPage.evaluate(
+      () => new Promise<void>(resolve => requestAnimationFrame(() => resolve())),
+    );
     await hostPage.evaluate(function evaluatePage() {
       (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__?.startWildBattleForTest({
         encounter: {
@@ -820,6 +832,7 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     await waitForActiveScene(hostPage, "battle");
     expect((await getBattleSnapshot(hostPage))?.battleKind).toBe("wild");
 
+    server.preparationEndsAtMs = undefined;
     await startServerRoom(
       guestPage,
       `/${LOCALE}/game/poke-lounge?network=server&room=${ROOM_CODE}&serverPlayerId=guest-player&serverSessionId=guest-session&e2e=1`,
@@ -1585,6 +1598,7 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
 
   test("준비 중 야생전에 진입해도 멀티플레이 연결을 유지한다", async function testCase({ page }) {
     const server = createMockServerState();
+    server.preparationEndsAtMs = Date.now() + 120_000;
 
     await mockServerRoom(page, server, { waitForResult: true, wrapped: true });
     await startServerRoom(page);
@@ -1593,6 +1607,18 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
         return getConnectionStatus(page);
       })
       .toBe("online");
+
+    // The game container can be ready before the first room snapshot mounts the starter/world.
+    await expect(
+      page.locator("[data-world-local-player], [data-starter-confirm]").first(),
+    ).toBeVisible({ timeout: 20000 });
+    const starter = page.locator("[data-starter-confirm]");
+    if (await starter.isVisible()) await starter.click();
+    await expect(page.locator("[data-world-local-player]")).toBeVisible({ timeout: 20000 });
+    server.revision += 1;
+    await emitSocketSnapshot(page, createPreparingRoomState(server));
+    await expect.poll(() => getServerProjectionRevision(page)).toBe(server.revision);
+    await expect.poll(() => getRoundPhase(page)).toBe("preparation");
 
     await page.evaluate(function evaluatePage() {
       (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__?.startWildBattleForTest({
@@ -3825,6 +3851,8 @@ async function mockServerRoom(
         };
       }
 
+      if (server.preparationEndsAtMs !== undefined)
+        responseState = createPreparingRoomState(server);
       await route.fulfill({
         status: method === "GET" ? 200 : 201,
         contentType: "application/json",
@@ -3861,6 +3889,7 @@ async function newMockedPage(
 }
 
 interface MockServerState {
+  preparationEndsAtMs?: number;
   activeMatchAuthority: "casual" | "server";
   activeMutations: number;
   calls: string[];
@@ -4773,3 +4802,130 @@ test("대기실 재배치: 연속 준비 클릭은 서버 요청을 한 번만 �
     await context.close();
   }
 });
+
+function createPreparingRoomState(server: MockServerState) {
+  return {
+    ...createWaitingRoomState(server),
+    status: "round-started",
+    finalStandings: [],
+    round: {
+      index: 1,
+      phase: "round-started",
+      durationMs: 120000,
+      startedAtMs: server.preparationEndsAtMs! - 120000,
+      endsAtMs: server.preparationEndsAtMs!,
+    },
+  };
+}
+
+for (const mobile of [false, true])
+  test(`전투 개선 집결: ${mobile ? "모바일" : "데스크톱"} 대진표 시점에 야생전과 이동을 중단한다`, async ({
+    browser,
+    baseURL,
+  }) => {
+    const context = await browser.newContext({
+      ...(mobile ? devices["iPhone 13"] : {}),
+      baseURL,
+      viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 },
+    });
+    try {
+      const page = await context.newPage();
+      const server = createMockServerState();
+      server.preparationEndsAtMs = Date.now() + 120000;
+      await mockServerRoom(page, server, { waitForResult: true, wrapped: true });
+      await startServerRoom(page);
+      await waitForActiveScene(page, "world");
+      await expect.poll(() => getConnectionStatus(page)).toBe("online");
+      await expect(
+        page.locator("[data-world-local-player], [data-starter-confirm]").first(),
+      ).toBeVisible({ timeout: 20000 });
+      const pendingStarter = page.locator("[data-starter-confirm]");
+      if (await pendingStarter.isVisible()) await pendingStarter.click();
+      await expect(page.locator("[data-world-local-player]")).toBeVisible({ timeout: 20000 });
+      server.revision += 1;
+      await emitSocketSnapshot(page, createPreparingRoomState(server));
+      await page.evaluate(
+        () => new Promise<void>(resolve => requestAnimationFrame(() => resolve())),
+      );
+      await page.evaluate(() => {
+        (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__?.startWildBattleForTest({
+          encounter: {
+            mapKey: "town",
+            step: { from: { x: 0, y: 0 }, to: { x: 1, y: 0 } },
+            speciesId: 19,
+            name: "꼬렛",
+            level: 12,
+          },
+          x: 656,
+          y: 446,
+          facing: "front",
+        });
+      });
+      await waitForActiveScene(page, "battle");
+      const partyBefore = await page.evaluate(() => {
+        const c = (
+          window as Window & {
+            __POKE_LOUNGE_E2E__: import("../../src/components/poke-lounge/runtime/game/testing/poke-lounge-e2e-controller").PokeLoungeE2eController;
+          }
+        ).__POKE_LOUNGE_E2E__;
+        const state = c.getGameStateSnapshot();
+        return state.playersById[state.currentPlayerId].party;
+      });
+      server.preparationEndsAtMs = Date.now() + 6200;
+      server.revision += 1;
+      await emitSocketSnapshot(page, createPreparingRoomState(server));
+      await waitForActiveScene(page, "world");
+      await expect(page.locator("[data-poke-lounge-battle-screen]")).toHaveCount(0);
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const c = (
+              window as Window & {
+                __POKE_LOUNGE_E2E__: import("../../src/components/poke-lounge/runtime/game/testing/poke-lounge-e2e-controller").PokeLoungeE2eController;
+              }
+            ).__POKE_LOUNGE_E2E__;
+            const player = c.getWorldSnapshot()?.player;
+            return player ? { x: player.x, y: player.y } : null;
+          }),
+        )
+        .toMatchObject({ y: 304 });
+      const current = await page.locator("[data-world-local-player]").boundingBox();
+      await page.locator("#game-root").focus();
+      await page.keyboard.down("ArrowRight");
+      await page.waitForTimeout(250);
+      await page.keyboard.up("ArrowRight");
+      expect(await page.locator("[data-world-local-player]").boundingBox()).toEqual(current);
+      expect(server.resultBodies).toHaveLength(0);
+      await expect(page.locator('[data-poke-lounge-world-surface="help"]')).toHaveCount(0);
+      expect(partyBefore.length).toBeGreaterThan(0);
+      await expect(page.locator("[data-poke-lounge-tournament-announcement]")).toBeVisible();
+      const partyAfter = await page.evaluate(() => {
+        const c = (
+          window as Window & {
+            __POKE_LOUNGE_E2E__: import("../../src/components/poke-lounge/runtime/game/testing/poke-lounge-e2e-controller").PokeLoungeE2eController;
+          }
+        ).__POKE_LOUNGE_E2E__;
+        const state = c.getGameStateSnapshot();
+        return state.playersById[state.currentPlayerId].party;
+      });
+      expect(
+        partyAfter.map(p => ({ level: p.pokemon?.level, experience: p.pokemon?.experience })),
+      ).toEqual(
+        partyBefore.map(p => ({ level: p.pokemon?.level, experience: p.pokemon?.experience })),
+      );
+      server.preparationEndsAtMs = Date.now() + 120_000;
+      server.revision += 1;
+      await emitSocketSnapshot(page, createPreparingRoomState(server));
+      await expect(page.locator("[data-poke-lounge-tournament-announcement]")).toHaveCount(0);
+      await page.locator("#game-root").focus();
+      await page.keyboard.down("ArrowRight");
+      await page.waitForTimeout(200);
+      await page.keyboard.up("ArrowRight");
+      expect((await page.locator("[data-world-local-player]").boundingBox())!.x).toBeGreaterThan(
+        current!.x,
+      );
+      await expect(page.locator('[data-poke-lounge-world-surface="help"]')).toHaveCount(0);
+    } finally {
+      await context.close();
+    }
+  });

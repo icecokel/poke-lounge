@@ -101,7 +101,11 @@ test("desktop 월드는 키보드 이동, 맵 경계 충돌과 카메라 clamp�
 
   await setWorldPlayerPosition(page, { x: 368, y: 452, facing: "back" });
   await holdGameMovementKey(page, "ArrowUp", 700);
-  expect((await readWorldSnapshot(page))?.player?.y).toBeGreaterThan(416);
+  // The removed central mailbox no longer blocks this path.
+  expect((await readWorldSnapshot(page))?.player?.y).toBeLessThan(416);
+  await setWorldPlayerPosition(page, { x: 144, y: 400, facing: "left" });
+  await holdGameMovementKey(page, "ArrowLeft", 700);
+  expect((await readWorldSnapshot(page))?.player?.x).toBeGreaterThanOrEqual(108);
 
   await setWorldPlayerPosition(page, { x: 512, y: 384, facing: "back" });
   await holdGameMovementKey(page, "ArrowUp", 700);
@@ -151,7 +155,7 @@ test("desktop 월드의 6개 NPC 시설은 근접 상호작용에서만 열린�
 
   await openNearbySurface(page, { x: 512, y: 360 }, "shop", "basic", 4);
   await openNearbySurface(page, { x: 896, y: 360 }, "shop", "premium", 13);
-  await openNearbySurface(page, { x: 384, y: 360 }, "pc");
+  await openNearbySurface(page, { x: 256, y: 360 }, "pc");
   await openNearbySurface(page, { x: 768, y: 360 }, "dice");
 
   const nurseBefore = (await readWorldSnapshot(page))?.nurseHealing.effectCount ?? 0;

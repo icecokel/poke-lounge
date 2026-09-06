@@ -69,6 +69,7 @@ function isGameControlKey(code: string): boolean {
       "KeyS",
       "KeyW",
       "KeyZ",
+      "KeyX",
       "Space",
     ].includes(code)
   );

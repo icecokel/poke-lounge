@@ -17,8 +17,10 @@ test("DOM 월드 motion은 큰 dt에도 맵·충돌 타일·NPC를 관통하지 
   const boundary = moveWorldPlayer({ x: 12, y: 288 }, { x: -104, y: 0 }, 1_000, model);
   assert.equal(boundary.x, 12);
 
-  const wall = moveWorldPlayer({ x: 368, y: 452 }, { x: 0, y: -104 }, 1_000, model);
-  assert.ok(wall.y > 416);
+  const wall = moveWorldPlayer({ x: 144, y: 400 }, { x: -104, y: 0 }, 1_000, model);
+  assert.ok(wall.x >= 108);
+  const cleared = moveWorldPlayer({ x: 368, y: 452 }, { x: 0, y: -104 }, 1_000, model);
+  assert.ok(cleared.y < 400, "removed central mailbox no longer blocks walking");
 
   const npc = moveWorldPlayer({ x: 512, y: 360 }, { x: 0, y: -104 }, 1_000, model);
   assert.ok(npc.y >= 330);

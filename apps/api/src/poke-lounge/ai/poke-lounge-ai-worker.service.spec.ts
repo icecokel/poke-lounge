@@ -190,3 +190,42 @@ it('cleans up a room closed during the tick and never advances with unavailable 
   await t.service.processTick(1_500);
   expect(t.liveState.upsertPlayer).not.toHaveBeenCalled();
 });
+
+it('stops AI exploration at the bracket announcement and publishes its stable healer slot', async () => {
+  const t = setup();
+  t.room.round = {
+    index: 1,
+    phase: 'round-started',
+    startedAtMs: 1000,
+    endsAtMs: 7000,
+    durationMs: 6000,
+  };
+  await t.service.processTick(2000);
+  expect(t.advance).toHaveBeenCalledWith(expect.anything(), 2000, 1, false, {
+    sharePartyExperience: false,
+  });
+  expect(t.liveState.upsertPlayer).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      player: expect.objectContaining({
+        playerId: 'ai-1',
+        x: 592,
+        y: 304,
+        facing: 'back',
+      }) as unknown,
+    }),
+  );
+  const saved = t.liveState.saveAiAdventures.mock.calls.at(-1) as
+    [string, number, Record<string, adventure.AiAdventureState>] | undefined;
+  expect(saved?.[2]['ai-1'].battle).toBeNull();
+  t.room.round = {
+    index: 2,
+    phase: 'round-started',
+    startedAtMs: 8000,
+    endsAtMs: 68000,
+    durationMs: 60000,
+  };
+  await t.service.processTick(9000);
+  expect(t.advance).toHaveBeenLastCalledWith(expect.anything(), 9000, 2, true, {
+    sharePartyExperience: false,
+  });
+});

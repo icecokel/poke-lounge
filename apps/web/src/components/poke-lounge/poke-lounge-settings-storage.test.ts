@@ -20,36 +20,32 @@ test("버전된 설정은 기본 음량 20%와 기본 UI 크기를 가진다", f
   });
 });
 
-test("V1 설정을 그대로 읽는다", function testCase() {
+test("현재 버전 설정은 사용자 음량을 그대로 읽는다", function testCase() {
   const storage = createStorageFixture();
   storage.localStorage.setItem(
     POKE_LOUNGE_SETTINGS_STORAGE_KEY,
     JSON.stringify({
-      version: 1,
+      version: POKE_LOUNGE_SETTINGS_VERSION,
       audio: { masterVolume: 0.8 },
       display: { uiSize: "normal" },
     }),
   );
 
   assert.deepEqual(readPokeLoungeSettings(storage), {
-    version: 1,
+    version: POKE_LOUNGE_SETTINGS_VERSION,
     audio: { masterVolume: 0.8 },
     display: { uiSize: "normal" },
   });
 });
 
-test("기존 volume-level과 ui-size를 V1 설정으로 마이그레이션하고 구 키를 제거한다", function testCase() {
+test("버전 없는 기존 값보다 현재 기본값을 적용하고 구 키를 제거한다", function testCase() {
   const storage = createStorageFixture();
   storage.localStorage.setItem(POKE_LOUNGE_LEGACY_VOLUME_STORAGE_KEY, "4");
   storage.sessionStorage.setItem(POKE_LOUNGE_LEGACY_UI_SIZE_STORAGE_KEY, "normal");
 
   const settings = readPokeLoungeSettings(storage);
 
-  assert.deepEqual(settings, {
-    version: 1,
-    audio: { masterVolume: 0.8 },
-    display: { uiSize: "normal" },
-  });
+  assert.deepEqual(settings, createDefaultPokeLoungeSettings());
   assert.equal(storage.localStorage.getItem(POKE_LOUNGE_LEGACY_VOLUME_STORAGE_KEY), null);
   assert.equal(storage.sessionStorage.getItem(POKE_LOUNGE_LEGACY_UI_SIZE_STORAGE_KEY), null);
   assert.deepEqual(
@@ -99,3 +95,23 @@ function createMemoryStorage() {
     },
   };
 }
+
+test("다른 버전의 저장값은 20%로 초기화하고 동일 버전의 음소거는 유지한다", () => {
+  const storage = createStorageFixture();
+  for (const version of [1, 999]) {
+    storage.localStorage.setItem(
+      POKE_LOUNGE_SETTINGS_STORAGE_KEY,
+      JSON.stringify({ version, audio: { masterVolume: 1 }, display: { uiSize: "normal" } }),
+    );
+    assert.deepEqual(readPokeLoungeSettings(storage), createDefaultPokeLoungeSettings());
+  }
+  storage.localStorage.setItem(
+    POKE_LOUNGE_SETTINGS_STORAGE_KEY,
+    JSON.stringify({
+      version: POKE_LOUNGE_SETTINGS_VERSION,
+      audio: { masterVolume: 0 },
+      display: { uiSize: "large" },
+    }),
+  );
+  assert.equal(readPokeLoungeSettings(storage).audio.masterVolume, 0);
+});

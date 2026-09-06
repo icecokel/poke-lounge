@@ -74,6 +74,36 @@ export function BattleScreen({
     ? localizeMobileBattleUiState(snapshot.controls, copy.locale)
     : null;
 
+  useEffect(() => {
+    if (!desktop) return;
+    const handleBack = (event: KeyboardEvent) => {
+      if (event.code !== "KeyX" || event.repeat || event.defaultPrevented) return;
+      if (
+        document.querySelector(
+          '[role="dialog"], [role="alertdialog"], [data-poke-lounge-mobile-task]',
+        )
+      )
+        return;
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest('input, textarea, [contenteditable="true"]')
+      )
+        return;
+      const current = uiStore.getSnapshot();
+      if (
+        !current.controls?.canGoBack ||
+        current.controls.isInputLocked ||
+        current.presentation?.help.open
+      )
+        return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      uiStore.dispatch({ type: "go-back" });
+    };
+    window.addEventListener("keydown", handleBack, true);
+    return () => window.removeEventListener("keydown", handleBack, true);
+  }, [desktop, uiStore]);
+
   if (!presentation || !controls) return null;
   const onAction = (action: MobileBattleUiAction) => {
     void primePokeLoungeAudio();
@@ -210,6 +240,21 @@ export function BattleStage({
           />
         </>
       )}
+      {desktop &&
+      controls.canGoBack &&
+      !controls.isInputLocked &&
+      !presentation.message &&
+      !presentation.help.open ? (
+        <button
+          type="button"
+          className={styles.battleBackButton}
+          data-poke-lounge-battle-back="true"
+          aria-keyshortcuts="X"
+          onClick={() => onAction({ type: "go-back" })}
+        >
+          <kbd>X</kbd> {copy.mobile.back}
+        </button>
+      ) : null}
       <BattleSurfaceRouter
         copy={copy}
         controls={controls}
@@ -363,6 +408,15 @@ export function BattleHpPanel({
   side: "opponent" | "player";
 }) {
   const status = getBattleStatusTextView(combatant.status);
+  const hp = Math.max(0, Math.min(combatant.maxHp, Math.round(combatant.displayedHp)));
+  const experience = side === "player" ? combatant.experience : undefined;
+  const expLabel = experience?.atMaxLevel
+    ? "EXP MAX"
+    : copy.locale === "ko-KR"
+      ? `다음 레벨까지 ${experience?.remaining ?? 0} EXP`
+      : copy.locale === "ja-JP"
+        ? `次のレベルまで ${experience?.remaining ?? 0} EXP`
+        : `${experience?.remaining ?? 0} EXP to next level`;
   return (
     <PixelPanel
       className={styles.battleHpPanel}
@@ -377,14 +431,37 @@ export function BattleHpPanel({
       {status ? (
         <span style={{ color: status.color }}>{copy.game.statusLabel[combatant.status]}</span>
       ) : null}
-      <HealthBar
-        className={styles.battleHpTrack}
-        value={hpRatio(combatant.displayedHp, combatant.maxHp)}
-        aria-label={`${combatant.name} HP`}
-      />
+      <div className={styles.battleHpRow}>
+        <HealthBar
+          className={styles.battleHpTrack}
+          value={hpRatio(hp, combatant.maxHp)}
+          aria-label={`${combatant.name} HP`}
+        />
+        <span className={styles.battleHpValue} data-poke-lounge-hp-value={side}>
+          {hp}/{combatant.maxHp}
+        </span>
+      </div>
       <small className={styles.battleTrainerName} data-poke-lounge-battle-trainer={side}>
         {combatant.displayName}
       </small>
+      {experience ? (
+        <div className={styles.battleExperienceRow} title={expLabel}>
+          <small>EXP</small>
+          <span
+            className={styles.battleExperienceTrack}
+            role="progressbar"
+            aria-label={expLabel}
+            aria-valuemin={0}
+            aria-valuemax={experience.required || 1}
+            aria-valuenow={experience.atMaxLevel ? 1 : experience.current}
+            aria-valuetext={expLabel}
+            data-poke-lounge-experience="true"
+            data-remaining={experience.remaining}
+          >
+            <i style={{ width: `${experience.ratio * 100}%` }} />
+          </span>
+        </div>
+      ) : null}
     </PixelPanel>
   );
 }
@@ -601,7 +678,9 @@ export function BattlePartyPanel({
     <div className={styles.battlePartyPanel} data-poke-lounge-battle-surface="party">
       <header>
         <strong>{copy.game.chooseSwitchPokemon}</strong>
-        <span>{controls.isForcedPartySwitch ? copy.game.forcedSwitch : copy.game.backHint}</span>
+        <span>
+          {controls.isForcedPartySwitch ? copy.game.forcedSwitch : `X · ${copy.mobile.back}`}
+        </span>
       </header>
       <div>
         {controls.party.map(function mapItem(pokemon) {
