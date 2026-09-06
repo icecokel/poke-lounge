@@ -25,8 +25,8 @@ function bounds(style: CSSProperties, layout: BattleStageLayout) {
   };
 }
 
-test("모바일 카메라만 정사각형으로 확장하고 데스크톱 4:3은 유지한다", function testCase() {
-  assert.deepEqual(MOBILE_GAME_VIEWPORT_SIZE, { width: 384, height: 384 });
+test("모바일 카메라는 3:4로 표시하고 데스크톱 4:3은 유지한다", function testCase() {
+  assert.deepEqual(MOBILE_GAME_VIEWPORT_SIZE, { width: 384, height: 512 });
   for (const size of Object.values(GAME_VIEWPORT_SIZE_PRESETS)) {
     assert.equal(size.width / size.height, 4 / 3);
   }
@@ -46,8 +46,9 @@ test("데스크톱 전투 좌표와 크기는 기존 256x192 기준을 유지한
   assert.ok(Math.abs(rendered.height - sprite.height) < 1e-9);
 });
 
-test("정사각형 전투에서 스프라이트와 HP 패널은 위치만 옮기고 종횡비를 유지한다", function testCase() {
+test("3:4 전투에서 스프라이트와 HP 패널은 위치만 옮기고 종횡비를 유지한다", function testCase() {
   const layout = MOBILE_BATTLE_STAGE_LAYOUT;
+  assert.equal(layout.width / layout.height, 3 / 4);
   for (const sprite of [BATTLE_LAYOUT.playerSprite, BATTLE_LAYOUT.opponentSprite]) {
     const rendered = bounds(toCenteredBattleRectStyle(sprite, layout), layout);
     assert.equal(rendered.width, sprite.width);
@@ -59,7 +60,7 @@ test("정사각형 전투에서 스프라이트와 HP 패널은 위치만 옮기
   for (const panel of [BATTLE_LAYOUT.playerHpPanel, BATTLE_LAYOUT.opponentHpPanel]) {
     const rendered = bounds(toBattleRectStyle(panel, layout), layout);
     assert.equal(rendered.width, panel.width);
-    assert.equal(rendered.height, panel.height);
+    assert.ok(Math.abs(rendered.height - panel.height) < 1e-9);
     assert.ok(rendered.y + rendered.height < layout.height);
   }
 });

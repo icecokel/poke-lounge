@@ -190,7 +190,9 @@
 
 /* The evolution SVG and its sprites share a centered, undistorted 4:3 plane. */
 .battleStage[data-poke-lounge-battle-layout="mobile"] .battleEvolutionScene {
-  inset: 12.5% 0;
+  inset: 50% 0 auto;
+  height: 75cqw;
+  transform: translateY(-50%);
 }
 
 .battlePokemonLayer {
@@ -1900,13 +1902,14 @@
       max(
         0px,
         calc(
-          var(--poke-lounge-container-height) - var(--poke-lounge-mobile-letterbox-top) -
-            var(--poke-lounge-mobile-letterbox-bottom) - var(--poke-lounge-mobile-screen-gap) -
-            256px
-        )
+            var(--poke-lounge-container-height) - var(--poke-lounge-mobile-letterbox-top) -
+              var(--poke-lounge-mobile-letterbox-bottom) - var(--poke-lounge-mobile-screen-gap) -
+              256px
+          ) *
+          3 / 4
       )
     );
-    --poke-lounge-mobile-screen-height: var(--poke-lounge-mobile-screen-width);
+    --poke-lounge-mobile-screen-height: calc(var(--poke-lounge-mobile-screen-width) * 4 / 3);
     --poke-lounge-frame-available-height: var(--poke-lounge-mobile-screen-height);
 
     display: grid;
@@ -1929,7 +1932,7 @@
     height: var(--poke-lounge-mobile-screen-height);
     max-width: 100%;
     max-height: var(--poke-lounge-mobile-screen-height);
-    aspect-ratio: 1;
+    aspect-ratio: 3 / 4;
     margin: 0;
     align-self: center;
     justify-self: center;
@@ -1985,8 +1988,8 @@
   .touchGameDevice .gameFrame {
     grid-column: 1;
     grid-row: 1;
-    width: min(100%, var(--poke-lounge-tablet-content-height));
-    aspect-ratio: 1;
+    width: min(100%, calc(var(--poke-lounge-tablet-content-height) * 3 / 4));
+    aspect-ratio: 3 / 4;
     height: auto;
     max-height: var(--poke-lounge-tablet-content-height);
     align-self: center;
@@ -2019,8 +2022,8 @@
 .page:global(.is-game-fullscreen-fallback).touchGameDevice .gameFrame {
   grid-column: 1;
   grid-row: 1;
-  width: min(100vw, 100dvh, var(--poke-lounge-max-display-width));
-  aspect-ratio: 1;
+  width: min(100vw, calc(100dvh * 3 / 4), var(--poke-lounge-max-display-width));
+  aspect-ratio: 3 / 4;
   height: auto;
   max-height: 100dvh;
   margin: 0;
@@ -4031,12 +4034,12 @@
   flex-shrink: 0;
 }
 
-/* Mobile play template: status / square viewport / controls. Tasks own the full
+/* Mobile play template: status / 3:4 viewport / controls. Tasks own the full
    viewport independently; menu contents must never shrink the game or buttons. */
 .touchGameDevice[data-poke-lounge-play-layout="true"] {
   --poke-lounge-mobile-status-height: 48px;
   --poke-lounge-mobile-screen-gap: 8px;
-  --poke-lounge-mobile-dock-min-height: 224px;
+  --poke-lounge-mobile-dock-min-height: 256px;
 }
 @media (orientation: portrait) {
   .touchGameDevice[data-poke-lounge-play-layout="true"] {
@@ -4045,10 +4048,11 @@
       max(
         0px,
         calc(
-          var(--poke-lounge-container-height) - var(--poke-lounge-mobile-letterbox-top) -
-            var(--poke-lounge-mobile-letterbox-bottom) - var(--poke-lounge-mobile-status-height) -
-            var(--poke-lounge-mobile-dock-min-height) - 16px
-        )
+            var(--poke-lounge-container-height) - var(--poke-lounge-mobile-letterbox-top) -
+              var(--poke-lounge-mobile-letterbox-bottom) - var(--poke-lounge-mobile-status-height) -
+              var(--poke-lounge-mobile-dock-min-height) - 16px
+          ) *
+          3 / 4
       )
     );
     grid-template-rows: auto var(--poke-lounge-mobile-screen-height) minmax(
@@ -4084,7 +4088,7 @@
   }
   .touchGameDevice[data-poke-lounge-play-layout="true"] .gameFrame {
     grid-row: 2;
-    width: min(100%, var(--poke-lounge-frame-available-height));
+    width: min(100%, calc(var(--poke-lounge-frame-available-height) * 3 / 4));
     max-height: var(--poke-lounge-frame-available-height);
   }
   .touchGameDevice[data-poke-lounge-play-layout="true"]

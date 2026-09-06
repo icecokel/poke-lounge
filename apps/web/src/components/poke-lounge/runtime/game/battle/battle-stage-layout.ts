@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { BATTLE_BASE_SIZE } from "../game-viewport";
+import { BATTLE_BASE_SIZE, MOBILE_GAME_VIEWPORT_SIZE } from "../game-viewport";
 import { BATTLE_LAYOUT, type BattleRect } from "./battle-layout";
 
 export interface BattleStageLayout {
@@ -14,12 +14,14 @@ export const DESKTOP_BATTLE_STAGE_LAYOUT: BattleStageLayout = {
 };
 
 // The mobile controller owns the command/message area. Spread battle positions over
-// the square field, but keep sprite, HP panel and effect sizes in the same pixel scale.
+// the 3:4 field, but keep sprite, HP panel and effect sizes in the same pixel scale.
 const battleFieldHeight = BATTLE_LAYOUT.playerSprite.y + BATTLE_LAYOUT.playerSprite.height / 2;
+const mobileStageHeight =
+  (BATTLE_BASE_SIZE.width * MOBILE_GAME_VIEWPORT_SIZE.height) / MOBILE_GAME_VIEWPORT_SIZE.width;
 export const MOBILE_BATTLE_STAGE_LAYOUT: BattleStageLayout = {
   width: BATTLE_BASE_SIZE.width,
-  height: BATTLE_BASE_SIZE.width,
-  positionYScale: BATTLE_BASE_SIZE.width / battleFieldHeight,
+  height: mobileStageHeight,
+  positionYScale: mobileStageHeight / battleFieldHeight,
 };
 
 export function toBattlePointStyle(

@@ -112,8 +112,6 @@ export function MobileBattleDeck({
     ? localizeBattlePresentationState(snapshot.presentation, copy.locale)
     : null;
   const [runContext, setRunContext] = useState<string | null>(null);
-  const [expandedMoves, setExpandedMoves] = useState(false);
-  const dockRef = useRef<HTMLDivElement>(null);
   const now = useBattleClock(state?.turnEndsAtMs);
   const text = getMobileUiCopy(copy.locale);
   const context = state ? selectionContext(state) : "";
@@ -126,25 +124,8 @@ export function MobileBattleDeck({
     uiStore?.dispatch(action);
   };
   useEffect(() => {
-    setExpandedMoves(false);
     setRunContext(null);
   }, [context]);
-  useEffect(() => {
-    const dock = dockRef.current;
-    if (!dock || state?.phase !== "move-select" || expandedMoves) return;
-    const inspect = () => {
-      const grid = dock.querySelector<HTMLElement>("[data-poke-lounge-mobile-option-grid='moves']");
-      if (
-        grid &&
-        (grid.scrollHeight > grid.clientHeight + 2 || dock.scrollHeight > dock.clientHeight + 2)
-      )
-        setExpandedMoves(true);
-    };
-    const observer = new ResizeObserver(inspect);
-    observer.observe(dock);
-    inspect();
-    return () => observer.disconnect();
-  }, [state?.phase, expandedMoves]);
 
   if (!state)
     return (
@@ -229,18 +210,6 @@ export function MobileBattleDeck({
         <p>{text.runDescription}</p>
       </MobileTaskScreen>
     );
-  if (expandedMoves && state.phase === "move-select" && !pending)
-    return (
-      <MobileTaskScreen
-        title={copy.mobile.chooseMove}
-        name="battle-moves-expanded"
-        backLabel={copy.mobile.back}
-        onBack={() => onAction({ type: "go-back" })}
-        context={<MobileBattleContext {...props} />}
-      >
-        <MobileBattleMoveDeck {...props} embedded />
-      </MobileTaskScreen>
-    );
 
   const dispatchCommand = (action: MobileBattleUiAction) => {
     if (action.type === "select-command" && state.commands[action.index]?.id === "run")
@@ -248,7 +217,7 @@ export function MobileBattleDeck({
     else onAction(action);
   };
   return (
-    <div ref={dockRef} className={styles.battleDock} data-poke-lounge-battle-dock="true">
+    <div className={styles.battleDock} data-poke-lounge-battle-dock="true">
       {pending ? (
         <div className={styles.progressSurface}>
           {state.spectating ? <strong>{copy.mobile.spectating}</strong> : null}
@@ -301,29 +270,33 @@ export function MobileBattleCommandDeck({ copy, onAction, state }: DeckProps) {
   );
 }
 
-export function MobileBattleMoveDeck({
-  copy,
-  onAction,
-  state,
-  embedded = false,
-}: DeckProps & { embedded?: boolean }) {
+export function MobileBattleMoveDeck({ copy, onAction, state }: DeckProps) {
+  useEffect(() => {
+    const handleBack = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape" || !state.canGoBack || event.defaultPrevented) return;
+      if (document.querySelector("[data-poke-lounge-mobile-task]")) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      onAction({ type: "go-back" });
+    };
+    window.addEventListener("keydown", handleBack, true);
+    return () => window.removeEventListener("keydown", handleBack, true);
+  }, [state.canGoBack, onAction]);
   const text = getMobileUiCopy(copy.locale);
   return (
     <div className={styles.moveDeck} data-poke-lounge-mobile-deck="battle-moves">
-      {!embedded ? (
-        <header className={styles.dockHeading}>
-          <strong>{copy.mobile.chooseMove}</strong>
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={() => onAction({ type: "go-back" })}
-            disabled={!state.canGoBack}
-            aria-label={copy.mobile.back}
-          >
-            ‹ {copy.mobile.back}
-          </button>
-        </header>
-      ) : null}
+      <header className={styles.dockHeading}>
+        <strong>{copy.mobile.chooseMove}</strong>
+        <button
+          type="button"
+          className={styles.backButton}
+          onClick={() => onAction({ type: "go-back" })}
+          disabled={!state.canGoBack}
+          aria-label={copy.mobile.back}
+        >
+          ‹ {copy.mobile.back}
+        </button>
+      </header>
       <div className={styles.moveGrid} data-poke-lounge-mobile-option-grid="moves">
         {state.moves.map(move => (
           <button

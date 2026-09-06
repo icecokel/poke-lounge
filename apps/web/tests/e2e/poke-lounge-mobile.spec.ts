@@ -613,7 +613,7 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
   await expect(page.getByText("방향 이동 · A 상호작용", { exact: true })).toHaveCount(0);
   await expect(page.locator("[data-poke-lounge-mobile-lead='true']")).toBeVisible();
   await expectUndistortedWorld(page);
-  await page.screenshot({ path: testInfo.outputPath("square-world.png") });
+  await page.screenshot({ path: testInfo.outputPath("portrait-world.png") });
   const before = await readWorldSnapshot(page);
   const joystickBounds = await directionalJoystick.boundingBox();
 
@@ -798,11 +798,11 @@ test("Poke Lounge 태블릿은 세로와 가로에서 게임과 터치 조작을
       frameFits: true,
       controlsFit: true,
       sideBySide: true,
-      frameRatio: 1,
+      frameRatio: 0.75,
     });
 });
 
-test("Poke Lounge 정사각형 화면은 작은 휴대폰과 회전 후에도 캐릭터와 버튼을 보존한다", async function testCase({
+test("Poke Lounge 3:4 화면은 작은 휴대폰과 회전 후에도 캐릭터와 버튼을 보존한다", async function testCase({
   page,
 }, testInfo) {
   await mockLocalAccountTestRuntime(page);
@@ -871,7 +871,7 @@ test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고�
   await expectUndistortedBattle(page);
   await expectControlsFit(page);
   await expect(battleScreen.locator("[data-poke-lounge-battle-surface]")).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath("square-battle.png") });
+  await page.screenshot({ path: testInfo.outputPath("portrait-battle.png") });
   await expectControlDeckStaysBelowField(page, commandDeck);
   await expect(page.locator("[data-mobile-touch-controls='true']")).toHaveCount(0);
 
@@ -1662,9 +1662,9 @@ async function expectPortraitFieldAndControlDock(page: Page, controlDock: Locato
   expect(fieldBounds!.x + fieldBounds!.width).toBeLessThanOrEqual(viewport!.width + 1);
   expect(fieldBounds!.y + fieldBounds!.height).toBeLessThanOrEqual(viewport!.height + 1);
   expect(fieldBounds!.width).toBeGreaterThanOrEqual(
-    Math.min(viewport!.width * 0.9, viewport!.height - 320),
+    Math.min(viewport!.width * 0.9, ((viewport!.height - 360) * 3) / 4),
   );
-  expect(Math.abs(fieldBounds!.width / fieldBounds!.height - 1)).toBeLessThanOrEqual(0.01);
+  expect(Math.abs(fieldBounds!.width / fieldBounds!.height - 3 / 4)).toBeLessThanOrEqual(0.01);
 
   expect(controlDockBounds!.x).toBeGreaterThanOrEqual(-1);
   expect(controlDockBounds!.y).toBeGreaterThanOrEqual(-1);
@@ -1876,7 +1876,7 @@ async function expectUndistortedWorld(page: Page): Promise<void> {
         const viewport = frame.getBoundingClientRect();
         const sprite = player.getBoundingClientRect();
         return (
-          Math.abs(viewport.width - viewport.height) < 1 &&
+          Math.abs(viewport.width - (viewport.height * 3) / 4) < 1 &&
           Math.abs(sprite.width / player.offsetWidth - sprite.height / player.offsetHeight) <
             0.01 &&
           sprite.left >= viewport.left &&
@@ -1922,7 +1922,7 @@ async function expectUndistortedBattle(page: Page): Promise<void> {
         });
         const fieldExtension = getComputedStyle(background, "::after");
         return (
-          Math.abs(frame.width - frame.height) < 1 &&
+          Math.abs(frame.width - (frame.height * 3) / 4) < 1 &&
           sprites.length === 2 &&
           panels.length === 2 &&
           allInside &&
@@ -2083,33 +2083,71 @@ test("모바일 정책: 포켓몬 후보 선택·취소·회전은 턴을 쓰지
     .toBe(before!.turn + 1);
 });
 
-test("모바일 정책: 작은 화면의 기술 선택은 압축 대신 작업형으로 전환한다", async ({
+test("모바일 정책: 기술 선택은 작은 화면·회전·글자 확대에서도 컨트롤 영역에 남는다", async ({
   page,
 }, testInfo) => {
   await mockLocalAccountTestRuntime(page);
   await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
   await chooseStarterIfNeeded(page);
-  await page.setViewportSize({ width: 320, height: 568 });
   expect(await startMobileWildBattleForTest(page)).toBe(true);
   const command = page.locator("[data-poke-lounge-mobile-deck='battle-command']");
-  await expect(command).toBeVisible();
-  await expect(page.locator("[data-poke-lounge-mobile-battle-message]")).toHaveCount(0);
+  const dock = page.locator("[data-poke-lounge-mobile-control-dock='true']");
+  const moves = dock.locator("[data-poke-lounge-mobile-deck='battle-moves']");
+  await expect(command).toBeVisible({ timeout: 30_000 });
+  const before = await readMobileBattleProgress(page);
   await command.getByRole("button", { name: "싸운다", exact: true }).click();
-  const task = page.locator("[data-poke-lounge-mobile-task='battle-moves-expanded']");
-  await expectMobileFullscreenScene(page, task);
-  const buttons = task.locator("[data-poke-lounge-mobile-option-grid='moves'] button");
-  await expect(buttons).toHaveCount(4);
-  for (const button of await buttons.all())
-    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(72);
-  await page.screenshot({ path: testInfo.outputPath("moves-320-expanded.png") });
+  for (const size of [
+    { width: 320, height: 568 },
+    { width: 390, height: 644 },
+    { width: 667, height: 375 },
+    { width: 768, height: 1024 },
+    { width: 1024, height: 768 },
+  ]) {
+    await page.setViewportSize(size);
+    await expect(moves).toBeVisible();
+    await expect(page.locator("[data-poke-lounge-mobile-task]")).toHaveCount(0);
+    await expectUndistortedBattle(page);
+    await expectControlsFit(page);
+    const buttons = moves.locator("[data-poke-lounge-mobile-option-grid='moves'] button");
+    await expect(buttons).toHaveCount(4);
+    for (const button of await buttons.all()) {
+      expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(72);
+    }
+    await page.screenshot({
+      path: testInfo.outputPath("move-dock-" + size.width + "x" + size.height + ".png"),
+    });
+  }
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = "32px";
+  });
+  await expect(moves).toBeVisible();
+  await expect(page.locator("[data-poke-lounge-mobile-task]")).toHaveCount(0);
+  const grid = moves.locator("[data-poke-lounge-mobile-option-grid='moves']");
+  await grid.evaluate(element => {
+    element.scrollTop = element.scrollHeight;
+  });
+  const last = grid.locator("button").last();
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport();
+  await expect(moves.getByRole("button", { name: "뒤로", exact: true })).toBeInViewport();
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await page.screenshot({ path: testInfo.outputPath("move-dock-200-percent.png") });
   await page.keyboard.press("Escape");
   await expect(command).toBeVisible();
-  await command.getByRole("button", { name: "도망", exact: true }).click();
-  const escapeTask = page.locator("[data-poke-lounge-mobile-task='battle-run']");
-  await expectMobileFullscreenScene(page, escapeTask);
-  await page.keyboard.press("Escape");
-  await expect(escapeTask).toHaveCount(0);
-  await expect(command).toBeVisible();
+  await expect(page.locator("[data-poke-lounge-mobile-task='settings']")).toHaveCount(0);
+  expect(await readMobileBattleProgress(page)).toEqual(before);
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty("font-size");
+  });
+  await command.getByRole("button", { name: "싸운다", exact: true }).click();
+  await moves.getByRole("button", { name: "뒤로", exact: true }).click();
+  expect(await readMobileBattleProgress(page)).toEqual(before);
+  await command.getByRole("button", { name: "싸운다", exact: true }).click();
+  await grid.locator("button:not(:disabled)").first().click();
+  await expect
+    .poll(async () => (await readMobileBattleProgress(page))?.turn)
+    .toBe(before!.turn + 1);
 });
 
 async function readMobileBattleProgress(page: Page) {
@@ -2194,7 +2232,7 @@ async function expectVisibleMobilePlayBounds(page: Page): Promise<void> {
         return (
           Math.abs(r.top - viewport.offsetTop) < 1 &&
           Math.abs(r.height - viewport.height) < 1 &&
-          Math.abs(f.width - f.height) < 1 &&
+          Math.abs(f.width - (f.height * 3) / 4) < 1 &&
           [bar, frame, ...commands].every(element => {
             const b = element.getBoundingClientRect();
             return (
@@ -2258,6 +2296,14 @@ test("모바일 뷰포트: 주소창 높이·위치만 바뀌어도 전투 네 �
   ]) {
     await setVisibleMobileViewport(page, size);
     await expectVisibleMobilePlayBounds(page);
+    await command.getByRole("button", { name: "싸운다", exact: true }).click();
+    const moves = page.locator(
+      "[data-poke-lounge-mobile-control-dock] [data-poke-lounge-mobile-deck='battle-moves']",
+    );
+    await expect(moves).toBeVisible();
+    await expect(page.locator("[data-poke-lounge-mobile-task]")).toHaveCount(0);
+    await expectControlsFit(page);
+    await moves.getByRole("button", { name: "뒤로", exact: true }).click();
   }
   expect(await readMobileBattleProgress(page)).toEqual(before);
   await page.screenshot({ path: testInfo.outputPath("toolbar-restored-battle.png") });

@@ -3,8 +3,8 @@ export const GAME_VIEWPORT_SIZE_PRESETS = {
   large: { width: 512, height: 384 },
 } as const;
 
-// 표시 영역과 카메라를 함께 정사각형으로 확장한다. 캐릭터/타일의 배율은 유지한다.
-export const MOBILE_GAME_VIEWPORT_SIZE = { width: 384, height: 384 } as const;
+// 모바일 표시 영역과 카메라를 같은 3:4 비율로 맞춘다. 캐릭터/타일은 균등 배율을 유지한다.
+export const MOBILE_GAME_VIEWPORT_SIZE = { width: 384, height: 512 } as const;
 
 export type GameViewportSizePreset = keyof typeof GAME_VIEWPORT_SIZE_PRESETS;
 

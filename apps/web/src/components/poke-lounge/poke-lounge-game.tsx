@@ -716,7 +716,7 @@ export function PokeLoungeGame() {
         if (
           event.defaultPrevented ||
           document.querySelector(
-            "[data-poke-lounge-mobile-task], [data-room-lobby-info-open='true'], [data-screen='starter-selection']",
+            "[data-poke-lounge-mobile-task], [data-room-lobby-info-open='true'], [data-screen='starter-selection'], [data-poke-lounge-mobile-deck='battle-moves']",
           )
         )
           return;
