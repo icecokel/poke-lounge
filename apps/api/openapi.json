@@ -1714,6 +1714,98 @@
         },
         "required": ["playerId", "representativePokemon", "partySize", "updatedAtMs"]
       },
+      "CompetitiveAnimationEventDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["move", "status"]
+          },
+          "actorPlayerId": {
+            "type": "string"
+          },
+          "targetPlayerId": {
+            "type": "string"
+          },
+          "actorSlotIndex": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "targetSlotIndex": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "moveId": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 470
+          },
+          "status": {
+            "type": "string",
+            "enum": ["normal", "poisoned", "burned", "paralyzed", "fainted"]
+          },
+          "hit": {
+            "type": "boolean"
+          },
+          "damage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "actorHp": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "targetHp": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "actorStatus": {
+            "type": "string",
+            "enum": ["normal", "poisoned", "burned", "paralyzed", "fainted"]
+          },
+          "targetStatus": {
+            "type": "string",
+            "enum": ["normal", "poisoned", "burned", "paralyzed", "fainted"]
+          }
+        },
+        "required": [
+          "kind",
+          "actorPlayerId",
+          "targetPlayerId",
+          "actorSlotIndex",
+          "targetSlotIndex",
+          "moveId",
+          "status",
+          "hit",
+          "damage",
+          "actorHp",
+          "targetHp",
+          "actorStatus",
+          "targetStatus"
+        ]
+      },
+      "CompetitiveTurnPresentationDto": {
+        "type": "object",
+        "properties": {
+          "turn": {
+            "type": "number",
+            "minimum": 0
+          },
+          "events": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompetitiveAnimationEventDto"
+            }
+          }
+        },
+        "required": ["turn", "events"]
+      },
       "CompetitiveMoveStateDto": {
         "type": "object",
         "properties": {
@@ -1874,6 +1966,9 @@
       "CompetitiveBattleStateDto": {
         "type": "object",
         "properties": {
+          "lastTurnPresentation": {
+            "$ref": "#/components/schemas/CompetitiveTurnPresentationDto"
+          },
           "rulesetVersion": {
             "type": "number",
             "example": 2,

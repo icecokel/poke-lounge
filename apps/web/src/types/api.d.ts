@@ -605,6 +605,29 @@ export interface components {
       /** @example 1720000002000 */
       updatedAtMs: number;
     };
+    CompetitiveAnimationEventDto: {
+      /** @enum {string} */
+      kind: "move" | "status";
+      actorPlayerId: string;
+      targetPlayerId: string;
+      actorSlotIndex: number;
+      targetSlotIndex: number;
+      moveId: number;
+      /** @enum {string} */
+      status: "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+      hit: boolean;
+      damage: number;
+      actorHp: number;
+      targetHp: number;
+      /** @enum {string} */
+      actorStatus: "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+      /** @enum {string} */
+      targetStatus: "normal" | "poisoned" | "burned" | "paralyzed" | "fainted";
+    };
+    CompetitiveTurnPresentationDto: {
+      turn: number;
+      events: components["schemas"]["CompetitiveAnimationEventDto"][];
+    };
     CompetitiveMoveStateDto: {
       moveId: number;
       pp: number;
@@ -644,6 +667,7 @@ export interface components {
       };
     };
     CompetitiveBattleStateDto: {
+      lastTurnPresentation?: components["schemas"]["CompetitiveTurnPresentationDto"];
       /**
        * @example 2
        * @enum {number}

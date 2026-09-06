@@ -181,5 +181,8 @@ function toPublicBattleState(
       }),
     ),
     terminal: structuredClone(state.terminal),
+    ...(state.lastTurnPresentation
+      ? { lastTurnPresentation: structuredClone(state.lastTurnPresentation) }
+      : {}),
   };
 }

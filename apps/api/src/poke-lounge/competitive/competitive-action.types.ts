@@ -13,6 +13,7 @@ import type {
 export type CompetitiveActionReceiptStatus = 'pending' | 'resolved';
 
 export interface PublicCompetitiveBattleState {
+  lastTurnPresentation?: import('@poke-lounge/battle/battle-presentation').ResolvedTurnPresentation;
   rulesetVersion: 2;
   turn: number;
   participantIds: readonly [string, string];

@@ -1,3 +1,4 @@
+import type { ResolvedAnimationEvent, PresentationStatus } from "./battle-presentation";
 import { getCompetitiveActionPlayerIds, type CanonicalCompetitiveAction } from "./actions";
 import {
   applyBattleStatStageDelta,
@@ -356,11 +357,29 @@ function executeMove(
     attacker.status === "paralyzed" &&
     randomValue(random) < COMPETITIVE_RULESET_V2.paralysisNoActionChance
   ) {
+    recordStatusPresentation(state, actorPlayerId, "paralyzed", 0);
     return;
   }
 
   const targetPlayerId = opponentId(participantIds, actorPlayerId);
   const defender = activeCombatant(state, targetPlayerId);
+  const beforeHp = defender.currentHp;
+  const beforeStatus = defender.status;
+  const record = (hit: boolean) => {
+    recordMovePresentation(
+      state,
+      actorPlayerId,
+      targetPlayerId,
+      typeof action.moveId === "number" ? action.moveId : 165,
+      hit,
+      beforeHp - defender.currentHp,
+    );
+    if (
+      defender.status !== beforeStatus &&
+      ["poisoned", "burned", "paralyzed"].includes(defender.status)
+    )
+      recordStatusPresentation(state, targetPlayerId, defender.status, 0);
+  };
   if (
     move.accuracy !== 0 &&
     !checkGen4Accuracy({
@@ -370,6 +389,7 @@ function executeMove(
       roll: 1 + Math.floor(randomValue(random) * 100),
     })
   ) {
+    record(false);
     return;
   }
 
@@ -402,6 +422,7 @@ function executeMove(
       }
     }
     if (defenderTeamFainted) {
+      record(true);
       return;
     }
   }
@@ -415,6 +436,7 @@ function executeMove(
     );
     setTerminalIfTeamFainted(state, participantIds, actorPlayerId);
   }
+  record(move.category === "status" || effectiveness > 0);
 }
 
 function calculateMoveDamage(
@@ -591,7 +613,10 @@ function applyResidualDamage(
       continue;
     }
 
+    const status = combatant.status;
+    const beforeHp = combatant.currentHp;
     applyDamage(combatant, Math.max(1, Math.floor(combatant.maxHp / divisor)));
+    recordStatusPresentation(state, playerId, status, beforeHp - combatant.currentHp);
     if (setTerminalIfTeamFainted(state, participantIds, playerId)) {
       return;
     }
@@ -667,6 +692,7 @@ export function resolveTurn(input: {
   }
 
   const state = cloneState(stateWithSafeRecords, participantIds);
+  state.lastTurnPresentation = { turn: state.turn, events: [] };
   const replacing = participantIds.filter(
     playerId => activeCombatant(state, playerId).currentHp === 0,
   );
@@ -711,4 +737,55 @@ export function resolveTurn(input: {
     stateHash: hashCanonicalState(state),
     terminal: state.terminal,
   };
+}
+
+function recordMovePresentation(
+  state: CanonicalBattleState,
+  actorPlayerId: string,
+  targetPlayerId: string,
+  moveId: number,
+  hit: boolean,
+  damage: number,
+): void {
+  const actor = activeCombatant(state, actorPlayerId),
+    target = activeCombatant(state, targetPlayerId);
+  state.lastTurnPresentation?.events.push({
+    kind: "move",
+    actorPlayerId,
+    targetPlayerId,
+    actorSlotIndex: actor.slotIndex,
+    targetSlotIndex: target.slotIndex,
+    moveId,
+    status: "normal",
+    hit,
+    damage: Math.max(0, damage),
+    actorHp: actor.currentHp,
+    targetHp: target.currentHp,
+    actorStatus: actor.status,
+    targetStatus: target.status,
+  });
+}
+function recordStatusPresentation(
+  state: CanonicalBattleState,
+  playerId: string,
+  status: PresentationStatus,
+  damage: number,
+): void {
+  const actor = activeCombatant(state, playerId);
+  const event: ResolvedAnimationEvent = {
+    kind: "status",
+    actorPlayerId: playerId,
+    targetPlayerId: playerId,
+    actorSlotIndex: actor.slotIndex,
+    targetSlotIndex: actor.slotIndex,
+    moveId: 0,
+    status,
+    hit: false,
+    damage,
+    actorHp: actor.currentHp,
+    targetHp: actor.currentHp,
+    actorStatus: actor.status,
+    targetStatus: actor.status,
+  };
+  state.lastTurnPresentation?.events.push(event);
 }

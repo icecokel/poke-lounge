@@ -26,6 +26,8 @@ export interface CompetitiveBattleE2eSnapshot {
 }
 
 export interface BattleE2eSnapshot {
+  effect?: import("../battle/move-animation-model").ActiveBattleEffect | null;
+  effectStartedCount?: number;
   battleKind: BattleScreenState["battleKind"];
   phase: BattleScreenState["phase"];
   turn: number;

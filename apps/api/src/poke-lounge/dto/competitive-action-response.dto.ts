@@ -1,4 +1,9 @@
-import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import type { CompetitiveActionProjection } from '../competitive/competitive-action.types';
 import type {
   CompetitiveMatchKind,
@@ -92,7 +97,39 @@ class CompetitiveTerminalResultDto {
   scoreByPlayerId!: Record<string, 50 | 100>;
 }
 
+class CompetitiveAnimationEventDto {
+  @ApiProperty({ enum: ['move', 'status'] }) kind!: 'move' | 'status';
+  @ApiProperty() actorPlayerId!: string;
+  @ApiProperty() targetPlayerId!: string;
+  @ApiProperty({ minimum: 0, maximum: 5 }) actorSlotIndex!: number;
+  @ApiProperty({ minimum: 0, maximum: 5 }) targetSlotIndex!: number;
+  @ApiProperty({ minimum: 0, maximum: 470 }) moveId!: number;
+  @ApiProperty({
+    enum: ['normal', 'poisoned', 'burned', 'paralyzed', 'fainted'],
+  })
+  status!: string;
+  @ApiProperty() hit!: boolean;
+  @ApiProperty({ minimum: 0, maximum: 65535 }) damage!: number;
+  @ApiProperty({ minimum: 0, maximum: 65535 }) actorHp!: number;
+  @ApiProperty({ minimum: 0, maximum: 65535 }) targetHp!: number;
+  @ApiProperty({
+    enum: ['normal', 'poisoned', 'burned', 'paralyzed', 'fainted'],
+  })
+  actorStatus!: string;
+  @ApiProperty({
+    enum: ['normal', 'poisoned', 'burned', 'paralyzed', 'fainted'],
+  })
+  targetStatus!: string;
+}
+class CompetitiveTurnPresentationDto {
+  @ApiProperty({ minimum: 0 }) turn!: number;
+  @ApiProperty({ type: [CompetitiveAnimationEventDto], maxItems: 12 })
+  events!: CompetitiveAnimationEventDto[];
+}
+
 class CompetitiveBattleStateDto {
+  @ApiPropertyOptional({ type: CompetitiveTurnPresentationDto })
+  lastTurnPresentation?: CompetitiveTurnPresentationDto;
   @ApiProperty({ example: 2, enum: [2] })
   rulesetVersion!: 2;
 
@@ -113,6 +150,8 @@ class CompetitiveBattleStateDto {
 }
 
 @ApiExtraModels(
+  CompetitiveAnimationEventDto,
+  CompetitiveTurnPresentationDto,
   CompetitiveMoveStateDto,
   CompetitiveBattleStatStagesDto,
   CompetitiveCombatantStateDto,

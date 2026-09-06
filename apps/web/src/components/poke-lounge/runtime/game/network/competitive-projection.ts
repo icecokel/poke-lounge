@@ -1,3 +1,4 @@
+import { parseResolvedTurnPresentation } from "@poke-lounge/battle/battle-presentation";
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
@@ -342,7 +343,16 @@ function parseCurrentState(
 ): CompetitiveProjection["currentState"] {
   const state = requireRecord(
     value,
-    ["participantIds", "playersById", "rulesetVersion", "terminal", "turn"],
+    [
+      "participantIds",
+      "playersById",
+      "rulesetVersion",
+      "terminal",
+      "turn",
+      ...(value && typeof value === "object" && Object.hasOwn(value, "lastTurnPresentation")
+        ? ["lastTurnPresentation"]
+        : []),
+    ],
     1,
   );
   const participantIds = parsePlayerIds(state.participantIds);
@@ -368,6 +378,15 @@ function parseCurrentState(
     turn,
     participantIds,
     playersById: parsedPlayers,
+    ...(parseResolvedTurnPresentation(state.lastTurnPresentation, playerIds, currentTurn)
+      ? {
+          lastTurnPresentation: parseResolvedTurnPresentation(
+            state.lastTurnPresentation,
+            playerIds,
+            currentTurn,
+          )!,
+        }
+      : {}),
     terminal: state.terminal as CompetitiveProjection["currentState"]["terminal"],
   };
 }

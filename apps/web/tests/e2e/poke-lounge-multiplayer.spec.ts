@@ -5050,3 +5050,104 @@ test("개선 회귀: 서버 토너먼트의 양쪽 피격은 한 번씩 재생�
   await expect.poll(async () => (await read())?.hpAnimationPlaying).toBe(false);
   expect((await read())?.hitAnimationStartedCount).toBe(before + 2);
 });
+
+test("롬 서버 연출: 기술·빗나감·상태 피해를 순서대로 재생하고 재전송은 중복하지 않는다", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const server = createMockServerState();
+  await mockAuthenticatedPokeSession(page);
+  await mockServerRoom(page, server, {
+    competitive: true,
+    competitiveImmediately: true,
+    waitForResult: true,
+    wrapped: true,
+  });
+  await startServerRoom(page);
+  await waitForActiveScene(page, "battle");
+  await waitForBattleReady(page);
+  const read = () =>
+    page.evaluate(() =>
+      (
+        window as Window & {
+          __POKE_LOUNGE_E2E__: import("../../src/components/poke-lounge/runtime/game/testing/poke-lounge-e2e-controller").PokeLoungeE2eController;
+        }
+      ).__POKE_LOUNGE_E2E__.getBattleSnapshot(),
+    );
+  const before = (await read())!,
+    projection = createServerCompetitiveProjection(server),
+    [a, b] = projection.playerIds;
+  const actor = projection.currentState.playersById[a],
+    defender = projection.currentState.playersById[b];
+  const own = actor.team.find(p => p.slotIndex === actor.activeSlotIndex)!,
+    other = defender.team.find(p => p.slotIndex === defender.activeSlotIndex)!;
+  const base = {
+    actorPlayerId: a,
+    targetPlayerId: b,
+    actorSlotIndex: own.slotIndex,
+    targetSlotIndex: other.slotIndex,
+    actorHp: own.currentHp,
+    targetHp: other.currentHp - 2,
+    actorStatus: "normal" as const,
+    targetStatus: "normal" as const,
+  };
+  projection.currentTurn += 1;
+  projection.currentState.turn = projection.currentTurn;
+  projection.stateHash = "d".repeat(64);
+  projection.currentState.lastTurnPresentation = {
+    turn: projection.currentTurn - 1,
+    events: [
+      { ...base, kind: "move", moveId: 19, status: "normal", hit: true, damage: 2 },
+      {
+        ...base,
+        kind: "move",
+        moveId: 33,
+        status: "normal",
+        hit: false,
+        damage: 0,
+        actorPlayerId: b,
+        targetPlayerId: a,
+        actorSlotIndex: other.slotIndex,
+        targetSlotIndex: own.slotIndex,
+        actorHp: other.currentHp - 2,
+        targetHp: own.currentHp,
+      },
+      {
+        ...base,
+        kind: "status",
+        moveId: 0,
+        status: "burned",
+        hit: false,
+        damage: 3,
+        targetPlayerId: a,
+        targetSlotIndex: own.slotIndex,
+        actorHp: own.currentHp - 3,
+        targetHp: own.currentHp - 3,
+        actorStatus: "burned",
+        targetStatus: "burned",
+      },
+    ],
+  };
+  own.currentHp -= 3;
+  own.status = "burned";
+  other.currentHp -= 2;
+  server.revision += 1;
+  await emitSocketSnapshot(page, { ...createTournamentRoomState(server), competitive: projection });
+  const effect = page.locator("[data-battle-effect]");
+  await expect(effect).toHaveAttribute("data-move-id", "19");
+  expect((await read())?.opponent.displayedCurrentHp).toBe(before.opponent.displayedCurrentHp);
+  await expect(effect).toHaveAttribute("data-move-id", "33", { timeout: 5000 });
+  await expect(effect).toHaveAttribute("data-effect-hit", "false");
+  await expect(effect).toHaveAttribute("data-status-effect", "burned", { timeout: 5000 });
+  await page.screenshot({ path: info.outputPath("server-status.png") });
+  await expect(effect).toHaveCount(0, { timeout: 5000 });
+  const finished = (await read())!;
+  expect(finished.effectStartedCount).toBe(3);
+  expect(finished.hitAnimationStartedCount).toBe(before.hitAnimationStartedCount + 1);
+  expect(finished.player.displayedCurrentHp).toBe(own.currentHp);
+  expect(finished.opponent.displayedCurrentHp).toBe(other.currentHp);
+  server.revision += 1;
+  await emitSocketSnapshot(page, { ...createTournamentRoomState(server), competitive: projection });
+  await expect(effect).toHaveCount(0);
+  expect((await read())?.effectStartedCount).toBe(3);
+});

@@ -489,7 +489,14 @@ export function choosePlayerMove(
     if (action.side === "player") {
       if (isFullyParalyzed(playerPokemon, random)) {
         messageQueue.push(`${withTopicParticle(playerPokemon.name)} 몸이 저려서 움직일 수 없다!`);
-        appendBattleMessageHpSnapshots(messageHpSnapshots, 1, playerPokemon, opponentPokemon);
+        appendBattleMessageHpSnapshots(
+          messageHpSnapshots,
+          1,
+          playerPokemon,
+          opponentPokemon,
+          null,
+          moveAnimationCue(action.move.id, "player", { damage: 0, blocked: true }),
+        );
         continue;
       }
 
@@ -509,6 +516,7 @@ export function choosePlayerMove(
         playerPokemon,
         opponentPokemon,
         moveOutcome.damage > 0 ? "opponent" : null,
+        moveAnimationCue(action.move.id, "player", moveOutcome),
       );
 
       if (playerPokemon.status === "fainted" && opponentPokemon.status === "fainted") {
@@ -577,7 +585,14 @@ export function choosePlayerMove(
 
     if (isFullyParalyzed(opponentPokemon, random)) {
       messageQueue.push(`${withTopicParticle(opponentPokemon.name)} 몸이 저려서 움직일 수 없다!`);
-      appendBattleMessageHpSnapshots(messageHpSnapshots, 1, playerPokemon, opponentPokemon);
+      appendBattleMessageHpSnapshots(
+        messageHpSnapshots,
+        1,
+        playerPokemon,
+        opponentPokemon,
+        null,
+        moveAnimationCue(action.move.id, "opponent", { damage: 0, blocked: true }),
+      );
       continue;
     }
 
@@ -597,6 +612,7 @@ export function choosePlayerMove(
       playerPokemon,
       opponentPokemon,
       moveOutcome.damage > 0 ? "player" : null,
+      moveAnimationCue(action.move.id, "opponent", moveOutcome),
     );
 
     if (playerPokemon.status === "fainted" && opponentPokemon.status === "fainted") {
@@ -740,6 +756,7 @@ function resolveFailedRunTurn(
         damage: 0,
         attacker: opponentPokemon,
         defender: playerPokemon,
+        blocked: true,
         messages: [`${withTopicParticle(opponentPokemon.name)} 몸이 저려서 움직일 수 없다!`],
       }
     : resolveMoveOutcome(opponentPokemon, playerPokemon, opponentMove);
@@ -753,6 +770,7 @@ function resolveFailedRunTurn(
     playerPokemon,
     opponentPokemon,
     moveOutcome.damage > 0 ? "player" : null,
+    moveAnimationCue(opponentMove.id, "opponent", moveOutcome),
   );
 
   const immediateFaintState = createEndOfTurnFaintState({
@@ -867,6 +885,7 @@ function resolveFailedCaptureTurn(
         damage: 0,
         attacker: opponentPokemon,
         defender: playerPokemon,
+        blocked: true,
         messages: [`${withTopicParticle(opponentPokemon.name)} 몸이 저려서 움직일 수 없다!`],
       }
     : resolveMoveOutcome(opponentPokemon, playerPokemon, opponentMove);
@@ -880,6 +899,7 @@ function resolveFailedCaptureTurn(
     playerPokemon,
     opponentPokemon,
     moveOutcome.damage > 0 ? "player" : null,
+    moveAnimationCue(opponentMove.id, "opponent", moveOutcome),
   );
 
   const immediateFaintState = createEndOfTurnFaintState({
@@ -993,6 +1013,7 @@ function resolveOpponentTurnAfterPlayerMessages(
         damage: 0,
         attacker: opponentPokemon,
         defender: playerPokemon,
+        blocked: true,
         messages: [`${withTopicParticle(opponentPokemon.name)} 몸이 저려서 움직일 수 없다!`],
       }
     : resolveMoveOutcome(opponentPokemon, playerPokemon, opponentMove);
@@ -1006,6 +1027,7 @@ function resolveOpponentTurnAfterPlayerMessages(
     playerPokemon,
     opponentPokemon,
     moveOutcome.damage > 0 ? "player" : null,
+    moveAnimationCue(opponentMove.id, "opponent", moveOutcome),
   );
 
   const immediateFaintState = createEndOfTurnFaintState({
@@ -1274,15 +1296,17 @@ function appendBattleMessageHpSnapshots(
   playerPokemon: BattlePokemon,
   opponentPokemon: BattlePokemon,
   attackHitTarget: BattleMessageHpSnapshot["attackHitTarget"] = null,
+  animation?: BattleMessageHpSnapshot["animation"],
 ): void {
   for (let index = 0; index < messageCount; index += 1) {
-    snapshots.push(
-      createBattleMessageHpSnapshot(
+    snapshots.push({
+      ...createBattleMessageHpSnapshot(
         playerPokemon,
         opponentPokemon,
         index === 0 ? attackHitTarget : null,
       ),
-    );
+      ...(index === 0 && animation ? { animation } : {}),
+    });
   }
 }
 
@@ -1293,6 +1317,38 @@ function withBattleMessageHpSnapshots(
   const messageHpSnapshots = snapshots.slice(0, state.messageQueue.length);
   const finalSnapshot = createBattleMessageHpSnapshot(state.player.pokemon, state.opponent.pokemon);
 
+  // Residual damage is separate from a move's hit; derive it from the resolved HP/status
+  // snapshots rather than the translated message text. Recoil already belongs to its move snapshot.
+  let previous = messageHpSnapshots.at(-1);
+  if (previous)
+    for (const side of ["player", "opponent"] as const) {
+      const hpKey = side === "player" ? "playerCurrentHp" : "opponentCurrentHp";
+      const statusKey = side === "player" ? "playerStatus" : "opponentStatus";
+      const status = previous[statusKey];
+      if (
+        messageHpSnapshots.length < state.messageQueue.length &&
+        previous[hpKey] > finalSnapshot[hpKey] &&
+        (status === "poisoned" || status === "burned")
+      ) {
+        const next: BattleMessageHpSnapshot = {
+          ...previous,
+          [hpKey]: finalSnapshot[hpKey],
+          [statusKey]: finalSnapshot[statusKey],
+          attackHitTarget: null,
+          animation: {
+            kind: "status",
+            source: side,
+            target: side,
+            moveId: 0,
+            status,
+            hit: false,
+            damage: previous[hpKey] - finalSnapshot[hpKey],
+          },
+        };
+        messageHpSnapshots.push(next);
+        previous = next;
+      }
+    }
   while (messageHpSnapshots.length < state.messageQueue.length) {
     messageHpSnapshots.push(finalSnapshot);
   }
@@ -1318,6 +1374,8 @@ function createBattleMessageHpSnapshot(
 }
 
 interface MoveOutcome {
+  connected?: boolean;
+  blocked?: boolean;
   damage: number;
   attacker: BattlePokemon;
   defender: BattlePokemon;
@@ -1332,6 +1390,7 @@ function resolveMoveOutcome(
 ): MoveOutcome {
   if (!moveHits(attacker, defender, move, random)) {
     return {
+      connected: false,
       damage: 0,
       attacker,
       defender,
@@ -1344,6 +1403,7 @@ function resolveMoveOutcome(
 
   if (fixedDamage !== null) {
     return {
+      connected: typeEffectiveness > 0,
       damage: typeEffectiveness === 0 ? 0 : fixedDamage,
       attacker,
       defender,
@@ -1388,6 +1448,7 @@ function resolveMoveOutcome(
 
   return {
     damage,
+    connected: move.category === "status" || typeEffectiveness > 0,
     attacker: resolvedAttacker,
     defender: effectOutcome.defender,
     messages,
@@ -1979,5 +2040,21 @@ function applyDamage(pokemon: BattlePokemon, damage: number): BattlePokemon {
     ...pokemon,
     currentHp,
     status: currentHp === 0 ? "fainted" : pokemon.status,
+  };
+}
+
+function moveAnimationCue(
+  moveId: number,
+  source: "player" | "opponent",
+  result: Pick<MoveOutcome, "damage" | "connected" | "blocked">,
+): NonNullable<BattleMessageHpSnapshot["animation"]> {
+  return {
+    kind: result.blocked ? "status" : "move",
+    source,
+    target: result.blocked ? source : source === "player" ? "opponent" : "player",
+    moveId: result.blocked ? 0 : moveId,
+    status: result.blocked ? "paralyzed" : "normal",
+    hit: result.connected !== false && !result.blocked,
+    damage: result.damage,
   };
 }

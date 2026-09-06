@@ -3,6 +3,10 @@ import type { MobileBattleUiAction, MobileBattleUiState } from "../ui/mobile-bat
 import type { BattleKind, BattlePhase, BattlePokemonStatus, BattleSpriteRef } from "./battle-types";
 
 export interface BattleSpritePresentation {
+  effectOriginX?: number;
+  effectOriginY?: number;
+  effectRotation?: number;
+  effectTint?: string | null;
   alpha: number;
   height: number;
   sprite: BattleSpriteRef;
@@ -44,6 +48,8 @@ export interface BattleEvolutionPresentation {
 }
 
 export interface BattlePresentationState {
+  effect?: import("./move-animation-model").ActiveBattleEffect | null;
+  effectStartedCount?: number;
   authoritative: {
     connectionStatus: string;
     inputPending: boolean;

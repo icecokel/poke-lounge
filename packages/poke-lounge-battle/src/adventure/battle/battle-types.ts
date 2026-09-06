@@ -1,4 +1,5 @@
 import type { PlayerPokemonSlot } from "../player/player-types";
+import type { BattleAnimationCue } from "../../battle-presentation";
 import type { BattleStatStages } from "../../battle-stat-stages";
 import type { Gen4BaseStats } from "./gen4-pokemon-stats";
 import type { PokemonIndividualValues } from "./individual-values";
@@ -112,6 +113,7 @@ export interface BattleReturnToWorld {
 }
 
 export interface BattleMessageHpSnapshot {
+  animation?: BattleAnimationCue;
   playerCurrentHp: number;
   playerStatus: BattlePokemonStatus;
   opponentCurrentHp: number;

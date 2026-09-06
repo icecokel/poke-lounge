@@ -1,5 +1,6 @@
 "use client";
 
+import { BattleMoveEffects } from "./battle-move-effects";
 import { MoveLearningPanel, LearnedMoveNotice } from "../ui/move-learning-panel";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -223,6 +224,7 @@ export function BattleStage({
       ) : (
         <>
           <BattlePokemonLayer presentation={presentation} layout={layout} />
+          <BattleMoveEffects presentation={presentation} layout={layout} />
           <BattleCaptureEffect capture={presentation.capture} layout={layout} />
           <BattleHpPanel
             copy={copy}
@@ -387,7 +389,13 @@ export function BattlePokemonSprite({
         backgroundPosition: `${positionX}% ${positionY}%`,
         backgroundSize: `${columns * 100}% ${rows * 100}%`,
         clipPath,
-        filter: view.tint === "white" ? "brightness(0) invert(1)" : undefined,
+        filter:
+          view.tint === "white"
+            ? "brightness(0) invert(1)"
+            : view.effectTint
+              ? `drop-shadow(0 0 3px ${view.effectTint}) saturate(1.7)`
+              : undefined,
+        transform: view.effectRotation ? `rotate(${view.effectRotation}deg)` : undefined,
         opacity: alpha ?? view.alpha,
       }}
     />

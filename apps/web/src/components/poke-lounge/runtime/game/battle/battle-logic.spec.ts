@@ -272,6 +272,16 @@ test("기술 우선도가 같으면 스피드가 빠른 포켓몬이 먼저 행�
     playerStatus: fasterPlayerState.player.pokemon.status,
     opponentCurrentHp: playerFirstResult.opponent.pokemon.currentHp,
     opponentStatus: playerFirstResult.opponent.pokemon.status,
+    animation: {
+      kind: "move",
+      source: "player",
+      target: "opponent",
+      moveId: 33,
+      status: "normal",
+      hit: true,
+      damage:
+        fasterPlayerState.opponent.pokemon.currentHp - playerFirstResult.opponent.pokemon.currentHp,
+    },
     attackHitTarget: "opponent",
   });
   assert.deepEqual(playerFirstResult.messageHpSnapshots?.[1], {
@@ -279,6 +289,16 @@ test("기술 우선도가 같으면 스피드가 빠른 포켓몬이 먼저 행�
     playerStatus: playerFirstResult.player.pokemon.status,
     opponentCurrentHp: playerFirstResult.opponent.pokemon.currentHp,
     opponentStatus: playerFirstResult.opponent.pokemon.status,
+    animation: {
+      kind: "move",
+      source: "opponent",
+      target: "player",
+      moveId: 33,
+      status: "normal",
+      hit: true,
+      damage:
+        fasterPlayerState.player.pokemon.currentHp - playerFirstResult.player.pokemon.currentHp,
+    },
     attackHitTarget: "player",
   });
   assert.equal(opponentFirstResult.messageQueue[0], "브케인의 몸통박치기!");
@@ -287,6 +307,16 @@ test("기술 우선도가 같으면 스피드가 빠른 포켓몬이 먼저 행�
     playerStatus: opponentFirstResult.player.pokemon.status,
     opponentCurrentHp: fasterOpponentState.opponent.pokemon.currentHp,
     opponentStatus: fasterOpponentState.opponent.pokemon.status,
+    animation: {
+      kind: "move",
+      source: "opponent",
+      target: "player",
+      moveId: 33,
+      status: "normal",
+      hit: true,
+      damage:
+        fasterOpponentState.player.pokemon.currentHp - opponentFirstResult.player.pokemon.currentHp,
+    },
     attackHitTarget: "player",
   });
   assert.deepEqual(opponentFirstResult.messageHpSnapshots?.[1], {
@@ -294,6 +324,17 @@ test("기술 우선도가 같으면 스피드가 빠른 포켓몬이 먼저 행�
     playerStatus: opponentFirstResult.player.pokemon.status,
     opponentCurrentHp: opponentFirstResult.opponent.pokemon.currentHp,
     opponentStatus: opponentFirstResult.opponent.pokemon.status,
+    animation: {
+      kind: "move",
+      source: "player",
+      target: "opponent",
+      moveId: 33,
+      status: "normal",
+      hit: true,
+      damage:
+        fasterOpponentState.opponent.pokemon.currentHp -
+        opponentFirstResult.opponent.pokemon.currentHp,
+    },
     attackHitTarget: "opponent",
   });
 

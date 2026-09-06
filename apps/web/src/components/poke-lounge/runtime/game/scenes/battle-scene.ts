@@ -10,6 +10,18 @@ import {
 } from "../ui/move-learning-model";
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
 import {
+  getBattleEffectTiming,
+  getEffectActorMotion,
+  type ActiveBattleEffect,
+} from "../battle/move-animation-model";
+import {
+  createAuthoritativeEffectSequence,
+  createLocalEffectSequence,
+  type QueuedBattleEffect,
+  type EffectHpTargets,
+} from "../battle/battle-effect-sequence";
+import { getRuntimeMoveName } from "../data/game-data-json";
+import {
   getAuthoritativeHpLossTargets,
   getPreviousCombatantPokemon,
 } from "../battle/authoritative-hp-feedback";
@@ -427,6 +439,12 @@ export class BattleController {
   private evolutionAnimationStartedCount = 0;
   private evolutionTransition: BattleEvolutionTransition | null = null;
   private pendingEvolutionTransitions: BattleEvolutionTransition[] = [];
+  private activeBattleEffect: ActiveBattleEffect | null = null;
+  private battleEffectTween: RuntimeAnimation | null = null;
+  private pendingBattleEffects: QueuedBattleEffect[] = [];
+  private battleEffectSequence = 0;
+  private seenAnimationTurn = 0;
+  private effectHpTargets: EffectHpTargets | null = null;
   private authoritativeHitTargets = new Set<BattleHpSide>();
   private hpAnimationTargets: Partial<Record<BattleHpSide, number>> = {};
   private hpAnimationStartedCount = 0;
@@ -479,6 +497,8 @@ export class BattleController {
     this.selectedPartySlotIndex = 0;
     this.selectedBagItemIndex = 0;
     this.state = this.createInitialState(data);
+    this.seenAnimationTurn = this.state.turn;
+    this.battleEffectSequence = 0;
     this.soloChallenge = isTrainerBattleSceneData(data) && data.soloChallenge === true;
     this.persistWorldPositionOnReturn = !isRecord(data) || data.persistWorldPosition !== false;
     if (isAuthoritativeBattleSceneData(data)) {
@@ -666,6 +686,8 @@ export class BattleController {
       turn: this.state.turn,
       message: this.getVisibleBattleMessage(),
       messageQueue: [...this.state.messageQueue],
+      effect: this.activeBattleEffect ? structuredClone(this.activeBattleEffect) : null,
+      effectStartedCount: this.battleEffectSequence,
       selectedCommandIndex: this.selectedCommandIndex,
       selectedCommand: selectedCommand.command,
       selectedCommandLabel: selectedCommand.label,
@@ -757,6 +779,7 @@ export class BattleController {
   }
 
   setBattleScenarioForTest(scenario: BattleE2eScenario): void {
+    this.cancelBattleEffects();
     this.selectedCommandIndex = 0;
     this.selectedMoveIndex = 0;
     this.selectedPartySlotIndex = 0;
@@ -785,6 +808,7 @@ export class BattleController {
     this.levelUpMoveLearningApplied = false;
     this.persistWorldPositionOnReturn = true;
     this.state = createBattleScenarioStateForTest(scenario);
+    this.seenAnimationTurn = this.state.turn;
     this.cancelHpTweens();
     this.cancelStatusCommitTweens();
     this.resetHitEffects();
@@ -1014,6 +1038,7 @@ export class BattleController {
           ? (this.authoritativeProjection?.turnEndsAtMs ?? null)
           : null,
       canSubmitAction:
+        !this.activeBattleEffect &&
         this.state.messageQueue.length === 0 &&
         !this.authoritativeInputPending &&
         (!this.authoritativeProjection || this.authoritativeConnectionStatus === "online"),
@@ -1184,7 +1209,9 @@ export class BattleController {
     );
     const evolution = this.createBattleEvolutionPresentation();
 
-    return {
+    const presentation: BattlePresentationState = {
+      effect: this.activeBattleEffect ? { ...this.activeBattleEffect } : null,
+      effectStartedCount: this.battleEffectSequence,
       authoritative: {
         connectionStatus: this.authoritativeConnectionStatus,
         inputPending: this.authoritativeInputPending,
@@ -1254,6 +1281,33 @@ export class BattleController {
         status: this.displayedStatus.player,
       },
     };
+    const neutral = { player: presentation.player.sprite, opponent: presentation.opponent.sprite };
+    const reduced =
+      this.ownerDocument.defaultView?.matchMedia?.("(prefers-reduced-motion: reduce)").matches ??
+      false;
+    for (const side of BATTLE_HP_SIDES) {
+      const sprite = neutral[side];
+      const motion = getEffectActorMotion(
+        this.activeBattleEffect,
+        side,
+        sprite,
+        neutral[side === "player" ? "opponent" : "player"],
+        reduced,
+      );
+      presentation[side].sprite = {
+        ...sprite,
+        effectOriginX: sprite.x,
+        effectOriginY: sprite.y,
+        x: sprite.x + motion.x,
+        y: sprite.y + motion.y,
+        width: sprite.width * motion.scale,
+        height: sprite.height * motion.scale,
+        alpha: sprite.alpha * motion.alpha,
+        effectRotation: motion.rotation,
+        effectTint: motion.tint,
+      };
+    }
+    return presentation;
   }
 
   private createBattleSpritePresentation({
@@ -1932,6 +1986,7 @@ export class BattleController {
 
   private cleanupSceneLifecycle(): void {
     this.sceneLifecycleActive = false;
+    this.cancelBattleEffects();
     this.clearAuthoritativeSubscriptions();
     this.messageAutoAdvanceTimer?.stop();
     this.messageAutoAdvanceTimer = null;
@@ -1961,6 +2016,23 @@ export class BattleController {
       return;
     }
 
+    const hasNewAuthoritativeTurn =
+      this.authoritativeProjection &&
+      this.authoritativeProjection.currentTurn > this.seenAnimationTurn;
+    const queuedEffects = this.authoritativeProjection
+      ? hasNewAuthoritativeTurn
+        ? createAuthoritativeEffectSequence(this.authoritativeProjection, nextState)
+        : []
+      : createLocalEffectSequence(this.state, nextState, this.displayedStatus);
+    if (hasNewAuthoritativeTurn) this.seenAnimationTurn = this.authoritativeProjection!.currentTurn;
+    if (
+      queuedEffects.length ||
+      hasNewAuthoritativeTurn ||
+      (!this.authoritativeProjection &&
+        this.state.messageHpSnapshots?.[0] !== nextState.messageHpSnapshots?.[0])
+    ) {
+      this.cancelBattleEffects();
+    }
     const nextCaptureAttempt = nextState.captureAttempt ?? null;
     const shouldPlayCaptureAnimation =
       nextCaptureAttempt !== null && nextCaptureAttempt !== this.state.captureAttempt;
@@ -2002,9 +2074,24 @@ export class BattleController {
       this.pendingEvolutionTransitions.shift();
       this.playEvolutionAnimation(nextEvolution.fromPokemon, nextEvolution.toPokemon);
     }
-    this.syncDisplayedHpTargets({
-      animateHpDecrease: options.animateHpDecrease ?? true,
-    });
+    if (
+      queuedEffects.length &&
+      !this.battleEntrancePlaying &&
+      !this.captureAnimationPlaying &&
+      !this.evolutionAnimationPlaying
+    ) {
+      this.pendingBattleEffects = queuedEffects;
+      if (this.authoritativeProjection) {
+        this.cancelHpTweens();
+        this.effectHpTargets = {
+          player: { hp: this.displayedHp.player, status: this.displayedStatus.player },
+          opponent: { hp: this.displayedHp.opponent, status: this.displayedStatus.opponent },
+        };
+      }
+      this.playNextBattleEffect();
+    } else if (!this.activeBattleEffect) {
+      this.syncDisplayedHpTargets({ animateHpDecrease: options.animateHpDecrease ?? true });
+    }
 
     if (options.render ?? true) {
       this.render();
@@ -2210,6 +2297,74 @@ export class BattleController {
     this.statusCommitTweens[side] = tween;
   }
 
+  private cancelBattleEffects(): void {
+    this.battleEffectTween?.stop();
+    this.battleEffectTween = null;
+    this.activeBattleEffect = null;
+    this.pendingBattleEffects = [];
+    this.effectHpTargets = null;
+  }
+
+  private playNextBattleEffect(): void {
+    const entry = this.pendingBattleEffects.shift();
+    if (!entry || !this.sceneLifecycleActive) {
+      this.activeBattleEffect = null;
+      this.battleEffectTween = null;
+      this.effectHpTargets = null;
+      this.authoritativeHitTargets.clear();
+      if (this.sceneLifecycleActive) {
+        this.syncDisplayedHpTargets({ animateHpDecrease: false });
+        this.render();
+        this.scheduleBattleMessageAutoAdvance();
+      }
+      return;
+    }
+    const effect: ActiveBattleEffect = {
+      key: ++this.battleEffectSequence,
+      cue: entry.cue,
+      progress: 0,
+    };
+    this.activeBattleEffect = effect;
+    const timing = getBattleEffectTiming(entry.cue);
+    const generation = this.sceneGeneration;
+    let impacted = false;
+    const tween = animateRuntimeValue({
+      duration: timing.durationMs,
+      onUpdate: progress => {
+        if (this.battleEffectTween !== tween || !this.isSceneLifecycleCurrent(generation)) return;
+        effect.progress = progress;
+        if (!impacted && progress >= timing.impact) {
+          impacted = true;
+          if (this.effectHpTargets && entry.targets) {
+            for (const side of BATTLE_HP_SIDES) {
+              const target = entry.targets[side];
+              if (target) this.effectHpTargets[side] = target;
+            }
+          }
+          this.authoritativeHitTargets.clear();
+          if (
+            this.authoritativeProjection &&
+            entry.cue.kind === "move" &&
+            entry.cue.hit &&
+            entry.cue.damage > 0
+          )
+            this.authoritativeHitTargets.add(entry.cue.target);
+          this.syncDisplayedHpTargets({ animateHpDecrease: true });
+        }
+        this.animationFrameUpdateCount += 1;
+        this.publishBattlePresentationState();
+      },
+      onComplete: () => {
+        if (this.battleEffectTween !== tween || !this.isSceneLifecycleCurrent(generation)) return;
+        this.activeBattleEffect = null;
+        this.battleEffectTween = null;
+        this.playNextBattleEffect();
+      },
+    });
+    this.battleEffectTween = tween;
+    this.render();
+  }
+
   private resetHitEffects(): void {
     this.cancelHitTweens();
     this.hitEffects = createBattleHitEffects();
@@ -2242,6 +2397,8 @@ export class BattleController {
   }
 
   private getDisplayedHpTarget(side: BattleHpSide): number {
+    if (this.effectHpTargets)
+      return Math.max(0, Math.min(this.state[side].pokemon.maxHp, this.effectHpTargets[side].hp));
     const messageHpSnapshot = this.state.messageHpSnapshots?.[0];
 
     if (!messageHpSnapshot) {
@@ -2254,6 +2411,7 @@ export class BattleController {
   }
 
   private getDisplayedStatusTarget(side: BattleHpSide): BattlePokemonStatus {
+    if (this.effectHpTargets) return this.effectHpTargets[side].status;
     const messageHpSnapshot = this.state.messageHpSnapshots?.[0];
 
     if (!messageHpSnapshot) {
@@ -2286,6 +2444,7 @@ export class BattleController {
   }
 
   private isHitAnimationPlaying(): boolean {
+    if (this.activeBattleEffect) return true;
     return BATTLE_HP_SIDES.some(
       function testItem(this: BattleController, side: "player" | "opponent"): boolean {
         return Boolean(this.hitEffects[side].tween);
@@ -3141,6 +3300,19 @@ export class BattleController {
       return this.getBattleStatusCopy().preparing;
     }
 
+    if (this.authoritativeProjection && this.activeBattleEffect) {
+      const cue = this.activeBattleEffect.cue;
+      const name = this.state[cue.source].pokemon.name;
+      if (cue.kind === "status" && cue.damage === 0 && cue.status !== "paralyzed")
+        return cue.status === "poisoned" ? `${name}은 독에 걸렸다!` : `${name}은 화상을 입었다!`;
+      return cue.kind === "move"
+        ? `${name}의 ${getRuntimeMoveName(cue.moveId)}!`
+        : cue.status === "poisoned"
+          ? `${name}은 독에 의한 데미지를 입었다!`
+          : cue.status === "burned"
+            ? `${name}은 화상에 의한 데미지를 입었다!`
+            : `${name}은 마비 상태다!`;
+    }
     return this.state.messageQueue[0] ?? null;
   }
 

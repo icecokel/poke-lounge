@@ -415,3 +415,70 @@ describe("competitive turn resolution V2", function testSuite() {
     });
   });
 });
+
+it("records resolved visual events in action order without changing gameplay hashes or RNG", async () => {
+  const { hashCanonicalState } = await import("./canonical-state");
+  const state = battleState();
+  const next = jest.fn(() => 0.99);
+  const resolved = resolveTurn({
+    state,
+    actionsByPlayerId: actions({ kind: "move", moveId: 55 }, { kind: "move", moveId: 33 }),
+    random: { next },
+  });
+  const trace = resolved.state.lastTurnPresentation!;
+  expect(trace.turn).toBe(0);
+  expect(
+    trace.events
+      .filter(e => e.kind === "move")
+      .map(e => e.moveId)
+      .sort(),
+  ).toEqual([33, 55]);
+  const without = { ...resolved.state };
+  delete without.lastTurnPresentation;
+  expect(hashCanonicalState(without)).toBe(resolved.stateHash);
+  const incoming = { ...state, lastTurnPresentation: trace };
+  const repeated = jest.fn(() => 0.99);
+  expect(
+    resolveTurn({
+      state: incoming,
+      actionsByPlayerId: actions({ kind: "move", moveId: 55 }, { kind: "move", moveId: 33 }),
+      random: { next: repeated },
+    }).stateHash,
+  ).toBe(resolved.stateHash);
+  expect(repeated.mock.calls.length).toBe(next.mock.calls.length);
+  expect(state.lastTurnPresentation).toBeUndefined();
+});
+
+it.each(["poisoned", "burned"] as const)("separates %s residual ticks from move hits", status => {
+  const state = battleState();
+  state.playersById[PLAYER_A]!.team[0]!.status = status;
+  const resolved = resolveTurn({
+    state,
+    actionsByPlayerId: actions({ kind: "move", moveId: 55 }, { kind: "move", moveId: 33 }),
+    random: constantRandom(0.99),
+  });
+  const ticks = resolved.state.lastTurnPresentation!.events.filter(
+    e => e.kind === "status" && e.status === status,
+  );
+  expect(ticks).toHaveLength(1);
+  expect(ticks[0]).toMatchObject({
+    actorPlayerId: PLAYER_A,
+    targetPlayerId: PLAYER_A,
+    hit: false,
+    moveId: 0,
+  });
+  expect(ticks[0]!.damage).toBeGreaterThan(0);
+});
+
+it("full paralysis records a status-only event instead of the selected attack", () => {
+  const state = battleState();
+  state.playersById[PLAYER_A]!.team[0]!.status = "paralyzed";
+  const resolved = resolveTurn({
+    state,
+    actionsByPlayerId: actions({ kind: "move", moveId: 55 }, { kind: "move", moveId: 33 }),
+    random: constantRandom(0.1),
+  });
+  const own = resolved.state.lastTurnPresentation!.events.filter(e => e.actorPlayerId === PLAYER_A);
+  expect(own).toHaveLength(1);
+  expect(own[0]).toMatchObject({ kind: "status", status: "paralyzed", moveId: 0, hit: false });
+});

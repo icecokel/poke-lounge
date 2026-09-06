@@ -1,3 +1,4 @@
+import type { ResolvedTurnPresentation } from "./battle-presentation";
 import { createHash } from "node:crypto";
 import { canonicalize } from "./canonical-json";
 import type { BattleStatStages } from "./battle-stat-stages";
@@ -55,6 +56,8 @@ export interface CanonicalTerminalResult {
 }
 
 export interface CanonicalBattleState {
+  /** Resolved visual telemetry, deliberately excluded from gameplay hashing. */
+  lastTurnPresentation?: ResolvedTurnPresentation;
   rulesetVersion: 2;
   turn: number;
   participantIds: readonly [string, string];
@@ -63,5 +66,6 @@ export interface CanonicalBattleState {
 }
 
 export function hashCanonicalState(state: CanonicalBattleState): string {
-  return createHash("sha256").update(canonicalize(state), "utf8").digest("hex");
+  const { lastTurnPresentation: _presentation, ...gameplayState } = state;
+  return createHash("sha256").update(canonicalize(gameplayState), "utf8").digest("hex");
 }
