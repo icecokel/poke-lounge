@@ -143,7 +143,7 @@ test("파트너 재배치: 모바일은 여섯 선택지와 확정 버튼을 회
     await expectChosenParty(page, 158);
     await expect(page.locator("[data-poke-lounge-mobile-settings-screen='true']")).toHaveCount(0);
     const frame = await page.locator("[data-poke-lounge-game-frame]").boundingBox();
-    expect(Math.abs(frame!.width - (frame!.height * 3) / 4)).toBeLessThan(1);
+    expect(Math.abs(frame!.width - (frame!.height * 4) / 3)).toBeLessThan(1);
   } finally {
     await context.close();
   }

@@ -798,11 +798,11 @@ test("Poke Lounge 태블릿은 세로와 가로에서 게임과 터치 조작을
       frameFits: true,
       controlsFit: true,
       sideBySide: true,
-      frameRatio: 0.75,
+      frameRatio: 1.33,
     });
 });
 
-test("Poke Lounge 3:4 화면은 작은 휴대폰과 회전 후에도 캐릭터와 버튼을 보존한다", async function testCase({
+test("Poke Lounge 가로:세로 4:3 화면은 작은 휴대폰과 회전 후에도 캐릭터와 버튼을 보존한다", async function testCase({
   page,
 }, testInfo) {
   await mockLocalAccountTestRuntime(page);
@@ -1662,9 +1662,9 @@ async function expectPortraitFieldAndControlDock(page: Page, controlDock: Locato
   expect(fieldBounds!.x + fieldBounds!.width).toBeLessThanOrEqual(viewport!.width + 1);
   expect(fieldBounds!.y + fieldBounds!.height).toBeLessThanOrEqual(viewport!.height + 1);
   expect(fieldBounds!.width).toBeGreaterThanOrEqual(
-    Math.min(viewport!.width * 0.9, ((viewport!.height - 360) * 3) / 4),
+    Math.min(viewport!.width * 0.9, ((viewport!.height - 360) * 4) / 3),
   );
-  expect(Math.abs(fieldBounds!.width / fieldBounds!.height - 3 / 4)).toBeLessThanOrEqual(0.01);
+  expect(Math.abs(fieldBounds!.width / fieldBounds!.height - 4 / 3)).toBeLessThanOrEqual(0.01);
 
   expect(controlDockBounds!.x).toBeGreaterThanOrEqual(-1);
   expect(controlDockBounds!.y).toBeGreaterThanOrEqual(-1);
@@ -1876,7 +1876,7 @@ async function expectUndistortedWorld(page: Page): Promise<void> {
         const viewport = frame.getBoundingClientRect();
         const sprite = player.getBoundingClientRect();
         return (
-          Math.abs(viewport.width - (viewport.height * 3) / 4) < 1 &&
+          Math.abs(viewport.width - (viewport.height * 4) / 3) < 1 &&
           Math.abs(sprite.width / player.offsetWidth - sprite.height / player.offsetHeight) <
             0.01 &&
           sprite.left >= viewport.left &&
@@ -1922,7 +1922,7 @@ async function expectUndistortedBattle(page: Page): Promise<void> {
         });
         const fieldExtension = getComputedStyle(background, "::after");
         return (
-          Math.abs(frame.width - (frame.height * 3) / 4) < 1 &&
+          Math.abs(frame.width - (frame.height * 4) / 3) < 1 &&
           sprites.length === 2 &&
           panels.length === 2 &&
           allInside &&
@@ -2232,7 +2232,7 @@ async function expectVisibleMobilePlayBounds(page: Page): Promise<void> {
         return (
           Math.abs(r.top - viewport.offsetTop) < 1 &&
           Math.abs(r.height - viewport.height) < 1 &&
-          Math.abs(f.width - (f.height * 3) / 4) < 1 &&
+          Math.abs(f.width - (f.height * 4) / 3) < 1 &&
           [bar, frame, ...commands].every(element => {
             const b = element.getBoundingClientRect();
             return (

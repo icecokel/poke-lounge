@@ -138,7 +138,7 @@ async function fits(page: Page) {
         });
         return (
           hitTargets &&
-          Math.abs(f.width - (f.height * 3) / 4) < 1 &&
+          Math.abs(f.width - (f.height * 4) / 3) < 1 &&
           f.width > 20 &&
           (f.right <= d.left + 1 || f.bottom <= d.top + 1) &&
           root.scrollTop === 0 &&

@@ -1904,7 +1904,7 @@
   grid-row: 2;
   width: var(--poke-lounge-layout-frame-width, 100%);
   height: var(--poke-lounge-layout-frame-height, 100%);
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 4 / 3;
   align-self: center;
 }
 .page.touchGameDevice[data-poke-lounge-play-layout="true"]

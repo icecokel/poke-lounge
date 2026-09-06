@@ -1,3 +1,5 @@
+import { MOBILE_GAME_VIEWPORT_SIZE } from "../runtime/game/game-viewport";
+
 /** Layout depends on available CSS pixels, never device names or orientation.
  * Field, battle commands and move selection reserve the same controller space.
  */
@@ -19,7 +21,8 @@ export interface MobilePlayLayout {
   gap: number;
 }
 
-export const MOBILE_PLAY_RATIO = 3 / 4;
+// Width / height; use the camera as the single source of truth for display geometry.
+export const MOBILE_PLAY_RATIO = MOBILE_GAME_VIEWPORT_SIZE.width / MOBILE_GAME_VIEWPORT_SIZE.height;
 const finite = (value: number, fallback = 0) =>
   Number.isFinite(value) ? Math.max(0, value) : fallback;
 

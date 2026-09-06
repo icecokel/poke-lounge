@@ -14,20 +14,22 @@ test("세로 태블릿은 쌓고 좁은 가로·분할 창은 실제 확보 가�
   const layout = (width: number, height: number) =>
     calculateMobilePlayLayout({ width, height: height - 32, statusHeight: 50 });
   assert.equal(layout(768, 1024).mode, "stacked");
-  assert.equal(layout(768, 700).mode, "split");
+  // A 4:3 game is wider: stacking now gives more game area at this size.
+  assert.equal(layout(768, 700).mode, "stacked");
+  assert.equal(layout(1024, 768).mode, "split");
   assert.equal(layout(667, 375).mode, "split");
   assert.equal(layout(568, 320).mode, "split");
   assert.equal(layout(480, 700).mode, "stacked");
 });
 
-test("연속 크기·글자 확대에서도 3:4, 비중첩, 최소 조작 폭을 보존한다", () => {
+test("연속 크기·글자 확대에서도 가로:세로 4:3, 비중첩, 최소 조작 폭을 보존한다", () => {
   for (const fontSize of [16, 24, 32]) {
     for (let width = 280; width <= 1400; width += 17) {
       for (let height = 260; height <= 1100; height += 19) {
         const layout = calculateMobilePlayLayout({ width, height, statusHeight: 50, fontSize });
         const epsilon = 0.0001;
         assert.ok(layout.width <= width + epsilon);
-        assert.ok(Math.abs(layout.frameWidth / layout.frameHeight - 3 / 4) < epsilon);
+        assert.ok(Math.abs(layout.frameWidth / layout.frameHeight - 4 / 3) < epsilon);
         assert.ok(layout.controllerHeight > 0);
         const totalHeight =
           layout.statusHeight +
@@ -53,4 +55,13 @@ test("0 크기·중간 리사이즈 값도 유한한 음수 없는 배치를 반
       }
     }
   }
+});
+
+// Literal dimensions prevent accidentally swapping width and height again.
+test("모바일 가로 400px 플레이 영역은 세로 300px이며 컨트롤 영역과 분리된다", () => {
+  const layout = calculateMobilePlayLayout({ width: 400, height: 768, statusHeight: 50 });
+  assert.equal(layout.mode, "stacked");
+  assert.equal(layout.frameWidth, 400);
+  assert.equal(layout.frameHeight, 300);
+  assert.ok(layout.controllerHeight >= 256);
 });
