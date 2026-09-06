@@ -2412,3 +2412,78 @@ test("모바일 뷰포트: 바깥 화면은 밀리지 않고 메뉴 목록은 �
     )
     .toEqual({ html: "", body: "" });
 });
+
+test("모바일 전투 내부 재배치: 하단 여백을 쓰되 4:3 프레임과 컨트롤 영역은 유지한다", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 644 });
+  await mockLocalAccountTestRuntime(page);
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
+  await chooseStarterIfNeeded(page);
+  expect(await startMobileWildBattleForTest(page)).toBe(true);
+  const commands = page.locator("[data-poke-lounge-mobile-deck='battle-command']");
+  const screen = page.locator("[data-poke-lounge-battle-screen='true']");
+  const frame = page.locator("[data-poke-lounge-game-frame]");
+  const dock = page.locator("[data-poke-lounge-mobile-control-dock]");
+  await expect(commands).toBeVisible({ timeout: 30_000 });
+  const before = await readMobileBattleProgress(page);
+  for (const size of [
+    { width: 320, height: 568 },
+    { width: 390, height: 644 },
+    { width: 430, height: 832 },
+    { width: 568, height: 320 },
+    { width: 768, height: 1024 },
+    { width: 1024, height: 768 },
+  ]) {
+    await page.setViewportSize(size);
+    await expectUndistortedBattle(page);
+    await expectControlsFit(page);
+    // Resize/layout observers settle asynchronously. Read all rectangles in one
+    // browser frame, rather than mixing geometry from before/after a rotation.
+    await page.evaluate(
+      () =>
+        new Promise<void>(resolve => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
+    const { rect, hp, sprite, opponent } = await screen.evaluate(element => {
+      const box = (selector: string) =>
+        element.querySelector<HTMLElement>(selector)!.getBoundingClientRect().toJSON();
+      return {
+        rect: element.getBoundingClientRect().toJSON(),
+        hp: box("[data-poke-lounge-battle-hp-panel='player']"),
+        sprite: box("[data-poke-lounge-battle-pokemon='player']"),
+        opponent: box("[data-poke-lounge-battle-pokemon='opponent']"),
+      };
+    });
+    // Literal design bounds: old window starts at y=134/192, the panel now
+    // occupies y=142..176. Merely hiding the old window cannot pass this check.
+    expect((hp.y - rect.y) / rect.height).toBeCloseTo(142 / 192, 3);
+    expect((hp.y + hp.height - rect.y) / rect.height).toBeCloseTo(176 / 192, 3);
+    expect(sprite.width / rect.width).toBeCloseTo(90 / 256, 3);
+    expect(opponent.width / rect.width).toBeCloseTo(81 / 256, 3);
+    expect(sprite.width / sprite.height).toBeCloseTo(1, 3);
+    expect(sprite.x + sprite.width).toBeLessThan(hp.x);
+    expect((sprite.y + sprite.height - rect.y) / rect.height).toBeGreaterThan(0.9);
+    await expect(screen.locator("[data-poke-lounge-battle-surface]")).toHaveCount(0);
+    const originalFrame = await frame.boundingBox();
+    const originalDock = await dock.boundingBox();
+    await commands.locator("[data-command='fight']").click();
+    await expect(dock.locator("[data-poke-lounge-mobile-deck='battle-moves']")).toBeVisible();
+    expect(await frame.boundingBox()).toEqual(originalFrame);
+    expect(await dock.boundingBox()).toEqual(originalDock);
+    if (size.width === 390 || size.width === 568) {
+      await page.screenshot({
+        path: testInfo.outputPath(`mobile-battle-space-${size.width}.png`),
+        scale: "css",
+      });
+      await screen.screenshot({
+        path: testInfo.outputPath(`mobile-battle-stage-${size.width}.png`),
+        scale: "css",
+      });
+    }
+    await dock.getByRole("button", { name: "뒤로", exact: true }).click();
+    await expect(commands).toBeVisible();
+  }
+  expect(await readMobileBattleProgress(page)).toEqual(before);
+});

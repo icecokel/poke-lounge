@@ -6,14 +6,16 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import styles from "../../../poke-lounge.module.css";
 import { primePokeLoungeAudio } from "../audio/poke-lounge-audio";
-import { BATTLE_LAYOUT, getBattleStatusTextView, hpRatio, type BattleRect } from "./battle-layout";
+import { getBattleStatusTextView, hpRatio, type BattleRect } from "./battle-layout";
 import { ROM_BATTLE_DESIGN_ASSETS } from "./battle-design";
+import { BATTLE_POKEMON_FRAME_SIZE, getBattlePokemonAlphaBounds } from "./battle-pokemon-assets";
 import {
   DESKTOP_BATTLE_STAGE_LAYOUT,
   MOBILE_BATTLE_STAGE_LAYOUT,
-  toBattlePointStyle,
+  getBattleHpPanelRect,
+  toBattleActorPointStyle,
   toBattleRectStyle,
-  toCenteredBattleRectStyle,
+  toCenteredBattleActorRectStyle,
   type BattleStageLayout,
 } from "./battle-stage-layout";
 import type {
@@ -195,14 +197,14 @@ export function BattleStage({
           <BattleHpPanel
             copy={copy}
             combatant={presentation.opponent}
-            rect={BATTLE_LAYOUT.opponentHpPanel}
+            rect={getBattleHpPanelRect("opponent", layout)}
             layout={layout}
             side="opponent"
           />
           <BattleHpPanel
             copy={copy}
             combatant={presentation.player}
-            rect={BATTLE_LAYOUT.playerHpPanel}
+            rect={getBattleHpPanelRect("player", layout)}
             layout={layout}
             side="player"
           />
@@ -271,7 +273,7 @@ export function BattlePokemonLayer({
                 data-poke-lounge-send-out-ball={side}
                 style={{
                   backgroundImage: `url(${ROM_BATTLE_DESIGN_ASSETS.pokeball.path})`,
-                  ...toBattlePointStyle(combatant.sprite, layout),
+                  ...toBattleActorPointStyle(combatant.sprite, layout),
                 }}
               />
             ) : null}
@@ -279,7 +281,7 @@ export function BattlePokemonLayer({
               <span
                 className={styles.battleHealingEffect}
                 data-poke-lounge-healing={side}
-                style={toCenteredBattleRectStyle(combatant.sprite, layout)}
+                style={toCenteredBattleActorRectStyle(combatant.sprite, layout)}
               >
                 <i>+</i>
                 <i>+</i>
@@ -313,6 +315,21 @@ export function BattlePokemonSprite({
   const row = Math.floor(view.sprite.frame / columns);
   const positionX = columns <= 1 ? 0 : (column / (columns - 1)) * 100;
   const positionY = rows <= 1 ? 0 : (row / (rows - 1)) * 100;
+  // At fractional mobile scales, atlas neighbours can bleed into transparent
+  // gutters. Clip only those gutters, retaining a full source-pixel safety margin.
+  const frameWidth = view.sprite.width ?? BATTLE_POKEMON_FRAME_SIZE.width;
+  const frameHeight = view.sprite.height ?? BATTLE_POKEMON_FRAME_SIZE.height;
+  const alphaBounds = layout.actorTransform ? getBattlePokemonAlphaBounds(view.sprite) : null;
+  const clipPath = alphaBounds
+    ? `inset(${[
+        (Math.max(0, alphaBounds.y - 1) / frameHeight) * 100,
+        (Math.max(0, frameWidth - alphaBounds.x - alphaBounds.width - 1) / frameWidth) * 100,
+        (Math.max(0, frameHeight - alphaBounds.y - alphaBounds.height - 1) / frameHeight) * 100,
+        (Math.max(0, alphaBounds.x - 1) / frameWidth) * 100,
+      ]
+        .map(value => `${value}%`)
+        .join(" ")})`
+    : undefined;
 
   return (
     <span
@@ -320,10 +337,11 @@ export function BattlePokemonSprite({
       data-poke-lounge-battle-pokemon={side}
       data-from-ball={fromBall || undefined}
       style={{
-        ...toCenteredBattleRectStyle(view, layout),
+        ...toCenteredBattleActorRectStyle(view, layout),
         backgroundImage: `url(${view.sprite.path})`,
         backgroundPosition: `${positionX}% ${positionY}%`,
         backgroundSize: `${columns * 100}% ${rows * 100}%`,
+        clipPath,
         filter: view.tint === "white" ? "brightness(0) invert(1)" : undefined,
         opacity: alpha ?? view.alpha,
       }}
@@ -760,7 +778,7 @@ export function BattleCaptureEffect({
           data-ball={capture.ballItemId}
           style={{
             backgroundImage: `url(${capture.ballItemId === "ultraBall" ? ROM_BATTLE_DESIGN_ASSETS.ultraBall.path : ROM_BATTLE_DESIGN_ASSETS.pokeball.path})`,
-            ...toBattlePointStyle({ x: capture.ballX, y: capture.ballY }, layout),
+            ...toBattleActorPointStyle({ x: capture.ballX, y: capture.ballY }, layout),
             transform: `translate(-50%, -50%) rotate(${capture.ballRotation}rad)`,
           }}
         />
@@ -772,7 +790,7 @@ export function BattleCaptureEffect({
                 key={index}
                 style={{
                   background: rayColor,
-                  ...toBattlePointStyle({ x: capture.ballX, y: capture.ballY }, layout),
+                  ...toBattleActorPointStyle({ x: capture.ballX, y: capture.ballY }, layout),
                   opacity: 1 - resultProgress * 0.55,
                   transform: `rotate(${index * 45}deg) translateX(${((7 + resultProgress * 13) / logicalWidth) * 100}cqw)`,
                 }}
