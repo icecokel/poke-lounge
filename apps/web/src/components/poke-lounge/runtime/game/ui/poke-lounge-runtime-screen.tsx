@@ -7,7 +7,6 @@ import {
   ROUND_DURATION_OPTIONS_MS,
 } from "@poke-lounge/battle/round-settings";
 import { getPokeLoungeCopyForUrl, type PokeLoungeCopy } from "../../../poke-lounge-copy";
-import type { StarterPokemon } from "../../types";
 import { playPokeLoungeSfx, primePokeLoungeAudio } from "../audio/poke-lounge-audio";
 import type { PokeLoungeRuntimeState } from "../game-page-state";
 import {
@@ -21,7 +20,7 @@ import {
   resolveInitialMultiplayerDisplayName,
 } from "../network/room-entry-screen";
 import { getWebRtcSignalingCopy } from "../network/web-rtc-signaling-panel";
-import { localizePokemonName, localizeTypeName } from "../i18n/runtime-game-localization";
+import { StarterSelectionScreen } from "./starter-selection-screen";
 
 export function PokeLoungeRuntimeScreen({
   roomShareAvailable,
@@ -335,179 +334,6 @@ function RoomEntryScreen({
         ) : null}
       </div>
     </section>
-  );
-}
-
-function StarterSelectionScreen({
-  copy,
-  state,
-}: {
-  copy: PokeLoungeCopy;
-  state: Extract<PokeLoungeRuntimeState, { phase: "starter" }>;
-}) {
-  const [selectedStarterId, setSelectedStarterId] = useState(state.bootstrap.starters[0]?.id ?? "");
-  const selectedStarter =
-    state.bootstrap.starters.find(function findItem(starter) {
-      return starter.id === selectedStarterId;
-    }) ??
-    state.bootstrap.starters[0] ??
-    null;
-
-  return (
-    <section
-      className="game-screen game-screen--starter-modal"
-      data-screen="starter-selection"
-      data-ui-assets="not-loaded"
-    >
-      <div className="selection-panel starter-selection-modal">
-        <header className="selection-header">
-          <div className="title-block">
-            <p className="kicker">Poke Lounge</p>
-            <h1>{copy.game.starterTitle}</h1>
-          </div>
-        </header>
-        <div className="selection-body">
-          <StarterPreview copy={copy} starter={selectedStarter} onConfirm={state.onSelect} />
-          <div className="starter-grid" aria-label={copy.game.starterOptionsLabel}>
-            {state.bootstrap.starters.map(function mapItem(starter) {
-              return (
-                <StarterCard
-                  key={starter.id}
-                  copy={copy}
-                  starter={starter}
-                  selected={starter.id === selectedStarter?.id}
-                  onSelect={function handleSelect() {
-                    void primePokeLoungeAudio();
-                    playPokeLoungeSfx("button-confirm", { volume: 0.4 });
-                    setSelectedStarterId(starter.id);
-                  }}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function StarterPreview({
-  copy,
-  starter,
-  onConfirm,
-}: {
-  copy: PokeLoungeCopy;
-  starter: StarterPokemon | null;
-  onConfirm(starter: StarterPokemon): void;
-}) {
-  if (!starter) {
-    return (
-      <section
-        className="starter-modal-preview"
-        data-starter-preview
-        aria-label={copy.game.starterPreviewLabel}
-      >
-        {copy.game.starterUnavailable}
-      </section>
-    );
-  }
-
-  return (
-    <section
-      className="starter-modal-preview"
-      data-starter-preview
-      data-selected-starter={starter.id}
-      aria-label={copy.game.starterPreviewLabel}
-    >
-      <div className="starter-preview-stage">
-        <StarterSprite copy={copy} starter={starter} className="starter-preview-sprite" />
-      </div>
-      <div className="starter-preview-meta">
-        <strong className="starter-preview-name">
-          {localizePokemonName(starter.displayName, copy.locale)}
-        </strong>
-        <span className={`starter-type starter-type--${starter.type.toLowerCase()}`}>
-          {localizeTypeName(starter.type, copy.locale)}
-        </span>
-        <button
-          type="button"
-          className="starter-confirm-button"
-          onClick={function handleClick() {
-            void primePokeLoungeAudio();
-            playPokeLoungeSfx("button-confirm");
-            onConfirm(starter);
-          }}
-          data-starter-confirm
-        >
-          {copy.game.starterConfirm}
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function StarterCard({
-  copy,
-  starter,
-  selected,
-  onSelect,
-}: {
-  copy: PokeLoungeCopy;
-  starter: StarterPokemon;
-  selected: boolean;
-  onSelect(): void;
-}) {
-  const [missing, setMissing] = useState(false);
-
-  return (
-    <button
-      type="button"
-      className={`starter-card starter-card--${starter.type.toLowerCase()} ${selected ? "is-selected" : ""} ${missing ? "is-missing-asset" : ""}`}
-      aria-pressed={selected}
-      onClick={onSelect}
-      data-starter-card={starter.id}
-    >
-      <StarterSprite copy={copy} starter={starter} className="starter-sprite" hidden={missing} />
-      {/* The hidden native probe must preserve the original per-ROM-file error event. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        className="starter-asset-probe"
-        src={starter.assetPath}
-        alt=""
-        aria-hidden="true"
-        onError={function handleError() {
-          return setMissing(true);
-        }}
-      />
-      <span className="starter-asset-status" role="status" hidden={!missing}>
-        {missing ? copy.game.starterAssetMissing(starter.assetPath) : ""}
-      </span>
-      <span className="starter-name">{localizePokemonName(starter.displayName, copy.locale)}</span>
-      <span className="starter-type">{localizeTypeName(starter.type, copy.locale)}</span>
-    </button>
-  );
-}
-
-function StarterSprite({
-  copy,
-  starter,
-  className,
-  hidden,
-}: {
-  copy: PokeLoungeCopy;
-  starter: StarterPokemon;
-  className: string;
-  hidden?: boolean;
-}) {
-  return (
-    <span
-      className={className}
-      style={{ backgroundImage: `url("${starter.assetPath}")` }}
-      role="img"
-      aria-label={localizePokemonName(starter.displayName, copy.locale)}
-      hidden={hidden}
-      data-asset-path={starter.assetPath}
-    />
   );
 }
 

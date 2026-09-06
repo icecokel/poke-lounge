@@ -2342,9 +2342,35 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
     for (const page of [hostPage, guestPage]) {
       const starter = page.locator("[data-screen='starter-selection']");
       await expect(starter).toBeVisible();
+      // Starting a multiplayer room keeps its world mounted: selection must
+      // still use the full task viewport, not fall back to the square game frame.
+      await expect(page.locator("[data-poke-lounge-game-frame]")).toHaveAttribute(
+        "data-poke-lounge-runtime-mounted",
+        "true",
+      );
+      await expect
+        .poll(() =>
+          starter.evaluate(screen => {
+            const list = screen.querySelector<HTMLElement>("[data-starter-options]")!;
+            const bounds = list.getBoundingClientRect();
+            return (
+              screen.getBoundingClientRect().height > window.innerHeight * 0.82 &&
+              [...list.querySelectorAll<HTMLElement>("[data-starter-card]")].every(card => {
+                const rect = card.getBoundingClientRect();
+                return rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1;
+              })
+            );
+          }),
+        )
+        .toBe(true);
       const position = await getWorldPlayerPosition(page);
       await page.keyboard.press("ArrowRight");
       expect(await getWorldPlayerPosition(page)).toEqual(position);
+      await page.locator("[data-starter-card='totodile']").click();
+      await expect(page.locator("[data-starter-preview]")).toHaveAttribute(
+        "data-selected-starter",
+        "totodile",
+      );
       await page.locator("[data-starter-confirm]").click();
       await expect(starter).toHaveCount(0);
       expect(

@@ -129,7 +129,10 @@ export function PokeLoungeGameFrame({
       {gameplayTarget
         ? createPortal(<PokeLoungeRuntimeControls state={runtimeState} />, gameplayTarget)
         : null}
-      {!touchGameDevice && gameRuntimeMounted && runtimeState.phase !== "lobby" ? (
+      {!touchGameDevice &&
+      gameRuntimeMounted &&
+      !hasRuntimeScreen &&
+      runtimeState.phase !== "lobby" ? (
         <button
           type="button"
           className={styles.desktopSettingsButton}

@@ -716,7 +716,7 @@ export function PokeLoungeGame() {
         if (
           event.defaultPrevented ||
           document.querySelector(
-            "[data-poke-lounge-mobile-task], [data-room-lobby-info-open='true']",
+            "[data-poke-lounge-mobile-task], [data-room-lobby-info-open='true'], [data-screen='starter-selection']",
           )
         )
           return;
@@ -1134,6 +1134,7 @@ export function PokeLoungeGame() {
       data-poke-lounge-ui-size={uiSize}
       data-poke-lounge-mobile-shell={touchGameDevice ? "true" : undefined}
       data-poke-lounge-room-lobby-open={runtimeState.phase === "lobby" ? "true" : undefined}
+      data-poke-lounge-starter-open={runtimeState.phase === "starter" ? "true" : undefined}
     >
       <PokeLoungeGameFrame
         copy={copy}

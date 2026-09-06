@@ -1447,7 +1447,7 @@ async function expectStarterSelectionFitsMobileViewport(page: Page): Promise<voi
     const screen = document.querySelector(
       "[data-screen='starter-selection']",
     ) as HTMLElement | null;
-    const panel = document.querySelector(".starter-selection-modal") as HTMLElement | null;
+    const panel = document.querySelector("[data-starter-panel]") as HTMLElement | null;
     const root = document.querySelector("#game-root");
     const controls = [
       document.querySelector("[data-starter-confirm]"),

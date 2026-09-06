@@ -4116,3 +4116,34 @@
   :global([data-poke-lounge-mobile-settings-screen="true"]) {
   display: flex;
 }
+
+/* Partner selection is a task, including after the multiplayer world is already
+   mounted. It must not inherit the square play viewport or reserve a gamepad. */
+.page[data-poke-lounge-starter-open="true"] {
+  --poke-lounge-frame-available-height: calc(
+    var(--poke-lounge-container-height) - var(--poke-lounge-mobile-letterbox-top, 16px) -
+      var(--poke-lounge-mobile-letterbox-bottom, 16px)
+  );
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: var(--poke-lounge-mobile-letterbox-top, 16px) env(safe-area-inset-right, 0px)
+    var(--poke-lounge-mobile-letterbox-bottom, 16px) env(safe-area-inset-left, 0px);
+}
+.page[data-poke-lounge-starter-open="true"] .gameFrame {
+  position: relative;
+  inset: auto;
+  grid-column: 1;
+  grid-row: 1;
+  width: min(100%, 1200px);
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+  aspect-ratio: auto;
+  align-self: stretch;
+  justify-self: center;
+}
+.page[data-poke-lounge-starter-open="true"] .statusRail {
+  display: none;
+}
