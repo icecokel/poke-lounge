@@ -3,7 +3,7 @@
   inset: 0;
   display: grid;
   place-items: stretch center;
-  padding: clamp(8px, 2vw, 24px);
+  padding: clamp(8px, 2%, 24px);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -16,7 +16,8 @@
     sans-serif;
   font-size: 1rem;
   line-height: 1.45;
-  container-type: inline-size;
+  container-type: size;
+  container-name: room-surface;
 }
 .screen *,
 .entry * {
@@ -442,6 +443,8 @@
 
 /* Invitation entry shares the same frame, colors and typography as the lobby. */
 .entry {
+  container-type: size;
+  container-name: room-surface;
   position: absolute;
   inset: 0;
   display: grid;
@@ -637,10 +640,7 @@
     font-size: 0.875rem;
   }
 }
-@media (max-height: 500px) and (orientation: landscape) {
-  .screen {
-    padding: 4px 8px;
-  }
+@container room-surface (max-height: 500px) and (min-width: 540px) {
   .panel {
     grid-template-columns: minmax(0, 1fr) minmax(190px, 0.7fr);
     grid-template-rows: auto auto auto minmax(0, 1fr);
@@ -706,19 +706,13 @@
     padding: 8px 20px;
   }
 }
-@media (max-width: 359px) {
-  .screen {
-    padding: 4px;
-  }
+@container room-surface (max-width: 359px) {
   .panel {
     border-radius: 12px;
     box-shadow: none;
   }
   .header {
     padding: 8px 10px;
-  }
-  .entry {
-    padding: 8px;
   }
   .entryBody {
     padding: 16px;

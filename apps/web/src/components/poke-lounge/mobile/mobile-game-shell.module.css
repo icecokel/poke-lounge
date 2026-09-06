@@ -1,4 +1,6 @@
 .shell {
+  container-type: inline-size;
+  container-name: poke-controller;
   position: relative;
   z-index: 40;
   display: grid;
@@ -82,7 +84,7 @@
   display: grid;
   min-height: 0;
   grid-template-rows: minmax(0, 1fr);
-  padding: clamp(14px, 3dvh, 26px) clamp(14px, 5vw, 28px) 16px;
+  padding: 10px 12px 12px;
 }
 
 .activePokemon {
@@ -118,14 +120,14 @@
   align-self: end;
   align-items: center;
   justify-content: space-between;
-  gap: clamp(14px, 5vw, 24px);
+  gap: 12px;
   margin: 0 auto;
 }
 
 .joystick {
   position: relative;
   display: grid;
-  width: clamp(126px, 37vw, 150px);
+  width: clamp(96px, 36cqw, 144px);
   aspect-ratio: 1;
   flex: 0 0 auto;
   isolation: isolate;
@@ -188,7 +190,9 @@
 
 .fieldActions {
   display: grid;
-  width: min(46vw, 190px);
+  width: auto;
+  min-width: 0;
+  flex: 1 1 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
@@ -953,87 +957,6 @@
   white-space: nowrap;
 }
 
-@media (orientation: portrait) {
-  .shell {
-    grid-column: 1;
-    grid-row: 2;
-    width: 100%;
-    min-height: 0;
-    margin: 0;
-    align-self: stretch;
-    justify-self: stretch;
-  }
-}
-
-@media (orientation: landscape) {
-  .shell {
-    grid-column: 2;
-    grid-row: 1;
-    width: 100%;
-    height: 100%;
-    align-self: stretch;
-    justify-self: stretch;
-    border-top: 0;
-    border-left: 2px solid rgba(23, 35, 28, 0.66);
-  }
-
-  .exploreDeck {
-    gap: clamp(10px, 2dvh, 18px);
-    padding: clamp(12px, 2dvh, 18px);
-  }
-
-  .controlCluster {
-    gap: 12px;
-  }
-
-  .joystick {
-    width: min(150px, 42%);
-  }
-
-  .fieldActions {
-    width: auto;
-    flex: 1 1 0;
-  }
-}
-
-@media (max-width: 360px) {
-  .topBar {
-    padding-inline: 10px;
-  }
-
-  .exploreDeck {
-    padding-inline: 12px;
-  }
-
-  .controlCluster {
-    gap: 14px;
-  }
-
-  .fieldActions {
-    width: min(47vw, 168px);
-    gap: 6px;
-  }
-
-  .primaryAction,
-  .secondaryAction,
-  .partyAction {
-    min-height: 52px;
-  }
-
-  .primaryAction {
-    min-height: 60px;
-  }
-
-  .sceneBack > :last-child {
-    display: none;
-  }
-
-  .deckMeta {
-    max-width: 92px;
-    font-size: 0.57rem;
-  }
-}
-
 /* Field controls are independent of the game scale. */
 .exploreDeck {
   grid-template-rows: auto minmax(0, 1fr);
@@ -1059,11 +982,12 @@
   font-size: 0.875rem;
 }
 .exploreDeck .controlCluster {
-  align-self: center;
+  align-self: start;
   gap: 12px;
 }
 .exploreDeck .joystick {
-  width: clamp(112px, 34vw, 144px);
+  width: clamp(96px, 36cqw, 144px);
+  max-width: 42%;
 }
 .exploreDeck .primaryAction,
 .exploreDeck .secondaryAction,
@@ -1085,8 +1009,9 @@
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
-@media (orientation: landscape) {
-  .exploreDeck .joystick {
-    width: min(124px, 42%);
-  }
+
+.exploreDeck {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-content: start;
 }

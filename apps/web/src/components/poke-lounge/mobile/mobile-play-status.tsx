@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useLayoutEffect, useRef, useSyncExternalStore, useState } from "react";
+import { useEffect, useSyncExternalStore, useState } from "react";
 import { Menu } from "lucide-react";
 import type { PokeLoungeCopy } from "../poke-lounge-copy";
 import type { GameStateStore } from "../runtime/game/state/game-state-store";
@@ -87,7 +87,6 @@ export function MobilePlayStatus({
   activeScene: "world" | "battle" | null;
   onMenu(): void;
 }) {
-  const ref = useRef<HTMLElement>(null);
   const snapshot = useSyncExternalStore(
     battleUiStore?.subscribe ?? noSubscription,
     battleUiStore?.getSnapshot ?? noState,
@@ -101,25 +100,8 @@ export function MobilePlayStatus({
     const timer = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(timer);
   }, [deadline]);
-  useLayoutEffect(() => {
-    const bar = ref.current;
-    const page = bar?.closest<HTMLElement>("[data-testid='poke-lounge-page']");
-    if (!bar || !page) return;
-    const measure = () =>
-      page.style.setProperty(
-        "--poke-lounge-mobile-status-height",
-        `${bar.getBoundingClientRect().height}px`,
-      );
-    const observer = new ResizeObserver(measure);
-    observer.observe(bar);
-    measure();
-    return () => {
-      observer.disconnect();
-      page.style.removeProperty("--poke-lounge-mobile-status-height");
-    };
-  }, []);
   return (
-    <header ref={ref} className={styles.playBar} data-poke-lounge-play-status="true">
+    <header className={styles.playBar} data-poke-lounge-play-status="true">
       {deadline != null ? (
         <span className={styles.timer} role="timer" aria-live="off">
           {text.timeLeft} {Math.max(0, Math.ceil((deadline - now) / 1000))}s

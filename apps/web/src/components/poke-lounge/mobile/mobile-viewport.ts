@@ -1,3 +1,5 @@
+import { bindMobilePlayLayout } from "./mobile-play-layout-binding";
+
 const WIDTH = "--poke-lounge-container-width";
 const HEIGHT = "--poke-lounge-container-height";
 const TOP = "--poke-lounge-viewport-top";
@@ -18,6 +20,7 @@ export function bindMobileViewport(
   let frame: number | null = null;
   let disposed = false;
   const restorers: Array<() => void> = [];
+  const playLayout = mobile ? bindMobilePlayLayout(page) : null;
 
   if (mobile) {
     for (const element of [owner.documentElement, owner.body]) {
@@ -62,6 +65,7 @@ export function bindMobileViewport(
     setPixelProperty(HEIGHT, Math.floor(height));
     setPixelProperty(TOP, mobile ? Math.max(0, viewport?.offsetTop ?? 0) : 0);
     setPixelProperty(LEFT, mobile ? Math.max(0, viewport?.offsetLeft ?? 0) : 0);
+    playLayout?.update();
   };
   const refresh = () => {
     update();
@@ -101,6 +105,7 @@ export function bindMobileViewport(
     update: refresh,
     dispose() {
       disposed = true;
+      playLayout?.dispose();
       if (frame !== null) win.cancelAnimationFrame(frame);
       for (const [target, name, handler] of events) target.removeEventListener(name, handler);
       for (const restore of restorers.reverse()) restore();

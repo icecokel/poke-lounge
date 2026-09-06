@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { bindMobilePlayLayout } from "./mobile-play-layout-binding";
 
 import styles from "../poke-lounge.module.css";
 import themeStyles from "../poke-lounge-theme.module.css";
@@ -17,20 +19,35 @@ import { MobileGameShell, MobileWorldScreen } from "./mobile-game-shell";
 import { BattleScreen } from "../runtime/game/battle/battle-screen";
 import type { BattlePresentationState } from "../runtime/game/battle/battle-ui-store";
 
+function MobileStoryFrame({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const layout = bindMobilePlayLayout(ref.current);
+    return () => layout.dispose();
+  }, []);
+  return (
+    <main
+      ref={ref}
+      data-testid="poke-lounge-page"
+      data-poke-lounge-play-layout="true"
+      className={`${styles.page} ${styles.touchGameDevice} ${themeStyles.theme}`}
+      style={{ position: "relative", width: "100%", maxWidth: 390, margin: "0 auto" }}
+    >
+      {children}
+    </main>
+  );
+}
+
 const meta = {
   title: "Poke Lounge/Screens/Mobile",
   parameters: { layout: "fullscreen" },
   decorators: [
     function callback(Story) {
       return (
-        <main
-          data-testid="poke-lounge-page"
-          data-poke-lounge-play-layout="true"
-          className={`${styles.page} ${styles.touchGameDevice} ${themeStyles.theme}`}
-          style={{ width: "100%", maxWidth: 390, margin: "0 auto" }}
-        >
+        <MobileStoryFrame>
           <Story />
-        </main>
+        </MobileStoryFrame>
       );
     },
   ],

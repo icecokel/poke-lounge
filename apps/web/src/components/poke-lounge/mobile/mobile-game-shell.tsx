@@ -4,7 +4,6 @@ import { MoveLearningPanel } from "../runtime/game/ui/move-learning-panel";
 
 import {
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -286,40 +285,8 @@ function MobileExploreDeck({
   activePokemon?: PokeLoungePartySlotSummary;
   onAction(action: MobileWorldUiAction): void;
 }) {
-  const layoutRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const deck = layoutRef.current;
-    const page = deck?.closest<HTMLElement>("[data-testid='poke-lounge-page']");
-    if (!deck || !page) return;
-    const previous = page.style.getPropertyValue("--poke-lounge-mobile-dock-min-height");
-    const measure = () => {
-      const children = Array.from(deck.children).filter(
-        (node): node is HTMLElement => node instanceof HTMLElement,
-      );
-      const css = getComputedStyle(deck);
-      const height =
-        children.reduce((sum, child) => sum + child.scrollHeight, 0) +
-        Number.parseFloat(css.paddingTop) +
-        Number.parseFloat(css.paddingBottom) +
-        Number.parseFloat(css.rowGap) * Math.max(0, children.length - 1) +
-        4;
-      page.style.setProperty(
-        "--poke-lounge-mobile-dock-min-height",
-        `${Math.max(224, Math.ceil(height))}px`,
-      );
-    };
-    const observer = new ResizeObserver(measure);
-    observer.observe(deck);
-    for (const child of Array.from(deck.children)) observer.observe(child);
-    measure();
-    return () => {
-      observer.disconnect();
-      if (previous) page.style.setProperty("--poke-lounge-mobile-dock-min-height", previous);
-      else page.style.removeProperty("--poke-lounge-mobile-dock-min-height");
-    };
-  }, [activePokemon?.slotIndex]);
   return (
-    <div ref={layoutRef} className={styles.exploreDeck} data-poke-lounge-mobile-deck="explore">
+    <div className={styles.exploreDeck} data-poke-lounge-mobile-deck="explore">
       {activePokemon ? (
         <div className={styles.activePokemon} data-poke-lounge-mobile-lead="true">
           <strong>{activePokemon.name}</strong>
