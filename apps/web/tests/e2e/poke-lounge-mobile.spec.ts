@@ -46,6 +46,7 @@ test("Poke Lounge 모바일 멀티플레이 진입은 게임 프레임 안에 �
   await expect(page.locator("[data-room-entry-visibility-private]")).toBeChecked();
   const temporaryPassword = page.locator("[data-room-entry-temporary-password]");
   await expect(temporaryPassword).toBeVisible();
+  await expect(temporaryPassword).toHaveValue(/^[A-HJ-NP-Z2-9]{6}$/);
   const generatePassword = page.locator("[data-room-entry-temporary-password-generate]");
   await expect(generatePassword).toBeVisible();
   await generatePassword.click();
@@ -743,6 +744,26 @@ test("Poke Lounge 모바일은 세로 필드와 전체 화면 메뉴를 제공�
       return (await readAudioPlaybackSnapshot(page))?.activeBgmVolume;
     })
     .toBe(0);
+  await expect
+    .poll(function pollExpectation() {
+      return page.evaluate(function evaluatePage() {
+        const raw = window.localStorage.getItem("poke-lounge:settings");
+        return {
+          settings: raw ? JSON.parse(raw) : null,
+          legacyVolume: window.localStorage.getItem("poke-lounge:volume-level"),
+          legacyUiSize: window.sessionStorage.getItem("poke-lounge:ui-size"),
+        };
+      });
+    })
+    .toEqual({
+      settings: {
+        version: 1,
+        audio: { masterVolume: 0 },
+        display: { uiSize: "large" },
+      },
+      legacyVolume: null,
+      legacyUiSize: null,
+    });
   await expectSceneOccludesControl(settingsScreen, controls);
   await expectNoModalDialog(page);
   await expectWorldInputIsLocked(page);

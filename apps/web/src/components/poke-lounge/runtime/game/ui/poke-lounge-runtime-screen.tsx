@@ -1,7 +1,7 @@
 import { RoomLobbyScreen } from "./room-lobby-view";
 import { DirectMultiplayerEntryScreen } from "./room-invitation-screen";
 export { RoomLobbyScreen } from "./room-lobby-view";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   DEFAULT_ROUND_DURATION_MS,
   ROUND_DURATION_OPTIONS_MS,
@@ -90,6 +90,11 @@ function RoomEntryScreen({
     );
   });
   const [temporaryPassword, setTemporaryPassword] = useState("");
+  useEffect(function initializeTemporaryPassword() {
+    setTemporaryPassword(function setInitialPassword(currentPassword) {
+      return currentPassword || createTemporaryPassword();
+    });
+  }, []);
   const [roundDurationMs, setRoundDurationMs] =
     useState<(typeof ROUND_DURATION_OPTIONS_MS)[number]>(DEFAULT_ROUND_DURATION_MS);
   const [message, setMessage] = useState("");

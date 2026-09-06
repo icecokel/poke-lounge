@@ -42,7 +42,6 @@ import {
   GAME_VIEWPORT_SIZE_PRESETS,
   MOBILE_GAME_VIEWPORT_SIZE,
   type GameViewportDisplaySize,
-  type GameViewportSizePreset,
 } from "./runtime/game/game-viewport";
 import {
   GAME_FULLSCREEN_STATE_EVENT,
@@ -69,6 +68,14 @@ import { MobileGameShell } from "./mobile/mobile-game-shell";
 import type { PokeLoungeRuntimeState } from "./runtime/game/game-page-state";
 import { PokeLoungeGameFrame } from "./poke-lounge-game-frame";
 import { PokeLoungeSettingsDialog } from "./poke-lounge-settings-dialog";
+import {
+  POKE_LOUNGE_VOLUME_STEPS,
+  createDefaultPokeLoungeSettings,
+  getPokeLoungeVolumeLevelIndex,
+  readPokeLoungeSettings,
+  writePokeLoungeSettings,
+  type PokeLoungeSettings,
+} from "./poke-lounge-settings-storage";
 import {
   PokeLoungeDecisionDialogs,
   PokeLoungeHydrationScreens,
@@ -97,13 +104,6 @@ interface PendingHydrationResolution {
   snapshot: PokeLoungeSaveSnapshot;
 }
 
-const POKE_LOUNGE_DEFAULT_VOLUME = 0.2;
-const POKE_LOUNGE_VOLUME_STEPS = [0, POKE_LOUNGE_DEFAULT_VOLUME, 0.4, 0.6, 0.8, 1] as const;
-const POKE_LOUNGE_DEFAULT_VOLUME_LEVEL_INDEX = POKE_LOUNGE_VOLUME_STEPS.indexOf(
-  POKE_LOUNGE_DEFAULT_VOLUME,
-);
-const POKE_LOUNGE_VOLUME_STORAGE_KEY = "poke-lounge:volume-level";
-const POKE_LOUNGE_UI_SIZE_STORAGE_KEY = "poke-lounge:ui-size";
 let activeGameStateStorageScope: string = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
 const OPEN_MODAL_DIALOG_SELECTOR = [
   "dialog[open]",
@@ -111,7 +111,6 @@ const OPEN_MODAL_DIALOG_SELECTOR = [
   '[role="alertdialog"][data-state="open"]',
 ].join(",");
 
-type PokeLoungeUiSize = GameViewportSizePreset;
 type PokeLoungeGamePageHandle = {
   destroy(): void;
   requestRoomLeave(): boolean;
@@ -150,30 +149,6 @@ function createPokeLoungeRoomShareUrlFromLocation(roomCode?: string | null): str
   }
 
   return createRoomShareUrl(new URL(window.location.href), roomCode);
-}
-
-function readStoredVolumeLevelIndex(): number | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const parsed = Number.parseInt(
-    window.localStorage.getItem(POKE_LOUNGE_VOLUME_STORAGE_KEY) ?? "",
-    10,
-  );
-
-  return Number.isInteger(parsed) && parsed >= 0 && parsed < POKE_LOUNGE_VOLUME_STEPS.length
-    ? parsed
-    : null;
-}
-
-function readStoredUiSize(): PokeLoungeUiSize | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const stored = window.sessionStorage.getItem(POKE_LOUNGE_UI_SIZE_STORAGE_KEY);
-  return stored === "normal" || stored === "large" ? stored : null;
 }
 
 export function PokeLoungeGame() {
@@ -215,8 +190,8 @@ export function PokeLoungeGame() {
   const [gameRuntimeMounted, setGameRuntimeMounted] = useState(false);
   const [activeGameScene, setActiveGameScene] = useState<"battle" | "world" | null>(null);
   const [settingsPartySlots, setSettingsPartySlots] = useState<PokeLoungePartySlotSummary[]>([]);
-  const [volumeLevelIndex, setVolumeLevelIndex] = useState(POKE_LOUNGE_DEFAULT_VOLUME_LEVEL_INDEX);
-  const [uiSize, setUiSize] = useState<PokeLoungeUiSize>("large");
+  const [settings, setSettings] = useState<PokeLoungeSettings>(createDefaultPokeLoungeSettings);
+  const [settingsHydrated, setSettingsHydrated] = useState(false);
   const [roomShareStatus, setRoomShareStatus] = useState<PokeLoungeRoomShareStatus>("idle");
   const [stateHydrationStatus, setStateHydrationStatus] =
     useState<PokeLoungeStateHydrationStatus>("pending");
@@ -255,7 +230,9 @@ export function PokeLoungeGame() {
     runtimeState.phase === "lobby"
       ? (runtimeState.roomLeave?.label ?? null)
       : null;
-  const volumeValue = POKE_LOUNGE_VOLUME_STEPS[volumeLevelIndex];
+  const volumeValue = settings.audio.masterVolume;
+  const volumeLevelIndex = getPokeLoungeVolumeLevelIndex(volumeValue);
+  const uiSize = settings.display.uiSize;
   const volumePercent = Math.round(volumeValue * 100);
   const volumeLabel = volumePercent === 0 ? copy.volumeMuted : copy.volumeLabel(volumePercent);
   const volumeAriaLabel = copy.volumeAriaLabel(volumePercent);
@@ -348,14 +325,29 @@ export function PokeLoungeGame() {
   }, []);
 
   const handleVolumeCycle = useCallback(function memoizedCallback() {
-    setVolumeLevelIndex(function callback(currentIndex) {
-      return (currentIndex + 1) % POKE_LOUNGE_VOLUME_STEPS.length;
+    setSettings(function callback(currentSettings) {
+      const currentIndex = getPokeLoungeVolumeLevelIndex(currentSettings.audio.masterVolume);
+      const nextVolume =
+        POKE_LOUNGE_VOLUME_STEPS[(currentIndex + 1) % POKE_LOUNGE_VOLUME_STEPS.length];
+      return {
+        ...currentSettings,
+        audio: {
+          ...currentSettings.audio,
+          masterVolume: nextVolume,
+        },
+      };
     });
   }, []);
 
   const handleUiSizeToggle = useCallback(function memoizedCallback() {
-    setUiSize(function callback(currentSize) {
-      return currentSize === "large" ? "normal" : "large";
+    setSettings(function callback(currentSettings) {
+      return {
+        ...currentSettings,
+        display: {
+          ...currentSettings.display,
+          uiSize: currentSettings.display.uiSize === "large" ? "normal" : "large",
+        },
+      };
     });
   }, []);
 
@@ -522,23 +514,30 @@ export function PokeLoungeGame() {
   );
 
   useEffect(function runEffect() {
-    const storedVolumeLevelIndex = readStoredVolumeLevelIndex();
-    const storedUiSize = readStoredUiSize();
-
-    if (storedVolumeLevelIndex !== null) {
-      setVolumeLevelIndex(storedVolumeLevelIndex);
-    }
-    if (storedUiSize) {
-      setUiSize(storedUiSize);
-    }
+    setSettings(
+      readPokeLoungeSettings({
+        localStorage: window.localStorage,
+        sessionStorage: window.sessionStorage,
+      }),
+    );
+    setSettingsHydrated(true);
   }, []);
 
   useEffect(
     function runEffect() {
-      setPokeLoungeMasterVolume(POKE_LOUNGE_VOLUME_STEPS[volumeLevelIndex]);
-      window.localStorage.setItem(POKE_LOUNGE_VOLUME_STORAGE_KEY, String(volumeLevelIndex));
+      setPokeLoungeMasterVolume(settings.audio.masterVolume);
     },
-    [volumeLevelIndex],
+    [settings.audio.masterVolume],
+  );
+
+  useEffect(
+    function runEffect() {
+      if (!settingsHydrated) {
+        return;
+      }
+      writePokeLoungeSettings(window.localStorage, settings);
+    },
+    [settings, settingsHydrated],
   );
 
   useEffect(function runEffect() {
@@ -556,9 +555,8 @@ export function PokeLoungeGame() {
       if (touchGameDeviceResolved) {
         gamePageHandleRef.current?.setViewportSize(gameViewportSize);
       }
-      window.sessionStorage.setItem(POKE_LOUNGE_UI_SIZE_STORAGE_KEY, uiSize);
     },
-    [gameViewportSize, touchGameDeviceResolved, uiSize],
+    [gameViewportSize, touchGameDeviceResolved],
   );
 
   useEffect(function runEffect() {
