@@ -47,6 +47,7 @@ import { MobileTaskScreen } from "./mobile-task-screen";
 import { MobilePokemonCard, MobileItemRow } from "./mobile-selection-cards";
 import { MobilePlayStatus, MobileGameSummary } from "./mobile-play-status";
 import { getMobileUiCopy } from "./mobile-ui-copy";
+import { getRoomLobbyCopy } from "../runtime/game/ui/room-lobby-copy";
 import type { GameStateStore } from "../runtime/game/state/game-state-store";
 import { localizeMobileWorldUiState } from "../runtime/game/i18n/runtime-game-localization";
 
@@ -154,6 +155,7 @@ interface MobileSettingsProps {
 }
 
 export interface MobileGameShellProps {
+  lobby?: boolean;
   gameStateStore?: GameStateStore;
   competitive?: boolean;
   activeScene: MobileScene;
@@ -166,6 +168,7 @@ export interface MobileGameShellProps {
 }
 
 export function MobileGameShell({
+  lobby = false,
   gameStateStore,
   competitive = false,
   activeScene,
@@ -217,36 +220,40 @@ export function MobileGameShell({
   };
   return (
     <>
-      <MobilePlayStatus
-        copy={copy}
-        gameStateStore={gameStateStore}
-        battleUiStore={battleUiStore}
-        competitive={competitive}
-        activeScene={activeScene}
-        onMenu={() => {
-          worldInput.reset();
-          resetVirtualGamepad();
-          onOpenSettings();
-        }}
-      />
-      <section
-        className={styles.shell}
-        aria-label={
-          activeScene === "battle" ? copy.mobile.battleDeckLabel : copy.mobile.exploreDeckLabel
-        }
-        data-poke-lounge-mobile-control-dock="true"
-      >
-        {activeScene === "battle" ? (
-          <MobileBattleDeck copy={copy} uiStore={battleUiStore} />
-        ) : (
-          <MobileExploreDeck
+      {!lobby ? (
+        <>
+          <MobilePlayStatus
             copy={copy}
-            input={worldInput}
-            onAction={dispatchWorldAction}
-            activePokemon={activePokemon}
+            gameStateStore={gameStateStore}
+            battleUiStore={battleUiStore}
+            competitive={competitive}
+            activeScene={activeScene}
+            onMenu={() => {
+              worldInput.reset();
+              resetVirtualGamepad();
+              onOpenSettings();
+            }}
           />
-        )}
-      </section>
+          <section
+            className={styles.shell}
+            aria-label={
+              activeScene === "battle" ? copy.mobile.battleDeckLabel : copy.mobile.exploreDeckLabel
+            }
+            data-poke-lounge-mobile-control-dock="true"
+          >
+            {activeScene === "battle" ? (
+              <MobileBattleDeck copy={copy} uiStore={battleUiStore} />
+            ) : (
+              <MobileExploreDeck
+                copy={copy}
+                input={worldInput}
+                onAction={dispatchWorldAction}
+                activePokemon={activePokemon}
+              />
+            )}
+          </section>
+        </>
+      ) : null}
       {isWorldSceneOpen ? (
         <MobileWorldScreen
           copy={copy}
@@ -257,6 +264,7 @@ export function MobileGameShell({
         />
       ) : null}
       <MobileSettingsScreen
+        lobby={lobby}
         copy={copy}
         {...settings}
         onOpenHelp={activeScene ? openHelp : undefined}
@@ -1086,6 +1094,7 @@ function formatMobileHp(
 }
 
 function MobileSettingsScreen({
+  lobby = false,
   copy,
   open,
   onClose,
@@ -1108,6 +1117,7 @@ function MobileSettingsScreen({
   gameStateStore,
   competitive,
 }: MobileSettingsProps & {
+  lobby?: boolean;
   copy: PokeLoungeCopy;
   onOpenHelp?: () => void;
   gameStateStore?: GameStateStore;
@@ -1124,7 +1134,9 @@ function MobileSettingsScreen({
     >
       <div className={uiStyles.settingsList}>
         <button type="button" className={uiStyles.primaryButton} onClick={onClose}>
-          {getMobileUiCopy(copy.locale).returnToGame}
+          {lobby
+            ? getRoomLobbyCopy(copy.locale).returnToLobby
+            : getMobileUiCopy(copy.locale).returnToGame}
         </button>
         <Button
           type="button"

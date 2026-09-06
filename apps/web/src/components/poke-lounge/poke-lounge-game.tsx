@@ -713,7 +713,12 @@ export function PokeLoungeGame() {
 
       const handleKeyDown = (event: KeyboardEvent) => {
         // Full-height tasks own Escape and native button keys, not the world menu.
-        if (event.defaultPrevented || document.querySelector("[data-poke-lounge-mobile-task]"))
+        if (
+          event.defaultPrevented ||
+          document.querySelector(
+            "[data-poke-lounge-mobile-task], [data-room-lobby-info-open='true']",
+          )
+        )
           return;
         if (event.key === "Escape" && touchGameDevice && settingsOpen) {
           event.preventDefault();
@@ -1144,13 +1149,16 @@ export function PokeLoungeGame() {
       />
       {touchGameDevice &&
       gameRuntimeMounted &&
-      (runtimeState.phase === "world" || runtimeState.phase === "battle") &&
+      (runtimeState.phase === "world" ||
+        runtimeState.phase === "battle" ||
+        runtimeState.phase === "lobby") &&
       !finalResult &&
       !gameStartupError ? (
         <MobileGameShell
+          lobby={runtimeState.phase === "lobby"}
           gameStateStore={runtimeState.world?.gameStateStore ?? getDefaultGameStateStore()}
           competitive={runtimeState.world?.competitiveRoundsEnabled ?? false}
-          activeScene={activeGameScene}
+          activeScene={runtimeState.phase === "lobby" ? null : activeGameScene}
           battleUiStore={battleUiStore}
           copy={copy}
           onOpenSettings={handleMobileSettingsOpen}
@@ -1197,7 +1205,7 @@ export function PokeLoungeGame() {
           onLobby={handleResultLobby}
         />
       ) : null}
-      {gameRuntimeMounted && !touchGameDevice ? (
+      {gameRuntimeMounted && !touchGameDevice && runtimeState.phase !== "lobby" ? (
         <PokeLoungeStatusRail
           authenticated={status === "authenticated"}
           autosaveLabel={autosaveLabel}

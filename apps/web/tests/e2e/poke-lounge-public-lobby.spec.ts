@@ -90,12 +90,11 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
           const dock = page.querySelector<HTMLElement>(
             "[data-poke-lounge-mobile-control-dock='true']",
           );
-          if (!frame || !dock) return Number.POSITIVE_INFINITY;
+          if (!frame || dock) return Number.POSITIVE_INFINITY;
           const styles = getComputedStyle(page);
           return Math.abs(
             page.getBoundingClientRect().height -
               frame.getBoundingClientRect().height -
-              dock.getBoundingClientRect().height -
               Number.parseFloat(styles.paddingTop) -
               Number.parseFloat(styles.paddingBottom) -
               Number.parseFloat(styles.rowGap),
@@ -103,7 +102,10 @@ test("공개 임시 비밀번호로 입장한 두 사용자는 방장 시작 시
         }),
     ).toBeLessThanOrEqual(1);
     await expect(hostPage.locator("[data-room-lobby-participant='true']")).toHaveCount(2);
-    await expect(hostPage.locator("[data-room-lobby-badge='true']")).toHaveCount(5);
+    await expect(hostPage.locator("[data-room-lobby-self='true']")).toHaveCount(1);
+    await expect(
+      hostPage.locator("[data-room-lobby-badge='true']").filter({ hasText: "방장" }),
+    ).toHaveCount(1);
     await expect(hostPage.locator("[data-room-lobby-actions='true']")).toBeVisible();
     await expect(guestPage.locator("[data-room-lobby-share='true']")).toBeVisible();
     await expect(hostPage.locator("[data-room-lobby-status='true']")).toBeVisible();

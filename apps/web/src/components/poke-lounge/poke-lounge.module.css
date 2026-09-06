@@ -1862,162 +1862,6 @@
   background: #ffd7d1;
 }
 
-.page :global(.room-lobby-screen) {
-  position: absolute;
-  inset: 0;
-  z-index: 45;
-  display: grid;
-  min-width: 0;
-  min-height: 0;
-  padding: clamp(10px, 4%, 24px);
-  overflow: hidden;
-  place-items: center;
-  background: rgba(23, 35, 28, 0.88);
-  color: #17201a;
-}
-
-.page :global(.room-lobby-panel) {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
-  gap: 10px;
-  width: min(560px, 100%);
-  max-width: 100%;
-  height: min(430px, 100%);
-  max-height: 100%;
-  min-height: 0;
-  padding: clamp(12px, 3%, 18px);
-  border: 3px solid #17231c;
-  border-radius: 6px;
-  background: rgba(248, 251, 240, 0.98);
-  box-shadow: 0 8px 0 #17231c;
-  overflow: hidden;
-}
-
-.page :global(.room-lobby-header) {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.page :global(.room-lobby-header h2),
-.page :global(.room-lobby-header p),
-.page :global(.room-lobby-status),
-.page :global(.room-lobby-error) {
-  margin: 0;
-}
-
-.page :global(.room-lobby-header h2) {
-  font-size: clamp(1rem, 3vw, 1.3rem);
-  font-weight: 900;
-}
-
-.page :global(.room-lobby-header p),
-.page :global(.room-lobby-status),
-.page :global(.room-lobby-error) {
-  font-size: 0.74rem;
-  font-weight: 800;
-  line-height: 1.4;
-}
-
-.page :global(.room-lobby-participants) {
-  display: grid;
-  align-content: start;
-  min-height: 0;
-  margin: 0;
-  padding: 0 4px 3px 0;
-  overflow-y: auto;
-  list-style: none;
-  gap: 7px;
-}
-
-.page :global(.room-lobby-participant) {
-  display: grid;
-  grid-template-columns: minmax(90px, 0.8fr) minmax(0, 1.8fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border: 2px solid rgba(79, 101, 63, 0.55);
-  border-radius: 4px;
-  background: #eef4df;
-}
-
-.page :global(.room-lobby-participant > button) {
-  min-height: 28px;
-  border: 1px solid #4f653f;
-  border-radius: 4px;
-  background: #fff9dd;
-  color: #17201a;
-  cursor: pointer;
-  font-size: 0.66rem;
-  font-weight: 900;
-}
-
-.page :global(.room-lobby-participant strong) {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.78rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.page :global(.room-lobby-badges) {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
-}
-
-.page :global(.room-lobby-badges span) {
-  padding: 2px 5px;
-  border: 1px solid #4f653f;
-  border-radius: 999px;
-  background: #f8fbf0;
-  font-size: 0.62rem;
-  font-weight: 900;
-  line-height: 1.25;
-}
-
-.page :global(.room-lobby-footer) {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-}
-
-.page :global(.room-lobby-footer button) {
-  min-height: 38px;
-  padding: 7px 10px;
-  border: 2px solid #17231c;
-  border-radius: 4px;
-  background: #fff9dd;
-  box-shadow: 0 3px 0 #17231c;
-  color: #17201a;
-  cursor: pointer;
-  font-size: 0.76rem;
-  font-weight: 900;
-}
-
-.page :global(.room-lobby-footer button:disabled) {
-  cursor: default;
-  opacity: 0.5;
-  box-shadow: none;
-}
-
-.page :global(.room-lobby-auto-fill-notice) {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: #4f653f;
-  font-size: 0.68rem;
-  font-weight: 800;
-  line-height: 1.4;
-}
-
-.page :global(.room-lobby-error) {
-  min-height: 1.1em;
-  color: #9f2d25;
-}
-
 .touchGameDevice[data-poke-lounge-room-lobby-open="true"]
   :global([data-poke-lounge-mobile-control-dock="true"]) {
   display: grid;
@@ -3815,33 +3659,6 @@
     padding-top: 4px;
   }
 
-  .page :global(.room-lobby-panel) {
-    gap: 6px;
-    padding: 10px;
-    box-shadow: none;
-  }
-
-  .page :global(.room-lobby-participant) {
-    grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 4px;
-    padding-block: 4px;
-  }
-
-  .page :global(.room-lobby-badges) {
-    grid-column: 1;
-    justify-content: flex-start;
-  }
-
-  .page :global(.room-lobby-participant > button) {
-    grid-row: 1 / span 2;
-    grid-column: 2;
-    align-self: stretch;
-  }
-
-  .page :global(.room-lobby-footer button) {
-    min-height: 44px;
-  }
-
   .page :global(.room-entry-panel) {
     gap: 10px;
     padding: 14px;
@@ -4214,23 +4031,6 @@
   flex-shrink: 0;
 }
 
-.page :global(.room-lobby-controls-toggle) {
-  min-height: 44px;
-  padding: 6px 10px;
-  border: 2px solid #365b3d;
-  border-radius: 6px;
-  background: #e6f1dd;
-  color: #213c27;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.page :global(.room-lobby-header) {
-  flex-wrap: wrap;
-  gap: 6px 12px;
-}
-
 /* Mobile play template: status / square viewport / controls. Tasks own the full
    viewport independently; menu contents must never shrink the game or buttons. */
 .touchGameDevice[data-poke-lounge-play-layout="true"] {
@@ -4291,4 +4091,28 @@
     > :global([data-poke-lounge-mobile-control-dock]) {
     grid-row: 2;
   }
+}
+
+/* Waiting rooms are information screens, not square game viewports. */
+.page[data-poke-lounge-room-lobby-open="true"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: var(--poke-lounge-mobile-letterbox-top, 16px) env(safe-area-inset-right, 0px)
+    var(--poke-lounge-mobile-letterbox-bottom, 16px) env(safe-area-inset-left, 0px);
+}
+.page[data-poke-lounge-room-lobby-open="true"] .gameFrame {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  width: min(100%, 1100px);
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: auto;
+  align-self: stretch;
+  justify-self: center;
+}
+.page[data-poke-lounge-room-lobby-open="true"]
+  :global([data-poke-lounge-mobile-settings-screen="true"]) {
+  display: flex;
 }

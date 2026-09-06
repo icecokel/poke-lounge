@@ -1,6 +1,7 @@
-import { RoomControlsGuide } from "./room-controls-guide";
-import { getRoomControlsCopy } from "./room-controls-copy";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { RoomLobbyScreen } from "./room-lobby-view";
+import { DirectMultiplayerEntryScreen } from "./room-invitation-screen";
+export { RoomLobbyScreen } from "./room-lobby-view";
+import { useState, type FormEvent } from "react";
 import {
   DEFAULT_ROUND_DURATION_MS,
   ROUND_DURATION_OPTIONS_MS,
@@ -20,23 +21,20 @@ import {
   resolveInitialMultiplayerDisplayName,
 } from "../network/room-entry-screen";
 import { getWebRtcSignalingCopy } from "../network/web-rtc-signaling-panel";
-import { createRoomLobbyViewState, type RoomLobbyMutation } from "./room-lobby-screen";
-import {
-  localizePokemonName,
-  localizeTrainerName,
-  localizeTypeName,
-} from "../i18n/runtime-game-localization";
+import { localizePokemonName, localizeTypeName } from "../i18n/runtime-game-localization";
 
 export function PokeLoungeRuntimeScreen({
   roomShareAvailable,
   roomShareLabel,
   state,
   onRoomShare,
+  onOpenSettings,
 }: {
   roomShareAvailable: boolean;
   roomShareLabel: string;
   state: PokeLoungeRuntimeState;
   onRoomShare(): void;
+  onOpenSettings?: () => void;
 }) {
   if (state.phase === "entry") {
     return state.screen === "room" ? (
@@ -57,6 +55,8 @@ export function PokeLoungeRuntimeScreen({
   if (state.phase === "lobby") {
     return (
       <RoomLobbyScreen
+        key={`${state.projection.roomCode}:${state.projection.ownPlayerId}`}
+        onOpenSettings={onOpenSettings}
         roomShareAvailable={roomShareAvailable}
         roomShareLabel={roomShareLabel}
         state={state}
@@ -338,79 +338,6 @@ function RoomEntryScreen({
   );
 }
 
-function DirectMultiplayerEntryScreen({
-  state,
-}: {
-  state: Extract<PokeLoungeRuntimeState, { phase: "entry"; screen: "direct-multiplayer" }>;
-}) {
-  const copy = getPokeLoungeCopyForUrl(state.currentUrl);
-  const [displayName, setDisplayName] = useState(function callback() {
-    return resolveInitialMultiplayerDisplayName(
-      state.initialDisplayName,
-      copy.roomEntry.multiplayerNameModifiers,
-      copy.roomEntry.multiplayerNameNouns,
-    );
-  });
-  const [message, setMessage] = useState("");
-  const [pending, setPending] = useState(false);
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const normalizedName = normalizeMultiplayerDisplayName(displayName);
-    setDisplayName(normalizedName);
-    if (!normalizedName) {
-      setMessage(copy.roomEntry.multiplayerNameRequired);
-      return;
-    }
-    playConfirmSound();
-    setPending(true);
-    setMessage(copy.roomEntry.preparing);
-    state.onSubmit(normalizedName);
-  };
-
-  return (
-    <section className="room-entry-screen" data-room-entry-direct-multiplayer="true">
-      <form className="room-entry-panel" onSubmit={submit}>
-        <h1>{copy.roomEntry.multiplayerEntryTitle}</h1>
-        <FanNotice copy={copy} />
-        <LabeledField
-          id="poke-lounge-multiplayer-display-name"
-          label={copy.roomEntry.multiplayerNameLabel}
-          description={copy.roomEntry.multiplayerNameDescription}
-          className="room-entry-multiplayer-name"
-        >
-          <input
-            id="poke-lounge-multiplayer-display-name"
-            type="text"
-            autoComplete="off"
-            maxLength={12}
-            placeholder={copy.roomEntry.multiplayerNamePlaceholder}
-            value={displayName}
-            disabled={pending}
-            onChange={function handleChange(event) {
-              setDisplayName(event.currentTarget.value);
-              setMessage("");
-            }}
-            data-room-entry-display-name
-            data-room-entry-direct-multiplayer-name="true"
-          />
-        </LabeledField>
-        <button type="submit" disabled={pending} data-room-entry-direct-multiplayer-submit>
-          {copy.roomEntry.multiplayerEntrySubmit}
-        </button>
-        <p
-          className="room-entry-message"
-          role="alert"
-          aria-live="assertive"
-          aria-atomic="true"
-          data-room-entry-message="true"
-        >
-          {message}
-        </p>
-      </form>
-    </section>
-  );
-}
-
 function StarterSelectionScreen({
   copy,
   state,
@@ -666,312 +593,6 @@ function RuntimeErrorScreen({
 function getCurrentRuntimeCopy(): PokeLoungeCopy {
   return getPokeLoungeCopyForUrl(
     new URL(typeof window === "undefined" ? "http://localhost/ko-KR" : window.location.href),
-  );
-}
-
-export function RoomLobbyScreen({
-  roomShareAvailable,
-  roomShareLabel,
-  state,
-  onRoomShare,
-}: {
-  roomShareAvailable: boolean;
-  roomShareLabel: string;
-  state: Extract<PokeLoungeRuntimeState, { phase: "lobby" }>;
-  onRoomShare(): void;
-}) {
-  const fullCopy = getPokeLoungeCopyForUrl(
-    new URL(typeof window === "undefined" ? "http://localhost/ko-KR" : window.location.href),
-  );
-  const copy = fullCopy.lobby;
-  const [showControls, setShowControls] = useState(false);
-  const controlsCopy = getRoomControlsCopy(fullCopy.locale);
-  const [mutation, setMutation] = useState<RoomLobbyMutation>(null);
-  const [errorMessage, setErrorMessage] = useState("");
-  const view = createRoomLobbyViewState(state.projection, mutation);
-  const runMutation = async (
-    kind: Exclude<RoomLobbyMutation, null>,
-    action: () => Promise<void>,
-  ) => {
-    if (mutation) return;
-    setMutation(kind);
-    setErrorMessage("");
-    try {
-      await action();
-    } catch {
-      setErrorMessage(copy.mutationFailed);
-    } finally {
-      setMutation(null);
-    }
-  };
-  const status = view.isHost
-    ? view.startDisabledReason
-      ? copy.startDisabledReason[view.startDisabledReason]
-      : copy.hostReady
-    : copy.guestWaiting;
-
-  return (
-    <section
-      className="room-lobby-screen"
-      data-room-lobby="true"
-      aria-labelledby="room-lobby-title"
-    >
-      <div className="room-lobby-panel">
-        <RoomLobbyHeader copy={copy} participantCount={view.participantCount}>
-          <button
-            type="button"
-            className="room-lobby-controls-toggle"
-            data-room-lobby-controls
-            aria-expanded={showControls}
-            aria-controls={showControls ? "room-controls-guide" : undefined}
-            onClick={function toggleControls() {
-              setShowControls(function toggle(current) {
-                return !current;
-              });
-            }}
-          >
-            {showControls ? controlsCopy.close : controlsCopy.open}
-          </button>
-        </RoomLobbyHeader>
-        {showControls ? (
-          <RoomControlsGuide locale={fullCopy.locale} />
-        ) : (
-          <>
-            <RoomLobbyParticipantList
-              copy={copy}
-              locale={fullCopy.locale}
-              mutation={mutation}
-              projection={state.projection}
-              onRemoveAi={function handleRemoveAi(aiPlayerId) {
-                return void runMutation("ai-remove", function callback() {
-                  return state.onRemoveAi(aiPlayerId);
-                });
-              }}
-            />
-          </>
-        )}
-        <RoomLobbyActions
-          copy={copy}
-          onAddAi={function handleAddAi() {
-            return void runMutation("ai-add", state.onAddAi);
-          }}
-          onReady={function handleReady() {
-            return void runMutation("ready", function callback() {
-              return state.onSetReady(!view.ownReady);
-            });
-          }}
-          onRoomShare={onRoomShare}
-          onStart={function handleStart() {
-            return void runMutation("start", state.onStart);
-          }}
-          roomShareAvailable={roomShareAvailable}
-          roomShareLabel={roomShareLabel}
-          view={view}
-        />
-        <RoomLobbyStatus
-          errorMessage={errorMessage}
-          status={`${status} ${copy.starterSelectionHint}`}
-        />
-      </div>
-    </section>
-  );
-}
-
-export function RoomLobbyHeader({
-  children,
-  copy,
-  participantCount,
-}: {
-  copy: PokeLoungeCopy["lobby"];
-  participantCount: number;
-  children?: ReactNode;
-}) {
-  return (
-    <header className="room-lobby-header">
-      <h2 id="room-lobby-title">{copy.title}</h2>
-      <p>{copy.participantCount(participantCount)}</p>
-      {children}
-    </header>
-  );
-}
-
-export function RoomLobbyParticipantList({
-  copy,
-  locale,
-  mutation,
-  onRemoveAi,
-  projection,
-}: {
-  copy: PokeLoungeCopy["lobby"];
-  locale: PokeLoungeCopy["locale"];
-  mutation: RoomLobbyMutation;
-  onRemoveAi(aiPlayerId: string): void;
-  projection: Extract<PokeLoungeRuntimeState, { phase: "lobby" }>["projection"];
-}) {
-  return (
-    <ul
-      className="room-lobby-participants"
-      data-room-lobby-participants="true"
-      tabIndex={0}
-      aria-label={copy.participantListLabel}
-      onKeyDown={function handleKeyDown(event) {
-        if (event.key !== "Home" && event.key !== "End") return;
-        event.preventDefault();
-        event.currentTarget.scrollTop = event.key === "Home" ? 0 : event.currentTarget.scrollHeight;
-      }}
-    >
-      {projection.participants.map(function mapItem(participant) {
-        return (
-          <RoomLobbyParticipantRow
-            key={participant.playerId}
-            copy={copy}
-            locale={locale}
-            hostPlayerId={projection.hostPlayerId}
-            canRemoveAi={projection.hostPlayerId === projection.ownPlayerId && mutation === null}
-            onRemoveAi={onRemoveAi}
-            participant={participant}
-          />
-        );
-      })}
-    </ul>
-  );
-}
-
-export function RoomLobbyParticipantRow({
-  canRemoveAi,
-  copy,
-  hostPlayerId,
-  locale,
-  onRemoveAi,
-  participant,
-}: {
-  canRemoveAi: boolean;
-  copy: PokeLoungeCopy["lobby"];
-  hostPlayerId: string | null;
-  locale: PokeLoungeCopy["locale"];
-  onRemoveAi(aiPlayerId: string): void;
-  participant: Extract<
-    PokeLoungeRuntimeState,
-    { phase: "lobby" }
-  >["projection"]["participants"][number];
-}) {
-  const badges = [
-    participant.playerId === hostPlayerId ? copy.hostBadge : null,
-    participant.controller === "ai" ? copy.aiBadge : null,
-    participant.ready ? copy.ready : copy.notReady,
-    participant.connected ? copy.connected : copy.disconnected,
-  ].filter(function filterItem(label): label is string {
-    return Boolean(label);
-  });
-
-  return (
-    <li
-      className="room-lobby-participant"
-      data-player-id={participant.playerId}
-      data-room-lobby-participant="true"
-    >
-      <strong>{localizeTrainerName(participant.displayName, locale)}</strong>
-      <span className="room-lobby-badges">
-        {badges.map(function mapItem(label) {
-          return <RoomLobbyBadge key={label} label={label} />;
-        })}
-      </span>
-      {participant.controller === "ai" && canRemoveAi ? (
-        <button
-          type="button"
-          onClick={function handleClick() {
-            onRemoveAi(participant.playerId);
-          }}
-          data-room-lobby-ai-remove={participant.playerId}
-        >
-          {copy.removeAiAction}
-        </button>
-      ) : null}
-    </li>
-  );
-}
-
-export function RoomLobbyBadge({ label }: { label: string }) {
-  return <span data-room-lobby-badge="true">{label}</span>;
-}
-
-export function RoomLobbyActions({
-  copy,
-  onAddAi,
-  onReady,
-  onRoomShare,
-  onStart,
-  roomShareAvailable,
-  roomShareLabel,
-  view,
-}: {
-  copy: PokeLoungeCopy["lobby"];
-  onAddAi(): void;
-  onReady(): void;
-  onRoomShare(): void;
-  onStart(): void;
-  roomShareAvailable: boolean;
-  roomShareLabel: string;
-  view: ReturnType<typeof createRoomLobbyViewState>;
-}) {
-  return (
-    <footer className="room-lobby-footer" data-room-lobby-actions="true">
-      <button
-        type="button"
-        disabled={view.readyDisabled}
-        onClick={onReady}
-        data-room-lobby-ready="true"
-      >
-        {view.ownReady ? copy.cancelReadyAction : copy.readyAction}
-      </button>
-      {roomShareAvailable ? (
-        <button type="button" onClick={onRoomShare} data-room-lobby-share="true">
-          {roomShareLabel}
-        </button>
-      ) : null}
-      {view.isHost ? (
-        <>
-          <button
-            type="button"
-            disabled={view.participantCount >= 8 || view.startDisabledReason === "mutation"}
-            onClick={onAddAi}
-            data-room-lobby-ai-add="true"
-          >
-            {copy.addAiAction}
-          </button>
-          <button
-            type="button"
-            disabled={view.startDisabledReason !== null}
-            onClick={onStart}
-            data-room-lobby-start="true"
-          >
-            {copy.startAction}
-          </button>
-        </>
-      ) : null}
-      <p className="room-lobby-auto-fill-notice" data-room-lobby-auto-fill-notice="true">
-        {copy.autoFillNotice}
-      </p>
-    </footer>
-  );
-}
-
-export function RoomLobbyStatus({
-  errorMessage,
-  status,
-}: {
-  errorMessage: string;
-  status: string;
-}) {
-  return (
-    <>
-      <p className="room-lobby-status" aria-live="polite" data-room-lobby-status="true">
-        {status}
-      </p>
-      <p className="room-lobby-error" data-room-lobby-error="true" aria-live="assertive">
-        {errorMessage}
-      </p>
-    </>
   );
 }
 

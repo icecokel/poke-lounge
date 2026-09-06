@@ -82,6 +82,7 @@ export function PokeLoungeGameFrame({
       {hasRuntimeScreen ? (
         <div className={styles.runtimeScreen} data-poke-lounge-runtime-screen="true">
           <PokeLoungeRuntimeScreen
+            onOpenSettings={onOpenSettings}
             roomShareAvailable={roomShareAvailable}
             roomShareLabel={roomShareLabel}
             state={runtimeState}
@@ -96,6 +97,7 @@ export function PokeLoungeGameFrame({
               data-poke-lounge-runtime-screen="true"
             >
               <PokeLoungeRuntimeScreen
+                onOpenSettings={onOpenSettings}
                 roomShareAvailable={roomShareAvailable}
                 roomShareLabel={roomShareLabel}
                 state={runtimeState}
@@ -127,7 +129,7 @@ export function PokeLoungeGameFrame({
       {gameplayTarget
         ? createPortal(<PokeLoungeRuntimeControls state={runtimeState} />, gameplayTarget)
         : null}
-      {!touchGameDevice && gameRuntimeMounted ? (
+      {!touchGameDevice && gameRuntimeMounted && runtimeState.phase !== "lobby" ? (
         <button
           type="button"
           className={styles.desktopSettingsButton}

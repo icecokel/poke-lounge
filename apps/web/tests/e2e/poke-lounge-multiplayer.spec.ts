@@ -2227,7 +2227,7 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
         }),
       ).toHaveLength(0);
     }
-    await expect(hostLobby).toContainText("4~7명은 8명까지 AI가 자동 참가");
+    await expect(hostLobby).toContainText("빈자리는 시작할 때 AI가 채워요.");
     await expect(hostLobby).toContainText("레드");
     await expect(hostLobby).toContainText("그린");
     for (const lobby of [hostLobby, guestLobby]) {
@@ -2236,6 +2236,9 @@ test.describe("Poke Lounge server multiplayer", function testSuite() {
       await toggle.click({ timeout: 8000 });
       const guide = lobby.locator("[data-room-controls-guide='true']");
       await expect(guide).toBeVisible();
+      await expect(lobby.locator("[data-room-lobby-auto-fill-notice]")).toContainText(
+        "4~7명은 8명까지 AI가 자동 참가",
+      );
       await guide.getByRole("button", { name: "키보드", exact: true }).click();
       await expect(guide).toContainText("Enter");
       await guide.getByRole("button", { name: "터치", exact: true }).click();
@@ -4497,3 +4500,250 @@ function getStateParticipants(server?: MockServerState) {
 
   return [first, second] as const;
 }
+
+test("대기실 재배치: 모바일 방장·참가자는 상태와 고정 행동을 확인한다", async ({
+  browser,
+}, testInfo) => {
+  const server = createMockServerState();
+  const host = await newMockedPage(browser, server, {
+    lobbyLifecycle: true,
+    mobile: true,
+    wrapped: true,
+  });
+  const guest = await newMockedPage(browser, server, {
+    lobbyLifecycle: true,
+    mobile: true,
+    wrapped: true,
+  });
+  try {
+    await startServerRoom(host, createServerRoomUrl(300_000), "얼음콜라");
+    await host.screenshot({ path: testInfo.outputPath("host-alone.png") });
+    await startServerRoom(guest, joinServerRoomUrl(), "함께하는트레이너");
+    const waiting = createLobbyWaitingRoomState(server);
+    await emitSocketSnapshot(host, waiting);
+    await emitSocketSnapshot(guest, waiting);
+    for (const page of [host, guest]) {
+      const lobby = page.locator("[data-room-lobby='true']");
+      await expect(lobby).toBeVisible();
+      await expect(lobby.locator("[data-room-lobby-self='true']")).toHaveCount(1);
+      await expect(lobby.locator("[data-room-lobby-code]")).toHaveText(ROOM_CODE);
+      await expect(lobby.locator("[data-room-lobby-duration]")).toContainText("5");
+      await expect(lobby.locator("[data-room-controls-guide]")).toHaveCount(0);
+      await expect(page.locator("[data-poke-lounge-mobile-control-dock]")).toHaveCount(0);
+      for (const size of [
+        { width: 320, height: 568 },
+        { width: 390, height: 644 },
+        { width: 667, height: 375 },
+        { width: 768, height: 1024 },
+      ]) {
+        await page.setViewportSize(size);
+        await expect
+          .poll(() =>
+            lobby.evaluate(root => {
+              const r = root.getBoundingClientRect();
+              const footer = root.querySelector<HTMLElement>("[data-room-lobby-actions]")!;
+              const list = root.querySelector<HTMLElement>("[data-room-lobby-participants]")!;
+              const f = footer.getBoundingClientRect();
+              const l = list.getBoundingClientRect();
+              return (
+                r.top >= -1 &&
+                r.bottom <= window.innerHeight + 1 &&
+                l.height >= 64 &&
+                f.top >= r.top &&
+                f.bottom <= r.bottom + 1 &&
+                [...footer.querySelectorAll("button")].every(
+                  b => b.getBoundingClientRect().height >= 48,
+                ) &&
+                document.documentElement.scrollHeight <= window.innerHeight + 1
+              );
+            }),
+          )
+          .toBe(true);
+        await page.screenshot({
+          path: testInfo.outputPath(
+            `${page === host ? "host" : "guest"}-${size.width}x${size.height}.png`,
+          ),
+        });
+      }
+      await page.setViewportSize({ width: 390, height: 644 });
+      await lobby.locator("[data-poke-lounge-mobile-menu]").click();
+      await expect(page.locator("[data-poke-lounge-mobile-settings-screen]")).toBeVisible();
+      await page.locator("[data-poke-lounge-mobile-settings-close]").click();
+      await expect(lobby.locator("[data-poke-lounge-mobile-menu]")).toBeFocused();
+    }
+    await expect(guest.locator("[data-room-lobby-start]")).toHaveCount(0);
+    await expect(host.locator("[data-room-lobby-start]")).toBeDisabled();
+    await guest.locator("[data-room-lobby-ready]").click();
+    await emitSocketSnapshot(host, createLobbyWaitingRoomState(server));
+    await expect(guest.locator("[data-room-lobby-ready]")).toHaveAttribute("aria-pressed", "true");
+    await host.locator("[data-room-lobby-ready]").click();
+    await expect(host.locator("[data-room-lobby-start]")).toBeEnabled();
+    await host.locator("[data-room-lobby-start]").click();
+    await expect(host.locator("[data-screen='starter-selection']")).toBeVisible();
+    expect(server.commandRequests.filter(r => r.suffix === "/start")).toHaveLength(1);
+  } finally {
+    await host.context().close();
+    await guest.context().close();
+  }
+});
+
+test("대기실 재배치: 8명·AI·연결 끊김·도움말에도 목록과 행동 영역이 독립적이다", async ({
+  browser,
+}, testInfo) => {
+  const server = createMockServerState();
+  const page = await newMockedPage(browser, server, {
+    lobbyLifecycle: true,
+    mobile: true,
+    wrapped: true,
+  });
+  try {
+    await startServerRoom(page, createServerRoomUrl(), "얼음콜라");
+    server.joinedParticipants.push(
+      ...Array.from({ length: 7 }, (_, index) => ({
+        playerId: `layout-${index}`,
+        sessionId: `layout-session-${index}`,
+        displayName: index === 6 ? "한글이름이아주긴트레이너" : `트레이너 ${index + 2}`,
+        joinedAtMs: index + 1,
+      })),
+    );
+    server.joinedParticipants.forEach(p => server.readyPlayerIds.add(p.playerId));
+    server.revision += 1;
+    const snapshot = createLobbyWaitingRoomState(server);
+    const participants = snapshot.participants.map((p, index) => ({
+      ...p,
+      connected: index !== 3,
+      controller: index === 6 ? "ai" : "human",
+    }));
+    await emitSocketSnapshot(page, { ...snapshot, participants });
+    const lobby = page.locator("[data-room-lobby='true']");
+    await expect(lobby).toContainText("참가자 8/8");
+    await expect(lobby.locator("[data-room-lobby-start]")).toBeDisabled();
+    await expect(lobby.locator("[data-room-lobby-ai-add]")).toBeDisabled();
+    await expect(lobby.locator("[data-room-lobby-ai-remove]")).toHaveCount(1);
+    await expect(lobby.locator("[data-room-lobby-status]")).toContainText("연결이 끊긴 참가자");
+    const list = lobby.locator("[data-room-lobby-participants]");
+    for (const size of [
+      { width: 320, height: 568 },
+      { width: 667, height: 375 },
+      { width: 390, height: 644 },
+    ]) {
+      await page.setViewportSize(size);
+      await list.focus();
+      await page.keyboard.press("End");
+      await expect
+        .poll(() =>
+          list.evaluate(element => {
+            const r = element.getBoundingClientRect();
+            const last = element.lastElementChild!.getBoundingClientRect();
+            const root = document.querySelector<HTMLElement>("[data-testid='poke-lounge-page']")!;
+            const f = document.querySelector("[data-room-lobby-actions]")!.getBoundingClientRect();
+            return (
+              last.top >= r.top - 1 &&
+              last.bottom <= r.bottom + 1 &&
+              root.scrollTop === 0 &&
+              f.bottom <= window.innerHeight
+            );
+          }),
+        )
+        .toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`full-lobby-${size.width}x${size.height}.png`),
+      });
+    }
+    await lobby.locator("[data-room-lobby-controls]").click();
+    await expect(lobby.locator("[data-room-controls-guide]")).toBeVisible();
+    await expect(lobby.locator("[data-room-lobby-actions]")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(lobby.locator("[data-room-controls-guide]")).toHaveCount(0);
+    await expect(page.locator("[data-poke-lounge-mobile-settings-screen]")).toHaveCount(0);
+    await expect(lobby.locator("[data-room-lobby-controls]")).toBeFocused();
+    server.revision += 1;
+    await emitSocketSnapshot(page, {
+      ...createLobbyWaitingRoomState(server),
+      participants: participants.map(p => ({ ...p, connected: true })),
+    });
+    await expect(lobby.locator("[data-room-lobby-start]")).toBeEnabled();
+  } finally {
+    await page.context().close();
+  }
+});
+
+test("대기실 재배치: 초대 입장 폼은 오류·키보드 상태에서도 입장 버튼을 보존한다", async ({
+  browser,
+}, testInfo) => {
+  const server = createMockServerState();
+  const page = await newMockedPage(browser, server, {
+    lobbyLifecycle: true,
+    mobile: true,
+    wrapped: true,
+  });
+  try {
+    await page.setViewportSize({ width: 390, height: 644 });
+    await gotoWithRetry(page, joinServerRoomUrl());
+    const entry = page.locator("[data-room-entry-direct-multiplayer]");
+    await expect(entry).toContainText("대기실에 참여하기");
+    await expect(entry).toContainText(ROOM_CODE);
+    const input = entry.locator("[data-room-entry-display-name]");
+    const submit = entry.locator("[data-room-entry-direct-multiplayer-submit]");
+    await input.fill(" ");
+    await submit.click();
+    await expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(server.joinedParticipants).toHaveLength(0);
+    await input.fill("새 친구");
+    await page.evaluate(() => {
+      Object.defineProperty(window.visualViewport!, "height", {
+        configurable: true,
+        get: () => 340,
+      });
+      Object.defineProperty(window.visualViewport!, "offsetTop", {
+        configurable: true,
+        get: () => 40,
+      });
+      window.visualViewport!.dispatchEvent(new Event("resize"));
+    });
+    await expect
+      .poll(() =>
+        submit.evaluate(element => {
+          const r = element.getBoundingClientRect();
+          const v = window.visualViewport!;
+          return r.top >= v.offsetTop && r.bottom <= v.offsetTop + v.height + 1;
+        }),
+      )
+      .toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("invitation-keyboard.png") });
+    await input.press("Enter");
+    await expect(page.locator("[data-room-lobby='true']")).toBeVisible();
+    await expect.poll(() => server.joinedParticipants.length).toBe(1);
+    expect(server.joinedParticipants[0]?.displayName).toBe("새 친구");
+    await expect(page.locator("[data-room-controls-guide]")).toHaveCount(0);
+  } finally {
+    await page.context().close();
+  }
+});
+
+test("대기실 재배치: 연속 준비 클릭은 서버 요청을 한 번만 전송한다", async ({ browser }) => {
+  const server = createMockServerState();
+  const context = await browser.newContext({ ...devices["iPhone 13"] });
+  const page = await context.newPage();
+  try {
+    await mockServerRoom(page, server, {
+      lobbyLifecycle: true,
+      wrapped: true,
+      mutationDelayMs: 250,
+    });
+    await startServerRoom(page, createServerRoomUrl());
+    const ready = page.locator("[data-room-lobby-ready]");
+    await ready.evaluate((button: HTMLButtonElement) => {
+      button.click();
+      button.click();
+    });
+    await expect(ready).toHaveAttribute("aria-pressed", "true");
+    expect(server.commandRequests.filter(request => request.suffix === "/ready")).toHaveLength(1);
+    await expect(page.locator("[data-room-lobby-start]")).toBeEnabled();
+    await ready.click();
+    await expect(ready).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("[data-room-lobby-start]")).toBeDisabled();
+  } finally {
+    await context.close();
+  }
+});
