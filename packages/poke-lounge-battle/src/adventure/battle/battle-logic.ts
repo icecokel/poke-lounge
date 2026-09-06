@@ -1104,11 +1104,14 @@ function getTopicParticle(name: string): "은" | "는" {
 function applyWildVictoryExperience(
   playerPokemon: BattlePokemon,
   defeatedPokemon: BattlePokemon,
+  ratio = 1,
 ): { pokemon: BattlePokemon; experienceGained: number; levelsGained: number } {
-  const experienceGained = calculateWildBattleExpGain({
-    baseExpYield: defeatedPokemon.baseExpYield,
-    defeatedLevel: defeatedPokemon.level,
-  });
+  const experienceGained = Math.floor(
+    calculateWildBattleExpGain({
+      baseExpYield: defeatedPokemon.baseExpYield,
+      defeatedLevel: defeatedPokemon.level,
+    }) * ratio,
+  );
   const experienceResult = applyExperienceGain({
     currentExperience: playerPokemon.experience,
     currentLevel: playerPokemon.level,
@@ -1769,20 +1772,26 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
         })
       : 0;
   const resolvedPlayerPokemon = wildVictoryExperience?.pokemon ?? input.playerPokemon;
+  const partyExperienceRatio =
+    input.state.partyExperienceRatio ?? (input.state.sharePartyExperience ? 1 : 0);
   const partyExperience =
-    wildVictoryExperience && input.state.sharePartyExperience
+    wildVictoryExperience && partyExperienceRatio > 0
       ? player.party.map(slot => ({
           ...slot,
           pokemon: !slot.pokemon
             ? null
             : slot.slotIndex === player.activePartySlotIndex
               ? resolvedPlayerPokemon
-              : applyWildVictoryExperience(slot.pokemon, input.opponentPokemon).pokemon,
+              : applyWildVictoryExperience(
+                  slot.pokemon,
+                  input.opponentPokemon,
+                  partyExperienceRatio,
+                ).pokemon,
         }))
       : undefined;
   const wildVictoryRewardMessage = wildVictoryExperience
     ? partyExperience
-      ? `팀 전원이 각각 ${wildVictoryExperience.experienceGained} 경험치를 얻었다!${wildVictoryRewardPokeDollars > 0 ? `\n${formatBattlePokeDollars(wildVictoryRewardPokeDollars)}을 얻었다!` : ""}`
+      ? `${partyExperienceRatio === 1 ? `팀 전원이 각각 ${wildVictoryExperience.experienceGained} 경험치를 얻었다!` : `${resolvedPlayerPokemon.name}: ${wildVictoryExperience.experienceGained} 경험치 · 나머지 팀원: 각각 ${Math.floor(wildVictoryExperience.experienceGained * partyExperienceRatio)} 경험치를 얻었다!`}${wildVictoryRewardPokeDollars > 0 ? `\n${formatBattlePokeDollars(wildVictoryRewardPokeDollars)}을 얻었다!` : ""}`
       : formatWildVictoryRewardMessage(
           resolvedPlayerPokemon.name,
           wildVictoryExperience.experienceGained,

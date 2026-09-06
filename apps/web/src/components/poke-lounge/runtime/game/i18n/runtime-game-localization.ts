@@ -400,6 +400,12 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name) => `${name}を持っていない！`,
   ),
   pattern(
+    /^(.+): (\d+) 경험치 · 나머지 팀원: 각각 (\d+) 경험치를 얻었다!$/,
+    (_, name, lead, reserve) =>
+      `${name} gained ${lead} Exp. Points; each teammate gained ${reserve}!`,
+    (_, name, lead, reserve) => `${name}は経験値${lead}、控えはそれぞれ${reserve}をもらった！`,
+  ),
+  pattern(
     /^팀 전원이 각각 (\d+) 경험치를 얻었다!$/,
     (_, amount) => `Every party Pokémon gained ${amount} Exp. Points!`,
     (_, amount) => `手持ちの全ポケモンがそれぞれ経験値${amount}をもらった！`,
@@ -970,6 +976,8 @@ function translateStat(stat: string, locale: RuntimeTranslationLocale): string {
 function translateTournamentStatus(value: string, locale: RuntimeTranslationLocale): string {
   const phrases: Record<RuntimeTranslationLocale, Record<string, string>> = {
     "en-US": {
+      "관전 중": "Spectating",
+      승리: "Won",
       관전: "Spectating",
       참가: "Playing",
       접속: "Connected",
@@ -991,6 +999,8 @@ function translateTournamentStatus(value: string, locale: RuntimeTranslationLoca
       경기: "match",
     },
     "ja-JP": {
+      "관전 중": "観戦中",
+      승리: "勝利",
       관전: "観戦",
       참가: "参加",
       접속: "接続",

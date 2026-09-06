@@ -122,6 +122,7 @@ export interface BattleMessageHpSnapshot {
 export interface BattleScreenState {
   battleKind: BattleKind;
   sharePartyExperience?: boolean;
+  partyExperienceRatio?: 0 | 0.5 | 1;
   phase: BattlePhase;
   roundIndex: number;
   matchIndex: number;

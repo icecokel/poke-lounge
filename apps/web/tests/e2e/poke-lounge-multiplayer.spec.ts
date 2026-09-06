@@ -4929,3 +4929,124 @@ for (const mobile of [false, true])
       await context.close();
     }
   });
+
+test("개선 회귀: 웹 전투 중 카운트다운, 내 대진 강조와 종료 컨페티", async ({ page }, info) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const server = createMockServerState();
+  server.preparationEndsAtMs = Date.now() + 120000;
+  await mockServerRoom(page, server, { waitForResult: true, wrapped: true });
+  await startServerRoom(page);
+  await expect.poll(() => getConnectionStatus(page)).toBe("online");
+  await expect(
+    page.locator("[data-world-local-player], [data-starter-confirm]").first(),
+  ).toBeVisible({ timeout: 20000 });
+  const starter = page.locator("[data-starter-confirm]");
+  if (await starter.isVisible()) await starter.click();
+  await expect(page.locator("[data-world-local-player]")).toBeVisible();
+  // Both participants must have a party snapshot, just as in a ready multiplayer room.
+  await expect
+    .poll(() => server.partySnapshotBodies.some(body => body.competitiveParty))
+    .toBe(true);
+  const other = getStateParticipants(server)[1];
+  const party = server.partySnapshotBodies.find(body => body.competitiveParty)!;
+  server.partySnapshotBodies.push({
+    ...structuredClone(party),
+    playerId: other.playerId,
+    sessionId: other.sessionId,
+  });
+  server.revision += 1;
+  await emitSocketSnapshot(page, createPreparingRoomState(server));
+  const countdown = page.locator("[data-poke-lounge-round-countdown]");
+  await expect(countdown).toContainText("토너먼트까지");
+  await expect(countdown.locator("time")).toHaveText(/^0[12]:\d{2}$/);
+  await page.evaluate(() =>
+    (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__!.startWildBattleForTest({
+      encounter: {
+        mapKey: "town",
+        step: { from: { x: 0, y: 0 }, to: { x: 1, y: 0 } },
+        speciesId: 19,
+        name: "꼬렛",
+        level: 5,
+      },
+      x: 656,
+      y: 446,
+      facing: "front",
+    }),
+  );
+  await waitForActiveScene(page, "battle");
+  await expect(countdown.locator("time")).toBeVisible();
+  const timerBounds = (await countdown.boundingBox())!;
+  expect(timerBounds.x).toBeGreaterThanOrEqual(0);
+  expect(timerBounds.x + timerBounds.width).toBeLessThanOrEqual(1280);
+  await page.screenshot({ path: info.outputPath("desktop-battle-countdown.png") });
+  server.preparationEndsAtMs = Date.now() + 6200;
+  server.revision += 1;
+  await emitSocketSnapshot(page, createPreparingRoomState(server));
+  await waitForActiveScene(page, "world");
+  await expect(page.locator("[data-poke-lounge-tournament-announcement]")).toBeVisible({
+    timeout: 20000,
+  });
+  const own = page.locator("[data-poke-lounge-own-position]");
+  await expect(own).toContainText("나");
+  await expect(own).toContainText("내 위치");
+  await expect(page.locator('[data-own-player="true"]')).toHaveCount(1);
+  const bounds = (await page.locator("[data-poke-lounge-tournament-announcement]").boundingBox())!;
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(1280);
+  expect(bounds.y).toBeGreaterThanOrEqual(0);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(900);
+  await page.screenshot({ path: info.outputPath("desktop-own-bracket.png") });
+  server.preparationEndsAtMs = undefined;
+  server.resultAccepted = true;
+  server.revision += 1;
+  await emitSocketSnapshot(page, createCompletedRoomState(server));
+  const confetti = page.locator("[data-poke-lounge-tournament-confetti]");
+  await expect(confetti).toBeVisible();
+  expect(await confetti.evaluate(el => getComputedStyle(el).pointerEvents)).toBe("none");
+  await expect(confetti.locator("i")).toHaveCount(56);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: info.outputPath("tournament-confetti.png") });
+  await expect(confetti).toHaveCount(0, { timeout: 6500 });
+  server.revision += 1;
+  await emitSocketSnapshot(page, createCompletedRoomState(server));
+  await expect(confetti).toHaveCount(0);
+});
+
+test("개선 회귀: 서버 토너먼트의 양쪽 피격은 한 번씩 재생한다", async ({ page }, info) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const server = createMockServerState();
+  await mockAuthenticatedPokeSession(page);
+  await mockServerRoom(page, server, {
+    competitive: true,
+    competitiveImmediately: true,
+    waitForResult: true,
+    wrapped: true,
+  });
+  await startServerRoom(page);
+  await waitForActiveScene(page, "battle");
+  await waitForBattleReady(page);
+  const read = () =>
+    page.evaluate(() =>
+      (
+        window as Window & {
+          __POKE_LOUNGE_E2E__: import("../../src/components/poke-lounge/runtime/game/testing/poke-lounge-e2e-controller").PokeLoungeE2eController;
+        }
+      ).__POKE_LOUNGE_E2E__.getBattleSnapshot(),
+    );
+  const before = (await read())!.hitAnimationStartedCount;
+  const projection = createServerCompetitiveProjection(server);
+  projection.currentTurn += 1;
+  projection.currentState.turn = projection.currentTurn;
+  projection.stateHash = "c".repeat(64);
+  for (const player of Object.values(projection.currentState.playersById)) {
+    player.team.find(slot => slot.slotIndex === player.activeSlotIndex)!.currentHp -= 2;
+  }
+  server.revision += 1;
+  await emitSocketSnapshot(page, { ...createTournamentRoomState(server), competitive: projection });
+  await expect.poll(async () => (await read())?.hitAnimationStartedCount).toBe(before + 2);
+  await page.screenshot({ path: info.outputPath("authoritative-hit.png") });
+  server.revision += 1;
+  await emitSocketSnapshot(page, { ...createTournamentRoomState(server), competitive: projection });
+  await expect.poll(async () => (await read())?.hpAnimationPlaying).toBe(false);
+  expect((await read())?.hitAnimationStartedCount).toBe(before + 2);
+});

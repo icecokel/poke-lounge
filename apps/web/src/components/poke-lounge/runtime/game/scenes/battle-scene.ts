@@ -9,7 +9,11 @@ import {
   type MoveLearningSummary,
 } from "../ui/move-learning-model";
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
-import { sharesPartyExperience } from "@poke-lounge/battle/round-settings";
+import {
+  getAuthoritativeHpLossTargets,
+  getPreviousCombatantPokemon,
+} from "../battle/authoritative-hp-feedback";
+import { getPartyExperienceRatio, sharesPartyExperience } from "@poke-lounge/battle/round-settings";
 import {
   BATTLE_LAYOUT,
   getBattleOptionIndexAtPoint,
@@ -422,7 +426,9 @@ export class BattleController {
   private evolutionAnimationTween: RuntimeAnimation | null = null;
   private evolutionAnimationStartedCount = 0;
   private evolutionTransition: BattleEvolutionTransition | null = null;
-  private evolutionAnimationPending = false;
+  private pendingEvolutionTransitions: BattleEvolutionTransition[] = [];
+  private authoritativeHitTargets = new Set<BattleHpSide>();
+  private hpAnimationTargets: Partial<Record<BattleHpSide, number>> = {};
   private hpAnimationStartedCount = 0;
   private hitAnimationStartedCount = 0;
   private fullRenderCount = 0;
@@ -523,7 +529,7 @@ export class BattleController {
     this.evolutionAnimationTween?.stop();
     this.evolutionAnimationTween = null;
     this.evolutionTransition = null;
-    this.evolutionAnimationPending = false;
+    this.pendingEvolutionTransitions = [];
     this.pendingMoveLearnings = [];
     this.moveReplacementConfirmation = null;
     this.learnedMovesByMessage.clear();
@@ -605,7 +611,7 @@ export class BattleController {
     }
 
     if (
-      consumeVirtualGamepadPress("bag") &&
+      (this.keyboard.consume("KeyI") || consumeVirtualGamepadPress("bag")) &&
       this.state.phase === "command" &&
       this.state.messageQueue.length === 0
     ) {
@@ -772,7 +778,7 @@ export class BattleController {
     this.evolutionAnimationTween?.stop();
     this.evolutionAnimationTween = null;
     this.evolutionTransition = null;
-    this.evolutionAnimationPending = false;
+    this.pendingEvolutionTransitions = [];
     this.pendingMoveLearnings = [];
     this.moveReplacementConfirmation = null;
     this.learnedMovesByMessage.clear();
@@ -1387,6 +1393,9 @@ export class BattleController {
         sharePartyExperience: sharesPartyExperience(
           this.gameStateStore.getState().round.preparationDurationMs,
         ),
+        partyExperienceRatio: getPartyExperienceRatio(
+          this.gameStateStore.getState().round.preparationDurationMs,
+        ),
         playerPokemon:
           localPlayer.party.find(function findItem(slot) {
             return slot.slotIndex === localPlayer.activePartySlotIndex;
@@ -1504,6 +1513,7 @@ export class BattleController {
     if (this.state.phase === "bag-select") {
       const battleBagItemIds = this.getBattleBagItemIds();
       const itemId = battleBagItemIds[this.selectedBagItemIndex] ?? battleBagItemIds[0];
+      if (!itemId) return;
       const nextState = chooseBattleBagItem(this.state, itemId, {
         itemCount: this.gameStateStore.getCurrentLocalPlayer().inventory[itemId] ?? 0,
       });
@@ -1954,11 +1964,10 @@ export class BattleController {
     const nextCaptureAttempt = nextState.captureAttempt ?? null;
     const shouldPlayCaptureAnimation =
       nextCaptureAttempt !== null && nextCaptureAttempt !== this.state.captureAttempt;
+    const nextEvolution = this.pendingEvolutionTransitions[0];
     const shouldPlayEvolutionAnimation =
-      this.evolutionAnimationPending &&
-      this.evolutionTransition !== null &&
-      nextState.messageQueue[0] ===
-        formatRomEvolutionStartMessage(this.evolutionTransition.fromPokemon.name);
+      Boolean(nextEvolution) &&
+      nextState.messageQueue[0] === formatRomEvolutionStartMessage(nextEvolution!.fromPokemon.name);
     const isEnteringForcedPartySwitch =
       isForcedPartySwitch(nextState) && !isForcedPartySwitch(this.state);
 
@@ -1969,15 +1978,29 @@ export class BattleController {
       );
     }
 
+    this.authoritativeHitTargets.clear();
+    if (this.authoritativeProjection) {
+      this.authoritativeHitTargets = new Set(getAuthoritativeHpLossTargets(this.state, nextState));
+      for (const side of BATTLE_HP_SIDES) {
+        if (
+          this.state[side].activePartySlotIndex !== nextState[side].activePartySlotIndex ||
+          this.state[side].pokemon.speciesId !== nextState[side].pokemon.speciesId
+        ) {
+          const previousPokemon = getPreviousCombatantPokemon(this.state, nextState, side);
+          this.hpTweens[side]?.stop();
+          delete this.hpTweens[side];
+          this.displayedHp[side] = previousPokemon?.currentHp ?? nextState[side].pokemon.currentHp;
+          this.displayedStatus[side] = nextState[side].pokemon.status;
+        }
+      }
+    }
     this.state = nextState;
     if (shouldPlayCaptureAnimation) {
       this.playCaptureAnimation(nextCaptureAttempt);
     }
-    if (shouldPlayEvolutionAnimation && this.evolutionTransition) {
-      this.playEvolutionAnimation(
-        this.evolutionTransition.fromPokemon,
-        this.evolutionTransition.toPokemon,
-      );
+    if (shouldPlayEvolutionAnimation && nextEvolution) {
+      this.pendingEvolutionTransitions.shift();
+      this.playEvolutionAnimation(nextEvolution.fromPokemon, nextEvolution.toPokemon);
     }
     this.syncDisplayedHpTargets({
       animateHpDecrease: options.animateHpDecrease ?? true,
@@ -2076,6 +2099,14 @@ export class BattleController {
           : targetHp;
         const existingTween = this.hpTweens[side];
         const existingStatusCommitTween = this.statusCommitTweens[side];
+        // Duplicate server projections must not restart a running hit/HP animation.
+        if (
+          this.authoritativeProjection &&
+          existingTween &&
+          this.hpAnimationTargets[side] === targetHp
+        )
+          return;
+        this.hpAnimationTargets[side] = targetHp;
 
         if (existingTween) {
           delete this.hpTweens[side];
@@ -2235,7 +2266,7 @@ export class BattleController {
   private shouldPlayAttackHitSound(side: BattleHpSide): boolean {
     const attackHitTarget = this.state.messageHpSnapshots?.[0]?.attackHitTarget;
 
-    return attackHitTarget === side;
+    return attackHitTarget === side || this.authoritativeHitTargets.has(side);
   }
 
   private isHpAnimationPlaying(): boolean {
@@ -2373,7 +2404,6 @@ export class BattleController {
   private playEvolutionAnimation(fromPokemon: BattlePokemon, toPokemon: BattlePokemon): void {
     this.evolutionAnimationTween?.stop();
     this.evolutionTransition = { fromPokemon, toPokemon };
-    this.evolutionAnimationPending = false;
     this.evolutionAnimationProgress = 0;
     this.evolutionAnimationPlaying = true;
     this.evolutionAnimationStartedCount += 1;
@@ -2637,7 +2667,7 @@ export class BattleController {
     const learningMessages: string[] = [];
     let activePokemon = state.player.pokemon;
     let activeSlotSeen = false;
-    let activeEvolutionTransition: BattleEvolutionTransition | null = null;
+    const evolutionTransitions: BattleEvolutionTransition[] = [];
 
     const party = state.player.party.map(
       function mapItem(this: BattleController, slot: BattlePartySlot): BattlePartySlot {
@@ -2689,12 +2719,9 @@ export class BattleController {
 
         if (slot.slotIndex === state.player.activePartySlotIndex) {
           activePokemon = progression.pokemon;
-          if (progression.evolved && slot.pokemon.speciesId !== progression.pokemon.speciesId) {
-            activeEvolutionTransition = {
-              fromPokemon: slot.pokemon,
-              toPokemon: progression.pokemon,
-            };
-          }
+        }
+        if (progression.evolved && slot.pokemon.speciesId !== progression.pokemon.speciesId) {
+          evolutionTransitions.push({ fromPokemon: slot.pokemon, toPokemon: progression.pokemon });
         }
 
         return {
@@ -2725,10 +2752,10 @@ export class BattleController {
         learningMessages.push(...progression.messages);
       }
       if (progression.evolved && state.player.pokemon.speciesId !== progression.pokemon.speciesId) {
-        activeEvolutionTransition = {
+        evolutionTransitions.push({
           fromPokemon: state.player.pokemon,
           toPokemon: progression.pokemon,
-        };
+        });
       }
 
       progression.pendingMoveLearnings.forEach(
@@ -2746,10 +2773,7 @@ export class BattleController {
       return state;
     }
 
-    if (activeEvolutionTransition) {
-      this.evolutionTransition = activeEvolutionTransition;
-      this.evolutionAnimationPending = true;
-    }
+    this.pendingEvolutionTransitions.push(...evolutionTransitions);
 
     const nextState = {
       ...state,
@@ -3018,7 +3042,7 @@ export class BattleController {
     }
     if (consumeVirtualGamepadPress("down") || this.keyboard.consume("ArrowDown", "KeyS")) {
       this.selectedBagItemIndex = Math.min(
-        battleBagItemIds.length - 1,
+        Math.max(0, battleBagItemIds.length - 1),
         this.selectedBagItemIndex + 1,
       );
       this.render();
@@ -3155,7 +3179,10 @@ export class BattleController {
   }
 
   private getBattleBagItemIds(): BattleBagItemId[] {
-    return [...BATTLE_BAG_ITEM_IDS];
+    const inventory = this.gameStateStore.getCurrentLocalPlayer().inventory;
+    const owned = BATTLE_BAG_ITEM_IDS.filter(itemId => (inventory[itemId] ?? 0) > 0);
+    this.selectedBagItemIndex = Math.min(this.selectedBagItemIndex, Math.max(0, owned.length - 1));
+    return owned;
   }
 
   private publishE2eSnapshot(): void {

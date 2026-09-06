@@ -118,6 +118,7 @@ it('advances without waiting for a human move and does not revise the room for m
   await t.service.processTick(1_500);
   expect(t.advance).toHaveBeenCalledWith(expect.anything(), 1_500, 1, true, {
     sharePartyExperience: false,
+    partyExperienceRatio: 0,
   });
   expect(t.liveState.upsertPlayer).toHaveBeenLastCalledWith(
     expect.objectContaining({
@@ -139,7 +140,9 @@ it.each([90_000, 180_000, 300_000])(
     t.room.round.durationMs = duration;
     await t.service.processTick(1_250);
     expect(t.advance).toHaveBeenCalledWith(expect.anything(), 1_250, 1, true, {
-      sharePartyExperience: duration === 90_000,
+      sharePartyExperience: duration !== 300_000,
+      partyExperienceRatio:
+        duration === 90_000 ? 1 : duration === 180_000 ? 0.5 : 0,
     });
   },
 );
@@ -203,6 +206,7 @@ it('stops AI exploration at the bracket announcement and publishes its stable he
   await t.service.processTick(2000);
   expect(t.advance).toHaveBeenCalledWith(expect.anything(), 2000, 1, false, {
     sharePartyExperience: false,
+    partyExperienceRatio: 0,
   });
   expect(t.liveState.upsertPlayer).toHaveBeenLastCalledWith(
     expect.objectContaining({
@@ -227,5 +231,6 @@ it('stops AI exploration at the bracket announcement and publishes its stable he
   await t.service.processTick(9000);
   expect(t.advance).toHaveBeenLastCalledWith(expect.anything(), 9000, 2, true, {
     sharePartyExperience: false,
+    partyExperienceRatio: 0,
   });
 });

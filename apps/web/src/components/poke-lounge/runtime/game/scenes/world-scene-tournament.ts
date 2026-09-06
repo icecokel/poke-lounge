@@ -640,18 +640,22 @@ export function createTournamentBracketPreview(
   const participants = projection.participants.filter(function filterItem(participant) {
     return participant.role === "participant" && participant.connected && participant.partyReady;
   });
-  if (participants.length < 2 || participants.length > 8) {
+  if (!projection.tournament.bracket && (participants.length < 2 || participants.length > 8)) {
     return null;
   }
 
-  const bracket = createTournamentBracketState(
-    participants.map(function mapItem(participant) {
-      return { playerId: participant.playerId, displayName: participant.displayName };
-    }),
-    projection.roundIndex,
-  );
-  const openingRound = bracket.currentRound!;
-  const openingLabel = participants.length <= 2 ? "결승" : participants.length <= 4 ? "4강" : "8강";
+  const bracket =
+    projection.tournament.bracket ??
+    createTournamentBracketState(
+      participants.map(function mapItem(participant) {
+        return { playerId: participant.playerId, displayName: participant.displayName };
+      }),
+      projection.roundIndex,
+    );
+  const openingRound = bracket.currentRound ?? bracket.completedRounds.at(-1);
+  if (!openingRound) return null;
+  const entrantCount = openingRound.matches.length * 2 + openingRound.byes.length;
+  const openingLabel = entrantCount <= 2 ? "결승" : entrantCount <= 4 ? "4강" : "8강";
   const ownMatch = openingRound.matches.find(function findItem(match) {
     return match.participantIds.includes(projection.ownPlayerId);
   });
@@ -663,20 +667,25 @@ export function createTournamentBracketPreview(
     bracket,
     cumulativeStatusLabel: createOwnCumulativeStatusLabel(projection),
     futureRounds:
-      participants.length <= 2
+      entrantCount <= 2
         ? []
-        : participants.length <= 4
+        : entrantCount <= 4
           ? [{ label: "결승", matchCount: 1 }]
           : [
               { label: "4강", matchCount: 2 },
               { label: "결승", matchCount: 1 },
             ],
     openingLabel,
-    ownPositionLabel: ownMatch
-      ? `내 위치 · ${openingLabel} ${ownMatch.matchNumber}경기`
-      : ownBye
-        ? `내 위치 · 부전승 · ${participants.length <= 4 ? "결승" : "4강"} 진출`
-        : null,
+    ownPositionLabel:
+      bracket.championPlayerId === projection.ownPlayerId
+        ? "내 위치 · 우승"
+        : bracket.eliminations.some(entry => entry.playerId === projection.ownPlayerId)
+          ? "내 위치 · 탈락 · 관전 중"
+          : ownMatch
+            ? `내 위치 · ${openingLabel} ${ownMatch.matchNumber}경기${ownMatch.winnerPlayerId === projection.ownPlayerId ? " · 승리" : ""}`
+            : ownBye
+              ? `내 위치 · 부전승 · ${entrantCount <= 4 ? "결승" : "4강"} 진출`
+              : null,
   };
 }
 

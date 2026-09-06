@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type {
   TournamentBracketState,
   TournamentParticipant,
@@ -20,6 +21,7 @@ interface OpeningPair {
   bye: boolean;
   id: string;
   participants: TournamentParticipant[];
+  winnerPlayerId?: string | null;
 }
 
 export function TournamentBracketPanel({
@@ -31,7 +33,32 @@ export function TournamentBracketPanel({
   projection: TournamentStateRoomPayload;
   text: string;
 }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(timer);
+  }, []);
   const preview = createTournamentBracketPreview(projection);
+  const ownName = projection.participants.find(
+    player => player.playerId === projection.ownPlayerId,
+  )?.displayName;
+  const me = copy.locale === "ko-KR" ? "나" : copy.locale === "ja-JP" ? "自分" : "YOU";
+
+  const ownPosition = (
+    <div className={styles.tournamentOwnPosition} data-poke-lounge-own-position>
+      <b>{me}</b>
+      <strong>{localizeTrainerName(ownName ?? me, copy.locale)}</strong>
+      <span>
+        {preview?.ownPositionLabel
+          ? localizeRuntimeText(preview.ownPositionLabel, copy.locale)
+          : copy.locale === "ko-KR"
+            ? "대진 배정 중"
+            : copy.locale === "ja-JP"
+              ? "組み合わせ待機中"
+              : "Waiting for bracket"}
+      </span>
+    </div>
+  );
 
   if (!preview?.bracket.currentRound) {
     return (
@@ -40,12 +67,13 @@ export function TournamentBracketPanel({
         data-poke-lounge-tournament-announcement="true"
         role="status"
       >
-        {localizeRuntimeText(text, copy.locale)}
+        {ownPosition}
+        <p>{localizeRuntimeText(text, copy.locale)}</p>
       </PixelPanel>
     );
   }
 
-  const remainingMs = Math.max(0, (projection.roomRound.endsAtMs ?? Date.now()) - Date.now());
+  const remainingMs = Math.max(0, (projection.roomRound.endsAtMs ?? now) - now);
   const pairs = preview.bracket.currentRound.slots.map(function mapSlot(slot) {
     return createOpeningPair(preview.bracket, slot);
   });
@@ -67,18 +95,19 @@ export function TournamentBracketPanel({
       role="status"
     >
       <span className={styles.srOnly}>{localizeRuntimeText(text, copy.locale)}</span>
-      <div className={styles.tournamentBracketPanel} aria-hidden="true">
+      <div className={styles.tournamentBracketPanel}>
         <header className={styles.tournamentBracketHeader}>
           <span>
             ROUND {projection.roundIndex} / {ROUND_TOTAL_COUNT}
           </span>
           <strong>{copy.game.tournamentBracket}</strong>
           <span>
-            {remainingMs > 0
+            {projection.roomStatus === "round-started" && remainingMs > 0
               ? copy.game.startsAfter(formatRemainingTime(remainingMs))
-              : copy.game.battlePreparing}
+              : localizeRuntimeText(preview.openingLabel, copy.locale)}
           </span>
         </header>
+        {ownPosition}
         <div className={styles.tournamentBracketTree}>
           <TournamentBracketSide
             copy={copy}
@@ -146,9 +175,23 @@ function TournamentBracketSide({
                     key={participant.playerId}
                     className={styles.tournamentBracketParticipant}
                     data-own-player={participant.playerId === ownPlayerId || undefined}
+                    data-winner={pair.winnerPlayerId === participant.playerId || undefined}
+                    data-eliminated={
+                      Boolean(
+                        pair.winnerPlayerId && pair.winnerPlayerId !== participant.playerId,
+                      ) || undefined
+                    }
                     title={localizeTrainerName(participant.displayName, copy.locale)}
                   >
-                    <b>#{participant.seed}</b>
+                    <b>
+                      {participant.playerId === ownPlayerId
+                        ? copy.locale === "ko-KR"
+                          ? "나"
+                          : copy.locale === "ja-JP"
+                            ? "自分"
+                            : "YOU"
+                        : `#${participant.seed}`}
+                    </b>
                     <span>{localizeTrainerName(participant.displayName, copy.locale)}</span>
                   </span>
                 );
@@ -181,6 +224,7 @@ function BracketConnectors({
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
       focusable="false"
+      aria-hidden="true"
     >
       <g transform={transform}>
         {single ? (
@@ -225,5 +269,6 @@ function createOpeningPair(
     bye: false,
     id: match.matchId,
     participants: [match.participantA, match.participantB],
+    winnerPlayerId: match.winnerPlayerId,
   };
 }

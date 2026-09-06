@@ -3,9 +3,10 @@ export class RuntimeKeyboard {
   private readonly pressed = new Set<string>();
 
   constructor(private readonly target: HTMLElement) {
-    target.addEventListener("keydown", this.handleKeyDown);
-    target.addEventListener("keyup", this.handleKeyUp);
-    target.addEventListener("blur", this.reset);
+    // Key-up must survive a button unmounting, a focus change, or a modal's stopPropagation.
+    target.ownerDocument.addEventListener("keydown", this.handleKeyDown);
+    target.ownerDocument.addEventListener("keyup", this.handleKeyUp, true);
+    target.ownerDocument.defaultView?.addEventListener("blur", this.reset);
   }
 
   isDown(...codes: string[]): boolean {
@@ -32,21 +33,57 @@ export class RuntimeKeyboard {
   }
 
   destroy(): void {
-    this.target.removeEventListener("keydown", this.handleKeyDown);
-    this.target.removeEventListener("keyup", this.handleKeyUp);
-    this.target.removeEventListener("blur", this.reset);
+    this.target.ownerDocument.removeEventListener("keydown", this.handleKeyDown);
+    this.target.ownerDocument.removeEventListener("keyup", this.handleKeyUp, true);
+    this.target.ownerDocument.defaultView?.removeEventListener("blur", this.reset);
     this.reset();
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent) => {
-    if (!this.held.has(event.code)) this.pressed.add(event.code);
+    const document = this.target.ownerDocument;
+    const element = event.target instanceof Element ? event.target : null;
+    if (
+      !element ||
+      event.defaultPrevented ||
+      event.isComposing ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      !isGameControlKey(event.code) ||
+      !this.target.isConnected
+    )
+      return;
+    if (
+      element.closest(
+        'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="alertdialog"]',
+      ) ||
+      document.querySelector(
+        '[role="dialog"], [role="alertdialog"], [data-poke-lounge-mobile-task]',
+      )
+    )
+      return;
+    const inside = this.target.contains(element);
+    // React removes the currently focused command at phase changes. Resume from body without a mouse click.
+    const lostFocus =
+      element === document.body &&
+      Boolean(
+        this.target.querySelector("[data-poke-lounge-battle-screen], [data-poke-lounge-world-ui]"),
+      );
+    if (!inside && !lostFocus) return;
+    // Native buttons/links keep Enter/Space and Tab semantics; never confirm a second game action.
+    if (
+      element.closest('button, a[href], [role="button"]') &&
+      ["Enter", "Space"].includes(event.code)
+    )
+      return;
+    if (lostFocus || element !== this.target) this.target.focus({ preventScroll: true });
+    if (!this.held.has(event.code) && !event.repeat) this.pressed.add(event.code);
     this.held.add(event.code);
-    if (isGameControlKey(event.code)) event.preventDefault();
+    event.preventDefault();
   };
 
   private readonly handleKeyUp = (event: KeyboardEvent) => {
     this.held.delete(event.code);
-    if (isGameControlKey(event.code)) event.preventDefault();
   };
 
   private readonly reset = () => {

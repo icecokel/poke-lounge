@@ -18,7 +18,7 @@ import {
 import { createSampleBattleState } from "./battle-sample-state";
 import type { BattlePokemon, BattleScreenState } from "./battle-types";
 import { getExperienceForLevel } from "./experience";
-import { sharesPartyExperience } from "@poke-lounge/battle/round-settings";
+import { getPartyExperienceRatio, sharesPartyExperience } from "@poke-lounge/battle/round-settings";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
 
@@ -108,12 +108,13 @@ test("야생 전투 경험치와 레벨은 보상 문구가 표시될 때 적용
   assert.equal(resolvedState.pendingExperienceReward, null);
 });
 
-test("90초 모드만 빈 슬롯을 제외한 팀 전원에게 경험치를 나누지 않고 지급한다", function testCase() {
+test("라운드별 선두 100%와 대기 팀원 각각 100%/50%/0% 경험치를 지급한다", function testCase() {
   for (const duration of [90_000, 180_000, 300_000]) {
     const state = createSampleBattleState();
     state.battleKind = "wild";
     state.phase = "move-select";
     state.sharePartyExperience = sharesPartyExperience(duration);
+    state.partyExperienceRatio = getPartyExperienceRatio(duration);
     state.messageQueue = [];
     const active = { ...clonePokemon(state.player.pokemon), speed: 999 };
     active.moves[0] = { ...active.moves[0], power: 999, accuracy: 100 };
@@ -150,13 +151,13 @@ test("90초 모드만 빈 슬롯을 제외한 팀 전원에게 경험치를 나�
       )!.pokemon!;
       assert.equal(
         slot.pokemon.experience - before.experience,
-        duration === 90_000 || slot.slotIndex === 0 ? gained : 0,
+        slot.slotIndex === 0 ? gained : Math.floor(gained * getPartyExperienceRatio(duration)),
       );
     }
     assert.equal(result.player.party[2].pokemon?.currentHp, 0);
     assert.equal(result.player.party[2].pokemon?.status, "fainted");
     assert.equal(result.player.party[3].pokemon, null);
-    assert.equal(result.player.party[1].pokemon!.level > reserve.level, duration === 90_000);
+    assert.equal(result.player.party[1].pokemon!.level > reserve.level, duration !== 300_000);
   }
 });
 

@@ -475,7 +475,8 @@ const KOREAN_COPY: PokeLoungeCopy = {
     multiplayerTitle: "비공개 방 만들기",
     roundDurationLabel: "라운드 간 준비 시간",
     roundDurationOptions: ["90초", "3분", "5분"],
-    roundDurationDescription: "90초 모드에서는 팀의 모든 포켓몬이 같은 양의 경험치를 받습니다.",
+    roundDurationDescription:
+      "90초: 전원 100% · 3분: 선두 100%, 나머지 각각 50% · 5분: 경험치 공유 없음",
     multiplayerDescription: "현재는 비공개 방만 만들 수 있습니다.",
     roomVisibilityLabel: "공개 범위",
     publicGameTitle: "공개",
@@ -739,7 +740,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     roundDurationLabel: "Preparation between rounds",
     roundDurationOptions: ["90 sec", "3 min", "5 min"],
     roundDurationDescription:
-      "In 90-second mode, every party Pokémon receives the full amount of experience.",
+      "90 sec: everyone 100% · 3 min: lead 100%, teammates 50% each · 5 min: no experience sharing",
     multiplayerDescription: "Only private rooms can be created right now.",
     roomVisibilityLabel: "Visibility",
     publicGameTitle: "Public",
@@ -1004,7 +1005,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     multiplayerTitle: "非公開ルームを作成",
     roundDurationLabel: "ラウンド間の準備時間",
     roundDurationOptions: ["90秒", "3分", "5分"],
-    roundDurationDescription: "90秒モードでは、手持ちの全ポケモンが同じ量の経験値を獲得します。",
+    roundDurationDescription: "90秒：全員100% · 3分：先頭100%、控え各50% · 5分：経験値共有なし",
     multiplayerDescription: "現在作成できるのは非公開ルームのみです。",
     roomVisibilityLabel: "公開範囲",
     publicGameTitle: "公開",

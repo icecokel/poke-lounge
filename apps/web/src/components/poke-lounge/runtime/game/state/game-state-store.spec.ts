@@ -42,6 +42,7 @@ test("새 플레이어는 몬스터볼 10개를 기본 지급받는다", functio
 
   assert.deepEqual(localPlayer.inventory, {
     pokeball: 10,
+    potion: 5,
   });
 });
 

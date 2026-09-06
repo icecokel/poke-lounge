@@ -13,7 +13,10 @@ import { createHash } from 'node:crypto';
 import { Queue, Worker, type Job } from 'bullmq';
 import { chooseAiCompetitiveAction } from '@poke-lounge/battle/ai-policy';
 import { getCompetitiveActionPlayerIds } from '@poke-lounge/battle/actions';
-import { sharesPartyExperience } from '@poke-lounge/battle/round-settings';
+import {
+  getPartyExperienceRatio,
+  sharesPartyExperience,
+} from '@poke-lounge/battle/round-settings';
 import {
   advanceAiAdventure,
   aiCompetitiveParty,
@@ -158,6 +161,7 @@ export class PokeLoungeAiWorkerService
       const context = {
         ...(await this.runtime.getContext()),
         sharePartyExperience: sharesPartyExperience(room.round.durationMs),
+        partyExperienceRatio: getPartyExperienceRatio(room.round.durationMs),
       };
       const saved = await this.liveState.getAiAdventures(roomCode);
       const states: typeof saved = {};

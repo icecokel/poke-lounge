@@ -53,6 +53,7 @@ export interface AiAdventureState {
 
 export interface AiAdventureContext {
   sharePartyExperience?: boolean;
+  partyExperienceRatio?: 0 | 0.5 | 1;
   model: WorldMapModel;
   pokemonData: RomPersonalRecordCollection;
   moveData: RomRefinedMoveCollection;
@@ -72,7 +73,7 @@ export function createAiAdventure(
     activity: "idle",
     path: [],
     activeSlotIndex: party.activeSlotIndex,
-    inventory: { pokeball: 10 },
+    inventory: { pokeball: 10, potion: 5 },
     pokeDollars: 0,
     box: [],
     battle: null,
@@ -230,6 +231,7 @@ export function advanceAiAdventure(
       state.battle = createWildBattleState({
         encounter,
         sharePartyExperience: context.sharePartyExperience,
+        partyExperienceRatio: context.partyExperienceRatio,
         personalRecords: context.pokemonData,
         moveRecords: context.moveData,
         playerParty: state.party,

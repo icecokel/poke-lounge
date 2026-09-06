@@ -8,6 +8,10 @@ import {
 import styles from "./poke-lounge.module.css";
 import { WorldScreen } from "./runtime/game/world/world-screen";
 import { BattleScreen } from "./runtime/game/battle/battle-screen";
+import {
+  RoundCountdown,
+  TournamentCelebration,
+} from "./runtime/game/tournament/tournament-feedback";
 
 export function PokeLoungeGameFrame({
   copy,
@@ -49,6 +53,12 @@ export function PokeLoungeGameFrame({
       ? runtimeState.world
       : undefined;
   const worldTarget = world ? gameplayTarget : null;
+  const gameplayWorld =
+    runtimeState.phase === "world" ||
+    runtimeState.phase === "battle" ||
+    runtimeState.phase === "lobby"
+      ? runtimeState.world
+      : undefined;
   const battle =
     runtimeState.phase === "world" ||
     runtimeState.phase === "battle" ||
@@ -75,7 +85,7 @@ export function PokeLoungeGameFrame({
         role="region"
         aria-label={copy.gameRegionLabel}
         aria-describedby="poke-lounge-accessible-status"
-        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space H Escape"
+        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space Z X I H Escape"
         data-poke-lounge-game-surface={gameRuntimeMounted ? "ready" : "loading"}
         data-testid="poke-lounge-game-root"
       />
@@ -126,6 +136,14 @@ export function PokeLoungeGameFrame({
             gameplayTarget,
           )
         : null}
+      {gameplayWorld?.competitiveRoundsEnabled ? (
+        <>
+          {!touchGameDevice && runtimeState.phase !== "lobby" ? (
+            <RoundCountdown copy={copy} gameStateStore={gameplayWorld.gameStateStore} />
+          ) : null}
+          <TournamentCelebration gameStateStore={gameplayWorld.gameStateStore} />
+        </>
+      ) : null}
       {gameplayTarget
         ? createPortal(<PokeLoungeRuntimeControls state={runtimeState} />, gameplayTarget)
         : null}

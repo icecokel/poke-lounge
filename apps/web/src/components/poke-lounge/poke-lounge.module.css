@@ -581,7 +581,7 @@
 }
 
 .battlePokemonSprite[data-from-ball="true"] {
-  animation: battle-send-out-pokemon 640ms ease-out both;
+  animation: battle-send-out-pokemon 640ms ease-out backwards;
   transform-origin: center bottom;
 }
 
@@ -646,7 +646,7 @@
 @keyframes battle-send-out-ball {
   0% {
     opacity: 1;
-    transform: translate(-250%, -300%) rotate(-180deg) scale(0.5);
+    transform: translate(-250%, -300%) rotate(-720deg) scale(0.5);
   }
   45% {
     opacity: 1;
@@ -654,12 +654,12 @@
   }
   60% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1.5);
+    transform: translate(-50%, -50%) rotate(90deg) scale(1.5);
     filter: brightness(3);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(2);
+    transform: translate(-50%, -50%) rotate(180deg) scale(2);
   }
 }
 
@@ -4040,5 +4040,180 @@
 @media (prefers-reduced-motion: reduce) {
   .battleExperienceTrack > i {
     transition: none;
+  }
+}
+
+.roundCountdown {
+  position: absolute;
+  z-index: 80;
+  top: 8px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 48%;
+  padding: 7px 12px;
+  border: 2px solid var(--pl-color-gold);
+  border-radius: 6px;
+  background: var(--pl-color-ink);
+  color: #fff;
+  box-shadow: 0 3px 0 rgb(0 0 0 / 25%);
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-size: clamp(10px, 1vw, 14px);
+  line-height: 1.2;
+}
+.roundCountdown > span {
+  font-size: 0.8em;
+  opacity: 0.85;
+}
+.roundCountdown time {
+  font-size: 1.35em;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: #a7e5ff;
+}
+.roundCountdown[data-urgent="true"] {
+  border-color: #ffae84;
+}
+.roundCountdown[data-urgent="true"] time {
+  color: #ffae84;
+}
+
+.tournamentOwnPosition {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 9px 12px;
+  border: 2px solid #9ae8ff;
+  border-radius: 5px;
+  background: #153e56;
+  color: #fff;
+  text-align: left;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.tournamentOwnPosition > b {
+  padding: 3px 7px;
+  border-radius: 3px;
+  background: #9ae8ff;
+  color: #082733;
+}
+.tournamentOwnPosition > span {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.tournamentBracketParticipant[data-own-player="true"] {
+  border-color: #065b79;
+  background: #b6edff !important;
+  color: #082733;
+  box-shadow: 0 0 0 2px #9ae8ff;
+  font-weight: 900;
+}
+.tournamentBracketParticipant[data-own-player="true"] > b {
+  padding: 3px;
+  background: #065b79;
+  color: #fff;
+}
+.tournamentBracketParticipant[data-winner="true"]::after {
+  content: "✓";
+  color: #176b3b;
+  font-weight: 900;
+}
+.tournamentBracketParticipant[data-eliminated="true"] > span {
+  text-decoration: line-through;
+}
+.tournamentConfetti {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+.tournamentConfetti > i {
+  position: absolute;
+  left: var(--confetti-x);
+  top: -20px;
+  width: 9px;
+  height: 14px;
+  background: #ffcf55;
+  opacity: 0;
+  animation: tournament-confetti-fall var(--confetti-duration) var(--confetti-delay) linear both;
+}
+.tournamentConfetti > i:nth-child(4n + 1) {
+  background: #6dd5ff;
+}
+.tournamentConfetti > i:nth-child(4n + 2) {
+  background: #ff879a;
+}
+.tournamentConfetti > i:nth-child(4n + 3) {
+  background: #a3eb82;
+  border-radius: 50%;
+}
+@keyframes tournament-confetti-fall {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--confetti-drift), 110vh, 0) rotate(800deg);
+    opacity: 0;
+  }
+}
+@media (min-width: 769px) {
+  .worldTournamentAnnouncement {
+    width: min(calc(100% - 40px), 860px);
+    max-height: calc(100% - 92px);
+  }
+  .tournamentBracketPanel {
+    gap: 12px;
+  }
+  .tournamentBracketHeader {
+    font-size: 12px;
+  }
+  .tournamentBracketHeader strong {
+    font-size: 20px;
+  }
+  .tournamentBracketTree {
+    min-height: 210px;
+    grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
+  }
+  .tournamentBracketSide {
+    grid-template-columns: minmax(0, 80%) minmax(0, 20%);
+  }
+  .tournamentBracketSide[data-bracket-side="right"] {
+    grid-template-columns: minmax(0, 20%) minmax(0, 80%);
+  }
+  .tournamentBracketParticipant {
+    min-height: 38px;
+    padding: 6px 8px;
+    font-size: 13px;
+    line-height: 1.3;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .tournamentBracketParticipant > span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .tournamentBracketBye,
+  .tournamentBracketFooter {
+    font-size: 12px;
+  }
+  .tournamentBracketFooter {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tournamentConfetti {
+    display: none;
+  }
+  .tournamentBracketEntrants > li[data-own-match="true"] .tournamentBracketParticipant {
+    animation: none;
   }
 }

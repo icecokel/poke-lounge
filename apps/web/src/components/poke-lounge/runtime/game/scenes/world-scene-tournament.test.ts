@@ -439,3 +439,21 @@ test("최종 결과는 마지막 대진 승자가 아니라 서버 누적 순위
   assert.match(announcementText, /우승 · 1위 Player 2/);
   assert.doesNotMatch(announcementText, /우승 · 1위 Player 1/);
 });
+
+test("대진 UI는 초기 대진을 재생성하지 않고 진출과 탈락을 서버 대진에서 읽는다", () => {
+  const projection = createProjection();
+  const first = getReadyTournamentMatches(projection.tournament.bracket!)[0]!;
+  projection.tournament.bracket = recordTournamentMatchResult(
+    projection.tournament.bracket!,
+    first.matchId,
+    "player-5",
+  );
+  projection.ownPlayerId = "player-4";
+  const preview = createTournamentBracketPreview(projection)!;
+  assert.equal(preview.bracket, projection.tournament.bracket);
+  assert.match(preview.ownPositionLabel!, /탈락/);
+  projection.ownPlayerId = "player-5";
+  assert.match(createTournamentBracketPreview(projection)!.ownPositionLabel!, /4강/);
+  projection.participants = projection.participants.map(p => ({ ...p, connected: false }));
+  assert.equal(createTournamentBracketPreview(projection)!.bracket, projection.tournament.bracket);
+});

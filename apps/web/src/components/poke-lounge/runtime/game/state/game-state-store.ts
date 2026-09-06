@@ -1642,6 +1642,7 @@ export function createDefaultPlayerWallet(): PlayerWallet {
 export function createDefaultPlayerInventory(): PlayerInventory {
   return {
     pokeball: 10,
+    potion: 5,
   };
 }
 

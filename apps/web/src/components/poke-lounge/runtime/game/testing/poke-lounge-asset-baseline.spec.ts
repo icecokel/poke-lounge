@@ -8,14 +8,17 @@ import { createWorldMapModel } from "../world/world-map-model";
 import { worldPlayerCollides } from "../world/world-runtime-motion";
 
 const webRoot = fileURLToPath(new URL("../../../../../../", import.meta.url));
-test("PC는 모든 NPC와 충분히 떨어져 있고 앞에서 접근할 수 있다", function testCase() {
+test("PC는 회복 NPC의 오른쪽 두 칸에 있으며 앞에서 접근할 수 있다", function testCase() {
   const model = createWorldMapModel(
     JSON.parse(fs.readFileSync(path.join(webRoot, "public", FIELD_MAP.mapUrl), "utf8")),
   );
   const pc = model.npcs.find(npc => npc.name === "storagePc")!;
   assert.ok(pc);
   for (const npc of model.npcs) {
-    if (npc !== pc) assert.ok(Math.hypot(pc.x - npc.x, pc.y - npc.y) >= 128);
+    if (npc.name === "nurse") {
+      assert.equal(pc.x - npc.x, 64);
+      assert.equal(pc.y, npc.y);
+    } else if (npc !== pc) assert.ok(Math.hypot(pc.x - npc.x, pc.y - npc.y) >= 64);
   }
   assert.equal(worldPlayerCollides({ x: pc.x, y: pc.y + 32 }, model), false);
 });

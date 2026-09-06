@@ -42,13 +42,14 @@ test("집결 슬롯은 사람·AI 모두 순서에 무관하게 동일하고 NPC
   }
   const nurse = map.npcs.find(n => n.name === "nurse")!;
   const pc = map.npcs.find(n => n.name === "storagePc")!;
-  assert.ok(Math.hypot(nurse.x - pc.x, nurse.y - pc.y) > 380);
-  assert.deepEqual({ x: pc.x, y: pc.y }, { x: 256, y: 320 });
+  assert.equal(pc.x - nurse.x, 2 * 32);
+  assert.equal(pc.y, nurse.y);
+  assert.deepEqual({ x: pc.x, y: pc.y }, { x: 704, y: 256 });
   assert.equal(map.collisionCoordinates.has("11,12"), false);
   assert.equal(map.collisionCoordinates.has("18,3"), false);
   // The boundary/side decorations and their collision are intentionally retained.
   assert.equal(map.collisionCoordinates.has("2,3"), true);
-  assert.ok(moveWorldPlayer({ x: 256, y: 360 }, { x: 0, y: -104 }, 1000, map).y >= 330);
+  assert.ok(moveWorldPlayer({ x: 704, y: 304 }, { x: 0, y: -104 }, 1000, map).y >= 266);
 });
 
 test("로컬 대회도 준비 종료에 집결하며 일반 싱글 플레이는 영향을 받지 않는다", async () => {

@@ -112,9 +112,6 @@ export function WorldHud({
             competitive={competitiveRoundsEnabled}
             stats={getCurrentGameRankScore(state)}
           />
-          {competitiveRoundsEnabled ? (
-            <RoundHud copy={copy} gameStateStore={gameStateStore} />
-          ) : null}
         </>
       ) : null}
       {desktop ? (
