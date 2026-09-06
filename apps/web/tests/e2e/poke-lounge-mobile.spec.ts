@@ -862,6 +862,8 @@ test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고�
   await expect(
     messageDeck.locator("[data-poke-lounge-mobile-battle-message='true']"),
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: "전투 기록", exact: true })).toHaveCount(0);
+  await expect(page.locator("[data-poke-lounge-mobile-task='battle-log']")).toHaveCount(0);
   // Intro text advances automatically; confirmation buttons are reserved for results.
   await expect(messageDeck.getByRole("button")).toHaveCount(0);
   const commandDeck = page.locator("[data-poke-lounge-mobile-deck='battle-command']");
@@ -940,6 +942,7 @@ test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고�
       button.click();
     });
   await expect(page.locator("[data-poke-lounge-battle-capture='true']")).toBeVisible();
+  await expect(page.getByRole("button", { name: "전투 기록", exact: true })).toHaveCount(0);
   await expect
     .poll(
       function pollExpectation() {

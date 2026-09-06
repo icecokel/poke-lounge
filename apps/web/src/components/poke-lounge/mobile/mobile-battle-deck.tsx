@@ -112,8 +112,6 @@ export function MobileBattleDeck({
     ? localizeBattlePresentationState(snapshot.presentation, copy.locale)
     : null;
   const [runContext, setRunContext] = useState<string | null>(null);
-  const [logOpen, setLogOpen] = useState(false);
-  const [log, setLog] = useState<string[]>([]);
   const [expandedMoves, setExpandedMoves] = useState(false);
   const dockRef = useRef<HTMLDivElement>(null);
   const now = useBattleClock(state?.turnEndsAtMs);
@@ -127,17 +125,9 @@ export function MobileBattleDeck({
     void primePokeLoungeAudio();
     uiStore?.dispatch(action);
   };
-  // Record discrete messages, not presentation/animation frames.
-  useEffect(() => {
-    if (state?.message)
-      setLog(current =>
-        current.at(-1) === state.message ? current : [...current.slice(-39), state.message!],
-      );
-  }, [state?.message]);
   useEffect(() => {
     setExpandedMoves(false);
     setRunContext(null);
-    setLogOpen(false);
   }, [context]);
   useEffect(() => {
     const dock = dockRef.current;
@@ -239,25 +229,6 @@ export function MobileBattleDeck({
         <p>{text.runDescription}</p>
       </MobileTaskScreen>
     );
-  if (logOpen)
-    return (
-      <MobileTaskScreen
-        title={text.log}
-        name="battle-log"
-        backLabel={copy.mobile.back}
-        onBack={() => setLogOpen(false)}
-      >
-        {log.length ? (
-          <ol className={styles.eventLog}>
-            {log.map((line, index) => (
-              <li key={index}>{line}</li>
-            ))}
-          </ol>
-        ) : (
-          <p>{text.noLog}</p>
-        )}
-      </MobileTaskScreen>
-    );
   if (expandedMoves && state.phase === "move-select" && !pending)
     return (
       <MobileTaskScreen
@@ -294,11 +265,6 @@ export function MobileBattleDeck({
                     : copy.game.battleProcessing}
             </p>
           )}
-          {log.length > 0 ? (
-            <button className={styles.textButton} type="button" onClick={() => setLogOpen(true)}>
-              {text.log}
-            </button>
-          ) : null}
         </div>
       ) : state.phase === "move-select" ? (
         <MobileBattleMoveDeck {...props} />
