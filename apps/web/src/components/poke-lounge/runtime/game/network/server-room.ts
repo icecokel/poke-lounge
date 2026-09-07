@@ -1,15 +1,10 @@
-import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
+import { acknowledgePreparation } from "@/features/poke-lounge/application/round/acknowledge-preparation";
 import { getApiBaseUrl } from "@/lib/constants";
 import type { components } from "@/types/api";
+import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import { io } from "socket.io-client";
-import type {
-  CompetitiveProjection,
-  CompetitiveTerminalTransition,
-  MultiplayerRoom,
-  PlayerSnapshot,
-  RoomEvent,
-  RoomMessage,
-} from "./local-preview-room";
+import { createRoomRunId, isRoomRunId } from "../room-run-id";
+import { createCompetitivePartySnapshot } from "./competitive-party-snapshot";
 import {
   CompetitiveProjectionSchemaError,
   parseCompetitiveProjection,
@@ -18,8 +13,14 @@ import {
   selectCompetitiveAssignment,
   selectCompetitiveViewPlayerId,
 } from "./competitive-projection";
-import { createCompetitivePartySnapshot } from "./competitive-party-snapshot";
-import { createRoomRunId, isRoomRunId } from "../room-run-id";
+import type {
+  CompetitiveProjection,
+  CompetitiveTerminalTransition,
+  MultiplayerRoom,
+  PlayerSnapshot,
+  RoomEvent,
+  RoomMessage,
+} from "./local-preview-room";
 import {
   findCurrentMatch,
   isRoundReadinessDue,
@@ -1954,28 +1955,22 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       await updateReady(ready);
     },
     async setPreparationReady(roundIndex) {
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        if (
-          disposed ||
-          latestState?.status !== "round-started" ||
-          latestState.round.index !== roundIndex ||
-          latestState.round.startedAtMs !== null ||
-          latestState.participants.find(p => p.playerId === serverPlayerId)?.ready
-        )
-          return;
-        try {
-          const state = await mutateRoom(
+      return acknowledgePreparation({
+        isNeeded: () =>
+          !disposed &&
+          latestState?.status === "round-started" &&
+          latestState.round.index === roundIndex &&
+          latestState.round.startedAtMs === null &&
+          !latestState.participants.find(p => p.playerId === serverPlayerId)?.ready,
+        submit: () =>
+          mutateRoom(
             `/poke-lounge/rooms/${activeRoomId}/ready`,
             { playerId: serverPlayerId, sessionId, ready: true, roundIndex },
             getLatestRevision,
-          );
-          applyExpectedTransitionSnapshot(state);
-          return;
-        } catch (error) {
-          if (getServerRoomConflict(error)?.code !== REVISION_CONFLICT_CODE || attempt === 7)
-            throw error;
-        }
-      }
+          ),
+        apply: applyExpectedTransitionSnapshot,
+        isRevisionConflict: error => getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE,
+      });
     },
     async startChampionship() {
       const state = await mutateRoom(

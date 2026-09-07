@@ -1,28 +1,22 @@
+import { createStarterPlayerPokemon } from "@/features/poke-lounge/domain/player/create-starter-pokemon";
+import { getPokeLoungeCopyForUrl } from "../../poke-lounge-copy";
 import { loadBootstrapData } from "../bootstrap";
-import type { GameBootstrapData, StarterPokemon } from "../types";
-import { calculateGen4BattleStats } from "@poke-lounge/battle/gen4-pokemon-stats";
-import {
-  bindPokeLoungeAudioPrimeListeners,
-  stopAllPokeLoungeAudio,
-} from "./audio/poke-lounge-audio";
+import type { GameBootstrapData } from "../types";
 import {
   loadPokeLoungeRuntimeAssets,
   type PokeLoungeRuntimeAssets,
 } from "./assets/poke-lounge-runtime-assets";
-import { createPokemonGenderFromRatio } from "./battle/pokemon-gender";
-import { getExperienceForLevel } from "./battle/experience";
-import { createPlayerPokemonMovesForLevel } from "./battle/level-up-moves";
-import { createPokeLoungeGame, type PokeLoungeGameResult } from "./create-poke-lounge-game";
 import {
-  getRuntimePokemonSpeciesGenderRatio,
-  getRuntimePokemonSpeciesSummary,
-  loadRuntimeGameDataJson,
-  type RuntimeGameDataJson,
-} from "./data/game-data-json";
-import { readInitialBattleE2eScenario, readInitialGameScene } from "./game-startup";
+  bindPokeLoungeAudioPrimeListeners,
+  stopAllPokeLoungeAudio,
+} from "./audio/poke-lounge-audio";
+import { createBattleUiStore } from "./battle/battle-ui-store";
+import { createPokeLoungeGame, type PokeLoungeGameResult } from "./create-poke-lounge-game";
+import { loadRuntimeGameDataJson, type RuntimeGameDataJson } from "./data/game-data-json";
 import type { PokeLoungeGameplayRuntimeState, PokeLoungeRuntimeState } from "./game-page-state";
-import { createRandomIndividualValues } from "./battle/individual-values";
+import { readInitialBattleE2eScenario, readInitialGameScene } from "./game-startup";
 import type { GameViewportDisplaySize } from "./game-viewport";
+import { virtualGamepadController } from "./input/virtual-gamepad";
 import {
   LOCAL_TEST_MODE_START_QUERY_PARAM,
   activateLocalTestMode,
@@ -35,12 +29,6 @@ import {
 } from "./local-test-mode";
 import { createMultiplayerRoom } from "./network/multiplayer-room-factory";
 import {
-  POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT,
-  POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT,
-  readStoredServerRoomResume,
-  type PokeLoungeServerRoomErrorDetail,
-} from "./network/server-room";
-import {
   applyRoomRoundDurationSearchParam,
   readRoomEntryFromLocation,
   readRoomRoundDurationMs,
@@ -48,26 +36,30 @@ import {
   type RoomEntryMode,
 } from "./network/room-entry";
 import { shouldResetRoomEntrySession, type RoomEntrySelection } from "./network/room-entry-screen";
+import {
+  POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT,
+  POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT,
+  readStoredServerRoomResume,
+  type PokeLoungeServerRoomErrorDetail,
+} from "./network/server-room";
 import { createWebRtcRoom, isWebRtcRoom } from "./network/web-rtc-room";
 import { createRoomRunId } from "./room-run-id";
+import { getServerRoomErrorMessage } from "./server-room-error-copy";
 import {
   getDefaultGameStateStore,
   setDefaultGameStateRoomRunId,
 } from "./state/default-game-state-store";
-import type { GameStateStore, PlayerPokemon } from "./state/game-state-store";
+import type { GameStateStore } from "./state/game-state-store";
+import { setBattleSceneMarker } from "./ui/active-game-scene-marker";
 import {
   dispatchPokeLoungeNotice,
   type PokeLoungeRoomLeaveRequestDetail,
 } from "./ui/poke-lounge-ui-events";
-import { setBattleSceneMarker } from "./ui/active-game-scene-marker";
-import { getPokeLoungeCopyForUrl } from "../../poke-lounge-copy";
-import { getServerRoomErrorMessage } from "./server-room-error-copy";
 import { createWorldFrameStore } from "./world/world-frame-store";
 import { createWorldMapModel, createWorldPlayerAtlasModel } from "./world/world-map-model";
 import { createWorldRuntime } from "./world/world-runtime";
 import { createWorldUiStore } from "./world/world-ui-store";
-import { createBattleUiStore } from "./battle/battle-ui-store";
-import { virtualGamepadController } from "./input/virtual-gamepad";
+export { createStarterPlayerPokemon } from "@/features/poke-lounge/domain/player/create-starter-pokemon";
 
 type GamePageLocation = URL;
 type PokeLoungeGameInstance = ReturnType<typeof createPokeLoungeGame>;
@@ -895,36 +887,4 @@ function replaceBrowserUrl(url: URL): void {
   }
 
   window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
-export function createStarterPlayerPokemon(
-  starter: StarterPokemon,
-  level = 10,
-  random: () => number = Math.random,
-): PlayerPokemon {
-  const gender = createPokemonGenderFromRatio(
-    getRuntimePokemonSpeciesGenderRatio(starter.speciesId),
-    random,
-  );
-
-  const individualValues = createRandomIndividualValues();
-  const species = getRuntimePokemonSpeciesSummary(starter.speciesId);
-  if (!species) {
-    throw new Error(`Starter species ${starter.speciesId} is missing from runtime game data`);
-  }
-  const stats = calculateGen4BattleStats(species.baseStats, level, individualValues);
-
-  return {
-    speciesId: starter.speciesId,
-    name: species.name,
-    level,
-    growthRate: species.growthRate,
-    experience: getExperienceForLevel(level, species.growthRate),
-    ...(gender ? { gender } : {}),
-    individualValues,
-    currentHp: stats.maxHp,
-    maxHp: stats.maxHp,
-    status: "normal",
-    moves: createPlayerPokemonMovesForLevel(starter.speciesId, level),
-  };
 }

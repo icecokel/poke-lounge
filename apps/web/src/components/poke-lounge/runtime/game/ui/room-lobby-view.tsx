@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
 import {
   Bot,
   Check,
@@ -15,18 +14,20 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
 import type { PokeLoungeRuntimeState } from "../game-page-state";
+import { localizeTrainerName } from "../i18n/runtime-game-localization";
+import { resetVirtualGamepad } from "../input/virtual-gamepad";
 import type {
   TournamentRoomParticipant,
   TournamentStateRoomPayload,
 } from "../network/tournament-projection";
-import { localizeTrainerName } from "../i18n/runtime-game-localization";
-import { resetVirtualGamepad } from "../input/virtual-gamepad";
-import { createRoomLobbyViewState, type RoomLobbyMutation } from "./room-lobby-screen";
 import { RoomControlsGuide } from "./room-controls-guide";
 import { getRoomLobbyCopy } from "./room-lobby-copy";
+import { createRoomLobbyViewState } from "./room-lobby-screen";
 import styles from "./room-lobby.module.css";
+import { useRoomLobbyCommands } from "./use-room-lobby-commands";
 
 export function RoomLobbyScreen({
   roomShareAvailable,
@@ -50,10 +51,8 @@ export function RoomLobbyScreen({
   const infoId = useId();
   const statusId = useId();
   const [showInfo, setShowInfo] = useState(false);
-  const [mutation, setMutation] = useState<RoomLobbyMutation>(null);
-  const [errorMessage, setErrorMessage] = useState("");
-  const pending = useRef<RoomLobbyMutation>(null);
-  const mounted = useRef(false);
+  const { mutation, failed, runMutation } = useRoomLobbyCommands();
+  const errorMessage = failed ? copy.mutationFailed : "";
   const heading = useRef<HTMLHeadingElement>(null);
   const infoButton = useRef<HTMLButtonElement>(null);
   const view = createRoomLobbyViewState(state.projection, mutation);
@@ -64,33 +63,13 @@ export function RoomLobbyScreen({
   const duration = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
   useEffect(() => {
-    mounted.current = true;
     resetVirtualGamepad();
     heading.current?.focus({ preventScroll: true });
     return () => {
-      mounted.current = false;
       resetVirtualGamepad();
     };
   }, []);
 
-  const runMutation = async (
-    kind: Exclude<RoomLobbyMutation, null>,
-    action: () => Promise<void>,
-  ) => {
-    // React state is not a synchronous lock: guard rapid pointer/keyboard taps too.
-    if (pending.current) return;
-    pending.current = kind;
-    setMutation(kind);
-    setErrorMessage("");
-    try {
-      await action();
-    } catch {
-      if (mounted.current) setErrorMessage(copy.mutationFailed);
-    } finally {
-      pending.current = null;
-      if (mounted.current) setMutation(null);
-    }
-  };
   const status = mutation
     ? mutation === "start"
       ? text.startPending

@@ -1,25 +1,11 @@
-import {
-  createMoveReplacementConfirmation,
-  isMoveReplacementConfirmationCurrent,
-  type MoveReplacementConfirmation,
-} from "../ui/move-learning-model";
+import { transferPcPokemon } from "@/features/poke-lounge/application/world/pc-transfer";
+import { playDice } from "@/features/poke-lounge/application/world/play-dice";
+import { formatPcTransferResult } from "@/features/poke-lounge/presentation/world/pc-transfer-message";
 import {
   playBattleCancelSound,
   playBattleConfirmSound,
   playPartyHealSound,
 } from "../battle/battle-audio";
-import {
-  DICE_GAMBLE_PREDICTIONS,
-  DICE_GAMBLE_STAKE_POKE_DOLLARS,
-  createDiceGambleRound,
-  resolveDiceGambleRound,
-  type DiceGambleNumber,
-  type DiceGamblePrediction,
-  type DiceGambleRound,
-} from "../gamble/dice-gamble";
-import { consumeVirtualGamepadPress } from "../input/virtual-gamepad";
-import { setShortcutGuideTouchControlsSuppressed } from "../input/mobile-touch-controls-visibility";
-import { PLAYER_PARTY_SLOT_COUNT } from "../player/player-types";
 import {
   clearRuntimeShopItemRomIds,
   loadRuntimeShopItemRomIds,
@@ -27,10 +13,22 @@ import {
   type RuntimeShopKind,
 } from "../data/game-data-json";
 import {
+  DICE_GAMBLE_PREDICTIONS,
+  DICE_GAMBLE_STAKE_POKE_DOLLARS,
+  createDiceGambleRound,
+  type DiceGambleNumber,
+  type DiceGamblePrediction,
+  type DiceGambleRound,
+} from "../gamble/dice-gamble";
+import { setShortcutGuideTouchControlsSuppressed } from "../input/mobile-touch-controls-visibility";
+import { consumeVirtualGamepadPress } from "../input/virtual-gamepad";
+import {
   getRuntimeItemIds,
   getRuntimeShopItemIds,
   type RuntimeItemId,
 } from "../items/runtime-items";
+import { PLAYER_PARTY_SLOT_COUNT } from "../player/player-types";
+import type { RuntimeKeyboard } from "../runtime-input";
 import {
   getShopItemById,
   type GameStateStore,
@@ -39,6 +37,7 @@ import {
   type PlayerPokemonStatus,
   type ShopItem,
 } from "../state/game-state-store";
+import type { WorldE2eSnapshot } from "../testing/poke-lounge-e2e-controller";
 import {
   hasPokeLoungeMobileFullscreenScene,
   usesPokeLoungeMobileShell,
@@ -48,6 +47,11 @@ import {
   type MobileWorldUiAction,
   type MobileWorldUiScreen,
 } from "../ui/mobile-world-ui";
+import {
+  createMoveReplacementConfirmation,
+  isMoveReplacementConfirmationCurrent,
+  type MoveReplacementConfirmation,
+} from "../ui/move-learning-model";
 import { dispatchPokeLoungeAccessibleStatus } from "../ui/poke-lounge-ui-events";
 import { createShortcutGuideTitle, type ShortcutGuideInputMode } from "../ui/shortcut-guide";
 import {
@@ -55,11 +59,9 @@ import {
   NURSE_INTERACTION_DISTANCE,
   resolveFieldEncounterAreaId,
 } from "../world/field-map";
-import { formatPokemonHp, formatPokeDollars } from "./world-scene-hud";
-import type { WorldE2eSnapshot } from "../testing/poke-lounge-e2e-controller";
-import type { ObjectLayerLookup } from "./world-scene";
 import type { WorldUiStore } from "../world/world-ui-store";
-import type { RuntimeKeyboard } from "../runtime-input";
+import type { ObjectLayerLookup } from "./world-scene";
+import { formatPokeDollars, formatPokemonHp } from "./world-scene-hud";
 
 const DICE_GAMBLE_LABELS: Record<DiceGamblePrediction, string> = {
   lower: "낮다",
@@ -1900,72 +1902,20 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private confirmPcBoxSelection(): void {
-    const localPlayer = this.gameStateStore.getCurrentLocalPlayer();
-
-    if (this.pcBoxFocus === "party") {
-      const pokemon = this.getPartyPokemonBySlotIndex(this.pcBoxPartySlotIndex);
-      const result = this.gameStateStore.movePartyPokemonToBox(this.pcBoxPartySlotIndex);
-
-      if (result.ok) {
-        this.pcBoxMessage = `${pokemon?.name ?? "포켓몬"}을 PC 박스에 보관했다.`;
-        this.pcBoxPartySlotIndex = clampSelectionIndex(
-          this.pcBoxPartySlotIndex,
-          PLAYER_PARTY_SLOT_COUNT,
-        );
-        this.pcBoxBoxIndex = result.boxIndex;
-      } else {
-        this.pcBoxMessage =
-          result.reason === "last-pokemon"
-            ? "마지막 포켓몬은 보관할 수 없다."
-            : "선택한 파티 슬롯이 비어 있다.";
-      }
-
-      this.renderPartyHud();
-      this.renderPcBoxUi();
-      return;
-    }
-
-    const boxPokemon = localPlayer.pokemonBox[this.pcBoxBoxIndex];
-
-    if (!boxPokemon) {
-      this.pcBoxMessage = "박스가 비어 있다.";
-      this.renderPcBoxUi();
-      return;
-    }
-
-    const result = this.gameStateStore.moveBoxPokemonToParty(this.pcBoxBoxIndex);
-
-    if (result.ok) {
-      this.pcBoxMessage = `${boxPokemon.name}을 파티로 데려왔다.`;
+    const result = transferPcPokemon(this.gameStateStore, {
+      focus: this.pcBoxFocus,
+      partySlot: this.pcBoxPartySlotIndex,
+      boxIndex: this.pcBoxBoxIndex,
+    });
+    this.pcBoxMessage = formatPcTransferResult(result);
+    if (result.kind === "deposited") {
+      this.pcBoxPartySlotIndex = clampSelectionIndex(result.slotIndex, PLAYER_PARTY_SLOT_COUNT);
+      this.pcBoxBoxIndex = result.boxIndex;
+    } else if (result.kind === "withdrawn") {
       this.pcBoxPartySlotIndex = result.slotIndex;
-      this.pcBoxBoxIndex = clampSelectionIndex(
-        this.pcBoxBoxIndex,
-        Math.max(1, this.gameStateStore.getCurrentLocalPlayer().pokemonBox.length),
-      );
-      this.renderPartyHud();
-      this.renderPcBoxUi();
-      return;
+      this.pcBoxBoxIndex = result.boxIndex;
     }
-
-    if (result.reason === "party-full") {
-      const swapResult = this.gameStateStore.swapPartyPokemonWithBox(
-        this.pcBoxPartySlotIndex,
-        this.pcBoxBoxIndex,
-      );
-
-      this.pcBoxMessage = swapResult.ok
-        ? `${boxPokemon.name}와 파티 포켓몬을 교체했다.`
-        : swapResult.reason === "empty-slot"
-          ? "교체할 파티 포켓몬을 선택해라."
-          : swapResult.reason === "fainted-active-replacement"
-            ? "기절한 포켓몬은 선두 슬롯으로 교체할 수 없다."
-            : "선택한 박스 슬롯이 비어 있다.";
-      this.renderPartyHud();
-      this.renderPcBoxUi();
-      return;
-    }
-
-    this.pcBoxMessage = "선택한 박스 슬롯이 비어 있다.";
+    this.renderPartyHud();
     this.renderPcBoxUi();
   }
 
@@ -2050,37 +2000,28 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private confirmDiceGambleSelection(rolledNumber = this.rollDiceGambleNumber()): void {
-    if (!this.diceGambleRound) {
-      return;
-    }
-
-    const prediction = DICE_GAMBLE_PREDICTIONS[this.diceGambleSelectedIndex];
-    const option = this.diceGambleRound.options[prediction];
-
-    if (option.winningCaseCount <= 0) {
-      this.diceGambleMessage = "선택할 수 없는 예측이다.";
-      this.renderDiceGambleUi();
-      return;
-    }
-
-    const result = resolveDiceGambleRound(this.diceGambleRound, prediction, rolledNumber);
-    const settlement = this.gameStateStore.settleDiceGambleResult({
-      stakePokeDollars: result.stakePokeDollars,
-      rewardPokeDollars: result.rewardPokeDollars,
-    });
-
-    if (!settlement.ok) {
+    if (!this.diceGambleRound) return;
+    const outcome = playDice(
+      this.gameStateStore,
+      this.diceGambleRound,
+      DICE_GAMBLE_PREDICTIONS[this.diceGambleSelectedIndex],
+      rolledNumber,
+    );
+    if (outcome.kind === "rejected") {
       this.diceGambleMessage =
-        settlement.reason === "insufficient-funds" ? "돈이 부족하다." : "정산할 수 없다.";
-      this.renderDiceGambleUi();
-      return;
+        outcome.reason === "invalid-prediction"
+          ? "선택할 수 없는 예측이다."
+          : outcome.reason === "insufficient-funds"
+            ? "돈이 부족하다."
+            : "정산할 수 없다.";
+    } else {
+      const result = outcome.outcome;
+      this.diceGambleMessage = result.won
+        ? `${result.rolledNumber}이 나왔다. 예측 성공! ${formatPokeDollars(result.rewardPokeDollars)}을 받았다.`
+        : `${result.rolledNumber}이 나왔다. 예측 실패. ${formatPokeDollars(result.stakePokeDollars)}을 잃었다.`;
+      this.diceGambleRound = createDiceGambleRound(this.rollDiceGambleNumber());
+      this.diceGambleSelectedIndex = 0;
     }
-
-    this.diceGambleMessage = result.won
-      ? `${result.rolledNumber}이 나왔다. 예측 성공! ${formatPokeDollars(result.rewardPokeDollars)}을 받았다.`
-      : `${result.rolledNumber}이 나왔다. 예측 실패. ${formatPokeDollars(result.stakePokeDollars)}을 잃었다.`;
-    this.diceGambleRound = createDiceGambleRound(this.rollDiceGambleNumber());
-    this.diceGambleSelectedIndex = 0;
     this.renderDiceGambleUi();
   }
 

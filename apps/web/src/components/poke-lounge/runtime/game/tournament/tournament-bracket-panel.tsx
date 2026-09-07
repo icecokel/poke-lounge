@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  createTournamentBracketPreview,
+  formatRemainingTime,
+} from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
 import type {
   TournamentBracketState,
   TournamentParticipant,
   TournamentRoundSlot,
 } from "@poke-lounge/battle/tournament-bracket";
-import { PixelPanel } from "../../../ui/poke-lounge-ui-primitives";
+import { useEffect, useState } from "react";
+import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import styles from "../../../poke-lounge.module.css";
+import { PixelPanel } from "../../../ui/poke-lounge-ui-primitives";
+import { localizeRuntimeText, localizeTrainerName } from "../i18n/runtime-game-localization";
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 import { ROUND_TOTAL_COUNT } from "../round/round-state";
-import {
-  createTournamentBracketPreview,
-  formatRemainingTime,
-} from "../scenes/world-scene-tournament";
-import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
-import { localizeRuntimeText, localizeTrainerName } from "../i18n/runtime-game-localization";
 
 interface OpeningPair {
   bye: boolean;

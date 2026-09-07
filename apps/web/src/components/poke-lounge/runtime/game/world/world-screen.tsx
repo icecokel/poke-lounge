@@ -1,7 +1,12 @@
 "use client";
 
 import { forwardRef, useEffect, useRef, useSyncExternalStore, type RefCallback } from "react";
+import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
+import styles from "../../../poke-lounge.module.css";
 import { BATTLE_INTRO_TIMING, createBattleIntroStripes } from "../battle/battle-intro";
+import { localizeTrainerName } from "../i18n/runtime-game-localization";
+import { RoundStartController } from "../round/round-start-controller";
+import type { GameStateStore } from "../state/game-state-store";
 import { FIELD_MAP } from "./field-map";
 import type { WorldFrameStore } from "./world-frame-store";
 import {
@@ -12,13 +17,8 @@ import {
   type WorldMapTile,
   type WorldPlayerAtlasModel,
 } from "./world-map-model";
-import styles from "../../../poke-lounge.module.css";
-import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
-import type { GameStateStore } from "../state/game-state-store";
-import { RoundStartOverlay } from "../round/round-start-overlay";
 import { WorldUiLayer } from "./world-ui";
 import type { WorldUiStore } from "./world-ui-store";
-import { localizeTrainerName } from "../i18n/runtime-game-localization";
 
 export function WorldScreen({
   atlas,
@@ -140,7 +140,7 @@ export function WorldScreen({
         </div>
       </WorldViewport>
       {competitiveRoundsEnabled ? (
-        <RoundStartOverlay
+        <RoundStartController
           copy={copy}
           gameStateStore={gameStateStore}
           frameStore={frameStore}

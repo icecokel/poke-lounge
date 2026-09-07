@@ -1,11 +1,12 @@
+import type { PokeLoungeSaveSnapshot } from "@/features/poke-lounge/contracts/save-state";
 import { GEN4_MOVE_MAX_PP, GEN4_PLAYABLE_MOVE_MAX_ID } from "@poke-lounge/battle/runtime-rom-data";
-import { PLAYER_PARTY_SLOT_COUNT, type PlayerFacing } from "../player/player-types";
 import {
   MAX_POKEMON_INDIVIDUAL_VALUE,
   MIN_POKEMON_INDIVIDUAL_VALUE,
   type PokemonIndividualValues,
 } from "../battle/individual-values";
 import { isSupportedPokemonSpeciesId } from "../battle/pokemon-species";
+import { PLAYER_PARTY_SLOT_COUNT, type PlayerFacing } from "../player/player-types";
 import type {
   GameState,
   GameStateStore,
@@ -15,14 +16,9 @@ import type {
   PlayerPokemonMove,
   PlayerPokemonStatus,
 } from "./game-state-store";
+export type { PokeLoungeSaveSnapshot } from "@/features/poke-lounge/contracts/save-state";
 
 export const POKE_LOUNGE_SAVE_SNAPSHOT_VERSION = 1;
-
-export interface PokeLoungeSaveSnapshot {
-  version: typeof POKE_LOUNGE_SAVE_SNAPSHOT_VERSION;
-  game: "poke-lounge";
-  state: LocalPlayersSaveState;
-}
 
 export function buildPokeLoungeSaveSnapshot(
   gameStateStore: Pick<GameStateStore, "getState">,
