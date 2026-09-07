@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import { HTML_LIMITED_BOT_UA_RE } from "next/dist/shared/lib/router/utils/html-bots";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
@@ -38,6 +39,12 @@ const connectSources = createConnectSources(process.env.NEXT_PUBLIC_API_URL);
 
 const nextConfig: NextConfig = {
   reactStrictMode: false,
+  // This option replaces Next's list. Extend the installed default so other crawlers retain head metadata.
+  // Keep the internal import covered by next-config.test.ts when upgrading Next.
+  htmlLimitedBots: new RegExp(
+    `${HTML_LIMITED_BOT_UA_RE.source}|kakaotalk-scrap|kakaostory-og-reader`,
+    HTML_LIMITED_BOT_UA_RE.flags,
+  ),
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   typescript: {
     tsconfigPath: process.env.NEXT_TYPESCRIPT_CONFIG_PATH ?? "tsconfig.json",

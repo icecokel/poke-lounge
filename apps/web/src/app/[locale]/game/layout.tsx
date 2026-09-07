@@ -7,9 +7,9 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  return getLocalizedPageMetadata((await params).locale, "game");
+  return getLocalizedPageMetadata((await params).locale, "intro");
 }
 
-export default function PokeLoungeLayout({ children }: Props) {
+export default function GameIntroLayout({ children }: Props) {
   return children;
 }
