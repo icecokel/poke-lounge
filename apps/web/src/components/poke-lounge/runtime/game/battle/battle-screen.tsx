@@ -2,20 +2,42 @@
 
 import { BATTLE_BAG_PAGE_SIZE } from "./battle-bag-selection";
 
+import { LearnedMoveNotice, MoveLearningPanel } from "../ui/move-learning-panel";
 import { BattleMoveEffects } from "./battle-move-effects";
-import { MoveLearningPanel, LearnedMoveNotice } from "../ui/move-learning-panel";
 
+import {
+  createTournamentBriefingText,
+  TOURNAMENT_BRIEFING_DURATION_MS,
+} from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import styles from "../../../poke-lounge.module.css";
+import {
+  HealthBar,
+  MessageBox,
+  PixelButton,
+  PixelPanel,
+} from "../../../ui/poke-lounge-ui-primitives";
 import { primePokeLoungeAudio } from "../audio/poke-lounge-audio";
-import { getBattleStatusTextView, hpRatio, type BattleRect } from "./battle-layout";
+import {
+  localizeBattlePresentationState,
+  localizeMobileBattleUiState,
+} from "../i18n/runtime-game-localization";
+import type { GameStateStore } from "../state/game-state-store";
+import { TournamentBracketPanel } from "../tournament/tournament-bracket-panel";
+import type { MobileBattleUiAction, MobileBattleUiState } from "../ui/mobile-battle-ui";
+import {
+  createShortcutGuideFooter,
+  createShortcutGuideRows,
+  createShortcutGuideTitle,
+} from "../ui/shortcut-guide";
 import { ROM_BATTLE_DESIGN_ASSETS } from "./battle-design";
+import { getBattleStatusTextView, hpRatio, type BattleRect } from "./battle-layout";
 import { BATTLE_POKEMON_FRAME_SIZE, getBattlePokemonAlphaBounds } from "./battle-pokemon-assets";
 import {
   DESKTOP_BATTLE_STAGE_LAYOUT,
-  MOBILE_BATTLE_STAGE_LAYOUT,
   getBattleHpPanelRect,
+  MOBILE_BATTLE_STAGE_LAYOUT,
   toBattleActorPointStyle,
   toBattleRectStyle,
   toCenteredBattleActorRectStyle,
@@ -29,28 +51,6 @@ import type {
   BattleSpritePresentation,
   BattleUiStore,
 } from "./battle-ui-store";
-import type { MobileBattleUiAction, MobileBattleUiState } from "../ui/mobile-battle-ui";
-import {
-  createShortcutGuideFooter,
-  createShortcutGuideRows,
-  createShortcutGuideTitle,
-} from "../ui/shortcut-guide";
-import {
-  HealthBar,
-  MessageBox,
-  PixelButton,
-  PixelPanel,
-} from "../../../ui/poke-lounge-ui-primitives";
-import type { GameStateStore } from "../state/game-state-store";
-import {
-  createTournamentBriefingText,
-  TOURNAMENT_BRIEFING_DURATION_MS,
-} from "../scenes/world-scene-tournament";
-import { TournamentBracketPanel } from "../tournament/tournament-bracket-panel";
-import {
-  localizeBattlePresentationState,
-  localizeMobileBattleUiState,
-} from "../i18n/runtime-game-localization";
 
 const logicalWidth = 256;
 

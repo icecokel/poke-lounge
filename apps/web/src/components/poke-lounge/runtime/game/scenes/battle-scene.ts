@@ -1,64 +1,22 @@
-import { restoreGen4FieldPokemon } from "@poke-lounge/battle/gen4/adventure";
-import { canUseGen4ItemOnMember } from "@poke-lounge/battle/gen4/engine";
-import { RUNTIME_ITEM_ROM_IDS } from "../items/runtime-items";
-import { getTournamentGatheringContext } from "../world/tournament-gathering";
-import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
-import { getRomHitFrame, ROM_HIT_DURATION_MS } from "../battle/rom-hit-animation";
-import { getBattleExperienceProgress } from "../battle/battle-experience";
-import {
-  createMoveReplacementConfirmation,
-  isMoveReplacementConfirmationCurrent,
-  type MoveReplacementConfirmation,
-  type MoveLearningSummary,
-} from "../ui/move-learning-model";
+import { executeBattleChoice } from "@/features/poke-lounge/application/battle/execute-battle-choice";
+import { planPostBattleProgression } from "@/features/poke-lounge/application/battle/plan-battle-progression";
+import { settleBattleToWorld } from "@/features/poke-lounge/application/battle/settle-battle";
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
+import { canUseGen4ItemOnMember } from "@poke-lounge/battle/gen4/engine";
+import { getPartyExperienceRatio, sharesPartyExperience } from "@poke-lounge/battle/round-settings";
+import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
+import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
+import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-assets";
 import {
-  getBattleEffectTiming,
-  getEffectActorMotion,
-  type ActiveBattleEffect,
-} from "../battle/move-animation-model";
-import {
-  createAuthoritativeEffectSequence,
-  createLocalEffectSequence,
-  type QueuedBattleEffect,
-  type EffectHpTargets,
-} from "../battle/battle-effect-sequence";
-import { getRuntimeMoveName } from "../data/game-data-json";
+  canUseAuthoritativeStruggle,
+  isLegalAuthoritativeAction,
+  isWaitingForOpponentReplacement,
+  toAuthoritativeBattleState,
+} from "../battle/authoritative-battle-adapter";
 import {
   getAuthoritativeHpLossTargets,
   getPreviousCombatantPokemon,
 } from "../battle/authoritative-hp-feedback";
-import { moveBattleBagSelection } from "../battle/battle-bag-selection";
-import { getPartyExperienceRatio, sharesPartyExperience } from "@poke-lounge/battle/round-settings";
-import {
-  BATTLE_LAYOUT,
-  getBattleOptionIndexAtPoint,
-  getBattleStatusTextView,
-  type BattleRect,
-  type BattleSpriteBox,
-} from "../battle/battle-layout";
-import {
-  createBattlePartySlotViews,
-  getFirstSwitchableBattlePartySlotIndex,
-  moveBattlePartySelection,
-  type BattlePartySlotView,
-} from "../battle/battle-party-select";
-import { createSampleBattleState } from "../battle/battle-sample-state";
-import {
-  BATTLE_POKEMON_FRAME_SIZE,
-  getBattlePokemonAlphaBounds,
-} from "../battle/battle-pokemon-assets";
-import {
-  createWildBattleState,
-  type RomPersonalRecordCollection,
-  type RomRefinedMoveCollection,
-} from "../battle/wild-battle-factory";
-import { createPvpBattleState } from "../battle/pvp-battle-factory";
-import {
-  BATTLE_BACKGROUND_ASSET_KEY,
-  BATTLE_WINDOW_FRAME_ASSET_KEY,
-  ROM_BATTLE_WINDOW_STYLE,
-} from "../battle/battle-design";
 import {
   playBattleCancelSound,
   playBattleConfirmSound,
@@ -67,16 +25,43 @@ import {
   playWildBattleBgm,
   stopWildBattleBgm,
 } from "../battle/battle-audio";
-import { getExperienceForLevel, WILD_BATTLE_EXPERIENCE_MULTIPLIER } from "../battle/experience";
+import { moveBattleBagSelection } from "../battle/battle-bag-selection";
+import {
+  BATTLE_BACKGROUND_ASSET_KEY,
+  BATTLE_WINDOW_FRAME_ASSET_KEY,
+  ROM_BATTLE_WINDOW_STYLE,
+} from "../battle/battle-design";
+import {
+  createAuthoritativeEffectSequence,
+  createLocalEffectSequence,
+  type EffectHpTargets,
+  type QueuedBattleEffect,
+} from "../battle/battle-effect-sequence";
+import { getBattleExperienceProgress } from "../battle/battle-experience";
+import {
+  BATTLE_LAYOUT,
+  getBattleOptionIndexAtPoint,
+  getBattleStatusTextView,
+  type BattleRect,
+  type BattleSpriteBox,
+} from "../battle/battle-layout";
 import {
   BATTLE_END_CONFIRM_MESSAGE,
-  chooseBattleBagItem,
   chooseBattleCommand,
-  choosePartySlot,
-  choosePlayerMove,
   isForcedPartySwitch,
   popBattleMessage,
 } from "../battle/battle-logic";
+import {
+  createBattlePartySlotViews,
+  getFirstSwitchableBattlePartySlotIndex,
+  moveBattlePartySelection,
+  type BattlePartySlotView,
+} from "../battle/battle-party-select";
+import {
+  BATTLE_POKEMON_FRAME_SIZE,
+  getBattlePokemonAlphaBounds,
+} from "../battle/battle-pokemon-assets";
+import { createSampleBattleState } from "../battle/battle-sample-state";
 import type {
   BattleCaptureAttempt,
   BattleCommand,
@@ -87,67 +72,41 @@ import type {
   BattlePokemonStatus,
   BattleScreenState,
 } from "../battle/battle-types";
-import { formatReplacedMoveMessage, formatSkippedMoveMessage } from "../battle/level-up-moves";
-import {
-  planLevelUpBattleProgression,
-  type PendingBattleMoveLearning,
-} from "../battle/level-up-progression";
-import { normalizePokemonEvolutionTable } from "../battle/pokemon-evolution";
-import {
-  formatRomEvolutionStartMessage,
-  resolveRomEvolutionAnimationFrame,
-  ROM_EVOLUTION_ANIMATION_DURATION_MS,
-} from "../battle/evolution-presentation";
-import {
-  resolveRomCaptureAnimationFrame,
-  ROM_CAPTURE_ANIMATION_DURATION_MS,
-} from "../battle/capture-presentation";
-import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-assets";
-import { getDefaultGameStateStore } from "../state/default-game-state-store";
-import {
-  getShopItemById,
-  resolvePlayerDisplayName,
-  type GameStateStore,
-  type LocalPlayerState,
-  type PlayerPokemon,
-} from "../state/game-state-store";
-import type { RuntimeItemId } from "../items/runtime-items";
-import {
-  dispatchPokeLoungeAccessibleStatus,
-  dispatchPokeLoungeNotice,
-} from "../ui/poke-lounge-ui-events";
-import { setBattleSceneMarker } from "../ui/active-game-scene-marker";
-import { FIELD_MAP } from "../world/field-map";
-import {
-  isMobileBattleMoveDisabled,
-  type MobileBattleUiAction,
-  type MobileBattleUiState,
-} from "../ui/mobile-battle-ui";
 import type {
   BattlePresentationState,
   BattleSpritePresentation,
   BattleUiStore,
 } from "../battle/battle-ui-store";
+import { persistCapturedPokemonToWorld } from "../battle/battle-world-persistence";
 import {
-  hasPokeLoungeMobileFullscreenScene,
-  usesPokeLoungeMobileShell,
-} from "../ui/mobile-ui-capability";
-import type { ShortcutGuideInputMode } from "../ui/shortcut-guide";
-import { consumeVirtualGamepadPress, resetVirtualGamepad } from "../input/virtual-gamepad";
+  resolveRomCaptureAnimationFrame,
+  ROM_CAPTURE_ANIMATION_DURATION_MS,
+} from "../battle/capture-presentation";
+import {
+  formatRomEvolutionStartMessage,
+  resolveRomEvolutionAnimationFrame,
+  ROM_EVOLUTION_ANIMATION_DURATION_MS,
+} from "../battle/evolution-presentation";
+import { getExperienceForLevel, WILD_BATTLE_EXPERIENCE_MULTIPLIER } from "../battle/experience";
+import { formatReplacedMoveMessage, formatSkippedMoveMessage } from "../battle/level-up-moves";
+import {
+  getBattleEffectTiming,
+  getEffectActorMotion,
+  type ActiveBattleEffect,
+} from "../battle/move-animation-model";
+import { normalizePokemonEvolutionTable } from "../battle/pokemon-evolution";
+import { createPvpBattleState } from "../battle/pvp-battle-factory";
+import { getRomHitFrame, ROM_HIT_DURATION_MS } from "../battle/rom-hit-animation";
+import {
+  createWildBattleState,
+  type RomPersonalRecordCollection,
+  type RomRefinedMoveCollection,
+} from "../battle/wild-battle-factory";
+import { getRuntimeMoveName } from "../data/game-data-json";
 import { setShortcutGuideTouchControlsSuppressed } from "../input/mobile-touch-controls-visibility";
-import type { WildEncounterCandidate } from "../world/wild-encounters";
-import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
-import {
-  canUseAuthoritativeStruggle,
-  isLegalAuthoritativeAction,
-  isWaitingForOpponentReplacement,
-  toAuthoritativeBattleState,
-} from "../battle/authoritative-battle-adapter";
-import {
-  persistBattlePartyToWorld,
-  persistCapturedPokemonToWorld,
-  toPlayerPokemon,
-} from "../battle/battle-world-persistence";
+import { consumeVirtualGamepadPress, resetVirtualGamepad } from "../input/virtual-gamepad";
+import type { RuntimeItemId } from "../items/runtime-items";
+import { RUNTIME_ITEM_ROM_IDS } from "../items/runtime-items";
 import type {
   CompetitiveProjection,
   CompetitiveRoomProjectionEvent,
@@ -155,9 +114,6 @@ import type {
   RoomEvent,
   RoomUnsubscribe,
 } from "../network/local-preview-room";
-import type { CompetitiveBattleLaunchKey } from "./competitive-battle-launch";
-import type { BattleE2eScenario, BattleE2eSnapshot } from "../testing/poke-lounge-e2e-controller";
-import { isCompetitiveAssignmentForPlayer } from "./competitive-battle-launch";
 import {
   isRoundReadinessDue,
   type TournamentStateRoomPayload,
@@ -170,6 +126,41 @@ import {
   type RuntimeAnimation,
 } from "../runtime-animation";
 import type { RuntimeKeyboard } from "../runtime-input";
+import { getDefaultGameStateStore } from "../state/default-game-state-store";
+import {
+  getShopItemById,
+  resolvePlayerDisplayName,
+  type GameStateStore,
+  type LocalPlayerState,
+} from "../state/game-state-store";
+import type { BattleE2eScenario, BattleE2eSnapshot } from "../testing/poke-lounge-e2e-controller";
+import { setBattleSceneMarker } from "../ui/active-game-scene-marker";
+import {
+  isMobileBattleMoveDisabled,
+  type MobileBattleUiAction,
+  type MobileBattleUiState,
+} from "../ui/mobile-battle-ui";
+import {
+  hasPokeLoungeMobileFullscreenScene,
+  usesPokeLoungeMobileShell,
+} from "../ui/mobile-ui-capability";
+import {
+  createMoveReplacementConfirmation,
+  isMoveReplacementConfirmationCurrent,
+  type MoveLearningSummary,
+  type MoveReplacementConfirmation,
+} from "../ui/move-learning-model";
+import {
+  dispatchPokeLoungeAccessibleStatus,
+  dispatchPokeLoungeNotice,
+} from "../ui/poke-lounge-ui-events";
+import type { ShortcutGuideInputMode } from "../ui/shortcut-guide";
+import { FIELD_MAP } from "../world/field-map";
+import { getTournamentGatheringContext } from "../world/tournament-gathering";
+import type { WildEncounterCandidate } from "../world/wild-encounters";
+import type { CompetitiveBattleLaunchKey } from "./competitive-battle-launch";
+import { isCompetitiveAssignmentForPlayer } from "./competitive-battle-launch";
+export { isBattleParticipantDefeated } from "@/features/poke-lounge/domain/battle/party-defeat";
 
 export const BATTLE_COMMAND_LABELS = ["싸운다", "가방", "포켓몬", "도망"] as const;
 export const BATTLE_SPRITE_CROP = { x: 0, y: 0, ...BATTLE_POKEMON_FRAME_SIZE } as const;
@@ -1579,7 +1570,11 @@ export class BattleController {
 
     if (this.state.phase === "command") {
       const command = COMMANDS[this.selectedCommandIndex]?.command ?? "fight";
-      const nextState = chooseBattleCommand(this.state, command);
+      const nextState = executeBattleChoice(
+        this.state,
+        { kind: "command", command },
+        this.gameStateStore,
+      ).state;
 
       if (command === "pokemon") {
         this.selectedPartySlotIndex = getFirstSwitchableBattlePartySlotIndex(
@@ -1600,35 +1595,32 @@ export class BattleController {
       const battleBagItemIds = this.getBattleBagItemIds();
       const itemId = battleBagItemIds[this.selectedBagItemIndex] ?? battleBagItemIds[0];
       if (!itemId) return;
-      const nextState = chooseBattleBagItem(this.state, itemId, {
-        itemCount: this.gameStateStore.getCurrentLocalPlayer().inventory[itemId] ?? 0,
-      });
-
-      if (nextState.usedInventoryItemId) {
-        this.gameStateStore.consumeInventoryItem(nextState.usedInventoryItemId, 1);
-      }
-
-      if (nextState.pendingBattleItemId) {
-        const romId = RUNTIME_ITEM_ROM_IDS[nextState.pendingBattleItemId as RuntimeItemId];
-        this.selectedPartySlotIndex =
-          nextState.player.party.find(
-            slot => slot.pokemon && canUseGen4ItemOnMember(romId, slot.pokemon),
-          )?.slotIndex ?? 0;
-      }
+      const result = executeBattleChoice(this.state, { kind: "item", itemId }, this.gameStateStore);
+      const nextState = result.state;
+      if (result.selectedPartySlot !== undefined)
+        this.selectedPartySlotIndex = result.selectedPartySlot;
       this.setBattleState(nextState);
       return;
     }
 
     if (this.state.phase === "party-select") {
-      const nextState = choosePartySlot(this.state, this.selectedPartySlotIndex);
-      if (nextState.usedInventoryItemId)
-        this.gameStateStore.consumeInventoryItem(nextState.usedInventoryItemId, 1);
+      const nextState = executeBattleChoice(
+        this.state,
+        { kind: "party", slotIndex: this.selectedPartySlotIndex },
+        this.gameStateStore,
+      ).state;
       this.setBattleState(nextState);
       return;
     }
 
     if (this.state.phase === "move-select") {
-      this.setBattleState(choosePlayerMove(this.state, this.selectedMoveIndex));
+      this.setBattleState(
+        executeBattleChoice(
+          this.state,
+          { kind: "move", moveIndex: this.selectedMoveIndex },
+          this.gameStateStore,
+        ).state,
+      );
       return;
     }
 
@@ -2703,88 +2695,23 @@ export class BattleController {
       return;
     }
 
-    if (this.state.mechanicsVersion === 3 && this.state.gen4Session) {
-      for (const side of [0, 1] as const) {
-        const key = side === 0 ? "player" : "opponent",
-          old = this.state[key];
-        const party = old.party.map(slot => ({
-          ...slot,
-          pokemon: slot.pokemon ? restoreGen4FieldPokemon(this.state, side, slot.slotIndex) : null,
-        }));
-        this.state = {
-          ...this.state,
-          [key]: {
-            ...old,
-            party,
-            pokemon: party.find(slot => slot.slotIndex === old.activePartySlotIndex)!.pokemon!,
-          },
-        };
-      }
-    }
-    const localPlayer = this.gameStateStore.getCurrentLocalPlayer();
-    const previousCurrentPlayerId = this.gameStateStore.getState().currentPlayerId;
-
-    if (
-      !completedCompetitiveBattle &&
-      this.state.battleKind === "trainer" &&
-      !this.authoritativeProjection
-    ) {
-      this.upsertTrainerBattleParticipant(this.state.player);
-      this.upsertTrainerBattleParticipant(this.state.opponent);
-      this.gameStateStore.setCurrentPlayer(previousCurrentPlayerId);
-    } else {
-      persistBattlePartyToWorld({
-        completedCompetitiveBattle: Boolean(completedCompetitiveBattle),
-        gameStateStore: this.gameStateStore,
-        localPlayer,
-        participant: this.state.player,
+    const settlement = settleBattleToWorld({
+      state: this.state,
+      store: this.gameStateStore,
+      completedCompetitiveBattle: Boolean(completedCompetitiveBattle),
+      authoritative: Boolean(this.authoritativeProjection),
+      persistPosition: this.persistWorldPositionOnReturn,
+      soloChallenge: this.soloChallenge,
+      recoveryPosition: { mapKey: FIELD_MAP.key, ...FIELD_MAP.recoverySpawn },
+      nowMs: Date.now(),
+    });
+    this.state = settlement.state;
+    const { x, y, facing } = settlement.destination;
+    if (settlement.boxedPokemon)
+      dispatchPokeLoungeNotice(this.ownerDocument, {
+        message: `포획한 ${settlement.boxedPokemon.name}, 파티가 가득 차 PC 박스로 전송했습니다.`,
+        tone: "info",
       });
-    }
-
-    this.persistCapturedPokemon();
-
-    if (
-      this.state.result?.winnerPlayerId === localPlayer.playerId &&
-      (this.state.result.rewardPokeDollars ?? 0) > 0
-    ) {
-      const currentLocalPlayer = this.gameStateStore.getCurrentLocalPlayer();
-      this.gameStateStore.setLocalPlayerPokeDollars(
-        currentLocalPlayer.wallet.pokeDollars + (this.state.result.rewardPokeDollars ?? 0),
-      );
-    }
-
-    const localBattleParticipant = [this.state.player, this.state.opponent].find(
-      function findItem(participant) {
-        return participant.playerId === localPlayer.playerId;
-      },
-    );
-    const destination =
-      this.state.result?.loserPlayerId === localPlayer.playerId &&
-      localBattleParticipant &&
-      isBattleParticipantDefeated(localBattleParticipant)
-        ? {
-            mapKey: FIELD_MAP.key,
-            ...FIELD_MAP.recoverySpawn,
-          }
-        : returnToWorld;
-    const { mapKey, x, y, facing } = destination;
-
-    if (this.persistWorldPositionOnReturn) {
-      this.gameStateStore.setLocalPlayerPosition({
-        mapKey,
-        x,
-        y,
-        facing,
-      });
-    }
-
-    if (this.soloChallenge && this.state.result) {
-      this.gameStateStore.completeSoloChallenge(
-        this.state.result.winnerPlayerId === localPlayer.playerId,
-        Date.now(),
-      );
-    }
-
     this.options.onReturnToWorld({
       spawnPosition: {
         x,
@@ -2809,53 +2736,17 @@ export class BattleController {
   }
 
   private persistCapturedPokemon(): void {
-    if (this.state.result?.reason !== "capture") {
-      return;
-    }
-
-    const capturedPokemon = this.state.result.capturedPokemon;
+    const pokemon =
+      this.state.result?.reason === "capture" ? this.state.result.capturedPokemon : undefined;
     const placement = persistCapturedPokemonToWorld({
-      capturedPokemon,
+      capturedPokemon: pokemon,
       gameStateStore: this.gameStateStore,
     });
-
-    if (placement?.destination === "box" && capturedPokemon) {
+    if (placement?.destination === "box" && pokemon)
       dispatchPokeLoungeNotice(this.ownerDocument, {
-        message: `포획한 ${capturedPokemon.name}, 파티가 가득 차 PC 박스로 전송했습니다.`,
+        message: `포획한 ${pokemon.name}, 파티가 가득 차 PC 박스로 전송했습니다.`,
         tone: "info",
       });
-    }
-  }
-
-  private upsertTrainerBattleParticipant(participant: BattleParticipant): void {
-    const localPlayer = this.gameStateStore.getState().playersById[participant.playerId];
-
-    if (!localPlayer) {
-      return;
-    }
-
-    const participantPartyBySlot = new Map(
-      participant.party
-        .filter(function filterItem(slot): slot is BattleParticipant["party"][number] & {
-          pokemon: BattlePokemon;
-        } {
-          return Boolean(slot.pokemon);
-        })
-        .map(function mapItem(slot) {
-          return [slot.slotIndex, toPlayerPokemon(slot.pokemon)] as const;
-        }),
-    );
-
-    this.gameStateStore.upsertLocalPlayer({
-      ...localPlayer,
-      activePartySlotIndex: participant.activePartySlotIndex,
-      party: localPlayer.party.map(function mapItem(slot) {
-        return {
-          ...slot,
-          pokemon: participantPartyBySlot.get(slot.slotIndex) ?? slot.pokemon,
-        };
-      }),
-    });
   }
 
   private applyLevelUpMoveLearning(state: BattleScreenState): BattleScreenState {
@@ -2891,155 +2782,19 @@ export class BattleController {
     }
 
     this.levelUpMoveLearningApplied = true;
-    const previousPokemonBySlotIndex = new Map(
-      localPlayer.party
-        .filter(function filterItem(slot) {
-          return slot.pokemon;
-        })
-        .map(function mapItem(slot) {
-          return [
-            slot.slotIndex,
-            {
-              level: slot.pokemon?.level ?? 1,
-              speciesId: slot.pokemon?.speciesId ?? 0,
-            },
-          ] as const;
-        }),
-    );
-    const learningMessages: string[] = [];
-    let activePokemon = state.player.pokemon;
-    let activeSlotSeen = false;
-    const evolutionTransitions: BattleEvolutionTransition[] = [];
-
-    const party = state.player.party.map(
-      function mapItem(this: BattleController, slot: BattlePartySlot): BattlePartySlot {
-        if (!slot.pokemon) {
-          return slot;
-        }
-
-        if (slot.slotIndex === state.player.activePartySlotIndex) {
-          activeSlotSeen = true;
-        }
-
-        const previousLevel = resolvePreviousBattleLevel({
-          activePartySlotIndex: state.player.activePartySlotIndex,
-          fallbackLevelsGained: state.result?.levelsGained ?? 0,
-          pokemon: slot.pokemon,
-          previousPokemon: previousPokemonBySlotIndex.get(slot.slotIndex),
-          slotIndex: slot.slotIndex,
-        });
-
-        if (previousLevel >= slot.pokemon.level) {
-          return slot;
-        }
-
-        const progression = planLevelUpBattleProgression({
-          evolutionTable,
-          moveRecords,
-          personalRecords,
-          pokemon: slot.pokemon,
-          previousLevel,
-        });
-
-        if (progression.messages.length === 0 && progression.pendingMoveLearnings.length === 0) {
-          return slot;
-        }
-
-        for (const learned of progression.learnedMoves) {
-          this.learnedMovesByMessage.set(learned.message, this.toMoveLearningSummary(learned));
-        }
-        learningMessages.push(...progression.messages);
-        progression.pendingMoveLearnings.forEach(
-          function visitItem(this: BattleController, { newMove }: PendingBattleMoveLearning): void {
-            this.pendingMoveLearnings.push({
-              slotIndex: slot.slotIndex,
-              pokemonName: progression.pokemon.name,
-              newMove,
-            });
-          }.bind(this),
-        );
-
-        if (slot.slotIndex === state.player.activePartySlotIndex) {
-          activePokemon = progression.pokemon;
-        }
-        if (progression.evolved && slot.pokemon.speciesId !== progression.pokemon.speciesId) {
-          evolutionTransitions.push({ fromPokemon: slot.pokemon, toPokemon: progression.pokemon });
-        }
-
-        return {
-          ...slot,
-          pokemon: progression.pokemon,
-        };
-      }.bind(this),
-    );
-
-    if (!activeSlotSeen) {
-      const previousLevel = Math.max(
-        1,
-        state.player.pokemon.level - (state.result.levelsGained ?? 0),
-      );
-      const progression = planLevelUpBattleProgression({
-        evolutionTable,
-        moveRecords,
-        personalRecords,
-        pokemon: state.player.pokemon,
-        previousLevel,
-      });
-
-      for (const learned of progression.learnedMoves) {
-        this.learnedMovesByMessage.set(learned.message, this.toMoveLearningSummary(learned));
-      }
-      if (progression.messages.length > 0) {
-        activePokemon = progression.pokemon;
-        learningMessages.push(...progression.messages);
-      }
-      if (progression.evolved && state.player.pokemon.speciesId !== progression.pokemon.speciesId) {
-        evolutionTransitions.push({
-          fromPokemon: state.player.pokemon,
-          toPokemon: progression.pokemon,
-        });
-      }
-
-      progression.pendingMoveLearnings.forEach(
-        function visitItem(this: BattleController, { newMove }: PendingBattleMoveLearning): void {
-          this.pendingMoveLearnings.push({
-            slotIndex: state.player.activePartySlotIndex,
-            pokemonName: progression.pokemon.name,
-            newMove,
-          });
-        }.bind(this),
-      );
-    }
-
-    if (learningMessages.length === 0 && this.pendingMoveLearnings.length === 0) {
-      return state;
-    }
-
-    this.pendingEvolutionTransitions.push(...evolutionTransitions);
-
-    const nextState = {
-      ...state,
-      player: {
-        ...state.player,
-        pokemon: activePokemon,
-        party,
-      },
-      messageQueue: insertMessagesBeforeBattleEndConfirm(state.messageQueue, learningMessages),
-    };
-
-    if (this.pendingMoveLearnings.length > 0) {
-      this.selectedMoveIndex = 0;
-
-      return {
-        ...nextState,
-        phase: "move-replace-select" as const,
-        messageQueue: removeBattleEndConfirmMessage(nextState.messageQueue),
-      };
-    }
-
-    return {
-      ...nextState,
-    };
+    const result = planPostBattleProgression({
+      state,
+      localPlayer,
+      moveRecords,
+      personalRecords,
+      evolutionTable,
+    });
+    this.pendingMoveLearnings.push(...result.pendingMoveLearnings);
+    this.pendingEvolutionTransitions.push(...result.evolutionTransitions);
+    for (const learned of result.learnedMoves)
+      this.learnedMovesByMessage.set(learned.message, this.toMoveLearningSummary(learned));
+    if (result.pendingMoveLearnings.length > 0) this.selectedMoveIndex = 0;
+    return result.state;
   }
 
   private confirmMoveReplacement(): void {
@@ -3508,55 +3263,8 @@ export class BattleController {
   }
 }
 
-function resolvePreviousBattleLevel({
-  activePartySlotIndex,
-  fallbackLevelsGained,
-  pokemon,
-  previousPokemon,
-  slotIndex,
-}: {
-  activePartySlotIndex: number;
-  fallbackLevelsGained: number;
-  pokemon: BattlePokemon;
-  previousPokemon?: Pick<PlayerPokemon, "level" | "speciesId">;
-  slotIndex: number;
-}): number {
-  if (previousPokemon?.speciesId === pokemon.speciesId && Number.isFinite(previousPokemon.level)) {
-    return previousPokemon.level;
-  }
-
-  if (slotIndex === activePartySlotIndex && fallbackLevelsGained > 0) {
-    return Math.max(1, pokemon.level - fallbackLevelsGained);
-  }
-
-  return pokemon.level;
-}
-
-function insertMessagesBeforeBattleEndConfirm(
-  messageQueue: string[],
-  messages: string[],
-): string[] {
-  const confirmMessageIndex = messageQueue.lastIndexOf(BATTLE_END_CONFIRM_MESSAGE);
-
-  if (confirmMessageIndex === -1) {
-    return [...messageQueue, ...messages];
-  }
-
-  return [
-    ...messageQueue.slice(0, confirmMessageIndex),
-    ...messages,
-    ...messageQueue.slice(confirmMessageIndex),
-  ];
-}
-
 function appendBattleEndConfirmMessage(messages: string[]): string[] {
   return [...messages, BATTLE_END_CONFIRM_MESSAGE];
-}
-
-function removeBattleEndConfirmMessage(messages: string[]): string[] {
-  return messages.filter(function filterItem(message) {
-    return message !== BATTLE_END_CONFIRM_MESSAGE;
-  });
 }
 
 function isRomRefinedMoveCollection(value: unknown): value is RomRefinedMoveCollection {
@@ -3720,17 +3428,6 @@ function cloneBattlePokemon(pokemon: BattlePokemon): BattlePokemon {
     individualValues: { ...pokemon.individualValues },
     statStages: { ...pokemon.statStages },
   };
-}
-
-export function isBattleParticipantDefeated(participant: BattleParticipant): boolean {
-  const occupiedParty = participant.party.flatMap(function mapItem(slot) {
-    return slot.pokemon ? [slot.pokemon] : [];
-  });
-  const pokemon = occupiedParty.length > 0 ? occupiedParty : [participant.pokemon];
-
-  return pokemon.every(function testItem(candidate) {
-    return candidate.status === "fainted" || candidate.currentHp <= 0;
-  });
 }
 
 function createBattleMoveForTest(

@@ -1,101 +1,24 @@
 "use client";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { getRoundStartCount, isRoundStartBlocked } from "@poke-lounge/battle/round-start";
-import { getProjectedRoundStartPosition } from "../starter-selection-flow";
+import type { RoundStartView } from "@/features/poke-lounge/presentation/round/round-start-model";
+import type { Ref } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
-import type { GameStateStore } from "../state/game-state-store";
-import type { WorldFrameStore } from "../world/world-frame-store";
 import styles from "./round-start.module.css";
 
+/** Display only. Readiness requests and lifecycle live in RoundStartController. */
 export function RoundStartOverlay({
   copy,
-  gameStateStore,
-  frameStore,
-  onPreparationReady,
+  view,
+  failed,
+  onRetry,
+  rootRef,
 }: {
   copy: PokeLoungeCopy;
-  gameStateStore: GameStateStore;
-  frameStore: WorldFrameStore;
-  onPreparationReady?: (roundIndex: number) => Promise<void>;
+  view: RoundStartView;
+  failed: boolean;
+  onRetry(): void;
+  rootRef: Ref<HTMLDivElement>;
 }) {
-  const state = useSyncExternalStore(
-    gameStateStore.subscribe,
-    gameStateStore.getState,
-    gameStateStore.getState,
-  );
-  const projection = state.tournament.serverProjection;
-  const [now, setNow] = useState(() => Date.now());
-  const [retry, setRetry] = useState(0);
-  const [failed, setFailed] = useState(false);
-  const inFlight = useRef(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const pending =
-    projection?.roomStatus === "round-started" && projection.roomRound.startedAtMs === null;
-  const own = projection?.participants.find(p => p.playerId === projection.ownPlayerId);
-  const readyKey =
-    pending &&
-    own?.partyReady &&
-    own.connected &&
-    !own.ready &&
-    state.session.connectionStatus === "online"
-      ? `${projection.roomCode}:${projection.roundIndex}:${projection.ownPlayerId}`
-      : null;
-  useEffect(() => {
-    if (projection?.roomStatus !== "round-started") return;
-    const tick = () => setNow(Date.now());
-    tick();
-    const timer = window.setInterval(tick, 50);
-    document.addEventListener("visibilitychange", tick);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", tick);
-    };
-  }, [projection?.roomStatus, projection?.roomRound.startedAtMs]);
-  useEffect(() => {
-    if (!readyKey || !onPreparationReady) return;
-    let canceled = false,
-      frame = 0,
-      painted = 0;
-    const check = () => {
-      if (canceled) return;
-      const current = gameStateStore.getState(),
-        room = current.tournament.serverProjection;
-      if (!room || room.roomStatus !== "round-started" || room.roomRound.startedAtMs !== null)
-        return;
-      const position = getProjectedRoundStartPosition(room, room.ownPlayerId);
-      const local = frameStore.read().localPlayer;
-      const rendered =
-        document.visibilityState !== "hidden" &&
-        Boolean(rootRef.current?.getClientRects().length) &&
-        Math.abs(local.x - position.x) < 1 &&
-        Math.abs(local.y - position.y) < 1 &&
-        !gameStateStore.canChooseStarter();
-      painted = rendered ? painted + 1 : 0;
-      if (painted < 2 || inFlight.current) {
-        frame = requestAnimationFrame(check);
-        return;
-      }
-      inFlight.current = true;
-      setFailed(false);
-      void onPreparationReady(room.roundIndex)
-        .catch(() => {
-          if (!canceled) setFailed(true);
-        })
-        .finally(() => {
-          inFlight.current = false;
-        });
-    };
-    frame = requestAnimationFrame(check);
-    return () => {
-      canceled = true;
-      cancelAnimationFrame(frame);
-    };
-  }, [readyKey, retry, onPreparationReady, gameStateStore, frameStore]);
-  if (!projection || projection.roomStatus !== "round-started") return null;
-  const count = getRoundStartCount(projection.roomStatus, projection.roomRound, now);
-  const blocked = isRoundStartBlocked(projection.roomStatus, projection.roomRound, now);
-  const humans = projection.participants.filter(p => p.role === "participant");
-  const ready = humans.filter(p => p.partyReady && p.connected && p.ready).length;
+  const { count, blocked, justStarted, pending, ready, total } = view;
   const text =
     copy.locale === "ko-KR"
       ? {
@@ -129,11 +52,6 @@ export function RoundStartOverlay({
             retry: "Retry readiness",
             failed: "Unable to confirm readiness.",
           };
-  const justStarted =
-    projection.roomRound.startedAtMs !== null &&
-    now >= projection.roomRound.startedAtMs &&
-    now < projection.roomRound.startedAtMs + 650;
-  if (!blocked && !justStarted) return null;
   return (
     <div
       ref={rootRef}
@@ -155,14 +73,14 @@ export function RoundStartOverlay({
             <h2>{text.title}</h2>
             <p>{text.loading}</p>
             <strong className={styles.ready}>
-              {text.ready} {ready} / {humans.length}
+              {text.ready} {ready} / {total}
             </strong>
           </>
         )}
         {failed && pending ? (
           <>
             <p role="alert">{text.failed}</p>
-            <button type="button" onClick={() => setRetry(n => n + 1)}>
+            <button type="button" onClick={onRetry}>
               {text.retry}
             </button>
           </>

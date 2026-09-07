@@ -1,10 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { bindMobileViewport } from "./mobile/mobile-viewport";
-import { useLocale } from "next-intl";
-import { useLocalTestSession } from "@/lib/use-local-test-session";
 import { useGame } from "@/contexts/game-context";
+import { hydrateGameProgress } from "@/features/poke-lounge/application/persistence/hydrate-game-progress";
 import { useRouter } from "@/i18n/navigation";
 import {
   getSessionApiAccountId,
@@ -12,15 +9,58 @@ import {
   isAuthSessionError,
   type ApiTokenSession,
 } from "@/lib/auth-token";
+import { useLocalTestSession } from "@/lib/use-local-test-session";
 import { loadPokeLoungeState } from "@/services/poke-lounge-state-service";
+import { useLocale } from "next-intl";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { MobileGameShell } from "./mobile/mobile-game-shell";
+import { bindMobileViewport } from "./mobile/mobile-viewport";
 import {
   createPokeLoungeAutosaveLifecycle,
   getPokeLoungeTokenLifecycle,
   startPokeLoungeAutosave,
   type PokeLoungeAutosaveStatus,
 } from "./poke-lounge-autosave";
-import { usePokeLoungeAccessibleStatus } from "./use-poke-lounge-accessible-status";
+import { getPokeLoungeCopy } from "./poke-lounge-copy";
+import { PokeLoungeGameFrame } from "./poke-lounge-game-frame";
+import {
+  PokeLoungeDecisionDialogs,
+  PokeLoungeHydrationScreens,
+  PokeLoungeNoticeBanner,
+  PokeLoungeResultPanel,
+  PokeLoungeStartupErrorScreen,
+  PokeLoungeStatusRail,
+  type PokeLoungeStateHydrationStatus,
+} from "./poke-lounge-game-overlays";
+import {
+  createPokeLoungeRoomEntryUrl,
+  isPokeLoungeMultiplayerResultUrl,
+} from "./poke-lounge-result-navigation";
+import { PokeLoungeSettingsDialog } from "./poke-lounge-settings-dialog";
+import {
+  POKE_LOUNGE_VOLUME_STEPS,
+  createDefaultPokeLoungeSettings,
+  getPokeLoungeVolumeLevelIndex,
+  readPokeLoungeSettings,
+  writePokeLoungeSettings,
+  type PokeLoungeSettings,
+} from "./poke-lounge-settings-storage";
+import themeStyles from "./poke-lounge-theme.module.css";
+import styles from "./poke-lounge.module.css";
 import { setPokeLoungeMasterVolume } from "./runtime/game/audio/poke-lounge-audio";
+import type { PokeLoungeRuntimeState } from "./runtime/game/game-page-state";
+import {
+  GAME_VIEWPORT_SIZE_PRESETS,
+  MOBILE_GAME_VIEWPORT_SIZE,
+  type GameViewportDisplaySize,
+} from "./runtime/game/game-viewport";
+import { detectTouchGameDevice } from "./runtime/game/input/mobile-touch-controls";
+import {
+  pressVirtualGamepadButton,
+  releaseVirtualGamepadButton,
+  resetVirtualGamepad,
+} from "./runtime/game/input/virtual-gamepad";
+import { createRoomShareUrl } from "./runtime/game/network/room-entry";
 import {
   createAuthenticatedGameStateStorageScope,
   getDefaultGameStateStore,
@@ -31,62 +71,22 @@ import {
   buildPokeLoungeSaveSnapshot,
   type PokeLoungeSaveSnapshot,
 } from "./runtime/game/state/poke-lounge-save-snapshot";
-import { hasSamePokeLoungeLocalProgress } from "./runtime/game/state/poke-lounge-save-conflict";
-import { detectTouchGameDevice } from "./runtime/game/input/mobile-touch-controls";
+import { hasPokeLoungeMobileFullscreenScene } from "./runtime/game/ui/mobile-ui-capability";
 import {
-  pressVirtualGamepadButton,
-  releaseVirtualGamepadButton,
-  resetVirtualGamepad,
-} from "./runtime/game/input/virtual-gamepad";
-import {
-  GAME_VIEWPORT_SIZE_PRESETS,
-  MOBILE_GAME_VIEWPORT_SIZE,
-  type GameViewportDisplaySize,
-} from "./runtime/game/game-viewport";
-import {
-  GAME_FULLSCREEN_STATE_EVENT,
-  isGameFullscreenActive,
-  toggleGameFullscreen,
-} from "./runtime/web-fullscreen";
+  createPokeLoungePartySlotSummaries,
+  type PokeLoungePartySlotSummary,
+} from "./runtime/game/ui/mobile-world-ui";
 import {
   POKE_LOUNGE_NOTICE_EVENT,
   type PokeLoungeNoticeDetail,
   type PokeLoungeRoomLeaveRequestDetail,
 } from "./runtime/game/ui/poke-lounge-ui-events";
 import {
-  createPokeLoungePartySlotSummaries,
-  type PokeLoungePartySlotSummary,
-} from "./runtime/game/ui/mobile-world-ui";
-import { hasPokeLoungeMobileFullscreenScene } from "./runtime/game/ui/mobile-ui-capability";
-import { createRoomShareUrl } from "./runtime/game/network/room-entry";
-import { getPokeLoungeCopy } from "./poke-lounge-copy";
-import {
-  createPokeLoungeRoomEntryUrl,
-  isPokeLoungeMultiplayerResultUrl,
-} from "./poke-lounge-result-navigation";
-import { MobileGameShell } from "./mobile/mobile-game-shell";
-import type { PokeLoungeRuntimeState } from "./runtime/game/game-page-state";
-import { PokeLoungeGameFrame } from "./poke-lounge-game-frame";
-import { PokeLoungeSettingsDialog } from "./poke-lounge-settings-dialog";
-import {
-  POKE_LOUNGE_VOLUME_STEPS,
-  createDefaultPokeLoungeSettings,
-  getPokeLoungeVolumeLevelIndex,
-  readPokeLoungeSettings,
-  writePokeLoungeSettings,
-  type PokeLoungeSettings,
-} from "./poke-lounge-settings-storage";
-import {
-  PokeLoungeDecisionDialogs,
-  PokeLoungeHydrationScreens,
-  PokeLoungeNoticeBanner,
-  PokeLoungeResultPanel,
-  PokeLoungeStatusRail,
-  PokeLoungeStartupErrorScreen,
-  type PokeLoungeStateHydrationStatus,
-} from "./poke-lounge-game-overlays";
-import styles from "./poke-lounge.module.css";
-import themeStyles from "./poke-lounge-theme.module.css";
+  GAME_FULLSCREEN_STATE_EVENT,
+  isGameFullscreenActive,
+  toggleGameFullscreen,
+} from "./runtime/web-fullscreen";
+import { usePokeLoungeAccessibleStatus } from "./use-poke-lounge-accessible-status";
 
 type PokeLoungeWindow = Window & {
   __POKE_LOUNGE_CLEANUP_FOR_TEST__?: () => void;
@@ -391,34 +391,38 @@ export function PokeLoungeGame() {
       setStateHydrationRetrying(true);
       void tokenLifecycle
         .runHydration(function callback() {
-          return loadPokeLoungeState(token);
+          return hydrateGameProgress(
+            { authenticated: true, accountId: retryAccountId, token, mode: "retry" },
+            {
+              isCurrent: () =>
+                latestAccountIdRef.current === retryAccountId &&
+                gameStateStorageScopeRef.current === retryStorageScope,
+              selectAnonymousScope: () => {},
+              selectAccountScope: () => true,
+              load: loadPokeLoungeState,
+              readLocal: () => buildPokeLoungeSaveSnapshot(getDefaultGameStateStore()),
+              hydrate: snapshot => getDefaultGameStateStore().hydrateLocalPlayers(snapshot.state),
+            },
+          );
         })
-        .then(function handleResolved(result) {
-          if (
-            latestAccountIdRef.current !== retryAccountId ||
-            gameStateStorageScopeRef.current !== retryStorageScope
-          ) {
-            return;
-          }
-
-          if (!result.success) {
+        .then(function handleResolved(outcome) {
+          if (outcome.kind === "cancelled") return;
+          if (outcome.kind === "local-fallback") {
             setStateHydrationMessage(copy.hydrationLocalFallback);
             return;
           }
-
-          const localSnapshot = buildPokeLoungeSaveSnapshot(getDefaultGameStateStore());
-          if (result.snapshot && !hasSamePokeLoungeLocalProgress(localSnapshot, result.snapshot)) {
+          if (outcome.kind === "conflict") {
             setPendingHydrationResolution({
-              accountId: retryAccountId,
-              revision: result.revision,
-              snapshot: result.snapshot,
+              accountId: outcome.accountId,
+              revision: outcome.revision,
+              snapshot: outcome.snapshot,
             });
             return;
           }
-
-          flushRecoveredLocalStateRef.current = true;
-          setHydratedAccountId(retryAccountId);
-          setHydratedRevision(result.revision);
+          if (outcome.kind !== "ready") return;
+          flushRecoveredLocalStateRef.current = outcome.flushLocal;
+          setHydratedAccountId(outcome.accountId);
+          setHydratedRevision(outcome.revision);
           setStateHydrationMessage("");
           setStateHydrationStatus("ready");
         })
@@ -815,80 +819,66 @@ export function PokeLoungeGame() {
           return;
         }
 
-        const authenticatedSession =
-          status === "authenticated" && !isAuthSessionError(apiSession?.error);
-        if (!authenticatedSession) {
-          setDefaultGameStateStorageScope(ANONYMOUS_GAME_STATE_STORAGE_SCOPE);
-          if (gameStateStorageScopeRef.current !== ANONYMOUS_GAME_STATE_STORAGE_SCOPE) {
-            getDefaultGameStateStore().reloadLocalPlayersFromStorage();
-          }
-          gameStateStorageScopeRef.current = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
-          activeGameStateStorageScope = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
+        const outcome = await hydrateGameProgress(
+          {
+            authenticated: status === "authenticated" && !isAuthSessionError(apiSession?.error),
+            accountId,
+            token: accountId ? accountTokensRef.current.get(accountId) : undefined,
+          },
+          {
+            isCurrent: () => !cancelled,
+            selectAnonymousScope: () => {
+              setDefaultGameStateStorageScope(ANONYMOUS_GAME_STATE_STORAGE_SCOPE);
+              if (gameStateStorageScopeRef.current !== ANONYMOUS_GAME_STATE_STORAGE_SCOPE)
+                getDefaultGameStateStore().reloadLocalPlayersFromStorage();
+              gameStateStorageScopeRef.current = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
+              activeGameStateStorageScope = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
+            },
+            selectAccountScope: accountId => {
+              const scope = createAuthenticatedGameStateStorageScope(accountId);
+              const alreadyUsing = gameStateStorageScopeRef.current === scope;
+              setDefaultGameStateStorageScope(scope);
+              const restored = alreadyUsing
+                ? true
+                : getDefaultGameStateStore().reloadLocalPlayersFromStorage();
+              gameStateStorageScopeRef.current = scope;
+              activeGameStateStorageScope = scope;
+              return restored;
+            },
+            load: loadPokeLoungeState,
+            readLocal: () => buildPokeLoungeSaveSnapshot(getDefaultGameStateStore()),
+            hydrate: snapshot => getDefaultGameStateStore().hydrateLocalPlayers(snapshot.state),
+          },
+        );
+        if (outcome.kind === "cancelled") return;
+        if (outcome.kind === "anonymous") {
           setStateHydrationStatus("ready");
           return;
         }
-
-        const token = accountId ? accountTokensRef.current.get(accountId) : undefined;
-        if (!accountId || !token) {
-          setDefaultGameStateStorageScope(ANONYMOUS_GAME_STATE_STORAGE_SCOPE);
-          if (gameStateStorageScopeRef.current !== ANONYMOUS_GAME_STATE_STORAGE_SCOPE) {
-            getDefaultGameStateStore().reloadLocalPlayersFromStorage();
-          }
-          gameStateStorageScopeRef.current = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
-          activeGameStateStorageScope = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
+        if (outcome.kind === "identity-error") {
           setStateHydrationStatus("unavailable");
           setStateHydrationMessage(copy.hydrationIdentityError);
           return;
         }
-
-        const authenticatedStorageScope = createAuthenticatedGameStateStorageScope(accountId);
-        const alreadyUsingAuthenticatedScope =
-          gameStateStorageScopeRef.current === authenticatedStorageScope;
-        setDefaultGameStateStorageScope(authenticatedStorageScope);
-        const store = getDefaultGameStateStore();
-        const restoredLocalProgress = alreadyUsingAuthenticatedScope
-          ? true
-          : store.reloadLocalPlayersFromStorage();
-        gameStateStorageScopeRef.current = authenticatedStorageScope;
-        activeGameStateStorageScope = authenticatedStorageScope;
-
-        const result = await loadPokeLoungeState(token);
-        if (cancelled) {
-          return;
-        }
-
-        if (!result.success) {
+        if (outcome.kind === "local-fallback") {
           setStateHydrationStatus("local-ready");
           setStateHydrationMessage(copy.hydrationLocalFallback);
-          setHydratedAccountId(null);
-          setHydratedRevision(0);
           return;
         }
-
-        if (result.snapshot) {
-          const localSnapshot = buildPokeLoungeSaveSnapshot(store);
-          if (
-            restoredLocalProgress &&
-            !hasSamePokeLoungeLocalProgress(localSnapshot, result.snapshot)
-          ) {
-            setPendingHydrationResolution({
-              accountId,
-              revision: result.revision,
-              snapshot: result.snapshot,
-            });
-            setStateHydrationStatus("conflict");
-            setStateHydrationMessage(copy.hydrationConflictDescription);
-            return;
-          }
-
-          store.hydrateLocalPlayers(result.snapshot.state);
-        } else if (restoredLocalProgress) {
-          flushRecoveredLocalStateRef.current = true;
+        if (outcome.kind === "conflict") {
+          setPendingHydrationResolution({
+            accountId: outcome.accountId,
+            revision: outcome.revision,
+            snapshot: outcome.snapshot,
+          });
+          setStateHydrationStatus("conflict");
+          setStateHydrationMessage(copy.hydrationConflictDescription);
+          return;
         }
-
+        if (outcome.flushLocal) flushRecoveredLocalStateRef.current = true;
         setStateHydrationStatus("ready");
-        setHydratedAccountId(accountId);
-        setHydratedRevision(result.revision);
+        setHydratedAccountId(outcome.accountId);
+        setHydratedRevision(outcome.revision);
       });
 
       return function callback() {

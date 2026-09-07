@@ -1,17 +1,42 @@
+import type {
+  ApplyTournamentCompletedFromRoomInput,
+  BuyShopItemResult,
+  CreateGameStateStoreOptions,
+  GameState,
+  GameStateListener,
+  GameStateStore,
+  GameTournamentState,
+  LocalPlayerState,
+  LocalPlayersSaveState,
+  PlayerCompetitiveStats,
+  PlayerGuideState,
+  PlayerInventory,
+  PlayerWallet,
+} from "@/features/poke-lounge/contracts/game-state";
+import { purchaseItem } from "@/features/poke-lounge/domain/inventory/purchase-item";
+import * as playerOperations from "@/features/poke-lounge/domain/player/operations";
+import type { PlayerChange } from "@/features/poke-lounge/domain/player/player-change";
 import {
-  PLAYER_PARTY_SLOT_COUNT,
-  type PlayerFacing,
-  type PlayerPokemonSlot,
-  type PlayerPosition,
-} from "../player/player-types";
-import { applyInventoryItemEffect } from "../items/inventory-item-effects";
+  healLocalPlayer,
+  isValidPartySlotIndex,
+  normalizePokeDollars,
+} from "@/features/poke-lounge/domain/player/player-helpers";
+import type { PlayerPokemon } from "@poke-lounge/battle/adventure/player/pokemon-types";
+import type { TournamentParticipant } from "@poke-lounge/battle/tournament-bracket";
 import {
-  getRuntimeGameItem,
-  getRuntimeShopItemIds,
-  hasRuntimeShopItemIds,
-} from "../items/runtime-items";
-import { healPokemon } from "@poke-lounge/battle/adventure/player/heal-pokemon";
+  accumulateTournamentScores,
+  rankCumulativeTournamentScores,
+  scoreTournamentStandings,
+  type CumulativeTournamentScoreRank,
+  type TournamentRoundScore,
+} from "@poke-lounge/battle/tournament-scoring";
 import { isSupportedPokemonSpeciesId } from "../battle/pokemon-species";
+import { getRuntimeShopItemIds, hasRuntimeShopItemIds } from "../items/runtime-items";
+import {
+  findCurrentMatch,
+  type TournamentStateRoomPayload,
+} from "../network/tournament-projection";
+import { type PlayerPokemonSlot } from "../player/player-types";
 import {
   ROUND_TOTAL_COUNT,
   createDefaultRoundState,
@@ -20,330 +45,57 @@ import {
   type GameRoundState,
 } from "../round/round-state";
 import {
-  accumulateTournamentScores,
-  rankCumulativeTournamentScores,
-  scoreTournamentStandings,
-  type CumulativeTournamentScoreRank,
-  type TournamentRoundScore,
-} from "@poke-lounge/battle/tournament-scoring";
-import {
   createTournamentSession,
   getCurrentTournamentMatch as getCurrentTournamentSessionMatch,
   getTournamentSessionStandings,
   recordTournamentSessionMatchResult,
   type TournamentSession,
 } from "../tournament/tournament-session";
-import type {
-  TournamentMatch,
-  TournamentParticipant,
-  TournamentParticipantInput,
-} from "@poke-lounge/battle/tournament-bracket";
-import {
-  findCurrentMatch,
-  type TournamentStateRoomPayload,
-} from "../network/tournament-projection";
-import type {
-  PlayerPokemon,
-  PlayerPokemonMove,
-} from "@poke-lounge/battle/adventure/player/pokemon-types";
+export type {
+  AddPokemonToPartyResult,
+  ApplyRoundScoreUpdatedFromRoomInput,
+  ApplyTournamentCompletedFromRoomInput,
+  ApplyTournamentRoomEventResult,
+  ApplyTournamentSnapshotFromRoomResult,
+  ApplyTournamentStartedFromRoomInput,
+  BuyShopItemResult,
+  ConsumeInventoryItemResult,
+  CreateGameStateStoreOptions,
+  DiceGambleSettlementInput,
+  DiceGambleSettlementResult,
+  GameState,
+  GameStateListener,
+  GameStateStorage,
+  GameStateStore,
+  GameStateUnsubscribe,
+  GameTournamentState,
+  LocalPlayerState,
+  LocalPlayersSaveState,
+  MoveBoxPokemonToPartyResult,
+  MovePartyPokemonToBoxResult,
+  MultiplayerSessionState,
+  PlayerCompetitiveStats,
+  PlayerGuideState,
+  PlayerInventory,
+  PlayerWallet,
+  RecordTournamentMatchResultResult,
+  RemotePlayerPokemonSummary,
+  RemotePlayerState,
+  ReplacePokemonMoveResult,
+  SetActivePartySlotResult,
+  ShopItem,
+  StartTournamentSessionResult,
+  SwapPartyPokemonWithBoxResult,
+  UpdatePokemonInPartySlotResult,
+  UseInventoryItemOnPartySlotResult,
+} from "@/features/poke-lounge/contracts/game-state";
+export { getShopItemById } from "@/features/poke-lounge/domain/inventory/item-catalog";
+export { healLocalPlayer } from "@/features/poke-lounge/domain/player/player-helpers";
 export type {
   PlayerPokemon,
   PlayerPokemonMove,
   PlayerPokemonStatus,
 } from "@poke-lounge/battle/adventure/player/pokemon-types";
-
-export interface RemotePlayerPokemonSummary {
-  speciesId: number;
-  name: string;
-  level: number;
-}
-
-export interface PlayerWallet {
-  pokeDollars: number;
-}
-
-export type PlayerInventory = Record<string, number>;
-
-export interface PlayerCompetitiveStats {
-  rank: number | null;
-  score: number;
-}
-
-export interface PlayerGuideState {
-  shortcutGuideViewed: boolean;
-}
-
-export interface LocalPlayerState {
-  playerId: string;
-  displayName: string;
-  party: Array<PlayerPokemonSlot<PlayerPokemon>>;
-  pokemonBox: PlayerPokemon[];
-  activePartySlotIndex: number;
-  wallet: PlayerWallet;
-  inventory: PlayerInventory;
-  competitive: PlayerCompetitiveStats;
-  guide: PlayerGuideState;
-  position: PlayerPosition;
-}
-
-export interface RemotePlayerState {
-  sessionId: string;
-  playerId: string;
-  displayName?: string;
-  mapKey: string;
-  x: number;
-  y: number;
-  facing: PlayerFacing;
-  activePokemon?: RemotePlayerPokemonSummary;
-}
-
-export interface MultiplayerSessionState {
-  sessionId: string | null;
-  roomId: string | null;
-  connectionStatus: "offline" | "connecting" | "online";
-}
-
-export interface GameTournamentState {
-  session: TournamentSession | null;
-  serverProjection: TournamentStateRoomPayload | null;
-  scoresByPlayerId: Record<string, number>;
-  lastRoundScores: TournamentRoundScore[];
-  standings: CumulativeTournamentScoreRank[];
-}
-
-export interface LocalPlayersSaveState {
-  currentPlayerId: string;
-  playersById: Record<string, LocalPlayerState>;
-}
-
-export interface GameState extends LocalPlayersSaveState {
-  remotePlayers: Record<string, RemotePlayerState>;
-  session: MultiplayerSessionState;
-  round: GameRoundState;
-  tournament: GameTournamentState;
-}
-
-export interface GameStateStorage {
-  loadLocalPlayers(): LocalPlayersSaveState | null;
-  saveLocalPlayers(localPlayers: LocalPlayersSaveState): void;
-  clear(): void;
-}
-
-export type GameStateListener = (state: GameState) => void;
-export type GameStateUnsubscribe = () => void;
-
-export interface ShopItem {
-  id: string;
-  displayName: string;
-  price: number;
-  description: string;
-}
-
-export type BuyShopItemResult =
-  | { ok: true }
-  | {
-      ok: false;
-      reason: "unknown-item" | "invalid-quantity" | "insufficient-funds";
-    };
-
-export interface DiceGambleSettlementInput {
-  stakePokeDollars: number;
-  rewardPokeDollars: number;
-}
-
-export type DiceGambleSettlementResult =
-  | { ok: true; walletPokeDollars: number }
-  | { ok: false; reason: "invalid-stake" | "invalid-reward" | "insufficient-funds" };
-
-export type ConsumeInventoryItemResult =
-  { ok: true } | { ok: false; reason: "invalid-quantity" | "insufficient-quantity" };
-
-export type UseInventoryItemOnPartySlotResult =
-  | {
-      ok: true;
-      itemId: string;
-      messages: string[];
-      pokemon: PlayerPokemon;
-      pendingMoveReplacements: PlayerPokemonMove[];
-    }
-  | {
-      ok: false;
-      itemId: string;
-      reason:
-        | "unknown-item"
-        | "invalid-target"
-        | "insufficient-quantity"
-        | "invalid-move-replacements"
-        | "no-effect"
-        | "unsupported-item";
-      message: string;
-    };
-
-export type AddPokemonToPartyResult =
-  | { ok: true; destination: "party"; slotIndex: number }
-  | { ok: true; destination: "box"; boxIndex: number };
-
-export type MovePartyPokemonToBoxResult =
-  | { ok: true; destination: "box"; boxIndex: number }
-  | { ok: false; reason: "invalid-slot" | "empty-slot" | "last-pokemon" };
-
-export type MoveBoxPokemonToPartyResult =
-  | { ok: true; destination: "party"; slotIndex: number }
-  | { ok: false; reason: "invalid-box-index" | "party-full" };
-
-export type SwapPartyPokemonWithBoxResult =
-  | { ok: true }
-  | {
-      ok: false;
-      reason: "invalid-slot" | "empty-slot" | "invalid-box-index" | "fainted-active-replacement";
-    };
-
-export type SetActivePartySlotResult =
-  { ok: true } | { ok: false; reason: "empty-slot" | "invalid-slot" | "fainted" };
-
-export type UpdatePokemonInPartySlotResult =
-  { ok: true } | { ok: false; reason: "empty-slot" | "invalid-slot" };
-
-export type ReplacePokemonMoveResult =
-  { ok: true } | { ok: false; reason: "empty-slot" | "invalid-slot" | "invalid-move-index" };
-
-export type StartTournamentSessionResult =
-  | { ok: true; session: TournamentSession }
-  | { ok: false; reason: "round-not-active" | "invalid-participants" };
-
-export type RecordTournamentMatchResultResult =
-  | {
-      ok: true;
-      completed: boolean;
-      session: TournamentSession;
-      roundScores: TournamentRoundScore[];
-      standings: CumulativeTournamentScoreRank[];
-    }
-  | { ok: false; reason: "no-active-session" | "invalid-result"; message?: string };
-
-export interface ApplyTournamentStartedFromRoomInput {
-  roundIndex: number;
-  participantIds: string[];
-  matchIds?: string[];
-}
-
-export interface ApplyTournamentCompletedFromRoomInput {
-  roundIndex: number;
-  championPlayerId: string;
-  standings: Array<{
-    playerId: string;
-    rank: number;
-    score: number;
-  }>;
-}
-
-export interface ApplyRoundScoreUpdatedFromRoomInput {
-  roundIndex: number;
-  playerId: string;
-  rank: number;
-  score: number;
-}
-
-export type ApplyTournamentRoomEventResult =
-  | { ok: true }
-  | { ok: false; reason: "invalid-round" | "invalid-participants" | "invalid-standings" };
-
-export type ApplyTournamentSnapshotFromRoomResult =
-  { ok: true } | { ok: false; reason: "invalid-projection" | "stale-revision" };
-
-export function getShopItemById(itemId: string): ShopItem | undefined {
-  const item = getRuntimeGameItem(itemId);
-  return item
-    ? {
-        id: itemId,
-        displayName: item.name,
-        price: item.price,
-        description: item.description,
-      }
-    : undefined;
-}
-
-export interface GameStateStore {
-  getState(): GameState;
-  getCurrentLocalPlayer(): LocalPlayerState;
-  canChooseStarter(): boolean;
-  hasCurrentLocalPlayerViewedShortcutGuide(): boolean;
-  subscribe(listener: GameStateListener): GameStateUnsubscribe;
-  reloadLocalPlayersFromStorage(): boolean;
-  hydrateLocalPlayers(localPlayers: LocalPlayersSaveState): void;
-  setCurrentPlayer(playerId: string): void;
-  upsertLocalPlayer(localPlayer: LocalPlayerState): void;
-  setLocalPlayerPokeDollars(pokeDollars: number): void;
-  setLocalPlayerCompetitiveStats(stats: PlayerCompetitiveStats): void;
-  markCurrentLocalPlayerShortcutGuideViewed(): void;
-  buyShopItem(itemId: string, quantity: number): BuyShopItemResult;
-  buyPremiumShopItem(itemId: string, quantity: number): BuyShopItemResult;
-  consumeInventoryItem(itemId: string, quantity: number): ConsumeInventoryItemResult;
-  useInventoryItemOnPartySlot(itemId: string, slotIndex: number): UseInventoryItemOnPartySlotResult;
-  resolveInventoryItemMoveReplacements(
-    itemId: string,
-    slotIndex: number,
-    decisions: ReadonlyArray<number | null>,
-  ): UseInventoryItemOnPartySlotResult;
-  healCurrentParty(): void;
-  settleDiceGambleResult(input: DiceGambleSettlementInput): DiceGambleSettlementResult;
-  setStarterPokemon(pokemon: PlayerPokemon): void;
-  updateActivePokemon(pokemon: PlayerPokemon): void;
-  addPokemonToParty(pokemon: PlayerPokemon): AddPokemonToPartyResult;
-  movePartyPokemonToBox(slotIndex: number): MovePartyPokemonToBoxResult;
-  moveBoxPokemonToParty(boxIndex: number): MoveBoxPokemonToPartyResult;
-  swapPartyPokemonWithBox(slotIndex: number, boxIndex: number): SwapPartyPokemonWithBoxResult;
-  setActivePartySlot(slotIndex: number): SetActivePartySlotResult;
-  updatePokemonInPartySlot(
-    slotIndex: number,
-    pokemon: PlayerPokemon,
-  ): UpdatePokemonInPartySlotResult;
-  replacePokemonMove(
-    slotIndex: number,
-    moveIndex: number,
-    move: PlayerPokemonMove,
-  ): ReplacePokemonMoveResult;
-  setLocalPlayerPosition(position: PlayerPosition): void;
-  upsertRemotePlayer(player: RemotePlayerState): void;
-  removeRemotePlayer(sessionId: string): void;
-  setSession(session: MultiplayerSessionState): void;
-  startPreparationRound(nowMs: number, preparationDurationMs?: number): void;
-  advanceRoundClock(nowMs: number): void;
-  setRoundState(round: GameRoundState): void;
-  completeSoloChallenge(won: boolean, nowMs: number): void;
-  startTournamentSession(
-    participants: ReadonlyArray<TournamentParticipantInput>,
-  ): StartTournamentSessionResult;
-  getCurrentTournamentMatch(): TournamentMatch | null;
-  recordTournamentMatchResult(
-    matchId: string,
-    winnerPlayerId: string,
-    nowMs: number,
-  ): RecordTournamentMatchResultResult;
-  applyTournamentSnapshotFromRoom(
-    input: TournamentStateRoomPayload,
-    nowMs: number,
-  ): ApplyTournamentSnapshotFromRoomResult;
-  applyTournamentStartedFromRoom(
-    input: ApplyTournamentStartedFromRoomInput,
-    nowMs: number,
-  ): ApplyTournamentRoomEventResult;
-  applyTournamentCompletedFromRoom(
-    input: ApplyTournamentCompletedFromRoomInput,
-    nowMs: number,
-  ): ApplyTournamentRoomEventResult;
-  applyRoundScoreUpdatedFromRoom(
-    input: ApplyRoundScoreUpdatedFromRoomInput,
-  ): ApplyTournamentRoomEventResult;
-  continueFromRoundResult(nowMs: number, preparationDurationMs?: number): void;
-  resetCompetitiveSession(): void;
-  reset(): void;
-}
-
-export interface CreateGameStateStoreOptions {
-  storage?: GameStateStorage;
-  initialState?: GameState;
-}
 
 export function createDefaultGameState(): GameState {
   const localPlayer = createDefaultLocalPlayer();
@@ -422,43 +174,17 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
     });
   };
 
+  const commitPlayerChange = <Result>(change: PlayerChange<Result>): Result => {
+    if (change.changed) setCurrentLocalPlayer(change.player);
+    return change.result;
+  };
+
   const buyItemFromCatalog = (
     itemIds: readonly string[],
     itemId: string,
     quantity: number,
-  ): BuyShopItemResult => {
-    const item = itemIds.includes(itemId) ? getShopItemById(itemId) : undefined;
-
-    if (!item) {
-      return { ok: false, reason: "unknown-item" };
-    }
-
-    if (!isPositiveInteger(quantity)) {
-      return { ok: false, reason: "invalid-quantity" };
-    }
-
-    const localPlayer = getCurrentLocalPlayer(state);
-
-    const totalPrice = item.price * quantity;
-
-    if (localPlayer.wallet.pokeDollars < totalPrice) {
-      return { ok: false, reason: "insufficient-funds" };
-    }
-
-    setCurrentLocalPlayer({
-      ...localPlayer,
-      wallet: {
-        ...localPlayer.wallet,
-        pokeDollars: localPlayer.wallet.pokeDollars - totalPrice,
-      },
-      inventory: {
-        ...localPlayer.inventory,
-        [item.id]: (localPlayer.inventory[item.id] ?? 0) + quantity,
-      },
-    });
-
-    return { ok: true };
-  };
+  ): BuyShopItemResult =>
+    commitPlayerChange(purchaseItem(getCurrentLocalPlayer(state), itemIds, itemId, quantity));
 
   return {
     getState() {
@@ -547,533 +273,82 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
       }
       return buyItemFromCatalog(getRuntimeShopItemIds("premium"), itemId, quantity);
     },
-    consumeInventoryItem(itemId, quantity) {
-      if (!isPositiveInteger(quantity)) {
-        return { ok: false, reason: "invalid-quantity" };
-      }
-
-      const localPlayer = getCurrentLocalPlayer(state);
-      const currentQuantity = localPlayer.inventory[itemId] ?? 0;
-
-      if (currentQuantity < quantity) {
-        return { ok: false, reason: "insufficient-quantity" };
-      }
-
-      const nextQuantity = currentQuantity - quantity;
-      const nextInventory = { ...localPlayer.inventory };
-
-      if (nextQuantity > 0) {
-        nextInventory[itemId] = nextQuantity;
-      } else {
-        delete nextInventory[itemId];
-      }
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        inventory: nextInventory,
-      });
-
-      return { ok: true };
-    },
-    useInventoryItemOnPartySlot(itemId, slotIndex) {
-      const item = getShopItemById(itemId);
-
-      if (!item) {
-        return {
-          ok: false,
-          itemId,
-          reason: "unknown-item",
-          message: "사용할 수 없는 아이템이다.",
-        };
-      }
-
-      const localPlayer = getCurrentLocalPlayer(state);
-      const quantity = localPlayer.inventory[itemId] ?? 0;
-
-      if (quantity <= 0) {
-        return {
-          ok: false,
-          itemId,
-          reason: "insufficient-quantity",
-          message: `${item.displayName}이 없다!`,
-        };
-      }
-
-      const partySlot = localPlayer.party.find(function findItem(slot) {
-        return slot.slotIndex === slotIndex;
-      });
-
-      if (!partySlot?.pokemon) {
-        return {
-          ok: false,
-          itemId,
-          reason: "invalid-target",
-          message: "대상 포켓몬이 없다.",
-        };
-      }
-
-      const itemResult = applyInventoryItemEffect(itemId, partySlot.pokemon);
-
-      if (!itemResult.ok) {
-        return {
-          ok: false,
-          itemId,
-          reason: itemResult.reason,
-          message: itemResult.message,
-        };
-      }
-
-      if (itemResult.pendingMoveReplacements.length > 0) {
-        return {
-          ok: true,
-          itemId,
-          messages: itemResult.messages,
-          pokemon: itemResult.pokemon,
-          pendingMoveReplacements: itemResult.pendingMoveReplacements,
-        };
-      }
-
-      const nextQuantity = quantity - 1;
-      const nextInventory = { ...localPlayer.inventory };
-
-      if (nextQuantity > 0) {
-        nextInventory[itemId] = nextQuantity;
-      } else {
-        delete nextInventory[itemId];
-      }
-
-      const nextPokemon = itemResult.pokemon;
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        inventory: nextInventory,
-        party: localPlayer.party.map(function mapItem(slot) {
-          return slot.slotIndex === slotIndex ? { ...slot, pokemon: nextPokemon } : slot;
-        }),
-      });
-
-      return {
-        ok: true,
-        itemId,
-        messages: itemResult.messages,
-        pokemon: nextPokemon,
-        pendingMoveReplacements: itemResult.pendingMoveReplacements,
-      };
-    },
-    resolveInventoryItemMoveReplacements(itemId, slotIndex, decisions) {
-      const item = getShopItemById(itemId);
-
-      if (!item) {
-        return {
-          ok: false,
-          itemId,
-          reason: "unknown-item",
-          message: "사용할 수 없는 아이템이다.",
-        };
-      }
-
-      const localPlayer = getCurrentLocalPlayer(state);
-      const quantity = localPlayer.inventory[itemId] ?? 0;
-
-      if (quantity <= 0) {
-        return {
-          ok: false,
-          itemId,
-          reason: "insufficient-quantity",
-          message: `${item.displayName}이 없다!`,
-        };
-      }
-
-      const partySlot = localPlayer.party.find(function findItem(slot) {
-        return slot.slotIndex === slotIndex;
-      });
-
-      if (!partySlot?.pokemon) {
-        return {
-          ok: false,
-          itemId,
-          reason: "invalid-target",
-          message: "대상 포켓몬이 없다.",
-        };
-      }
-
-      const itemResult = applyInventoryItemEffect(itemId, partySlot.pokemon);
-
-      if (!itemResult.ok) {
-        return {
-          ok: false,
-          itemId,
-          reason: itemResult.reason,
-          message: itemResult.message,
-        };
-      }
-
-      if (
-        itemResult.pendingMoveReplacements.length === 0 ||
-        decisions.length !== itemResult.pendingMoveReplacements.length ||
-        decisions.some(function testItem(decision) {
-          return decision !== null && !isValidMoveIndex(decision);
-        })
-      ) {
-        return {
-          ok: false,
-          itemId,
-          reason: "invalid-move-replacements",
-          message: "기술 교체 선택을 완료할 수 없다.",
-        };
-      }
-
-      let nextPokemon = itemResult.pokemon;
-      const replacementMessages: string[] = [];
-
-      for (const [index, pendingMove] of itemResult.pendingMoveReplacements.entries()) {
-        const moveIndex = decisions[index];
-
-        if (moveIndex === null || moveIndex === undefined) {
-          replacementMessages.push(`${pendingMove.name} 습득을 취소했다.`);
-          continue;
-        }
-
-        const currentMoves = nextPokemon.moves ?? [];
-        const replacedMove = currentMoves[moveIndex];
-
-        if (!replacedMove) {
-          return {
-            ok: false,
-            itemId,
-            reason: "invalid-move-replacements",
-            message: "기술 교체 선택을 완료할 수 없다.",
-          };
-        }
-
-        nextPokemon = {
-          ...nextPokemon,
-          moves: currentMoves.map(function mapItem(move, currentIndex) {
-            return currentIndex === moveIndex ? pendingMove : move;
-          }),
-        };
-        replacementMessages.push(`기술이 ${replacedMove.name}에서 ${pendingMove.name}로 바뀌었다!`);
-      }
-
-      const nextQuantity = quantity - 1;
-      const nextInventory = { ...localPlayer.inventory };
-
-      if (nextQuantity > 0) {
-        nextInventory[itemId] = nextQuantity;
-      } else {
-        delete nextInventory[itemId];
-      }
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        inventory: nextInventory,
-        party: localPlayer.party.map(function mapItem(slot) {
-          return slot.slotIndex === slotIndex ? { ...slot, pokemon: nextPokemon } : slot;
-        }),
-      });
-
-      return {
-        ok: true,
-        itemId,
-        messages: [...itemResult.messages, ...replacementMessages],
-        pokemon: nextPokemon,
-        pendingMoveReplacements: [],
-      };
-    },
-    healCurrentParty() {
-      const localPlayer = getCurrentLocalPlayer(state);
-
-      if (localPlayer.party.length === 0) {
-        return;
-      }
-
-      setCurrentLocalPlayer(healLocalPlayer(localPlayer));
-    },
-    settleDiceGambleResult({ stakePokeDollars, rewardPokeDollars }) {
-      if (
-        !Number.isFinite(stakePokeDollars) ||
-        !Number.isInteger(stakePokeDollars) ||
-        stakePokeDollars < 1
-      ) {
-        return { ok: false, reason: "invalid-stake" };
-      }
-
-      if (
-        !Number.isFinite(rewardPokeDollars) ||
-        !Number.isInteger(rewardPokeDollars) ||
-        rewardPokeDollars < 0
-      ) {
-        return { ok: false, reason: "invalid-reward" };
-      }
-
-      const localPlayer = getCurrentLocalPlayer(state);
-
-      if (localPlayer.wallet.pokeDollars < stakePokeDollars) {
-        return { ok: false, reason: "insufficient-funds" };
-      }
-
-      const walletPokeDollars = normalizePokeDollars(
-        localPlayer.wallet.pokeDollars - stakePokeDollars + rewardPokeDollars,
+    consumeInventoryItem(...args: Parameters<GameStateStore["consumeInventoryItem"]>) {
+      return commitPlayerChange(
+        playerOperations.consumeInventoryItem(getCurrentLocalPlayer(state), ...args),
       );
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        wallet: {
-          ...localPlayer.wallet,
-          pokeDollars: walletPokeDollars,
-        },
-      });
-
-      return { ok: true, walletPokeDollars };
     },
-    setStarterPokemon(pokemon) {
-      setCurrentLocalPlayer(setActivePartyPokemon(getCurrentLocalPlayer(state), pokemon));
-    },
-    updateActivePokemon(pokemon) {
-      setCurrentLocalPlayer(setActivePartyPokemon(getCurrentLocalPlayer(state), pokemon));
-    },
-    addPokemonToParty(pokemon) {
-      const localPlayer = getCurrentLocalPlayer(state);
-      const occupiedSlotIndices = new Set(
-        localPlayer.party.map(function mapItem(slot) {
-          return slot.slotIndex;
-        }),
+    useInventoryItemOnPartySlot(
+      ...args: Parameters<GameStateStore["useInventoryItemOnPartySlot"]>
+    ) {
+      return commitPlayerChange(
+        playerOperations.useInventoryItemOnPartySlot(getCurrentLocalPlayer(state), ...args),
       );
-      const slotIndex = Array.from(
-        { length: PLAYER_PARTY_SLOT_COUNT },
-        function callback(_, candidateSlotIndex) {
-          return candidateSlotIndex;
-        },
-      ).find(function findItem(candidateSlotIndex) {
-        return !occupiedSlotIndices.has(candidateSlotIndex);
-      });
-
-      if (slotIndex === undefined) {
-        const boxIndex = localPlayer.pokemonBox.length;
-
-        setCurrentLocalPlayer({
-          ...localPlayer,
-          pokemonBox: [...localPlayer.pokemonBox, pokemon],
-        });
-
-        return { ok: true, destination: "box", boxIndex };
-      }
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        party: [
-          ...localPlayer.party,
-          {
-            slotIndex,
-            pokemon,
-          },
-        ].sort(function compareItems(left, right) {
-          return left.slotIndex - right.slotIndex;
-        }),
-      });
-
-      return { ok: true, destination: "party", slotIndex };
     },
-    movePartyPokemonToBox(slotIndex) {
-      if (!isValidPartySlotIndex(slotIndex)) {
-        return { ok: false, reason: "invalid-slot" };
-      }
-
-      const localPlayer = getCurrentLocalPlayer(state);
-      const partySlot = getPartySlot(localPlayer, slotIndex);
-      const pokemon = partySlot?.pokemon;
-
-      if (!pokemon) {
-        return { ok: false, reason: "empty-slot" };
-      }
-
-      const occupiedSlots = localPlayer.party.filter(function filterItem(slot) {
-        return slot.pokemon;
-      });
-
-      if (occupiedSlots.length <= 1) {
-        return { ok: false, reason: "last-pokemon" };
-      }
-
-      const nextBoxIndex = localPlayer.pokemonBox.length;
-      const activePokemon = getPartySlot(localPlayer, localPlayer.activePartySlotIndex)?.pokemon;
-      const nextParty = compactPartySlots(
-        localPlayer.party.filter(function filterItem(slot) {
-          return slot.slotIndex !== slotIndex;
-        }),
+    resolveInventoryItemMoveReplacements(
+      ...args: Parameters<GameStateStore["resolveInventoryItemMoveReplacements"]>
+    ) {
+      return commitPlayerChange(
+        playerOperations.resolveInventoryItemMoveReplacements(
+          getCurrentLocalPlayer(state),
+          ...args,
+        ),
       );
-      const nextActiveSlotIndex =
-        nextParty.find(function findItem(slot) {
-          return slot.pokemon === activePokemon;
-        })?.slotIndex ??
-        nextParty[0]?.slotIndex ??
-        0;
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        activePartySlotIndex: nextActiveSlotIndex,
-        party: nextParty,
-        pokemonBox: [...localPlayer.pokemonBox, pokemon],
-      });
-
-      return { ok: true, destination: "box", boxIndex: nextBoxIndex };
     },
-    moveBoxPokemonToParty(boxIndex) {
-      const localPlayer = getCurrentLocalPlayer(state);
-      const normalizedBoxIndex = normalizeBoxIndex(boxIndex);
-      const pokemon =
-        normalizedBoxIndex === null ? undefined : localPlayer.pokemonBox[normalizedBoxIndex];
-
-      if (!pokemon || normalizedBoxIndex === null) {
-        return { ok: false, reason: "invalid-box-index" };
-      }
-
-      const nextParty = compactPartySlots(localPlayer.party);
-
-      if (nextParty.length >= PLAYER_PARTY_SLOT_COUNT) {
-        return { ok: false, reason: "party-full" };
-      }
-
-      const slotIndex = nextParty.length;
-      const nextBox = localPlayer.pokemonBox.filter(function filterItem(_, index) {
-        return index !== normalizedBoxIndex;
-      });
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        party: [
-          ...nextParty,
-          {
-            slotIndex,
-            pokemon,
-          },
-        ],
-        pokemonBox: nextBox,
-      });
-
-      return { ok: true, destination: "party", slotIndex };
+    healCurrentParty(...args: Parameters<GameStateStore["healCurrentParty"]>) {
+      return commitPlayerChange(
+        playerOperations.healCurrentParty(getCurrentLocalPlayer(state), ...args),
+      );
     },
-    swapPartyPokemonWithBox(slotIndex, boxIndex) {
-      if (!isValidPartySlotIndex(slotIndex)) {
-        return { ok: false, reason: "invalid-slot" };
-      }
-
-      const localPlayer = getCurrentLocalPlayer(state);
-      const normalizedBoxIndex = normalizeBoxIndex(boxIndex);
-      const partySlot = getPartySlot(localPlayer, slotIndex);
-      const partyPokemon = partySlot?.pokemon;
-      const boxPokemon =
-        normalizedBoxIndex === null ? undefined : localPlayer.pokemonBox[normalizedBoxIndex];
-
-      if (!partyPokemon) {
-        return { ok: false, reason: "empty-slot" };
-      }
-
-      if (!boxPokemon || normalizedBoxIndex === null) {
-        return { ok: false, reason: "invalid-box-index" };
-      }
-
-      if (
-        slotIndex === localPlayer.activePartySlotIndex &&
-        (boxPokemon.status === "fainted" ||
-          (typeof boxPokemon.currentHp === "number" && boxPokemon.currentHp <= 0))
-      ) {
-        return { ok: false, reason: "fainted-active-replacement" };
-      }
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        party: localPlayer.party.map(function mapItem(slot) {
-          return slot.slotIndex === slotIndex ? { ...slot, pokemon: boxPokemon } : slot;
-        }),
-        pokemonBox: localPlayer.pokemonBox.map(function mapItem(pokemon, index) {
-          return index === normalizedBoxIndex ? partyPokemon : pokemon;
-        }),
-      });
-
-      return { ok: true };
+    settleDiceGambleResult(...args: Parameters<GameStateStore["settleDiceGambleResult"]>) {
+      return commitPlayerChange(
+        playerOperations.settleDiceGambleResult(getCurrentLocalPlayer(state), ...args),
+      );
     },
-    setActivePartySlot(slotIndex) {
-      if (!isValidPartySlotIndex(slotIndex)) {
-        return { ok: false, reason: "invalid-slot" };
-      }
-
-      const localPlayer = getCurrentLocalPlayer(state);
-      const partySlot = getPartySlot(localPlayer, slotIndex);
-
-      if (!partySlot?.pokemon) {
-        return { ok: false, reason: "empty-slot" };
-      }
-
-      if (partySlot.pokemon.status === "fainted") {
-        return { ok: false, reason: "fainted" };
-      }
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        activePartySlotIndex: slotIndex,
-      });
-
-      return { ok: true };
+    setStarterPokemon(...args: Parameters<GameStateStore["setStarterPokemon"]>) {
+      return commitPlayerChange(
+        playerOperations.setStarterPokemon(getCurrentLocalPlayer(state), ...args),
+      );
     },
-    updatePokemonInPartySlot(slotIndex, pokemon) {
-      if (!isValidPartySlotIndex(slotIndex)) {
-        return { ok: false, reason: "invalid-slot" };
-      }
-
-      const localPlayer = getCurrentLocalPlayer(state);
-      const partySlot = getPartySlot(localPlayer, slotIndex);
-
-      if (!partySlot?.pokemon) {
-        return { ok: false, reason: "empty-slot" };
-      }
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        party: localPlayer.party.map(function mapItem(slot) {
-          return slot.slotIndex === slotIndex ? { ...slot, pokemon } : slot;
-        }),
-      });
-
-      return { ok: true };
+    updateActivePokemon(...args: Parameters<GameStateStore["updateActivePokemon"]>) {
+      return commitPlayerChange(
+        playerOperations.updateActivePokemon(getCurrentLocalPlayer(state), ...args),
+      );
     },
-    replacePokemonMove(slotIndex, moveIndex, move) {
-      if (!isValidPartySlotIndex(slotIndex)) {
-        return { ok: false, reason: "invalid-slot" };
-      }
-
-      const localPlayer = getCurrentLocalPlayer(state);
-      const partySlot = getPartySlot(localPlayer, slotIndex);
-
-      if (!partySlot?.pokemon) {
-        return { ok: false, reason: "empty-slot" };
-      }
-
-      const pokemon = partySlot.pokemon;
-      const moves = partySlot.pokemon.moves ?? [];
-
-      if (!isValidMoveIndex(moveIndex) || !moves[moveIndex]) {
-        return { ok: false, reason: "invalid-move-index" };
-      }
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        party: localPlayer.party.map(function mapItem(slot) {
-          return slot.slotIndex === slotIndex
-            ? {
-                ...slot,
-                pokemon: {
-                  ...pokemon,
-                  moves: moves.map(function mapItem(candidate, index) {
-                    return index === moveIndex ? move : candidate;
-                  }),
-                },
-              }
-            : slot;
-        }),
-      });
-
-      return { ok: true };
+    addPokemonToParty(...args: Parameters<GameStateStore["addPokemonToParty"]>) {
+      return commitPlayerChange(
+        playerOperations.addPokemonToParty(getCurrentLocalPlayer(state), ...args),
+      );
+    },
+    movePartyPokemonToBox(...args: Parameters<GameStateStore["movePartyPokemonToBox"]>) {
+      return commitPlayerChange(
+        playerOperations.movePartyPokemonToBox(getCurrentLocalPlayer(state), ...args),
+      );
+    },
+    moveBoxPokemonToParty(...args: Parameters<GameStateStore["moveBoxPokemonToParty"]>) {
+      return commitPlayerChange(
+        playerOperations.moveBoxPokemonToParty(getCurrentLocalPlayer(state), ...args),
+      );
+    },
+    swapPartyPokemonWithBox(...args: Parameters<GameStateStore["swapPartyPokemonWithBox"]>) {
+      return commitPlayerChange(
+        playerOperations.swapPartyPokemonWithBox(getCurrentLocalPlayer(state), ...args),
+      );
+    },
+    setActivePartySlot(...args: Parameters<GameStateStore["setActivePartySlot"]>) {
+      return commitPlayerChange(
+        playerOperations.setActivePartySlot(getCurrentLocalPlayer(state), ...args),
+      );
+    },
+    updatePokemonInPartySlot(...args: Parameters<GameStateStore["updatePokemonInPartySlot"]>) {
+      return commitPlayerChange(
+        playerOperations.updatePokemonInPartySlot(getCurrentLocalPlayer(state), ...args),
+      );
+    },
+    replacePokemonMove(...args: Parameters<GameStateStore["replacePokemonMove"]>) {
+      return commitPlayerChange(
+        playerOperations.replacePokemonMove(getCurrentLocalPlayer(state), ...args),
+      );
     },
     setLocalPlayerPosition(position) {
       setCurrentLocalPlayer({
@@ -1743,14 +1018,6 @@ function formatDefaultPlayerName(playerId: string): string {
   return match ? `Player ${match[1]}` : playerId;
 }
 
-function normalizePokeDollars(pokeDollars: number): number {
-  if (!Number.isFinite(pokeDollars)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.floor(pokeDollars));
-}
-
 function normalizeInventory(inventory: Record<string, unknown>): PlayerInventory {
   return Object.fromEntries(
     Object.entries(inventory)
@@ -2149,99 +1416,4 @@ function applyFinalTournamentCompetitiveStats(
   }
 
   return nextPlayersById;
-}
-
-function isPositiveInteger(value: number): boolean {
-  return Number.isFinite(value) && Number.isInteger(value) && value >= 1;
-}
-
-function isValidPartySlotIndex(slotIndex: number): boolean {
-  return (
-    Number.isFinite(slotIndex) &&
-    Number.isInteger(slotIndex) &&
-    slotIndex >= 0 &&
-    slotIndex < PLAYER_PARTY_SLOT_COUNT
-  );
-}
-
-function isValidMoveIndex(moveIndex: number): boolean {
-  return (
-    Number.isFinite(moveIndex) && Number.isInteger(moveIndex) && moveIndex >= 0 && moveIndex < 4
-  );
-}
-
-function getPartySlot(
-  localPlayer: LocalPlayerState,
-  slotIndex: number,
-): PlayerPokemonSlot<PlayerPokemon> | undefined {
-  return localPlayer.party.find(function findItem(slot) {
-    return slot.slotIndex === slotIndex;
-  });
-}
-
-function compactPartySlots(
-  party: Array<PlayerPokemonSlot<PlayerPokemon>>,
-): Array<PlayerPokemonSlot<PlayerPokemon>> {
-  return party
-    .filter(function filterItem(slot): slot is PlayerPokemonSlot<PlayerPokemon> & {
-      pokemon: PlayerPokemon;
-    } {
-      return Boolean(slot.pokemon);
-    })
-    .slice(0, PLAYER_PARTY_SLOT_COUNT)
-    .map(function mapItem(slot, slotIndex) {
-      return {
-        ...slot,
-        slotIndex,
-      };
-    });
-}
-
-function normalizeBoxIndex(boxIndex: number): number | null {
-  if (!Number.isFinite(boxIndex) || !Number.isInteger(boxIndex) || boxIndex < 0) {
-    return null;
-  }
-
-  return boxIndex;
-}
-
-export function healLocalPlayer(localPlayer: LocalPlayerState): LocalPlayerState {
-  return {
-    ...localPlayer,
-    party: localPlayer.party.map(function mapItem(slot) {
-      return {
-        ...slot,
-        pokemon: slot.pokemon ? healPokemon(slot.pokemon) : slot.pokemon,
-      };
-    }),
-  };
-}
-
-function setActivePartyPokemon(
-  localPlayer: LocalPlayerState,
-  pokemon: PlayerPokemon,
-): LocalPlayerState {
-  if (localPlayer.party.length === 0) {
-    return {
-      ...localPlayer,
-      activePartySlotIndex: 0,
-      party: [
-        {
-          slotIndex: 0,
-          pokemon,
-        },
-      ],
-    };
-  }
-
-  if (localPlayer.party.length > PLAYER_PARTY_SLOT_COUNT) {
-    throw new Error(`Local player party exceeds ${PLAYER_PARTY_SLOT_COUNT} slots`);
-  }
-
-  return {
-    ...localPlayer,
-    party: localPlayer.party.map(function mapItem(slot) {
-      return slot.slotIndex === localPlayer.activePartySlotIndex ? { ...slot, pokemon } : slot;
-    }),
-  };
 }
