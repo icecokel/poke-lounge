@@ -1377,8 +1377,10 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
           totalRounds: ROUND_TOTAL_COUNT,
           preparationDurationMs: input.roomRound.durationMs,
           phaseStartedAtMs:
-            input.roomRound.startedAtMs ??
-            (projectionAdvanced ? normalizedNowMs : state.round.phaseStartedAtMs),
+            input.roomStatus === "waiting" || input.roomStatus === "round-started"
+              ? input.roomRound.startedAtMs
+              : (input.roomRound.startedAtMs ??
+                (projectionAdvanced ? normalizedNowMs : state.round.phaseStartedAtMs)),
           preparationEndsAtMs:
             input.roomStatus === "round-started" ? input.roomRound.endsAtMs : null,
         },

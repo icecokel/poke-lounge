@@ -24,6 +24,7 @@ interface PokeLoungeGameplayRuntimeControls {
   world?: {
     atlas: WorldPlayerAtlasModel;
     competitiveRoundsEnabled: boolean;
+    onPreparationReady?: (roundIndex: number) => Promise<void>;
     frameStore: WorldFrameStore;
     gameStateStore: GameStateStore;
     input: VirtualGamepadController;

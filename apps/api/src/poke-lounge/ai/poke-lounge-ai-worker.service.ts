@@ -1,3 +1,8 @@
+import { beginPokeLoungePreparationIfReady } from '../poke-lounge-room-policy';
+import {
+  isRoundStartBlocked,
+  getRoundStartPosition,
+} from '@poke-lounge/battle/round-start';
 import {
   isTournamentGatheringDue,
   getTournamentGatherPosition,
@@ -157,7 +162,10 @@ export class PokeLoungeAiWorkerService
           this.liveState.removePlayer(room.roomCode, player.playerId),
         ),
     );
+    // Warm the AI only after host start. It waits motionless until the common deadline.
+    if (room.status === 'waiting') return;
     if (aiParticipants.length > 0) {
+      const loadingStartedAt = Date.now();
       const context = {
         ...(await this.runtime.getContext()),
         sharePartyExperience: sharesPartyExperience(room.round.durationMs),
@@ -172,15 +180,35 @@ export class PokeLoungeAiWorkerService
         const state =
           saved[participant.playerId] ??
           createAiAdventure(snapshot.competitiveParty, nowMs, context);
+        const starting = isRoundStartBlocked(room.status, room.round, nowMs);
+        if (
+          starting ||
+          (!saved[participant.playerId] && room.round.index === 1)
+        ) {
+          const position = getRoundStartPosition(
+            participant.playerId,
+            room.participants
+              .filter((p) => p.role === 'participant')
+              .map((p) => p.playerId),
+          );
+          state.position = { x: position.x, y: position.y };
+          state.facing = position.facing;
+          state.path = [];
+          state.battle = null;
+          state.activity = 'idle';
+          state.updatedAtMs = nowMs;
+          state.readyAtMs = room.round.startedAtMs ?? nowMs;
+        }
         // Private world parties, like human parties, are not overwritten by PvP damage.
-        advanceAiAdventure(
-          state,
-          nowMs,
-          room.round.index,
-          room.status === 'round-started' &&
-            !isTournamentGatheringDue(room.status, room.round, nowMs),
-          context,
-        );
+        if (!starting)
+          advanceAiAdventure(
+            state,
+            nowMs,
+            room.round.index,
+            room.status === 'round-started' &&
+              !isTournamentGatheringDue(room.status, room.round, nowMs),
+            context,
+          );
         if (isTournamentGatheringDue(room.status, room.round, nowMs)) {
           const position = getTournamentGatherPosition(
             participant.playerId,
@@ -193,7 +221,7 @@ export class PokeLoungeAiWorkerService
         }
         states[participant.playerId] = state;
         // Tournament parties belong to the competitive authority until the next preparation.
-        if (room.status === 'round-started' || room.status === 'waiting') {
+        if (room.status === 'round-started') {
           const competitiveParty = aiCompetitiveParty(state);
           if (
             competitiveParty &&
@@ -209,7 +237,19 @@ export class PokeLoungeAiWorkerService
         }
       }
       let currentRoom = room;
-      if (Object.keys(parties).length > 0) {
+      const markAiReady =
+        room.status === 'round-started' &&
+        room.round.startedAtMs === null &&
+        aiParticipants.some((p) => !p.ready);
+      // Persist loaded state first; all humans may already be waiting for this acknowledgement.
+      if (markAiReady)
+        await this.liveState.saveAiAdventures(
+          roomCode,
+          room.expiresAtMs,
+          states,
+        );
+      const readyAtMs = nowMs + Math.max(0, Date.now() - loadingStartedAt);
+      if (Object.keys(parties).length > 0 || markAiReady) {
         const result = await this.repository.mutate({
           operation: 'party-snapshot',
           roomCode,
@@ -218,13 +258,22 @@ export class PokeLoungeAiWorkerService
           requestHash: hashPokeLoungeRoomCommand({
             operation: 'party-snapshot',
             roomCode,
-            body: parties,
+            body: { parties, markAiReady },
           }),
           expectedRevision: room.revision,
-          nowMs,
+          nowMs: markAiReady ? readyAtMs : nowMs,
           apply(current) {
             Object.assign(current.partySnapshots, parties);
-            current.updatedAtMs = nowMs;
+            if (
+              markAiReady &&
+              current.status === 'round-started' &&
+              current.round.startedAtMs === null
+            ) {
+              for (const p of current.participants)
+                if (p.controller === 'ai' && states[p.playerId]) p.ready = true;
+              beginPokeLoungePreparationIfReady(current, readyAtMs);
+            }
+            current.updatedAtMs = markAiReady ? readyAtMs : nowMs;
             return current;
           },
         });

@@ -662,3 +662,40 @@ function createParticipant(playerId: string, joinedAtMs: number) {
     joinedAtMs,
   };
 }
+
+it('holds countdown for unprepared AI and restarts three seconds only after a disconnected human is truly ready again', () => {
+  const humans = [createParticipant('p1', 0), createParticipant('p2', 1)];
+  const room = createSnapshot({
+    status: 'round-started',
+    round: {
+      index: 1,
+      phase: 'round-started',
+      durationMs: 90000,
+      startedAtMs: null,
+      endsAtMs: null,
+    },
+    participants: [
+      ...humans,
+      { ...createParticipant('ai', 2), controller: 'ai', ready: false },
+    ],
+  });
+  expect(advancePokeLoungeRoomClock(room, 1000)).toBeNull();
+  room.participants[2].ready = true;
+  const countdown = advancePokeLoungeRoomClock(room, 2000)!;
+  expect(countdown.round).toMatchObject({ startedAtMs: 5000, endsAtMs: 95000 });
+  countdown.participants[1].connected = false;
+  const paused = advancePokeLoungeRoomClock(countdown, 3000)!;
+  expect(paused.round).toMatchObject({ startedAtMs: null, endsAtMs: null });
+  expect(
+    paused.participants
+      .filter((p) => p.controller !== 'ai')
+      .every((p) => !p.ready),
+  ).toBe(true);
+  paused.participants[1].connected = true;
+  expect(advancePokeLoungeRoomClock(paused, 4000)).toBeNull();
+  for (const p of paused.participants) p.ready = true;
+  expect(advancePokeLoungeRoomClock(paused, 6000)!.round).toMatchObject({
+    startedAtMs: 9000,
+    endsAtMs: 99000,
+  });
+});

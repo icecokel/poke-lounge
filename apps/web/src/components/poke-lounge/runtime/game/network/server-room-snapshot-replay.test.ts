@@ -2931,6 +2931,7 @@ test("BattleScene은 최신 snapshot을 적용하고 WorldScene 재구독에도 
     });
     assert.deepEqual(store.getState().tournament.serverProjection?.participants[0], {
       playerId: "player-1",
+      startPosition: { map: "town", x: 592, y: 368, facing: "front" },
       displayName: "Player 1",
       role: "participant",
       ready: true,

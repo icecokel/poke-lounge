@@ -1,6 +1,10 @@
 import { getTournamentGatheringContext } from "../world/tournament-gathering";
 import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
-import { shouldSelectStarterAfterRoomStart } from "../starter-selection-flow";
+import {
+  isWaitingForRoundStart,
+  getProjectedRoundStartPosition,
+  shouldSelectStarterAfterRoomStart,
+} from "../starter-selection-flow";
 import { playPokeLoungeBgm, stopPokeLoungeBgm } from "../audio/poke-lounge-audio";
 import { GAME_VIEWPORT_SIZE, type GameViewportDisplaySize } from "../game-viewport";
 import {
@@ -155,6 +159,7 @@ export function resolveWorldSpawn(
 
 export class WorldController {
   private tournamentGatheringKey: string | null = null;
+  private roundStartGatheringKey: string | null = null;
   private remotePlayerSnapshots = new Map<string, PlayerSnapshot>();
   private unsubscribers: RoomUnsubscribe[] = [];
   private roomConnected = false;
@@ -271,6 +276,10 @@ export class WorldController {
           this.tournamentGatheringKey !== null ||
           this.roomLobbyOpen ||
           this.starterSelectionPending ||
+          isWaitingForRoundStart(
+            this.gameStateStore.getState().tournament.serverProjection,
+            Date.now(),
+          ) ||
           this.gameStateStore.canChooseStarter()
         )
           return;
@@ -1079,6 +1088,15 @@ export class WorldController {
   }
 
   private upsertRemotePlayer(snapshot: PlayerSnapshot, movement: "interpolate" | "snap"): void {
+    const projection = this.gameStateStore.getState().tournament.serverProjection;
+    if (projection && isWaitingForRoundStart(projection, Date.now())) {
+      snapshot = {
+        ...snapshot,
+        ...getProjectedRoundStartPosition(projection, snapshot.playerId ?? snapshot.sessionId),
+        activity: "idle",
+      };
+      movement = "snap";
+    }
     const gathering = getTournamentGatheringContext(this.gameStateStore.getState(), Date.now());
     if (gathering) {
       snapshot = {
@@ -1120,8 +1138,40 @@ export class WorldController {
     this.sendRoomMessage("PLAYER_MOVEMENT_ENDED", this.createLocalPlayerSnapshot());
   }
 
+  private syncRoundStartGathering(nowMs: number): boolean {
+    const projection = this.gameStateStore.getState().tournament.serverProjection;
+    if (!projection || !isWaitingForRoundStart(projection, nowMs)) {
+      if (this.roundStartGatheringKey) {
+        this.roundStartGatheringKey = null;
+        this.encounters.initialize(this.options.worldRuntime.readLocalPlayer().position);
+        this.options.keyboard.clearPresses();
+        resetVirtualGamepad();
+      }
+      return false;
+    }
+    const playerIds = projection.participants
+      .filter(p => p.role === "participant")
+      .map(p => p.playerId);
+    const key = `${projection.roomCode}:${projection.roundIndex}:${projection.ownPlayerId}:${[...playerIds].sort().join(",")}`;
+    if (key !== this.roundStartGatheringKey) {
+      this.roundStartGatheringKey = key;
+      const position = getProjectedRoundStartPosition(projection, projection.ownPlayerId);
+      this.options.worldRuntime.setLocalPosition(position, this.getViewportSize());
+      this.facing = position.facing;
+      this.options.keyboard.clearPresses();
+      resetVirtualGamepad();
+      for (const remote of this.remotePlayerSnapshots.values())
+        this.upsertRemotePlayer(remote, "snap");
+      this.sendRoomMessage("PLAYER_MOVEMENT_ENDED", this.createLocalPlayerSnapshot());
+    }
+    return true;
+  }
+
   private updateWorldRuntime(time: number, delta: number): void {
-    const awaitingStarter = this.starterSelectionPending || this.gameStateStore.canChooseStarter();
+    const waitingForStart = this.syncRoundStartGathering(Date.now());
+    const awaitingStarter =
+      this.starterSelectionPending || this.gameStateStore.canChooseStarter() || waitingForStart;
+    if (waitingForStart) this.tournament?.clearPresentation();
     let inputLocked = this.roomLobbyOpen || awaitingStarter;
     let input: WorldMovementInput = { down: false, left: false, right: false, up: false };
     if (!inputLocked) {

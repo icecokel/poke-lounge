@@ -473,6 +473,53 @@ describe('PokeLoungeGateway', function testSuite() {
     });
   });
 
+  it('holds movement in the plaza for all three countdown seconds and releases it exactly on the shared deadline', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(1000);
+    const starting = publicRoom({
+      status: 'round-started',
+      round: {
+        index: 1,
+        phase: 'round-started',
+        durationMs: 90000,
+        startedAtMs: 4000,
+        endsAtMs: 94000,
+      },
+    });
+    roomService.authorizeSubscription.mockResolvedValue(starting);
+    roomService.acknowledgeParticipantPresence.mockResolvedValue(starting);
+    const client = socket();
+    await gateway.subscribe(client.value, validSubscription());
+    const movement = {
+      type: 'PLAYER_MOVED',
+      snapshot: { map: 'town', x: 1100, y: 500, facing: 'left' },
+    };
+    for (const now of [1000, 2000, 3000, 3999]) {
+      jest.setSystemTime(now);
+      await gateway.relayPlayerEvent(client.value, movement);
+      expect(liveState.upsertPlayer).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          player: expect.objectContaining({
+            x: 592,
+            y: 368,
+            facing: 'front',
+          }) as unknown,
+        }),
+      );
+    }
+    jest.setSystemTime(4000);
+    await gateway.relayPlayerEvent(client.value, movement);
+    expect(liveState.upsertPlayer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        player: expect.objectContaining({
+          x: 1100,
+          y: 500,
+          facing: 'left',
+        }) as unknown,
+      }),
+    );
+  });
+
   it('ignores live movement before subscription and malformed coordinates', async function testCase() {
     const unsubscribed = socket();
 

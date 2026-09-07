@@ -40,6 +40,8 @@ export type TournamentCompetitionKind =
   "ranked-head-to-head" | "tournament-unranked" | "casual-unranked" | null;
 
 export interface TournamentRoomParticipant {
+  /** Calculated before the viewer's player ID is remapped to its local-save alias. */
+  startPosition?: { map: string; x: number; y: number; facing: "front" };
   playerId: string;
   displayName: string;
   controller?: ApiRoomParticipant["controller"];

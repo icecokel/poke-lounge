@@ -1076,6 +1076,8 @@ export interface components {
       sessionId: string;
       /** @example true */
       ready: boolean;
+      /** @description Round whose rendered field is ready; omitted for lobby readiness. */
+      roundIndex?: number;
     };
     SetPokeLoungeRoundReadyDto: {
       /** @example player-a */

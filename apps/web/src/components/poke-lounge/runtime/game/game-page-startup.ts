@@ -279,6 +279,12 @@ export async function startGamePage(
     const world = {
       atlas: createWorldPlayerAtlasModel(runtimeAssets.playerAtlas.data),
       competitiveRoundsEnabled,
+      ...(multiplayerRoom.setPreparationReady
+        ? {
+            onPreparationReady: (roundIndex: number) =>
+              multiplayerRoom.setPreparationReady!(roundIndex),
+          }
+        : {}),
       frameStore: worldFrameStore,
       gameStateStore,
       input: virtualGamepadController,

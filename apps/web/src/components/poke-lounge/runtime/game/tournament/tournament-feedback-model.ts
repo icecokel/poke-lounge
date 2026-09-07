@@ -3,14 +3,22 @@ import { formatRoundTimer } from "../round/round-state";
 
 export function getRoundCountdown(state: GameState, nowMs: number) {
   const projection = state.tournament.serverProjection;
-  const preparing = projection
-    ? projection.roomStatus === "round-started"
-    : state.round.phase === "preparation";
+  const waitingForStart = Boolean(
+    projection &&
+    projection.roomStatus === "round-started" &&
+    (projection.roomRound.startedAtMs === null || nowMs < projection.roomRound.startedAtMs),
+  );
+  const preparing =
+    !waitingForStart &&
+    (projection ? projection.roomStatus === "round-started" : state.round.phase === "preparation");
   const deadline = projection?.roomRound.endsAtMs ?? state.round.preparationEndsAtMs;
   const remainingMs =
-    preparing && deadline !== null && Number.isFinite(deadline) ? Math.max(0, deadline - nowMs) : 0;
+    preparing && deadline !== null && Number.isFinite(deadline)
+      ? Math.min(state.round.preparationDurationMs, Math.max(0, deadline - nowMs))
+      : 0;
   return {
     preparing,
+    waitingForStart,
     remainingMs,
     timer: formatRoundTimer(remainingMs),
     urgent: preparing && remainingMs <= 10_000,

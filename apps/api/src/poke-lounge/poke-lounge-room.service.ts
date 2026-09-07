@@ -31,6 +31,7 @@ import {
 } from './poke-lounge-room-event.publisher';
 import {
   advancePokeLoungeRoomClock,
+  beginPokeLoungePreparationIfReady,
   completePokeLoungeTournamentMatch,
   convergeOfflinePokeLoungeTournamentMatches,
   getPokeLoungeRoomHostPlayerId,
@@ -643,6 +644,12 @@ export class PokeLoungeRoomService {
               throw new PokeLoungePresenceMutationCancelled();
             }
             currentParticipant.disconnectPendingUntilMs = normalizedExpiresAtMs;
+            if (
+              current.status === 'round-started' &&
+              (current.round.startedAtMs === null ||
+                nowMs < current.round.startedAtMs)
+            )
+              currentParticipant.ready = false;
             current.updatedAtMs = nowMs;
             return current;
           },
@@ -847,6 +854,9 @@ export class PokeLoungeRoomService {
       playerId: input.playerId.trim(),
       sessionId: input.sessionId?.trim(),
       ready: input.ready,
+      ...(input.roundIndex !== undefined
+        ? { roundIndex: input.roundIndex }
+        : {}),
     };
     const nowMs = this.normalizeNow(input.nowMs);
 
@@ -858,7 +868,11 @@ export class PokeLoungeRoomService {
       nowMs,
       body: normalizedCommandBody(normalized, input.nowMs),
       apply: (room) => {
-        if (room.status !== 'waiting' || room.round.phase !== 'waiting') {
+        const fieldReady = normalized.roundIndex !== undefined;
+        if (
+          !fieldReady &&
+          (room.status !== 'waiting' || room.round.phase !== 'waiting')
+        ) {
           throw new BadRequestException(
             'Ready can only change in a waiting room',
           );
@@ -874,7 +888,32 @@ export class PokeLoungeRoomService {
           throw new BadRequestException('Spectators cannot become ready');
         }
 
+        if (fieldReady) {
+          if (
+            !Number.isSafeInteger(normalized.roundIndex) ||
+            normalized.roundIndex !== room.round.index ||
+            room.status !== 'round-started' ||
+            room.round.phase !== 'round-started' ||
+            !normalized.ready
+          )
+            throw new BadRequestException(
+              'Field readiness does not match the starting round',
+            );
+          if (
+            !participant.connected ||
+            participant.disconnectPendingUntilMs !== undefined ||
+            participant.presencePendingUntilMs !== undefined ||
+            !room.partySnapshots[participant.playerId]?.competitiveParty.members
+              .length
+          )
+            throw new BadRequestException(
+              'Choose a starter and connect before field readiness',
+            );
+          // A delayed retry/reconnect must not restart the countdown or mark end-of-round ready.
+          if (room.round.startedAtMs !== null) return room;
+        }
         participant.ready = normalized.ready;
+        if (fieldReady) beginPokeLoungePreparationIfReady(room, nowMs);
         room.updatedAtMs = nowMs;
 
         return room;
@@ -1024,8 +1063,9 @@ export class PokeLoungeRoomService {
 
         room.status = 'round-started';
         room.round.phase = 'round-started';
-        room.round.startedAtMs = nowMs;
-        room.round.endsAtMs = nowMs + room.round.durationMs;
+        // Loading/choosing a starter must not consume preparation time or give AI a head start.
+        room.round.startedAtMs = null;
+        room.round.endsAtMs = null;
         for (const candidate of participants) {
           candidate.ready = false;
         }
@@ -1172,6 +1212,7 @@ export class PokeLoungeRoomService {
           competitiveParty: normalized.competitiveParty,
           updatedAtMs: nowMs,
         };
+        beginPokeLoungePreparationIfReady(room, nowMs);
         room.updatedAtMs = nowMs;
 
         return room;

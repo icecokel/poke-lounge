@@ -5428,3 +5428,244 @@ test("HGSS 실제 V3 서버 실행: 공중날기 자동 이어가기와 유턴 �
   await expect(commands).toBeVisible({ timeout: 20000 });
   await page.screenshot({ path: info.outputPath("v3-shared-engine-complete.png") });
 });
+
+test("신고 회귀: 모바일 서버 방의 야생 전투에서 도망 외 명령도 터치된다", async ({
+  browser,
+}, info) => {
+  test.setTimeout(60000);
+  const server = createMockServerState();
+  const page = await newMockedPage(browser, server, {
+    mobile: true,
+    lobbyLifecycle: true,
+    wrapped: true,
+  });
+  const errors: string[] = [];
+  page.on("pageerror", error => {
+    errors.push(error.message);
+    console.log("PAGE_ERROR", error.stack);
+  });
+  try {
+    await startServerRoom(page, createServerRoomUrl(), "터치 검사");
+    await page.locator("[data-room-lobby-ready]").tap();
+    let startedAt = Date.now();
+    const running = () => ({
+      ...createLobbyStartedRoomState(server),
+      round: {
+        index: 1,
+        phase: "round-started",
+        durationMs: 300_000,
+        startedAtMs: startedAt,
+        endsAtMs: startedAt + 300_000,
+      },
+    });
+    await page.route("**/poke-lounge/rooms/**/start", async route => {
+      server.lobbyStarted = true;
+      server.revision++;
+      startedAt = Date.now();
+      await route.fulfill({ json: { success: true, data: running() } });
+    });
+    await page.route("**/poke-lounge/rooms/**/party-snapshot", async route => {
+      server.partySnapshotBodies.push(await route.request().postDataJSON());
+      server.revision++;
+      await route.fulfill({ json: { success: true, data: running() } });
+    });
+    await page.locator("[data-room-lobby-start]").tap();
+    await page.locator("[data-starter-confirm]").tap();
+    await expect(page.locator("[data-world-local-player]")).toBeVisible();
+    await page.evaluate(() =>
+      (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__!.startWildBattleForTest({
+        encounter: {
+          mapKey: "town",
+          step: { from: { x: 0, y: 0 }, to: { x: 1, y: 0 } },
+          speciesId: 129,
+          name: "잉어킹",
+          level: 2,
+        },
+        x: 656,
+        y: 446,
+        facing: "front",
+      }),
+    );
+    await expect(page.locator('[data-command="fight"]')).toBeEnabled({ timeout: 15000 });
+    // Exercise an arriving room projection while battle buttons already exist.
+    server.revision++;
+    await emitSocketSnapshot(page, running());
+    await page.locator('[data-command="fight"]').tap();
+    await expect(page.locator('[data-poke-lounge-mobile-option-grid="moves"]')).toBeVisible();
+    await page.getByRole("button", { name: "뒤로", exact: true }).tap();
+    await page.locator('[data-command="bag"]').tap();
+    await expect(page.locator('[data-poke-lounge-mobile-task="battle-bag"]')).toBeVisible();
+    await page.getByRole("button", { name: "뒤로", exact: true }).tap();
+    await page.locator('[data-command="pokemon"]').tap();
+    await expect(page.locator('[data-poke-lounge-mobile-task="battle-party"]')).toBeVisible();
+    await page.screenshot({ path: info.outputPath("mobile-server-party.png") });
+    expect(errors).toEqual([]);
+  } finally {
+    await info.attach("page-errors", {
+      body: JSON.stringify(errors),
+      contentType: "application/json",
+    });
+    await page.context().close();
+  }
+});
+
+test("중앙 집결: 선택·필드 준비 완료 후 동기화된 3·2·1과 전체 탐험 시간", async ({
+  browser,
+}, info) => {
+  test.setTimeout(65000);
+  const server = createMockServerState();
+  const host = await newMockedPage(browser, server, {
+    mobile: true,
+    lobbyLifecycle: true,
+    wrapped: true,
+  });
+  const guest = await newMockedPage(browser, server, { lobbyLifecycle: true, wrapped: true });
+  let releaseGuest: (() => void) | undefined;
+  let guestReadyAttempts = 0;
+  const ready = new Set<string>(),
+    selected = new Set<string>();
+  let startedAt: number | null = null;
+  const pages = [host, guest];
+  try {
+    await startServerRoom(host, createServerRoomUrl(), "방장");
+    await startServerRoom(guest, joinServerRoomUrl(), "참가자");
+    await emitSocketSnapshot(host, createLobbyWaitingRoomState(server));
+    await guest.locator("[data-room-lobby-ready]").click();
+    await emitSocketSnapshot(host, createLobbyWaitingRoomState(server));
+    await host.locator("[data-room-lobby-ready]").tap();
+    const room = () => ({
+      ...createLobbyWaitingRoomState(server),
+      status: "round-started",
+      participants: createLobbyWaitingRoomState(server).participants.map(p => ({
+        ...p,
+        ready: ready.has(p.playerId),
+      })),
+      round: {
+        index: 1,
+        phase: "round-started",
+        durationMs: 90000,
+        startedAtMs: startedAt,
+        endsAtMs: startedAt === null ? null : startedAt + 90000,
+      },
+    });
+    const broadcast = async () => {
+      const state = room();
+      for (const page of pages) await emitSocketSnapshot(page, state);
+    };
+    for (const [index, page] of pages.entries()) {
+      await page.route("**/poke-lounge/rooms/**/party-snapshot", async route => {
+        const body = await route.request().postDataJSON();
+        server.partySnapshotBodies.push(body);
+        if (body.competitiveParty?.members?.length)
+          selected.add(server.joinedParticipants[index]!.playerId);
+        server.revision++;
+        await route.fulfill({ json: { success: true, data: room() } });
+      });
+      await page.route("**/poke-lounge/rooms/**/ready", async route => {
+        const body = await route.request().postDataJSON();
+        expect(body.roundIndex).toBe(1);
+        expect(body.ready).toBe(true);
+        expect(selected.has(body.playerId)).toBe(true);
+        if (index === 1 && guestReadyAttempts++ === 0) {
+          server.revision++;
+          await route.fulfill({
+            status: 409,
+            json: {
+              statusCode: 409,
+              code: "POKE_LOUNGE_REVISION_CONFLICT",
+              message: "Concurrent field readiness",
+              snapshot: room(),
+            },
+          });
+          return;
+        }
+        if (index === 1)
+          await new Promise<void>(resolve => {
+            releaseGuest = resolve;
+          });
+        ready.add(body.playerId);
+        if (ready.size === 2 && startedAt === null) startedAt = Date.now() + 3000;
+        server.revision++;
+        await route.fulfill({ json: { success: true, data: room() } });
+        await broadcast();
+      });
+    }
+    await host.route("**/poke-lounge/rooms/**/start", async route => {
+      server.lobbyStarted = true;
+      server.revision++;
+      server.readyPlayerIds.clear();
+      await route.fulfill({ json: { success: true, data: room() } });
+    });
+    await host.locator("[data-room-lobby-start]").tap();
+    await broadcast();
+    for (const page of pages) await expect(page.locator("[data-starter-confirm]")).toBeVisible();
+    await host.locator("[data-starter-confirm]").tap();
+    await expect.poll(() => ready.size).toBe(1);
+    await expect(host.locator("[data-poke-lounge-start-countdown]")).toContainText(
+      "준비 완료 1 / 2",
+    );
+    const before = await getWorldPlayerPosition(host);
+    await host.keyboard.down("ArrowRight");
+    await host.waitForTimeout(5100);
+    await host.keyboard.up("ArrowRight");
+    expect(await getWorldPlayerPosition(host)).toEqual(before);
+    expect(startedAt).toBeNull();
+    await guest.locator("[data-starter-confirm]").click();
+    await expect.poll(() => selected.size).toBe(2);
+    await expect.poll(() => typeof releaseGuest).toBe("function");
+    expect(startedAt).toBeNull(); // Party saves alone do not start the clock.
+    for (const page of pages)
+      await expect(page.locator("[data-poke-lounge-start-countdown]")).toHaveAttribute(
+        "data-poke-lounge-start-countdown",
+        "waiting",
+      );
+    const hostPosition = await getWorldPlayerPosition(host),
+      guestPosition = await getWorldPlayerPosition(guest);
+    const { getRoundStartPosition } = await import("@poke-lounge/battle/round-start");
+    const ids = server.joinedParticipants.map(p => p.playerId);
+    expect(new Set(ids).size).toBe(2);
+    for (const [index, pos] of [hostPosition, guestPosition].entries()) {
+      const expected = getRoundStartPosition(ids[index]!, ids);
+      expect(pos).toEqual({ x: expected.x, y: expected.y });
+    }
+    expect(hostPosition).not.toEqual(guestPosition);
+    expect(guestReadyAttempts).toBe(2);
+    releaseGuest!();
+    for (const count of ["3", "2", "1"]) {
+      for (const page of pages)
+        await expect(page.locator("[data-poke-lounge-start-countdown]")).toHaveAttribute(
+          "data-poke-lounge-start-countdown",
+          count,
+        );
+      expect(await getWorldPlayerPosition(host)).toEqual(hostPosition);
+      expect(await getWorldPlayerPosition(guest)).toEqual(guestPosition);
+      if (count === "3") {
+        await host.screenshot({ path: info.outputPath("mobile-countdown-3.png") });
+        await guest.screenshot({ path: info.outputPath("desktop-countdown-3.png") });
+        // Repeated projections must not reset an in-progress countdown.
+        server.revision++;
+        await broadcast();
+        await host.keyboard.down("ArrowRight");
+      }
+    }
+    await expect(host.locator("[data-poke-lounge-play-status]")).toContainText("01:30");
+    for (const page of pages) {
+      const state = await page.evaluate(() =>
+        (window as PokeLoungeWindow).__POKE_LOUNGE_E2E__!.getGameStateSnapshot(),
+      );
+      expect(state.round).toMatchObject({
+        phaseStartedAtMs: startedAt,
+        preparationEndsAtMs: startedAt! + 90000,
+      });
+    }
+    await expect
+      .poll(async () => (await getWorldPlayerPosition(host))?.x)
+      .not.toBe(hostPosition?.x);
+    await host.keyboard.up("ArrowRight");
+    await expect(host.locator("[data-poke-lounge-start-countdown]")).toHaveCount(0);
+    await host.screenshot({ path: info.outputPath("mobile-exploration-started.png") });
+  } finally {
+    releaseGuest?.();
+    for (const page of pages) await page.context().close();
+  }
+});

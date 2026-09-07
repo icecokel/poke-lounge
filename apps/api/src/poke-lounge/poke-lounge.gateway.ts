@@ -1,4 +1,8 @@
 import {
+  isRoundStartBlocked,
+  getRoundStartPosition,
+} from '@poke-lounge/battle/round-start';
+import {
   isTournamentGatheringDue,
   getTournamentGatherPosition,
 } from '@poke-lounge/battle/tournament-gathering';
@@ -732,8 +736,15 @@ export class PokeLoungeGateway
 
   private gatheringPosition(roomCode: string, playerId: string, nowMs: number) {
     const room = this.gatheringRooms.get(roomCode);
-    if (!room || !isTournamentGatheringDue(room.status, room.round, nowMs))
-      return null;
+    if (!room) return null;
+    if (isRoundStartBlocked(room.status, room.round, nowMs))
+      return getRoundStartPosition(
+        playerId,
+        room.participants
+          .filter((p) => p.role === 'participant')
+          .map((p) => p.playerId),
+      );
+    if (!isTournamentGatheringDue(room.status, room.round, nowMs)) return null;
     return getTournamentGatherPosition(
       playerId,
       room.participants.map((p) => p.playerId),
@@ -745,7 +756,11 @@ export class PokeLoungeGateway
     nowMs: number,
   ): Promise<void> {
     const room = this.gatheringRooms.get(roomCode);
-    if (!room || !isTournamentGatheringDue(room.status, room.round, nowMs))
+    if (
+      !room ||
+      (!isRoundStartBlocked(room.status, room.round, nowMs) &&
+        !isTournamentGatheringDue(room.status, room.round, nowMs))
+    )
       return;
     const snapshot = await this.liveState.getSnapshot(
       roomCode,
@@ -754,10 +769,13 @@ export class PokeLoungeGateway
     for (const participant of room.participants) {
       if (this.gatheringRooms.get(roomCode) !== room) return; // A new round superseded the async read.
       if (!participant.connected) continue;
-      const position = getTournamentGatherPosition(
+      // Re-read the deadline after asynchronous work so a late broadcast cannot pull players back.
+      const position = this.gatheringPosition(
+        roomCode,
         participant.playerId,
-        room.participants.map((p) => p.playerId),
+        Date.now(),
       );
+      if (!position) return;
       const before = snapshot.players.find(
         (p) => p.playerId === participant.playerId,
       );

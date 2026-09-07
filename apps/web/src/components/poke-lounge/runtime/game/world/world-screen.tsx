@@ -15,6 +15,7 @@ import {
 import styles from "../../../poke-lounge.module.css";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import type { GameStateStore } from "../state/game-state-store";
+import { RoundStartOverlay } from "../round/round-start-overlay";
 import { WorldUiLayer } from "./world-ui";
 import type { WorldUiStore } from "./world-ui-store";
 import { localizeTrainerName } from "../i18n/runtime-game-localization";
@@ -22,6 +23,7 @@ import { localizeTrainerName } from "../i18n/runtime-game-localization";
 export function WorldScreen({
   atlas,
   competitiveRoundsEnabled,
+  onPreparationReady,
   frameStore,
   gameStateStore,
   model,
@@ -31,6 +33,7 @@ export function WorldScreen({
 }: {
   atlas: WorldPlayerAtlasModel;
   competitiveRoundsEnabled: boolean;
+  onPreparationReady?: (roundIndex: number) => Promise<void>;
   frameStore: WorldFrameStore;
   gameStateStore: GameStateStore;
   model: WorldMapModel;
@@ -136,6 +139,14 @@ export function WorldScreen({
           </WorldEffectLayer>
         </div>
       </WorldViewport>
+      {competitiveRoundsEnabled ? (
+        <RoundStartOverlay
+          copy={copy}
+          gameStateStore={gameStateStore}
+          frameStore={frameStore}
+          onPreparationReady={onPreparationReady}
+        />
+      ) : null}
       <WorldUiLayer
         copy={copy}
         competitiveRoundsEnabled={competitiveRoundsEnabled}

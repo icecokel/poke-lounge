@@ -1,3 +1,4 @@
+import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import { getApiBaseUrl } from "@/lib/constants";
 import type { components } from "@/types/api";
 import { io } from "socket.io-client";
@@ -1607,6 +1608,10 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
         return {
           playerId,
+          startPosition: getRoundStartPosition(
+            participant.playerId,
+            state.participants.filter(p => p.role === "participant").map(p => p.playerId),
+          ),
           displayName: participant.displayName,
           ...(participant.controller === "ai" ? { controller: "ai" as const } : {}),
           role: participant.role,
@@ -1947,6 +1952,30 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     sessionId,
     async setLobbyReady(ready) {
       await updateReady(ready);
+    },
+    async setPreparationReady(roundIndex) {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        if (
+          disposed ||
+          latestState?.status !== "round-started" ||
+          latestState.round.index !== roundIndex ||
+          latestState.round.startedAtMs !== null ||
+          latestState.participants.find(p => p.playerId === serverPlayerId)?.ready
+        )
+          return;
+        try {
+          const state = await mutateRoom(
+            `/poke-lounge/rooms/${activeRoomId}/ready`,
+            { playerId: serverPlayerId, sessionId, ready: true, roundIndex },
+            getLatestRevision,
+          );
+          applyExpectedTransitionSnapshot(state);
+          return;
+        } catch (error) {
+          if (getServerRoomConflict(error)?.code !== REVISION_CONFLICT_CODE || attempt === 7)
+            throw error;
+        }
+      }
     },
     async startChampionship() {
       const state = await mutateRoom(

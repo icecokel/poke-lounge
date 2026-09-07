@@ -49,14 +49,21 @@ export function getRoundRemainingMs(state: GameRoundState, nowMs: number): numbe
     return 0;
   }
 
-  return Math.max(0, state.preparationEndsAtMs - normalizeTimestampMs(nowMs));
+  return Math.min(
+    state.preparationDurationMs,
+    Math.max(0, state.preparationEndsAtMs - normalizeTimestampMs(nowMs)),
+  );
 }
 
 export function transitionPreparationIfExpired(
   state: GameRoundState,
   nowMs: number,
 ): GameRoundState {
-  if (state.phase !== "preparation" || getRoundRemainingMs(state, nowMs) > 0) {
+  if (
+    state.phase !== "preparation" ||
+    state.preparationEndsAtMs === null ||
+    getRoundRemainingMs(state, nowMs) > 0
+  ) {
     return state;
   }
 

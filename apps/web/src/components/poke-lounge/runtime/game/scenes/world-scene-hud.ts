@@ -278,6 +278,10 @@ export function formatRoundHudText(
 ): string {
   const visibleRound = Math.max(1, round.roundIndex);
   if (round.phase === "preparation") {
+    if (round.phaseStartedAtMs !== null && nowMs < round.phaseStartedAtMs)
+      return `라운드 ${visibleRound}/${round.totalRounds}\n출발 준비`;
+    if (round.preparationEndsAtMs === null && round.phaseStartedAtMs === null)
+      return `라운드 ${visibleRound}/${round.totalRounds}\n포켓몬 선택 대기`;
     if (getRoundRemainingMs(round, nowMs) === 0) {
       return `라운드 ${visibleRound}/${round.totalRounds}\n${roundWaitingText}`;
     }

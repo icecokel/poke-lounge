@@ -3026,6 +3026,11 @@
           "ready": {
             "type": "boolean",
             "example": true
+          },
+          "roundIndex": {
+            "type": "number",
+            "description": "Round whose rendered field is ready; omitted for lobby readiness.",
+            "minimum": 1
           }
         },
         "required": ["playerId", "sessionId", "ready"]

@@ -1,3 +1,4 @@
+import { ROUND_START_COUNTDOWN_MS } from '@poke-lounge/battle/round-start';
 import {
   accumulateTournamentScores,
   rankCumulativeTournamentScores,
@@ -64,10 +65,87 @@ export function isPokeLoungeRoomExpired(
   return room.expiresAtMs < nowMs;
 }
 
+/** Host start opens starter selection; only the ready party barrier starts exploration. */
+export function beginPokeLoungePreparationIfReady(
+  room: PokeLoungeRoomSnapshot,
+  nowMs: number,
+): boolean {
+  if (
+    room.status !== 'round-started' ||
+    room.round.phase !== 'round-started' ||
+    room.round.startedAtMs !== null ||
+    room.round.endsAtMs !== null
+  )
+    return false;
+  const humans = room.participants.filter(
+    (p) => p.role === 'participant' && p.controller !== 'ai',
+  );
+  if (
+    humans.length === 0 ||
+    room.participants.some(
+      (p) =>
+        p.role === 'participant' &&
+        p.controller === 'ai' &&
+        (!p.ready ||
+          !room.partySnapshots[p.playerId]?.competitiveParty.members.length),
+    ) ||
+    humans.some(
+      (p) =>
+        !p.connected ||
+        !p.ready ||
+        p.presencePendingUntilMs !== undefined ||
+        p.disconnectPendingUntilMs !== undefined ||
+        !room.partySnapshots[p.playerId]?.competitiveParty.members.length,
+    )
+  )
+    return false;
+  room.round.startedAtMs = nowMs + ROUND_START_COUNTDOWN_MS;
+  room.round.endsAtMs = room.round.startedAtMs + room.round.durationMs;
+  // End-of-preparation readiness is a different acknowledgement.
+  for (const participant of humans) participant.ready = false;
+  room.updatedAtMs = nowMs;
+  return true;
+}
+
 export function advancePokeLoungeRoomClock(
   room: PokeLoungeRoomSnapshot,
   nowMs: number,
 ): PokeLoungeRoomSnapshot | null {
+  if (
+    room.status === 'round-started' &&
+    room.round.startedAtMs !== null &&
+    nowMs < room.round.startedAtMs &&
+    room.participants.some(
+      (p) =>
+        p.role === 'participant' &&
+        p.controller !== 'ai' &&
+        (!p.connected ||
+          p.presencePendingUntilMs !== undefined ||
+          p.disconnectPendingUntilMs !== undefined ||
+          !room.partySnapshots[p.playerId]?.competitiveParty.members.length),
+    )
+  ) {
+    const waiting = structuredClone(room);
+    waiting.round.startedAtMs = null;
+    waiting.round.endsAtMs = null;
+    for (const participant of waiting.participants)
+      if (participant.controller !== 'ai') participant.ready = false;
+    waiting.updatedAtMs = nowMs;
+    waiting.revision = room.revision + 1;
+    waiting.expiresAtMs = getPokeLoungeRoomExpiresAtMs(waiting);
+    return waiting;
+  }
+  if (
+    room.status === 'round-started' &&
+    room.round.startedAtMs === null &&
+    room.round.endsAtMs === null
+  ) {
+    const started = structuredClone(room);
+    if (!beginPokeLoungePreparationIfReady(started, nowMs)) return null;
+    started.revision = room.revision + 1;
+    started.expiresAtMs = getPokeLoungeRoomExpiresAtMs(started);
+    return started;
+  }
   if (
     room.status !== 'round-started' ||
     room.round.phase !== 'round-started' ||

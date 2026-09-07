@@ -103,6 +103,7 @@ export interface MultiplayerRoom {
   sessionId: string;
   connect(initialSnapshot?: PlayerSnapshot): void;
   setLobbyReady(ready: boolean): Promise<void>;
+  setPreparationReady?(roundIndex: number): Promise<void>;
   startChampionship(): Promise<void>;
   addAiParticipant(): Promise<void>;
   removeAiParticipant(aiPlayerId: string): Promise<void>;

@@ -323,6 +323,9 @@ export class PokeLoungeController {
           playerId: body.playerId,
           sessionId: body.sessionId,
           ready: body.ready,
+          ...(body.roundIndex !== undefined
+            ? { roundIndex: body.roundIndex }
+            : {}),
         },
         command,
       ),

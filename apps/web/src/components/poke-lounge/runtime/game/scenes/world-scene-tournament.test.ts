@@ -476,3 +476,43 @@ test("로컬 대회 참가 자격은 선두가 아니라 전체 파티의 생존
   player.party[1].pokemon!.currentHp = 0;
   assert.equal(hasBattleReadyTournamentPokemon(player), false);
 });
+
+test("스타터 선택 대기는 새 snapshot에서도 시작 시간과 남은 시간을 조작하지 않는다", () => {
+  const store = createGameStateStore();
+  const p = createProjection();
+  p.roomStatus = "round-started";
+  p.roomRound = {
+    index: 1,
+    phase: "round-started",
+    durationMs: 90_000,
+    startedAtMs: null,
+    endsAtMs: null,
+  };
+  p.tournament.bracket = null;
+  p.tournament.activeMatchId = null;
+  p.tournament.activeMatchAuthority = null;
+  assert.equal(store.applyTournamentSnapshotFromRoom(p, 1000).ok, true);
+  assert.equal(store.getState().round.phaseStartedAtMs, null);
+  assert.equal(store.getState().round.preparationEndsAtMs, null);
+  assert.equal(
+    store.applyTournamentSnapshotFromRoom({ ...p, revision: p.revision + 1 }, 6000).ok,
+    true,
+  );
+  assert.equal(store.getState().round.phaseStartedAtMs, null);
+  assert.match(
+    createServerTournamentAnnouncementText({
+      projection: p,
+      nowMs: 6000,
+      casualBattleAvailable: null,
+    }),
+    /모든 참가자가 포켓몬을 선택/,
+  );
+  const started = {
+    ...p,
+    revision: p.revision + 2,
+    roomRound: { ...p.roomRound, startedAtMs: 7000, endsAtMs: 97000 },
+  };
+  assert.equal(store.applyTournamentSnapshotFromRoom(started, 7000).ok, true);
+  assert.equal(store.getState().round.phaseStartedAtMs, 7000);
+  assert.equal(store.getState().round.preparationEndsAtMs, 97000);
+});

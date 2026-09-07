@@ -146,6 +146,7 @@ export interface JoinPokeLoungeRoomInput {
 }
 
 export interface SetPokeLoungeReadyInput {
+  roundIndex?: number;
   playerId: string;
   sessionId?: string;
   ready: boolean;

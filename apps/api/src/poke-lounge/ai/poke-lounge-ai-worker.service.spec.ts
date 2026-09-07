@@ -51,6 +51,7 @@ function setup() {
     .spyOn(adventure, 'advanceAiAdventure')
     .mockImplementation((s) => {
       s.position.x += 26;
+      s.activity = 'moving';
     });
   const projection = jest
     .spyOn(adventure, 'aiCompetitiveParty')
@@ -123,8 +124,8 @@ it('advances without waiting for a human move and does not revise the room for m
   expect(t.liveState.upsertPlayer).toHaveBeenLastCalledWith(
     expect.objectContaining({
       player: expect.objectContaining({
-        x: 708,
-        y: 446,
+        x: 644,
+        y: 368,
         activity: 'moving',
       }) as unknown,
     }),
@@ -233,4 +234,101 @@ it('stops AI exploration at the bracket announcement and publishes its stable he
     sharePartyExperience: false,
     partyExperienceRatio: 0,
   });
+});
+
+it.each(['waiting'] as const)(
+  'does not publish or advance AI before the game is playable (%s)',
+  async (phase) => {
+    const t = setup();
+    t.room.status = phase === 'waiting' ? 'waiting' : 'round-started';
+    t.room.round = {
+      index: 1,
+      phase: phase === 'waiting' ? 'waiting' : 'round-started',
+      durationMs: 90_000,
+      startedAtMs: null,
+      endsAtMs: null,
+    };
+    await t.service.processTick(5_000);
+    await t.service.processTick(10_000);
+    expect(t.advance).not.toHaveBeenCalled();
+    expect(t.runtime.getContext).not.toHaveBeenCalled();
+    expect(t.liveState.upsertPlayer).not.toHaveBeenCalled();
+    expect(t.liveState.saveAiAdventures).not.toHaveBeenCalled();
+  },
+);
+
+it('publishes AI at the same central slot throughout 3/2/1 without simulation or party rewards', async () => {
+  const t = setup();
+  t.room.round = {
+    index: 1,
+    phase: 'round-started',
+    durationMs: 90000,
+    startedAtMs: 4000,
+    endsAtMs: 94000,
+  };
+  for (const now of [1000, 2000, 3000, 3999]) await t.service.processTick(now);
+  expect(t.advance).not.toHaveBeenCalled();
+  expect(t.mutate).not.toHaveBeenCalled();
+  for (const call of t.liveState.upsertPlayer.mock.calls as Array<
+    Parameters<PokeLoungeLiveStateService['upsertPlayer']>
+  >)
+    expect(call[0]).toMatchObject({
+      player: { x: 592, y: 368, activity: 'idle' },
+    });
+  await t.service.processTick(4000);
+  expect(t.advance).toHaveBeenCalledTimes(1);
+  expect(t.advance.mock.calls[0][3]).toBe(true);
+});
+
+it('warms and persists AI before acknowledging readiness, so a slow AI load cannot consume the countdown', async () => {
+  const t = setup();
+  t.room.round = {
+    index: 1,
+    phase: 'round-started',
+    durationMs: 90000,
+    startedAtMs: null,
+    endsAtMs: null,
+  };
+  t.room.participants[0].role = 'participant';
+  t.room.participants[0].ready = false;
+  const human = {
+    ...t.room.participants[0],
+    playerId: 'human-1',
+    sessionId: 'human-session',
+    controller: 'human' as const,
+    ready: true,
+  };
+  t.room.participants.push(human);
+  t.room.partySnapshots['human-1'] = {
+    ...t.room.partySnapshots['ai-1'],
+    playerId: 'human-1',
+  };
+  jest.spyOn(Date, 'now').mockReturnValue(1000);
+  let completeLoad: ((context: object) => void) | undefined;
+  t.runtime.getContext.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        completeLoad = resolve;
+      }),
+  );
+  const pending = t.service.processTick(1000);
+  for (let i = 0; i < 15 && !completeLoad; i++) await Promise.resolve();
+  expect(completeLoad).toBeDefined();
+  expect(t.mutate).not.toHaveBeenCalled();
+  expect(t.advance).not.toHaveBeenCalled();
+  jest.spyOn(Date, 'now').mockReturnValue(6000);
+  completeLoad!({});
+  await pending;
+  expect(t.advance).not.toHaveBeenCalled();
+  expect(t.liveState.saveAiAdventures.mock.invocationCallOrder[0]).toBeLessThan(
+    t.mutate.mock.invocationCallOrder[0],
+  );
+  const result = await (t.mutate.mock.results[0].value as Promise<{
+    snapshot: PokeLoungeRoomSnapshot;
+  }>);
+  expect(result.snapshot.round).toMatchObject({
+    startedAtMs: 9000,
+    endsAtMs: 99000,
+  });
+  expect(result.snapshot.participants[0].ready).toBe(true);
 });

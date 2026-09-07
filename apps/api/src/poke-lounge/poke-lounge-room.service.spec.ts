@@ -505,7 +505,7 @@ describe('PokeLoungeRoomService', function testSuite() {
 
     expect(started).toMatchObject({
       status: 'round-started',
-      round: { startedAtMs: 6, endsAtMs: 90_006 },
+      round: { startedAtMs: null, endsAtMs: null },
     });
     expect(JSON.stringify(guestAcknowledged)).not.toContain(
       'presencePendingUntilMs',
@@ -1076,7 +1076,7 @@ describe('PokeLoungeRoomService', function testSuite() {
     expect(started).toMatchObject({
       status: 'round-started',
       revision: 6,
-      round: { startedAtMs: 300, endsAtMs: 1300 },
+      round: { startedAtMs: null, endsAtMs: null },
     });
     const replayed = await service.startRoom(
       'ROOM01',
@@ -1085,8 +1085,13 @@ describe('PokeLoungeRoomService', function testSuite() {
     );
     expect(replayed).toEqual(started);
 
+    const fieldReady = await acknowledgeFields(300);
+    expect(fieldReady.round).toMatchObject({
+      startedAtMs: 3300,
+      endsAtMs: 4300,
+    });
     publisher.publish.mockClear();
-    currentTimeMs = 1300;
+    currentTimeMs = 4300;
     const [hostRoundReady] = await Promise.all([
       service.setRoundReady(
         'ROOM01',
@@ -1117,7 +1122,7 @@ describe('PokeLoungeRoomService', function testSuite() {
 
     expect(tournament).toMatchObject({
       status: 'tournament',
-      revision: 8,
+      revision: 10,
       tournament: {
         version: 2,
         activeMatchId: 'game-round-1-bracket-1-match-1',
@@ -1184,7 +1189,9 @@ describe('PokeLoungeRoomService', function testSuite() {
       { playerId: 'player-1', sessionId: 'session-1', nowMs: 40 },
       command(room.revision, 209),
     );
-    currentTimeMs = 1_040;
+    expect(started.round.startedAtMs).toBeNull();
+    const fieldsReady = await acknowledgeFields(40);
+    currentTimeMs = 4_040;
 
     const acknowledgements = await Promise.all(
       ['player-1', 'player-2', 'player-3'].map(
@@ -1206,7 +1213,7 @@ describe('PokeLoungeRoomService', function testSuite() {
     expect(acknowledgements).toHaveLength(3);
     expect(tournament).toMatchObject({
       status: 'tournament',
-      revision: started.revision + 3,
+      revision: fieldsReady.revision + 3,
     });
     expect(tournament.participants).toEqual(
       expect.arrayContaining([
@@ -1267,7 +1274,7 @@ describe('PokeLoungeRoomService', function testSuite() {
 
       expect(started).toMatchObject({
         status: 'round-started',
-        round: { startedAtMs: 30, endsAtMs: 1_030 },
+        round: { startedAtMs: null, endsAtMs: null },
       });
       expect(started.participants).toHaveLength(expectedParticipantCount);
       expect(
@@ -1418,6 +1425,159 @@ describe('PokeLoungeRoomService', function testSuite() {
     expect(withGuest.status).toBe('round-started');
   });
 
+  it('requires rendered-field acknowledgements after starter saves, counts three seconds, and never restarts on retries', async () => {
+    await createRoom({ roundDurationMs: 90_000 });
+    const joined = await service.joinRoom(
+      'ROOM01',
+      { playerId: 'player-2', sessionId: 'session-2', nowMs: 1 },
+      command(0, 700),
+    );
+    const a = await service.setReady(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', ready: true, nowMs: 2 },
+      command(joined.revision, 701),
+    );
+    const b = await service.setReady(
+      'ROOM01',
+      { playerId: 'player-2', sessionId: 'session-2', ready: true, nowMs: 3 },
+      command(a.revision, 702),
+    );
+    expect(
+      (await repository.getAndAdvance('ROOM01', 5000)).snapshot!.round
+        .startedAtMs,
+    ).toBeNull();
+    const selecting = await service.startRoom(
+      'ROOM01',
+      { playerId: 'player-1', sessionId: 'session-1', nowMs: 6000 },
+      command(b.revision, 703),
+    );
+    await expect(
+      service.setReady(
+        'ROOM01',
+        {
+          playerId: 'player-1',
+          sessionId: 'session-1',
+          ready: true,
+          roundIndex: 1,
+          nowMs: 6001,
+        },
+        command(selecting.revision, 790),
+      ),
+    ).rejects.toThrow('Choose a starter');
+    const botsReady = repository.snapshot('ROOM01')!;
+    for (const p of botsReady.participants)
+      if (p.controller === 'ai') p.ready = true;
+    repository.seed(botsReady);
+    const hostParty = await updateTestParty(
+      'player-1',
+      'session-1',
+      selecting.revision,
+      704,
+      7000,
+    );
+    const host = await service.setReady(
+      'ROOM01',
+      {
+        playerId: 'player-1',
+        sessionId: 'session-1',
+        ready: true,
+        roundIndex: 1,
+        nowMs: 7100,
+      },
+      command(hostParty.revision, 705),
+    );
+    const guestParty = await updateTestParty(
+      'player-2',
+      'session-2',
+      host.revision,
+      706,
+      12000,
+    );
+    expect(guestParty.round).toMatchObject({
+      startedAtMs: null,
+      endsAtMs: null,
+    });
+    expect(
+      (await repository.getAndAdvance('ROOM01', 15000)).committedChange,
+    ).toBe(false);
+    await expect(
+      service.setReady(
+        'ROOM01',
+        {
+          playerId: 'player-2',
+          sessionId: 'session-2',
+          ready: true,
+          roundIndex: 2,
+          nowMs: 15001,
+        },
+        command(guestParty.revision, 791),
+      ),
+    ).rejects.toThrow('does not match');
+    const ready = await service.setReady(
+      'ROOM01',
+      {
+        playerId: 'player-2',
+        sessionId: 'session-2',
+        ready: true,
+        roundIndex: 1,
+        nowMs: 16000,
+      },
+      command(guestParty.revision, 707),
+    );
+    expect(ready.round).toMatchObject({ startedAtMs: 19000, endsAtMs: 109000 });
+    expect(
+      ready.participants
+        .filter((p) => p.controller !== 'ai')
+        .every((p) => !p.ready),
+    ).toBe(true);
+    const replay = await service.setReady(
+      'ROOM01',
+      {
+        playerId: 'player-2',
+        sessionId: 'session-2',
+        ready: true,
+        roundIndex: 1,
+        nowMs: 16000,
+      },
+      command(guestParty.revision, 707),
+    );
+    expect(replay.round).toEqual(ready.round);
+    const resaved = await updateTestParty(
+      'player-2',
+      'session-2',
+      ready.revision,
+      708,
+      17000,
+    );
+    const late = await service.setReady(
+      'ROOM01',
+      {
+        playerId: 'player-1',
+        sessionId: 'session-1',
+        ready: true,
+        roundIndex: 1,
+        nowMs: 19001,
+      },
+      command(resaved.revision, 709),
+    );
+    expect(late.round).toEqual(ready.round);
+    expect(
+      late.participants.find((p) => p.playerId === 'player-1')!.ready,
+    ).toBe(false);
+    await expect(
+      service.setRoundReady(
+        'ROOM01',
+        {
+          playerId: 'player-1',
+          sessionId: 'session-1',
+          roundIndex: 1,
+          nowMs: 18000,
+        },
+        roundCommand(792),
+      ),
+    ).rejects.toThrow('not ready to finish');
+  });
+
   it('rejects new participants after host start and still allows an existing identity to reconnect', async function testCase() {
     await createRoom({ roundDurationMs: 1000 });
     await service.joinRoom(
@@ -1470,7 +1630,7 @@ describe('PokeLoungeRoomService', function testSuite() {
 
     expect(rejoined).toMatchObject({
       status: 'round-started',
-      round: { startedAtMs: 300, endsAtMs: 1300 },
+      round: { startedAtMs: null, endsAtMs: null },
     });
   });
 
@@ -1561,7 +1721,7 @@ describe('PokeLoungeRoomService', function testSuite() {
 
     const rejoined = await service.joinRoom(
       'ROOM01',
-      { playerId: 'player-1', sessionId: 'session-1', nowMs: 1201 },
+      { playerId: 'player-1', sessionId: 'session-1', nowMs: 4201 },
       command(tournament.revision, 10),
     );
 
@@ -1573,14 +1733,14 @@ describe('PokeLoungeRoomService', function testSuite() {
     await expect(
       service.joinRoom(
         'ROOM01',
-        { playerId: 'player-1', sessionId: 'wrong', nowMs: 1202 },
+        { playerId: 'player-1', sessionId: 'wrong', nowMs: 4202 },
         command(rejoined.revision, 11),
       ),
     ).rejects.toThrow('Join sessionId does not match this participant');
     await expect(
       service.joinRoom(
         'ROOM01',
-        { playerId: 'player-3', sessionId: 'session-3', nowMs: 1202 },
+        { playerId: 'player-3', sessionId: 'session-3', nowMs: 4202 },
         command(rejoined.revision, 12),
       ),
     ).rejects.toThrow('Room is not joinable');
@@ -1763,7 +1923,7 @@ describe('PokeLoungeRoomService', function testSuite() {
         },
       )!,
       reason: 'faint' as const,
-      nowMs: 1201,
+      nowMs: 4201,
     };
 
     const firstCompleted = await service.submitMatchResult(
@@ -1782,7 +1942,7 @@ describe('PokeLoungeRoomService', function testSuite() {
     const changedNowMs = await captureConflict(
       service.submitMatchResult(
         'ROOM01',
-        { ...firstResultInput, nowMs: 1202 },
+        { ...firstResultInput, nowMs: 4202 },
         command(firstCompleted.revision, 5),
       ),
     );
@@ -1793,7 +1953,7 @@ describe('PokeLoungeRoomService', function testSuite() {
     await expect(
       service.submitMatchResult(
         'ROOM01',
-        { ...firstResultInput, nowMs: 1202 },
+        { ...firstResultInput, nowMs: 4202 },
         command(firstCompleted.revision, 6),
       ),
     ).rejects.toThrow(BadRequestException);
@@ -1823,7 +1983,7 @@ describe('PokeLoungeRoomService', function testSuite() {
           winnerPlayerId,
           loserPlayerId,
           reason: 'faint',
-          nowMs: 1201 + commandIndex,
+          nowMs: 4201 + commandIndex,
         },
         command(completed.revision, commandIndex),
       );
@@ -1890,15 +2050,17 @@ describe('PokeLoungeRoomService', function testSuite() {
       command(bothReady.revision, 5),
     );
 
+    const fieldsReady = await acknowledgeFields(200);
+    expect(started.round.startedAtMs).toBeNull();
     const active = await service.leaveRoom(
       'ROOM01',
       { playerId: 'player-1', sessionId: 'session-1', nowMs: 300 },
-      command(started.revision, 6),
+      command(fieldsReady.revision, 6),
     );
 
     expect(active).toMatchObject({
       status: 'round-started',
-      round: { phase: 'round-started', startedAtMs: 200, endsAtMs: 1_200 },
+      round: { phase: 'round-started', startedAtMs: 3200, endsAtMs: 4200 },
       tournament: { bracket: null, activeMatchId: null },
     });
     expect(active.participants).toHaveLength(3);
@@ -2045,7 +2207,7 @@ describe('PokeLoungeRoomService', function testSuite() {
           winnerPlayerId: 'player-1',
           loserPlayerId: 'player-2',
           reason: 'faint',
-          nowMs: 1201,
+          nowMs: 4201,
         },
         command(tournament.revision, 50),
       ),
@@ -2324,6 +2486,31 @@ describe('PokeLoungeRoomService', function testSuite() {
     );
   }
 
+  let fieldReadyCommandIndex = 80_000;
+  async function acknowledgeFields(nowMs: number) {
+    let room = repository.snapshot('ROOM01')!;
+    // Model the completed AI warm-up; worker tests cover its persistence/acknowledgement order.
+    for (const p of room.participants)
+      if (p.controller === 'ai') p.ready = true;
+    repository.seed(room);
+    for (const player of room.participants.filter(
+      (p) => p.controller !== 'ai',
+    )) {
+      room = await service.setReady(
+        'ROOM01',
+        {
+          playerId: player.playerId,
+          sessionId: player.sessionId,
+          ready: true,
+          roundIndex: room.round.index,
+          nowMs,
+        },
+        command(room.revision, ++fieldReadyCommandIndex),
+      );
+    }
+    return room;
+  }
+
   async function createTournament() {
     await createRoom({ roundDurationMs: 1000 });
     await service.joinRoom(
@@ -2349,7 +2536,8 @@ describe('PokeLoungeRoomService', function testSuite() {
       command(bothReady.revision, 99),
     );
 
-    currentTimeMs = 1200;
+    await acknowledgeFields(200);
+    currentTimeMs = 4200;
     await service.setRoundReady(
       'ROOM01',
       { playerId: 'player-1', sessionId: 'session-1', roundIndex: 1 },

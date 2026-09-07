@@ -113,3 +113,23 @@ test("서버 권위 라운드 HUD는 snapshot 전 waiting 상태를 로컬에서
 
   assert.equal(gameStateStore.getState().round.phase, "waiting");
 });
+
+test("스타터 선택 중 타이머를 만들지 않고 시작 시 전체 준비 시간을 표시한다", () => {
+  const selecting = {
+    phase: "preparation" as const,
+    roundIndex: 1,
+    totalRounds: 3,
+    preparationDurationMs: 90_000,
+    phaseStartedAtMs: null,
+    preparationEndsAtMs: null,
+  };
+  assert.equal(formatRoundHudText(selecting, 5_000), "라운드 1/3\n포켓몬 선택 대기");
+  assert.equal(formatRoundHudText(selecting, 10_000), "라운드 1/3\n포켓몬 선택 대기");
+  assert.equal(
+    formatRoundHudText(
+      { ...selecting, phaseStartedAtMs: 10_000, preparationEndsAtMs: 100_000 },
+      10_000,
+    ),
+    "라운드 1/3 시작까지\n01:30",
+  );
+});

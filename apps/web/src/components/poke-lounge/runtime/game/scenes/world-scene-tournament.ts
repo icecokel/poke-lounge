@@ -1,3 +1,4 @@
+import { isWaitingForStarterSelections } from "../starter-selection-flow";
 import { findBattleReadyPartySlot } from "@poke-lounge/battle/adventure/player/battle-ready-party";
 import type { BattleResultReason } from "../battle/battle-types";
 import {
@@ -442,6 +443,10 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
   }
 
   private showServerTournamentMessage(projection: TournamentStateRoomPayload, nowMs: number): void {
+    if (isWaitingForStarterSelections(projection)) {
+      this.setAnnouncement("모든 참가자가 포켓몬을 선택하면 함께 탐험을 시작합니다.", "14px");
+      return;
+    }
     if (projection.resultSync.matchId === projection.tournament.activeMatchId) {
       if (projection.resultSync.status === "submitting") {
         this.setAnnouncement("경기 결과 전송 중", "16px");
@@ -535,6 +540,8 @@ export function createServerTournamentAnnouncementText({
   nowMs,
   casualBattleAvailable,
 }: CreateServerTournamentAnnouncementTextInput): string {
+  if (isWaitingForStarterSelections(projection))
+    return "모든 참가자가 포켓몬을 선택하면 함께 탐험을 시작합니다.";
   if (projection.roomStatus === "round-started") {
     const remainingMs = Math.max(0, (projection.roomRound.endsAtMs ?? nowMs) - nowMs);
     const cumulativeStatus = createOwnCumulativeStatusLabel(projection);
@@ -726,6 +733,8 @@ function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayl
 }
 
 function createServerRoomStageLabel(projection: TournamentStateRoomPayload, nowMs: number): string {
+  if (isWaitingForStarterSelections(projection))
+    return "포켓몬 선택 대기 · 모두 선택하면 함께 출발";
   if (projection.roomStatus === "waiting") {
     return "대기실 · 모든 사람이 준비하면 방장이 시작";
   }

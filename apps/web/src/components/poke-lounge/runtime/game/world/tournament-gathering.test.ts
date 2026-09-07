@@ -76,3 +76,27 @@ test("로컬 대회도 준비 종료에 집결하며 일반 싱글 플레이는 
     null,
   );
 });
+
+test("탐험 시작 중앙 슬롯 8개는 벽·NPC·야생 조우 구역과 겹치지 않는다", async () => {
+  const { getRoundStartPosition } = await import("@poke-lounge/battle/round-start");
+  const { worldPlayerCollides } = await import("./world-runtime-motion");
+  const map = createWorldMapModel(
+    JSON.parse(
+      readFileSync(
+        new URL("../../../../../../public/maps/pokemmo-reference/town.json", import.meta.url),
+        "utf8",
+      ),
+    ),
+  );
+  const ids = Array.from({ length: 8 }, (_, index) => `player-${index}`);
+  for (const id of ids) {
+    const p = getRoundStartPosition(id, ids);
+    assert.equal(worldPlayerCollides(p, map), false);
+    assert.equal(
+      map.tallGrassCoordinates.has(
+        `${Math.floor(p.x / map.tileWidth)},${Math.floor(p.y / map.tileHeight)}`,
+      ),
+      false,
+    );
+  }
+});

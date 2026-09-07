@@ -44,13 +44,19 @@ export function RoundCountdown({
             result: "Round results",
             waiting: "Waiting for round",
           };
-  const label = countdown.preparing
-    ? text.countdown
-    : state.round.phase === "tournament"
-      ? text.running
-      : state.round.phase === "round-result" || state.round.phase === "game-result"
-        ? text.result
-        : text.waiting;
+  const label = countdown.waitingForStart
+    ? copy.locale === "ko-KR"
+      ? "출발 준비"
+      : copy.locale === "ja-JP"
+        ? "出発準備"
+        : "Ready to start"
+    : countdown.preparing
+      ? text.countdown
+      : state.round.phase === "tournament"
+        ? text.running
+        : state.round.phase === "round-result" || state.round.phase === "game-result"
+          ? text.result
+          : text.waiting;
   return (
     <div
       className={styles.roundCountdown}

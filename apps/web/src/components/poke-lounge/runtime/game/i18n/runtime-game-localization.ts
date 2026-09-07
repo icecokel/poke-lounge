@@ -275,6 +275,16 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
   "토너먼트 진행": { "en-US": "Tournament in progress", "ja-JP": "トーナメント進行中" },
   결과: { "en-US": "Result", "ja-JP": "結果" },
   "최종 결과": { "en-US": "Final results", "ja-JP": "最終結果" },
+  "출발 준비": { "en-US": "Ready to start", "ja-JP": "出発準備" },
+  "포켓몬 선택 대기": { "en-US": "Waiting for starter selections", "ja-JP": "パートナー選択待ち" },
+  "포켓몬 선택 대기 · 모두 선택하면 함께 출발": {
+    "en-US": "Waiting for starter selections · everyone starts together",
+    "ja-JP": "パートナー選択待ち · 全員で出発",
+  },
+  "모든 참가자가 포켓몬을 선택하면 함께 탐험을 시작합니다.": {
+    "en-US": "Exploration starts together once everyone has chosen a Pokémon.",
+    "ja-JP": "全員がポケモンを選ぶと、一緒に探索を開始します。",
+  },
   "라운드 대기": { "en-US": "Waiting for round", "ja-JP": "ラウンド待機中" },
   "다른 플레이어를 기다리는 중...": {
     "en-US": "Waiting for other players...",
