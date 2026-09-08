@@ -1,5 +1,6 @@
 import { createDefaultBattleStatStages } from "../battle-stat-stages";
 import { hgssPhazingSucceeds } from "./flow";
+import { serializeGen4Battle } from "./serialization";
 import {
   Battle,
   Dex,
@@ -371,7 +372,7 @@ function orderedTeam(party: Gen4Party, wild = false): TaggedSet[] {
 function save(b: Battle): Gen4Session {
   // Showdown includes wall-clock log markers. They are not gameplay and must not change replay hashes.
   for (let i = 0; i < b.log.length; i++) if (b.log[i]!.startsWith("|t:|")) b.log[i] = "|t:|0";
-  const object = b.toJSON();
+  const object = serializeGen4Battle(b);
   return { version: 1, snapshot: JSON.stringify(object) };
 }
 function restore(s: Gen4Session): Battle {

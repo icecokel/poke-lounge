@@ -13,6 +13,7 @@
     "test:poke-lounge-unit": "node scripts/web-unit-test-runner.mjs",
     "generate:types": "openapi-typescript ../api/openapi.json -o src/types/api.d.ts",
     "e2e": "node scripts/playwright-runner.mjs test",
+    "e2e:mobile-production": "tsx scripts/playwright-mobile-production-runner.ts",
     "e2e:integration": "node scripts/playwright-integration-runner.mjs",
     "e2e:five-player": "node scripts/playwright-integration-runner.mjs tests/e2e/poke-lounge-five-player-tournament.spec.ts --project=poke-lounge-five-browser-integration",
     "e2e:local-test-mode": "node scripts/playwright-runner.mjs --local-test-mode test tests/e2e/poke-lounge-local-test-mode.spec.ts --project=chromium",
