@@ -1,3 +1,4 @@
+import { PageReloadButton } from "../../../ui/page-reload-button";
 import { RoomLobbyScreen } from "./room-lobby-view";
 import { DirectMultiplayerEntryScreen } from "./room-invitation-screen";
 export { RoomLobbyScreen } from "./room-lobby-view";
@@ -149,6 +150,7 @@ function RoomEntryScreen({
             <h1>{copy.roomEntry.title}</h1>
             <p>{copy.roomEntry.multiplayerDescription}</p>
           </div>
+          <PageReloadButton locale={copy.locale} disabled={pending} />
           <FanNotice copy={copy} />
         </header>
         {state.localTestMode ? (

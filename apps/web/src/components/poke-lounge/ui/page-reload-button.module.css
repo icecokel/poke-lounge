@@ -1,0 +1,38 @@
+.button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 2px solid #304c3a;
+  border-radius: 6px;
+  background: #fffef3;
+  color: #17201a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.button:focus-visible {
+  outline: 3px solid #ffcf55;
+  outline-offset: 2px;
+}
+.dialog {
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border: 3px solid #304c3a;
+  background: #fffef3;
+  color: #17201a;
+}
+.description {
+  color: #405244;
+}
+.dialog button {
+  min-height: 44px;
+}

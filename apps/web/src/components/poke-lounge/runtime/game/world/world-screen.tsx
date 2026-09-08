@@ -2,6 +2,10 @@
 
 import { forwardRef, useEffect, useRef, useSyncExternalStore, type RefCallback } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
+import {
+  getAiActivityLabel,
+  isChampionshipFinished,
+} from "@/features/poke-lounge/presentation/world/ai-activity-view";
 import styles from "../../../poke-lounge.module.css";
 import { BATTLE_INTRO_TIMING, createBattleIntroStripes } from "../battle/battle-intro";
 import { localizeTrainerName } from "../i18n/runtime-game-localization";
@@ -55,6 +59,11 @@ export function WorldScreen({
     frameStore.getActorsRevision,
   );
   const remotePlayers = frameStore.read().remotePlayers;
+  const completed = useSyncExternalStore(
+    gameStateStore.subscribe,
+    () => isChampionshipFinished(gameStateStore.getState()),
+    () => isChampionshipFinished(gameStateStore.getState()),
+  );
 
   useEffect(
     function runEffect() {
@@ -116,8 +125,8 @@ export function WorldScreen({
                     key={player.sessionId}
                     ref={registerMapRef(remotePlayerRefs.current, player.sessionId)}
                     displayName={
-                      player.controller === "ai" && player.activity
-                        ? `${localizeTrainerName(player.displayName, copy.locale)} · ${copy.aiActivity[player.activity]}`
+                      player.controller === "ai"
+                        ? `${localizeTrainerName(player.displayName, copy.locale)} · ${getAiActivityLabel(player.activity, completed, copy)}`
                         : localizeTrainerName(player.displayName, copy.locale)
                     }
                   />

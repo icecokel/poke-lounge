@@ -199,7 +199,12 @@ export class PokeLoungeAiWorkerService
           state.readyAtMs = room.round.startedAtMs ?? nowMs;
         }
         // Private world parties, like human parties, are not overwritten by PvP damage.
-        if (!starting)
+        if (room.status === 'completed') {
+          state.path = [];
+          state.battle = null;
+          state.activity = 'idle';
+          state.updatedAtMs = nowMs;
+        } else if (!starting)
           advanceAiAdventure(
             state,
             nowMs,
@@ -353,6 +358,8 @@ export class PokeLoungeAiWorkerService
     sessionId: string,
     nowMs: number,
   ): Promise<void> {
+    // A stale assignment cannot restart a completed championship.
+    if (room.status === 'completed' || room.status === 'closed') return;
     const assignment = room.competitiveAssignments?.find(
       function findItem(candidate) {
         return (

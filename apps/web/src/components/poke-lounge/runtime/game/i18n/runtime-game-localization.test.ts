@@ -100,3 +100,27 @@ test("한국어 로케일은 ROM 원문을 그대로 유지한다", function tes
   assert.equal(localizePokemonName("리아코", "ko-KR"), "리아코");
   assert.equal(localizeRuntimeText("리아코의 물기!", "ko-KR"), "리아코의 물기!");
 });
+
+test("라운드 우승·누적 순위·최종 우승의 서로 다른 의미를 지역화한다", () => {
+  for (const locale of ["en-US", "ja-JP"] as const) {
+    for (const text of [
+      "이번 라운드 우승 · Player 2",
+      "누적 공동 1위 Player 1 · 이번 +70 · 방 점수 170",
+      "최종 우승 · 공동 1위 Player 1 · 이번 +70 · 방 점수 270",
+    ]) {
+      assert.doesNotMatch(localizeRuntimeText(text, locale), HANGUL);
+    }
+  }
+  assert.equal(
+    localizeRuntimeText("이번 라운드 우승 · Player 2", "en-US"),
+    "This round's winner · Player 2",
+  );
+  assert.match(
+    localizeRuntimeText("누적 공동 1위 Player 1 · 이번 +70 · 방 점수 170", "en-US"),
+    /^Cumulative tied #1/,
+  );
+  assert.match(
+    localizeRuntimeText("최종 우승 · 1위 Player 1 · 이번 +100 · 방 점수 270", "en-US"),
+    /^Overall champion/,
+  );
+});

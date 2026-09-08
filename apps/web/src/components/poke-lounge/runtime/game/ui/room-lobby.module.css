@@ -889,3 +889,26 @@
     line-height: 1.25;
   }
 }
+
+/* Mobile entry can use the browser document; the actual lobby remains fixed. */
+:global([data-poke-lounge-mobile-shell="true"][data-poke-lounge-entry-open="true"]) .entry {
+  container-type: inline-size;
+  position: relative;
+  inset: auto;
+  min-height: inherit;
+  overflow: visible;
+  overscroll-behavior: auto;
+  align-items: start;
+}
+:global([data-poke-lounge-mobile-shell="true"][data-poke-lounge-entry-open="true"]) .entryPanel {
+  height: auto;
+  max-height: none;
+  overflow: clip;
+}
+:global([data-poke-lounge-mobile-shell="true"][data-poke-lounge-entry-open="true"]) .entryBody {
+  overflow: visible;
+  overscroll-behavior: auto;
+}
+.entryHeader {
+  flex-wrap: wrap;
+}

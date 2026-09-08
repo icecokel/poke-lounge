@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type FormEvent } from "react";
+import { PageReloadButton } from "../../../ui/page-reload-button";
 import { ArrowLeft, ChevronRight, Users } from "lucide-react";
 import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
 import type { PokeLoungeRuntimeState } from "../game-page-state";
@@ -60,6 +61,7 @@ export function DirectMultiplayerEntryScreen({
       <form className={styles.entryPanel} onSubmit={submit} aria-busy={pending}>
         <header className={styles.entryHeader}>
           <span className={styles.eyebrow}>POKE LOUNGE</span>
+          <PageReloadButton locale={copy.locale} disabled={pending} />
           <a href={`/${copy.locale}/game/poke-lounge`} className={styles.backLink}>
             <ArrowLeft size={18} aria-hidden="true" />
             {text.back}

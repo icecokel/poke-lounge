@@ -5669,3 +5669,188 @@ test("중앙 집결: 선택·필드 준비 완료 후 동기화된 3·2·1과 �
     for (const page of pages) await page.context().close();
   }
 });
+
+test("모바일 새로고침 회귀: 대기실 재접속과 퇴장 뒤 문서 스크롤 복구", async ({
+  browser,
+}, info) => {
+  const server = createMockServerState();
+  const page = await newMockedPage(browser, server, {
+    mobile: true,
+    lobbyLifecycle: true,
+    wrapped: true,
+  });
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    await startServerRoom(page, createServerRoomUrl(), "새로고침 검사");
+    await expect(page.locator("[data-room-lobby]")).toBeVisible();
+    const identity = await getRoomSnapshot(page);
+    const leavesBefore = server.commandRequests.filter(r => r.suffix === "/leave").length;
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflowY)).toBe(
+      "hidden",
+    );
+    await page.locator("[data-poke-lounge-mobile-menu]").tap();
+    await page
+      .locator('[data-poke-lounge-mobile-task="settings"] [data-poke-lounge-page-reload]')
+      .tap();
+    const confirm = page.locator("[data-poke-lounge-reload-confirm]");
+    await expect(confirm).toBeVisible();
+    await Promise.all([
+      page.waitForEvent("load"),
+      confirm.getByRole("button", { name: "새로고침", exact: true }).tap(),
+    ]);
+    await expect(page.locator("[data-room-lobby]")).toBeVisible({ timeout: 30000 });
+    const reconnect = await getRoomSnapshot(page);
+    expect(reconnect?.sessionId).toBe(identity?.sessionId);
+    expect(reconnect?.roomId).toBe(identity?.roomId);
+    expect(server.commandRequests.filter(r => r.suffix === "/leave")).toHaveLength(leavesBefore);
+    await page.locator("[data-poke-lounge-mobile-menu]").tap();
+    await page.locator('[data-poke-lounge-mobile-task="settings"] [data-room-leave]').tap();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "방 나가기", exact: true })
+      .tap();
+    await expect(page.locator("[data-room-entry-screen]")).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).overflowY))
+      .not.toBe("hidden");
+    expect(
+      await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY),
+    ).toBe("auto");
+    await page.screenshot({
+      path: info.outputPath("entry-after-exit.png"),
+      mask: [page.locator("[data-room-entry-temporary-password]")],
+    });
+    expect(errors).toEqual([]);
+  } finally {
+    await page.context().close();
+  }
+});
+
+test("모바일 일반 방 만들기 회귀: 새로고침 두 번에도 같은 방·준비·실행 UUID를 유지한다", async ({
+  browser,
+}) => {
+  const server = createMockServerState();
+  const page = await newMockedPage(browser, server, {
+    mobile: true,
+    lobbyLifecycle: true,
+    wrapped: true,
+  });
+  // This form sends a hashed private room code. Unlike the legacy SRV001 fixture,
+  // echo that requested code so the client's cross-room protection stays intact.
+  let privateRoomCode: string | null = null;
+  await page.route("**/poke-lounge/rooms**", async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    const method = request.method();
+    const creating = method === "POST" && path === "/poke-lounge/rooms";
+    const reading = method === "GET" && path === "/poke-lounge/rooms/" + privateRoomCode;
+    const ready = method === "POST" && path === "/poke-lounge/rooms/" + privateRoomCode + "/ready";
+    if (!creating && !reading && !ready) {
+      await route.fallback();
+      return;
+    }
+    server.calls.push(method + " " + path);
+    if (creating) {
+      const body = request.postDataJSON() as { roomCode: string };
+      expect(body.roomCode).toMatch(/^[A-Z0-9]{6}$/);
+      privateRoomCode = body.roomCode;
+      await recordJoinedIdentity(request, server);
+    }
+    if (ready) {
+      const body = request.postDataJSON() as { playerId: string; ready: boolean };
+      if (body.ready) server.readyPlayerIds.add(body.playerId);
+      else server.readyPlayerIds.delete(body.playerId);
+      server.revision++;
+    }
+    await route.fulfill({
+      status: method === "POST" ? 201 : 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        data: { ...createLobbyWaitingRoomState(server), roomCode: privateRoomCode },
+      }),
+    });
+  });
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  try {
+    // The public form intentionally omits the room code from the URL. A direct
+    // ?network=server&create=1 fixture does not exercise that production branch.
+    await gotoWithRetry(page, `/${LOCALE}/game/poke-lounge?e2e=1`);
+    const name = page.locator("[data-room-entry-display-name]");
+    await expect(name).toBeVisible();
+    await name.fill("일반입장회귀");
+    // The compact keyboard layout hides the radio groups; the first Tab may
+    // focus the password. Dismiss editing before tapping a moving submit target.
+    await name.blur();
+    await expect(
+      page.locator('[data-testid="poke-lounge-page"][data-poke-lounge-keyboard-open]'),
+    ).toHaveCount(0);
+    await page.locator("[data-room-entry-multiplayer-submit]").tap();
+    await expect(page.locator("[data-room-lobby]")).toBeVisible();
+    await expect.poll(() => new URL(page.url()).searchParams.has("create")).toBe(false);
+    expect(new URL(page.url()).searchParams.has("room")).toBe(false);
+    await page.locator("[data-room-lobby-ready]").tap();
+    await expect.poll(() => server.readyPlayerIds.size).toBe(1);
+
+    const runId = () =>
+      page.evaluate(() => {
+        const key = Object.keys(localStorage).find(
+          key => key === "poke-lounge:server-room-identity",
+        );
+        return key
+          ? (JSON.parse(localStorage.getItem(key) ?? "{}") as { activeRoom?: { runId?: string } })
+              .activeRoom?.runId
+          : null;
+      });
+    const identity = () =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem("poke-lounge:server-room-identity");
+        const state = raw
+          ? (JSON.parse(raw) as {
+              playerId: string;
+              sessionId: string;
+              activeRoom?: { roomCode: string };
+            })
+          : null;
+        return state
+          ? {
+              playerId: state.playerId,
+              sessionId: state.sessionId,
+              roomCode: state.activeRoom?.roomCode,
+            }
+          : null;
+      });
+    const before = await identity();
+    expect(before?.roomCode).toBe(privateRoomCode);
+    const initialRun = await runId();
+    expect(initialRun).toMatch(/^[0-9a-f-]{36}$/i);
+    const creates = () => server.calls.filter(call => call === "POST /poke-lounge/rooms").length;
+    expect(creates()).toBe(1);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await page.locator("[data-poke-lounge-mobile-menu]").tap();
+      await page
+        .locator('[data-poke-lounge-mobile-task="settings"] [data-poke-lounge-page-reload]')
+        .tap();
+      const dialog = page.locator("[data-poke-lounge-reload-confirm]");
+      await expect(dialog).toBeVisible();
+      await Promise.all([
+        page.waitForEvent("load"),
+        dialog.getByRole("button", { name: "새로고침", exact: true }).tap(),
+      ]);
+      await expect(page.locator("[data-room-lobby]")).toBeVisible({ timeout: 30000 });
+      await expect(page.locator("[data-room-lobby]")).toContainText("일반입장회귀");
+
+      expect(await identity()).toEqual(before);
+      expect(await runId()).toBe(initialRun);
+      expect(server.readyPlayerIds.size).toBe(1);
+      expect(server.joinedPlayerIds.size).toBe(1);
+      expect(creates()).toBe(1);
+      expect(server.commandRequests.filter(request => request.suffix === "/leave")).toHaveLength(0);
+    }
+    expect(errors).toEqual([]);
+  } finally {
+    await page.context().close();
+  }
+});

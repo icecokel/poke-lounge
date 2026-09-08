@@ -1,5 +1,6 @@
 "use client";
 
+import { PageReloadButton } from "../ui/page-reload-button";
 import { MoveLearningPanel } from "../runtime/game/ui/move-learning-panel";
 
 import {
@@ -1113,6 +1114,7 @@ function MobileSettingsScreen({
         >
           {volumeLabel}
         </Button>
+        <PageReloadButton locale={copy.locale} confirmBeforeReload />
         {onOpenHelp ? (
           <Button
             type="button"

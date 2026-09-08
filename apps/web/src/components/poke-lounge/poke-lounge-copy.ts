@@ -5,7 +5,10 @@ type PokeLoungeRandomNameWords = readonly [string, string, string, string, strin
 export interface PokeLoungeCopy {
   locale: PokeLoungeLocale;
   unknownTrainer: string;
-  aiActivity: Record<"idle" | "moving" | "hunting" | "recovering" | "tournament", string>;
+  aiActivity: Record<
+    "idle" | "moving" | "hunting" | "recovering" | "tournament" | "completed",
+    string
+  >;
   volumeMuted: string;
   volumeLabel(percent: number): string;
   volumeAriaLabel(percent: number): string;
@@ -246,6 +249,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     hunting: "사냥 중",
     recovering: "회복 중",
     tournament: "대전 중",
+    completed: "대회 종료",
   },
   volumeMuted: "소리 꺼짐",
   volumeLabel: percent => `소리 ${percent}%`,
@@ -513,6 +517,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     hunting: "Hunting",
     recovering: "Recovering",
     tournament: "Battling",
+    completed: "Championship finished",
   },
   volumeMuted: "Muted",
   volumeLabel: percent => `Volume ${percent}%`,
@@ -781,6 +786,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     hunting: "探索中",
     recovering: "回復中",
     tournament: "対戦中",
+    completed: "大会終了",
   },
   volumeMuted: "ミュート",
   volumeLabel: percent => `音量 ${percent}%`,

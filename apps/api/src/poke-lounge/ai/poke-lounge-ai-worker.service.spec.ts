@@ -386,3 +386,64 @@ it('warms and persists AI before acknowledging readiness, so a slow AI load cann
   });
   expect(result.snapshot.participants[0].ready).toBe(true);
 });
+
+it('publishes idle activity and never advances or submits actions after championship completion', async () => {
+  const t = setup();
+  t.room.status = 'completed';
+  t.room.round.index = 3;
+  const saved = {
+    ...t.state,
+    activity: 'tournament' as const,
+    path: [{ x: 800, y: 400 }],
+    battle: null,
+  };
+  t.liveState.getAiAdventures.mockResolvedValue({ 'ai-1': saved });
+  // Even stale active assignments cannot cause another competitive submission.
+  const currentState = createTestInitialBattleState(['ai-1', 'player-2']);
+  t.room.competitiveAssignments = [
+    toCompetitiveProjection(
+      {
+        matchId: 'stale-match',
+        bracketMatchId: 'last-bracket',
+        kind: 'tournament-unranked',
+        assignmentRevision: 1,
+        rulesetVersion: 3,
+        rulesetHash: 'test',
+        currentTurn: currentState.turn,
+        status: 'active',
+        currentState,
+        currentStateHash: 'test',
+        terminalResult: null,
+        turnStartedAtMs: 0,
+      },
+      [],
+    ),
+  ];
+  for (const now of [2000, 2500]) await t.service.processTick(now);
+  expect(t.advance).not.toHaveBeenCalled();
+  expect(t.mutate).not.toHaveBeenCalled();
+  expect(t.chooseAiAction).not.toHaveBeenCalled();
+  expect(t.submitSessionAction).not.toHaveBeenCalled();
+  expect(t.liveState.upsertPlayer).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      player: expect.objectContaining({
+        x: 656,
+        y: 446,
+        activity: 'idle',
+      }) as unknown,
+    }),
+  );
+  expect(t.liveState.saveAiAdventures).toHaveBeenLastCalledWith(
+    'ROOM01',
+    t.room.expiresAtMs,
+    expect.objectContaining({
+      'ai-1': expect.objectContaining({
+        activity: 'idle',
+        path: [],
+        battle: null,
+        updatedAtMs: 2500,
+        party: saved.party,
+      }) as unknown,
+    }),
+  );
+});

@@ -248,6 +248,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
     this.setAnnouncement(
       [
         panel.title,
+        ...(panel.roundWinnerLabel ? [panel.roundWinnerLabel] : []),
         ...panel.rows.map(formatTournamentResultRow),
         panel.rankingLabel,
         panel.nextActionLabel,
@@ -507,6 +508,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
     this.setAnnouncement(
       [
         panel.title,
+        ...(panel.roundWinnerLabel ? [panel.roundWinnerLabel] : []),
         ...panel.rows.map(formatTournamentResultRow),
         panel.rankingLabel,
         `다음 라운드 준비 중 · ${formatRemainingTime(

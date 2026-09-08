@@ -682,6 +682,25 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, round, total) => `ラウンド ${round}/${total} 結果`,
   ),
   pattern(
+    /^이번 라운드 우승 · (.+)$/,
+    (_, name) => `This round's winner · ${name}`,
+    (_, name) => `今回のラウンド優勝 · ${name}`,
+  ),
+  pattern(
+    /^누적 (공동 )?(\d+)위 (.+) · 이번 \+(.+) · 방 점수 (.+)$/,
+    (_, tie, rank, name, roundScore, roomScore) =>
+      `Cumulative ${tie ? "tied " : ""}#${rank} ${name} · This round +${roundScore} · Room score ${roomScore}`,
+    (_, tie, rank, name, roundScore, roomScore) =>
+      `累計 ${tie ? "同率 " : ""}${rank}位 ${name} · 今回 +${roundScore} · ルームスコア ${roomScore}`,
+  ),
+  pattern(
+    /^최종 우승 · (공동 )?(\d+)위 (.+) · 이번 \+(.+) · 방 점수 (.+)$/,
+    (_, tie, rank, name, roundScore, roomScore) =>
+      `Overall champion · ${tie ? "Tied " : ""}#${rank} ${name} · This round +${roundScore} · Room score ${roomScore}`,
+    (_, tie, rank, name, roundScore, roomScore) =>
+      `総合優勝 · ${tie ? "同率 " : ""}${rank}位 ${name} · 今回 +${roundScore} · ルームスコア ${roomScore}`,
+  ),
+  pattern(
     /^(우승 · )?(공동 )?(\d+)위 (.+) · 이번 \+(.+) · 방 점수 (.+)$/,
     (_, champion, tie, rank, name, roundScore, roomScore) =>
       `${champion ? "Champion · " : ""}${tie ? "Tied " : ""}#${rank} ${name} · This round +${roundScore} · Room score ${roomScore}`,

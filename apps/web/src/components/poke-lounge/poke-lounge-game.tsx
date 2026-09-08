@@ -683,11 +683,14 @@ export function PokeLoungeGame() {
     [setGamePlaying],
   );
 
+  const entryDocumentScroll = runtimeState.phase === "entry";
+
   useLayoutEffect(() => {
     const page = pageRef.current;
     if (!page) return;
     const binding = bindMobileViewport(page, {
       mobile: touchGameDevice,
+      documentScroll: entryDocumentScroll,
       fullscreenEvent: GAME_FULLSCREEN_STATE_EVENT,
     });
     viewportUpdateRef.current = binding.update;
@@ -695,7 +698,7 @@ export function PokeLoungeGame() {
       viewportUpdateRef.current = null;
       binding.dispose();
     };
-  }, [touchGameDevice]);
+  }, [touchGameDevice, entryDocumentScroll]);
 
   // An entry field may be unmounted without a blur event when the game starts.
   useLayoutEffect(() => {
@@ -1128,6 +1131,7 @@ export function PokeLoungeGame() {
           ? "true"
           : undefined
       }
+      data-poke-lounge-entry-open={entryDocumentScroll ? "true" : undefined}
       data-poke-lounge-ui-size={uiSize}
       data-poke-lounge-mobile-shell={touchGameDevice ? "true" : undefined}
       data-poke-lounge-room-lobby-open={runtimeState.phase === "lobby" ? "true" : undefined}

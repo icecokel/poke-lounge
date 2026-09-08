@@ -1,4 +1,5 @@
 import type { TournamentStanding } from "@poke-lounge/battle/tournament-bracket";
+import { DEFAULT_TOURNAMENT_SCORE_BY_RANK } from "@poke-lounge/battle/tournament-scoring";
 
 export type TournamentResultScoreLookup =
   | Readonly<Record<string, number | null | undefined>>
@@ -14,9 +15,11 @@ export interface TournamentResultRow {
   cumulativeScore: number;
   cumulativeScoreLabel: string;
   champion: boolean;
+  final: boolean;
 }
 
 export interface CreateTournamentResultRowsInput {
+  final: boolean;
   standings: ReadonlyArray<TournamentStanding>;
   roundScores?: TournamentResultScoreLookup;
   cumulativeScores?: TournamentResultScoreLookup;
@@ -37,9 +40,11 @@ export interface TournamentResultPanelViewModel {
   nextActionLabel: string;
   rankingLabel: string;
   rows: TournamentResultRow[];
+  roundWinnerLabel: string | null;
 }
 
 export function createTournamentResultRows({
+  final,
   standings,
   roundScores,
   cumulativeScores,
@@ -61,7 +66,8 @@ export function createTournamentResultRows({
       roundScoreLabel: `이번 +${formatTournamentScore(roundScore)}`,
       cumulativeScore,
       cumulativeScoreLabel: `방 점수 ${formatTournamentScore(cumulativeScore)}`,
-      champion: standing.champion,
+      champion: final && standing.champion,
+      final,
     };
   });
 }
@@ -79,7 +85,8 @@ export function createTournamentResultPanelViewModel({
     final,
     nextActionLabel: final ? "챔피언십 종료" : "다음 라운드 시작",
     rankingLabel: "현재 게임 누적 점수",
-    rows: createTournamentResultRows({ standings, roundScores, cumulativeScores }),
+    rows: createTournamentResultRows({ final, standings, roundScores, cumulativeScores }),
+    roundWinnerLabel: final ? null : createRoundWinnerLabel(standings, roundScores),
   };
 }
 
@@ -98,10 +105,25 @@ export function createTournamentResultTitle({
 }
 
 export function formatTournamentResultRow(row: TournamentResultRow): string {
-  const championLabel = row.champion ? "우승 · " : "";
+  const championLabel = row.champion ? "최종 우승 · " : row.final ? "" : "누적 ";
   const tieLabel = row.rankTieLabel ? `${row.rankTieLabel} ` : "";
 
   return `${championLabel}${tieLabel}${row.rankLabel} ${truncateDisplayName(row.displayName)} · ${row.roundScoreLabel} · ${row.cumulativeScoreLabel}`;
+}
+
+function createRoundWinnerLabel(
+  standings: ReadonlyArray<TournamentStanding>,
+  roundScores: TournamentResultScoreLookup | undefined,
+): string | null {
+  // These standings are CUMULATIVE. Their rank/champion (and server roundScore.rank)
+  // cannot identify this round's winner. Only the unique rank-1 award can do so.
+  const winners = standings.filter(
+    standing => readScore(roundScores, standing.playerId) === DEFAULT_TOURNAMENT_SCORE_BY_RANK[1],
+  );
+  // Missing/legacy/incomplete scores must not create a speculative winner.
+  return winners.length === 1
+    ? `이번 라운드 우승 · ${truncateDisplayName(winners[0]!.displayName)}`
+    : null;
 }
 
 function truncateDisplayName(displayName: string): string {

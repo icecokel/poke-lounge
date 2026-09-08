@@ -4,6 +4,7 @@ import type { components } from "@/types/api";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import { io } from "socket.io-client";
 import { createRoomRunId, isRoomRunId } from "../room-run-id";
+import { createJoinedRoomLocation } from "./room-location";
 import { createCompetitivePartySnapshot } from "./competitive-party-snapshot";
 import {
   CompetitiveProjectionSchemaError,
@@ -2153,8 +2154,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         participantBody,
         initialOpenIdempotencyKey,
       ).then(function handleResolved(state) {
-        if (!disposed && options.persistRoomCodeInUrl !== false) {
-          applyCreatedRoomToLocation(state.roomCode);
+        if (!disposed) {
+          applyCreatedRoomToLocation(state.roomCode, options.persistRoomCodeInUrl !== false);
         }
         return state;
       });
@@ -2177,8 +2178,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         },
         initialOpenIdempotencyKey,
       ).then(function handleResolved(state) {
-        if (!disposed && options.persistRoomCodeInUrl !== false) {
-          applyCreatedRoomToLocation(state.roomCode);
+        if (!disposed) {
+          applyCreatedRoomToLocation(state.roomCode, options.persistRoomCodeInUrl !== false);
         }
 
         return state;
@@ -3333,15 +3334,11 @@ function createIdentityToken(): string {
   return Math.random().toString(36).slice(2);
 }
 
-function applyCreatedRoomToLocation(roomCode: string): void {
+function applyCreatedRoomToLocation(roomCode: string, persistRoomCode: boolean): void {
   if (typeof window === "undefined") {
     return;
   }
 
-  const url = new URL(window.location.href);
-  url.searchParams.delete("create");
-  url.searchParams.delete("quick");
-  url.searchParams.set("network", "server");
-  url.searchParams.set("room", roomCode);
+  const url = createJoinedRoomLocation(new URL(window.location.href), roomCode, persistRoomCode);
   window.history.replaceState(window.history.state, "", url);
 }

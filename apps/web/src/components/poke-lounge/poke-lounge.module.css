@@ -4229,3 +4229,61 @@
     animation: none;
   }
 }
+
+/* Room entry owns document scrolling. A fixed game viewport with two nested
+   overflow:auto panels clips the header and traps pull-to-refresh on mobile. */
+.page.touchGameDevice[data-poke-lounge-entry-open="true"] {
+  container-type: inline-size;
+  position: relative;
+  inset: auto;
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
+  overscroll-behavior: auto;
+}
+.page.touchGameDevice[data-poke-lounge-entry-open="true"] .gameFrame {
+  height: auto;
+  min-height: calc(
+    100dvh - var(--poke-lounge-mobile-letterbox-top) - var(--poke-lounge-mobile-letterbox-bottom)
+  );
+  max-height: none;
+  aspect-ratio: auto;
+}
+.page.touchGameDevice[data-poke-lounge-entry-open="true"] .gameFrame > :global(#game-root) {
+  position: absolute;
+  inset: 0;
+}
+.page.touchGameDevice[data-poke-lounge-entry-open="true"] .runtimeScreen {
+  position: relative;
+  min-height: inherit;
+}
+.page.touchGameDevice[data-poke-lounge-entry-open="true"] :global(.room-entry-screen) {
+  height: auto;
+  min-height: inherit;
+  max-height: none;
+  overflow: visible;
+  overscroll-behavior: auto;
+  align-items: start;
+}
+.page.touchGameDevice[data-poke-lounge-entry-open="true"] :global(.room-entry-panel) {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+.page.touchGameDevice[data-poke-lounge-entry-open="true"] :global(.room-entry-intro) {
+  overflow: clip;
+}
+.page :global(.room-entry-intro > [data-poke-lounge-page-reload]) {
+  justify-self: start;
+  align-self: start;
+}
+@container poke-viewport (max-width: 760px) {
+  .page :global(.room-entry-intro > [data-poke-lounge-page-reload]) {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
