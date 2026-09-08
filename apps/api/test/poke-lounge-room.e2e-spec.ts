@@ -5,6 +5,7 @@ import { Server } from 'node:http';
 import { createClient } from 'redis';
 import request from 'supertest';
 import { io, type Socket as ClientSocket } from 'socket.io-client';
+import { ROUND_START_COUNTDOWN_MS } from '@poke-lounge/battle/round-start';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { PokeLoungeModule } from '../src/poke-lounge/poke-lounge.module';
 import type {
@@ -595,28 +596,18 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', function te
       revision = readyRoom.revision;
     }
 
-    const earliestStartedAtMs = Date.now();
     const started = await request(httpServer)
       .post(`/poke-lounge/rooms/${created.roomCode}/start`)
       .set(commandHeaders(50, revision))
       .send({ playerId: 'player-a', sessionId: 'session-a' })
       .expect(201);
     const startedRoom = started.body as PokeLoungePublicRoomState;
-    const latestStartedAtMs = Date.now();
 
     expect(startedRoom).toMatchObject({
       status: 'round-started',
       hostPlayerId: 'player-a',
+      round: { startedAtMs: null, endsAtMs: null },
     });
-    expect(startedRoom.round.startedAtMs).toBeGreaterThanOrEqual(
-      earliestStartedAtMs,
-    );
-    expect(startedRoom.round.startedAtMs).toBeLessThanOrEqual(
-      latestStartedAtMs,
-    );
-    expect(startedRoom.round.endsAtMs).toBe(
-      startedRoom.round.startedAtMs! + roundDurationMs,
-    );
 
     await request(httpServer)
       .post(`/poke-lounge/rooms/${created.roomCode}/join`)
@@ -624,10 +615,45 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', function te
       .send({ playerId: 'player-f', sessionId: 'session-f' })
       .expect(400);
 
+    // The production AI worker warms its field state and acknowledges readiness.
+    // This room-service E2E has no AI worker, so model that acknowledgement directly.
+    await mutateTestRoom(created.roomCode, function callback(room) {
+      for (const participant of room.participants) {
+        if (participant.controller === 'ai') participant.ready = true;
+      }
+    });
+
+    const earliestPreparedAtMs = Date.now();
+    let preparedRoom = startedRoom;
+    for (const [index, suffix] of ['a', 'b', 'c', 'd', 'e'].entries()) {
+      const fieldReadyResponse = await request(httpServer)
+        .post(`/poke-lounge/rooms/${created.roomCode}/ready`)
+        .set(commandHeaders(53 + index, preparedRoom.revision))
+        .send({
+          playerId: `player-${suffix}`,
+          sessionId: `session-${suffix}`,
+          ready: true,
+          roundIndex: preparedRoom.round.index,
+        })
+        .expect(201);
+      preparedRoom = fieldReadyResponse.body as PokeLoungePublicRoomState;
+    }
+    const latestPreparedAtMs = Date.now();
+
+    expect(preparedRoom.round.startedAtMs).toBeGreaterThanOrEqual(
+      earliestPreparedAtMs + ROUND_START_COUNTDOWN_MS,
+    );
+    expect(preparedRoom.round.startedAtMs).toBeLessThanOrEqual(
+      latestPreparedAtMs + ROUND_START_COUNTDOWN_MS,
+    );
+    expect(preparedRoom.round.endsAtMs).toBe(
+      preparedRoom.round.startedAtMs! + roundDurationMs,
+    );
+
     await mutateTestRoom(created.roomCode, function callback(room) {
       room.round.endsAtMs = Date.now() - 1;
     });
-    let tournament = startedRoom;
+    let tournament = preparedRoom;
     for (const [index, suffix] of ['a', 'b', 'c', 'd', 'e'].entries()) {
       const roundReadyResponse = await request(httpServer)
         .post(`/poke-lounge/rooms/${created.roomCode}/round-ready`)
@@ -635,14 +661,14 @@ describe('Poke Lounge Redis rooms with PostgreSQL app wiring (e2e)', function te
         .send({
           playerId: `player-${suffix}`,
           sessionId: `session-${suffix}`,
-          roundIndex: startedRoom.round.index,
+          roundIndex: preparedRoom.round.index,
         })
         .expect(201);
       tournament = roundReadyResponse.body as PokeLoungePublicRoomState;
     }
     expect(tournament).toMatchObject({
       status: 'tournament',
-      revision: startedRoom.revision + 5,
+      revision: preparedRoom.revision + 5,
       tournament: {
         activeMatchId: 'game-round-1-bracket-1-match-1',
       },
