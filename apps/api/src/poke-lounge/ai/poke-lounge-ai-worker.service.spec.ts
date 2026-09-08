@@ -7,6 +7,8 @@ import type { PokeLoungeAiRuntimeService } from './poke-lounge-ai-runtime.servic
 import { PokeLoungeAiWorkerService } from './poke-lounge-ai-worker.service';
 import * as adventure from '@poke-lounge/battle/adventure/ai-world';
 import { createAiStarterParty } from '@poke-lounge/battle/ai-policy';
+import { createTestInitialBattleState } from '../../../test/support/competitive-party.fixture';
+import { toCompetitiveProjection } from '../competitive/competitive-projection';
 
 afterEach(() => jest.restoreAllMocks());
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -93,11 +95,19 @@ function setup() {
     publishRoomCommit: jest.fn(),
   };
   const runtime = { getContext: jest.fn().mockResolvedValue({}) };
+  const chooseAiAction = jest
+    .fn()
+    .mockResolvedValue({ kind: 'move', moveId: 55 });
+  const submitSessionAction = jest.fn().mockResolvedValue({});
   const service = new PokeLoungeAiWorkerService(
     {} as ConfigService,
-    { getAndAdvance, mutate } as unknown as RedisPokeLoungeRepository,
+    {
+      getAndAdvance,
+      mutate,
+      chooseAiAction,
+    } as unknown as RedisPokeLoungeRepository,
     liveState as unknown as PokeLoungeLiveStateService,
-    {} as CompetitiveMatchService,
+    { submitSessionAction } as unknown as CompetitiveMatchService,
     runtime as unknown as PokeLoungeAiRuntimeService,
   );
   return {
@@ -110,8 +120,52 @@ function setup() {
     mutate,
     projection,
     advance,
+    chooseAiAction,
+    submitSessionAction,
   };
 }
+
+it('submits the server-selected action and skips an outdated assignment', async () => {
+  const t = setup();
+  t.room.status = 'tournament';
+  const currentState = createTestInitialBattleState(['ai-1', 'player-2']);
+  t.room.competitiveAssignments = [
+    toCompetitiveProjection(
+      {
+        matchId: 'match-1',
+        bracketMatchId: 'bracket-1',
+        kind: 'tournament-unranked',
+        assignmentRevision: 1,
+        rulesetVersion: 3,
+        rulesetHash: 'test',
+        currentTurn: currentState.turn,
+        status: 'active',
+        currentState,
+        currentStateHash: 'test',
+        terminalResult: null,
+        turnStartedAtMs: 0,
+      },
+      [],
+    ),
+  ];
+  expect(
+    t.room.competitiveAssignments[0].currentState.playersById['ai-1'].team[0],
+  ).not.toHaveProperty('attack');
+  await t.service.processTick(2_000);
+  expect(t.chooseAiAction).toHaveBeenCalledWith({
+    roomCode: 'ROOM01',
+    matchId: 'match-1',
+    playerId: 'ai-1',
+    turn: currentState.turn,
+    assignmentRevision: 1,
+  });
+  expect(t.submitSessionAction).toHaveBeenCalledWith(
+    expect.objectContaining({ action: { kind: 'move', moveId: 55 } }),
+  );
+  t.chooseAiAction.mockResolvedValueOnce(null);
+  await t.service.processTick(2_250);
+  expect(t.submitSessionAction).toHaveBeenCalledTimes(1);
+});
 
 it('advances without waiting for a human move and does not revise the room for movement alone', async () => {
   const t = setup();

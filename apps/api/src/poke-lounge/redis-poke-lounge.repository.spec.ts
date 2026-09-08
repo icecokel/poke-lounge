@@ -18,6 +18,49 @@ import type { PokeLoungeRoomSnapshot } from './poke-lounge-room.repository';
 import { RedisPokeLoungeRepository } from './redis-poke-lounge.repository';
 
 describe('RedisPokeLoungeRepository', function testSuite() {
+  it('chooses AI actions from private stats without exposing them or acting on stale turns', async () => {
+    const redis = new InMemoryRedisRoomState();
+    const repository = new RedisPokeLoungeRepository(redis as never);
+    const room = roomSnapshot();
+    room.participants[0].controller = 'ai';
+    await repository.create({
+      room,
+      actorPlayerId: 'player-1',
+      idempotencyKey: 'ai-create',
+      requestHash: 'ai-hash',
+      nowMs: 0,
+    });
+    redis.seedOpenTurn(room.roomCode, {
+      matchId: 'match-1',
+      turn: 3,
+      startedAtMs: 1_000,
+    });
+    const input = {
+      roomCode: room.roomCode,
+      matchId: 'match-1',
+      playerId: 'player-1',
+      turn: 3,
+      assignmentRevision: 1,
+    };
+    await expect(repository.chooseAiAction(input)).resolves.toEqual({
+      kind: 'move',
+      moveId: 55,
+    });
+    await expect(
+      repository.chooseAiAction({ ...input, turn: 2 }),
+    ).resolves.toBeNull();
+    await expect(
+      repository.chooseAiAction({ ...input, assignmentRevision: 2 }),
+    ).resolves.toBeNull();
+    await expect(
+      repository.chooseAiAction({ ...input, playerId: 'player-2' }),
+    ).resolves.toBeNull();
+    await expect(
+      repository.chooseAiAction({ ...input, matchId: 'missing' }),
+    ).resolves.toBeNull();
+    expect(redis.compareAndSetCalls).toBe(0);
+  });
+
   it('commits a room revision once and replays the same command', async function testCase() {
     const redis = new InMemoryRedisRoomState();
     const repository = new RedisPokeLoungeRepository(redis as never);

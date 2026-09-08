@@ -1,3 +1,5 @@
+export const BATTLE_MESSAGE_AUTO_ADVANCE_MS = 450;
+
 /** Cosmetic, resolved-action telemetry. Never used to decide damage, PP, turn order or a winner. */
 export type PresentationStatus = import("./gen4/types").Gen4Status;
 export interface ResolvedAnimationEvent {

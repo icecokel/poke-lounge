@@ -4,7 +4,10 @@ import {
   COMPETITIVE_SPECIES_CATALOG,
 } from "./competitive-catalog.generated";
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "./competitive-ruleset-config";
-import { getGen4FixedDamage } from "./gen4-battle-math";
+import { calculateGen4Damage, getGen4FixedDamage } from "./gen4-battle-math";
+import { calculateGen4TypeEffectiveness } from "./gen4-type-chart";
+import { calculateBattleStageModifiedStat } from "./battle-stat-stages";
+import type { CanonicalBattleState, CanonicalCombatantState } from "./canonical-state";
 import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
 import {
   isCompetitiveMoveSelectable,
@@ -41,24 +44,7 @@ export function createAiStarterParty(random: () => number): NormalizedCompetitiv
 }
 
 export function chooseAiCompetitiveAction(
-  state: {
-    playersById: Readonly<
-      Record<
-        string,
-        {
-          actionRequest?: import("./gen4/types").Gen4ActionRequest;
-          activeSlotIndex: number;
-          team: readonly {
-            slotIndex: number;
-            speciesId: number;
-            maxHp: number;
-            currentHp: number;
-            moves: readonly { moveId: number; pp: number }[];
-          }[];
-        }
-      >
-    >;
-  },
+  state: Pick<CanonicalBattleState, "playersById">,
   playerId: string,
 ): CanonicalCompetitiveAction {
   const player = state.playersById[playerId];
@@ -69,49 +55,134 @@ export function chooseAiCompetitiveAction(
   if (!active) throw new Error("AI active Pokemon is missing");
 
   const request = player.actionRequest;
-  if (request?.recharge || request?.forcedMoveId != null) return { kind: "continue" };
-  if (request?.kind === "switch") {
-    if (request.switchSlots[0] === undefined) throw Error("No legal replacement");
-    return { kind: "switch", slotIndex: request.switchSlots[0] };
-  }
   if (request?.kind === "wait" || request?.kind === "ended")
     throw Error("AI is not being asked to act");
-  if (active.currentHp <= 0) {
-    const replacement = player.team
-      .filter(function filterItem(member) {
-        return member.currentHp > 0;
-      })
-      .sort(function compareItems(left, right) {
-        return (
-          right.currentHp / right.maxHp - left.currentHp / left.maxHp ||
-          left.slotIndex - right.slotIndex
-        );
-      })[0];
-    if (!replacement) throw new Error("AI has no battle-ready Pokemon");
-    return { kind: "switch", slotIndex: replacement.slotIndex };
-  }
+  if (request?.recharge || request?.forcedMoveId != null) return { kind: "continue" };
+  const opponent = Object.entries(state.playersById).find(([id]) => id !== playerId)?.[1];
+  const target = opponent?.team.find(member => member.slotIndex === opponent.activeSlotIndex);
+  if (!target) throw new Error("AI opponent Pokemon is missing");
 
-  const move = [...active.moves]
+  const move = [...(request?.moves ?? active.moves)]
     .filter(function filterItem(candidate) {
-      return request
-        ? request.moves.some(m => m.moveId === candidate.moveId && !m.disabled && m.pp > 0)
-        : candidate.pp > 0 && isCompetitiveMoveSelectable(candidate.moveId);
+      return (
+        candidate.pp > 0 &&
+        (!("disabled" in candidate) || !candidate.disabled) &&
+        (request || isCompetitiveMoveSelectable(candidate.moveId))
+      );
     })
     .sort(function compareItems(left, right) {
       return (
-        expectedMoveValue(right.moveId, active.speciesId) -
-          expectedMoveValue(left.moveId, active.speciesId) || left.moveId - right.moveId
+        estimateAiMoveDamage(active, target, right.moveId) -
+          estimateAiMoveDamage(active, target, left.moveId) || left.moveId - right.moveId
       );
     })[0];
+  const forcedSwitch = request?.kind === "switch" || active.currentHp <= 0;
+  const replacements = player.team
+    .filter(
+      member =>
+        member.slotIndex !== active.slotIndex &&
+        member.currentHp > 0 &&
+        (!request ||
+          (request.switchSlots.includes(member.slotIndex) && (forcedSwitch || !request.trapped))),
+    )
+    .sort(
+      (left, right) =>
+        matchupValue(right, target) - matchupValue(left, target) ||
+        right.currentHp / right.maxHp - left.currentHp / left.maxHp ||
+        left.slotIndex - right.slotIndex,
+    );
+  if (forcedSwitch) {
+    if (!replacements[0]) throw new Error("AI has no legal replacement");
+    return { kind: "switch", slotIndex: replacements[0].slotIndex };
+  }
 
+  const outgoing = estimateAiMoveDamage(
+    active,
+    target,
+    move?.moveId ?? COMPETITIVE_STRUGGLE_MOVE_ID,
+  );
+  const risk = bestDamage(target, active) / active.currentHp;
+  // ponytail: one-turn heuristic, not a battle search. Switch only for a clear defensive gain.
+  const safer = replacements.find(
+    member =>
+      risk >= 0.5 &&
+      outgoing < target.currentHp * 0.5 &&
+      bestDamage(target, member) / member.currentHp < risk * 0.5 &&
+      bestDamage(member, target) > outgoing,
+  );
+  if (safer) return { kind: "switch", slotIndex: safer.slotIndex };
   return { kind: "move", moveId: move?.moveId ?? COMPETITIVE_STRUGGLE_MOVE_ID };
 }
 
-function expectedMoveValue(moveId: number, speciesId: number): number {
-  const move = COMPETITIVE_MOVE_CATALOG[moveId]!;
+type AiDamagePokemon = Pick<
+  CanonicalCombatantState,
+  | "level"
+  | "currentHp"
+  | "attack"
+  | "defense"
+  | "specialAttack"
+  | "specialDefense"
+  | "statStages"
+  | "status"
+> & { typeIds: readonly number[] };
+
+/** Expected direct damage only; multi-turn setup, abilities and weather are not simulated. */
+export function estimateAiMoveDamage(
+  attacker: AiDamagePokemon,
+  defender: AiDamagePokemon,
+  moveId: number | typeof COMPETITIVE_STRUGGLE_MOVE_ID,
+): number {
+  const isStruggle = moveId === COMPETITIVE_STRUGGLE_MOVE_ID || moveId === 165;
+  const move = COMPETITIVE_MOVE_CATALOG[typeof moveId === "number" ? moveId : 165]!;
+  const effectiveness = isStruggle
+    ? 1
+    : calculateGen4TypeEffectiveness(move.typeId, defender.typeIds);
+  if (effectiveness === 0) return 0;
   const fixedDamage = getGen4FixedDamage(move.effectCode);
-  const typeIds = COMPETITIVE_SPECIES_CATALOG[speciesId]?.typeIds ?? [];
+  const attackKey = move.category === "special" ? "specialAttack" : "attack";
+  const defenseKey = move.category === "special" ? "specialDefense" : "defense";
+  const attack = calculateBattleStageModifiedStat(
+    attacker[attackKey],
+    attacker.statStages[attackKey],
+  );
+  const damage =
+    fixedDamage ??
+    calculateGen4Damage({
+      level: attacker.level,
+      power: move.power,
+      attack: move.category === "physical" && attacker.status === "burned" ? attack / 2 : attack,
+      defense: calculateBattleStageModifiedStat(
+        defender[defenseKey],
+        defender.statStages[defenseKey],
+      ),
+      moveTypeId: move.typeId,
+      attackerTypeIds: isStruggle ? [] : attacker.typeIds,
+      typeEffectiveness: effectiveness,
+      randomFactor: 92.5,
+      critical: false,
+      category: move.category,
+    });
+  return (Math.min(damage, defender.currentHp) * (move.accuracy || 100)) / 100;
+}
+
+function bestDamage(attacker: CanonicalCombatantState, defender: CanonicalCombatantState): number {
+  const moves = attacker.moves.filter(
+    move => move.pp > 0 && isCompetitiveMoveSelectable(move.moveId),
+  );
+  return Math.max(
+    0,
+    ...(moves.length ? moves : [{ moveId: COMPETITIVE_STRUGGLE_MOVE_ID }]).map(move =>
+      estimateAiMoveDamage(attacker, defender, move.moveId),
+    ),
+  );
+}
+
+function matchupValue(
+  attacker: CanonicalCombatantState,
+  defender: CanonicalCombatantState,
+): number {
   return (
-    (fixedDamage ?? move.power * (typeIds.includes(move.typeId) ? 1.5 : 1)) * (move.accuracy || 100)
+    bestDamage(attacker, defender) / Math.max(1, defender.currentHp) -
+    bestDamage(defender, attacker) / attacker.currentHp
   );
 }

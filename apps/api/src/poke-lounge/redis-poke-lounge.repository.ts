@@ -11,12 +11,12 @@ import {
   COMPETITIVE_RULESET_VERSION,
 } from '@poke-lounge/battle/competitive-ruleset-config';
 import { createSeededRandom } from '@poke-lounge/battle/prng';
+import { chooseAiCompetitiveAction } from '@poke-lounge/battle/ai-policy';
 import { getReadyTournamentMatches } from '@poke-lounge/battle/tournament-bracket';
 import {
   resolveTurn,
   validateCompetitiveAction,
 } from '@poke-lounge/battle/resolve-turn';
-import { scoreRemainingHpPercentage } from '@poke-lounge/battle/tournament-scoring';
 import {
   getCompetitiveActionPlayerIds,
   type CanonicalCompetitiveAction,
@@ -700,6 +700,35 @@ export class RedisPokeLoungeRepository
     throw new Error('Poke Lounge Redis turn timeout was contended');
   }
 
+  async chooseAiAction(input: {
+    roomCode: string;
+    matchId: string;
+    playerId: string;
+    turn: number;
+    assignmentRevision: number;
+  }): Promise<CanonicalCompetitiveAction | null> {
+    const current = await this.readDocument(input.roomCode);
+    const match = current?.document.matches[input.matchId];
+    if (
+      !match ||
+      match.status === 'completed' ||
+      match.currentTurn !== input.turn ||
+      match.assignmentRevision !== input.assignmentRevision ||
+      !current.document.room.participants.some(
+        (participant) =>
+          participant.playerId === input.playerId &&
+          participant.controller === 'ai' &&
+          participant.connected,
+      ) ||
+      !getCompetitiveActionPlayerIds(match.currentState).includes(
+        input.playerId,
+      )
+    )
+      return null;
+    // Keep private combat stats inside the server; public projections intentionally omit them.
+    return chooseAiCompetitiveAction(match.currentState, input.playerId);
+  }
+
   async findRoomSnapshot(
     roomCode: string,
     afterRevision?: number,
@@ -819,7 +848,6 @@ function ensureActiveTournamentAssignment(
             existing.terminalResult.winnerPlayerId,
             existing.terminalResult.reason,
             existing.completedAt?.getTime() ?? snapshot.updatedAtMs,
-            createTerminalHpScores(existing.currentState),
           );
           shouldRecompute = true;
           break;
@@ -1007,7 +1035,6 @@ function advanceTournamentAuthorityMatch(
     terminal.winnerPlayerId,
     terminal.reason,
     completedMatch.completedAt?.getTime() ?? Date.now(),
-    createTerminalHpScores(completedMatch.currentState),
   );
   ensureActiveTournamentAssignment(document, state);
 
@@ -1287,20 +1314,6 @@ function createTerminalResult(
       [loserPlayerId, 50],
     ]),
   }) as CanonicalTerminalResult;
-}
-
-function createTerminalHpScores(
-  state: CompetitiveMatchAssignment['currentState'],
-): Record<string, number> {
-  return Object.fromEntries(
-    state.participantIds.map(function mapItem(playerId) {
-      const team = state.playersById[playerId]?.team;
-      if (!team?.length) {
-        throw new Error(`Competitive team is missing for ${playerId}`);
-      }
-      return [playerId, scoreRemainingHpPercentage(team)];
-    }),
-  );
 }
 
 function toCompetitiveParties(

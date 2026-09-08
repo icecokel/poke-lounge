@@ -19,11 +19,6 @@ export interface CumulativeTournamentScoreRank {
   rank: number;
 }
 
-export interface RemainingHpScoreMember {
-  currentHp: number;
-  maxHp: number;
-}
-
 export const DEFAULT_TOURNAMENT_SCORE_BY_RANK = {
   1: 100,
   2: 70,
@@ -90,22 +85,6 @@ export function rankCumulativeTournamentScores(
     row.rank = previous && previous.score === row.score ? previous.rank : index + 1;
     return row;
   });
-}
-
-export function scoreRemainingHpPercentage(members: ReadonlyArray<RemainingHpScoreMember>): number {
-  return members.reduce(function reduceItems(score, member) {
-    if (
-      !Number.isFinite(member.currentHp) ||
-      !Number.isFinite(member.maxHp) ||
-      member.maxHp <= 0 ||
-      member.currentHp < 0 ||
-      member.currentHp > member.maxHp
-    ) {
-      throw new RangeError("Remaining HP score member is invalid");
-    }
-
-    return score + (member.currentHp / member.maxHp) * 100;
-  }, 0);
 }
 
 function normalizeScore(score: number | null | undefined): number {

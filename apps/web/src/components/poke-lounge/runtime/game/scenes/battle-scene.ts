@@ -2,6 +2,7 @@ import { executeBattleChoice } from "@/features/poke-lounge/application/battle/e
 import { planPostBattleProgression } from "@/features/poke-lounge/application/battle/plan-battle-progression";
 import { settleBattleToWorld } from "@/features/poke-lounge/application/battle/settle-battle";
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
+import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "@poke-lounge/battle/battle-presentation";
 import { canUseGen4ItemOnMember } from "@poke-lounge/battle/gen4/engine";
 import { getPartyExperienceRatio, sharesPartyExperience } from "@poke-lounge/battle/round-settings";
 import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
@@ -173,7 +174,6 @@ export const BATTLE_HP_PANEL_WINDOW_OPTIONS = { radius: 4, includeFrameMarker: f
 export const BATTLE_CONFIRM_KEY_CODES = ["Enter", "Space", "KeyZ"] as const;
 const BATTLE_HP_DECREASE_TWEEN_MS = 560;
 const BATTLE_HIT_TWEEN_MS = 300;
-const BATTLE_MESSAGE_AUTO_ADVANCE_MS = 850;
 const BATTLE_ENTRANCE_TWEEN_MS = 640;
 const E2E_SINGLE_LEVEL_BASE_EXP_YIELD = Math.ceil(500 / WILD_BATTLE_EXPERIENCE_MULTIPLIER);
 const BATTLE_BAG_ITEM_IDS = [
@@ -908,6 +908,7 @@ export class BattleController {
       this.battleEntrancePlaying ||
       this.captureAnimationPlaying ||
       this.evolutionAnimationPlaying ||
+      this.activeBattleEffect ||
       this.isHpAnimationPlaying() ||
       this.isHitAnimationPlaying() ||
       this.isStatusCommitPlaying()
@@ -1072,6 +1073,7 @@ export class BattleController {
         this.battleEntrancePlaying ||
         this.captureAnimationPlaying ||
         this.evolutionAnimationPlaying ||
+        Boolean(this.activeBattleEffect) ||
         this.isHpAnimationPlaying() ||
         this.isHitAnimationPlaying() ||
         this.isStatusCommitPlaying() ||
@@ -2198,6 +2200,7 @@ export class BattleController {
           this.battleEntrancePlaying ||
           this.captureAnimationPlaying ||
           this.evolutionAnimationPlaying ||
+          this.activeBattleEffect ||
           this.isHpAnimationPlaying() ||
           this.isHitAnimationPlaying() ||
           this.isStatusCommitPlaying() ||

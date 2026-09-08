@@ -2182,11 +2182,11 @@ describe('PokeLoungeRoomService', function testSuite() {
         activeMatchId: null,
         bracket: null,
         cumulativeScores: {
-          'player-1': 100,
-          'player-2': 100,
-          'player-3': 100,
+          'player-1': 45,
+          'player-2': 45,
+          'player-3': 70,
           'player-4': 100,
-          'player-5': 100,
+          'player-5': 15,
         },
       },
     });

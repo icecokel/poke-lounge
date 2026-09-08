@@ -188,7 +188,6 @@ export class PokeLoungeRoomService {
           bracket: null,
           activeMatchId: null,
           activeMatchAuthority: null,
-          roundScores: {},
           cumulativeScores: {},
         },
         finalStandings: [],

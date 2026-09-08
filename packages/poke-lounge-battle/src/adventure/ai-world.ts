@@ -1,4 +1,6 @@
 import { normalizeGen4Traits } from "../gen4/traits";
+import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "../battle-presentation";
+import { estimateAiMoveDamage } from "../ai-policy";
 import { normalizeCompetitiveParty, type NormalizedCompetitiveParty } from "../competitive-party";
 import {
   chooseBattleBagItem,
@@ -240,7 +242,8 @@ export function advanceAiAdventure(
       });
       state.path = [];
       state.activity = "hunting";
-      state.readyAtMs = nowMs + 640 + state.battle.messageQueue.length * 850;
+      state.readyAtMs =
+        nowMs + 640 + state.battle.messageQueue.length * BATTLE_MESSAGE_AUTO_ADVANCE_MS;
       return;
     }
   }
@@ -317,12 +320,25 @@ function advanceWildBattle(
     const moves = battle.player.pokemon.moves;
     const move = moves
       .map((move, index) => ({ move, index }))
-      .filter(({ move }) => isBattleMoveSelectable(move))
-      .sort((a, b) => b.move.power - a.move.power)[0];
+      .filter(
+        ({ move }) =>
+          isBattleMoveSelectable(move) &&
+          (!battle.gen4Requests ||
+            battle.gen4Requests[0].moves.some(
+              requested => requested.moveId === move.id && requested.pp > 0 && !requested.disabled,
+            )),
+      )
+      .sort(
+        (a, b) =>
+          estimateAiMoveDamage(battle.player.pokemon, battle.opponent.pokemon, b.move.id) -
+            estimateAiMoveDamage(battle.player.pokemon, battle.opponent.pokemon, a.move.id) ||
+          a.index - b.index,
+      )[0];
     battle = choosePlayerMove({ ...battle, phase: "move-select" }, move?.index ?? 0, { random });
   }
   state.battle = battle;
-  state.readyAtMs = nowMs + Math.max(1, battle.messageQueue.length) * 850;
+  state.readyAtMs =
+    nowMs + Math.max(1, battle.messageQueue.length) * BATTLE_MESSAGE_AUTO_ADVANCE_MS;
 }
 
 export function aiCompetitiveParty(state: AiAdventureState): NormalizedCompetitiveParty | null {

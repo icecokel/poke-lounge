@@ -16,7 +16,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import { Queue, Worker, type Job } from 'bullmq';
-import { chooseAiCompetitiveAction } from '@poke-lounge/battle/ai-policy';
 import { getCompetitiveActionPlayerIds } from '@poke-lounge/battle/actions';
 import {
   getPartyExperienceRatio,
@@ -377,6 +376,14 @@ export class PokeLoungeAiWorkerService
     ) {
       return;
     }
+    const action = await this.repository.chooseAiAction({
+      roomCode: room.roomCode,
+      matchId: assignment.matchId,
+      playerId,
+      turn: assignment.currentTurn,
+      assignmentRevision: assignment.assignmentRevision,
+    });
+    if (!action) return;
     await this.competitiveMatches.submitSessionAction({
       roomCode: room.roomCode,
       matchId: assignment.matchId,
@@ -384,7 +391,7 @@ export class PokeLoungeAiWorkerService
       assignmentRevision: assignment.assignmentRevision,
       turn: assignment.currentTurn,
       clientCommandId: `ai:${assignment.matchId}:${assignment.currentTurn}:${playerId}`,
-      action: chooseAiCompetitiveAction(assignment.currentState, playerId),
+      action,
     });
   }
 }

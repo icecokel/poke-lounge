@@ -858,6 +858,43 @@ test("Poke Lounge 가로:세로 4:3 화면은 작은 휴대폰과 회전 후에�
   }
 });
 
+test("모바일 전투 메시지는 자동 진행 전에 다음 버튼으로 넘길 수 있다", async ({
+  page,
+}, testInfo) => {
+  await page.clock.install();
+  await mockLocalAccountTestRuntime(page);
+  await gotoWithRetry(page, "/ko-KR/game/poke-lounge?e2e=1&wildEncounterRate=0&localTest=1");
+  await chooseStarterIfNeeded(page);
+  await expect(page.locator("[data-poke-lounge-mobile-deck='explore']")).toBeVisible();
+  // Use the browser clock rather than a possibly older Node timestamp, and freeze
+  // before creating the battle so timing assertions start at its exact entrance.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
+  expect(await startMobileWildBattleForTest(page)).toBe(true);
+  const messages = page.locator("[data-poke-lounge-mobile-deck='battle-message']");
+  const next = messages.getByRole("button", { name: "다음", exact: true });
+  // The field-to-battle transition also needs animation frames while the clock is paused.
+  for (let frame = 0; frame < 120 && !(await next.isVisible()); frame += 1) {
+    await page.clock.runFor(16);
+  }
+  await expect(next).toBeVisible();
+  // Entrance animation locks touch input, just as it locks keyboard input.
+  await expect(next).toBeDisabled();
+  await page.clock.runFor(700);
+  await expect(next).toBeEnabled();
+  await expectControlsFit(page);
+  await page.screenshot({ path: testInfo.outputPath("message-next.png") });
+  const before = await readMobileBattleProgress(page);
+  const firstMessage = await messages.getByRole("status").textContent();
+  // The paused animation clock cannot produce Playwright's stability frames.
+  await next.tap({ force: true });
+  await expect(messages.getByRole("status")).not.toHaveText(firstMessage!);
+  expect(await readMobileBattleProgress(page)).toEqual(before);
+  // Resume at the shorter cadence without entering a battle action.
+  await page.clock.runFor(450);
+  await expect(page.locator("[data-poke-lounge-mobile-deck='battle-command']")).toBeVisible();
+  expect(await readMobileBattleProgress(page)).toEqual(before);
+});
+
 test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고른다", async function testCase({
   page,
 }, testInfo) {
@@ -885,8 +922,8 @@ test("Poke Lounge 모바일 전투는 하단 조작 도크에서 행동을 고�
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "전투 기록", exact: true })).toHaveCount(0);
   await expect(page.locator("[data-poke-lounge-mobile-task='battle-log']")).toHaveCount(0);
-  // Intro text advances automatically; confirmation buttons are reserved for results.
-  await expect(messageDeck.getByRole("button")).toHaveCount(0);
+  // Ordinary messages can also be advanced by touch before the automatic timer.
+  await expect(messageDeck.getByRole("button", { name: "다음", exact: true })).toBeVisible();
   const commandDeck = page.locator("[data-poke-lounge-mobile-deck='battle-command']");
   await expect(commandDeck).toBeVisible({ timeout: 30_000 });
   await expectUndistortedBattle(page);

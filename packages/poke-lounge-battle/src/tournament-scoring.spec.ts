@@ -2,7 +2,6 @@ import {
   accumulateTournamentScores,
   DEFAULT_TOURNAMENT_SCORE_BY_RANK,
   rankCumulativeTournamentScores,
-  scoreRemainingHpPercentage,
   scoreTournamentStandings,
 } from "./tournament-scoring";
 
@@ -46,14 +45,19 @@ describe("tournament scoring", function testSuite() {
     ]);
   });
 
-  it("sums each party member remaining HP percentage without placement points", function testCase() {
+  it("awards equal points for the same elimination round, not seed order", function testCase() {
     expect(
-      scoreRemainingHpPercentage([
-        { currentHp: 39, maxHp: 39 },
-        { currentHp: 15, maxHp: 30 },
-        { currentHp: 0, maxHp: 44 },
-      ]),
-    ).toBe(150);
+      scoreTournamentStandings([
+        standing("champion", 8, 1),
+        standing("finalist", 7, 2),
+        standing("semi-a", 6, 3),
+        standing("semi-b", 5, 3),
+        standing("quarter-a", 4, 5),
+        standing("quarter-b", 3, 5),
+        standing("quarter-c", 2, 5),
+        standing("quarter-d", 1, 5),
+      ]).map(row => row.score),
+    ).toEqual([100, 70, 45, 45, 15, 15, 15, 15]);
   });
 });
 

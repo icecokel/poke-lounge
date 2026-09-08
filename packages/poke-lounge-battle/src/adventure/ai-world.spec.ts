@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createAiStarterParty } from "../ai-policy";
+import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "../battle-presentation";
 import {
   advanceAiAdventure,
   aiCompetitiveParty,
@@ -73,15 +74,15 @@ it("encounters only on grass steps and freezes world movement during battle", ()
   expect(state.activity).toBe("hunting");
 });
 
-it("resolves AI attacks through the player's battle engine with identical HP and PP", () => {
+it("chooses a better wild matchup and uses the player's engine and message cadence", () => {
   const state = create();
   state.roundIndex = 1;
   let battle = createWildBattleState({
     encounter: {
       step: { from: { x: 22, y: 12 }, to: { x: 23, y: 12 } },
       mapKey: FIELD_MAP.key,
-      speciesId: 25,
-      name: "피카츄",
+      speciesId: 37,
+      name: "식스테일",
       level: 10,
     },
     personalRecords: context.pokemonData,
@@ -92,15 +93,17 @@ it("resolves AI attacks through the player's battle engine with identical HP and
   while (battle.messageQueue.length) battle = popBattleMessage(battle);
   state.battle = battle;
   state.readyAtMs = 1_000;
-  const index = battle.player.pokemon.moves
-    .map((move, index) => ({ move, index }))
-    .filter(({ move }) => move.pp > 0 && move.competitiveEffectSupport !== "unsupported-primary")
-    .sort((a, b) => b.move.power - a.move.power)[0]!.index;
+  // Fire resists Ember; the weaker neutral Tackle should be preferred.
+  const index = battle.player.pokemon.moves.findIndex(move => move.id === 33);
+  expect(index).toBeGreaterThanOrEqual(0);
   const expected = choosePlayerMove({ ...battle, phase: "move-select" }, index, {
     random: () => 0.5,
   });
   advanceAiAdventure(state, 1_250, 1, true, context, () => 0.5);
   expect(state.battle).toEqual(expected);
+  expect(state.readyAtMs).toBe(
+    1_250 + Math.max(1, expected.messageQueue.length) * BATTLE_MESSAGE_AUTO_ADVANCE_MS,
+  );
   expect(aiCompetitiveParty(state)!.members[0]!.moves[index]!.pp).toBeLessThan(
     battle.player.pokemon.moves[index].pp,
   );

@@ -220,14 +220,14 @@ describe('PokeLoungeRoomPolicy', function testSuite() {
         tournament: {
           activeMatchId: null,
           bracket: null,
-          cumulativeScores: { 'player-1': 100, 'player-2': 100 },
+          cumulativeScores: { 'player-1': 70, 'player-2': 100 },
         },
         round: { index: 2, phase: 'waiting' },
       },
     );
   });
 
-  it('completes three game rounds and ranks the champion by cumulative HP ratio', function testCase() {
+  it('completes three game rounds and rewards two wins over one regardless of remaining HP', function testCase() {
     let room = createSnapshot({
       status: 'round-started',
       participants: [
@@ -245,15 +245,12 @@ describe('PokeLoungeRoomPolicy', function testSuite() {
     const rounds = [
       {
         winnerPlayerId: 'player-1',
-        scores: { 'player-1': 150, 'player-2': 50 },
       },
       {
         winnerPlayerId: 'player-2',
-        scores: { 'player-1': 100, 'player-2': 200 },
       },
       {
         winnerPlayerId: 'player-1',
-        scores: { 'player-1': 75.5, 'player-2': 25 },
       },
     ] as const;
 
@@ -270,7 +267,6 @@ describe('PokeLoungeRoomPolicy', function testSuite() {
         round.winnerPlayerId,
         'faint',
         2_000 + index,
-        round.scores,
       );
 
       if (index < 2) {
@@ -281,7 +277,7 @@ describe('PokeLoungeRoomPolicy', function testSuite() {
             { playerId: 'player-2', ready: false },
           ],
           round: { index: index + 2, phase: 'round-started' },
-          tournament: { bracket: null, roundScores: {} },
+          tournament: { bracket: null },
         });
       }
     }
@@ -291,12 +287,11 @@ describe('PokeLoungeRoomPolicy', function testSuite() {
       round: { index: 3, phase: 'completed', endsAtMs: null },
       tournament: {
         activeMatchId: null,
-        roundScores: {},
-        cumulativeScores: { 'player-1': 325.5, 'player-2': 275 },
+        cumulativeScores: { 'player-1': 270, 'player-2': 240 },
       },
       finalStandings: [
-        { playerId: 'player-1', rank: 1, score: 325.5 },
-        { playerId: 'player-2', rank: 2, score: 275 },
+        { playerId: 'player-1', rank: 1, score: 270 },
+        { playerId: 'player-2', rank: 2, score: 240 },
       ],
     });
   });
@@ -324,16 +319,78 @@ describe('PokeLoungeRoomPolicy', function testSuite() {
       'player-1',
       'faint',
       1_001,
-      { 'player-1': 75, 'player-2': 25 },
     );
 
     expect(tournament).toMatchObject({
       status: 'round-started',
       round: { index: 2, phase: 'round-started' },
       tournament: {
-        cumulativeScores: { 'player-1': 75, 'player-2': 25 },
+        cumulativeScores: { 'player-1': 100, 'player-2': 70 },
       },
     });
+  });
+
+  it('scores an eight-player bracket by elimination round exactly once', function testCase() {
+    const participants = Array.from({ length: 8 }, (_, index) =>
+      createParticipant(`player-${index + 1}`, index + 1),
+    );
+    const bracket = createTournamentBracketState(participants, 3);
+    const room = createSnapshot({
+      status: 'tournament',
+      participants,
+      round: {
+        index: 3,
+        phase: 'tournament',
+        durationMs: 1_000,
+        startedAtMs: 0,
+        endsAtMs: null,
+      },
+      tournament: {
+        version: 2,
+        bracket,
+        activeMatchId: bracket.currentRound!.matches[0].matchId,
+        activeMatchAuthority: 'casual',
+        cumulativeScores: {},
+      },
+    });
+    let lastMatchId = '';
+    let lastWinner = '';
+    while (room.tournament.bracket?.status !== 'completed') {
+      expect(room.tournament.cumulativeScores).toEqual({});
+      const match = room.tournament.bracket!.currentRound!.matches.find(
+        (candidate) => candidate.status === 'ready',
+      )!;
+      lastMatchId = match.matchId;
+      lastWinner = match.participantIds[0];
+      completePokeLoungeTournamentMatch(
+        room,
+        lastMatchId,
+        lastWinner,
+        'faint',
+        1_000,
+      );
+    }
+    expect(room.finalStandings.map((row) => [row.rank, row.score])).toEqual([
+      [1, 100],
+      [2, 70],
+      [3, 45],
+      [3, 45],
+      [5, 15],
+      [5, 15],
+      [5, 15],
+      [5, 15],
+    ]);
+    const scores = { ...room.tournament.cumulativeScores };
+    expect(() =>
+      completePokeLoungeTournamentMatch(
+        room,
+        lastMatchId,
+        lastWinner,
+        'faint',
+        1_001,
+      ),
+    ).toThrow();
+    expect(room.tournament.cumulativeScores).toEqual(scores);
   });
 
   it('advances an elapsed round once with deterministic tournament matches', function testCase() {

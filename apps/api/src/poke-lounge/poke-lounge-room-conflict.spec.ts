@@ -30,7 +30,8 @@ describe('toPokeLoungePublicRoomState', function testSuite() {
       ...createTestPartySnapshot('player-a'),
       displayName: 'Player A',
     };
-    snapshot.tournament.roundScores = { 'player-a': 75 };
+    // Old Redis documents may still contain private, obsolete HP scores.
+    Object.assign(snapshot.tournament, { roundScores: { 'player-a': 75 } });
 
     const publicRoom = toPokeLoungePublicRoomState(snapshot);
 

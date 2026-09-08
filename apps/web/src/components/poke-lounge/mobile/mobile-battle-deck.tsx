@@ -584,16 +584,14 @@ export function MobileBattleMessageDeck({ copy, onAction, state }: DeckProps) {
       <p role="status" data-poke-lounge-mobile-battle-message="true">
         {state.message}
       </p>
-      {state.requiresConfirmation ? (
-        <button
-          type="button"
-          className={styles.primaryButton}
-          disabled={state.isInputLocked}
-          onClick={() => onAction({ type: "confirm-message" })}
-        >
-          {copy.noticeConfirm}
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className={styles.primaryButton}
+        disabled={state.isInputLocked}
+        onClick={() => onAction({ type: "confirm-message" })}
+      >
+        {state.requiresConfirmation ? copy.noticeConfirm : copy.mobile.next}
+      </button>
     </div>
   );
 }
