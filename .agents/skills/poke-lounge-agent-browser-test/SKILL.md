@@ -1,89 +1,68 @@
 ---
 name: poke-lounge-agent-browser-test
-description: Run or coordinate agent-operated Poke Lounge browser playtests with Vercel agent-browser. Use whenever an agent is asked to play, test, diagnose, capture, or complete a Poke Lounge browser cycle in local, integration, or production environments. Do not use for unit or API-only tests that never operate a browser.
+description: Run or coordinate agent-operated Poke Lounge browser playtests with Vercel agent-browser. Use for local, integration, or production browser play, diagnosis, and captures; not for unit/API-only tests.
 ---
 
 # Poke Lounge Agent Browser Test
 
-Use Vercel Labs `agent-browser` as the default browser driver for agent-operated Poke Lounge tests.
-Keep existing Playwright specs and their official runner for scripted regression; do not translate or replace
-them unless the user asks.
+구현 기준: `617a60c` · 2026-09-08 KST. 직접 플레이의 기본 드라이버는 Vercel Labs `agent-browser`다. Playwright 시나리오는 공식 Playwright 러너로 실행한다.
 
-## Before browser work
+## 시작 전
 
-1. Read `docs/poke-lounge-multiplayer-test-scenarios.md` completely. It is the acceptance-test source of
-   truth. Treat Playwright-specific implementation notes as scripted-suite guidance while preserving their
-   observable acceptance criteria.
-2. Run `agent-browser --version` and `agent-browser skills get core --full` before the first browser command.
-3. If the CLI or its Chrome installation is unavailable, report `INFRA-BLOCKED`; do not silently substitute
-   the Codex browser, the user's Chrome profile, or Playwright for an agent-operated playtest.
+1. 저장소 [README](../../../README.md)의 현재 라운드 흐름과 검증 구분을 읽는다. 로컬 `docs/`가 있으면 `docs/poke-lounge-multiplayer-test-scenarios.md`도 확인한다.
+2. 첫 브라우저 명령 전에 `agent-browser --version`, `agent-browser skills get core --full`을 실행한다. CLI/Chrome이 준비되지 않으면 `INFRA-BLOCKED`로 분류한다.
+3. 매 참가자는 `poke-<run-id>-mp1`처럼 고유 named session을 사용한다. 기본 세션·다른 작업의 세션·`close --all`을 사용하지 않는다. 같은 브라우저 프로필의 탭은 `localStorage` 신원을 공유할 수 있다.
 
-## Browser policy
+## 환경과 진입
 
-- Run headless by default. Use `--headed` only when the user requests it or when a captured failure cannot be
-  diagnosed headlessly.
-- Give every player a unique named session such as `poke-<run-id>-mp1`. Never use the shared default session,
-  reuse another player's session, or use `close --all`.
-- Use headless Chromium for both environments. Assign Desktop Web `1440x900` or Mobile Web `390x844` from the
-  recorded random seed. Apply Desktop with `set viewport 1440 900`. For Mobile, launch the blank named session
-  with `open --init-script .agents/skills/poke-lounge-agent-browser-test/scripts/mobile-touch-init.js`, apply
-  `set device "iPhone 12"`, then open the target URL. Verify viewport `390x844` and
-  `navigator.maxTouchPoints > 0` before room entry. Firefox is excluded. A narrow viewport without the reviewed
-  touch init script is not Mobile Web and must not report `ENV-READY`.
-- The public entry screen and waiting lobby do not expose settings. Immediately after the host starts and the lobby
-  closes, close any shortcut or mobile guide through its canonical control, open settings, and turn sound off before
-  movement or battle input. Report `AUDIO-MUTED <MP role>` only after verifying that session's control state.
-- The orchestrator does not occupy a player session unless the user explicitly asks it to play. One runner may
-  own multiple named sessions when the requested player count exceeds the available agent concurrency.
+- 기본은 headless다. 사용자가 요청했거나 캡처만으로 진단할 수 없는 경우만 headed를 사용한다.
+- Desktop Web은 1440×900으로 설정한다.
+- Mobile Web은 빈 세션에서 `open --init-script .agents/skills/poke-lounge-agent-browser-test/scripts/mobile-touch-init.js` → `set device "iPhone 12"` → 대상 URL 순서로 연다. 390×844와 `navigator.maxTouchPoints > 0`을 확인한다. 좁은 viewport만으로 모바일이라고 보고하지 않는다.
+- 일반 입장은 비공개 방 생성·초대 UI다. 존재하지 않는 Solo→Multiplayer 탭을 찾지 않는다. 개발 로컬 테스트는 허용 환경에서 별도 영역으로 표시된다.
+- 대기실에는 설정 메뉴가 있다. 가능한 첫 시점에 소리를 끄고 UI 상태를 확인한 뒤 `AUDIO-MUTED <MP role>`을 기록한다.
+- 사용자가 요청하지 않으면 조정자는 플레이어 자리를 차지하지 않는다.
 
-## Execution
+제품의 첫 출발/후속 라운드 규칙은 README를 기준으로 판정한다. 테스트 지침에서 타이머 정책을 다시 정의하지 않는다.
 
-1. Use the snapshot-and-ref loop and take a fresh `snapshot -i` after navigation, scene changes, dialogs, or
-   dynamic rerenders. Prefer roles and accessible names over CSS selectors.
-2. Wait on visible UI, URL, network, or server-authoritative state. Do not use arbitrary fixed sleeps in place
-   of readiness, room revision, round, match, phase, or turn conditions.
-3. Drive every player through the public UI. Do not call internal APIs to force readiness, combat actions,
-   results, rankings, or a winner.
-   The entry screen defaults to Solo, so select the Multiplayer tab before entering the nickname and temporary
-   password. Use a separate named session for each identity because same-profile tabs share localStorage identity.
-4. Store screenshots and diagnostic artifacts under `output/agent-browser/poke-lounge/<run-id>/`; include the
-   MP role, environment, checkpoint, and timestamp in filenames. Never record raw passwords, session IDs,
-   cookies, tokens, the internal room code, or full Socket payloads.
-5. Inspect `console`, `errors`, and relevant `network requests` at failures and before the final verdict. A
-   one-cycle test ends only after the server-confirmed winner and rankings converge across every player, each
-   player leaves through the UI, and the room reaches the documented cleanup state. Do not add an overall test
-   timeout that shortens product deadlines.
-6. Read only the documented room-field whitelist from the read-only E2E snapshot or another pre-redacted view.
-   Do not print a full request/response body, issue `fetch`, replay a request, or route/mock it. If a safe whitelist
-   view is unavailable, report `DOC-GAP` instead of collecting raw data. If the latest projection is missing,
-   reload the UI once within the 60-second reconnect grace and inspect the page's automatic room GET.
-   When a visible, enabled result control still requires canonical confirmation, do not reload: capture and confirm
-   it exactly once, wait for the stable post-transition scene, and only then use the one allowed reload if evidence
-   is still missing. Report only the documented field whitelist; never save the full response or sensitive identity
-   values.
-7. During the shared-world checkpoint, never send a direction input while a shortcut or mobile guide is open. Close
-   the guide through its canonical control, verify the help is gone, and only then send the designated movement once.
-   For Desktop, focus the `Poke Lounge 게임 화면` game surface and run
-   `node .agents/skills/poke-lounge-agent-browser-test/scripts/desktop-arrow-hold.mjs <session> <Arrow>` once. The
-   helper uses the official `agent-browser` stream input to hold and release a physical arrow for 50ms. Do not use
-   CLI `keydown` for arrows in `agent-browser` 0.34.0 because it emits no physical key code, and do not use the
-   zero-hold `press` command for movement. On Mobile, pointer-down the chosen direction, verify active direction
-   and coordinate change, then pointer-up; do not assert a fixed hold duration. Retry movement once only when no
-   coordinate or direction change is observed.
-8. After each battle UI procedure, watch up to five seconds for its `session-actions` request. If no request appears,
-   capture the current phase and focus, then repeat the complete UI procedure exactly once; do not wait passively for
-   the turn deadline. If the retry also emits no request, report `CODE-FAIL`. After any 2xx, never retry that turn.
-   For Desktop battle input, take a fresh interactive snapshot, focus the current
-   `Poke Lounge 게임 화면` ref, verify the `싸운다` command, and then `press Enter`. Do not click the game surface merely to focus it because
-   the pointer event also confirms the current option. After `command` rerenders to `move-select`, take another fresh
-   snapshot and reacquire/focus the canvas ref before the move Enter. Do not capture screenshots or wait for another
-   manager message between `ACTION-GO` and the first input.
-9. On `DOC-GAP`, `CODE-FAIL`, `TEST-RUNNER`, or `INFRA-BLOCKED`, preserve safe evidence and report the
-   classification. Resume only from a documented safe checkpoint; never fabricate progress.
-10. Activate each in-game leave control once. A normal flow emits one POST; the client may retry once after a
-    revision conflict or network failure, but the runner must not click leave again. Require the final 2xx and
-    documented room cleanup state.
+## 조작
 
-Close only the named sessions created by the run after in-game cleanup is complete. Report environment
-assignments, checkpoints, winner and rankings, captured evidence, and defects as one final result. Include
-connection recovery only when that scenario was actually exercised.
+1. 화면 이동·대화상자·장면 변경 뒤 `snapshot -i`를 새로 얻는다. 오래된 ref를 재사용하지 않는다.
+2. 준비·라운드·턴은 보이는 UI 또는 안전하게 필터링한 서버 권위 상태를 기다린다. 임의 sleep으로 완료를 대신하지 않는다.
+3. 모든 행동은 공개 UI로 한다. 내부 API, `fetch`, 요청 재실행, route/mock, E2E setter로 준비·전투·승자·결과를 만들지 않는다.
+4. 캡처는 `output/agent-browser/poke-lounge/<run-id>/`에 역할·환경·체크포인트별로 저장한다. 비밀번호·token·cookie·sessionId·실제 방 코드·초대 링크·전체 Socket payload를 남기지 않는다.
+5. 실패와 최종 판정 전 `console`, `errors`, 필요한 네트워크 메타 정보를 확인한다.
+6. 필드 이동 전에 도움말/작업 화면이 닫혔는지 확인한다. Desktop은 게임 영역에 포커스를 주고 `node .agents/skills/poke-lounge-agent-browser-test/scripts/desktop-arrow-hold.mjs <session> <Arrow>`를 사용한다. 이 helper는 물리 키 코드를 포함해 50ms 누르고 놓는다. Mobile은 pointer-down → 좌표/방향 변화 확인 → pointer-up으로 조작한다.
+7. 퇴장 버튼과 확인은 필요한 단계에서 한 번씩 실행한다. 실행자가 같은 명령을 반복 제출하지 않는다.
+
+포커스를 주려고 게임 영역을 클릭하지 않는다. 클릭 자체가 현재 선택 확정일 수 있다. 단계 전환 뒤 새 스냅샷으로 포커스를 다시 확인한다. projection이 없어 복구할 때는 60초 재접속 유예 내 새로고침을 한 번만 허용하되, 보이는 결과 확인이 남아 있으면 먼저 정확히 한 번 처리한다.
+
+## 전투 판정
+
+- **메뉴 조작**: 싸운다·가방·포켓몬을 열거나 후보를 고르는 것은 턴 제출이 아니다. 화면 상태만 확인하고 HTTP 요청을 요구하지 않는다.
+- **야생전/로컬 전투**: 실제 행동 뒤 턴·PP·HP·상태·파티·결과의 관련 변화를 확인한다. `session-actions` 요청 부재는 실패 근거가 아니다.
+- **서버 권위 전투**: 서버 전투임을 확인한 뒤 실제 제출 요청과 서버 확정 턴/결과를 본다. 클라이언트는 익명 세션일 때 `/session-actions`, 인증 토큰이 있을 때 `/actions` 경로를 선택한다. 경로 존재만으로 현재 환경의 인증 요청이 허용된다고 단정하지 않는다. 실제 제출 뒤 5초 동안 요청이 없다면 단계·포커스와 같은 턴임을 확인하고 절차를 한 번만 재시도한다. 2xx 이후에는 같은 턴을 다시 제출하지 않는다.
+- 상태이상·준비·회복 기술처럼 즉시 피해가 없는 정상 행동을 피해량만으로 실패 판정하지 않는다.
+
+## 읽기 전용 관찰 허용 범위
+
+공개 UI 또는 읽기 전용 E2E getter에서 **필요한 값만 브라우저 안에서 투영**한다. 원본 getter 반환값이나 request/response 본문을 저장하지 않는다.
+
+| 분류     | 기록 가능 정보                                                                       |
+| -------- | ------------------------------------------------------------------------------------ |
+| 환경     | 커밋, 브라우저, viewport, touch 지원, 테스트 역할                                    |
+| 방·준비  | 상태, revision, 라운드 index/phase/duration/start/end, 사람·AI·연결·준비 인원 집계   |
+| 필드     | 본인 x/y/facing, 열린 작업, 이동/준비 잠금                                           |
+| 전투     | 종류, phase, turn, 입력/강제 교체, 공개 전투 HP·상태·PP, 결과 reason, 서버 전투 여부 |
+| 결과     | bracket 완료 여부, rank/score, ID를 역할/AI 순번으로 익명화한 승패                   |
+| 네트워크 | method, 식별자를 제거한 route template, statusCode, duration                         |
+| 정리     | 마지막 퇴장 성공, closed/completed, 연결 사람·남은 AI 집계                           |
+
+실제 playerId/sessionId·방 ID/코드·계정 식별자·token·cookie·원본 terminal·Socket payload는 기록하지 않는다. 안전하게 관찰할 방법이 없으면 `DOC-GAP`으로 남긴다.
+
+## 완료와 정리
+
+전체 사이클 PASS는 3라운드 최종 순위가 참가자 사이에서 수렴하고 각 플레이어가 결과 확인 후 UI로 퇴장했을 때만 사용한다. 그보다 적게 실행했으면 확인한 구간만 보고한다.
+
+마지막 사람의 명시적 퇴장 후 `closed`, 연결 사람 0, AI 정리를 확인한다. 종료 이력·TTL과 비동기 live 상태 삭제 때문에 모든 Redis 키가 즉시 사라져야 한다고 요구하지 않는다. UI 복귀만 확인했다면 서버 정리는 미검증으로 구분한다.
+
+마지막으로 이번 실행에서 만든 named session만 닫는다. `DOC-GAP`, `CODE-FAIL`, `TEST-RUNNER`, `INFRA-BLOCKED`를 구분하고 관찰하지 않은 진행을 만들어내지 않는다.
