@@ -1,4 +1,12 @@
-import { parseResolvedTurnPresentation, type ResolvedAnimationEvent } from "./battle-presentation";
+import {
+  BATTLE_MESSAGE_AUTO_ADVANCE_MS,
+  parseResolvedTurnPresentation,
+  type ResolvedAnimationEvent,
+} from "./battle-presentation";
+
+it("일반 전투 메시지의 공통 자동 진행 간격은 300ms다", () => {
+  expect(BATTLE_MESSAGE_AUTO_ADVANCE_MS).toBe(300);
+});
 
 const playerIds = ["player-a", "player-b"] as const;
 const moveEvent = (): ResolvedAnimationEvent => ({
