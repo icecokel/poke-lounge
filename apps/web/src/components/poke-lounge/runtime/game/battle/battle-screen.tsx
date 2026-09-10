@@ -1,5 +1,6 @@
 "use client";
 
+import { OpponentPartyIndicator } from "./opponent-party-indicator";
 import { BATTLE_BAG_PAGE_SIZE } from "./battle-bag-selection";
 
 import { LearnedMoveNotice, MoveLearningPanel } from "../ui/move-learning-panel";
@@ -235,6 +236,14 @@ export function BattleStage({
             layout={layout}
             side="opponent"
           />
+          {presentation.battleKind === "trainer" && presentation.opponentParty ? (
+            <OpponentPartyIndicator
+              summary={presentation.opponentParty}
+              locale={copy.locale}
+              desktop={desktop}
+              layout={layout}
+            />
+          ) : null}
           <BattleHpPanel
             copy={copy}
             combatant={presentation.player}

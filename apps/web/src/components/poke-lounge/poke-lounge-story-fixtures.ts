@@ -375,6 +375,7 @@ export const storyBattleControls: MobileBattleUiState = {
 };
 
 export const storyBattlePresentation: BattlePresentationState = {
+  opponentParty: null,
   authoritative: { connectionStatus: "online", inputPending: false, spectating: false },
   battleKind: "wild",
   capture: null,

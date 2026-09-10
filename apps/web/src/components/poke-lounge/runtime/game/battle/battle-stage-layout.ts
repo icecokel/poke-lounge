@@ -52,6 +52,14 @@ export function getBattleHpPanelRect(
   return layout.hpPanels?.[side] ?? BATTLE_LAYOUT[`${side}HpPanel`];
 }
 
+/** A separate HUD row: never squeeze another line into the clipped HP panel. */
+export function getOpponentPartyIndicatorRect(
+  layout: BattleStageLayout = DESKTOP_BATTLE_STAGE_LAYOUT,
+): BattleRect {
+  const panel = getBattleHpPanelRect("opponent", layout);
+  return { x: panel.x, y: panel.y + panel.height + 3, width: panel.width, height: 11 };
+}
+
 export function toBattlePointStyle(
   point: Pick<BattleRect, "x" | "y">,
   layout: BattleStageLayout = DESKTOP_BATTLE_STAGE_LAYOUT,

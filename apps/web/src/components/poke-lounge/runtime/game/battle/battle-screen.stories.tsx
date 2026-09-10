@@ -171,7 +171,22 @@ export const Entrance: Story = {
 };
 
 export const TrainerSendOut: Story = {
-  render: () => renderBattle({ presentation: { battleKind: "trainer" } }),
+  render: () =>
+    renderBattle({
+      presentation: {
+        battleKind: "trainer",
+        opponentParty: {
+          total: 4,
+          remaining: 3,
+          slots: [
+            { slotIndex: 0, fainted: true, active: false },
+            { slotIndex: 1, fainted: false, active: true },
+            { slotIndex: 2, fainted: false, active: false },
+            { slotIndex: 3, fainted: false, active: false },
+          ],
+        },
+      },
+    }),
 };
 
 export const WildEncounter: Story = {

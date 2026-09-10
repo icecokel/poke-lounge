@@ -18,6 +18,7 @@ import {
 } from "../runtime/game/i18n/runtime-game-localization";
 import { primePokeLoungeAudio } from "../runtime/game/audio/poke-lounge-audio";
 import { getShopItemById } from "../runtime/game/state/game-state-store";
+import { OpponentPartyIndicator } from "../runtime/game/battle/opponent-party-indicator";
 import { MobileTaskScreen } from "./mobile-task-screen";
 import { MobileItemRow, MobilePokemonCard } from "./mobile-selection-cards";
 import {
@@ -79,6 +80,14 @@ export function MobileBattleContext({
             </small>
           </span>
         </span>
+      ) : null}
+      {presentation?.battleKind === "trainer" && presentation.opponentParty ? (
+        <OpponentPartyIndicator
+          summary={presentation.opponentParty}
+          locale={copy.locale}
+          desktop={false}
+          inline
+        />
       ) : null}
       {seconds !== null ? (
         <span

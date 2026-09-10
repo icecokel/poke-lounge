@@ -1,3 +1,4 @@
+import { createOpponentPartySummary } from "@/features/poke-lounge/presentation/battle/opponent-party";
 import { executeBattleChoice } from "@/features/poke-lounge/application/battle/execute-battle-choice";
 import { planPostBattleProgression } from "@/features/poke-lounge/application/battle/plan-battle-progression";
 import { settleBattleToWorld } from "@/features/poke-lounge/application/battle/settle-battle";
@@ -1240,6 +1241,13 @@ export class BattleController {
     const evolution = this.createBattleEvolutionPresentation();
 
     const presentation: BattlePresentationState = {
+      opponentParty: createOpponentPartySummary({
+        battleKind: this.state.battleKind,
+        opponent: this.state.opponent,
+        visibleSlotIndex: this.getVisibleBattleSlot("opponent"),
+        displayedHp: this.displayedHp.opponent,
+        displayedStatus: this.displayedStatus.opponent,
+      }),
       effect: this.activeBattleEffect ? { ...this.activeBattleEffect } : null,
       effectStartedCount: this.battleEffectSequence,
       authoritative: {

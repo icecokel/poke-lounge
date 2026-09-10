@@ -1,0 +1,105 @@
+.indicator {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7cqw;
+  padding: 0 0.8cqw;
+  color: var(--pl-color-ink, #24392c);
+  background: rgb(255 255 240 / 92%);
+  border-radius: 0.65cqw;
+  font-size: clamp(9px, 2.7cqw, 28px);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.slots {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.7cqw;
+}
+
+.slot {
+  --ball-top: #c94638;
+  --ball-bottom: #fffced;
+  --ball-outline: #293b30;
+  position: relative;
+  display: block;
+  width: clamp(8px, 3.125cqw, 32px);
+  height: clamp(8px, 3.125cqw, 32px);
+}
+
+.slot[data-fainted] {
+  --ball-top: #a2a7a0;
+  --ball-bottom: #d1d4cc;
+  --ball-outline: #555e55;
+}
+
+.slot[data-active]::after {
+  position: absolute;
+  content: "";
+  left: 15%;
+  right: 15%;
+  bottom: -0.55cqw;
+  height: max(1px, 0.3cqw);
+  border-radius: 1px;
+  background: var(--pl-color-ink, #24392c);
+}
+
+.ball {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.count {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 0.7cqw;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.count strong {
+  font-weight: 800;
+}
+.label {
+  font-size: 0.8em;
+}
+
+@container (max-width: 450px) {
+  .label {
+    display: none;
+  }
+}
+
+/* Fullscreen mobile party/bag screens cover the stage. Keep the same public
+   summary in their fixed context area instead of putting it behind the task. */
+.inline {
+  position: static;
+  width: 100%;
+  min-height: 22px;
+  height: auto;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 2px 0;
+  background: transparent;
+  font-size: 12px;
+}
+.inline .slots {
+  gap: 4px;
+}
+.inline .slot {
+  width: 14px;
+  height: 14px;
+}
+.inline .slot[data-active]::after {
+  bottom: -3px;
+  height: 1px;
+}
+.inline .count {
+  margin-left: auto;
+}

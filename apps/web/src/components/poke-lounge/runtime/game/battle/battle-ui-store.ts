@@ -48,6 +48,8 @@ export interface BattleEvolutionPresentation {
 }
 
 export interface BattlePresentationState {
+  opponentParty:
+    import("@/features/poke-lounge/presentation/battle/opponent-party").OpponentPartySummary | null;
   effect?: import("./move-animation-model").ActiveBattleEffect | null;
   effectStartedCount?: number;
   authoritative: {

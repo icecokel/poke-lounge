@@ -3,6 +3,7 @@ import test from "node:test";
 import { createBattleUiStore, type BattlePresentationState } from "./battle-ui-store";
 
 const presentation = {
+  opponentParty: null,
   authoritative: { connectionStatus: "online", inputPending: false, spectating: false },
   battleKind: "wild",
   capture: null,

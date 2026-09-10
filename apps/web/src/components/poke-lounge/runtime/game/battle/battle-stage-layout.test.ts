@@ -145,3 +145,33 @@ test("493종 앞·뒷모습의 실제 불투명 픽셀은 화면 안에 있고 H
     }
   }
 });
+
+test("상대 파티 표시줄은 HP 패널 밖 아래에 있으며 기술창·포켓몬과 겹치지 않는다", async () => {
+  const { getOpponentPartyIndicatorRect } = await import("./battle-stage-layout");
+  for (const layout of [DESKTOP_BATTLE_STAGE_LAYOUT, MOBILE_BATTLE_STAGE_LAYOUT]) {
+    const panel = getBattleHpPanelRect("opponent", layout);
+    const row = getOpponentPartyIndicatorRect(layout);
+    assert.equal(row.x, panel.x);
+    assert.equal(row.width, panel.width);
+    assert(row.y > panel.y + panel.height);
+    assert(row.y + row.height < BATTLE_LAYOUT.bottomWindow.y);
+    for (let speciesId = 1; speciesId <= 493; speciesId++) {
+      const assets = getBattlePokemonAssets(speciesId);
+      for (const side of ["opponent", "player"] as const) {
+        const alpha = getBattlePokemonAlphaBounds(side === "player" ? assets.back : assets.front);
+        const sprite = getVisibleBoundsAlignedBattleSpriteRenderBox(
+          BATTLE_LAYOUT[`${side}Sprite`],
+          alpha,
+        );
+        const box = bounds(toCenteredBattleActorRectStyle(sprite, layout), layout);
+        const visible = {
+          x: box.x + (alpha.x / BATTLE_POKEMON_FRAME_SIZE.width) * box.width,
+          y: box.y + (alpha.y / BATTLE_POKEMON_FRAME_SIZE.height) * box.height,
+          width: (alpha.width / BATTLE_POKEMON_FRAME_SIZE.width) * box.width,
+          height: (alpha.height / BATTLE_POKEMON_FRAME_SIZE.height) * box.height,
+        };
+        assert(!overlaps(row, visible), `${speciesId} ${side}: party row overlaps sprite`);
+      }
+    }
+  }
+});
