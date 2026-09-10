@@ -15,6 +15,16 @@ description: Run or coordinate agent-operated Poke Lounge browser playtests with
 
 승리 목표·포획·거래·완주 여부와 UX 불편을 회차별로 사실대로 기록한다. 이전 자동화 검사를 합산하지 않는다. 로컬 상세 기준은 `docs/poke-lounge-player-playtest.md`를 따른다.
 
+## 직접 플레이 드라이버 — 2026-09-10 보완
+
+직접 플레이는 루트의 `pnpm player:browser`를 사용한다. 구현·명령 계약은 [플레이어 브라우저 사용법](../../../apps/web/scripts/player-browser/README.md)을 따른다. 지속적인 Playwright 브라우저와 단일 입력만 사용하며 자동 spec/전투 루프가 아니다.
+
+게임 시작 전 `open`/`observe`가 반환한 실제 JPEG를 이미지 뷰어에서 열어 프레임 ID와 해시를 확인한다. 응답에 파일명만 있거나 Base64를 아직 디코딩·표시하지 못했으면 직접 플레이를 시작하지 않는다. 이미지 전용 MCP 도구가 없는 연결에서는 이미지 바이트를 전달해 뷰어로 여는 사전 점검이 필수다. 공개 터널이나 경로만 출력하는 임시 helper를 만들지 않는다.
+
+각 `act`는 실제로 본 프레임의 `seen` 기록과 단일 UI 입력을 요구한다. 만료된 화면은 입력 없이 새 캡처를 반환하므로 다시 보고 판단한다. 입력/캡처/전송 실패를 나눠 기록하고, 같은 요청을 자동 재실행하지 않는다. `OPERATOR_GAP` 또는 미확인 자동 진행은 완주·모든 턴 직접 선택으로 보고하지 않는다. 2분 무응답 자동 브라우저 종료는 서버 방 퇴장 완료를 의미하지 않는다.
+
+아래 일반 지침의 agent-browser 준비 절차·읽기 전용 getter 허용은 직접 플레이 모드에 적용하지 않는다. 게임 규칙이나 서버 시계를 변경해 테스트 도구 지연을 숨기지 않는다. 운영자가 이미지를 봤다는 것은 선언으로 기록할 뿐 코드가 시각적 인지를 증명한다고 주장하지 않는다.
+
 ## 시작 전
 
 1. 저장소 [README](../../../README.md)의 현재 라운드 흐름과 검증 구분을 읽는다. 로컬 `docs/`가 있으면 `docs/poke-lounge-multiplayer-test-scenarios.md`도 확인한다.

@@ -37,7 +37,10 @@
     "check:api-contract": "node scripts/check-api-contract.mjs",
     "format:check": "prettier --check .",
     "generate:poke-lounge-battle-animations": "pnpm --filter @poke-lounge/web exec tsx ../../scripts/poke-lounge/extract-battle-animations.ts",
-    "test:poke-lounge-battle-animations": "pnpm --filter @poke-lounge/web exec tsx --test ../../scripts/poke-lounge/nds-animation-data.test.ts"
+    "test:poke-lounge-battle-animations": "pnpm --filter @poke-lounge/web exec tsx --test ../../scripts/poke-lounge/nds-animation-data.test.ts",
+    "player:browser": "pnpm --filter @poke-lounge/web exec tsx scripts/player-browser/cli.ts",
+    "test:player-browser": "pnpm --filter @poke-lounge/web exec tsx --test scripts/player-browser/*.test.ts",
+    "test:player-browser:integration": "pnpm --filter @poke-lounge/web exec tsx --test scripts/player-browser/browser.integration.ts"
   },
   "devDependencies": {
     "prettier": "^3.8.4",
