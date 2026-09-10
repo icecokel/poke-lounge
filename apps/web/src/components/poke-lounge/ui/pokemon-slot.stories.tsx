@@ -16,14 +16,7 @@ const meta = {
     level: 18,
     name: "치코리타",
     selected: false,
-    sprite: (
-      <Image
-        alt=""
-        height={42}
-        src="/assets/pokemon/front/152.png"
-        width={42}
-      />
-    ),
+    sprite: <Image alt="" height={42} src="/assets/pokemon/front/152.png" width={42} />,
     status: "normal",
     style: { width: 320 },
   },
@@ -70,14 +63,7 @@ export const SelectedAndBurned: Story = {
     level: 17,
     name: "브케인",
     selected: true,
-    sprite: (
-      <Image
-        alt=""
-        height={42}
-        src="/assets/pokemon/front/155.png"
-        width={42}
-      />
-    ),
+    sprite: <Image alt="" height={42} src="/assets/pokemon/front/155.png" width={42} />,
     status: "화상",
   },
 };
