@@ -44,6 +44,19 @@ const AI_TRAINER_NAMES: Record<string, LocalizedTerm> = {
 };
 
 const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
+  대화: { "en-US": "Talk", "ja-JP": "話す" },
+  "확인하면 파티에 합류합니다.": {
+    "en-US": "Confirm to add it to your party.",
+    "ja-JP": "決定すると手持ちに加わります。",
+  },
+  "파티가 가득 찼습니다. 확인하면 PC 박스로 전송합니다.": {
+    "en-US": "Your party is full. Confirm to send it to the PC Box.",
+    "ja-JP": "手持ちがいっぱいです。決定するとPCボックスへ送ります。",
+  },
+  "확인을 누르면 필드로 돌아갑니다.": {
+    "en-US": "Confirm to return to the field.",
+    "ja-JP": "決定するとフィールドに戻ります。",
+  },
   "전투가 종료되었다. 확인을 누르면 필드로 돌아간다.": {
     "en-US": "The battle is over. Confirm to return to the field.",
     "ja-JP": "バトルが終了しました。決定するとフィールドに戻ります。",
@@ -520,6 +533,16 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (match, name, move) => (catalog.moves[move] ? `${name}の${move}！` : match),
   ),
   pattern(
+    /^구매 완료: (.+)$/,
+    (_, item) => `Purchase complete: ${item}`,
+    (_, item) => `購入完了: ${item}`,
+  ),
+  pattern(
+    /^포획 성공: (.+)$/,
+    (_, name) => `Caught: ${name}`,
+    (_, name) => `捕獲成功: ${name}`,
+  ),
+  pattern(
     /^(.+)[을를] 구매했다\.$/,
     (_, item) => `Bought ${item}.`,
     (_, item) => `${item}を購入しました。`,
@@ -591,8 +614,10 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
   ),
   pattern(
     /^(.+) · (기본 상점|희귀 상점|PC 박스|파티 회복|솔로 챌린지|주사위 겜블)$/,
-    (_, key, action) => `${key} · ${localizeRuntimeText(action, "en-US")}`,
-    (_, key, action) => `${key} · ${localizeRuntimeText(action, "ja-JP")}`,
+    (_, key, action) =>
+      `${localizeRuntimeText(key, "en-US")} · ${localizeRuntimeText(action, "en-US")}`,
+    (_, key, action) =>
+      `${localizeRuntimeText(key, "ja-JP")} · ${localizeRuntimeText(action, "ja-JP")}`,
   ),
   pattern(
     /^라운드 (\d+)\/(\d+) 대진 안내$/,

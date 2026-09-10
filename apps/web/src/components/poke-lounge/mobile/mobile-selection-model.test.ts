@@ -4,6 +4,7 @@ import type { MobileBattleUiState } from "../runtime/game/ui/mobile-battle-ui";
 import {
   candidateAction,
   canChooseBattleAction,
+  canChooseBattleCommand,
   pokemonHealth,
   pokemonIdentity,
   type BattleCandidate,
@@ -147,4 +148,14 @@ test("아이템 대상은 현재 포켓몬·기절한 팀원도 효과가 있을
       null,
     );
   }
+});
+
+test("서버 대회에서는 가방/도망만 막고 야생전에서는 허용한다", () => {
+  const server = state({ phase: "command", isAuthoritative: true });
+  assert.equal(canChooseBattleCommand(server, "bag"), false);
+  assert.equal(canChooseBattleCommand(server, "run"), false);
+  assert.equal(canChooseBattleCommand(server, "fight"), true);
+  assert.equal(canChooseBattleCommand(server, "pokemon"), true);
+  assert.equal(canChooseBattleCommand({ ...server, isAuthoritative: false }, "bag"), true);
+  assert.equal(canChooseBattleCommand({ ...server, isInputLocked: true }, "fight"), false);
 });

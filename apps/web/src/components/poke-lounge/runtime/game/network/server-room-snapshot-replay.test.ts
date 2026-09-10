@@ -4263,3 +4263,216 @@ function restoreGlobalProperty(
     Reflect.deleteProperty(globalThis, property);
   }
 }
+
+test("필드 파티 revision 충돌은 최신 revision으로 재전송해 변경을 버리지 않는다", async () => {
+  process.env.NEXT_PUBLIC_API_URL = "http://api.test";
+  const original = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const timers = createManualRecoveryTimers();
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      ...timers.window,
+      localStorage: createEmptyStorage(),
+      sessionStorage: createEmptyStorage(),
+    },
+  });
+  let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
+  try {
+    const { createServerRoom } = await import("./server-room");
+    const base = createRoomSnapshots().initial;
+    const writable = {
+      ...base,
+      status: "round-started",
+      round: {
+        ...base.round,
+        phase: "round-started",
+        startedAtMs: Date.now(),
+        endsAtMs: Date.now() + 300000,
+      },
+      tournament: {
+        ...base.tournament,
+        bracket: null,
+        activeMatchId: null,
+        activeMatchAuthority: null,
+      },
+    };
+    let latest = { ...writable };
+    const bodies: unknown[] = [];
+    const revisions: string[] = [];
+    const keys: string[] = [];
+    const fetchFixture: typeof fetch = async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/party-snapshot")) {
+        bodies.push(JSON.parse(String(init?.body)));
+        revisions.push(new Headers(init?.headers).get("If-Match-Revision")!);
+        keys.push(new Headers(init?.headers).get("X-Idempotency-Key")!);
+        if (bodies.length === 2) {
+          latest = { ...latest, revision: latest.revision + 1 };
+          return jsonResponse(
+            {
+              statusCode: 409,
+              code: "POKE_LOUNGE_REVISION_CONFLICT",
+              message: "revision conflict",
+              snapshot: latest,
+            },
+            409,
+          );
+        }
+        latest = { ...latest, revision: latest.revision + 1 };
+      }
+      return jsonResponse(latest);
+    };
+    room = createServerRoom({
+      roomId: "ROOM01",
+      playerId: "player-1",
+      sessionId: "session-1",
+      fetch: fetchFixture,
+      socketFactory: () => createSocket(),
+    });
+    room.connect(createPlayerSnapshot());
+    await waitFor(() => bodies.length === 1);
+    await flushAsyncWork();
+    room.send("PLAYER_CHANGED_MAP", { ...createPlayerSnapshot(), displayName: "Updated party" });
+    await flushAsyncWork();
+    assert.equal(bodies.length, 3);
+    assert.deepEqual(bodies[1], bodies[2]);
+    assert.equal(keys[1], keys[2]);
+    assert.equal(Number(revisions[2]), Number(revisions[1]) + 1);
+  } finally {
+    room?.dispose();
+    restoreWindow(original);
+  }
+});
+
+for (const mode of ["queued-lock", "server-lock", "newer-local", "idempotency"] as const) {
+  test(`파티 동기화 경계 회귀: ${mode}`, async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://api.test";
+    const original = Object.getOwnPropertyDescriptor(globalThis, "window");
+    const timers = createManualRecoveryTimers();
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        ...timers.window,
+        localStorage: createEmptyStorage(),
+        sessionStorage: createEmptyStorage(),
+      },
+    });
+    let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | null = null;
+    try {
+      const { createServerRoom } = await import("./server-room");
+      const socket = createSocket();
+      const base = createRoomSnapshots().initial;
+      const writable = {
+        ...base,
+        status: "round-started",
+        round: {
+          ...base.round,
+          phase: "round-started",
+          startedAtMs: Date.now(),
+          endsAtMs: Date.now() + 300000,
+        },
+        tournament: {
+          ...base.tournament,
+          bracket: null,
+          activeMatchId: null,
+          activeMatchAuthority: null,
+        },
+      };
+      let latest = { ...writable };
+      let partyCount = 0;
+      let gets = 0;
+      const names: string[] = [];
+      const errors: Error[] = [];
+      let release: (value: Response) => void = () => {};
+      let blocked = false;
+      const fetchFixture: typeof fetch = async (input, init) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith("/ready")) {
+          blocked = true;
+          return new Promise(resolve => {
+            release = resolve;
+          });
+        }
+        if (url.pathname.endsWith("/party-snapshot")) {
+          partyCount++;
+          names.push(JSON.parse(String(init?.body)).displayName);
+          if (mode === "server-lock" && partyCount === 2) {
+            latest = { ...latest, status: "tournament", revision: latest.revision + 1 };
+            return jsonResponse(
+              { statusCode: 409, code: "POKE_LOUNGE_PARTY_SNAPSHOT_LOCKED" },
+              409,
+            );
+          }
+          if (mode === "idempotency" && partyCount === 2) {
+            latest = { ...latest, revision: latest.revision + 1 };
+            return jsonResponse(
+              { statusCode: 409, code: "POKE_LOUNGE_IDEMPOTENCY_CONFLICT", snapshot: latest },
+              409,
+            );
+          }
+          latest = { ...latest, revision: latest.revision + 1 };
+        } else if ((init?.method ?? "GET") === "GET") gets++;
+        return jsonResponse(latest);
+      };
+      room = createServerRoom({
+        roomId: "ROOM01",
+        playerId: "player-1",
+        sessionId: "session-1",
+        fetch: fetchFixture,
+        socketFactory: () => socket,
+        onTransportError: error => errors.push(error),
+      });
+      room.connect(createPlayerSnapshot());
+      await waitFor(() => partyCount === 1);
+      await flushAsyncWork();
+      if (mode === "queued-lock" || mode === "newer-local") {
+        const ready = room.setLobbyReady!(true);
+        await waitFor(() => blocked);
+        room.send("PLAYER_CHANGED_MAP", { ...createPlayerSnapshot(), displayName: "Older queued" });
+        if (mode === "queued-lock") {
+          latest = { ...latest, status: "tournament", revision: latest.revision + 1 };
+          socket.pushSnapshot(latest);
+        } else
+          room.send("PLAYER_CHANGED_MAP", {
+            ...createPlayerSnapshot(),
+            displayName: "Newest party",
+          });
+        release(jsonResponse(latest));
+        await ready;
+        await flushAsyncWork();
+        if (mode === "queued-lock") {
+          assert.equal(partyCount, 1);
+          latest = { ...latest, status: "round-started", revision: latest.revision + 1 };
+          socket.pushSnapshot(latest);
+          await flushAsyncWork();
+          assert.equal(partyCount, 2);
+          assert.equal(names.at(-1), "Older queued");
+        } else {
+          assert.equal(partyCount, 2);
+          assert.equal(names.at(-1), "Newest party");
+        }
+      } else {
+        room.send("PLAYER_CHANGED_MAP", {
+          ...createPlayerSnapshot(),
+          displayName: "Updated party",
+        });
+        await flushAsyncWork();
+        assert.equal(partyCount, 2);
+        if (mode === "server-lock") {
+          assert.ok(gets >= 2);
+          assert.equal(errors.length, 0);
+          latest = { ...latest, status: "round-started", revision: latest.revision + 1 };
+          socket.pushSnapshot(latest);
+          await flushAsyncWork();
+          assert.equal(partyCount, 3);
+          assert.equal(names.at(-1), "Updated party");
+        } else {
+          assert.equal(errors.length, 1);
+        }
+      }
+    } finally {
+      room?.dispose();
+      restoreWindow(original);
+    }
+  });
+}

@@ -75,7 +75,8 @@ function createController(
   const worldUiStore = createWorldUiStore();
   const controller = createWorldSceneInteractions({
     gameStateStore,
-    getDocument: () => ({}) as Document,
+    getDocument: () =>
+      ({ querySelector: () => null, dispatchEvent: () => true }) as unknown as Document,
     keyboard: {
       consume: () => false,
       isDown: () => false,
@@ -101,3 +102,42 @@ async function flushMicrotasks(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
 }
+
+test("대회 집결 정리 후 이전 모바일 파티 화면이 되살아나지 않는다", t => {
+  const oldDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: {
+      querySelector: () => null,
+      dispatchEvent: () => true,
+      body: { classList: { toggle: () => {} } },
+    },
+  });
+  t.after(() => {
+    if (oldDocument) Object.defineProperty(globalThis, "document", oldDocument);
+    else Reflect.deleteProperty(globalThis, "document");
+  });
+  const { controller, worldUiStore } = createController(async () => []);
+  controller.handleUiAction({ type: "open-party" });
+  assert.equal(worldUiStore.getSnapshot().mobile?.screen, "party");
+  controller.destroy();
+  assert.equal(worldUiStore.getSnapshot().mobile?.screen, "explore");
+  controller.handleUiAction({ type: "open-party" });
+  assert.equal(worldUiStore.getSnapshot().mobile?.screen, "party");
+});
+
+test("해독제 구매는 올바른 완료 문구와 정확한 가격·수량을 반영한다", async () => {
+  const { controller, gameStateStore, worldUiStore } = createController(async () => [18]);
+  gameStateStore.upsertLocalPlayer({
+    ...gameStateStore.getCurrentLocalPlayer(),
+    wallet: { pokeDollars: 119 },
+  });
+  controller.test.openShop();
+  await flushMicrotasks();
+  assert.equal(worldUiStore.getSnapshot().mobile?.items[0]?.id, "antidote");
+  controller.handleUiAction({ type: "select-shop-item", index: 0 });
+  controller.test.confirmShopSelection();
+  assert.equal(controller.test.getShopMessage(), "구매 완료: 해독제");
+  assert.equal(gameStateStore.getCurrentLocalPlayer().wallet.pokeDollars, 19);
+  assert.equal(gameStateStore.getCurrentLocalPlayer().inventory.antidote, 1);
+});

@@ -23,6 +23,7 @@ import { MobileItemRow, MobilePokemonCard } from "./mobile-selection-cards";
 import {
   candidateAction,
   canChooseBattleAction,
+  canChooseBattleCommand,
   pokemonIdentity,
   selectionContext,
   type BattleCandidate,
@@ -212,6 +213,10 @@ export function MobileBattleDeck({
     );
 
   const dispatchCommand = (action: MobileBattleUiAction) => {
+    if (action.type === "select-command") {
+      const command = state.commands[action.index];
+      if (!command || !canChooseBattleCommand(state, command.id)) return;
+    }
     if (action.type === "select-command" && state.commands[action.index]?.id === "run")
       setRunContext(context);
     else onAction(action);
@@ -260,10 +265,15 @@ export function MobileBattleCommandDeck({ copy, onAction, state }: DeckProps) {
           className={styles.commandButton}
           data-command={command.id}
           data-selected={command.selected}
-          disabled={!canChooseBattleAction(state)}
+          disabled={!canChooseBattleCommand(state, command.id)}
           onClick={() => onAction({ type: "select-command", index })}
         >
           {labels[command.id]}
+          {state.isAuthoritative && (command.id === "bag" || command.id === "run") ? (
+            <small className={styles.commandRestriction}>
+              {getMobileUiCopy(copy.locale).competitiveUnavailable}
+            </small>
+          ) : null}
         </button>
       ))}
     </div>

@@ -53,6 +53,10 @@ import {
   type MoveReplacementConfirmation,
 } from "../ui/move-learning-model";
 import { dispatchPokeLoungeAccessibleStatus } from "../ui/poke-lounge-ui-events";
+import {
+  formatFieldInteractionKey,
+  formatShopPurchaseMessage,
+} from "@/features/poke-lounge/presentation/world/interaction-copy";
 import { createShortcutGuideTitle, type ShortcutGuideInputMode } from "../ui/shortcut-guide";
 import {
   FIELD_MAP,
@@ -891,6 +895,8 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   destroy(): void {
+    // Tournament gathering reuses this controller. Never restore a stale party task.
+    this.mobileWorldView = "explore";
     this.closeShop();
     this.closeInventory();
     this.closePcBox();
@@ -1196,7 +1202,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private getNearbyInteractionHint(playerPosition: WorldScenePlayerPosition): string {
-    const interactionKey = this.usesMobileWorldDeck() ? "A" : "A / Enter";
+    const interactionKey = formatFieldInteractionKey(this.usesMobileWorldDeck());
 
     if (this.isPlayerNearShopkeeper(playerPosition)) {
       return `${interactionKey} · 기본 상점`;
@@ -1452,7 +1458,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
         : this.gameStateStore.buyShopItem(item.id, 1);
 
     this.shopMessage = result.ok
-      ? `${item.displayName}을 구매했다.`
+      ? formatShopPurchaseMessage(item.displayName)
       : result.reason === "insufficient-funds"
         ? "돈이 부족하다."
         : "구매할 수 없다.";

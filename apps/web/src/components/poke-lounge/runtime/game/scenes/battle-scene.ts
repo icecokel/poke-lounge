@@ -1,6 +1,9 @@
 import { executeBattleChoice } from "@/features/poke-lounge/application/battle/execute-battle-choice";
 import { planPostBattleProgression } from "@/features/poke-lounge/application/battle/plan-battle-progression";
 import { settleBattleToWorld } from "@/features/poke-lounge/application/battle/settle-battle";
+import { formatBattleResultMessage } from "@/features/poke-lounge/presentation/battle/result-message";
+import { materializeResolvedWildBattleReward } from "@/features/poke-lounge/application/battle/settle-interrupted-battle";
+import { PLAYER_PARTY_SLOT_COUNT } from "@poke-lounge/battle/adventure/player/player-types";
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
 import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "@poke-lounge/battle/battle-presentation";
 import { canUseGen4ItemOnMember } from "@poke-lounge/battle/gen4/engine";
@@ -78,7 +81,6 @@ import type {
   BattleSpritePresentation,
   BattleUiStore,
 } from "../battle/battle-ui-store";
-import { persistCapturedPokemonToWorld } from "../battle/battle-world-persistence";
 import {
   resolveRomCaptureAnimationFrame,
   ROM_CAPTURE_ANIMATION_DURATION_MS,
@@ -414,6 +416,7 @@ export class BattleController {
   private selectedBagItemIndex = 0;
   private shortcutGuideOpen = false;
   private returningToWorld = false;
+  private localResultSettled = false;
   private displayedHp: BattleDisplayedHp = { player: 0, opponent: 0 };
   private displayedStatus: BattleDisplayedStatus = { player: "normal", opponent: "normal" };
   private readonly hpTweens: Partial<Record<BattleHpSide, RuntimeAnimation>> = {};
@@ -487,6 +490,7 @@ export class BattleController {
     this.sceneLifecycleActive = true;
     this.sceneGeneration += 1;
     this.competitivePreemptionQueued = false;
+    this.localResultSettled = false;
     this.selectedCommandIndex = 0;
     this.selectedMoveIndex = 0;
     this.selectedPartySlotIndex = 0;
@@ -1069,6 +1073,7 @@ export class BattleController {
         this.state.messageQueue[0] === BATTLE_END_CONFIRM_MESSAGE ||
         this.authoritativeProjection?.status === "completed",
       spectating: this.authoritativeSpectating,
+      isAuthoritative: Boolean(this.authoritativeProjection),
       isInputLocked:
         this.battleEntrancePlaying ||
         this.captureAnimationPlaying ||
@@ -1813,7 +1818,7 @@ export class BattleController {
           }
 
           this.competitivePreemptionQueued = true;
-          this.persistCapturedPokemon();
+          this.settleResolvedWildBattleBeforePreemption();
           this.gameStateStore.healCurrentParty();
           this.state = {
             ...this.state,
@@ -1950,7 +1955,8 @@ export class BattleController {
     const gathering = getTournamentGatheringContext(this.gameStateStore.getState(), nowMs);
     if (!gathering) return false;
     this.competitivePreemptionQueued = true;
-    // No more selection, queued messages, capture or experience resolution after the cutoff.
+    // Keep an already-decided capture; do not resolve new actions after the cutoff.
+    this.settleResolvedWildBattleBeforePreemption();
     this.messageAutoAdvanceTimer?.stop();
     this.messageAutoAdvanceTimer = null;
     this.gameStateStore.healCurrentParty();
@@ -1988,7 +1994,7 @@ export class BattleController {
           }
 
           this.competitivePreemptionQueued = true;
-          this.persistCapturedPokemon();
+          this.settleResolvedWildBattleBeforePreemption();
           this.gameStateStore.healCurrentParty();
           const sceneGeneration = this.sceneGeneration;
           queueMicrotask(
@@ -2655,7 +2661,7 @@ export class BattleController {
   }
 
   private returnToWorld(completedCompetitiveBattle?: CompetitiveBattleLaunchKey): void {
-    if (!this.state.returnToWorld || this.returningToWorld) {
+    if (!this.state.returnToWorld || this.returningToWorld || this.competitivePreemptionQueued) {
       return;
     }
 
@@ -2709,6 +2715,7 @@ export class BattleController {
       nowMs: Date.now(),
     });
     this.state = settlement.state;
+    this.localResultSettled = true;
     const { x, y, facing } = settlement.destination;
     if (settlement.boxedPokemon)
       dispatchPokeLoungeNotice(this.ownerDocument, {
@@ -2738,16 +2745,33 @@ export class BattleController {
     });
   }
 
-  private persistCapturedPokemon(): void {
-    const pokemon =
-      this.state.result?.reason === "capture" ? this.state.result.capturedPokemon : undefined;
-    const placement = persistCapturedPokemonToWorld({
-      capturedPokemon: pokemon,
-      gameStateStore: this.gameStateStore,
+  private settleResolvedWildBattleBeforePreemption(): void {
+    if (
+      this.localResultSettled ||
+      this.authoritativeProjection ||
+      this.state.battleKind !== "wild" ||
+      !this.state.result ||
+      !this.state.returnToWorld
+    )
+      return;
+    // This guard is set before store notifications can re-enter the scene.
+    this.localResultSettled = true;
+    this.state = materializeResolvedWildBattleReward(this.state);
+    this.state = this.applyLevelUpMoveLearning(this.state);
+    const settlement = settleBattleToWorld({
+      state: this.state,
+      store: this.gameStateStore,
+      completedCompetitiveBattle: false,
+      authoritative: false,
+      persistPosition: false,
+      soloChallenge: false,
+      recoveryPosition: this.state.returnToWorld!,
+      nowMs: Date.now(),
     });
-    if (placement?.destination === "box" && pokemon)
+    this.state = settlement.state;
+    if (settlement.boxedPokemon)
       dispatchPokeLoungeNotice(this.ownerDocument, {
-        message: `포획한 ${pokemon.name}, 파티가 가득 차 PC 박스로 전송했습니다.`,
+        message: `포획한 ${settlement.boxedPokemon.name}, 파티가 가득 차 PC 박스로 전송했습니다.`,
         tone: "info",
       });
   }
@@ -3165,7 +3189,11 @@ export class BattleController {
             ? `${name}은 화상에 의한 데미지를 입었다!`
             : `${name}은 마비 상태다!`;
     }
-    return this.state.messageQueue[0] ?? null;
+    const party = this.gameStateStore.getCurrentLocalPlayer().party;
+    return formatBattleResultMessage(
+      this.state,
+      party.filter(slot => slot.pokemon).length < PLAYER_PARTY_SLOT_COUNT,
+    );
   }
 
   private getBattleStatusCopy() {

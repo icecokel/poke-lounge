@@ -65,6 +65,8 @@ export interface BattleControls {
   message: string | null;
   requiresConfirmation?: boolean;
   spectating?: boolean;
+  /** Server battles currently allow moves and switches, but not bag/escape actions. */
+  isAuthoritative?: boolean;
   isHelpOpen: boolean;
   isInputLocked: boolean;
   canGoBack: boolean;

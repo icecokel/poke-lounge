@@ -71,3 +71,15 @@ export function pokemonHealth(current: number | null, max: number | null) {
     return null;
   return { current: Math.floor(current), max: Math.floor(max), ratio: current / max };
 }
+
+export function canChooseBattleCommand(
+  state: MobileBattleUiState,
+  command: MobileBattleUiState["commands"][number]["id"],
+  now = Date.now(),
+): boolean {
+  return (
+    state.phase === "command" &&
+    canChooseBattleAction(state, now) &&
+    !(state.isAuthoritative && (command === "bag" || command === "run"))
+  );
+}

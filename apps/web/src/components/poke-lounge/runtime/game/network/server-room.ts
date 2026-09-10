@@ -226,6 +226,8 @@ class ServerRoomTransportError extends Error {
   }
 }
 
+class DeferredPartySnapshot extends Error {}
+
 class ServerRoomFetchError extends ServerRoomTransportError {}
 
 class ServerRoomBodyReadError extends ServerRoomTransportError {}
@@ -346,6 +348,15 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let cursorRegression = false;
   let connectStarted = false;
   let hasSynchronizedPartySnapshot = false;
+  type PendingPartyPublication = {
+    snapshot: PlayerSnapshot;
+    idempotencyKey: string;
+    publishing: boolean;
+    waitForUnlock: boolean;
+    recoveryAttempts: number;
+  };
+  let pendingPartyPublication: PendingPartyPublication | null = null;
+  let partyRetryTimer: number | null = null;
   let mutationQueue: Promise<void> = Promise.resolve();
   let announcedCompetitiveAssignmentKey: string | null = null;
   let latestCompetitionKind: TournamentCompetitionKind = null;
@@ -1473,6 +1484,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       clearOnlineStaleRecovery();
     }
     scheduleRoomClockRefresh();
+    if (previousState && previousState.status !== state.status && !isPartySnapshotLocked()) {
+      resumePendingPartyPublication();
+    }
 
     return true;
   };
@@ -1693,41 +1707,139 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
   };
 
-  const submitPartySnapshot = async (snapshot: PlayerSnapshot, idempotencyKey?: string) => {
-    // Empty hands are valid in the lobby; only publish after the game starts
-    // and the player has actually confirmed a starter.
-    if (
-      !(snapshot.party ?? []).some(function hasPokemon(slot) {
-        return slot.pokemon != null;
-      })
-    )
-      return;
-    const isLocked =
+  function isPartySnapshotLocked(): boolean {
+    return (
       latestState?.status === "tournament" ||
       latestState?.status === "completed" ||
-      latestState?.status === "closed";
-    if (
-      isLocked &&
-      (hasSynchronizedPartySnapshot ||
-        (latestState && Object.hasOwn(latestState.partySnapshots, serverPlayerId)))
-    ) {
-      return;
-    }
-
-    const nextState = await mutateRoom(
-      `/poke-lounge/rooms/${activeRoomId}/party-snapshot`,
-      {
-        playerId: serverPlayerId,
-        sessionId,
-        displayName: snapshot.displayName,
-        competitiveParty: createCompetitivePartySnapshot(snapshot),
-      },
-      getLatestRevision,
-      idempotencyKey,
+      latestState?.status === "closed"
     );
+  }
 
-    applyExpectedTransitionSnapshot(nextState);
-    hasSynchronizedPartySnapshot = true;
+  function canPublishParty(entry: PendingPartyPublication): boolean {
+    if (disposed || leaveSent || pendingPartyPublication !== entry) return false;
+    if (!isPartySnapshotLocked()) return true;
+    // Preserve the initial reconciliation probe for an incomplete server snapshot.
+    // Once a party or a lock response is known, never POST while locked.
+    return (
+      !entry.waitForUnlock &&
+      !hasSynchronizedPartySnapshot &&
+      !(latestState && Object.hasOwn(latestState.partySnapshots, serverPlayerId))
+    );
+  }
+
+  function clearPartyRetryTimer(): void {
+    if (partyRetryTimer !== null) window.clearTimeout(partyRetryTimer);
+    partyRetryTimer = null;
+  }
+
+  function reportPartyPublicationFailure(error: unknown): void {
+    reportTransportError(
+      error instanceof Error ? error : new Error("Party synchronization failed"),
+    );
+  }
+
+  function resumePendingPartyPublication(): void {
+    const entry = pendingPartyPublication;
+    if (!entry || entry.publishing || !canPublishParty(entry)) return;
+    clearPartyRetryTimer();
+    void publishPartyEntry(entry).catch(reportPartyPublicationFailure);
+  }
+
+  async function publishPartyEntry(entry: PendingPartyPublication): Promise<void> {
+    if (entry.publishing) return;
+    entry.publishing = true;
+    try {
+      // Each attempt is still serialized with ready/start/leave mutations. Recheck
+      // inside the queue, not just when the UI originally requested a publication.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const nextState = await mutateRoom(
+            `/poke-lounge/rooms/${activeRoomId}/party-snapshot`,
+            () => {
+              if (!canPublishParty(entry)) throw new DeferredPartySnapshot();
+              return {
+                playerId: serverPlayerId,
+                sessionId,
+                displayName: entry.snapshot.displayName,
+                competitiveParty: createCompetitivePartySnapshot(entry.snapshot),
+              };
+            },
+            getLatestRevision,
+            entry.idempotencyKey,
+          );
+          hasSynchronizedPartySnapshot = true;
+          if (pendingPartyPublication === entry) pendingPartyPublication = null;
+          applyExpectedTransitionSnapshot(nextState);
+          return;
+        } catch (error) {
+          if (error instanceof DeferredPartySnapshot) {
+            entry.waitForUnlock = isPartySnapshotLocked();
+            return;
+          }
+          const response = error instanceof ServerRoomRequestError ? error.responseBody : null;
+          if (
+            error instanceof ServerRoomRequestError &&
+            error.status === 409 &&
+            response &&
+            typeof response === "object" &&
+            "code" in response &&
+            response.code === "POKE_LOUNGE_PARTY_SNAPSHOT_LOCKED"
+          ) {
+            // This conflict has no embedded snapshot. Refresh it, retain the
+            // latest local party, and defer instead of treating rejection as saved.
+            entry.waitForUnlock = true;
+            const recovered = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
+            applySnapshot(recovered);
+            if (isPartySnapshotLocked() || disposed || leaveSent) return;
+            if (attempt < 2) continue;
+          }
+          if (getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE) {
+            // mutateRoom already applied the newer server revision. The exact
+            // same body/key can retry, unless a newer local party superseded it.
+            if (attempt < 2) continue;
+          }
+          throw error;
+        }
+      }
+    } catch (error) {
+      const retryable =
+        error instanceof ServerRoomTransportError ||
+        getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE;
+      if (
+        retryable &&
+        pendingPartyPublication === entry &&
+        !disposed &&
+        !leaveSent &&
+        entry.recoveryAttempts < 2
+      ) {
+        clearPartyRetryTimer();
+        entry.recoveryAttempts += 1;
+        partyRetryTimer = window.setTimeout(() => {
+          partyRetryTimer = null;
+          resumePendingPartyPublication();
+        }, entry.recoveryAttempts * 1000);
+      }
+      throw error;
+    } finally {
+      entry.publishing = false;
+    }
+  }
+
+  const submitPartySnapshot = async (
+    snapshot: PlayerSnapshot,
+    idempotencyKey = createIdempotencyKey(),
+  ) => {
+    if (disposed || leaveSent || !(snapshot.party ?? []).some(slot => slot.pokemon != null)) return;
+    clearPartyRetryTimer();
+    const entry: PendingPartyPublication = {
+      snapshot: structuredClone(snapshot),
+      idempotencyKey,
+      publishing: false,
+      waitForUnlock: false,
+      recoveryAttempts: 0,
+    };
+    pendingPartyPublication = entry;
+    await publishPartyEntry(entry);
   };
 
   const submitCompetitiveAction = async (
@@ -2009,7 +2121,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             publishSharedWorldSnapshot("PLAYER_CHANGED_MAP");
           }
           if (!options.sharedWorldOnly || options.competitiveRoundsEnabled) {
-            void submitPartySnapshot(initialSnapshot).catch(function handleRejected() {});
+            void submitPartySnapshot(initialSnapshot).catch(reportPartyPublicationFailure);
           }
         }
         return;
@@ -2036,6 +2148,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       }
 
       disposed = true;
+      clearPartyRetryTimer();
+      pendingPartyPublication = null;
       emitConnectionStatus("offline");
       clearRecoveryTimer();
       clearInitialWorkflowTimer();
@@ -2072,13 +2186,13 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         latestSharedWorldSnapshot = structuredClone(payload as PlayerSnapshot);
         publishSharedWorldSnapshot(type);
         if (type === "PLAYER_CHANGED_MAP" && options.competitiveRoundsEnabled) {
-          void submitPartySnapshot(payload as PlayerSnapshot).catch(function handleRejected() {});
+          void submitPartySnapshot(payload as PlayerSnapshot).catch(reportPartyPublicationFailure);
         }
         return;
       }
 
       if (type === "PLAYER_CHANGED_MAP") {
-        void submitPartySnapshot(payload as PlayerSnapshot).catch(function handleRejected() {});
+        void submitPartySnapshot(payload as PlayerSnapshot).catch(reportPartyPublicationFailure);
         return;
       }
 
@@ -2313,6 +2427,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
 
     leaveSent = true;
+    clearPartyRetryTimer();
     const send = () =>
       mutateRoom(
         `/poke-lounge/rooms/${activeRoomId}/leave`,

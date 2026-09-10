@@ -7,6 +7,14 @@ description: Run or coordinate agent-operated Poke Lounge browser playtests with
 
 구현 기준: `617a60c` · 2026-09-08 KST. 직접 플레이의 기본 드라이버는 Vercel Labs `agent-browser`다. Playwright 시나리오는 공식 Playwright 러너로 실행한다.
 
+## 플레이어 관점 직접 테스트 요청 시 우선 규칙
+
+사용자가 “플레이어처럼”, “직접 화면 조작”, “Playwright로 브라우저를 열어 테스트”라고 요청하면 일반 자동화 시나리오와 구분한다. Playwright CLI/브라우저를 열고 **스크린샷 확인 → 에이전트 판단 → 개별 입력 → 변경 화면 확인**을 반복한다. 사전 spec/자동 플레이 루프를 실행하고 결과만 읽는 것은 직접 플레이 완료로 세지 않는다.
+
+이 모드에서는 아래의 일반 지침에 있는 서버 권위 상태·E2E getter 허용보다 엄격하게, 실제 화면과 접근 가능한 UI 문구만으로 판단한다. DB/Redis/저장소/게임 스토어/테스트 getter, 정적 지도·전투 카탈로그를 읽어 플레이하거나 판정을 대신하지 않는다. 화면에서 발견한 버그의 사후 소스 분석은 플레이와 분리한다. 입력 전달·화면 저장 helper는 가능하지만 행동을 자동 선택·반복하는 driver는 금지한다. 브라우저 에뮬레이션을 실제 휴대폰 앱 검증으로 보고하지 않는다.
+
+승리 목표·포획·거래·완주 여부와 UX 불편을 회차별로 사실대로 기록한다. 이전 자동화 검사를 합산하지 않는다. 로컬 상세 기준은 `docs/poke-lounge-player-playtest.md`를 따른다.
+
 ## 시작 전
 
 1. 저장소 [README](../../../README.md)의 현재 라운드 흐름과 검증 구분을 읽는다. 로컬 `docs/`가 있으면 `docs/poke-lounge-multiplayer-test-scenarios.md`도 확인한다.
