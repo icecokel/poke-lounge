@@ -1,3 +1,4 @@
+import { withSubjectParticle } from "../battle-message-text";
 import { createDefaultBattleStatStages } from "../battle-stat-stages";
 import { hgssPhazingSucceeds } from "./flow";
 import { serializeGen4Battle } from "./serialization";
@@ -832,7 +833,7 @@ function parseLogs(b: Battle, logs: readonly string[], before: [Gen4Party, Gen4P
         evasion: "회피율",
       };
       push(
-        `${mon}의 ${stat[arg] ?? "능력치"}${code === "-boost" ? "이 올라갔다!" : "이 떨어졌다!"}`,
+        `${mon}의 ${withSubjectParticle(stat[arg] ?? "능력치")} ${code === "-boost" ? "올라갔다!" : "떨어졌다!"}`,
         who,
         who,
       );

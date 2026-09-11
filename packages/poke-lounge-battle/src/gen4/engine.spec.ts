@@ -304,3 +304,24 @@ it("seeded saves survive serialization without re-rolling effects or wall-clock 
   expect(a.session.snapshot).toBe(b.session.snapshot);
   expect(a.steps).toEqual(b.steps);
 });
+
+it.each([
+  [14, "공격", "올라갔다", 0],
+  [106, "방어", "올라갔다", 0],
+  [74, "특수공격", "올라갔다", 0],
+  [133, "특수방어", "올라갔다", 0],
+  [97, "스피드", "올라갔다", 0],
+  [104, "회피율", "올라갔다", 0],
+  [28, "명중률", "떨어졌다", 1],
+  [39, "방어", "떨어졌다", 1],
+] as const)("Korean stat message uses 이(가): move %i / %s", (moveId, stat, verb, side) => {
+  const before = start(
+    member([moveId], { name: "지그제구리" }),
+    member([150], { speciesId: 4, name: "파이리", speed: 50 }),
+  );
+  const after = turn(before);
+  const name = side === 0 ? "지그제구리" : "파이리";
+  expect(after.steps.map(step => step.text)).toContain(`${name}의 ${stat}이(가) ${verb}!`);
+  expect(hp(after, 0)).toBe(hp(before, 0));
+  expect(hp(after, 1)).toBe(hp(before, 1));
+});

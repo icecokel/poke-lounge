@@ -333,7 +333,7 @@ interface RuntimeTextPattern {
 
 const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
   pattern(
-    /^야생 (.+)[이가] 나타났다!$/,
+    /^야생 (.+)(?:이\(가\)|[이가]) 나타났다!$/,
     (_, name) => `A wild ${name} appeared!`,
     (_, name) => `野生の${name}が現れた！`,
   ),
@@ -413,12 +413,12 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name) => `${name}を捕まえた！`,
   ),
   pattern(
-    /^(.+)[이가] 볼에서 나왔다!$/,
+    /^(.+)(?:이\(가\)|[이가]) 볼에서 나왔다!$/,
     (_, name) => `${name} broke free!`,
     (_, name) => `${name}がボールから出てしまった！`,
   ),
   pattern(
-    /^(.+)[이가] 없다!$/,
+    /^(.+)(?:이\(가\)|[이가]) 없다!$/,
     (_, name) => `You don't have any ${name}!`,
     (_, name) => `${name}を持っていない！`,
   ),
@@ -459,29 +459,29 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, money) => `${money}を手に入れた！`,
   ),
   pattern(
-    /^(.+)[은는] Lv\.(\d+)[이가] 되었다!$/,
+    /^(.+)[은는] Lv\.(\d+)(?:이\(가\)|[이가]) 되었다!$/,
     (_, name, level) => `${name} grew to Lv.${level}!`,
     (_, name, level) => `${name}はLv.${level}になった！`,
   ),
   pattern(
-    /^(.+)가 (.+)[을를] 내보냈다!$/,
+    /^(.+)(?:이\(가\)|[이가]) (.+)[을를] 내보냈다!$/,
     (_, trainer, name) => `${trainer} sent out ${name}!`,
     (_, trainer, name) => `${trainer}は${name}を繰り出した！`,
   ),
   pattern(
-    /^(.+)의 (공격|방어|스피드|명중률)[은는이가] 더 이상 (오르지|떨어지지) 않는다!$/,
+    /^(.+)의 (공격|방어|특수공격|특수방어|스피드|명중률|회피율|능력치)(?:이\(가\)|[은는이가]) 더 이상 (오르지|떨어지지) 않는다!$/,
     (_, name, stat, direction) =>
       `${name}'s ${translateStat(stat, "en-US")} won't go ${direction === "오르지" ? "any higher" : "any lower"}!`,
     (_, name, stat, direction) =>
       `${name}の${translateStat(stat, "ja-JP")}はこれ以上${direction === "오르지" ? "上がらない" : "下がらない"}！`,
   ),
   pattern(
-    /^(.+)의 (공격|방어|스피드|명중률)[이가] 올랐다!$/,
+    /^(.+)의 (공격|방어|특수공격|특수방어|스피드|명중률|회피율|능력치)(?:이\(가\)|[이가]) (?:올랐다|올라갔다)!$/,
     (_, name, stat) => `${name}'s ${translateStat(stat, "en-US")} rose!`,
     (_, name, stat) => `${name}の${translateStat(stat, "ja-JP")}が上がった！`,
   ),
   pattern(
-    /^(.+)의 (공격|방어|스피드|명중률)[이가] (크게 )?떨어졌다!$/,
+    /^(.+)의 (공격|방어|특수공격|특수방어|스피드|명중률|회피율|능력치)(?:이\(가\)|[이가]) (크게 )?떨어졌다!$/,
     (_, name, stat, sharply) =>
       `${name}'s ${translateStat(stat, "en-US")} ${sharply ? "harshly " : ""}fell!`,
     (_, name, stat, sharply) =>
@@ -1026,8 +1026,26 @@ const termReplacements = [
 
 function translateStat(stat: string, locale: RuntimeTranslationLocale): string {
   const stats: Record<RuntimeTranslationLocale, Record<string, string>> = {
-    "en-US": { 공격: "Attack", 방어: "Defense", 스피드: "Speed", 명중률: "accuracy" },
-    "ja-JP": { 공격: "攻撃", 방어: "防御", 스피드: "素早さ", 명중률: "命中率" },
+    "en-US": {
+      공격: "Attack",
+      방어: "Defense",
+      특수공격: "Sp. Atk",
+      특수방어: "Sp. Def",
+      스피드: "Speed",
+      명중률: "accuracy",
+      회피율: "evasion",
+      능력치: "stat",
+    },
+    "ja-JP": {
+      공격: "攻撃",
+      방어: "防御",
+      특수공격: "特攻",
+      특수방어: "特防",
+      스피드: "素早さ",
+      명중률: "命中率",
+      회피율: "回避率",
+      능력치: "能力",
+    },
   };
   return stats[locale][stat] ?? stat;
 }

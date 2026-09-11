@@ -36,6 +36,8 @@ test("Lv.10 세 스타터는 레벨업표 기준 최근 기술 4개로 전투를
 
     for (const [starter, expectedMoveIds] of starterMoveIds) {
       const state = createBattleState(starter);
+      assert.equal(state.messageQueue[0], "야생 이상해씨이(가) 나타났다!");
+      assert.equal(state.opponent.pokemon.name, "이상해씨");
 
       assert.deepEqual(
         state.player.pokemon.moves.map(function mapItem(move) {
@@ -77,6 +79,7 @@ test("저장된 성별을 전투에 복원하고 신규 야생 포켓몬은 pers
 
     assert.equal(storedPokemonState.player.pokemon.gender, "female");
     assert.equal(genderlessWildState.opponent.pokemon.gender, "genderless");
+    assert.equal(genderlessWildState.messageQueue[0], "야생 메타몽이(가) 나타났다!");
   } finally {
     resetRuntimeGameDataJsonStateForTest();
   }

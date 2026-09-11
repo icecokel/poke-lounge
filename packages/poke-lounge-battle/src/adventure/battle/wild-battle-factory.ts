@@ -1,3 +1,4 @@
+import { withSubjectParticle } from "../../battle-message-text";
 import { initializeGen4Adventure } from "../../gen4/adventure";
 import { createGen4Traits, normalizeGen4Traits, sampleGen4WildHeldItem } from "../../gen4/traits";
 import { findBattleReadyPartySlot } from "../player/battle-ready-party";
@@ -546,23 +547,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function formatWildAppearedMessage(name: string): string {
-  return `야생 ${name}${getSubjectParticle(name)} 나타났다!`;
-}
-
-function getSubjectParticle(name: string): "이" | "가" {
-  const lastCharacter = name[name.length - 1];
-
-  if (!lastCharacter) {
-    return "가";
-  }
-
-  const hangulOffset = lastCharacter.charCodeAt(0) - 0xac00;
-
-  if (hangulOffset < 0 || hangulOffset > 11171) {
-    return "가";
-  }
-
-  return hangulOffset % 28 === 0 ? "가" : "이";
+  return `야생 ${withSubjectParticle(name)} 나타났다!`;
 }
 
 function uniqueTypeIds(primary: number, secondary?: number | null): number[] {

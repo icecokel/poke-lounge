@@ -67,6 +67,8 @@ test("로컬 PvP도 ROM 종족값, 타입과 기술 데이터를 사용한다", 
     [{ id: 52, typeId: 10, category: "special", power: 40, effectCode: 4 }],
   );
   assert.deepEqual(state.opponent.pokemon.typeIds, [11]);
+  assert.equal(state.messageQueue[0], `${opponent.displayName}이(가) 꼬부기을 내보냈다!`);
+  assert.equal(state.opponent.pokemon.name, "꼬부기");
 });
 
 test("IV가 없는 구버전 파티 미러전은 같은 능력치를 사용한다", function testCase() {

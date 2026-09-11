@@ -1,3 +1,4 @@
+import { withSubjectParticle } from "../../battle-message-text";
 import { restoreGen4FieldPokemon } from "../../gen4/adventure";
 import { getGen4EscapeInfo } from "../../gen4/engine";
 import { GEN4_ROM_ITEMS } from "../../gen4/rom-catalog.generated";
@@ -308,7 +309,7 @@ export function chooseBattleBagItem(
   if (itemCount <= 0) {
     return {
       ...state,
-      messageQueue: [`${battleItemDisplayName(itemId)}이 없다!`],
+      messageQueue: [`${withSubjectParticle(battleItemDisplayName(itemId))} 없다!`],
       result: null,
       usedInventoryItemId: null,
     };
@@ -353,7 +354,7 @@ function chooseCaptureBallItem(
   if (itemCount <= 0) {
     return {
       ...state,
-      messageQueue: [`${ball.displayName}이 없다!`],
+      messageQueue: [`${withSubjectParticle(ball.displayName)} 없다!`],
       result: null,
       usedInventoryItemId: null,
     };
@@ -963,7 +964,7 @@ function resolveFailedCaptureTurn(
   const opponentMove = randomUsableMove(state.opponent.pokemon.moves);
   const captureMessages = [
     `${ball.displayName}을 던졌다!`,
-    `${state.opponent.pokemon.name}이 볼에서 나왔다!`,
+    `${withSubjectParticle(state.opponent.pokemon.name)} 볼에서 나왔다!`,
   ];
   const messageHpSnapshots: BattleMessageHpSnapshot[] = [];
   appendBattleMessageHpSnapshots(
@@ -1829,10 +1830,6 @@ function applyStatStageEffect(
   };
 }
 
-function withSubjectParticle(value: string): string {
-  return `${value}${getTopicParticle(value) === "은" ? "이" : "가"}`;
-}
-
 function applyEndOfTurnEffects(
   playerPokemon: BattlePokemon,
   opponentPokemon: BattlePokemon,
@@ -1952,7 +1949,7 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
       usedInventoryItemId: input.usedInventoryItemId,
       messageQueue: [
         ...faintMessages,
-        `${opponent.displayName}가 ${replacement.pokemon.name}을 내보냈다!`,
+        `${withSubjectParticle(opponent.displayName)} ${replacement.pokemon.name}을 내보냈다!`,
       ],
       result: null,
     };
@@ -2009,7 +2006,7 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
         wildVictoryRewardMessage,
         ...(wildVictoryExperience.levelsGained > 0
           ? [
-              `${withTopicParticle(resolvedPlayerPokemon.name)} Lv.${resolvedPlayerPokemon.level}이 되었다!`,
+              `${withTopicParticle(resolvedPlayerPokemon.name)} Lv.${withSubjectParticle(resolvedPlayerPokemon.level)} 되었다!`,
             ]
           : []),
         "승리했다!",

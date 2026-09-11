@@ -124,3 +124,37 @@ test("라운드 우승·누적 순위·최종 우승의 서로 다른 의미를 
     /^Overall champion/,
   );
 });
+
+test("이(가) 표기를 유지하고 기존 메시지와 새 메시지를 모두 지역화한다", () => {
+  const cases = [
+    ["야생 리아코이(가) 나타났다!", "A wild Totodile appeared!", "野生のワニノコが現れた！"],
+    ["리아코이(가) 볼에서 나왔다!", "Totodile broke free!", "ワニノコがボールから出てしまった！"],
+    ["상처약이(가) 없다!", "You don't have any Potion!", "キズぐすりを持っていない！"],
+    ["리아코는 Lv.14이(가) 되었다!", "Totodile grew to Lv.14!", "ワニノコはLv.14になった！"],
+    [
+      "미러 트레이너이(가) 리아코을 내보냈다!",
+      "Mirror Trainer sent out Totodile!",
+      "ミラートレーナーはワニノコを繰り出した！",
+    ],
+    ["파이리의 방어이(가) 떨어졌다!", "Charmander's Defense fell!", "ヒトカゲの防御が下がった！"],
+    ["리아코의 방어이(가) 올랐다!", "Totodile's Defense rose!", "ワニノコの防御が上がった！"],
+    ["리아코의 특수공격이(가) 올라갔다!", "Totodile's Sp. Atk rose!", "ワニノコの特攻が上がった！"],
+    ["리아코의 특수방어이(가) 떨어졌다!", "Totodile's Sp. Def fell!", "ワニノコの特防が下がった！"],
+    ["리아코의 회피율이(가) 올라갔다!", "Totodile's evasion rose!", "ワニノコの回避率が上がった！"],
+  ];
+  for (const [source, english, japanese] of cases) {
+    assert.equal(localizeRuntimeText(source, "ko-KR"), source);
+    assert.equal(localizeRuntimeText(source, "en-US"), english);
+    assert.equal(localizeRuntimeText(source, "ja-JP"), japanese);
+  }
+  for (const suffix of ["이", "가", "이(가)"]) {
+    assert.equal(
+      localizeRuntimeText(`파이리의 방어${suffix} 떨어졌다!`, "en-US"),
+      "Charmander's Defense fell!",
+    );
+    assert.equal(
+      localizeRuntimeText(`파이리의 방어${suffix} 떨어졌다!`, "ja-JP"),
+      "ヒトカゲの防御が下がった！",
+    );
+  }
+});

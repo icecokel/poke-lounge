@@ -463,7 +463,7 @@ test("웅크리기는 상대를 공격하지 않고 사용자의 방어를 올�
   assert.equal(resolved.player.pokemon.statStages.defense, 1);
   assert.equal(resolved.opponent.pokemon.statStages.defense, 0);
   assert.equal(resolved.opponent.pokemon.currentHp, state.opponent.pokemon.currentHp);
-  assert.equal(resolved.messageQueue.includes("치코리타의 방어가 올랐다!"), true);
+  assert.equal(resolved.messageQueue.includes("치코리타의 방어이(가) 올랐다!"), true);
   assert.ok(
     resolved.messageHpSnapshots?.every(function testItem(snapshot) {
       return snapshot.attackHitTarget === null;
