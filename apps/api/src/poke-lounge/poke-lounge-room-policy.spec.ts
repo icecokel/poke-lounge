@@ -5,6 +5,7 @@ import {
   POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS,
   advancePokeLoungeRoomClock,
   completePokeLoungeTournamentMatch,
+  createTournamentState,
   expirePendingPokeLoungePresence,
   getPokeLoungeRoomHostPlayerId,
   getPokeLoungeRoomExpiresAtMs,
@@ -755,4 +756,42 @@ it('holds countdown for unprepared AI and restarts three seconds only after a di
     startedAtMs: 9000,
     endsAtMs: 99000,
   });
+});
+
+it('keeps tournament seeds in join-time/server-ID order and excludes ineligible seats', () => {
+  const participants = [
+    createParticipant('ai-z', 20),
+    createParticipant('host-z', 1),
+    { ...createParticipant('spectator', 0), role: 'spectator' as const },
+    { ...createParticipant('offline', 0), connected: false },
+    createParticipant('no-party', 0),
+    createParticipant('ai-b', 20),
+    createParticipant('ai-a', 20),
+  ];
+  const room = createSnapshot({
+    participants,
+    status: 'round-started',
+    round: {
+      index: 2,
+      phase: 'round-started',
+      durationMs: 1000,
+      startedAtMs: 0,
+      endsAtMs: 1000,
+    },
+  });
+  delete room.partySnapshots['no-party'];
+  const original = room.participants.map((p) => p.playerId);
+  // Test seeding directly; readiness/clock transitions have separate tests.
+  const tournament = createTournamentState(room);
+  expect(tournament.bracket?.participants.map((p) => p.playerId)).toEqual([
+    'host-z',
+    'ai-a',
+    'ai-b',
+    'ai-z',
+  ]);
+  expect(tournament.bracket?.currentRound?.matches[0]?.participantIds).toEqual([
+    'host-z',
+    'ai-z',
+  ]);
+  expect(room.participants.map((p) => p.playerId)).toEqual(original);
 });

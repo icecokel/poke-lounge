@@ -4476,3 +4476,111 @@ for (const mode of ["queued-lock", "server-lock", "newer-local", "idempotency"] 
     }
   });
 }
+
+for (const count of [2, 4, 5, 8]) {
+  for (const roundIndex of [1, 2, 3]) {
+    test(`대진 예고는 같은 시각 입장 ${count}명·${roundIndex}라운드에서 서버 시드와 일치한다`, async () => {
+      process.env.NEXT_PUBLIC_API_URL = "http://api.test";
+      const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+      const timers = createManualRecoveryTimers();
+      Object.defineProperty(globalThis, "window", { configurable: true, value: timers.window });
+      let room: ReturnType<(typeof import("./server-room"))["createServerRoom"]> | undefined;
+      try {
+        const { createServerRoom } = await import("./server-room");
+        const { createTournamentBracketPreview } = await import("../scenes/world-scene-tournament");
+        const socket = createSocket();
+        // AI seats arrive in the same millisecond but their UUID order differs
+        // from insertion order. The viewer's local alias must not affect seeds.
+        const canonical = Array.from({ length: count }, (_, i) => ({
+          playerId: `player-${i + 1}`,
+          displayName: `Trainer ${i + 1}`,
+          role: "participant" as const,
+          ready: true,
+          connected: true,
+          joinedAtMs: 100,
+        }));
+        const serverPlayerId = `player-${count}`;
+        const localPlayerId = "00-local-viewer";
+        const mapId = (id: string) => (id === serverPlayerId ? localPlayerId : id);
+        const expected = createTournamentBracketState(
+          canonical.map(p => ({
+            playerId: mapId(p.playerId),
+            displayName: p.displayName,
+          })),
+          roundIndex,
+        );
+        const authoritative = createTournamentBracketState(canonical, roundIndex);
+        const base = createRoomSnapshots().initial;
+        const initial = {
+          ...base,
+          status: "round-started",
+          hostPlayerId: serverPlayerId,
+          participants: [...canonical].reverse(),
+          partySnapshots: Object.fromEntries(
+            canonical.map(p => [
+              p.playerId,
+              {
+                playerId: p.playerId,
+                displayName: p.displayName,
+                partySize: 1,
+                representativePokemon: { speciesId: 7, level: 10, currentHp: 30, maxHp: 30 },
+                updatedAtMs: 100,
+              },
+            ]),
+          ),
+          round: {
+            ...base.round,
+            index: roundIndex,
+            phase: "round-started",
+            startedAtMs: Date.now(),
+            endsAtMs: Date.now() + 300_000,
+          },
+          tournament: {
+            version: 2,
+            bracket: null,
+            activeMatchId: null,
+            activeMatchAuthority: null,
+            cumulativeScores: {},
+          },
+        };
+        const projections: RoomEvent["TOURNAMENT_STATE"][] = [];
+        room = createServerRoom({
+          roomId: "ROOM01",
+          playerId: serverPlayerId,
+          sessionId: "session-1",
+          fetch: async () => jsonResponse(initial),
+          socketFactory: () => socket,
+        });
+        room.on("TOURNAMENT_STATE", p => projections.push(p));
+        room.connect({ ...createPlayerSnapshot(), playerId: localPlayerId });
+        await waitFor(() => projections.length > 0 && socket.subscriptions().length > 0);
+        const preview = createTournamentBracketPreview(projections.at(-1)!)!;
+        assert.deepEqual(preview.bracket, expected);
+        assert.deepEqual(
+          initial.participants.map(p => p.playerId),
+          [...canonical].reverse().map(p => p.playerId),
+        );
+        socket.pushSnapshot({
+          ...initial,
+          revision: initial.revision + 1,
+          status: "tournament",
+          round: { ...initial.round, phase: "tournament" },
+          tournament: {
+            ...initial.tournament,
+            bracket: authoritative,
+            activeMatchId: getReadyTournamentMatches(authoritative)[0]?.matchId ?? null,
+            activeMatchAuthority: "casual",
+          },
+        });
+        await waitFor(() => projections.at(-1)?.roomStatus === "tournament");
+        assert.deepEqual(
+          createTournamentBracketPreview(projections.at(-1)!)!.bracket,
+          preview.bracket,
+        );
+      } finally {
+        room?.dispose();
+        restoreWindow(originalWindow);
+      }
+    });
+  }
+}

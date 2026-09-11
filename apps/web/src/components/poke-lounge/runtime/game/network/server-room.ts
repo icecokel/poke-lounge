@@ -1,6 +1,7 @@
 import { acknowledgePreparation } from "@/features/poke-lounge/application/round/acknowledge-preparation";
 import { getApiBaseUrl } from "@/lib/constants";
 import type { components } from "@/types/api";
+import { sortTournamentParticipantsByJoinOrder } from "@poke-lounge/battle/tournament-seeding";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import { io } from "socket.io-client";
 import { createRoomRunId, isRoomRunId } from "../room-run-id";
@@ -1619,24 +1620,27 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       roundIndex: state.round.index,
       roomStatus: state.status,
       roomRound: { ...state.round },
-      participants: state.participants.map(function mapItem(participant) {
-        const playerId = mapServerPlayerIdForLocalStore(participant.playerId);
+      // Seed order must use server IDs, not the local-save alias assigned below.
+      participants: sortTournamentParticipantsByJoinOrder(state.participants).map(
+        function mapItem(participant) {
+          const playerId = mapServerPlayerIdForLocalStore(participant.playerId);
 
-        return {
-          playerId,
-          startPosition: getRoundStartPosition(
-            participant.playerId,
-            state.participants.filter(p => p.role === "participant").map(p => p.playerId),
-          ),
-          displayName: participant.displayName,
-          ...(participant.controller === "ai" ? { controller: "ai" as const } : {}),
-          role: participant.role,
-          ready: participant.ready,
-          partyReady: Object.hasOwn(state.partySnapshots, participant.playerId),
-          connected: participant.connected,
-          seed: seedByPlayerId.get(playerId) ?? null,
-        };
-      }),
+          return {
+            playerId,
+            startPosition: getRoundStartPosition(
+              participant.playerId,
+              state.participants.filter(p => p.role === "participant").map(p => p.playerId),
+            ),
+            displayName: participant.displayName,
+            ...(participant.controller === "ai" ? { controller: "ai" as const } : {}),
+            role: participant.role,
+            ready: participant.ready,
+            partyReady: Object.hasOwn(state.partySnapshots, participant.playerId),
+            connected: participant.connected,
+            seed: seedByPlayerId.get(playerId) ?? null,
+          };
+        },
+      ),
       tournament,
       ownPlayerId: localPlayerId,
       activeMatchTransport,

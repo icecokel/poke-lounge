@@ -1,3 +1,4 @@
+import { sortTournamentParticipantsByJoinOrder } from '@poke-lounge/battle/tournament-seeding';
 import { ROUND_START_COUNTDOWN_MS } from '@poke-lounge/battle/round-start';
 import {
   accumulateTournamentScores,
@@ -270,8 +271,8 @@ export function expirePendingPokeLoungePresence(
 export function createTournamentState(
   room: PokeLoungeRoomState,
 ): PokeLoungeRoomState['tournament'] {
-  const participants = room.participants
-    .filter(function filterItem(participant) {
+  const participants = sortTournamentParticipantsByJoinOrder(
+    room.participants.filter(function filterItem(participant) {
       return (
         participant.role === 'participant' &&
         participant.connected &&
@@ -280,13 +281,8 @@ export function createTournamentState(
             .length,
         )
       );
-    })
-    .sort(function compareItems(left, right) {
-      return (
-        left.joinedAtMs - right.joinedAtMs ||
-        left.playerId.localeCompare(right.playerId)
-      );
-    });
+    }),
+  );
   const bracket = createTournamentBracketState(
     participants.map(function mapItem({ playerId, displayName }) {
       return {

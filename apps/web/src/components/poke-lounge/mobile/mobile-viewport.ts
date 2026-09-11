@@ -61,7 +61,10 @@ export function bindMobileViewport(
       active.matches(
         'textarea, input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="hidden"]), [contenteditable="true"]',
       );
-    page.toggleAttribute("data-poke-lounge-keyboard-open", mobile && editing);
+    // Entry is a scrollable document. Compacting it on focus/blur moves the
+    // submit button between pointerdown and click, swallowing the first tap.
+    // Let the browser scroll the unchanged form above the software keyboard.
+    page.toggleAttribute("data-poke-lounge-keyboard-open", mobile && !documentScroll && editing);
 
     if (viewport && Math.abs(viewport.scale - 1) > 0.01) return;
     const width = viewport?.width ?? win.innerWidth;

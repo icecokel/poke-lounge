@@ -1951,26 +1951,8 @@
 }
 
 .touchGameDevice[data-poke-lounge-keyboard-open]
-  :global([data-poke-lounge-mobile-control-dock="true"]),
-.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-intro),
-.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-visibility),
-.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-field-copy) {
+  :global([data-poke-lounge-mobile-control-dock="true"]) {
   display: none;
-}
-
-.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-create-screen) {
-  padding: 0;
-}
-
-.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-workspace) {
-  min-height: 100%;
-  align-content: center;
-  gap: 8px;
-  padding: 8px;
-}
-
-.touchGameDevice[data-poke-lounge-keyboard-open] :global(.room-entry-form) {
-  gap: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {
