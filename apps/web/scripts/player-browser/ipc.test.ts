@@ -18,7 +18,6 @@ test("IPC는 이미지 전체 바이트와 한글을 전달하고 소켓은 소�
         return {
           id: randomUUID(),
           capturedAt: Date.now(),
-          expiresAt: Date.now() + 20000,
           sha256: createHash("sha256").update(bytes).digest("hex"),
           imagePath: "screen.jpg",
           text: "한글 화면".repeat(1000),
@@ -90,30 +89,54 @@ test("잘못된 JSON은 브라우저 조작 없이 명시적으로 거부한다"
     await stop();
   }
 });
-test("오래 방치한 드라이버는 자체 브라우저·소켓만 정리한다", async () => {
+test("2분 이상 요청이 없어도 브라우저·소켓을 유지하고 명시적으로만 닫는다", async context => {
   const path = socketPath(randomUUID());
   let closes = 0;
+  const events: Record<string, unknown>[] = [];
+  context.mock.timers.enable({ apis: ["Date", "setInterval"], now: 1_000 });
+  const audit = async (event: Record<string, unknown>) => {
+    events.push(event);
+  };
   const session = new PlayerSession(
     {
       async capture() {
-        throw Error("No input");
+        throw Error("No capture expected");
       },
       async perform() {
-        throw Error("No input");
+        throw Error("No input expected");
       },
       async close() {
         closes++;
       },
     },
-    async () => {},
+    audit,
   );
-  const stop = await serveSession(path, session, async () => {}, 20);
+  const stop = await serveSession(path, session, audit);
   try {
-    await new Promise(resolve => setTimeout(resolve, 1150));
+    // Exercise the real IPC lifecycle, advancing only the unit-test process clock.
+    // Poke Lounge and its server timers are not running in this test.
+    context.mock.timers.tick(121_000);
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(closes, 0);
+    assert((await stat(path)).isSocket());
+    const status = await sendRequest(path, { kind: "status", requestId: "after-idle" });
+    assert.equal(status.code, "SESSION_OPEN");
+    assert.equal(status.interrupted, true);
+    assert.equal(events.filter(event => event.event === "OPERATOR_GAP").length, 1);
+    const reply = await sendRequest(path, { kind: "close", requestId: "close-after-idle" });
+    assert.equal(reply.code, "SESSION_CLOSED");
     assert.equal(closes, 1);
-    await assert.rejects(stat(path));
+    // stop() is idempotent when a close request already started cleanup.
+    await stop();
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (!(await stat(path).catch(() => null))) break;
+      await new Promise<void>(resolve => setImmediate(resolve));
+    }
+    await assert.rejects(stat(path), { code: "ENOENT" });
+    assert.equal(events.filter(event => event.event === "BROWSER_CLOSED").length, 1);
   } finally {
     await stop();
+    context.mock.timers.reset();
   }
 });
 

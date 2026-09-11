@@ -133,25 +133,14 @@ export class PlayerSession {
           "Receive and view the latest image, not just its filename or text",
         );
       }
-      if (this.now() >= this.frame.expiresAt) {
-        await this.audit({
-          event: "STALE_FRAME",
-          at: this.now(),
-          frameId: this.frame.id,
-          ageMs: this.now() - this.frame.capturedAt,
-        });
-        return this.reply(
-          "STALE_FRAME",
-          "not-sent",
-          await this.capture(),
-          "View the newly returned image before deciding again",
-        );
-      }
+      // Elapsed time and displayed game timers never reject operator input.
+      // The latest-image receipt and duplicate request protection still apply.
       // The receipt is an operator declaration, not a claim that software can prove visual perception.
       await this.audit({
         event: "OPERATOR_OBSERVED",
         at: this.now(),
         frameId: this.frame.id,
+        frameAgeMs: Math.max(0, this.now() - this.frame.capturedAt),
         observation: sanitize(request.seen.observation),
       });
       await this.audit({

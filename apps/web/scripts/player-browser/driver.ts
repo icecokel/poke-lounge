@@ -4,7 +4,6 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
 import {
-  frameExpiry,
   ProtocolError,
   sanitize,
   validateLocalUrl,
@@ -124,7 +123,6 @@ export async function capturePage(page: Page, directory: string): Promise<Frame>
     imagePath,
     text,
     timers,
-    expiresAt: frameExpiry(capturedAt, timers),
     image: { type: "image", mimeType: "image/jpeg", data: bytes.toString("base64") },
   };
 }

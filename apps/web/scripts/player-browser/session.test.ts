@@ -3,7 +3,6 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import { PlayerSession, type Driver } from "./session";
 import {
-  frameExpiry,
   parseInput,
   parseRequest,
   sanitize,
@@ -28,7 +27,6 @@ function fixture() {
       return {
         id: `frame-${sequence}`,
         capturedAt: now,
-        expiresAt: now + 20_000,
         sha256: createHash("sha256").update(image).digest("hex"),
         imagePath: "/test/screen.jpg",
         timers: [],
@@ -132,16 +130,26 @@ test("동일 요청 ID 재전송은 성공·불확실 여부와 관계없이 다
   );
   assert.equal(f.counts().inputs, 1);
 });
-test("20초 지난 이미지의 클릭은 보내지 않고 새 화면만 반환한다", async () => {
-  const f = fixture();
-  const screen = (await observe(f.session)).frame!;
-  f.advance(20_001);
-  const r = await f.session.handle(action(screen));
-  assert.equal(r.code, "STALE_FRAME");
-  assert.equal(r.input, "not-sent");
-  assert.notEqual(r.frame?.id, screen.id);
-  assert.equal(f.counts().inputs, 0);
-});
+for (const elapsedMs of [20_000, 20_001, 60_000, 121_000, 86_400_000]) {
+  test(
+    "최신 확인 화면은 " + elapsedMs + "ms 뒤에도 시간만으로 입력을 거부하지 않는다",
+    async () => {
+      const f = fixture();
+      const screen = (await observe(f.session)).frame!;
+      f.advance(elapsedMs);
+      const request = action(screen);
+      const result = await f.session.handle(request);
+      assert.equal(result.code, "OBSERVE_IMAGE");
+      assert.equal(result.input, "sent");
+      assert.notEqual(result.frame?.id, screen.id);
+      assert.deepEqual(f.counts(), { inputs: 1, closed: 0 });
+      assert.equal((await f.session.handle(request)).code, "INPUT_ALREADY_ATTEMPTED");
+      assert.equal(f.counts().inputs, 1);
+      // Observation gaps remain audit facts, never a reason to block/close.
+      assert.equal(result.interrupted, elapsedMs > 30_000);
+    },
+  );
+}
 test("입력 성공 후 캡처 실패를 입력 실패로 오인하거나 재전송하지 않는다", async () => {
   const f = fixture();
   const r = action((await observe(f.session)).frame!);
@@ -204,10 +212,18 @@ test("종료는 자기 브라우저만 닫으며 방 퇴장이나 우승을 주�
   assert.equal(f.events.at(-1)?.roomLeaveVerified, false);
   assert.equal((await observe(f.session)).code, "SESSION_CLOSED");
 });
-test("실제 화면의 턴 제한시간으로 오래된 행동을 조기에 차단한다", () => {
-  assert.equal(frameExpiry(100, ["선택 시간 3s"]), 1100);
-  assert.equal(frameExpiry(100, ["선택 시간 1s"]), 100);
-  assert.equal(frameExpiry(100, ["라운드 1/3 시작까지 04:00"]), 20100);
+test("오래 기다려도 최신 이미지가 아닌 영수증을 사용하거나 해시 검증을 우회하지 않는다", async () => {
+  const f = fixture();
+  const old = (await observe(f.session)).frame!;
+  f.advance(180_000);
+  const latest = (await observe(f.session)).frame!;
+  assert.equal((await f.session.handle(action(old))).code, "IMAGE_RECEIPT_REQUIRED");
+  assert.equal(
+    (await f.session.handle(action({ ...latest, sha256: "0".repeat(64) }))).code,
+    "IMAGE_RECEIPT_REQUIRED",
+  );
+  assert.deepEqual(f.counts(), { inputs: 0, closed: 0 });
+  assert.equal((await f.session.handle(action(latest))).input, "sent");
 });
 test("자동 스크립트·배열·강제클릭·게임 스토어 접근 입력을 허용하지 않는다", () => {
   for (const input of [
@@ -253,9 +269,16 @@ test("새 실행 이름과 루프백 URL만 허용하고 테스트용 게임 진
     assert.throws(() => validateLocalUrl(url));
 });
 
-test("탐험 종료 직전 화면도 경계 이후 입력 근거로 재사용하지 않는다", () => {
-  assert.equal(frameExpiry(100, ["라운드 1/3 시작까지 00:05"]), 3100);
-  assert.equal(frameExpiry(100, ["선택 시간 15s", "시작까지 00:03"]), 1100);
+test("오래 기다린 후 입력 실패도 재시도하거나 결과를 성공으로 바꾸지 않는다", async () => {
+  const f = fixture();
+  const request = action((await observe(f.session)).frame!);
+  f.advance(180_000);
+  f.failInput();
+  const result = await f.session.handle(request);
+  assert.equal(result.code, "INPUT_UNCERTAIN");
+  assert.equal(result.input, "uncertain");
+  assert.equal((await f.session.handle(request)).code, "INPUT_ALREADY_ATTEMPTED");
+  assert.deepEqual(f.counts(), { inputs: 1, closed: 0 });
 });
 test("상태 폴링만으로 관찰 공백을 없애지 않는다", async () => {
   const f = fixture();

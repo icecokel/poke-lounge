@@ -4,6 +4,7 @@ import test from "node:test";
 import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { setTimeout as wait } from "node:timers/promises";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -18,7 +19,7 @@ const webRoot = fileURLToPath(new URL("../../", import.meta.url));
 const evidence = fileURLToPath(
   new URL("../../../../output/player-browser-tool-verification/", import.meta.url),
 );
-const html = `<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Player browser transport check</title><style>body{font:20px system-ui;margin:24px}button,input{display:block;font-size:22px;margin:20px 0;padding:12px}h1{font-size:26px}#pad{height:110px;border:2px solid;touch-action:none}</style><h1>브라우저 도구 검증</h1><p>게임 플레이가 아닌 입력·화면 전달 검사</p><p role="status" id="result">입력 횟수: 0</p><button id="inc">증가</button><button disabled>사용 불가</button><label>검사용 입력<input aria-label="검사용 입력" value="lowerSecret123"></label><div id="pad">드래그 영역</div><p id="keys">키 대기</p><script>let n=0;document.querySelector('#inc').onclick=()=>document.querySelector('#result').textContent='입력 횟수: '+(++n);document.onkeydown=e=>document.querySelector('#keys').textContent='누름 '+e.key;document.onkeyup=e=>document.querySelector('#keys').textContent='해제 '+e.key;</script></html>`;
+const html = `<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Player browser transport check</title><style>body{font:20px system-ui;margin:24px}button,input{display:block;font-size:22px;margin:20px 0;padding:12px}h1{font-size:26px}#pad{height:110px;border:2px solid;touch-action:none}</style><h1>브라우저 도구 검증</h1><p>게임 플레이가 아닌 입력·화면 전달 검사</p><p role="timer">선택 시간 1s</p><p role="status" id="result">입력 횟수: 0</p><button id="inc">증가</button><button disabled>사용 불가</button><label>검사용 입력<input aria-label="검사용 입력" value="lowerSecret123"></label><div id="pad">드래그 영역</div><p id="keys">키 대기</p><script>let n=0;document.querySelector('#inc').onclick=()=>document.querySelector('#result').textContent='입력 횟수: '+(++n);document.onkeydown=e=>document.querySelector('#keys').textContent='누름 '+e.key;document.onkeyup=e=>document.querySelector('#keys').textContent='해제 '+e.key;</script></html>`;
 async function pageServer() {
   const server = createServer((_req, res) =>
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(html),
@@ -54,6 +55,8 @@ for (const browser of ["chromium", "webkit"] as const) {
       assert(first.frame);
       assert.match(first.frame.text, /브라우저 도구 검증/);
       assert.doesNotMatch(first.frame.text, /lowerSecret123/);
+      assert.deepEqual(first.frame.timers, ["선택 시간 1s"]);
+      assert.equal("expiresAt" in first.frame, false);
       const request = input(first.frame, { kind: "tap", target: { role: "button", name: "증가" } });
       const second = await session.handle(request);
       assert(second.frame);
@@ -84,7 +87,7 @@ for (const browser of ["chromium", "webkit"] as const) {
     }
   });
 }
-test("CLI 새 프로세스 사이에도 같은 브라우저 유지·프레임 응답 전송·명시적 종료", async () => {
+test("CLI 새 프로세스 사이에도 같은 브라우저 유지·프레임 응답 전송·명시적 종료", async context => {
   const http = await pageServer();
   const name = `bridge-${randomUUID().slice(0, 8)}`;
   const cli = async (...args: string[]) => {
@@ -99,6 +102,13 @@ test("CLI 새 프로세스 사이에도 같은 브라우저 유지·프레임 �
     const first = await cli("open", name, http.url, "chromium");
     assert(first.frame);
     assert.equal(first.code, "OBSERVE_IMAGE");
+    if (process.env.PLAYER_BROWSER_VERIFY_IDLE === "1") {
+      // No polling, mocked clocks, or game processes: exercise a real idle browser.
+      const startedAt = Date.now();
+      await wait(125_000);
+      assert(Date.now() - startedAt >= 125_000);
+      context.diagnostic("125초 무요청 뒤 같은 브라우저와 첫 프레임으로 입력 재개 검증");
+    }
     const result = await cli(
       "act",
       name,

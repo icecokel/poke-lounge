@@ -22,7 +22,6 @@ export type Frame = {
   imagePath: string;
   text: string;
   timers: string[];
-  expiresAt: number;
   image: { type: "image"; mimeType: "image/jpeg"; data: string };
 };
 export type Reply = {
@@ -170,15 +169,4 @@ export function sanitize(value: string): string {
       /(\b(?:token|cookie|sessionId|password|authorization)\s*[:=]\s*)[^\s,]+/gi,
       "$1[redacted]",
     );
-}
-export function frameExpiry(capturedAt: number, timers: string[]): number {
-  let ttl = 20_000;
-  for (const timer of timers) {
-    const turn = timer.match(/(?:선택 시간|Selection time|Time to choose|選択時間)\s*(\d+)\s*s?/i);
-    const round = timer.match(/(?:시작까지|Starts in|開始まで)\s*(\d{1,2}):(\d{2})/i);
-    if (round)
-      ttl = Math.min(ttl, Math.max(0, (Number(round[1]) * 60 + Number(round[2])) * 1000 - 2000));
-    if (turn) ttl = Math.min(ttl, Math.max(0, Number(turn[1]) * 1000 - 2000));
-  }
-  return capturedAt + ttl;
 }

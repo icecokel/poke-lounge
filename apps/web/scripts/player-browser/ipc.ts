@@ -19,9 +19,7 @@ export async function serveSession(
   path: string,
   session: PlayerSession,
   audit: Audit,
-  idleMs = 120_000,
 ): Promise<() => Promise<void>> {
-  let activityAt = Date.now();
   let closing = false;
   const clients = new Set<Socket>();
   const server = createServer(socket => {
@@ -50,7 +48,6 @@ export async function serveSession(
           end(socket, { code: "INVALID_JSON", input: "not-sent", interrupted: true });
           return;
         }
-        activityAt = Date.now();
         const result = await session.handle(request);
         // This is successful byte transmission, NOT proof the operator viewed the image.
         socket.end(JSON.stringify(result) + "\n", () => {
@@ -72,14 +69,14 @@ export async function serveSession(
     server.listen(path, resolve);
   });
   await chmod(path, 0o600);
-  const timer = setInterval(() => {
+  // Audit observation gaps without expiring the session or closing its browser.
+  const auditTimer = setInterval(() => {
     void session.noteIdle().catch(() => {});
-    if (Date.now() - activityAt > idleMs) void stop();
   }, 1000);
   async function stop() {
     if (closing) return;
     closing = true;
-    clearInterval(timer);
+    clearInterval(auditTimer);
     try {
       await session.shutdown();
     } finally {
@@ -122,8 +119,7 @@ export function sendRequest(path: string, request: unknown): Promise<Reply> {
           !["not-sent", "sent", "uncertain"].includes(parsed.input)
         )
           throw Error("Invalid response");
-        if (["OBSERVE_IMAGE", "STALE_FRAME"].includes(parsed.code) && !parsed.frame)
-          throw Error("Image payload missing");
+        if (parsed.code === "OBSERVE_IMAGE" && !parsed.frame) throw Error("Image payload missing");
         if (parsed.frame) {
           if (parsed.frame.image.type !== "image" || parsed.frame.image.mimeType !== "image/jpeg")
             throw Error("Invalid image type");
