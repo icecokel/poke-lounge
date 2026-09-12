@@ -1030,6 +1030,33 @@
   pointer-events: none;
 }
 
+.worldTournamentResult {
+  z-index: 900;
+  box-sizing: border-box;
+  top: 12px;
+  width: min(calc(100% - 24px), 720px);
+  max-height: calc(100% - 24px);
+  padding: 12px 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 3px solid var(--pl-color-johto-deep);
+  border-radius: 6px;
+  background: var(--pl-color-surface-raised);
+  color: var(--pl-color-ink);
+  line-height: 1.6;
+  text-align: left;
+  text-shadow: none;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  pointer-events: auto;
+}
+
+.worldTournamentResult:focus-visible {
+  outline: 3px solid var(--pl-color-gold);
+  outline-offset: -5px;
+}
+
 @keyframes tournament-briefing-in {
   from {
     transform: translate(-50%, 8px);

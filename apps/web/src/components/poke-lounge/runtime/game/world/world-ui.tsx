@@ -427,7 +427,17 @@ export function WorldNoticeLayer({
         </PixelPanel>
       ) : null}
       {ui.tournamentResult ? (
-        <div className={styles.worldTournamentResult}>{ui.tournamentResult}</div>
+        <section
+          className={styles.worldTournamentResult}
+          data-poke-lounge-tournament-result="true"
+          aria-label={ui.tournamentResult.split("\n")[0]}
+          tabIndex={0}
+          // Keep native keyboard scrolling without passing arrows/Space to the field.
+          // Runtime key-up uses capture, so releasing a previously held key still works.
+          onKeyDown={event => event.stopPropagation()}
+        >
+          {ui.tournamentResult}
+        </section>
       ) : null}
     </div>
   );

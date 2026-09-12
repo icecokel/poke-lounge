@@ -5854,3 +5854,132 @@ test("모바일 일반 방 만들기 회귀: 새로고침 두 번에도 같은 �
     await page.context().close();
   }
 });
+
+// Rendering regression for the result/map overlap observed in a real player run.
+// Mocked server snapshots below are not a completed player-operated championship.
+for (const mobile of [true, false]) {
+  test(`결과 가독성 회귀: ${mobile ? "모바일" : "데스크톱"} 순위 패널 배경·스크롤·설정 접근`, async ({
+    browser,
+    baseURL,
+  }, info) => {
+    const context = await browser.newContext({
+      ...(mobile ? devices["iPhone 13"] : {}),
+      viewport: mobile ? { width: 390, height: 664 } : { width: 1280, height: 900 },
+      baseURL,
+    });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    try {
+      const server = createMockServerState();
+      server.preparationEndsAtMs = Date.now() + 120_000;
+      await mockServerRoom(page, server, { waitForResult: true, wrapped: true });
+      await startServerRoom(page, joinServerRoomUrl(), "결과화면검증");
+      await expect(page.locator("[data-world-local-player]")).toBeVisible();
+      await expect
+        .poll(() => server.partySnapshotBodies.some(body => body.competitiveParty))
+        .toBe(true);
+      server.preparationEndsAtMs = undefined;
+      server.resultAccepted = true;
+      server.revision += 1;
+      const completed = createCompletedRoomState(server);
+      const owner = completed.participants[0]!;
+      const members = Array.from({ length: 8 }, (_, index) => ({
+        ...owner,
+        playerId: index === 0 ? owner.playerId : `result-player-${index}`,
+        displayName: index === 0 ? owner.displayName : `포켓몬트레이너${index}번`,
+        joinedAtMs: index,
+      }));
+      let bracket = createTournamentBracketState(members, 3);
+      while (bracket.status !== "completed") {
+        const next = getReadyTournamentMatches(bracket)[0]!;
+        bracket = recordTournamentMatchResult(bracket, next.matchId, next.participantIds[0], {
+          reason: "faint",
+          completedAtMs: 1000,
+        });
+      }
+      const finalStandings = members.map((p, index) => ({
+        playerId: p.playerId,
+        displayName: p.displayName,
+        rank: index + 1,
+        score: 300 - index * 15,
+      }));
+      await emitSocketSnapshot(page, {
+        ...completed,
+        participants: members,
+        round: { ...completed.round, index: 3 },
+        tournament: {
+          ...completed.tournament,
+          bracket,
+          cumulativeScores: Object.fromEntries(finalStandings.map(p => [p.playerId, p.score])),
+        },
+        finalStandings,
+      });
+      const panel = page.locator('[class*="worldTournamentResult"]');
+      await expect(panel).toBeVisible();
+      await expect(panel).toContainText("최종 결과");
+      await expect(panel).toContainText("8위");
+      const text = await panel.innerText();
+      await page.screenshot({ path: info.outputPath("result-initial.png") });
+      // Fail on the original transparent text, rather than on a newly added attribute.
+      expect(await panel.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe(
+        "rgba(0, 0, 0, 0)",
+      );
+      await expect(panel).toHaveAttribute("tabindex", "0");
+      for (const viewport of mobile
+        ? [
+            { width: 390, height: 664 },
+            { width: 320, height: 568 },
+            { width: 430, height: 932 },
+            { width: 664, height: 390 },
+          ]
+        : [{ width: 1280, height: 900 }]) {
+        await page.setViewportSize(viewport);
+        await expect
+          .poll(async () =>
+            panel.evaluate(el => {
+              const box = el.getBoundingClientRect(),
+                parent = el.parentElement!.getBoundingClientRect();
+              return (
+                box.left >= parent.left &&
+                box.top >= parent.top &&
+                box.right <= parent.right + 1 &&
+                box.bottom <= parent.bottom + 1
+              );
+            }),
+          )
+          .toBe(true);
+        const style = await panel.evaluate(el => ({
+          overflowY: getComputedStyle(el).overflowY,
+          pointerEvents: getComputedStyle(el).pointerEvents,
+          horizontalOverflow: el.scrollWidth - el.clientWidth,
+        }));
+        expect(style).toEqual({ overflowY: "auto", pointerEvents: "auto", horizontalOverflow: 0 });
+        await expect(panel).toHaveText(text);
+        const playerBefore = (await page.locator("[data-world-local-player]").boundingBox())!;
+        await panel.focus();
+        await page.keyboard.press("End");
+        await expect(panel).toBeFocused();
+        await expect
+          .poll(() => panel.evaluate(el => el.scrollHeight - el.clientHeight - el.scrollTop))
+          .toBeLessThan(2);
+        await page.keyboard.press("ArrowDown");
+        await expect(panel).toBeFocused();
+        expect(await page.locator("[data-world-local-player]").boundingBox()).toEqual(playerBefore);
+        await panel.screenshot({
+          path: info.outputPath(`result-${viewport.width}x${viewport.height}.png`),
+        });
+      }
+      if (mobile) {
+        await page.setViewportSize({ width: 390, height: 664 });
+        await page.getByRole("button", { name: "Poke Lounge 설정 열기" }).tap();
+        await expect(page.getByRole("heading", { name: "설정", exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "게임으로 돌아가기", exact: true }).tap();
+        await expect(panel).toBeVisible();
+      }
+      expect(errors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+}
