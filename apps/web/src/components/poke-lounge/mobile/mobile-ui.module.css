@@ -305,47 +305,202 @@
 .battleDock:has(.moveDeck) {
   overflow: hidden;
 }
+/* The command pad is a separate lower screen, not an overlay on the battle. */
+.battleDock:has(.commandPad) {
+  padding: 8px;
+}
+.commandPad {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-rows: 30px minmax(186px, 1fr);
+  width: min(100%, 560px);
+  height: 100%;
+  min-height: 222px;
+  margin-inline: auto;
+  border: 3px solid #3c4038;
+  border-radius: 8px;
+  background: repeating-linear-gradient(0deg, #edf6db 0 24px, #e6f0d1 24px 48px);
+}
+.commandPad::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 54%;
+  width: 58%;
+  aspect-ratio: 1;
+  border: 12px solid #d2dfc0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.partyStrip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 12px;
+  border-radius: 4px 4px 0 0;
+  border-bottom: 2px solid #c1d8aa;
+  background: #83ce7b;
+}
+.partyBall {
+  position: relative;
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  border: 2px solid #394139;
+  border-radius: 50%;
+  background: linear-gradient(#e7514d 0 42%, #394139 42% 59%, #fffbea 59%);
+  box-shadow: 0 1px 0 #fffbea;
+}
+.partyBall::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 2px solid #394139;
+  border-radius: 50%;
+  background: #fffbea;
+}
+.partyBall[data-active="true"] {
+  outline: 2px solid #fff6aa;
+  outline-offset: 2px;
+}
+.partyBall[data-state="empty"] {
+  border-style: dashed;
+  border-color: #4e7750;
+  background: #acdba0;
+  box-shadow: none;
+}
+.partyBall[data-state="empty"]::after {
+  display: none;
+}
+.partyBall[data-state="fainted"] {
+  background: #c6c9b9;
+}
+.partyBall[data-state="fainted"]::after {
+  content: "×";
+  inset: -3px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #394139;
+  font:
+    900 21px/19px system-ui,
+    sans-serif;
+  text-align: center;
+}
 .commandGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(64px, auto));
-  gap: 8px;
-  width: min(100%, 520px);
-  margin: auto;
-  align-content: start;
-  min-height: 100%;
+  grid-template-areas: "fight fight fight" "bag run pokemon";
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: minmax(96px, 1.8fr) minmax(64px, 1fr);
+  gap: 10px 8px;
+  min-width: 0;
+  padding: 8px 8px 10px;
 }
 .commandButton {
+  --command-light: #f13c3c;
+  --command-dark: #a83939;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
   min-height: 64px;
-  padding: 12px;
-  border: 2px solid #17231c;
-  border-radius: 12px;
-  background: #fffef5;
-  color: #17231c;
-  font-weight: 750;
+  gap: 4px;
+  padding: 8px 6px;
+  border: 3px solid #3c4038;
+  border-radius: 13px;
+  background: linear-gradient(var(--command-light) 0 49%, var(--command-dark) 49% 100%);
+  color: #fffdf0;
+  box-shadow:
+    inset 0 0 0 2px #fffbea,
+    inset 0 -5px 0 #ffffff30,
+    0 3px 0 #3c4038;
   cursor: pointer;
-  box-shadow: 0 3px 0 #17231c;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.commandFace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.commandFace strong {
+  font-family: var(--pl-font-game, system-ui, sans-serif);
+  font-size: 1.125rem;
+  font-weight: 800;
+  line-height: 1.3;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  text-shadow:
+    -1px -1px 0 #343b36,
+    1px -1px 0 #343b36,
+    -1px 1px 0 #343b36,
+    2px 2px 0 #343b36;
 }
 .commandButton[data-command="fight"] {
-  background: #e8aa75;
+  grid-area: fight;
+  min-height: 96px;
+  margin-inline: 7%;
+}
+.commandButton[data-command="fight"] .commandFace strong {
+  font-size: 1.625rem;
 }
 .commandButton[data-command="bag"] {
-  background: #f4dc83;
-}
-.commandButton[data-command="pokemon"] {
-  background: #b8d5c4;
+  grid-area: bag;
+  --command-light: #e9a126;
+  --command-dark: #987135;
 }
 .commandButton[data-command="run"] {
-  background: #e3e9df;
+  grid-area: run;
+  --command-light: #2898c8;
+  --command-dark: #386c87;
+}
+.commandButton[data-command="pokemon"] {
+  grid-area: pokemon;
+  --command-light: #62ad27;
+  --command-dark: #4f7740;
+}
+.commandButton:disabled {
+  --command-light: #b3bdac;
+  --command-dark: #7c8a75;
+  color: #fff;
+  cursor: not-allowed;
+}
+.commandButton:not(:disabled):active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 0 0 2px #fffbea,
+    inset 0 4px 0 #00000025,
+    0 1px 0 #3c4038;
+}
+.commandButton:not(:disabled):focus-visible {
+  outline: 3px solid #18364d;
+  outline-offset: 3px;
+}
+@media (hover: hover) {
+  .commandButton:not(:disabled):hover {
+    filter: brightness(1.08);
+  }
 }
 .moveDeck {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: min(100%, 560px);
   min-height: 0;
   height: 100%;
+  margin-inline: auto;
+  padding: 8px;
+  border: 3px solid #3c4038;
+  border-radius: 8px;
+  background: repeating-linear-gradient(0deg, #edf6db 0 24px, #e6f0d1 24px 48px);
 }
 .dockHeading {
   display: flex;
@@ -377,13 +532,20 @@
   align-content: center;
   gap: 4px;
   padding: 10px;
-  border: 2px solid #819879;
-  border-radius: 10px;
-  background: #fffef5;
+  border: 3px solid #52594b;
+  border-radius: 12px;
+  background: linear-gradient(#fffdf2 0 49%, #e9e5d3 49% 100%);
+  box-shadow:
+    inset 0 0 0 2px #fffef5,
+    0 2px 0 #52594b;
   color: #17231c;
   text-align: left;
   cursor: pointer;
   touch-action: manipulation;
+}
+.moveButton:not(:disabled):active {
+  transform: translateY(1px);
+  box-shadow: inset 0 0 0 2px #fffef5;
 }
 .moveButton strong {
   font-size: 1rem;
@@ -605,7 +767,9 @@
 
 .commandRestriction {
   display: block;
-  font-size: 0.7rem;
-  font-weight: 500;
+  max-width: 100%;
+  font-size: 0.75rem;
+  font-weight: 600;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }

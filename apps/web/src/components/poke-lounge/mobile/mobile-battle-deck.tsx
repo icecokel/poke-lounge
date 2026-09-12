@@ -21,7 +21,11 @@ import { primePokeLoungeAudio } from "../runtime/game/audio/poke-lounge-audio";
 import { getShopItemById } from "../runtime/game/state/game-state-store";
 import { OpponentPartyIndicator } from "../runtime/game/battle/opponent-party-indicator";
 import { MobileTaskScreen } from "./mobile-task-screen";
-import { MobileItemRow, MobilePokemonCard } from "./mobile-selection-cards";
+import { MobileItemRow, MobilePokemonCard, MobilePokemonThumbnail } from "./mobile-selection-cards";
+import {
+  getBattlePadCommands,
+  getBattlePadParty,
+} from "@/features/poke-lounge/presentation/battle/command-pad-model";
 import {
   candidateAction,
   canChooseBattleAction,
@@ -263,32 +267,64 @@ export function MobileBattleDeck({
 }
 
 export function MobileBattleCommandDeck({ copy, onAction, state }: DeckProps) {
+  const text = getMobileUiCopy(copy.locale);
   const labels = {
     fight: copy.mobile.fight,
     bag: copy.mobile.bag,
     pokemon: copy.mobile.party,
-    run: copy.mobile.run,
+    run: text.runCommand,
   };
+  const activePokemon = state.party.find(pokemon => pokemon.isCurrent && !pokemon.isEmpty);
   return (
-    <div className={styles.commandGrid} data-poke-lounge-mobile-deck="battle-command">
-      {state.commands.map((command, index) => (
-        <button
-          key={command.id}
-          type="button"
-          className={styles.commandButton}
-          data-command={command.id}
-          data-selected={command.selected}
-          disabled={!canChooseBattleCommand(state, command.id)}
-          onClick={() => onAction({ type: "select-command", index })}
-        >
-          {labels[command.id]}
-          {state.isAuthoritative && (command.id === "bag" || command.id === "run") ? (
-            <small className={styles.commandRestriction}>
-              {getMobileUiCopy(copy.locale).competitiveUnavailable}
-            </small>
-          ) : null}
-        </button>
-      ))}
+    <div
+      className={styles.commandPad}
+      data-poke-lounge-mobile-deck="battle-command"
+      data-poke-lounge-command-layout="heartgold"
+    >
+      <div className={styles.partyStrip} role="group" aria-label={copy.mobile.party}>
+        {getBattlePadParty(state.party).map(({ slotIndex, pokemon, status }) => (
+          <span
+            key={slotIndex}
+            className={styles.partyBall}
+            role="img"
+            aria-label={`${slotIndex + 1}. ${
+              pokemon
+                ? `${pokemon.name} · ${
+                    status === "fainted"
+                      ? copy.game.statusLabel.fainted
+                      : `HP ${pokemon.currentHp}/${pokemon.maxHp}`
+                  }${pokemon.isCurrent ? ` · ${copy.game.currentBattler}` : ""}`
+                : copy.game.emptySlot
+            }`}
+            data-poke-lounge-party-ball={slotIndex}
+            data-state={status}
+            data-active={pokemon?.isCurrent || undefined}
+          />
+        ))}
+      </div>
+      <div className={styles.commandGrid}>
+        {getBattlePadCommands(state.commands).map(command => (
+          <button
+            key={command.id}
+            type="button"
+            className={styles.commandButton}
+            data-command={command.id}
+            data-selected={command.selected}
+            disabled={!canChooseBattleCommand(state, command.id)}
+            onClick={() => onAction({ type: "select-command", index: command.index })}
+          >
+            <span className={styles.commandFace}>
+              {command.id === "fight" && activePokemon?.sprite ? (
+                <MobilePokemonThumbnail sprite={activePokemon.sprite} />
+              ) : null}
+              <strong>{labels[command.id]}</strong>
+            </span>
+            {state.isAuthoritative && (command.id === "bag" || command.id === "run") ? (
+              <small className={styles.commandRestriction}>{text.competitiveUnavailable}</small>
+            ) : null}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
