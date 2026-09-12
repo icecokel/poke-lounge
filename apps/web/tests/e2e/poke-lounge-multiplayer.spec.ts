@@ -5875,7 +5875,17 @@ for (const mobile of [true, false]) {
       server.preparationEndsAtMs = Date.now() + 120_000;
       await mockServerRoom(page, server, { waitForResult: true, wrapped: true });
       await startServerRoom(page, joinServerRoomUrl(), "결과화면검증");
-      await expect(page.locator("[data-world-local-player]")).toBeVisible();
+      // WebKit may render the starter task after the room helper's initial check.
+      // Finish that visible setup through the UI before asserting the result screen.
+      const starterConfirm = page.locator("[data-starter-confirm]");
+      const worldPlayer = page.locator("[data-world-local-player]");
+      await expect
+        .poll(async () => (await starterConfirm.isVisible()) || (await worldPlayer.isVisible()), {
+          timeout: 30_000,
+        })
+        .toBe(true);
+      if (await starterConfirm.isVisible()) await starterConfirm.click();
+      await expect(worldPlayer).toBeVisible();
       await expect
         .poll(() => server.partySnapshotBodies.some(body => body.competitiveParty))
         .toBe(true);

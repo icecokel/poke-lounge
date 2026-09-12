@@ -437,7 +437,14 @@ export function WorldNoticeLayer({
           // Runtime key-up uses capture, so releasing a previously held key still works.
           onKeyDown={event => event.stopPropagation()}
         >
-          {ui.tournamentResult}
+          <header className={styles.resultRecordHeader}>
+            <span aria-hidden="true" />
+            <strong>{ui.tournamentResult.split("\n")[0]}</strong>
+          </header>
+          {"\n"}
+          <div className={styles.resultRecordBody}>
+            {ui.tournamentResult.split("\n").slice(1).join("\n")}
+          </div>
         </section>
       ) : null}
     </div>

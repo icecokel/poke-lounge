@@ -59,6 +59,7 @@ export interface MobileWorldMoveReplacementState {
 }
 
 export interface MobileWorldBoxOption {
+  sprite?: BattleSpriteRef | null;
   boxIndex: number;
   currentHp: number | null;
   level: number;

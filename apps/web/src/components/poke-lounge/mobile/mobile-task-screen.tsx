@@ -127,6 +127,7 @@ export function MobileTaskScreen({
       ref={ref}
       className={`${styles.taskScreen} ${className}`}
       aria-labelledby={titleId}
+      data-poke-lounge-ui="heartgold"
       data-poke-lounge-mobile-task={name}
       data-poke-lounge-mobile-deck={name}
       data-poke-lounge-mobile-fullscreen-scene="true"

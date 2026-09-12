@@ -44,7 +44,9 @@ export {
   MobileBattleWaitingDeck,
 } from "./mobile-battle-deck";
 import { MobileTaskScreen } from "./mobile-task-screen";
-import { MobilePokemonCard, MobileItemRow } from "./mobile-selection-cards";
+import { MobilePokemonCard, MobileItemRow, MobilePokemonThumbnail } from "./mobile-selection-cards";
+import { Backpack, CircleDot, MessageSquare, Volume2, ChevronRight } from "lucide-react";
+import { HgssItemIcon } from "../ui/hgss-item-icon";
 import { MobilePlayStatus, MobileGameSummary } from "./mobile-play-status";
 import { getMobileUiCopy } from "./mobile-ui-copy";
 import { getRoomLobbyCopy } from "../runtime/game/ui/room-lobby-copy";
@@ -287,7 +289,11 @@ function MobileExploreDeck({
   onAction(action: MobileWorldUiAction): void;
 }) {
   return (
-    <div className={styles.exploreDeck} data-poke-lounge-mobile-deck="explore">
+    <div
+      className={styles.exploreDeck}
+      data-poke-lounge-mobile-deck="explore"
+      data-poke-lounge-ui="heartgold"
+    >
       {activePokemon ? (
         <div className={styles.activePokemon} data-poke-lounge-mobile-lead="true">
           <strong>{activePokemon.name}</strong>
@@ -305,6 +311,7 @@ function MobileExploreDeck({
             ariaLabel={copy.mobile.interact}
             input={input}
           >
+            <MessageSquare size={24} aria-hidden="true" />
             <span>{copy.mobile.interact}</span>
           </TouchHoldButton>
           <TouchHoldButton
@@ -313,6 +320,7 @@ function MobileExploreDeck({
             ariaLabel={copy.mobile.bag}
             input={input}
           >
+            <Backpack size={24} aria-hidden="true" />
             <span>{copy.mobile.bag}</span>
           </TouchHoldButton>
           <button
@@ -323,6 +331,7 @@ function MobileExploreDeck({
             }}
             data-poke-lounge-mobile-party="true"
           >
+            <CircleDot size={24} aria-hidden="true" />
             <span>{copy.mobile.party}</span>
           </button>
         </div>
@@ -595,6 +604,7 @@ export function MobileWorldScreen({
     <section
       className={`${styles.worldScene} ${variant === "desktop" ? styles.worldSceneDesktop : ""}`}
       aria-labelledby="poke-lounge-mobile-world-scene-title"
+      data-poke-lounge-ui="heartgold"
       data-poke-lounge-world-surface={state.screen}
     >
       <MobileWorldSceneHeader
@@ -654,9 +664,7 @@ export function MobileInventoryItemList({
                 return onAction({ type: "select-inventory-item", index: item.index });
               }}
             >
-              <span className={styles.inventorySlotGlyph} aria-hidden="true">
-                {item.name.slice(0, 1)}
-              </span>
+              <HgssItemIcon id={item.id} />
               <span className={styles.inventorySlotName}>{item.name}</span>
               <small className={styles.inventorySlotCount}>×{item.count}</small>
             </PixelButton>
@@ -752,32 +760,37 @@ export function MobileShopPanel({
   onAction(action: MobileWorldUiAction): void;
   state: MobileWorldUiState;
 }) {
+  const selected = state.items.find(item => item.selected);
   return (
-    <>
-      <div className={styles.compactList}>
-        {state.items.map(function mapItem(item) {
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={styles.listButton}
-              data-poke-lounge-shop-item={item.id}
-              data-selected={item.selected}
-              onClick={function handleClick() {
-                return onAction({ type: "select-shop-item", index: item.index });
-              }}
-            >
-              <span>{item.name}</span>
-              <small>
-                {formatMobilePokeDollars(item.price ?? 0, copy.locale)} · ×{item.count}
-              </small>
-            </button>
-          );
-        })}
+    <div className={styles.shopPanel} data-poke-lounge-shop-panel="true">
+      <div className={styles.shopList}>
+        {state.items.map(item => (
+          <button
+            key={item.id}
+            type="button"
+            className={styles.shopRow}
+            data-poke-lounge-shop-item={item.id}
+            data-selected={item.selected}
+            aria-pressed={item.selected}
+            onClick={() => onAction({ type: "select-shop-item", index: item.index })}
+          >
+            <HgssItemIcon id={item.id} />
+            <span className={styles.shopIdentity}>
+              <strong>{item.name}</strong>
+              <small>×{item.count}</small>
+            </span>
+            <span className={styles.shopPrice}>
+              {formatMobilePokeDollars(item.price ?? 0, copy.locale)}
+            </span>
+          </button>
+        ))}
       </div>
-      <p className={styles.detailText}>{state.selectedItemDescription}</p>
+      <div className={styles.shopDetail} data-poke-lounge-item-description="true">
+        {selected ? <strong>{selected.name}</strong> : null}
+        <p>{state.selectedItemDescription || copy.game.noUsableItems}</p>
+      </div>
       <MobileWorldMessage message={state.message} />
-    </>
+    </div>
   );
 }
 
@@ -791,17 +804,18 @@ export function MobilePcPanel({
   state: MobileWorldUiState;
 }) {
   const isPartyFocused = state.pcFocus === "party";
-
+  const selected = isPartyFocused
+    ? state.party.find(slot => slot.slotIndex === state.selectedPartySlotIndex && !slot.isEmpty)
+    : state.box.find(slot => slot.selected);
   return (
-    <>
-      <div className={styles.pcTabs}>
+    <div className={styles.pcPanel} data-poke-lounge-pc-panel="true">
+      <div className={styles.pcTabs} role="group" aria-label="PC">
         <button
           type="button"
           className={styles.panelAction}
           data-selected={isPartyFocused}
-          onClick={function handleClick() {
-            return onAction({ type: "select-pc-focus", focus: "party" });
-          }}
+          aria-pressed={isPartyFocused}
+          onClick={() => onAction({ type: "select-pc-focus", focus: "party" })}
         >
           {copy.mobile.pcParty}
         </button>
@@ -809,60 +823,83 @@ export function MobilePcPanel({
           type="button"
           className={styles.panelAction}
           data-selected={!isPartyFocused}
-          onClick={function handleClick() {
-            return onAction({ type: "select-pc-focus", focus: "box" });
-          }}
+          aria-pressed={!isPartyFocused}
+          onClick={() => onAction({ type: "select-pc-focus", focus: "box" })}
         >
           {copy.mobile.pcBox}
         </button>
       </div>
-      <div className={styles.compactList}>
-        {isPartyFocused ? (
-          state.party.map(function mapItem(pokemon) {
-            return (
-              <button
-                key={pokemon.slotIndex}
-                type="button"
-                className={styles.listButton}
-                data-poke-lounge-pc-party-slot={pokemon.slotIndex}
-                data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
-                onClick={function handleClick() {
-                  return onAction({ type: "select-pc-party", slotIndex: pokemon.slotIndex });
-                }}
-              >
-                <span>{pokemon.isEmpty ? "-" : pokemon.name}</span>
-                <small>
-                  {pokemon.isEmpty
-                    ? ""
-                    : formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}
-                </small>
-              </button>
-            );
-          })
-        ) : state.box.length > 0 ? (
-          state.box.map(function mapItem(pokemon) {
-            return (
-              <button
-                key={pokemon.boxIndex}
-                type="button"
-                className={styles.listButton}
-                data-poke-lounge-pc-box-slot={pokemon.boxIndex}
-                data-selected={pokemon.selected}
-                onClick={function handleClick() {
-                  return onAction({ type: "select-pc-box", boxIndex: pokemon.boxIndex });
-                }}
-              >
-                <span>{pokemon.name}</span>
-                <small>{formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}</small>
-              </button>
-            );
-          })
+      <div className={styles.pcSelection} data-poke-lounge-pc-selection="true">
+        {selected ? (
+          <>
+            <MobilePokemonThumbnail sprite={selected.sprite} />
+            <div>
+              <strong>{selected.name}</strong>
+              <p>
+                Lv.{selected.level} · HP {formatMobileHp(selected.currentHp, selected.maxHp, null)}
+              </p>
+            </div>
+          </>
         ) : (
-          <p className={styles.emptyList}>{copy.game.empty}</p>
+          <p>{copy.game.empty}</p>
+        )}
+      </div>
+      <div className={styles.pcGrid} data-poke-lounge-pc-grid="true">
+        {isPartyFocused ? (
+          state.party.map(pokemon => (
+            <button
+              key={pokemon.slotIndex}
+              type="button"
+              className={styles.pcSlot}
+              data-poke-lounge-pc-party-slot={pokemon.slotIndex}
+              data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
+              data-empty={pokemon.isEmpty || undefined}
+              data-fainted={pokemon.currentHp === 0 || undefined}
+              aria-pressed={pokemon.slotIndex === state.selectedPartySlotIndex}
+              onClick={() => onAction({ type: "select-pc-party", slotIndex: pokemon.slotIndex })}
+            >
+              <span className={styles.pcSlotNumber} aria-hidden="true">
+                {String(pokemon.slotIndex + 1).padStart(2, "0")}
+              </span>
+              {pokemon.isEmpty ? (
+                <span className={styles.pcEmptyGlyph} aria-hidden="true">
+                  ＋
+                </span>
+              ) : (
+                <MobilePokemonThumbnail sprite={pokemon.sprite} />
+              )}
+              <strong>
+                {pokemon.isEmpty ? copy.partySlotLabel(pokemon.slotIndex + 1) : pokemon.name}
+              </strong>
+              <small>{pokemon.isEmpty ? copy.partySlotEmpty : `Lv.${pokemon.level}`}</small>
+            </button>
+          ))
+        ) : state.box.length ? (
+          state.box.map(pokemon => (
+            <button
+              key={pokemon.boxIndex}
+              type="button"
+              className={styles.pcSlot}
+              data-poke-lounge-pc-box-slot={pokemon.boxIndex}
+              data-selected={pokemon.selected}
+              data-fainted={pokemon.currentHp === 0 || undefined}
+              aria-pressed={pokemon.selected}
+              onClick={() => onAction({ type: "select-pc-box", boxIndex: pokemon.boxIndex })}
+            >
+              <span className={styles.pcSlotNumber} aria-hidden="true">
+                {String(pokemon.boxIndex + 1).padStart(2, "0")}
+              </span>
+              <MobilePokemonThumbnail sprite={pokemon.sprite} />
+              <strong>{pokemon.name}</strong>
+              <small>Lv.{pokemon.level}</small>
+            </button>
+          ))
+        ) : (
+          <p className={styles.pcEmpty}>{copy.game.empty}</p>
         )}
       </div>
       <MobileWorldMessage message={state.message} />
-    </>
+    </div>
   );
 }
 
@@ -928,36 +965,22 @@ export function MobilePartyPanel({
   state: MobileWorldUiState;
 }) {
   return (
-    <div className={styles.compactList}>
-      {state.party.map(function mapItem(pokemon) {
-        return (
-          <button
+    <div className={uiStyles.cardList}>
+      {state.party
+        .filter(pokemon => !pokemon.isEmpty)
+        .map(pokemon => (
+          <MobilePokemonCard
             key={pokemon.slotIndex}
-            type="button"
-            className={styles.listButton}
-            data-poke-lounge-mobile-party-slot={pokemon.slotIndex}
-            data-selected={pokemon.isActive}
-            data-empty={pokemon.isEmpty || undefined}
-            disabled={pokemon.isEmpty || !pokemon.canSetAsLead}
-            onClick={function handleClick() {
-              return onAction({ type: "set-party-lead", slotIndex: pokemon.slotIndex });
-            }}
-          >
-            <span>
-              {pokemon.isEmpty ? copy.partySlotLabel(pokemon.slotIndex + 1) : pokemon.name}
-            </span>
-            <small>
-              {pokemon.isEmpty
-                ? copy.partySlotEmpty
-                : pokemon.isActive
-                  ? copy.partySlotLead
-                  : pokemon.canSetAsLead
-                    ? copy.mobile.setLead
-                    : formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}
-            </small>
-          </button>
-        );
-      })}
+            copy={copy}
+            pokemon={pokemon}
+            slotIndex={pokemon.slotIndex}
+            purpose="party"
+            selected={pokemon.isActive}
+            badge={pokemon.isActive ? copy.partySlotLead : undefined}
+            disabled={!pokemon.canSetAsLead}
+            onSelect={() => onAction({ type: "set-party-lead", slotIndex: pokemon.slotIndex })}
+          />
+        ))}
     </div>
   );
 }
@@ -1111,8 +1134,12 @@ function MobileSettingsScreen({
           variant="outline"
           onClick={onVolumeCycle}
           aria-label={volumeAriaLabel}
+          className={uiStyles.settingRow}
+          data-poke-lounge-setting-action="volume"
         >
-          {volumeLabel}
+          <Volume2 size={22} aria-hidden="true" />
+          <span>{volumeLabel}</span>
+          <ChevronRight size={20} aria-hidden="true" />
         </Button>
         <PageReloadButton locale={copy.locale} confirmBeforeReload />
         {onOpenHelp ? (

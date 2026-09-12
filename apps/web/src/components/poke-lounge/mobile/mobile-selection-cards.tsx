@@ -1,6 +1,7 @@
 "use client";
 import type { CSSProperties } from "react";
-import { Backpack, CircleHelp } from "lucide-react";
+import { CircleHelp } from "lucide-react";
+import { HgssItemIcon } from "../ui/hgss-item-icon";
 import type { PokeLoungeCopy } from "../poke-lounge-copy";
 import type { BattleSpriteRef } from "../runtime/game/battle/battle-types";
 import { getMobileUiCopy } from "./mobile-ui-copy";
@@ -54,6 +55,16 @@ export function MobilePokemonCard({
       data-poke-lounge-mobile-party-slot={purpose === "party" ? slotIndex : undefined}
       data-poke-lounge-inventory-party-slot={purpose === "inventory" ? slotIndex : undefined}
       data-current={Boolean(badge)}
+      data-health={
+        health
+          ? health.ratio < 0.25
+            ? "danger"
+            : health.ratio < 0.5
+              ? "warning"
+              : "healthy"
+          : undefined
+      }
+      data-fainted={pokemon.status === "fainted" || pokemon.currentHp === 0 || undefined}
       data-selected={selected}
       onClick={onSelect}
     >
@@ -153,9 +164,7 @@ export function MobileItemRow({
       data-poke-lounge-inventory-item={purpose === "inventory" ? id : undefined}
       onClick={onSelect}
     >
-      <span className={styles.itemIcon} aria-hidden="true">
-        <Backpack size={28} />
-      </span>
+      <HgssItemIcon id={id} />
       <span className={styles.itemInfo}>
         <strong>{name}</strong>
         {description ? <small>{description}</small> : null}

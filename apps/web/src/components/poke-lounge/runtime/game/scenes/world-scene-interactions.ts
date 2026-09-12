@@ -1,3 +1,5 @@
+import { getBattlePokemonAssets } from "../battle/battle-pokemon-assets";
+import type { BattleSpriteRef } from "../battle/battle-types";
 import { FIELD_AREA_ANNOUNCEMENT_DURATION_MS } from "@poke-lounge/battle/timing";
 import { transferPcPokemon } from "@/features/poke-lounge/application/world/pc-transfer";
 import { playDice } from "@/features/poke-lounge/application/world/play-dice";
@@ -684,6 +686,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
         pokemon: PlayerPokemon,
         boxIndex: number,
       ): {
+        sprite: BattleSpriteRef;
         boxIndex: number;
         currentHp: number | null;
         level: number;
@@ -694,6 +697,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       } {
         return {
           boxIndex,
+          sprite: getBattlePokemonAssets(pokemon.speciesId).front,
           currentHp: pokemon.currentHp ?? null,
           level: pokemon.level,
           maxHp: pokemon.maxHp ?? null,

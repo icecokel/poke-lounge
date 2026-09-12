@@ -773,3 +773,219 @@
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
+
+/* HGSS work screens: opt-in here, never through the starter's shared theme. */
+.taskScreen {
+  composes: palette from "../ui/hgss-ui.module.css";
+  box-sizing: border-box;
+  border: 3px solid var(--hg-ink);
+  border-radius: 10px;
+  background: var(--hg-stripes);
+  color: var(--hg-ink);
+  box-shadow: var(--hg-frame);
+}
+.taskScreen[data-poke-lounge-mobile-task*="party"] {
+  --hg-accent: #3f7c59;
+  --hg-tint: #dcedcc;
+}
+.taskScreen[data-poke-lounge-mobile-task="battle-bag"],
+.taskScreen[data-poke-lounge-mobile-task="world-inventory-items"] {
+  --hg-accent: #947138;
+  --hg-tint: #f4e5b9;
+}
+.taskScreen[data-poke-lounge-mobile-task="world-pc"] {
+  --hg-accent: #477c9e;
+  --hg-tint: #d8edf6;
+}
+.taskScreen[data-poke-lounge-mobile-task="settings"] {
+  --hg-accent: #546582;
+  --hg-tint: #dde5ee;
+}
+.taskHeader {
+  border-bottom: 3px solid var(--hg-ink);
+  background: linear-gradient(var(--hg-tint) 0 50%, #fffdf0 50%);
+  box-shadow: inset 0 2px 0 #fffdf0;
+}
+.taskHeader h1 {
+  padding-left: 10px;
+  border-left: 5px solid var(--hg-accent);
+  color: var(--hg-ink);
+}
+.taskContext {
+  background: var(--hg-paper);
+  border-bottom: 2px solid var(--hg-line);
+  font-variant-numeric: tabular-nums;
+}
+.taskFooter {
+  background: var(--hg-paper);
+  border-top: 3px solid var(--hg-ink);
+  box-shadow: inset 0 3px 0 var(--hg-tint);
+}
+.taskScreen :is(.backButton, .textButton),
+.battleDock .primaryButton {
+  border-radius: 7px;
+  border-color: #304550;
+  background: linear-gradient(#fffdf0 50%, #dce7db 50%);
+  color: #304550;
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    0 2px 0 #304550;
+}
+.taskScreen .primaryButton {
+  background: linear-gradient(#5c9268 50%, #3a694c 50%);
+  border-color: #304550;
+  border-radius: 8px;
+  box-shadow: var(--hg-button);
+}
+.taskScreen .dangerButton {
+  background: linear-gradient(#ac5748 50%, #864033 50%);
+  border-color: #543e38;
+  border-radius: 8px;
+  box-shadow: var(--hg-button);
+}
+.taskScreen :is(.primaryButton, .dangerButton):disabled {
+  color: #536164;
+  background: #d8e0d6;
+  border-color: #8d9c98;
+  box-shadow: inset 0 0 0 2px #eef0e8;
+}
+.taskScreen button:active:not(:disabled) {
+  box-shadow: inset 0 0 0 2px #fffdf0;
+}
+.pokemonCard {
+  composes: palette from "../ui/hgss-ui.module.css";
+  position: relative;
+  border: 3px solid #4c747a;
+  border-radius: 10px 22px 10px 22px;
+  background: linear-gradient(#f8fdef 0 49%, #e0eddf 49%);
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    0 3px 0 #4c747a;
+  padding: 12px 14px;
+  color: #304550;
+}
+.pokemonCard .thumbnail {
+  border: 2px solid #98b7a5;
+  border-radius: 50%;
+  background-color: #f7f8e6;
+  box-shadow: 0 2px 0 #668576;
+}
+.pokemonCard[data-current="true"] {
+  border-color: #83672c;
+  background: linear-gradient(#fff5cc 49%, #eee3b9 49%);
+}
+.pokemonCard[data-selected="true"] {
+  border-color: #b16c2e;
+  background: linear-gradient(#fff4d0 49%, #f1dba6 49%);
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    inset 7px 0 0 #e6a447,
+    0 3px 0 #775b38;
+}
+.pokemonCard:disabled {
+  opacity: 1;
+  color: #526165;
+  border-style: solid;
+  background: linear-gradient(#e8eddf 49%, #d8dfd2 49%);
+}
+.pokemonCard[data-current="true"]:disabled {
+  background: linear-gradient(#fff5cc 49%, #eee3b9 49%);
+}
+.pokemonCard[data-fainted="true"] {
+  border-color: #9b6f69;
+  background: linear-gradient(#f5e6df 49%, #e8d4cd 49%);
+}
+.hpTrack {
+  height: 10px;
+  border: 2px solid #44575a;
+  border-radius: 3px;
+  background: #c4ccc0;
+}
+.hpTrack > span {
+  background: linear-gradient(#78d59c 50%, #399267 50%);
+}
+.pokemonCard[data-health="warning"] .hpTrack > span {
+  background: linear-gradient(#f3d872 50%, #b38e30 50%);
+}
+.pokemonCard[data-health="danger"] .hpTrack > span {
+  background: linear-gradient(#eb9986 50%, #bf564c 50%);
+}
+.itemRow {
+  composes: palette from "../ui/hgss-ui.module.css";
+  border: 2px solid #9b8d6c;
+  border-radius: 7px;
+  background: linear-gradient(#fffdf0 50%, #f3ecd4 50%);
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    0 2px 0 #a1997f;
+}
+.itemRow[data-selected="true"] {
+  border-color: #b27330;
+  background: #fff1bf;
+  box-shadow:
+    inset 5px 0 0 #e9ab48,
+    inset 0 0 0 2px #fffdf0;
+}
+.itemRow:disabled {
+  border-style: dashed;
+  color: #536164;
+  background: #e3e6da;
+}
+.itemCount {
+  padding: 4px 7px;
+  border: 1px solid #b6aa84;
+  border-radius: 5px;
+  background: #fffdf0;
+  color: #604e33;
+  font-weight: 750;
+}
+.selectionSummary {
+  padding-left: 10px;
+  border-left: 4px solid var(--hg-accent);
+  color: var(--hg-ink);
+}
+.message p {
+  padding: 14px 16px;
+  border: 3px solid #304550;
+  border-radius: 8px;
+  background: #fffdf0;
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    inset 0 0 0 4px #a8bcb1;
+  color: #304550;
+}
+.message .primaryButton::after {
+  content: "";
+  display: inline-block;
+  margin-left: 12px;
+  border-left: 7px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.playBar {
+  background: linear-gradient(#fffdf0 55%, #d7e6d7 55%);
+  box-shadow: inset 0 2px 0 #fffdf0;
+}
+.settingsList > button:not(.primaryButton):not(.dangerButton) {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 2px solid #78909b;
+  border-radius: 7px;
+  background: linear-gradient(#fffdf0 50%, #e4edf0 50%);
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    0 2px 0 #536d79;
+  color: #304550;
+  text-align: left;
+}
+.settingRow > span {
+  flex: 1;
+  min-width: 0;
+}
+.settingsStatus {
+  border: 2px solid #82989d;
+  border-radius: 7px;
+  background: repeating-linear-gradient(0deg, #f4f8ed 0 24px, #e8efe3 24px 48px);
+  box-shadow: inset 0 0 0 2px #fffdf0;
+}

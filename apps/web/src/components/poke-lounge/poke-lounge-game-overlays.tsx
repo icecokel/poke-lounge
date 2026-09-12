@@ -216,7 +216,8 @@ export function PokeLoungeResultPanel({
 }) {
   return (
     <section
-      className={touchGameDevice ? styles.mobileResultScreen : styles.resultOverlay}
+      className={`${touchGameDevice ? styles.mobileResultScreen : styles.resultOverlay} ${styles.trainerResult}`}
+      data-poke-lounge-ui="heartgold"
       data-testid="poke-lounge-result-panel"
     >
       <p className={styles.resultEyebrow}>{copy.resultEyebrow}</p>

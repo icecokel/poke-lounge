@@ -1015,3 +1015,290 @@
   overscroll-behavior: contain;
   align-content: start;
 }
+
+/* HGSS-style field and work surfaces. Geometry/input contracts are unchanged. */
+.exploreDeck {
+  composes: palette from "../ui/hgss-ui.module.css";
+  background: var(--hg-stripes);
+  box-shadow:
+    inset 0 0 0 3px #fffdf0,
+    inset 0 0 0 5px #b7c6af;
+}
+.exploreDeck .primaryAction,
+.exploreDeck .secondaryAction,
+.exploreDeck .partyAction {
+  border-color: var(--hg-ink);
+  border-radius: 9px;
+  box-shadow: var(--hg-button);
+  gap: 5px;
+}
+.exploreDeck .primaryAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(#d96950 50%, #ab4d3e 50%);
+}
+.exploreDeck .secondaryAction {
+  background: linear-gradient(#f9df86 50%, #dcbe68 50%);
+}
+.exploreDeck .partyAction {
+  background: linear-gradient(#b4d997 50%, #83b87b 50%);
+}
+.exploreDeck :is(.primaryAction, .secondaryAction, .partyAction) > span {
+  font-size: 1rem;
+  line-height: 1.3;
+}
+.exploreDeck .activePokemon {
+  padding: 5px 10px;
+  border-left: 4px solid var(--hg-accent);
+  background: #fffdf0;
+  border-radius: 4px;
+}
+.worldScene {
+  composes: palette from "../ui/hgss-ui.module.css";
+  background: var(--hg-stripes);
+  color: var(--hg-ink);
+  box-shadow: var(--hg-frame);
+}
+.worldSceneHeader {
+  background: linear-gradient(#d8e9ee 50%, #fffdf0 50%);
+  border-bottom: 3px solid #304550;
+}
+.worldSceneBody {
+  scroll-padding-block: 12px;
+}
+.worldScene .deckFooter {
+  background: #fffdf0;
+  border-top: 3px solid #304550;
+}
+.worldScene .inventoryGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.inventorySlot {
+  border-radius: 7px;
+  background: linear-gradient(#fffdf0 50%, #eee5c9 50%);
+}
+.inventorySlotName {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.shopPanel,
+.pcPanel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-content: start;
+}
+.shopList {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.shopRow {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: 10px 12px;
+  border: 2px solid #75949d;
+  border-radius: 7px;
+  background: linear-gradient(#fffdf0 50%, #e6eef0 50%);
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    0 2px 0 #75949d;
+  color: #304550;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.shopIdentity {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+.shopIdentity strong {
+  font-size: 1rem;
+}
+.shopIdentity small {
+  font-size: 0.8125rem;
+  color: #53676b;
+}
+.shopPrice {
+  padding: 4px 7px;
+  border: 1px solid #b6a571;
+  border-radius: 5px;
+  background: #fff3bd;
+  color: #675023;
+  font-weight: 750;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.shopRow[data-selected="true"] {
+  background: #fff0b9;
+  border-color: #a97630;
+  box-shadow:
+    inset 5px 0 0 #e9ab48,
+    inset 0 0 0 2px #fffdf0;
+}
+.shopDetail,
+.pcSelection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 12px;
+  border: 3px solid #597681;
+  border-radius: 8px;
+  background: #fffdf0;
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    inset 0 0 0 4px #c3d2c5;
+  color: #304550;
+  min-width: 0;
+}
+.shopDetail {
+  display: grid;
+  border-color: #8b7950;
+}
+.shopDetail p,
+.pcSelection p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.pcSelection > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pcTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.pcTabs .panelAction {
+  min-height: 48px;
+  padding: 8px;
+  border-color: #456778;
+  border-radius: 7px 7px 3px 3px;
+  background: #e1edf0;
+  color: #304550;
+  font-size: 1rem;
+}
+.pcTabs .panelAction[data-selected="true"] {
+  background: linear-gradient(#5c93ad 50%, #3e708b 50%);
+  color: #fffdf0;
+  box-shadow: inset 0 -4px 0 #efcb64;
+}
+.pcGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 88px), 1fr));
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 3px solid #6d929b;
+  border-radius: 8px;
+  background-color: #c2ded7;
+  background-image:
+    linear-gradient(#fffdf044 1px, transparent 1px),
+    linear-gradient(90deg, #fffdf044 1px, transparent 1px);
+  background-size: 20px 20px;
+  box-shadow: inset 0 0 0 2px #f4fae9;
+}
+.pcSlot {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 108px;
+  padding: 8px 6px;
+  border: 2px solid #779a8f;
+  border-radius: 7px;
+  color: #304550;
+  background: #f0f7e6;
+  box-shadow: inset 0 0 0 2px #fffdf0;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.pcSlot strong {
+  font-size: 0.875rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.pcSlot small {
+  font-size: 0.75rem;
+}
+.pcSlot[data-empty="true"] {
+  background: #d5e7d9;
+  border-style: dashed;
+}
+.pcSlot[data-fainted="true"] {
+  background: #ebd7cf;
+}
+.pcSlot[data-selected="true"] {
+  background: #fff0ba;
+  border-color: #ab7334;
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    0 2px 0 #8e6a36;
+}
+.pcSlotNumber {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  font:
+    700 10px/1.3 ui-monospace,
+    monospace;
+  color: #657c7d;
+}
+.pcEmptyGlyph {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  font-size: 1.5rem;
+  color: #7a9a8a;
+}
+.pcEmpty {
+  grid-column: 1 / -1;
+  padding: 20px;
+  color: #49665e;
+  text-align: center;
+}
+.shopRow:focus-visible,
+.pcSlot:focus-visible {
+  outline: 3px solid #246b85;
+  outline-offset: 2px;
+}
+.deckMessage:not(:empty) {
+  padding: 12px 14px;
+  border: 3px solid #304550;
+  border-radius: 8px;
+  background: #fffdf0;
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    inset 0 0 0 4px #a8bcb1;
+  color: #304550;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+@container poke-controller (max-width: 330px) {
+  .exploreDeck .secondaryAction > svg,
+  .exploreDeck .partyAction > svg {
+    width: 20px;
+    height: 20px;
+  }
+}

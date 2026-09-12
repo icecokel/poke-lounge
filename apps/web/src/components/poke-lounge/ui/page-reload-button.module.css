@@ -36,3 +36,21 @@
 .dialog button {
   min-height: 44px;
 }
+
+.dialog {
+  border-color: #304550;
+  border-radius: 9px;
+  padding: 24px;
+  background: #fffdf0;
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    inset 0 0 0 4px #a8bcb1,
+    0 4px 0 #304550;
+}
+.dialog button {
+  border: 2px solid #607e84;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1px #fffdf0,
+    0 2px 0 #304550;
+}
