@@ -1,4 +1,6 @@
 "use client";
+import { POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS } from "@poke-lounge/battle/timing";
+
 import { useEffect, useSyncExternalStore, useState } from "react";
 import { Menu } from "lucide-react";
 import type { PokeLoungeCopy } from "../poke-lounge-copy";
@@ -36,7 +38,10 @@ export function MobileGameSummary({
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     if (!competitive) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    const timer = window.setInterval(
+      () => setNow(Date.now()),
+      POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS,
+    );
     return () => window.clearInterval(timer);
   }, [competitive]);
   if (!state) return null;
@@ -97,7 +102,10 @@ export function MobilePlayStatus({
   const text = getMobileUiCopy(copy.locale);
   useEffect(() => {
     if (deadline == null) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    const timer = window.setInterval(
+      () => setNow(Date.now()),
+      POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS,
+    );
     return () => window.clearInterval(timer);
   }, [deadline]);
   return (

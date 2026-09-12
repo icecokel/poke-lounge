@@ -64,6 +64,10 @@ Poke Lounge는 같은 마을에서 포켓몬을 탐색·포획·육성하고 3�
 
 Redis는 방·경기·실시간 상태와 작업 큐를, PostgreSQL은 ROM 문서와 영속 스키마를 담당한다.
 
+### 시간 상수
+
+게임 진행·재접속·저장·표시/연출 시간은 `packages/poke-lounge-battle/src/timing.ts`에서 관리한다. Web/API/워커는 `@poke-lounge/battle/timing`으로 참조하고 기존 공개 상수 경로는 재내보내기로 호환한다. `*_MS`는 밀리초, `*_SECONDS`는 초다. 이번 정리는 기존 값과 경험치 공유 규칙을 유지하며 로컬 시간 완화나 환경별 설정은 적용하지 않는다. ROM 프레임 데이터·CSS 키프레임과 플레이 테스트 도구 자체의 타임아웃은 각각의 모듈에 유지한다.
+
 ## 로컬 실행
 
 Node.js 22와 pnpm 9.12.0을 기준으로 한다. PostgreSQL과 Redis를 먼저 준비하고, 기존 환경 파일은 덮어쓰지 않는다.

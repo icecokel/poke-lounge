@@ -1,4 +1,5 @@
 "use client";
+import { POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS } from "@poke-lounge/battle/timing";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
@@ -196,7 +197,7 @@ export function RoundHud({
   useEffect(function runEffect() {
     const timer = window.setInterval(function handleInterval() {
       return setNow(Date.now());
-    }, 250);
+    }, POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS);
     return function callback() {
       return window.clearInterval(timer);
     };

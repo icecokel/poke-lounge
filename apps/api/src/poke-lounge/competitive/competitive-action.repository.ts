@@ -8,7 +8,7 @@ export const COMPETITIVE_ACTION_REPOSITORY = Symbol(
   'COMPETITIVE_ACTION_REPOSITORY',
 );
 
-export const COMPETITIVE_TURN_DEADLINE_MS = 30_000;
+export { COMPETITIVE_TURN_DEADLINE_MS } from '@poke-lounge/battle/timing';
 
 export type CompetitiveActionFailure =
   | 'room-not-found'

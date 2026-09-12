@@ -1,3 +1,4 @@
+import { FIELD_AREA_ANNOUNCEMENT_DURATION_MS } from "@poke-lounge/battle/timing";
 import { transferPcPokemon } from "@/features/poke-lounge/application/world/pc-transfer";
 import { playDice } from "@/features/poke-lounge/application/world/play-dice";
 import { formatPcTransferResult } from "@/features/poke-lounge/presentation/world/pc-transfer-message";
@@ -83,7 +84,6 @@ const FIELD_AREA_LABELS: Record<string, string> = {
   "town-plaza-field": "라운지 마을 · 중앙 광장",
   "town-south-field": "라운지 마을 · 남쪽 산책로",
 };
-const FIELD_AREA_ANNOUNCEMENT_DURATION_MS = 1_800;
 
 export interface WorldScenePlayerPosition {
   readonly x: number;

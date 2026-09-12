@@ -1,3 +1,4 @@
+import { TOURNAMENT_RESULT_DURATION_MS } from "@poke-lounge/battle/timing";
 import {
   createTournamentBriefingText,
   createVisibleTournamentStandings,
@@ -56,7 +57,6 @@ interface TournamentAnnouncement {
 }
 
 export { TOURNAMENT_BRIEFING_DURATION_MS } from "@poke-lounge/battle/tournament-gathering";
-const TOURNAMENT_RESULT_DURATION_MS = 10_000;
 
 export interface WorldSceneTournamentDependencies {
   gameStateStore: GameStateStore;

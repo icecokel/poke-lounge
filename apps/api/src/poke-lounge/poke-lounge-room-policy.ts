@@ -1,3 +1,8 @@
+import {
+  POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS,
+  POKE_LOUNGE_CLOSED_ROOM_LEASE_MS,
+  POKE_LOUNGE_WAITING_ROOM_LEASE_MS,
+} from '@poke-lounge/battle/timing';
 import { sortTournamentParticipantsByJoinOrder } from '@poke-lounge/battle/tournament-seeding';
 import { ROUND_START_COUNTDOWN_MS } from '@poke-lounge/battle/round-start';
 import {
@@ -16,13 +21,10 @@ import type { PokeLoungeRoomSnapshot } from './poke-lounge-room.repository';
 import type { PokeLoungeRoomState } from './poke-lounge-room.types';
 import type { PokeLoungeMatchResultReason } from './poke-lounge-room.types';
 
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
-
 export const POKE_LOUNGE_ROOM_CAPACITY = 20;
 export const POKE_LOUNGE_CREATION_ADVISORY_LOCK = 742198451;
-export const POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS = 2 * HOUR_MS;
-export const POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS = 15_000;
+export { POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS } from '@poke-lounge/battle/timing';
+export { POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS } from '@poke-lounge/battle/timing';
 export const POKE_LOUNGE_GAME_ROUND_COUNT = 3;
 const MAX_TOURNAMENT_WALKOVERS = 12;
 
@@ -50,13 +52,13 @@ export function getPokeLoungeRoomExpiresAtMs(
 ): number {
   switch (room.status) {
     case 'waiting':
-      return room.updatedAtMs + 30 * MINUTE_MS;
+      return room.updatedAtMs + POKE_LOUNGE_WAITING_ROOM_LEASE_MS;
     case 'round-started':
     case 'tournament':
       return room.updatedAtMs + POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS;
     case 'completed':
     case 'closed':
-      return room.updatedAtMs + 10 * MINUTE_MS;
+      return room.updatedAtMs + POKE_LOUNGE_CLOSED_ROOM_LEASE_MS;
   }
 }
 

@@ -1,3 +1,14 @@
+import {
+  INITIAL_WORKFLOW_RETRY_MAX_DELAY_MS,
+  ONLINE_STALE_RECOVERY_DELAY_MS,
+  PARTY_PUBLICATION_RETRY_DELAY_MS,
+  RECOVERY_INITIAL_DELAY_MS,
+  RECOVERY_MAX_DELAY_MS,
+  ROOM_CLOCK_MAX_WAIT_MS,
+  ROOM_CLOCK_RETRY_INITIAL_DELAY_MS,
+  ROOM_CLOCK_RETRY_MAX_DELAY_MS,
+  SERVER_ROOM_REQUEST_TIMEOUT_MS,
+} from "@poke-lounge/battle/timing";
 import { acknowledgePreparation } from "@/features/poke-lounge/application/round/acknowledge-preparation";
 import { getApiBaseUrl } from "@/lib/constants";
 import type { components } from "@/types/api";
@@ -174,14 +185,7 @@ export function getServerRoomTransportDiagnosticsForE2e(
 
 const SERVER_IDENTITY_STORAGE_KEY = "poke-lounge:server-room-identity";
 const SERVER_ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
-const RECOVERY_INITIAL_DELAY_MS = 250;
-const RECOVERY_MAX_DELAY_MS = 5000;
-const ONLINE_STALE_RECOVERY_DELAY_MS = 3000;
-const ROOM_CLOCK_RETRY_INITIAL_DELAY_MS = 250;
-const ROOM_CLOCK_RETRY_MAX_DELAY_MS = 5000;
-const ROOM_CLOCK_MAX_WAIT_MS = 30_000;
-const SERVER_ROOM_REQUEST_TIMEOUT_MS = 10_000;
-const INITIAL_WORKFLOW_RETRY_MAX_DELAY_MS = 5000;
+
 const MAX_RECENT_TERMINAL_PROJECTIONS = 8;
 const PENDING_ROOM_ID = "server-pending";
 const REVISION_CONFLICT_CODE = "POKE_LOUNGE_REVISION_CONFLICT";
@@ -1821,7 +1825,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         partyRetryTimer = window.setTimeout(() => {
           partyRetryTimer = null;
           resumePendingPartyPublication();
-        }, entry.recoveryAttempts * 1000);
+        }, entry.recoveryAttempts * PARTY_PUBLICATION_RETRY_DELAY_MS);
       }
       throw error;
     } finally {

@@ -1,4 +1,8 @@
 import {
+  MAX_ROUND_DURATION_MS,
+  MIN_ROUND_DURATION_MS,
+} from '@poke-lounge/battle/timing';
+import {
   BadRequestException,
   Inject,
   Injectable,
@@ -70,8 +74,6 @@ import {
   ROUND_DURATION_OPTIONS_MS,
 } from '@poke-lounge/battle/round-settings';
 
-const MIN_ROUND_DURATION_MS = 1;
-const MAX_ROUND_DURATION_MS = 3_600_000;
 const MAX_ROOM_OCCUPANTS = 8;
 const MIN_AUTO_FILLED_PARTICIPANTS = 4;
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

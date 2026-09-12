@@ -1,3 +1,4 @@
+import { BATTLE_INTRO_TIMING } from "@poke-lounge/battle/timing";
 import { GAME_VIEWPORT_SIZE } from "../game-viewport";
 
 export interface BattleIntroStripe {
@@ -8,12 +9,7 @@ export interface BattleIntroStripe {
   readonly direction: "left" | "right";
 }
 
-export const BATTLE_INTRO_TIMING = {
-  flashMs: 120,
-  stripeMs: 360,
-  fadeMs: 180,
-  settleMs: 80,
-} as const;
+export { BATTLE_INTRO_TIMING } from "@poke-lounge/battle/timing";
 
 export const BATTLE_INTRO_SCREEN_SIZE = GAME_VIEWPORT_SIZE;
 export const BATTLE_INTRO_STRIPE_COUNT = 8;

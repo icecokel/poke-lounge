@@ -1,3 +1,4 @@
+import { COMPETITIVE_TURN_RETRY_DELAY_MS } from '@poke-lounge/battle/timing';
 import {
   Injectable,
   type OnModuleDestroy,
@@ -15,7 +16,6 @@ import {
 } from './competitive-turn-queue';
 
 const RETRY_ATTEMPTS = 720;
-const RETRY_DELAY_MS = 5_000;
 
 @Injectable()
 export class CompetitiveTurnQueueService
@@ -38,7 +38,7 @@ export class CompetitiveTurnQueueService
       },
       defaultJobOptions: {
         attempts: RETRY_ATTEMPTS,
-        backoff: { type: 'fixed', delay: RETRY_DELAY_MS },
+        backoff: { type: 'fixed', delay: COMPETITIVE_TURN_RETRY_DELAY_MS },
         removeOnComplete: { count: 1_000 },
         removeOnFail: { count: 1_000 },
       },

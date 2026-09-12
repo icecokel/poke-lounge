@@ -1,4 +1,5 @@
 "use client";
+import { POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS } from "@poke-lounge/battle/timing";
 
 import {
   createTournamentBracketPreview,
@@ -35,7 +36,10 @@ export function TournamentBracketPanel({
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    const timer = window.setInterval(
+      () => setNow(Date.now()),
+      POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS,
+    );
     return () => window.clearInterval(timer);
   }, []);
   const preview = createTournamentBracketPreview(projection);

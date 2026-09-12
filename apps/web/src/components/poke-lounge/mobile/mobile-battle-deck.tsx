@@ -1,4 +1,5 @@
 "use client";
+import { POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS } from "@poke-lounge/battle/timing";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { PokeLoungeCopy } from "../poke-lounge-copy";
@@ -47,7 +48,10 @@ export function useBattleClock(endsAtMs?: number | null): number {
   useEffect(() => {
     if (endsAtMs == null) return;
     setNow(Date.now());
-    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    const timer = window.setInterval(
+      () => setNow(Date.now()),
+      POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS,
+    );
     return () => window.clearInterval(timer);
   }, [endsAtMs]);
   return now;

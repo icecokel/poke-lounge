@@ -1,3 +1,4 @@
+import { TURN_RECONCILIATION_INTERVAL_MS } from '@poke-lounge/battle/timing';
 import {
   Inject,
   Injectable,
@@ -19,8 +20,6 @@ import {
   type CompetitiveTurnJobResult,
   type CompetitiveTurnQueue,
 } from './competitive-turn-queue';
-
-const TURN_RECONCILIATION_INTERVAL_MS = 10_000;
 
 @Injectable()
 export class CompetitiveTurnWorkerService

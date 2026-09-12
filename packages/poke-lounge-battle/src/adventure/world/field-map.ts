@@ -1,4 +1,4 @@
-export const NURSE_HEAL_DURATION_MS = 1_200;
+export { NURSE_HEAL_DURATION_MS } from "../../timing";
 export const NURSE_INTERACTION_DISTANCE = 56;
 
 export const FIELD_NPC_BASE = {

@@ -1,4 +1,4 @@
-export const ROM_CAPTURE_ANIMATION_DURATION_MS = 2_600;
+export { ROM_CAPTURE_ANIMATION_DURATION_MS } from "@poke-lounge/battle/timing";
 
 export const ROM_CAPTURE_PRESENTATION_SOURCE = {
   romSha1: "5834fb3a2d751c48501d47d6a56898d7af6ccf9e",

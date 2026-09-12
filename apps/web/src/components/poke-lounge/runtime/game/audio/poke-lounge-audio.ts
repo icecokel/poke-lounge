@@ -1,3 +1,7 @@
+import {
+  APPLE_MOBILE_BGM_FADE_DURATION_MS,
+  BGM_CROSSFADE_DURATION_SECONDS,
+} from "@poke-lounge/battle/timing";
 import type {
   PokeLoungeAudioSource,
   PokeLoungeAudioManifest,
@@ -11,8 +15,7 @@ export const POKE_LOUNGE_AUDIO_MANIFEST_CACHE_KEY = "pokeLoungeAudioManifest";
 export const POKE_LOUNGE_AUDIO_MANIFEST_PATH = "/assets/poke-lounge/audio/audio-manifest.json";
 const MAX_PRELOADED_BYTES = 750_000;
 const POKE_LOUNGE_AUDIO_MANIFEST_VERSION = 2;
-const BGM_CROSSFADE_DURATION_SECONDS = 0.18;
-const APPLE_MOBILE_BGM_FADE_DURATION_MS = 120;
+
 const POKE_LOUNGE_SFX_IDS = [
   "button-confirm",
   "button-cancel",

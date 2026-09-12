@@ -1,4 +1,8 @@
 import {
+  POKE_LOUNGE_AUTOSAVE_DEBOUNCE_MS,
+  POKE_LOUNGE_AUTOSAVE_INTERVAL_MS,
+} from "@poke-lounge/battle/timing";
+import {
   savePokeLoungeState,
   type PokeLoungeStateSaveResult,
 } from "@/services/poke-lounge-state-service";
@@ -8,8 +12,8 @@ import {
   type PokeLoungeSaveSnapshot,
 } from "./runtime/game/state/poke-lounge-save-snapshot";
 
-export const POKE_LOUNGE_AUTOSAVE_INTERVAL_MS = 30_000;
-export const POKE_LOUNGE_AUTOSAVE_DEBOUNCE_MS = 2_000;
+export { POKE_LOUNGE_AUTOSAVE_INTERVAL_MS } from "@poke-lounge/battle/timing";
+export { POKE_LOUNGE_AUTOSAVE_DEBOUNCE_MS } from "@poke-lounge/battle/timing";
 
 export interface PokeLoungeAutosavePayload {
   token: string;

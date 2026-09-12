@@ -1,3 +1,8 @@
+import {
+  BATTLE_ENTRANCE_TWEEN_MS,
+  BATTLE_HIT_TWEEN_MS,
+  BATTLE_HP_DECREASE_TWEEN_MS,
+} from "@poke-lounge/battle/timing";
 import { createOpponentPartySummary } from "@/features/poke-lounge/presentation/battle/opponent-party";
 import { executeBattleChoice } from "@/features/poke-lounge/application/battle/execute-battle-choice";
 import { planPostBattleProgression } from "@/features/poke-lounge/application/battle/plan-battle-progression";
@@ -175,9 +180,7 @@ export const BATTLE_SCENE_WINDOW_FRAME_KEY = BATTLE_WINDOW_FRAME_ASSET_KEY;
 export const BATTLE_SCENE_WINDOW_STYLE = ROM_BATTLE_WINDOW_STYLE;
 export const BATTLE_HP_PANEL_WINDOW_OPTIONS = { radius: 4, includeFrameMarker: false } as const;
 export const BATTLE_CONFIRM_KEY_CODES = ["Enter", "Space", "KeyZ"] as const;
-const BATTLE_HP_DECREASE_TWEEN_MS = 560;
-const BATTLE_HIT_TWEEN_MS = 300;
-const BATTLE_ENTRANCE_TWEEN_MS = 640;
+
 const E2E_SINGLE_LEVEL_BASE_EXP_YIELD = Math.ceil(500 / WILD_BATTLE_EXPERIENCE_MULTIPLIER);
 const BATTLE_BAG_ITEM_IDS = [
   "potion",

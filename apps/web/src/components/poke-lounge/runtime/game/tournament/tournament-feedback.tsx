@@ -1,4 +1,9 @@
 "use client";
+import {
+  POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS,
+  TOURNAMENT_CELEBRATION_DURATION_MS,
+} from "@poke-lounge/battle/timing";
+
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import type { GameStateStore } from "../state/game-state-store";
@@ -19,7 +24,10 @@ export function RoundCountdown({
   );
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    const timer = window.setInterval(
+      () => setNow(Date.now()),
+      POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS,
+    );
     return () => window.clearInterval(timer);
   }, []);
   const countdown = getRoundCountdown(state, now);
@@ -93,7 +101,7 @@ export function TournamentCelebration({ gameStateStore }: { gameStateStore: Game
   }, [key]);
   useEffect(() => {
     if (!activeKey) return;
-    const timer = window.setTimeout(() => setActiveKey(null), 5_000);
+    const timer = window.setTimeout(() => setActiveKey(null), TOURNAMENT_CELEBRATION_DURATION_MS);
     return () => window.clearTimeout(timer);
   }, [activeKey]);
   if (!activeKey) return null;

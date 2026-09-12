@@ -1,7 +1,8 @@
+import { TOURNAMENT_BRIEFING_DURATION_MS } from "./timing";
 import { FIELD_MAP } from "./adventure/world/field-map";
 
 /** Bracket announcement and gameplay cutoff share a single deadline. */
-export const TOURNAMENT_BRIEFING_DURATION_MS = 5_000;
+export { TOURNAMENT_BRIEFING_DURATION_MS } from "./timing";
 export function isTournamentGatheringDue(
   status: string,
   round: { phase: string; endsAtMs: number | null },

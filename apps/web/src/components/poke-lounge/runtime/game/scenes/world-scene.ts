@@ -1,3 +1,4 @@
+import { PLAYER_POSITION_PERSIST_INTERVAL_MS } from "@poke-lounge/battle/timing";
 import { getTournamentGatheringContext } from "../world/tournament-gathering";
 import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
 import {
@@ -74,7 +75,6 @@ import type {
 } from "../network/tournament-room-protocol";
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 
-const PLAYER_POSITION_PERSIST_INTERVAL_MS = 1_000;
 export const ROUND_DURATION_QUERY_PARAM = "roundMs";
 
 export interface WorldSpawnPosition {

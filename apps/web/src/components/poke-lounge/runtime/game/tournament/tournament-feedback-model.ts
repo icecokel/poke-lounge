@@ -1,3 +1,4 @@
+import { ROUND_COUNTDOWN_URGENT_MS } from "@poke-lounge/battle/timing";
 import type { GameState } from "../state/game-state-store";
 import { formatRoundTimer } from "../round/round-state";
 
@@ -21,7 +22,7 @@ export function getRoundCountdown(state: GameState, nowMs: number) {
     waitingForStart,
     remainingMs,
     timer: formatRoundTimer(remainingMs),
-    urgent: preparing && remainingMs <= 10_000,
+    urgent: preparing && remainingMs <= ROUND_COUNTDOWN_URGENT_MS,
   };
 }
 

@@ -1,4 +1,4 @@
-export const ROM_EVOLUTION_ANIMATION_DURATION_MS = 3_200;
+export { ROM_EVOLUTION_ANIMATION_DURATION_MS } from "../../timing";
 
 export const ROM_EVOLUTION_MESSAGE_SOURCE = {
   romSha1: "5834fb3a2d751c48501d47d6a56898d7af6ccf9e",

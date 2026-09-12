@@ -1,5 +1,5 @@
-export const REMOTE_PLAYER_INTERPOLATION_MS = 120;
-export const AI_REMOTE_PLAYER_INTERPOLATION_MS = 250;
+export { REMOTE_PLAYER_INTERPOLATION_MS } from "../../timing";
+export { AI_REMOTE_PLAYER_INTERPOLATION_MS } from "../../timing";
 export const REMOTE_PLAYER_SNAP_DISTANCE = 96;
 export const LOCAL_PLAYER_SPEED = 104;
 

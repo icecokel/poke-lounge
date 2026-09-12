@@ -1,4 +1,8 @@
 import {
+  PARTICIPANT_DISCONNECT_GRACE_MS,
+  WORLD_CURSOR_INTERVAL_MS,
+} from '@poke-lounge/battle/timing';
+import {
   isRoundStartBlocked,
   getRoundStartPosition,
 } from '@poke-lounge/battle/round-start';
@@ -35,8 +39,7 @@ import { PokeLoungeRoomService } from './poke-lounge-room.service';
 const MAX_SUBSCRIPTION_IDENTITY_LENGTH = 256;
 const MAX_LIVE_MAP_KEY_LENGTH = 64;
 const MAX_LIVE_COORDINATE = 1_000_000;
-const PARTICIPANT_DISCONNECT_GRACE_MS = 60_000;
-const WORLD_CURSOR_INTERVAL_MS = 1_000;
+
 const SERVER_ROOM_METADATA_EVENT = 'poke-lounge.room-metadata';
 const ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 const SUBSCRIPTION_ERROR = {

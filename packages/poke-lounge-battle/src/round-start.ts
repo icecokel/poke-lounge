@@ -1,6 +1,6 @@
 import { FIELD_MAP } from "./adventure/world/field-map";
 
-export const ROUND_START_COUNTDOWN_MS = 3_000;
+export { ROUND_START_COUNTDOWN_MS } from "./timing";
 export interface RoundStartClock {
   phase: string;
   startedAtMs: number | null;

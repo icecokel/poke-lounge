@@ -1,4 +1,6 @@
 "use client";
+import { ROUND_START_CLOCK_REFRESH_INTERVAL_MS } from "@poke-lounge/battle/timing";
+
 import { observeAnimationFrames } from "@/features/poke-lounge/adapters/browser/observe-animation-frames";
 import {
   createReadinessCoordinator,
@@ -39,7 +41,7 @@ export function RoundStartController({
     if (projection?.roomStatus !== "round-started") return;
     const tick = () => setNow(Date.now());
     tick();
-    const timer = window.setInterval(tick, 50);
+    const timer = window.setInterval(tick, ROUND_START_CLOCK_REFRESH_INTERVAL_MS);
     document.addEventListener("visibilitychange", tick);
     return () => {
       window.clearInterval(timer);
