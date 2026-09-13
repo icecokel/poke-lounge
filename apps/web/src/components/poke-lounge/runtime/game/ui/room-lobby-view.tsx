@@ -167,6 +167,7 @@ export function RoomLobbyScreen({
               type="button"
               className={styles.inviteButton}
               onClick={onRoomShare}
+              aria-label={shareText}
               data-room-lobby-share="true"
             >
               <Link2 size={20} aria-hidden="true" />
