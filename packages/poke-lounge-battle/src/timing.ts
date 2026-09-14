@@ -1,12 +1,10 @@
 /**
  * Poke Lounge 시간 상수의 단일 정의 위치. Web/API/워커가 함께 사용한다.
  * *_MS는 밀리초, *_SECONDS는 초. 이 모듈은 환경변수나 런타임 모듈을 읽지 않는다.
- * 기존 시간값을 이동한 것이며 운영/로컬 시간은 동일하게 유지한다.
+ * 운영/로컬 시간은 동일하게 유지한다.
  * 게임 제한시간, 통신, 연출을 별도 섹션으로 관리해 일괄 배율 변경을 방지한다.
  * ROM에서 추출한 프레임 데이터·CSS 키프레임·테스트 도구 타임아웃은 범위 밖이다.
  */
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
 
 // 게임 진행 제한시간 (운영 기본값; 로컬 전용 배율은 적용하지 않음)
 export const ROUND_DURATION_OPTIONS_MS = [90_000, 180_000, 300_000] as const;
@@ -21,10 +19,9 @@ export const MIN_ROUND_DURATION_MS = 1;
 export const MAX_ROUND_DURATION_MS = 3_600_000;
 
 // 방 수명 · 접속 유지
-export const POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS = 2 * HOUR_MS;
+export const POKE_LOUNGE_SESSION_TTL_ROUND_MULTIPLIER = 6;
+export const POKE_LOUNGE_FINISHED_ROOM_RETENTION_MS = 60_000;
 export const POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS = 15_000;
-export const POKE_LOUNGE_WAITING_ROOM_LEASE_MS = 30 * MINUTE_MS;
-export const POKE_LOUNGE_CLOSED_ROOM_LEASE_MS = 10 * MINUTE_MS;
 export const PARTICIPANT_DISCONNECT_GRACE_MS = 60_000;
 export const WORLD_CURSOR_INTERVAL_MS = 1_000;
 

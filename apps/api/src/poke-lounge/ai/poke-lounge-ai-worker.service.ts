@@ -88,7 +88,11 @@ export class PokeLoungeAiWorkerService
     await this.queue.upsertJobScheduler(
       AI_SCHEDULER_ID,
       { every: AI_TICK_MS },
-      { name: AI_JOB_NAME, data: {} },
+      {
+        name: AI_JOB_NAME,
+        data: {},
+        opts: { removeOnComplete: true, removeOnFail: { count: 1_000 } },
+      },
     );
   }
 
@@ -102,7 +106,7 @@ export class PokeLoungeAiWorkerService
   }
 
   async processTick(nowMs = Date.now()): Promise<void> {
-    const roomCodes = await this.liveState.listRoomStateCodes();
+    const roomCodes = await this.repository.listRoomCodes(nowMs);
     await Promise.all(
       roomCodes.map(
         async function mapItem(
@@ -132,7 +136,7 @@ export class PokeLoungeAiWorkerService
         revision: room.revision,
       });
     }
-    if (room.status === 'closed') {
+    if (room.status === 'closed' || room.status === 'completed') {
       await this.liveState.deleteRoom(roomCode);
       return;
     }
@@ -199,12 +203,7 @@ export class PokeLoungeAiWorkerService
           state.readyAtMs = room.round.startedAtMs ?? nowMs;
         }
         // Private world parties, like human parties, are not overwritten by PvP damage.
-        if (room.status === 'completed') {
-          state.path = [];
-          state.battle = null;
-          state.activity = 'idle';
-          state.updatedAtMs = nowMs;
-        } else if (!starting)
+        if (!starting)
           advanceAiAdventure(
             state,
             nowMs,
@@ -301,6 +300,13 @@ export class PokeLoungeAiWorkerService
           });
       }
       // The queue has one active tick. Persist private simulation separately from public room revisions.
+      if (
+        currentRoom.status === 'completed' ||
+        currentRoom.status === 'closed'
+      ) {
+        await this.liveState.deleteRoom(roomCode);
+        return;
+      }
       await this.liveState.saveAiAdventures(
         roomCode,
         currentRoom.expiresAtMs,
@@ -348,7 +354,11 @@ export class PokeLoungeAiWorkerService
         revision: latest.snapshot.revision,
       });
     }
-    if (!latest.snapshot || latest.snapshot.status === 'closed')
+    if (
+      !latest.snapshot ||
+      latest.snapshot.status === 'closed' ||
+      latest.snapshot.status === 'completed'
+    )
       await this.liveState.deleteRoom(roomCode);
   }
 

@@ -33,7 +33,6 @@ import {
   type PokeLoungeRoomTransportEvent,
 } from './poke-lounge-room-events.service';
 import { PokeLoungeLiveStateService } from './poke-lounge-live-state.service';
-import { POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS } from './poke-lounge-room-policy';
 import { PokeLoungeRoomService } from './poke-lounge-room.service';
 
 const MAX_SUBSCRIPTION_IDENTITY_LENGTH = 256;
@@ -164,7 +163,8 @@ export class PokeLoungeGateway
           roomCode: event.room.roomCode,
           revision: event.room.revision,
           expiresAtMs: event.room.expiresAtMs,
-          closed: event.room.status === 'closed',
+          closed:
+            event.room.status === 'closed' || event.room.status === 'completed',
         };
         this.applyRoomMetadata(metadata);
       }.bind(this),
@@ -340,11 +340,16 @@ export class PokeLoungeGateway
       socketData.pokeLoungeExpiresAtMs = committedRoom.expiresAtMs;
       this.rememberGatheringRoom(committedRoom);
       socket.emit('room.snapshot', { room: committedRoom });
+      if (
+        committedRoom.status === 'completed' ||
+        committedRoom.status === 'closed'
+      )
+        return;
       socket.emit(
         'room.world-snapshot',
         await this.liveState.getSnapshot(
           committedRoom.roomCode,
-          liveStateExpiresAtMs(committedRoom.expiresAtMs),
+          committedRoom.expiresAtMs,
         ),
       );
     } catch {
@@ -400,7 +405,7 @@ export class PokeLoungeGateway
     try {
       const stored = await this.liveState.upsertPlayer({
         roomCode: room.replace(/^room:/, ''),
-        expiresAtMs: liveStateExpiresAtMs(expiresAtMs),
+        expiresAtMs,
         player: {
           playerId,
           displayName,
@@ -449,17 +454,19 @@ export class PokeLoungeGateway
     const socketData = socket.data as PokeLoungeSocketData;
     const roomCode = socketData.pokeLoungeRoomName?.replace(/^room:/, '');
     const expiresAtMs = socketData.pokeLoungeExpiresAtMs;
-    if (!roomCode || !expiresAtMs || socketData.pokeLoungeSubscribed !== true) {
+    if (
+      !roomCode ||
+      !expiresAtMs ||
+      this.closedRooms.has(roomCode) ||
+      socketData.pokeLoungeSubscribed !== true
+    ) {
       return;
     }
 
     try {
       socket.emit(
         'room.world-snapshot',
-        await this.liveState.getSnapshot(
-          roomCode,
-          liveStateExpiresAtMs(expiresAtMs),
-        ),
+        await this.liveState.getSnapshot(roomCode, expiresAtMs),
       );
     } catch (error) {
       this.logLiveStateError('resync world snapshot', error);
@@ -707,10 +714,7 @@ export class PokeLoungeGateway
     if (!metadata.closed) {
       this.closedRooms.delete(metadata.roomCode);
       void this.liveState
-        .extendRoomExpiry(
-          metadata.roomCode,
-          liveStateExpiresAtMs(metadata.expiresAtMs),
-        )
+        .extendRoomExpiry(metadata.roomCode, metadata.expiresAtMs)
         .catch(
           function handleRejected(this: PokeLoungeGateway, error: any): void {
             return this.logLiveStateError('extend active room expiry', error);
@@ -730,7 +734,7 @@ export class PokeLoungeGateway
   private rememberGatheringRoom(room: PokeLoungePublicRoomState): void {
     const previous = this.gatheringRooms.get(room.roomCode);
     if (previous && previous.revision > room.revision) return;
-    if (room.status === 'closed') {
+    if (room.status === 'closed' || room.status === 'completed') {
       this.gatheringRooms.delete(room.roomCode);
       return;
     }
@@ -767,7 +771,7 @@ export class PokeLoungeGateway
       return;
     const snapshot = await this.liveState.getSnapshot(
       roomCode,
-      liveStateExpiresAtMs(room.expiresAtMs),
+      room.expiresAtMs,
     );
     for (const participant of room.participants) {
       if (this.gatheringRooms.get(roomCode) !== room) return; // A new round superseded the async read.
@@ -791,7 +795,7 @@ export class PokeLoungeGateway
         continue;
       const stored = await this.liveState.upsertPlayer({
         roomCode,
-        expiresAtMs: liveStateExpiresAtMs(room.expiresAtMs),
+        expiresAtMs: room.expiresAtMs,
         player: {
           ...before,
           playerId: participant.playerId,
@@ -974,13 +978,6 @@ function parseServerRoomMetadata(
   }
 
   return metadata as PokeLoungeServerRoomMetadata;
-}
-
-function liveStateExpiresAtMs(roomExpiresAtMs: number): number {
-  return Math.max(
-    roomExpiresAtMs,
-    Date.now() + POKE_LOUNGE_ACTIVE_ROOM_LEASE_MS,
-  );
 }
 
 function roomName(roomCode: string): string {

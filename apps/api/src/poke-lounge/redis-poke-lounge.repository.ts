@@ -387,7 +387,7 @@ export class RedisPokeLoungeRepository
           };
         }
         document.seats.push(plan.seat);
-        renewRoomLease(document.room, nowMs);
+        document.room.expiresAtMs = getPokeLoungeRoomExpiresAtMs(document.room);
         if (!(await this.commitDocument(current.version, document))) {
           continue;
         }
@@ -401,7 +401,9 @@ export class RedisPokeLoungeRepository
       if (activeAssignment && existingMatch) {
         if (plan.outcome === 'bind') {
           document.seats.push(plan.seat);
-          renewRoomLease(document.room, nowMs);
+          document.room.expiresAtMs = getPokeLoungeRoomExpiresAtMs(
+            document.room,
+          );
           if (!(await this.commitDocument(current.version, document))) {
             continue;
           }
@@ -427,7 +429,7 @@ export class RedisPokeLoungeRepository
             eligible: false,
           };
         }
-        renewRoomLease(document.room, nowMs);
+        document.room.expiresAtMs = getPokeLoungeRoomExpiresAtMs(document.room);
         if (!(await this.commitDocument(current.version, document))) {
           continue;
         }
@@ -1411,13 +1413,6 @@ function touchRoom(room: PokeLoungeRoomSnapshot, nowMs: number): void {
   room.revision += 1;
   room.updatedAtMs = nowMs;
   room.expiresAtMs = getPokeLoungeRoomExpiresAtMs(room);
-}
-
-function renewRoomLease(room: PokeLoungeRoomSnapshot, nowMs: number): void {
-  room.expiresAtMs = getPokeLoungeRoomExpiresAtMs({
-    ...room,
-    updatedAtMs: nowMs,
-  });
 }
 
 function selectOfflineMatchLoser(
