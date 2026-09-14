@@ -53,18 +53,13 @@ jobs:
           pnpm check:poke-lounge-battle-resolution
           pnpm poke-lounge:audio:verify
 
-      - name: Unit tests
-        run: pnpm test
-
+      # Only build/static checks run in CI. Player testing requires observed browser input.
       - name: Production build without account authentication
         run: pnpm build
 
       # next build generates the route types referenced by next-env.d.ts on a clean checkout.
       - name: Web type check
         run: pnpm type:check:web
-
-      - name: Storybook build used by Docker
-        run: pnpm --filter @poke-lounge/web build:storybook
 
   deploy:
     needs: verify

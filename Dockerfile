@@ -22,8 +22,6 @@ RUN pnpm --filter @poke-lounge/api rom-data:check
 RUN pnpm check:poke-lounge-competitive-catalog
 
 RUN pnpm build:poke-lounge-battle
-RUN pnpm --filter @poke-lounge/web build:storybook
-RUN cp -R apps/web/storybook-static apps/web/public/storybook
 RUN pnpm --filter @poke-lounge/web build
 RUN pnpm --filter @poke-lounge/api build
 

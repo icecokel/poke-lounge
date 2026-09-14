@@ -1,13 +1,11 @@
 import { PLAYER_POSITION_PERSIST_INTERVAL_MS } from "@poke-lounge/battle/timing";
-import { getTournamentGatheringContext } from "../world/tournament-gathering";
+import type { TournamentMatch } from "@poke-lounge/battle/tournament-bracket";
 import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
-import {
-  isWaitingForRoundStart,
-  getProjectedRoundStartPosition,
-  shouldSelectStarterAfterRoomStart,
-} from "../starter-selection-flow";
+import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
+import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-assets";
 import { playPokeLoungeBgm, stopPokeLoungeBgm } from "../audio/poke-lounge-audio";
 import { GAME_VIEWPORT_SIZE, type GameViewportDisplaySize } from "../game-viewport";
+import { isVirtualGamepadPressed, resetVirtualGamepad } from "../input/virtual-gamepad";
 import {
   type CompetitiveRoomProjectionEvent,
   type MultiplayerRoom,
@@ -17,8 +15,20 @@ import {
   type RoomMessage,
   type RoomUnsubscribe,
 } from "../network/local-preview-room";
-import { FIELD_MAP, NURSE_HEAL_DURATION_MS } from "../world/field-map";
-import { WILD_ENCOUNTER_TABLES_JSON_ASSET } from "../world/wild-encounter-tables";
+import type { TournamentStateRoomPayload } from "../network/tournament-projection";
+import type {
+  RoundScoreUpdatedRoomPayload,
+  TournamentCompletedRoomPayload,
+  TournamentMatchResultRoomPayload,
+  TournamentStartedRoomPayload,
+} from "../network/tournament-room-protocol";
+import { DEFAULT_PREPARATION_DURATION_MS } from "../round/round-state";
+import type { RuntimeKeyboard } from "../runtime-input";
+import {
+  getProjectedRoundStartPosition,
+  isWaitingForRoundStart,
+  shouldSelectStarterAfterRoomStart,
+} from "../starter-selection-flow";
 import {
   createDefaultLocalPlayer,
   healLocalPlayer,
@@ -26,54 +36,37 @@ import {
   type LocalPlayerState,
   type RemotePlayerState,
 } from "../state/game-state-store";
-import type { TournamentMatch } from "@poke-lounge/battle/tournament-bracket";
 import type { TournamentSession } from "../tournament/tournament-session";
-import { type DiceGambleNumber, type DiceGamblePrediction } from "../gamble/dice-gamble";
-import { DEFAULT_PREPARATION_DURATION_MS } from "../round/round-state";
-import { isVirtualGamepadPressed, resetVirtualGamepad } from "../input/virtual-gamepad";
-import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
 import type { RoomLobbyRuntimeState } from "../ui/room-lobby-screen";
+import { FIELD_MAP, NURSE_HEAL_DURATION_MS } from "../world/field-map";
+import { getTournamentGatheringContext } from "../world/tournament-gathering";
+import { WILD_ENCOUNTER_TABLES_JSON_ASSET } from "../world/wild-encounter-tables";
+import type { WorldFrameStore } from "../world/world-frame-store";
+import type { WorldMapModel } from "../world/world-map-model";
+import type { WorldMovementInput, WorldRuntime } from "../world/world-runtime";
+import type { WorldUiAction, WorldUiStore } from "../world/world-ui-store";
+import {
+  createCompetitiveBattleLaunchCache,
+  isCompetitiveAssignmentForPlayer,
+  type CompetitiveBattleLaunchKey,
+} from "./competitive-battle-launch";
+import {
+  createWorldSceneEncounters,
+  type WorldSceneEncounterController,
+} from "./world-scene-encounters";
 import { createWorldSceneHud, type WorldSceneHudController } from "./world-scene-hud";
 import {
   createWorldSceneInteractions,
   type WorldSceneInteractionsController,
 } from "./world-scene-interactions";
+import { shouldDisposeRoomOnWorldShutdown } from "./world-scene-room-lifecycle";
+import { resolvePersistedWorldSpawn, shouldPersistSoloWorldPosition } from "./world-scene-spawn";
 import {
   createWorldSceneTournament,
   isWorldTournamentBattleResult,
   type WorldSceneTournamentController,
   type WorldTournamentBattleResult,
 } from "./world-scene-tournament";
-import { resolvePersistedWorldSpawn, shouldPersistSoloWorldPosition } from "./world-scene-spawn";
-import { shouldDisposeRoomOnWorldShutdown } from "./world-scene-room-lifecycle";
-import {
-  createWorldSceneEncounters,
-  type WorldSceneEncounterController,
-} from "./world-scene-encounters";
-import type { WildBattleStartInput } from "../world/wild-encounters";
-import {
-  createCompetitiveBattleLaunchCache,
-  isCompetitiveAssignmentForPlayer,
-  type CompetitiveBattleLaunchKey,
-} from "./competitive-battle-launch";
-import type {
-  PokeLoungeBattleLaunchSnapshot,
-  WorldE2eSnapshot,
-} from "../testing/poke-lounge-e2e-controller";
-import { readPokeLoungeBattleLaunchSnapshot } from "../testing/poke-lounge-e2e-controller";
-import type { WorldFrameStore } from "../world/world-frame-store";
-import type { WorldMovementInput, WorldRuntime } from "../world/world-runtime";
-import type { WorldUiAction, WorldUiStore } from "../world/world-ui-store";
-import type { WorldMapModel } from "../world/world-map-model";
-import type { RuntimeKeyboard } from "../runtime-input";
-import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-assets";
-import type {
-  RoundScoreUpdatedRoomPayload,
-  TournamentCompletedRoomPayload,
-  TournamentMatchResultRoomPayload,
-  TournamentStartedRoomPayload,
-} from "../network/tournament-room-protocol";
-import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 
 export const ROUND_DURATION_QUERY_PARAM = "roundMs";
 
@@ -184,8 +177,6 @@ export class WorldController {
   private readonly competitiveRoundsEnabled: boolean;
   private readonly serverAuthoritativeRounds: boolean;
   private readonly competitiveBattleLaunchCache = createCompetitiveBattleLaunchCache();
-  private e2eBattleLaunchTracking = false;
-  private e2eBattleLaunches: PokeLoungeBattleLaunchSnapshot[] = [];
   private preserveRoomForBattle = false;
   private started = false;
   private viewportSize: GameViewportDisplaySize;
@@ -206,7 +197,6 @@ export class WorldController {
       hasTallGrassAt: tile =>
         this.options.worldModel.tallGrassCoordinates.has(`${tile.x},${tile.y}`),
       stopPlayer: () => {},
-      getLocationUrl: () => new URL(window.location.href),
       getEncounterTableData: () =>
         this.options.runtimeAssets.json.get(WILD_ENCOUNTER_TABLES_JSON_ASSET[0]),
       getPokemonData: () => this.options.runtimeAssets.json.get("pokemonData"),
@@ -414,244 +404,8 @@ export class WorldController {
     }
   }
 
-  startWildBattleForTest(input: WildBattleStartInput): void {
-    this.encounters.startWildBattleForTest(input);
-  }
-
-  startSoloChallengeForTest(): void {
-    this.startSoloChallenge();
-  }
-
-  getE2eSnapshotForTest(): WorldE2eSnapshot {
-    const interactionSnapshot = this.interactions.getE2eSnapshot();
-    const encounterSnapshot = this.encounters.getE2eSnapshot();
-    const local = this.started ? this.options.worldRuntime.readLocalPlayer() : null;
-    const camera = this.options.worldFrameStore.read().camera;
-    return {
-      player: local
-        ? {
-            x: Math.round(local.position.x),
-            y: Math.round(local.position.y),
-            facing: local.facing,
-            displayWidth: Math.round(FIELD_MAP.player.displaySize.width),
-            displayHeight: Math.round(FIELD_MAP.player.displaySize.height),
-          }
-        : null,
-      camera: {
-        zoom: 1,
-        scrollX: Math.round(camera.x),
-        scrollY: Math.round(camera.y),
-        width: Math.round(camera.width),
-        height: Math.round(camera.height),
-      },
-      shortcutGuideOpen: interactionSnapshot.shortcutGuideOpen,
-      encounterLocked: encounterSnapshot.encounterLocked,
-      battleIntroPlaying: encounterSnapshot.battleIntroPlaying,
-      partyHudVisible: this.hud?.isPartyHudVisible() ?? false,
-      pokemonStatusPanel: interactionSnapshot.pokemonStatusPanel,
-      pcBox: interactionSnapshot.pcBox,
-      nurseHealing: interactionSnapshot.nurseHealing,
-      nurseMessage: interactionSnapshot.nurseMessage,
-      interactionPrompt: interactionSnapshot.interactionPrompt,
-      surface: interactionSnapshot.surface,
-      shopKind: interactionSnapshot.shopKind,
-    };
-  }
-
-  initializeEncounterTrackingForTest(position: { x: number; y: number }): void {
-    this.encounters.initialize(position);
-  }
-
-  createStaticNpcsForTest(map: ObjectLayerLookup): void {
-    this.interactions.createStaticNpcs(map);
-  }
-
-  createPlayerForTest(
-    map: ObjectLayerLookup,
-    spawnPointName: string,
-    spawnPositionOverride?: WorldSpawnPosition,
-  ): void {
-    this.createPlayer(map, spawnPointName, spawnPositionOverride);
-  }
-
-  createCurrencyHudForTest(): void {
-    this.createCurrencyHud();
-  }
-
-  createRankScoreHudForTest(): void {
-    this.createRankScoreHud();
-  }
-
-  createRoundHudForTest(
-    nowMs: number,
-    preparationDurationMs = DEFAULT_PREPARATION_DURATION_MS,
-  ): void {
-    this.createRoundHud(nowMs, preparationDurationMs);
-  }
-
-  updateRoundClockForTest(nowMs: number): void {
-    this.updateRoundClock(nowMs);
-  }
-
-  createPartyHudForTest(): void {
-    this.createPartyHud();
-  }
-
-  handleConfirmInteractionForTest(): void {
-    this.interactions.test.handleConfirmInteraction();
-  }
-
-  healAtNurseForTest(): void {
-    this.setPlayerPositionForTest(FIELD_MAP.recoverySpawn);
-    this.interactions.test.handleConfirmInteraction();
-  }
-
-  getNurseMessageForTest(): string {
-    return this.interactions.test.getNurseMessage();
-  }
-
-  handleFieldInteractionInputForTest(): void {
-    this.interactions.test.handleFieldInteractionInput();
-  }
-
   private getViewportSize(): { width: number; height: number } {
     return resolveGameViewportSize(this.viewportSize);
-  }
-
-  openShopForTest(): void {
-    this.interactions.test.openShop();
-  }
-
-  openPremiumShopForTest(): void {
-    this.interactions.test.openPremiumShop();
-  }
-
-  closeShopForTest(): void {
-    this.interactions.test.closeShop();
-  }
-
-  confirmShopSelectionForTest(): void {
-    this.interactions.test.confirmShopSelection();
-  }
-
-  isShopOpenForTest(): boolean {
-    return this.interactions.test.isShopOpen();
-  }
-
-  getShopMessageForTest(): string {
-    return this.interactions.test.getShopMessage();
-  }
-
-  openInventoryForTest(): void {
-    this.interactions.test.openInventory();
-  }
-
-  closeInventoryForTest(): void {
-    this.interactions.test.closeInventory();
-  }
-
-  isInventoryOpenForTest(): boolean {
-    return this.interactions.test.isInventoryOpen();
-  }
-
-  openPcBoxForTest(): void {
-    this.interactions.test.openPcBox();
-  }
-
-  closePcBoxForTest(): void {
-    this.interactions.test.closePcBox();
-  }
-
-  movePcBoxSelectionForTest(delta: number): void {
-    this.interactions.test.movePcBoxSelection(delta);
-  }
-
-  togglePcBoxFocusForTest(): void {
-    this.interactions.test.togglePcBoxFocus();
-  }
-
-  confirmPcBoxSelectionForTest(): void {
-    this.interactions.test.confirmPcBoxSelection();
-  }
-
-  moveInventorySelectionForTest(delta: number): void {
-    this.interactions.test.moveInventorySelection(delta);
-  }
-
-  confirmInventorySelectionForTest(): void {
-    this.interactions.test.confirmInventorySelection();
-  }
-
-  showInitialShortcutGuideForTest(): void {
-    this.interactions.test.showInitialShortcutGuide();
-  }
-
-  openShortcutGuideForTest(): void {
-    this.interactions.test.openShortcutGuide();
-  }
-
-  closeShortcutGuideForTest(): void {
-    this.interactions.test.closeShortcutGuide();
-  }
-
-  isShortcutGuideOpenForTest(): boolean {
-    return this.interactions.test.isShortcutGuideOpen();
-  }
-
-  openDiceGambleForTest(targetNumber?: DiceGambleNumber): void {
-    this.interactions.test.openDiceGamble(targetNumber);
-  }
-
-  setPlayerPositionForTest(position: { x: number; y: number; facing?: PlayerFacing }): void {
-    if (!this.started) return;
-    this.options.worldRuntime.setLocalPosition(position, this.getViewportSize());
-    if (position.facing) this.facing = position.facing;
-  }
-
-  sendCurrentPlayerChangedMapForTest(overrides: Partial<PlayerSnapshot> = {}): boolean {
-    this.sendRoomMessage("PLAYER_CHANGED_MAP", {
-      ...this.createLocalPlayerSnapshot(),
-      ...structuredClone(overrides),
-    });
-    return true;
-  }
-
-  disposeRoomForTest(): void {
-    this.room.dispose();
-  }
-
-  reconnectRoomForTest(): boolean {
-    this.room.connect(this.createLocalPlayerSnapshot());
-    return true;
-  }
-
-  beginBattleLaunchTrackingForTest(): void {
-    this.e2eBattleLaunches = [];
-    this.e2eBattleLaunchTracking = true;
-  }
-
-  getBattleLaunchesForTest(): PokeLoungeBattleLaunchSnapshot[] {
-    return structuredClone(this.e2eBattleLaunches);
-  }
-
-  closeDiceGambleForTest(): void {
-    this.interactions.test.closeDiceGamble();
-  }
-
-  selectDiceGamblePredictionForTest(prediction: DiceGamblePrediction): void {
-    this.interactions.test.selectDiceGamblePrediction(prediction);
-  }
-
-  confirmDiceGambleSelectionForTest(rolledNumber?: DiceGambleNumber): void {
-    this.interactions.test.confirmDiceGambleSelection(rolledNumber);
-  }
-
-  isDiceGambleOpenForTest(): boolean {
-    return this.interactions.test.isDiceGambleOpen();
-  }
-
-  getDiceGambleMessageForTest(): string {
-    return this.interactions.test.getDiceGambleMessage();
   }
 
   private createCurrencyHud(): void {
@@ -1478,10 +1232,6 @@ export class WorldController {
     ) {
       this.syncTournamentGathering(Date.now());
       return;
-    }
-    if (this.e2eBattleLaunchTracking) {
-      const launch = readPokeLoungeBattleLaunchSnapshot(data);
-      if (launch) this.e2eBattleLaunches.push(launch);
     }
     this.options.onStartBattle(data);
   }

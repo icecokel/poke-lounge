@@ -88,11 +88,6 @@ import {
 } from "./runtime/web-fullscreen";
 import { usePokeLoungeAccessibleStatus } from "./use-poke-lounge-accessible-status";
 
-type PokeLoungeWindow = Window & {
-  __POKE_LOUNGE_CLEANUP_FOR_TEST__?: () => void;
-  __POKE_LOUNGE_E2E__?: unknown;
-};
-
 interface FinalResultState {
   score: number;
   playTime: number;
@@ -990,7 +985,6 @@ export function PokeLoungeGame() {
       setGameStartupError(false);
       setGamePlaying(true);
       startedAtMsRef.current = Date.now();
-      const pokeWindow = window as PokeLoungeWindow;
       const cleanupGamePage = () => {
         if (cleanedUp) {
           return;
@@ -1002,17 +996,10 @@ export function PokeLoungeGame() {
 
         destroyGamePage?.();
         gamePageHandleRef.current = null;
-        delete pokeWindow.__POKE_LOUNGE_CLEANUP_FOR_TEST__;
-        delete pokeWindow.__POKE_LOUNGE_E2E__;
-        delete document.documentElement.dataset.pokeLoungeE2eBattle;
         setGameRuntimeMounted(false);
         pageRef.current?.classList.remove("is-game-fullscreen-fallback");
         document.body.classList.remove("is-game-fullscreen-fallback-active");
       };
-
-      if (new URLSearchParams(window.location.search).has("e2e")) {
-        pokeWindow.__POKE_LOUNGE_CLEANUP_FOR_TEST__ = cleanupGamePage;
-      }
 
       void (async function callback() {
         try {

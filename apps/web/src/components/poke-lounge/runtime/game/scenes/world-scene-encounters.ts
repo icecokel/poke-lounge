@@ -8,6 +8,7 @@ import {
   type LocalPlayerState,
 } from "../state/game-state-store";
 import { FIELD_MAP, resolveFieldEncounterAreaId } from "../world/field-map";
+import { isTallGrassStep } from "../world/tall-grass";
 import {
   consumeCompletedTileSteps,
   createTileStepTracker,
@@ -15,7 +16,10 @@ import {
   type TileCoordinate,
   type TileStepTracker,
 } from "../world/tile-steps";
-import { isTallGrassStep } from "../world/tall-grass";
+import {
+  selectWildEncounterConfig,
+  type WildEncounterConfig,
+} from "../world/wild-encounter-tables";
 import {
   createWildEncounterLevelRange,
   rollWildEncounter,
@@ -23,17 +27,6 @@ import {
   type WildEncounterLevelRange,
   type WildEncounterSlot,
 } from "../world/wild-encounters";
-import {
-  selectWildEncounterConfig,
-  type WildEncounterConfig,
-} from "../world/wild-encounter-tables";
-
-export const WILD_ENCOUNTER_RATE_QUERY_PARAM = "wildEncounterRate";
-
-export interface WorldSceneEncounterSnapshot {
-  encounterLocked: boolean;
-  battleIntroPlaying: boolean;
-}
 
 export interface WorldSceneEncounters {
   afterMovement(completedSteps?: readonly CompletedTileStep[]): void;
@@ -44,8 +37,6 @@ export interface WorldSceneEncounterController extends WorldSceneEncounters {
   initialize(position: { x: number; y: number }): void;
   isBattleIntroPlaying(): boolean;
   cancelForTournament(): void;
-  getE2eSnapshot(): WorldSceneEncounterSnapshot;
-  startWildBattleForTest(input: WildBattleStartInput): void;
   playBattleIntroTransition(onComplete: () => void): void;
 }
 
@@ -55,28 +46,11 @@ export interface WorldSceneEncountersDependencies {
   getPlayerFacing(): PlayerFacing;
   hasTallGrassAt(tile: TileCoordinate): boolean;
   stopPlayer(): void;
-  getLocationUrl(): URL;
   getEncounterTableData(): unknown;
   getPokemonData(): unknown;
   persistPlayerPosition(position: PlayerPosition): void;
   delay(ms: number, onComplete: () => void): void;
   startBattle(data: object): void;
-}
-
-export function readWildEncounterRateOverride(url: URL): number | undefined {
-  const rawRate = url.searchParams.get(WILD_ENCOUNTER_RATE_QUERY_PARAM);
-
-  if (rawRate === null) {
-    return undefined;
-  }
-
-  const parsedRate = Number(rawRate);
-
-  if (!Number.isFinite(parsedRate) || parsedRate < 0 || parsedRate > 1) {
-    return undefined;
-  }
-
-  return parsedRate;
 }
 
 export function createWorldSceneEncounters(
@@ -90,7 +64,6 @@ class DefaultWorldSceneEncounters implements WorldSceneEncounterController {
   private encounterLocked = false;
   private battleIntroPlaying = false;
   private lifecycleGeneration = 0;
-  private wildEncounterRateOverride: number | undefined;
   private readonly wildEncounterConfigCache = new Map<string, WildEncounterConfig | undefined>();
 
   constructor(private readonly dependencies: WorldSceneEncountersDependencies) {}
@@ -101,9 +74,6 @@ class DefaultWorldSceneEncounters implements WorldSceneEncounterController {
     this.encounterLocked = false;
     this.battleIntroPlaying = false;
     this.wildEncounterConfigCache.clear();
-    this.wildEncounterRateOverride = readWildEncounterRateOverride(
-      this.dependencies.getLocationUrl(),
-    );
   }
 
   afterMovement(completedSteps?: readonly CompletedTileStep[]): void {
@@ -152,17 +122,6 @@ class DefaultWorldSceneEncounters implements WorldSceneEncounterController {
     return this.battleIntroPlaying;
   }
 
-  getE2eSnapshot(): WorldSceneEncounterSnapshot {
-    return {
-      encounterLocked: this.encounterLocked,
-      battleIntroPlaying: this.battleIntroPlaying,
-    };
-  }
-
-  startWildBattleForTest(input: WildBattleStartInput): void {
-    this.startWildBattle(input);
-  }
-
   playBattleIntroTransition(onComplete: () => void): void {
     const lifecycleGeneration = this.lifecycleGeneration;
 
@@ -191,7 +150,6 @@ class DefaultWorldSceneEncounters implements WorldSceneEncounterController {
     this.stepTracker = null;
     this.encounterLocked = false;
     this.battleIntroPlaying = false;
-    this.wildEncounterRateOverride = undefined;
     this.wildEncounterConfigCache.clear();
   }
 
@@ -222,11 +180,7 @@ class DefaultWorldSceneEncounters implements WorldSceneEncounterController {
     }
 
     return {
-      ...(this.wildEncounterRateOverride !== undefined
-        ? { rate: this.wildEncounterRateOverride }
-        : config?.encounterRate !== undefined
-          ? { rate: config.encounterRate }
-          : {}),
+      ...(config?.encounterRate !== undefined ? { rate: config.encounterRate } : {}),
       ...(config?.slots ? { slots: config.slots } : {}),
     };
   }

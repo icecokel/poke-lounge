@@ -1,14 +1,18 @@
-import { getBattlePokemonAssets } from "../battle/battle-pokemon-assets";
-import type { BattleSpriteRef } from "../battle/battle-types";
-import { FIELD_AREA_ANNOUNCEMENT_DURATION_MS } from "@poke-lounge/battle/timing";
 import { transferPcPokemon } from "@/features/poke-lounge/application/world/pc-transfer";
 import { playDice } from "@/features/poke-lounge/application/world/play-dice";
+import {
+  formatFieldInteractionKey,
+  formatShopPurchaseMessage,
+} from "@/features/poke-lounge/presentation/world/interaction-copy";
 import { formatPcTransferResult } from "@/features/poke-lounge/presentation/world/pc-transfer-message";
+import { FIELD_AREA_ANNOUNCEMENT_DURATION_MS } from "@poke-lounge/battle/timing";
 import {
   playBattleCancelSound,
   playBattleConfirmSound,
   playPartyHealSound,
 } from "../battle/battle-audio";
+import { getBattlePokemonAssets } from "../battle/battle-pokemon-assets";
+import type { BattleSpriteRef } from "../battle/battle-types";
 import {
   clearRuntimeShopItemRomIds,
   loadRuntimeShopItemRomIds,
@@ -40,7 +44,6 @@ import {
   type PlayerPokemonStatus,
   type ShopItem,
 } from "../state/game-state-store";
-import type { WorldE2eSnapshot } from "../testing/poke-lounge-e2e-controller";
 import {
   hasPokeLoungeMobileFullscreenScene,
   usesPokeLoungeMobileShell,
@@ -56,10 +59,6 @@ import {
   type MoveReplacementConfirmation,
 } from "../ui/move-learning-model";
 import { dispatchPokeLoungeAccessibleStatus } from "../ui/poke-lounge-ui-events";
-import {
-  formatFieldInteractionKey,
-  formatShopPurchaseMessage,
-} from "@/features/poke-lounge/presentation/world/interaction-copy";
 import { createShortcutGuideTitle, type ShortcutGuideInputMode } from "../ui/shortcut-guide";
 import {
   FIELD_MAP,
@@ -68,6 +67,7 @@ import {
 } from "../world/field-map";
 import type { WorldUiStore } from "../world/world-ui-store";
 import type { ObjectLayerLookup } from "./world-scene";
+import type { PokemonStatusPanelSnapshot } from "./world-scene-hud";
 import { formatPokeDollars, formatPokemonHp } from "./world-scene-hud";
 
 const DICE_GAMBLE_LABELS: Record<DiceGamblePrediction, string> = {
@@ -92,53 +92,9 @@ export interface WorldScenePlayerPosition {
   readonly y: number;
 }
 
-export interface WorldSceneInteractionsTestFacade {
-  handleConfirmInteraction(): void;
-  healAtNurse(): void;
-  getNurseMessage(): string;
-  handleFieldInteractionInput(): void;
-  openShop(): void;
-  openPremiumShop(): void;
-  closeShop(): void;
-  confirmShopSelection(): void;
-  isShopOpen(): boolean;
-  getShopMessage(): string;
-  openInventory(): void;
-  closeInventory(): void;
-  isInventoryOpen(): boolean;
-  moveInventorySelection(delta: number): void;
-  confirmInventorySelection(): void;
-  openPcBox(): void;
-  closePcBox(): void;
-  movePcBoxSelection(delta: number): void;
-  togglePcBoxFocus(): void;
-  confirmPcBoxSelection(): void;
-  showInitialShortcutGuide(): void;
-  openShortcutGuide(): void;
-  closeShortcutGuide(): void;
-  isShortcutGuideOpen(): boolean;
-  openDiceGamble(targetNumber?: DiceGambleNumber): void;
-  closeDiceGamble(): void;
-  selectDiceGamblePrediction(prediction: DiceGamblePrediction): void;
-  confirmDiceGambleSelection(rolledNumber?: DiceGambleNumber): void;
-  isDiceGambleOpen(): boolean;
-  getDiceGambleMessage(): string;
-}
-
 export interface WorldSceneInteractions {
   handleInput(): boolean;
   destroy(): void;
-  getE2eSnapshot(): Pick<
-    WorldE2eSnapshot,
-    | "pokemonStatusPanel"
-    | "pcBox"
-    | "shortcutGuideOpen"
-    | "nurseHealing"
-    | "nurseMessage"
-    | "interactionPrompt"
-    | "surface"
-    | "shopKind"
-  >;
 }
 
 export interface WorldSceneInteractionsController extends WorldSceneInteractions {
@@ -146,7 +102,6 @@ export interface WorldSceneInteractionsController extends WorldSceneInteractions
   createStaticNpcs(map: ObjectLayerLookup): void;
   handleUiAction(action: MobileWorldUiAction): void;
   showInitialShortcutGuideIfNeeded(): void;
-  readonly test: Readonly<WorldSceneInteractionsTestFacade>;
 }
 
 export interface WorldSceneInteractionsDependencies {
@@ -161,7 +116,7 @@ export interface WorldSceneInteractionsDependencies {
   renderPartyHud(): void;
   closePokemonStatusPanel(options?: { rerenderPartyHud?: boolean }): void;
   getPartyPokemonBySlotIndex(slotIndex: number): PlayerPokemon | null;
-  getPokemonStatusPanelSnapshot(): WorldE2eSnapshot["pokemonStatusPanel"];
+  getPokemonStatusPanelSnapshot(): PokemonStatusPanelSnapshot | null;
   isPokemonStatusPanelOpen(): boolean;
   loadShopItemRomIds?(shopKind: ShopKind): Promise<readonly number[]>;
   worldUiStore: WorldUiStore;
@@ -232,42 +187,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private lastEncounterAreaId: string | null | undefined;
   private areaAnnouncementExpiresAt = 0;
 
-  readonly test: Readonly<WorldSceneInteractionsTestFacade>;
-
-  constructor(private readonly dependencies: WorldSceneInteractionsDependencies) {
-    this.test = Object.freeze<WorldSceneInteractionsTestFacade>({
-      handleConfirmInteraction: () => this.handleConfirmInteraction(),
-      healAtNurse: () => this.healAtNurse(),
-      getNurseMessage: () => this.nurseMessage,
-      handleFieldInteractionInput: () => this.handleFieldInteractionInput(),
-      openShop: () => this.openShop(),
-      openPremiumShop: () => this.openShop("premium"),
-      closeShop: () => this.closeShop(),
-      confirmShopSelection: () => this.confirmShopSelection(),
-      isShopOpen: () => this.shopOpen,
-      getShopMessage: () => this.shopMessage,
-      openInventory: () => this.openInventory(),
-      closeInventory: () => this.closeInventory(),
-      isInventoryOpen: () => this.inventoryOpen,
-      moveInventorySelection: delta => this.moveInventorySelection(delta),
-      confirmInventorySelection: () => this.confirmInventorySelection(),
-      openPcBox: () => this.openPcBox(),
-      closePcBox: () => this.closePcBox(),
-      movePcBoxSelection: delta => this.movePcBoxSelection(delta),
-      togglePcBoxFocus: () => this.togglePcBoxFocus(),
-      confirmPcBoxSelection: () => this.confirmPcBoxSelection(),
-      showInitialShortcutGuide: () => this.showInitialShortcutGuideIfNeeded(),
-      openShortcutGuide: () => this.openShortcutGuide(),
-      closeShortcutGuide: () => this.closeShortcutGuide(),
-      isShortcutGuideOpen: () => this.shortcutGuideOpen,
-      openDiceGamble: targetNumber => this.openDiceGamble(targetNumber),
-      closeDiceGamble: () => this.closeDiceGamble(),
-      selectDiceGamblePrediction: prediction => this.selectDiceGamblePrediction(prediction),
-      confirmDiceGambleSelection: rolledNumber => this.confirmDiceGambleSelection(rolledNumber),
-      isDiceGambleOpen: () => this.diceGambleOpen,
-      getDiceGambleMessage: () => this.diceGambleMessage,
-    });
-  }
+  constructor(private readonly dependencies: WorldSceneInteractionsDependencies) {}
 
   private get gameStateStore(): GameStateStore {
     return this.dependencies.gameStateStore;
@@ -858,44 +778,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       !this.diceGambleOpen &&
       !this.battleIntroPlaying
     );
-  }
-
-  getE2eSnapshot(): Pick<
-    WorldE2eSnapshot,
-    | "pokemonStatusPanel"
-    | "pcBox"
-    | "shortcutGuideOpen"
-    | "nurseHealing"
-    | "nurseMessage"
-    | "interactionPrompt"
-    | "surface"
-    | "shopKind"
-  > {
-    return {
-      shortcutGuideOpen: this.shortcutGuideOpen,
-      pokemonStatusPanel: this.dependencies.getPokemonStatusPanelSnapshot(),
-      pcBox: this.getPcBoxSnapshot(),
-      nurseHealing: {
-        active: this.nurseHealing,
-        effectCount: this.nurseHealingEffectCount,
-      },
-      nurseMessage: this.nurseMessage,
-      interactionPrompt: this.fieldHintText || null,
-      surface: this.shortcutGuideOpen
-        ? "help"
-        : this.shopOpen
-          ? "shop"
-          : this.inventoryOpen
-            ? "inventory"
-            : this.pcBoxOpen
-              ? "pc"
-              : this.diceGambleOpen
-                ? "dice"
-                : this.mobileWorldView === "party"
-                  ? "party"
-                  : null,
-      shopKind: this.shopOpen ? this.activeShopKind : null,
-    };
   }
 
   destroy(): void {
@@ -1934,22 +1816,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private destroyPcBoxUi(): void {}
-
-  private getPcBoxSnapshot(): WorldE2eSnapshot["pcBox"] {
-    const localPlayer = this.gameStateStore.getCurrentLocalPlayer();
-
-    return {
-      open: this.pcBoxOpen,
-      focus: this.pcBoxFocus,
-      partySlotIndex: this.pcBoxPartySlotIndex,
-      boxIndex: this.pcBoxBoxIndex,
-      message: this.pcBoxMessage,
-      partyCount: localPlayer.party.filter(function filterItem(slot) {
-        return slot.pokemon;
-      }).length,
-      boxCount: localPlayer.pokemonBox.length,
-    };
-  }
 
   private formatPcBoxPokemonLabel(pokemon: PlayerPokemon): string {
     return `${pokemon.name} Lv.${pokemon.level} ${this.formatPokemonHp(pokemon)}`;

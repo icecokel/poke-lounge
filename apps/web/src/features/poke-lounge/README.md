@@ -30,4 +30,4 @@ React 컴포넌트는 `components/poke-lounge`에 유지한다. CSS, 포커스, 
 
 ## 검사
 
-`pnpm test:web`는 기능 단위 테스트와 `testing/architecture.test.ts`를 실행한다. 아키텍처 검사는 core 계층에 React/DOM/HTTP 런타임 의존성이 다시 들어오는 것을 막는다. 제품 규칙 검증과 브라우저 회귀는 각 전용 테스트에서 수행한다.
+테스트는 루트 [PLAYER_TESTING.md](../../../../../PLAYER_TESTING.md)에 따라 실제 화면과 개별 사용자 입력으로만 수행한다. 자동 단위·아키텍처·브라우저 회귀 실행기는 제거했다. 타입·린트·빌드는 별도의 개발 확인이며 플레이 PASS를 대체하지 않는다.

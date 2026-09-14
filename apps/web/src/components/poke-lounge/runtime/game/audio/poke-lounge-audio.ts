@@ -3,8 +3,8 @@ import {
   BGM_CROSSFADE_DURATION_SECONDS,
 } from "@poke-lounge/battle/timing";
 import type {
-  PokeLoungeAudioSource,
   PokeLoungeAudioManifest,
+  PokeLoungeAudioSource,
   PokeLoungeBgmId,
   PokeLoungeBgmManifestItem,
   PokeLoungeSfxId,
@@ -47,17 +47,6 @@ export interface PokeLoungeAudioPreloadAsset {
   src: string;
 }
 
-export interface PokeLoungeAudioPlaybackSnapshot {
-  activeBgmId: PokeLoungeBgmId | null;
-  activeBgmPlayback: "html-audio" | "web-audio" | null;
-  activeBgmVolume: number | null;
-  isActiveBgmUsingMasterGain: boolean;
-  activeBufferSourceCount: number;
-  activeHtmlAudioElementCount: number;
-  isBgmPlaying: boolean;
-  lastSfxId: PokeLoungeSfxId | null;
-}
-
 let manifestPromise: Promise<PokeLoungeAudioManifest> | null = null;
 let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -68,7 +57,6 @@ let playbackGeneration = 0;
 let bgmRequestGeneration = 0;
 let pendingBgmId: PokeLoungeBgmId | null = null;
 let failedBgmRetry: { id: PokeLoungeBgmId; options: { volume?: number } } | null = null;
-let lastSfxId: PokeLoungeSfxId | null = null;
 const bufferPromises = new Map<PokeLoungeAudioItemId, Promise<AudioBuffer | null>>();
 const preloadedAudioBytes = new Map<PokeLoungeAudioItemId, ArrayBuffer>();
 const htmlAudioElements = new Map<PokeLoungeAudioItemId, HTMLAudioElement>();
@@ -174,8 +162,6 @@ export function playPokeLoungeSfx(id: PokeLoungeSfxId, options: { volume?: numbe
   if (muted || typeof window === "undefined") {
     return;
   }
-
-  lastSfxId = id;
   void playPokeLoungeSfxAsync(id, options, playbackGeneration);
 }
 
@@ -219,7 +205,6 @@ export function stopPokeLoungeBgm(id?: PokeLoungeBgmId): void {
 
 export function stopAllPokeLoungeAudio(): void {
   playbackGeneration += 1;
-  lastSfxId = null;
   stopPokeLoungeBgm();
 
   for (const source of activeBufferSources) {
@@ -274,24 +259,6 @@ export function setPokeLoungeMasterVolume(nextVolume: number): void {
 
 export function getPokeLoungeAudioMuted(): boolean {
   return muted;
-}
-
-export function getPokeLoungeAudioPlaybackSnapshotForTest(): PokeLoungeAudioPlaybackSnapshot {
-  const activeBgmVolume =
-    activeBgm?.audio && activeBgm.gain
-      ? clampVolume(activeBgm.gain.gain.value * (masterGain?.gain.value ?? masterVolume))
-      : (activeBgm?.audio?.volume ?? null);
-
-  return {
-    activeBgmId: activeBgm?.id ?? null,
-    activeBgmPlayback: activeBgm?.source ? "web-audio" : activeBgm?.audio ? "html-audio" : null,
-    activeBgmVolume,
-    isActiveBgmUsingMasterGain: Boolean(activeBgm?.audio && activeBgm.gain),
-    activeBufferSourceCount: activeBufferSources.size,
-    activeHtmlAudioElementCount: activeHtmlAudioElements.size,
-    isBgmPlaying: isActiveBgmPlaying(),
-    lastSfxId,
-  };
 }
 
 export function parsePokeLoungeAudioManifest(value: unknown): PokeLoungeAudioManifest | null {

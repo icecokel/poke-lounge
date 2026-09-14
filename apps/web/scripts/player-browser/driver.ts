@@ -1,8 +1,8 @@
-import { chromium, devices, webkit, type Page } from "@playwright/test";
 import { createHash, randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
+import { chromium, devices, webkit, type Page } from "playwright";
 import {
   ProtocolError,
   sanitize,

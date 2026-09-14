@@ -1,19 +1,19 @@
+import { executeBattleChoice } from "@/features/poke-lounge/application/battle/execute-battle-choice";
+import { planPostBattleProgression } from "@/features/poke-lounge/application/battle/plan-battle-progression";
+import { settleBattleToWorld } from "@/features/poke-lounge/application/battle/settle-battle";
+import { materializeResolvedWildBattleReward } from "@/features/poke-lounge/application/battle/settle-interrupted-battle";
+import { createOpponentPartySummary } from "@/features/poke-lounge/presentation/battle/opponent-party";
+import { formatBattleResultMessage } from "@/features/poke-lounge/presentation/battle/result-message";
+import { PLAYER_PARTY_SLOT_COUNT } from "@poke-lounge/battle/adventure/player/player-types";
+import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "@poke-lounge/battle/battle-presentation";
+import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
+import { canUseGen4ItemOnMember } from "@poke-lounge/battle/gen4/engine";
+import { getPartyExperienceRatio, sharesPartyExperience } from "@poke-lounge/battle/round-settings";
 import {
   BATTLE_ENTRANCE_TWEEN_MS,
   BATTLE_HIT_TWEEN_MS,
   BATTLE_HP_DECREASE_TWEEN_MS,
 } from "@poke-lounge/battle/timing";
-import { createOpponentPartySummary } from "@/features/poke-lounge/presentation/battle/opponent-party";
-import { executeBattleChoice } from "@/features/poke-lounge/application/battle/execute-battle-choice";
-import { planPostBattleProgression } from "@/features/poke-lounge/application/battle/plan-battle-progression";
-import { settleBattleToWorld } from "@/features/poke-lounge/application/battle/settle-battle";
-import { formatBattleResultMessage } from "@/features/poke-lounge/presentation/battle/result-message";
-import { materializeResolvedWildBattleReward } from "@/features/poke-lounge/application/battle/settle-interrupted-battle";
-import { PLAYER_PARTY_SLOT_COUNT } from "@poke-lounge/battle/adventure/player/player-types";
-import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
-import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "@poke-lounge/battle/battle-presentation";
-import { canUseGen4ItemOnMember } from "@poke-lounge/battle/gen4/engine";
-import { getPartyExperienceRatio, sharesPartyExperience } from "@poke-lounge/battle/round-settings";
 import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
 import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
 import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-assets";
@@ -51,7 +51,6 @@ import { getBattleExperienceProgress } from "../battle/battle-experience";
 import {
   BATTLE_LAYOUT,
   getBattleOptionIndexAtPoint,
-  getBattleStatusTextView,
   type BattleRect,
   type BattleSpriteBox,
 } from "../battle/battle-layout";
@@ -76,7 +75,6 @@ import type {
   BattleCaptureAttempt,
   BattleCommand,
   BattleMove,
-  BattleParticipant,
   BattlePartySlot,
   BattlePokemon,
   BattlePokemonStatus,
@@ -96,7 +94,6 @@ import {
   resolveRomEvolutionAnimationFrame,
   ROM_EVOLUTION_ANIMATION_DURATION_MS,
 } from "../battle/evolution-presentation";
-import { getExperienceForLevel, WILD_BATTLE_EXPERIENCE_MULTIPLIER } from "../battle/experience";
 import { formatReplacedMoveMessage, formatSkippedMoveMessage } from "../battle/level-up-moves";
 import {
   getBattleEffectTiming,
@@ -142,7 +139,6 @@ import {
   type GameStateStore,
   type LocalPlayerState,
 } from "../state/game-state-store";
-import type { BattleE2eScenario, BattleE2eSnapshot } from "../testing/poke-lounge-e2e-controller";
 import { setBattleSceneMarker } from "../ui/active-game-scene-marker";
 import {
   isMobileBattleMoveDisabled,
@@ -180,8 +176,6 @@ export const BATTLE_SCENE_WINDOW_FRAME_KEY = BATTLE_WINDOW_FRAME_ASSET_KEY;
 export const BATTLE_SCENE_WINDOW_STYLE = ROM_BATTLE_WINDOW_STYLE;
 export const BATTLE_HP_PANEL_WINDOW_OPTIONS = { radius: 4, includeFrameMarker: false } as const;
 export const BATTLE_CONFIRM_KEY_CODES = ["Enter", "Space", "KeyZ"] as const;
-
-const E2E_SINGLE_LEVEL_BASE_EXP_YIELD = Math.ceil(500 / WILD_BATTLE_EXPERIENCE_MULTIPLIER);
 const BATTLE_BAG_ITEM_IDS = [
   "potion",
   "pokeball",
@@ -228,10 +222,6 @@ export interface TrainerBattleSceneData extends BattleWorldPositionPolicy {
   player: LocalPlayerState;
   opponent: LocalPlayerState;
   returnToWorld: BattleScreenState["returnToWorld"];
-}
-
-interface BattleE2eSceneData {
-  e2eScenario: BattleE2eScenario;
 }
 
 export interface AuthoritativeBattleSceneData extends BattleWorldPositionPolicy {
@@ -281,18 +271,6 @@ export function isTrainerBattleSceneData(data: unknown): data is TrainerBattleSc
     isRecord(data.player) &&
     isRecord(data.opponent) &&
     isRecord(data.returnToWorld)
-  );
-}
-
-function isBattleE2eSceneData(data: unknown): data is BattleE2eSceneData {
-  return (
-    isRecord(data) &&
-    (data.e2eScenario === "wild-victory" ||
-      data.e2eScenario === "wild-defeat" ||
-      data.e2eScenario === "wild-evolution" ||
-      data.e2eScenario === "wild-move-learning" ||
-      data.e2eScenario === "wild-status-badge" ||
-      data.e2eScenario === "wild-paralysis")
   );
 }
 
@@ -694,208 +672,6 @@ export class BattleController {
     if (this.state.phase === "bag-select") {
       this.updateBagSelection();
     }
-  }
-
-  confirmSelectionForTest(): void {
-    this.confirmSelection();
-  }
-
-  getE2eSnapshotForTest(): BattleE2eSnapshot {
-    const selectedCommand = COMMANDS[this.selectedCommandIndex] ?? COMMANDS[0];
-    const selectedMove = this.state.player.pokemon.moves[this.selectedMoveIndex] ?? null;
-
-    return {
-      battleKind: this.state.battleKind,
-      phase: this.state.phase,
-      turn: this.state.turn,
-      message: this.getVisibleBattleMessage(),
-      messageQueue: [...this.state.messageQueue],
-      effect: this.activeBattleEffect ? structuredClone(this.activeBattleEffect) : null,
-      effectStartedCount: this.battleEffectSequence,
-      selectedCommandIndex: this.selectedCommandIndex,
-      selectedCommand: selectedCommand.command,
-      selectedCommandLabel: selectedCommand.label,
-      selectedMoveIndex: this.selectedMoveIndex,
-      selectedMoveName: selectedMove?.name ?? null,
-      selectedBagItemIndex: this.selectedBagItemIndex,
-      selectedPartySlotIndex: this.selectedPartySlotIndex,
-      isForcedPartySwitch: isForcedPartySwitch(this.state),
-
-      partySlots: this.getBattlePartySlotViews().map(function mapItem(slot) {
-        return {
-          slotIndex: slot.slotIndex,
-          rect: { ...slot.rect },
-          name: slot.pokemon?.name ?? null,
-          level: slot.pokemon?.level ?? null,
-          currentHp: slot.pokemon?.currentHp ?? null,
-          maxHp: slot.pokemon?.maxHp ?? null,
-          status: slot.pokemon?.status ?? null,
-          isSelected: slot.isSelected,
-          isCurrent: slot.isCurrent,
-          isFainted: slot.isFainted,
-          isEmpty: slot.isEmpty,
-          canSwitch: slot.canSwitch,
-        };
-      }),
-      moveReplacement: this.getCurrentPendingMoveLearning()
-        ? {
-            pokemonName: this.getCurrentPendingMoveLearning()?.pokemonName ?? "",
-            newMoveName: this.getCurrentPendingMoveLearning()?.newMove.name ?? "",
-            selectedMoveIndex: this.selectedMoveIndex,
-            confirmationIndex: this.moveReplacementConfirmation?.index ?? null,
-          }
-        : null,
-      result: this.state.result ? { ...this.state.result } : null,
-      returnToWorld: this.state.returnToWorld ? { ...this.state.returnToWorld } : undefined,
-      battleEntrancePlaying: this.battleEntrancePlaying,
-      battleEntrancePlayed: this.battleEntrancePlayed,
-      authoritativeInputPending: this.authoritativeInputPending,
-      competitive: this.authoritativeProjection
-        ? {
-            matchId: this.authoritativeProjection.matchId,
-            bracketMatchId: this.authoritativeProjection.bracketMatchId,
-            assignmentRevision: this.authoritativeProjection.assignmentRevision,
-            currentTurn: this.authoritativeProjection.currentTurn,
-            status: this.authoritativeProjection.status,
-            terminal: structuredClone(this.authoritativeProjection.terminal ?? null),
-            submittedPlayerIds: [...this.authoritativeProjection.submittedPlayerIds],
-          }
-        : null,
-      fullRenderCount: this.fullRenderCount,
-      animationFrameUpdateCount: this.animationFrameUpdateCount,
-      hpAnimationPlaying: this.isHpAnimationPlaying(),
-      hpAnimationStartedCount: this.hpAnimationStartedCount,
-      hitAnimationPlaying: this.isHitAnimationPlaying(),
-      hitAnimationStartedCount: this.hitAnimationStartedCount,
-      captureAnimationPlaying: this.captureAnimationPlaying,
-      captureAnimationStartedCount: this.captureAnimationStartedCount,
-      captureAnimationShakes: this.captureAnimationAttempt?.shakes ?? null,
-      evolutionAnimationPlaying: this.evolutionAnimationPlaying,
-      evolutionAnimationStartedCount: this.evolutionAnimationStartedCount,
-      evolutionFromSpeciesId: this.evolutionTransition?.fromPokemon.speciesId ?? null,
-      evolutionToSpeciesId: this.evolutionTransition?.toPokemon.speciesId ?? null,
-      player: {
-        name: this.state.player.pokemon.name,
-        level: this.state.player.pokemon.level,
-        currentHp: this.state.player.pokemon.currentHp,
-        maxHp: this.state.player.pokemon.maxHp,
-        displayedCurrentHp: Math.round(this.displayedHp.player),
-        hitAnimationStartedCount: this.hitEffects.player.startedCount,
-        status: this.state.player.pokemon.status,
-        displayedStatus: this.displayedStatus.player,
-        statusTextLabel: getBattleStatusTextView(this.displayedStatus.player)?.label ?? null,
-        activePartySlotIndex: this.state.player.activePartySlotIndex,
-        moves: this.state.player.pokemon.moves.map(function mapItem(move) {
-          return { id: move.id, name: move.name };
-        }),
-      },
-      opponent: {
-        name: this.state.opponent.pokemon.name,
-        level: this.state.opponent.pokemon.level,
-        currentHp: this.state.opponent.pokemon.currentHp,
-        maxHp: this.state.opponent.pokemon.maxHp,
-        displayedCurrentHp: Math.round(this.displayedHp.opponent),
-        hitAnimationStartedCount: this.hitEffects.opponent.startedCount,
-        status: this.state.opponent.pokemon.status,
-        displayedStatus: this.displayedStatus.opponent,
-        statusTextLabel: getBattleStatusTextView(this.displayedStatus.opponent)?.label ?? null,
-      },
-    };
-  }
-
-  setBattleScenarioForTest(scenario: BattleE2eScenario): void {
-    this.cancelBattleEffects();
-    this.selectedCommandIndex = 0;
-    this.selectedMoveIndex = 0;
-    this.selectedPartySlotIndex = 0;
-    this.selectedBagItemIndex = 0;
-    this.returningToWorld = false;
-    this.authoritativeTerminalTransition = null;
-    this.battleEntrancePlayed = false;
-    this.hpAnimationStartedCount = 0;
-    this.hitAnimationStartedCount = 0;
-    this.captureAnimationStartedCount = 0;
-    this.captureAnimationProgress = 1;
-    this.captureAnimationPlaying = false;
-    this.captureAnimationAttempt = null;
-    this.captureAnimationTween?.stop();
-    this.captureAnimationTween = null;
-    this.evolutionAnimationStartedCount = 0;
-    this.evolutionAnimationProgress = 1;
-    this.evolutionAnimationPlaying = false;
-    this.evolutionAnimationTween?.stop();
-    this.evolutionAnimationTween = null;
-    this.evolutionTransition = null;
-    this.pendingEvolutionTransitions = [];
-    this.pendingMoveLearnings = [];
-    this.moveReplacementConfirmation = null;
-    this.learnedMovesByMessage.clear();
-    this.levelUpMoveLearningApplied = false;
-    this.persistWorldPositionOnReturn = true;
-    this.state = createBattleScenarioStateForTest(scenario);
-    this.seenAnimationTurn = this.state.turn;
-    this.cancelHpTweens();
-    this.cancelStatusCommitTweens();
-    this.resetHitEffects();
-    this.syncDisplayedHpToState();
-    this.syncDisplayedStatusToState();
-    this.render();
-    this.playBattleEntranceAnimation();
-  }
-
-  setSelectedCommandForTest(command: BattleCommand): void {
-    const commandIndex = COMMANDS.findIndex(function findItemIndex(candidate) {
-      return candidate.command === command;
-    });
-
-    if (commandIndex < 0) {
-      return;
-    }
-
-    this.selectedCommandIndex = commandIndex;
-    this.render();
-  }
-
-  setSelectedMoveIndexForTest(index: number): void {
-    if (!Number.isInteger(index)) {
-      return;
-    }
-
-    this.selectedMoveIndex = Math.max(
-      0,
-      Math.min(this.state.player.pokemon.moves.length - 1, index),
-    );
-    this.render();
-  }
-
-  setSelectedBagItemIndexForTest(index: number): void {
-    if (!Number.isInteger(index)) {
-      return;
-    }
-
-    this.selectedBagItemIndex = Math.max(0, index);
-    this.render();
-  }
-
-  setSelectedPartySlotIndexForTest(index: number): void {
-    if (!Number.isInteger(index)) {
-      return;
-    }
-
-    this.selectedPartySlotIndex = Math.max(0, Math.min(5, index));
-    this.render();
-  }
-
-  openShortcutGuideForTest(): void {
-    this.openShortcutGuide();
-  }
-
-  closeShortcutGuideForTest(): void {
-    this.closeShortcutGuide();
-  }
-
-  isShortcutGuideOpenForTest(): boolean {
-    return this.shortcutGuideOpen;
   }
 
   private consumeKeyboardConfirm(): boolean {
@@ -1455,10 +1231,6 @@ export class BattleController {
         undefined,
         data.spectating === true,
       );
-    }
-
-    if (isBattleE2eSceneData(data)) {
-      return createBattleScenarioStateForTest(data.e2eScenario);
     }
 
     if (isTrainerBattleSceneData(data)) {
@@ -2685,7 +2457,6 @@ export class BattleController {
     ) {
       this.authoritativeTerminalTransition.status = "transitioned";
     }
-    this.clearE2eSnapshot();
     this.setBattleState(this.applyLevelUpMoveLearning(this.state), {
       animateHpDecrease: false,
       render: false,
@@ -3124,7 +2895,6 @@ export class BattleController {
     }
 
     this.fullRenderCount += 1;
-    this.publishE2eSnapshot();
     this.publishBattleUiState();
     this.publishAccessibleStatus();
   }
@@ -3285,24 +3055,6 @@ export class BattleController {
     this.selectedBagItemIndex = Math.min(this.selectedBagItemIndex, Math.max(0, owned.length - 1));
     return owned;
   }
-
-  private publishE2eSnapshot(): void {
-    if (!isLocalE2eBattleProbeEnabled()) {
-      return;
-    }
-
-    document.documentElement.dataset.pokeLoungeE2eBattle = JSON.stringify(
-      this.getE2eSnapshotForTest(),
-    );
-  }
-
-  private clearE2eSnapshot(): void {
-    if (!isLocalE2eBattleProbeEnabled()) {
-      return;
-    }
-
-    delete document.documentElement.dataset.pokeLoungeE2eBattle;
-  }
 }
 
 function appendBattleEndConfirmMessage(messages: string[]): string[] {
@@ -3319,189 +3071,6 @@ function isRomPersonalRecordCollection(value: unknown): value is RomPersonalReco
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function isLocalE2eBattleProbeEnabled(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  const { hostname, search } = window.location;
-  const isLocalHost =
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "[::1]" ||
-    hostname === "::1";
-
-  return isLocalHost && new URLSearchParams(search).has("e2eBattle");
-}
-
-function createBattleScenarioStateForTest(scenario: BattleE2eScenario): BattleScreenState {
-  const baseState = createSampleBattleState();
-  const playerPokemon = cloneBattlePokemon(baseState.player.pokemon);
-  const opponentPokemon = cloneBattlePokemon(baseState.opponent.pokemon);
-
-  if (scenario === "wild-paralysis") {
-    playerPokemon.speed = Math.max(playerPokemon.speed, opponentPokemon.speed + 1);
-    playerPokemon.moves = [
-      createBattleMoveForTest(86, "전기자석파", {
-        accuracy: 100,
-        category: "status",
-        effectCode: 67,
-        power: 0,
-        type: "전기",
-        typeId: 12,
-      }),
-    ];
-    opponentPokemon.moves = [];
-    opponentPokemon.status = "normal";
-  } else if (
-    scenario === "wild-victory" ||
-    scenario === "wild-evolution" ||
-    scenario === "wild-move-learning" ||
-    scenario === "wild-status-badge"
-  ) {
-    playerPokemon.speed = Math.max(playerPokemon.speed, opponentPokemon.speed + 1);
-    playerPokemon.moves = playerPokemon.moves.map(function mapItem(move, index) {
-      return index === 0 ? { ...move, accuracy: 100 } : move;
-    });
-    opponentPokemon.currentHp = 1;
-    opponentPokemon.status = "normal";
-    if (scenario === "wild-status-badge") {
-      playerPokemon.status = "paralyzed";
-      opponentPokemon.status = "burned";
-      opponentPokemon.currentHp = Math.max(1, Math.floor(opponentPokemon.maxHp / 2));
-    }
-
-    if (scenario === "wild-victory") {
-      opponentPokemon.moves = [];
-    }
-
-    if (scenario === "wild-evolution") {
-      playerPokemon.speciesId = 152;
-      playerPokemon.name = "치코리타";
-      playerPokemon.level = 15;
-      opponentPokemon.baseExpYield = E2E_SINGLE_LEVEL_BASE_EXP_YIELD;
-    }
-
-    if (scenario === "wild-move-learning") {
-      playerPokemon.speciesId = 155;
-      playerPokemon.name = "브케인";
-      playerPokemon.level = 18;
-      playerPokemon.experience = getExperienceForLevel(18, playerPokemon.growthRate);
-      playerPokemon.baseStats = { ...opponentPokemon.baseStats };
-      playerPokemon.typeIds = [10];
-      playerPokemon.frontSprite = { ...opponentPokemon.frontSprite };
-      playerPokemon.backSprite = { ...opponentPokemon.backSprite };
-      playerPokemon.moves = [
-        createBattleMoveForTest(52, "불꽃세례", {
-          accuracy: 100,
-          category: "special",
-          effectCode: 4,
-          power: 40,
-          type: "불꽃",
-          typeId: 10,
-        }),
-        createBattleMoveForTest(108, "연막", {
-          accuracy: 100,
-          category: "status",
-          effectCode: 23,
-          power: 0,
-          type: "노말",
-          typeId: 0,
-        }),
-        createBattleMoveForTest(98, "전광석화", {
-          accuracy: 100,
-          category: "physical",
-          effectCode: 103,
-          power: 40,
-          type: "노말",
-          typeId: 0,
-        }),
-        createBattleMoveForTest(45, "울음소리", {
-          accuracy: 100,
-          category: "status",
-          effectCode: 18,
-          power: 0,
-          type: "노말",
-          typeId: 0,
-        }),
-      ];
-      opponentPokemon.baseExpYield = E2E_SINGLE_LEVEL_BASE_EXP_YIELD;
-    }
-  } else {
-    playerPokemon.currentHp = 1;
-    playerPokemon.status = "normal";
-    playerPokemon.speed = Math.min(playerPokemon.speed, Math.max(0, opponentPokemon.speed - 1));
-    opponentPokemon.speed = Math.max(opponentPokemon.speed, playerPokemon.speed + 1);
-  }
-
-  return {
-    ...baseState,
-    battleKind: "wild",
-    phase: "command",
-    messageQueue: [],
-    selectedMoveId: null,
-    result: null,
-    returnToWorld: {
-      mapKey: "town",
-      x: 687,
-      y: 1151,
-      facing: "front",
-    },
-    player: updateBattleParticipantPokemon(baseState.player, playerPokemon),
-    opponent: {
-      ...updateBattleParticipantPokemon(baseState.opponent, opponentPokemon),
-      playerId: "wild",
-      displayName: `야생 ${opponentPokemon.name}`,
-    },
-  };
-}
-
-function cloneBattlePokemon(pokemon: BattlePokemon): BattlePokemon {
-  return {
-    ...pokemon,
-    moves: pokemon.moves.map(function mapItem(move) {
-      return { ...move };
-    }),
-    frontSprite: { ...pokemon.frontSprite },
-    backSprite: { ...pokemon.backSprite },
-    baseStats: { ...pokemon.baseStats },
-    individualValues: { ...pokemon.individualValues },
-    statStages: { ...pokemon.statStages },
-  };
-}
-
-function createBattleMoveForTest(
-  id: number,
-  name: string,
-  input: Omit<BattleMove, "id" | "name" | "pp" | "maxPp">,
-): BattleMove {
-  return {
-    id,
-    name,
-    pp: 20,
-    maxPp: 20,
-    ...input,
-  };
-}
-
-function updateBattleParticipantPokemon(
-  participant: BattleParticipant,
-  pokemon: BattlePokemon,
-): BattleParticipant {
-  return {
-    ...participant,
-    pokemon,
-    party: participant.party.map(function mapItem(slot) {
-      return slot.slotIndex === participant.activePartySlotIndex
-        ? { ...slot, pokemon }
-        : {
-            ...slot,
-            pokemon: slot.pokemon ? cloneBattlePokemon(slot.pokemon) : null,
-          };
-    }),
-  };
 }
 
 function createBattleHitEffects(): BattleHitEffects {

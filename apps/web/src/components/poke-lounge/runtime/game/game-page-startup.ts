@@ -14,7 +14,7 @@ import { createBattleUiStore } from "./battle/battle-ui-store";
 import { createPokeLoungeGame, type PokeLoungeGameResult } from "./create-poke-lounge-game";
 import { loadRuntimeGameDataJson, type RuntimeGameDataJson } from "./data/game-data-json";
 import type { PokeLoungeGameplayRuntimeState, PokeLoungeRuntimeState } from "./game-page-state";
-import { readInitialBattleE2eScenario, readInitialGameScene } from "./game-startup";
+import { readInitialGameScene } from "./game-startup";
 import type { GameViewportDisplaySize } from "./game-viewport";
 import { virtualGamepadController } from "./input/virtual-gamepad";
 import {
@@ -31,8 +31,6 @@ import { createMultiplayerRoom } from "./network/multiplayer-room-factory";
 import {
   applyRoomRoundDurationSearchParam,
   readRoomEntryFromLocation,
-  readRoomRoundDurationMs,
-  type RoomEntryIntent,
   type RoomEntryMode,
 } from "./network/room-entry";
 import { shouldResetRoomEntrySession, type RoomEntrySelection } from "./network/room-entry-screen";
@@ -96,8 +94,7 @@ export async function startGamePage(
 ): Promise<GamePageHandle> {
   const usesDefaultGameStateStore = dependencies.gameStateStore === undefined;
   const gameStateStore = dependencies.gameStateStore ?? getDefaultGameStateStore();
-  const initialScene = readInitialGameScene(location);
-  const battleE2eScenario = readInitialBattleE2eScenario(location);
+  const initialScene = readInitialGameScene();
   const currentUrl = new URL(location.href);
   const copy = getPokeLoungeCopyForUrl(currentUrl);
   const activateTestMode = dependencies.activateLocalTestMode ?? activateLocalTestMode;
@@ -322,7 +319,6 @@ export async function startGamePage(
       });
     }
     const game = (dependencies.createPokeLoungeGame ?? createPokeLoungeGame)(mount, {
-      ...(battleE2eScenario ? { battleE2eScenario } : {}),
       competitiveRoundsEnabled,
       gameStateStore,
       initialScene,
@@ -696,31 +692,6 @@ export async function startGamePage(
       onSelect: selectRoomEntry,
     });
   };
-  const showDirectMultiplayerEntry = (roomEntry: RoomEntryIntent) => {
-    if (destroyed) {
-      return;
-    }
-
-    roomEntrySelectionPending = false;
-    const roundDurationMs = readRoomRoundDurationMs(currentUrl.searchParams);
-    emitRuntimeState({
-      phase: "entry",
-      screen: "direct-multiplayer",
-      currentUrl: new URL(currentUrl.href),
-      initialDisplayName: gameStateStore.getCurrentLocalPlayer().displayName,
-      onSubmit: displayName => {
-        selectRoomEntry({
-          mode: "server-room",
-          roomCode: roomEntry.roomCode,
-          inviteUrl: null,
-          displayName,
-          ...(roomEntry.createRoom ? { createRoom: true } : {}),
-          ...(roomEntry.quickPlay ? { quickPlay: true } : {}),
-          ...(roundDurationMs !== null ? { roundDurationMs } : {}),
-        });
-      },
-    });
-  };
   const continueToSelectedRoomOrEntry = () => {
     const localTestModeStartRequested =
       currentUrl.searchParams.get(LOCAL_TEST_MODE_START_QUERY_PARAM) === "1";
@@ -774,15 +745,10 @@ export async function startGamePage(
       return;
     }
 
-    if (roomEntry.mode === "server-room" && !isLocalE2eUrl(currentUrl)) {
+    if (roomEntry.mode === "server-room") {
       clearRoomEntrySearchParams(currentUrl);
       replaceBrowserUrl(currentUrl);
       showRoomEntry();
-      return;
-    }
-
-    if (roomEntry.mode === "server-room") {
-      showDirectMultiplayerEntry(roomEntry);
       return;
     }
 
@@ -803,13 +769,6 @@ export async function startGamePage(
     continueToSelectedRoomOrEntry();
   }
   return handle;
-}
-
-function isLocalE2eUrl(url: URL): boolean {
-  return (
-    url.searchParams.has("e2e") &&
-    (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1")
-  );
 }
 
 function isCompetitiveRoomEntryMode(mode: RoomEntryMode): boolean {

@@ -99,43 +99,27 @@ pnpm --filter @poke-lounge/api start:turn-worker
 
 기본 Web은 `http://localhost:3000`, API는 `http://localhost:3001`이다. Docker 전체 실행과 배포·DB 변경 주의사항은 [API 배포 가이드](apps/api/DEPLOY.md)를 따른다.
 
-## 검증
+## 플레이어 테스트와 개발 확인
 
-기본 정적·단위·빌드 검사는 다음과 같다.
+테스트는 실제 브라우저의 화면을 보고 플레이어처럼 한 동작씩 조작하는 방식만 허용한다. 기준은 [플레이어 직접 조작 지침](PLAYER_TESTING.md)이다. 기본 도구는 `agent-browser`이며 기존 `pnpm player:browser`는 로컬 HTTP용 대안이다. Playwright는 브라우저 API로만 사용한다. 자동 E2E·단위/API/통합 실행기, Storybook, fixture 및 게임 상태 주입 도구는 제거했다.
 
-```bash
+모든 버튼 확인 요청에서는 화면·버튼·조건별 미검증이 남으면 전체 완료/PASS로 보고하지 않는다. 3라운드 최종 결과와 UI 퇴장까지가 전체 한 회이며 우승 여부는 조건이 아니다.
+
+다음은 테스트가 아닌 빌드·정적 개발 확인이다. CI도 이 범위만 실행하며 성공을 플레이어 테스트 PASS로 해석하지 않는다.
+
+```sh
 pnpm lint
-pnpm test
 pnpm build
 pnpm type:check:web
 pnpm check:api-contract
 ```
 
-실제 API E2E는 제품 환경과 분리된 PostgreSQL `_test` DB와 루프백 Redis DB 15(`/15`)를 사용한다. **해당 Redis DB는 테스트가 비우므로 반드시 폐기 가능한 전용 인스턴스를 사용한다.** PostgreSQL 테스트 URL은 일반 `DATABASE_URL`·`DB_URL`과 달라야 하며 DB 이름도 `DB_DATABASE`와 같으면 안 된다. 테스트 DB에는 마이그레이션을 먼저 적용한다.
-
-```bash
-export TEST_DATABASE_URL='postgresql://USER:PASSWORD@127.0.0.1:5432/poke_lounge_test'
-export REDIS_URL='redis://127.0.0.1:6379/15'
-pnpm build:poke-lounge-battle
-pnpm --filter @poke-lounge/api migration:run:test
-pnpm test:api:e2e
-```
-
-Playwright·실제 DB 통합·에이전트 직접 플레이는 별도 검증이다. CI 성공을 이들 검사의 성공으로 해석하지 않는다. 직접 플레이 지침은 [에이전트 브라우저 테스트](.agents/skills/poke-lounge-agent-browser-test/SKILL.md)를 사용한다.
-
-첫 탭·대진 예고 회귀는 이미 빌드해 실행한 **격리된 로컬 Web/API/워커**에 연결한다. `POKE_LOUNGE_REAL_API_TESTS=1`인 경우만 실제 방을 생성하며, 기본값에서는 실제 API 검사를 건너뛴다. 다음 검사는 Playwright UI 회귀이고, 3라운드 직접 플레이 완주로 계산하지 않는다.
-
-```bash
-PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 \
-PLAYWRIGHT_ENABLE_CROSS_BROWSER=1 POKE_LOUNGE_REAL_API_TESTS=1 \
-pnpm --filter @poke-lounge/web exec playwright test \
-  tests/e2e/poke-lounge-entry-first-tap.spec.ts --project=chromium --project=webkit
-```
-
 ## 문서
 
-Git에서 추적하는 기준 문서는 다음 네 개다.
+Git에서 추적하는 기준 문서는 다음과 같다.
 
+- [작업 지침](AGENTS.md): 에이전트 작업 시 필수 기준
+- [플레이어 테스트 지침](PLAYER_TESTING.md): 허용 도구·실제 조작·모든 버튼 확인·판정
 - 이 README: 제품 개요·현재 흐름·로컬 실행
 - [API 배포 가이드](apps/api/DEPLOY.md): Compose·CI 배포·DB 변경·복구 경계
 - [기능 경계](apps/web/src/features/poke-lounge/README.md): UI와 비즈니스 로직의 책임 분리

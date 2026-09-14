@@ -1,3 +1,7 @@
+import { acknowledgePreparation } from "@/features/poke-lounge/application/round/acknowledge-preparation";
+import { getApiBaseUrl } from "@/lib/constants";
+import type { components } from "@/types/api";
+import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import {
   INITIAL_WORKFLOW_RETRY_MAX_DELAY_MS,
   ONLINE_STALE_RECOVERY_DELAY_MS,
@@ -9,14 +13,9 @@ import {
   ROOM_CLOCK_RETRY_MAX_DELAY_MS,
   SERVER_ROOM_REQUEST_TIMEOUT_MS,
 } from "@poke-lounge/battle/timing";
-import { acknowledgePreparation } from "@/features/poke-lounge/application/round/acknowledge-preparation";
-import { getApiBaseUrl } from "@/lib/constants";
-import type { components } from "@/types/api";
 import { sortTournamentParticipantsByJoinOrder } from "@poke-lounge/battle/tournament-seeding";
-import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import { io } from "socket.io-client";
 import { createRoomRunId, isRoomRunId } from "../room-run-id";
-import { createJoinedRoomLocation } from "./room-location";
 import { createCompetitivePartySnapshot } from "./competitive-party-snapshot";
 import {
   CompetitiveProjectionSchemaError,
@@ -34,6 +33,7 @@ import type {
   RoomEvent,
   RoomMessage,
 } from "./local-preview-room";
+import { createJoinedRoomLocation } from "./room-location";
 import {
   findCurrentMatch,
   isRoundReadinessDue,
@@ -41,7 +41,6 @@ import {
   parseServerTournamentState,
   type ServerTournamentState,
   type TournamentCompetitionKind,
-  TournamentProjectionSchemaError,
   type TournamentStateRoomPayload,
 } from "./tournament-projection";
 
@@ -144,44 +143,7 @@ type ServerRoomSocketFactory = (
     reconnection: true;
   },
 ) => ServerRoomSocket;
-
-export type ServerRoomTransportDiagnostics = {
-  socketConnected: boolean;
-  transportState: "not-created" | "connected" | "disconnected";
-  activeTransport: "polling" | "websocket" | "unknown" | null;
-  recoveryAttempt: number;
-  recoveryInFlight: boolean;
-  recoveryTimerScheduled: boolean;
-  subscriptionFailed: boolean;
-  lastAppliedTerminalRevision: number | null;
-  lastAppliedWorldSeq: number | null;
-  worldEpoch: string | null;
-  lastSocketErrorKind:
-    "connect_error" | "disconnect" | "subscription_error" | "invalid_snapshot" | null;
-  lastSocketConnectErrorClass:
-    "websocket_error" | "timeout" | "server_reject" | "cors" | "unknown" | null;
-  lastRecoveryFailureKind:
-    "canonical_mismatch" | "transition_merge" | "recovery_parse" | "unknown" | null;
-};
-
-type RecoveryFailureKind = NonNullable<ServerRoomTransportDiagnostics["lastRecoveryFailureKind"]>;
 type RecoveryOrigin = "transport" | "online-probe";
-
-interface ServerRoomE2eDiagnosticsReader {
-  getRoomTransportDiagnosticsForE2e?(): ServerRoomTransportDiagnostics;
-}
-
-export function getServerRoomTransportDiagnosticsForE2e(
-  room: MultiplayerRoom | undefined,
-): ServerRoomTransportDiagnostics | null {
-  if (!isE2eEnabled()) {
-    return null;
-  }
-
-  const reader = room as (MultiplayerRoom & ServerRoomE2eDiagnosticsReader) | undefined;
-
-  return reader?.getRoomTransportDiagnosticsForE2e?.() ?? null;
-}
 
 const SERVER_IDENTITY_STORAGE_KEY = "poke-lounge:server-room-identity";
 const SERVER_ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
@@ -346,10 +308,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let connectionStatusAnnounced = false;
   let subscriptionFailed = false;
   let subscriptionRetryRequired = false;
-  let lastSocketErrorKind: ServerRoomTransportDiagnostics["lastSocketErrorKind"] = null;
-  let lastSocketConnectErrorClass: ServerRoomTransportDiagnostics["lastSocketConnectErrorClass"] =
-    null;
-  let lastRecoveryFailureKind: ServerRoomTransportDiagnostics["lastRecoveryFailureKind"] = null;
   let cursorRegression = false;
   let connectStarted = false;
   let hasSynchronizedPartySnapshot = false;
@@ -857,7 +815,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         emitRoomSubscription();
       } else if ((applied || terminalCursorAdvanced) && !recoveryRetryQueued) {
         subscriptionFailed = false;
-        lastRecoveryFailureKind = null;
         if (!shouldContinueRecovery()) {
           clearRecoveryTimer();
         }
@@ -869,8 +826,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       ) {
         recoveryDrainQueued = true;
       }
-    } catch (error) {
-      lastRecoveryFailureKind = classifyRecoveryFailure(error);
+    } catch {
       if (origin === "online-probe") {
         onlineProbeFailed = true;
       } else {
@@ -1060,12 +1016,10 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     visibilityRecoveryDocument.addEventListener("visibilitychange", handleVisibilityRecovery);
   };
 
-  const requestTerminalRecovery = (failureKind: RecoveryFailureKind = "unknown") => {
+  const requestTerminalRecovery = () => {
     if (disposed || cursorRegression || activeRoomId === PENDING_ROOM_ID) {
       return;
     }
-
-    lastRecoveryFailureKind = failureKind;
     subscriptionFailed = true;
     if (recoveryInFlight) {
       recoveryRetryQueued = true;
@@ -1094,19 +1048,16 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     subscriptionRetryRequired = false;
     worldResyncRequested = false;
     emitConnectionStatus("offline");
-    lastSocketErrorKind = "disconnect";
     clearOnlineStaleRecovery();
     scheduleRecovery();
   };
 
-  const handleSocketConnectError = (error: unknown) => {
+  const handleSocketConnectError = () => {
     socketConnected = false;
     subscriptionRetryRequired = false;
     worldResyncRequested = false;
     emitConnectionStatus("offline");
     subscriptionFailed = true;
-    lastSocketErrorKind = "connect_error";
-    lastSocketConnectErrorClass = classifySocketConnectError(error);
     clearOnlineStaleRecovery();
     scheduleRecovery();
   };
@@ -1228,7 +1179,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       room = parseSocketRoomEvent(event);
     } catch {
       subscriptionFailed = true;
-      lastSocketErrorKind = "invalid_snapshot";
       scheduleRecovery();
       return;
     }
@@ -1243,7 +1193,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     ) {
       subscriptionFailed = false;
       subscriptionRetryRequired = false;
-      lastRecoveryFailureKind = null;
       emitConnectionStatus("online");
       clearRecoveryTimer();
     }
@@ -1289,7 +1238,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     subscriptionFailed = true;
     subscriptionRetryRequired = true;
     worldResyncRequested = false;
-    lastSocketErrorKind = "subscription_error";
     emitConnectionStatus("connecting");
     clearOnlineStaleRecovery();
     scheduleRecovery();
@@ -1372,7 +1320,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       state.revision === lastAppliedRoomRevision &&
       !hasSameCanonicalRoomProjection(latestState, state)
     ) {
-      requestTerminalRecovery("canonical_mismatch");
+      requestTerminalRecovery();
       return false;
     }
 
@@ -1384,7 +1332,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     try {
       applyTerminalTransitions(state.competitiveTransitions);
     } catch {
-      requestTerminalRecovery("transition_merge");
+      requestTerminalRecovery();
       return false;
     }
 
@@ -2048,25 +1996,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
   };
 
-  const getRoomTransportDiagnosticsForE2e = (): ServerRoomTransportDiagnostics => ({
-    socketConnected,
-    transportState:
-      roomSocket === null ? "not-created" : socketConnected ? "connected" : "disconnected",
-    activeTransport: readActiveSocketTransport(roomSocket, socketConnected),
-    recoveryAttempt,
-    recoveryInFlight,
-    recoveryTimerScheduled: recoveryTimer !== null,
-    subscriptionFailed,
-    lastAppliedTerminalRevision: freshTerminalBaselineInitialized
-      ? lastAppliedTerminalRevision
-      : null,
-    lastAppliedWorldSeq: worldSnapshotInitialized ? lastAppliedWorldSeq : null,
-    worldEpoch,
-    lastSocketErrorKind,
-    lastSocketConnectErrorClass,
-    lastRecoveryFailureKind,
-  });
-
   return {
     get roomId() {
       return activeRoomId;
@@ -2236,7 +2165,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         nextHandlers.delete(typedHandler);
       };
     },
-    ...(isE2eEnabled() ? { getRoomTransportDiagnosticsForE2e } : {}),
   };
 
   async function openServerRoom(snapshot: PlayerSnapshot): Promise<ServerRoomState> {
@@ -2485,76 +2413,6 @@ function createDefaultSnapshot(sessionId: string, playerId: string): PlayerSnaps
     y: 446,
     facing: "front",
   };
-}
-
-function isE2eEnabled(): boolean {
-  return typeof window !== "undefined" && new URLSearchParams(window.location.search).has("e2e");
-}
-
-function readActiveSocketTransport(
-  socket: ServerRoomSocket | null,
-  isConnected: boolean,
-): ServerRoomTransportDiagnostics["activeTransport"] {
-  if (!socket || !isConnected) {
-    return null;
-  }
-
-  const name = socket.io?.engine?.transport?.name;
-  return name === "polling" || name === "websocket" ? name : "unknown";
-}
-
-function classifySocketConnectError(
-  error: unknown,
-): NonNullable<ServerRoomTransportDiagnostics["lastSocketConnectErrorClass"]> {
-  const record = error && typeof error === "object" ? (error as Record<string, unknown>) : null;
-  const details = [
-    error instanceof Error ? error.name : undefined,
-    error instanceof Error ? error.message : undefined,
-    record?.name,
-    record?.message,
-    record?.description,
-  ]
-    .filter(function filterItem(value): value is string {
-      return typeof value === "string";
-    })
-    .join(" ")
-    .toLowerCase();
-
-  if (details.includes("cors") || details.includes("cross-origin") || details.includes("origin")) {
-    return "cors";
-  }
-
-  if (details.includes("timeout") || details.includes("timed out")) {
-    return "timeout";
-  }
-
-  if (details.includes("websocket")) {
-    return "websocket_error";
-  }
-
-  if (
-    details.includes("reject") ||
-    details.includes("forbidden") ||
-    details.includes("unauthorized") ||
-    details.includes("invalid namespace")
-  ) {
-    return "server_reject";
-  }
-
-  return "unknown";
-}
-
-function classifyRecoveryFailure(error: unknown): RecoveryFailureKind {
-  if (
-    error instanceof ServerRoomJsonParseError ||
-    error instanceof ServerRoomSchemaError ||
-    error instanceof TournamentProjectionSchemaError ||
-    error instanceof CompetitiveProjectionSchemaError
-  ) {
-    return "recovery_parse";
-  }
-
-  return "unknown";
 }
 
 function isRecoverableInitialWorkflowError(error: unknown): boolean {
@@ -3246,18 +3104,6 @@ function hasSamePlayerIds(left: ReadonlyArray<string>, right: ReadonlyArray<stri
 }
 
 function resolveServerRoomSocketFactory(): ServerRoomSocketFactory {
-  if (typeof window !== "undefined" && isE2eEnabled()) {
-    const e2eFactory = (
-      window as Window & {
-        __POKE_LOUNGE_E2E_SOCKET_FACTORY__?: ServerRoomSocketFactory;
-      }
-    ).__POKE_LOUNGE_E2E_SOCKET_FACTORY__;
-
-    if (e2eFactory) {
-      return e2eFactory;
-    }
-  }
-
   return function callback(url, options) {
     return io(url, options) as unknown as ServerRoomSocket;
   };

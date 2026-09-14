@@ -1,7 +1,7 @@
-import path from "node:path";
 import type { NextConfig } from "next";
-import { HTML_LIMITED_BOT_UA_RE } from "next/dist/shared/lib/router/utils/html-bots";
 import createNextIntlPlugin from "next-intl/plugin";
+import { HTML_LIMITED_BOT_UA_RE } from "next/dist/shared/lib/router/utils/html-bots";
+import path from "node:path";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const monorepoRoot = path.resolve(process.cwd(), "../..");
@@ -40,7 +40,7 @@ const connectSources = createConnectSources(process.env.NEXT_PUBLIC_API_URL);
 const nextConfig: NextConfig = {
   reactStrictMode: false,
   // This option replaces Next's list. Extend the installed default so other crawlers retain head metadata.
-  // Keep the internal import covered by next-config.test.ts when upgrading Next.
+  // Review the installed default list when upgrading Next.
   htmlLimitedBots: new RegExp(
     `${HTML_LIMITED_BOT_UA_RE.source}|kakaotalk-scrap|kakaostory-og-reader`,
     HTML_LIMITED_BOT_UA_RE.flags,
@@ -51,15 +51,6 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingRoot: monorepoRoot,
   transpilePackages: ["@poke-lounge/battle"],
-  async redirects() {
-    return [
-      {
-        source: "/storybook",
-        destination: "/storybook/index.html",
-        permanent: false,
-      },
-    ];
-  },
   async headers() {
     return [
       {

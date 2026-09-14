@@ -251,10 +251,6 @@ export function getRuntimeBattlePokemonSpriteSheetRanges(
   return runtimeGameDataJsonState.battlePokemonAssets.spriteSheetRanges;
 }
 
-export function getRuntimePokemonDataRecordCountForTest(): number | null {
-  return runtimeGameDataJsonState.pokemonDataRecordCount;
-}
-
 export function getRuntimePokemonData(): unknown | null {
   return runtimeGameDataJsonState.pokemonData;
 }
@@ -531,10 +527,6 @@ export function getRuntimeMoveName(moveId: number): string {
     throw new Error(`Missing runtime move name for move ${moveId}`);
   }
   return name;
-}
-
-export function resetRuntimeGameDataJsonStateForTest(): void {
-  resetRuntimeGameDataJsonState();
 }
 
 function resetRuntimeGameDataJsonState(): void {

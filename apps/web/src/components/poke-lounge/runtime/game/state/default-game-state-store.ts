@@ -1,10 +1,10 @@
-import { createGameStateStore, type GameStateStore } from "./game-state-store";
+import { isRoomRunId } from "../room-run-id";
 import {
   ANONYMOUS_GAME_STATE_STORAGE_SCOPE,
   createWebStorageGameStateStorage,
   migrateGameStateStorageToLocalStorage,
 } from "./game-state-storage";
-import { isRoomRunId } from "../room-run-id";
+import { createGameStateStore, type GameStateStore } from "./game-state-store";
 
 let defaultGameStateStore: GameStateStore | null = null;
 let defaultGameStateStorageScope = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
@@ -36,12 +36,6 @@ export function getDefaultGameStateStore(): GameStateStore {
   });
 
   return defaultGameStateStore;
-}
-
-export function resetDefaultGameStateStoreForTest(): void {
-  defaultGameStateStore = null;
-  defaultGameStateStorageScope = ANONYMOUS_GAME_STATE_STORAGE_SCOPE;
-  defaultGameStateRoomRunId = null;
 }
 
 export function setDefaultGameStateStorageScope(scope: string): void {
