@@ -2381,6 +2381,19 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           await send();
         }
       } catch (error) {
+        // The session may have expired while its result screen was still open.
+        // Only a room-not-found response completes leave; routing/auth/network
+        // errors must remain failures so a live participant is not abandoned.
+        if (
+          error instanceof ServerRoomRequestError &&
+          error.status === 404 &&
+          error.responseBody !== null &&
+          typeof error.responseBody === "object" &&
+          "message" in error.responseBody &&
+          error.responseBody.message === "Poke Lounge room not found"
+        ) {
+          return;
+        }
         leaveSent = false;
         leavePromise = null;
         throw error;

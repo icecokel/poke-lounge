@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  canChooseBattleCommand,
+  canChooseBattleAction,
+} from "@/features/poke-lounge/presentation/battle/selection-model";
+import { getMobileUiCopy } from "../../../mobile/mobile-ui-copy";
 import { OpponentPartyIndicator } from "./opponent-party-indicator";
 import { BATTLE_BAG_PAGE_SIZE } from "./battle-bag-selection";
 
@@ -542,7 +547,7 @@ export function BattleSurfaceRouter({
     return <BattlePartyPanel copy={copy} controls={controls} onAction={onAction} />;
   }
   if (presentation.phase === "bag-select") {
-    return <BattleBagPanel controls={controls} onAction={onAction} />;
+    return <BattleBagPanel copy={copy} controls={controls} onAction={onAction} />;
   }
   return (
     <BattleMessagePanel
@@ -602,7 +607,14 @@ export function BattleCommandPanel({
             key={command.id}
             label={labels[command.id]}
             selected={command.selected}
+            disabled={!canChooseBattleCommand(controls, command.id)}
+            meta={
+              controls.isAuthoritative && (command.id === "bag" || command.id === "run")
+                ? getMobileUiCopy(copy.locale).competitiveUnavailable
+                : undefined
+            }
             onClick={function handleClick() {
+              if (!canChooseBattleCommand(controls, command.id)) return;
               return onAction({ type: "select-command", index });
             }}
           />
@@ -751,9 +763,11 @@ export function BattlePartyPanel({
 }
 
 export function BattleBagPanel({
+  copy,
   controls,
   onAction,
 }: {
+  copy: PokeLoungeCopy;
   controls: MobileBattleUiState;
   onAction(action: MobileBattleUiAction): void;
 }) {
@@ -763,7 +777,11 @@ export function BattleBagPanel({
       return item.selected;
     }),
   );
-  const pageStart = Math.floor(selectedIndex / BATTLE_BAG_PAGE_SIZE) * BATTLE_BAG_PAGE_SIZE;
+  const page = Math.floor(selectedIndex / BATTLE_BAG_PAGE_SIZE);
+  const pageStart = page * BATTLE_BAG_PAGE_SIZE;
+  const pageCount = Math.max(1, Math.ceil(controls.items.length / BATTLE_BAG_PAGE_SIZE));
+  const text = getMobileUiCopy(copy.locale);
+  const canBrowse = canChooseBattleAction(controls);
   return (
     <div
       className={`${styles.battleWindow} ${styles.battleBagPanel}`}
@@ -790,6 +808,29 @@ export function BattleBagPanel({
             </button>
           );
         })}
+      {pageCount > 1 ? (
+        <nav className={styles.battleBagPagination} aria-label={copy.mobile.bag}>
+          <button
+            type="button"
+            aria-label={text.previousPage}
+            disabled={!canBrowse || page === 0}
+            onClick={() => onAction({ type: "change-item-page", direction: -1 })}
+          >
+            ‹ {text.previousPage}
+          </button>
+          <span role="status" aria-live="polite">
+            {page + 1} / {pageCount}
+          </span>
+          <button
+            type="button"
+            aria-label={text.nextPage}
+            disabled={!canBrowse || page + 1 === pageCount}
+            onClick={() => onAction({ type: "change-item-page", direction: 1 })}
+          >
+            {text.nextPage} ›
+          </button>
+        </nav>
+      ) : null}
     </div>
   );
 }

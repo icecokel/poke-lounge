@@ -424,6 +424,9 @@ function MobileDirectionalJoystick({
       data-poke-lounge-mobile-joystick="true"
       onPointerDown={function handlePointerDown(event) {
         event.preventDefault();
+        // Own one pointer until it is released. A second finger must not steal
+        // the joystick or release the first finger's held directions.
+        if (activePointerId.current !== null || event.button !== 0) return;
         activePointerId.current = event.pointerId;
         try {
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -445,8 +448,8 @@ function MobileDirectionalJoystick({
       onPointerCancel={function handlePointerCancel(event) {
         return release(event.pointerId);
       }}
-      onLostPointerCapture={function handleLostPointerCapture() {
-        return release();
+      onLostPointerCapture={function handleLostPointerCapture(event) {
+        return release(event.pointerId);
       }}
       onBlur={function handleBlur() {
         return release();

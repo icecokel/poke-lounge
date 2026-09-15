@@ -95,6 +95,8 @@ export type BattleUiAction =
   | { type: "select-move"; index: number }
   | { type: "select-party"; index: number }
   | { type: "select-item"; index: number }
+  /** Browses the bag without confirming or consuming an item/turn. */
+  | { type: "change-item-page"; direction: -1 | 1 }
   | { type: "select-move-replacement"; index: number }
   | { type: "confirm-move-replacement" };
 

@@ -492,6 +492,38 @@
   gap: 0.1em;
 }
 
+.battleBagPanel:has(.battleBagPagination) {
+  grid-template-rows: repeat(2, minmax(0, 1fr)) auto;
+}
+
+.battleBagPagination {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.2em 0.35em;
+  color: var(--pl-color-ink);
+  background: var(--pl-color-surface);
+  border: max(1px, 0.3cqw) solid var(--pl-color-ink);
+  font-size: 0.72em;
+}
+
+.battleBagPagination > button {
+  padding: 0.25em 0.4em;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.battleBagPagination > button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .battleBagPanel > button {
   min-width: 0;
   display: flex;

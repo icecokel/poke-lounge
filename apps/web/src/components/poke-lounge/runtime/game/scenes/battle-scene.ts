@@ -35,7 +35,7 @@ import {
   playWildBattleBgm,
   stopWildBattleBgm,
 } from "../battle/battle-audio";
-import { moveBattleBagSelection } from "../battle/battle-bag-selection";
+import { BATTLE_BAG_PAGE_SIZE, moveBattleBagSelection } from "../battle/battle-bag-selection";
 import {
   BATTLE_BACKGROUND_ASSET_KEY,
   BATTLE_WINDOW_FRAME_ASSET_KEY,
@@ -440,6 +440,9 @@ export class BattleController {
   private authoritativeOwnPlayerId: string | null = null;
   private authoritativeSpectating = false;
   private authoritativeInputPending = false;
+  // A validated projection may arrive before CONNECTION_STATUS=online.
+  // Never unlock from the stale projection that predates a disconnect.
+  private authoritativeRecoveryState: BattleScreenState | null = null;
   private authoritativeTerminalTransition: AuthoritativeTerminalTransition | null = null;
   private authoritativeConnectionStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"] =
     "offline";
@@ -786,6 +789,18 @@ export class BattleController {
       this.selectedPartySlotIndex = action.index;
       playBattleConfirmSound();
       this.confirmSelection();
+      return;
+    }
+
+    if (action.type === "change-item-page" && this.state.phase === "bag-select") {
+      if (action.direction !== -1 && action.direction !== 1) return;
+      const count = this.getBattleBagItemIds().length;
+      const page = Math.floor(this.selectedBagItemIndex / BATTLE_BAG_PAGE_SIZE);
+      const nextIndex = (page + action.direction) * BATTLE_BAG_PAGE_SIZE;
+      if (nextIndex < 0 || nextIndex >= count) return;
+      this.selectedBagItemIndex = nextIndex;
+      playBattleConfirmSound();
+      this.render();
       return;
     }
 
@@ -1572,6 +1587,7 @@ export class BattleController {
             connectionStatus !== "online" &&
             this.authoritativeProjection?.status !== "completed"
           ) {
+            this.authoritativeRecoveryState = null;
             this.authoritativeInputPending = true;
             this.state = {
               ...this.state,
@@ -1579,6 +1595,24 @@ export class BattleController {
               messageQueue: [this.getBattleStatusCopy().connectionRecovering],
             };
             this.render();
+          } else if (
+            connectionStatus === "online" &&
+            this.authoritativeRecoveryState &&
+            this.authoritativeProjection &&
+            this.authoritativeOwnPlayerId &&
+            !this.competitivePreemptionQueued &&
+            !this.returningToWorld
+          ) {
+            const recoveredState = this.authoritativeRecoveryState;
+            this.authoritativeRecoveryState = null;
+            const projection = this.authoritativeProjection;
+            const ownPlayerId = this.authoritativeOwnPlayerId;
+            this.authoritativeInputPending =
+              projection.status !== "completed" &&
+              (this.authoritativeSpectating ||
+                isWaitingForOpponentReplacement(projection, ownPlayerId) ||
+                projection.submittedPlayerIds.includes(ownPlayerId));
+            this.setBattleState(recoveredState);
           }
         }.bind(this),
       ),
@@ -1672,10 +1706,12 @@ export class BattleController {
             this.state,
             spectating,
           );
+          this.authoritativeRecoveryState = null;
           if (
             this.authoritativeConnectionStatus !== "online" &&
             projection.status !== "completed"
           ) {
+            this.authoritativeRecoveryState = nextState;
             this.authoritativeInputPending = true;
             this.setBattleState({
               ...nextState,
@@ -1696,6 +1732,7 @@ export class BattleController {
           if (matchId !== this.authoritativeProjection?.matchId) {
             return;
           }
+          this.authoritativeRecoveryState = null;
           this.authoritativeInputPending = true;
           this.state = { ...this.state, phase: "resolving", messageQueue: [message] };
           this.render();
@@ -1800,6 +1837,7 @@ export class BattleController {
   }
 
   private clearAuthoritativeSubscriptions(): void {
+    this.authoritativeRecoveryState = null;
     this.authoritativeUnsubscribers.forEach(function visitItem(unsubscribe) {
       return unsubscribe();
     });
