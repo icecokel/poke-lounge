@@ -11,7 +11,7 @@ const PokeLoungeLoadingScreen = () => {
 
   return (
     <main
-      className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-4 text-white"
+      className="flex min-h-screen w-full items-center justify-center bg-background px-4 text-foreground"
       data-testid="poke-lounge-loading-screen"
     >
       <div className="flex flex-col items-center gap-4 text-center">

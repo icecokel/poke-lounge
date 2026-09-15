@@ -1,9 +1,5 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-/*
-  ---break---
-*/
-@custom-variant dark (&:is(.dark *));
 
 @theme {
   --color-*: initial;
@@ -79,10 +75,11 @@
   }
 }
 
+html,
 body {
-  margin: 0px;
-  background-color: var(--color-gray-900);
-  color: var(--color-white);
+  margin: 0;
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 * {
@@ -255,6 +252,11 @@ body {
 */
 
 :root {
+  /* One authored palette in every browser, regardless of OS/app appearance.
+     Keep light as a fallback for engines without the "only" keyword.
+     Do not disable forced-colors: user high-contrast settings are separate. */
+  color-scheme: light;
+  color-scheme: only light;
   --radius: 0.625rem;
   --background: #ffffff;
   --foreground: #181818;
@@ -287,44 +289,6 @@ body {
   --sidebar-accent-foreground: #181818;
   --sidebar-border: #e4e4e7;
   --sidebar-ring: #181818;
-}
-
-/*
-  ---break---
-*/
-
-.dark {
-  --background: #181818;
-  --foreground: #ffffff;
-  --card: #1f1f1f;
-  --card-foreground: #ffffff;
-  --popover: #1f1f1f;
-  --popover-foreground: #ffffff;
-  --primary: #ffffff;
-  --primary-foreground: #181818;
-  --secondary: #2a2a2a;
-  --secondary-foreground: #ffffff;
-  --muted: #2a2a2a;
-  --muted-foreground: #a1a1aa;
-  --accent: #2a2a2a;
-  --accent-foreground: #ffffff;
-  --destructive: #7f1d1d;
-  --border: #2a2a2a;
-  --input: #2a2a2a;
-  --ring: #d4d4d8;
-  --chart-1: #22c55e;
-  --chart-2: #3b82f6;
-  --chart-3: #f59e0b;
-  --chart-4: #8b5cf6;
-  --chart-5: #ec4899;
-  --sidebar: #181818;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #3b82f6;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #2a2a2a;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2a2a2a;
-  --sidebar-ring: #d4d4d8;
 }
 
 /*
