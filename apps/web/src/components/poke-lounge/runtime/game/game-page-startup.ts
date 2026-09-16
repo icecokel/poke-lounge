@@ -39,6 +39,7 @@ import {
   POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT,
   readStoredServerRoomResume,
   type PokeLoungeServerRoomErrorDetail,
+  type PokeLoungeFreshSessionRequiredDetail,
 } from "./network/server-room";
 import { createWebRtcRoom, isWebRtcRoom } from "./network/web-rtc-room";
 import { createRoomRunId } from "./room-run-id";
@@ -395,9 +396,13 @@ export async function startGamePage(
         returnToRoomEntry();
       })();
     };
-    const handleFreshSessionRequired = () => {
+    const handleFreshSessionRequired = (event: Event) => {
+      const detail = (event as CustomEvent<PokeLoungeFreshSessionRequiredDetail>).detail;
       dispatchPokeLoungeNotice(mount.ownerDocument, {
-        message: copy.roomEntry.freshSession,
+        message:
+          detail?.reason === "room-expired"
+            ? getServerRoomErrorMessage(copy.locale, "ROOM_EXPIRED")
+            : copy.roomEntry.freshSession,
         tone: "warning",
       });
       returnToRoomEntry();

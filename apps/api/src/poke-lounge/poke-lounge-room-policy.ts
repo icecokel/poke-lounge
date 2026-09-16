@@ -1,5 +1,5 @@
 import {
-  POKE_LOUNGE_SESSION_TTL_ROUND_MULTIPLIER,
+  POKE_LOUNGE_SESSION_MAX_LIFETIME_MS,
   POKE_LOUNGE_FINISHED_ROOM_RETENTION_MS,
 } from '@poke-lounge/battle/timing';
 import { sortTournamentParticipantsByJoinOrder } from '@poke-lounge/battle/tournament-seeding';
@@ -48,13 +48,14 @@ export function getPokeLoungeRoomHostPlayerId(
 export function getPokeLoungeRoomExpiresAtMs(
   room: Pick<
     PokeLoungeRoomSnapshot,
-    'createdAtMs' | 'round' | 'status' | 'updatedAtMs' | 'expiresAtMs'
+    'createdAtMs' | 'status' | 'updatedAtMs' | 'expiresAtMs'
   >,
 ): number {
-  // A session has a fixed lifetime; player and worker activity must not renew it.
+  // Exploration length does not bound tournament turns, loading or lobby time.
+  // Keep a separate hard cap so active championships survive short round settings
+  // without allowing player/AI activity to renew abandoned rooms forever.
   const sessionExpiresAtMs =
-    room.createdAtMs +
-    room.round.durationMs * POKE_LOUNGE_SESSION_TTL_ROUND_MULTIPLIER;
+    room.createdAtMs + POKE_LOUNGE_SESSION_MAX_LIFETIME_MS;
   if (room.status === 'completed' || room.status === 'closed') {
     // Keep the first cleanup deadline even if a player leaves the result screen later.
     return Math.min(
@@ -70,7 +71,7 @@ export function isPokeLoungeRoomExpired(
   room: Pick<PokeLoungeRoomSnapshot, 'expiresAtMs'>,
   nowMs: number,
 ): boolean {
-  return room.expiresAtMs < nowMs;
+  return room.expiresAtMs <= nowMs;
 }
 
 /** Host start opens starter selection; only the ready party barrier starts exploration. */

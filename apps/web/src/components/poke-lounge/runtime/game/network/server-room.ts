@@ -12,6 +12,7 @@ import {
   ROOM_CLOCK_RETRY_INITIAL_DELAY_MS,
   ROOM_CLOCK_RETRY_MAX_DELAY_MS,
   SERVER_ROOM_REQUEST_TIMEOUT_MS,
+  SERVER_ROOM_LIVENESS_INTERVAL_MS,
 } from "@poke-lounge/battle/timing";
 import { sortTournamentParticipantsByJoinOrder } from "@poke-lounge/battle/tournament-seeding";
 import { io } from "socket.io-client";
@@ -104,6 +105,11 @@ export const POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT =
   "poke-lounge:server-room-fresh-session-required";
 export const POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT = "poke-lounge:server-room-error";
 
+export interface PokeLoungeFreshSessionRequiredDetail {
+  roomCode: string | null;
+  reason?: "room-expired";
+}
+
 export interface PokeLoungeServerRoomErrorDetail {
   code:
     | "ROOM_CREATE_FAILED"
@@ -112,6 +118,7 @@ export interface PokeLoungeServerRoomErrorDetail {
     | "ROOM_READY_FAILED"
     | "ROOM_TRANSPORT_FAILED"
     | "ROOM_FULL"
+    | "ROOM_EXPIRED"
     | "CURSOR_REGRESSION";
   message: string;
   recoverable: boolean;
@@ -253,6 +260,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const handlers = new Map<RoomMessage, Set<Handler<RoomMessage>>>();
   let disposed = false;
   let recoveryTimer: number | null = null;
+  let roomLivenessTimer: number | null = null;
   let recoveryAttempt = 0;
   let recoveryInFlight = false;
   let recoveryRetryQueued = false;
@@ -358,6 +366,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   };
 
   const dispatchServerRoomError = (detail: Omit<PokeLoungeServerRoomErrorDetail, "cancel">) => {
+    if (disposed) return;
     dispatchWindowEvent<PokeLoungeServerRoomErrorDetail>(POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT, {
       ...detail,
       cancel: returnToRoomEntry,
@@ -365,6 +374,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   };
 
   const reportTransportError = (error: Error) => {
+    if (disposed) return;
     if (options.onTransportError) {
       options.onTransportError(error);
     } else {
@@ -378,12 +388,25 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     });
   };
 
+  const handleMissingRoom = () => {
+    // Preserve final standings and the explicit leave flow after normal cleanup.
+    // A local clock or a transport failure alone must never evict a live player.
+    if (disposed || leaveSent || !latestState || isTerminalState()) return;
+    disposeRoom();
+    clearStoredServerRoomSession(options.accountId);
+    dispatchWindowEvent<PokeLoungeFreshSessionRequiredDetail>(
+      POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT,
+      { roomCode: activeRoomId, reason: "room-expired" },
+    );
+  };
+
   const requestRoom = async (path: string, init?: RequestInit): Promise<ServerRoomState> => {
     let httpResponse: { response: Response; responseText: string };
 
     try {
       httpResponse = await fetchResponseWithTimeout(`${getApiBaseUrl()}${path}`, {
         ...init,
+        cache: "no-store",
         headers: {
           ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}),
           ...init?.headers,
@@ -396,7 +419,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     const unwrapped = unwrapApiResponse<unknown>(responseBody);
 
     if (!httpResponse.response.ok) {
-      throw new ServerRoomRequestError(httpResponse.response.status, unwrapped);
+      const error = new ServerRoomRequestError(httpResponse.response.status, unwrapped);
+      if (isRoomNotFoundRequestError(error)) handleMissingRoom();
+      throw error;
     }
 
     return parseServerRoomState(unwrapped);
@@ -742,6 +767,29 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const isTerminalState = () =>
     latestState?.status === "completed" || latestState?.status === "closed";
 
+  const clearRoomLivenessCheck = () => {
+    if (roomLivenessTimer !== null) window.clearTimeout(roomLivenessTimer);
+    roomLivenessTimer = null;
+  };
+
+  const scheduleRoomLivenessCheck = (immediate = false) => {
+    clearRoomLivenessCheck();
+    if (disposed || leaveSent || cursorRegression || !latestState || isTerminalState()) return;
+    // Socket connectivity is not proof that the Redis room still exists.
+    // Probe even when eliminated/spectating with no personal turn deadline.
+    // Bound retries after expiry and confirm with the server to tolerate clock skew.
+    const delayMs = immediate
+      ? 0
+      : Math.min(
+          SERVER_ROOM_LIVENESS_INTERVAL_MS,
+          Math.max(RECOVERY_MAX_DELAY_MS, latestState.expiresAtMs - Date.now()),
+        );
+    roomLivenessTimer = window.setTimeout(function handleTimeout() {
+      roomLivenessTimer = null;
+      void runRecovery("online-probe").finally(() => scheduleRoomLivenessCheck());
+    }, delayMs);
+  };
+
   const emitRoomSubscription = () => {
     if (!roomSocket || !socketConnected || activeRoomId === PENDING_ROOM_ID) {
       return;
@@ -1004,7 +1052,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return;
     }
 
-    scheduleOnlineStaleRecovery(0);
+    scheduleRoomLivenessCheck(true);
   };
 
   const registerVisibilityRecovery = () => {
@@ -1309,6 +1357,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   };
 
   const applySnapshot = (state: ServerRoomState): boolean => {
+    // Ignore in-flight responses from an expired/disposed session.
+    if (disposed) return false;
     const acceptsCreatedRoom = activeRoomId === PENDING_ROOM_ID;
 
     if (!acceptsCreatedRoom && state.roomCode !== activeRoomId) {
@@ -1437,6 +1487,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       clearOnlineStaleRecovery();
     }
     scheduleRoomClockRefresh();
+    scheduleRoomLivenessCheck();
     if (previousState && previousState.status !== state.status && !isPartySnapshotLocked()) {
       resumePendingPartyPublication();
     }
@@ -2076,39 +2127,11 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     leave() {
       return requestLeave().then(function handleResolved() {
         clearOnlineStaleRecovery();
+        clearRoomLivenessCheck();
         clearStoredServerRoomSession(options.accountId);
       });
     },
-    dispose() {
-      if (disposed) {
-        return;
-      }
-
-      disposed = true;
-      clearPartyRetryTimer();
-      pendingPartyPublication = null;
-      emitConnectionStatus("offline");
-      clearRecoveryTimer();
-      clearInitialWorkflowTimer();
-      clearOnlineStaleRecovery();
-      clearRoomClockRefresh();
-      visibilityRecoveryDocument?.removeEventListener("visibilitychange", handleVisibilityRecovery);
-      visibilityRecoveryDocument = null;
-      if (roomSocket) {
-        roomSocket.off("connect", handleSocketConnect);
-        roomSocket.off("connect_error", handleSocketConnectError);
-        roomSocket.off("disconnect", handleSocketDisconnect);
-        roomSocket.off("room.snapshot", handleSocketSnapshot);
-        roomSocket.off("room.player-event", handleSharedWorldEvent);
-        roomSocket.off("room.world-snapshot", handleWorldSnapshot);
-        roomSocket.off("room.world-cursor", handleWorldCursor);
-        roomSocket.off("room.subscription-error", handleSubscriptionError);
-        roomSocket.off("room.revision-conflict", handleRevisionConflict);
-        roomSocket.disconnect();
-        roomSocket = null;
-      }
-      handlers.clear();
-    },
+    dispose: disposeRoom,
     send(type, payload) {
       if (disposed) {
         return;
@@ -2166,6 +2189,38 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       };
     },
   };
+
+  function disposeRoom(): void {
+    if (disposed) {
+      return;
+    }
+
+    disposed = true;
+    clearPartyRetryTimer();
+    pendingPartyPublication = null;
+    emitConnectionStatus("offline");
+    clearRecoveryTimer();
+    clearInitialWorkflowTimer();
+    clearOnlineStaleRecovery();
+    clearRoomClockRefresh();
+    clearRoomLivenessCheck();
+    visibilityRecoveryDocument?.removeEventListener("visibilitychange", handleVisibilityRecovery);
+    visibilityRecoveryDocument = null;
+    if (roomSocket) {
+      roomSocket.off("connect", handleSocketConnect);
+      roomSocket.off("connect_error", handleSocketConnectError);
+      roomSocket.off("disconnect", handleSocketDisconnect);
+      roomSocket.off("room.snapshot", handleSocketSnapshot);
+      roomSocket.off("room.player-event", handleSharedWorldEvent);
+      roomSocket.off("room.world-snapshot", handleWorldSnapshot);
+      roomSocket.off("room.world-cursor", handleWorldCursor);
+      roomSocket.off("room.subscription-error", handleSubscriptionError);
+      roomSocket.off("room.revision-conflict", handleRevisionConflict);
+      roomSocket.disconnect();
+      roomSocket = null;
+    }
+    handlers.clear();
+  }
 
   async function openServerRoom(snapshot: PlayerSnapshot): Promise<ServerRoomState> {
     const participantBody = {
@@ -2384,14 +2439,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         // The session may have expired while its result screen was still open.
         // Only a room-not-found response completes leave; routing/auth/network
         // errors must remain failures so a live participant is not abandoned.
-        if (
-          error instanceof ServerRoomRequestError &&
-          error.status === 404 &&
-          error.responseBody !== null &&
-          typeof error.responseBody === "object" &&
-          "message" in error.responseBody &&
-          error.responseBody.message === "Poke Lounge room not found"
-        ) {
+        if (isRoomNotFoundRequestError(error)) {
           return;
         }
         leaveSent = false;
@@ -2414,6 +2462,17 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   function mapServerPlayerIdForLocalStore(playerId: string): string {
     return playerId === serverPlayerId ? localPlayerId : playerId;
   }
+}
+
+function isRoomNotFoundRequestError(error: unknown): boolean {
+  return (
+    error instanceof ServerRoomRequestError &&
+    error.status === 404 &&
+    error.responseBody !== null &&
+    typeof error.responseBody === "object" &&
+    "message" in error.responseBody &&
+    error.responseBody.message === "Poke Lounge room not found"
+  );
 }
 
 function createDefaultSnapshot(sessionId: string, playerId: string): PlayerSnapshot {
