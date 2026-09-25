@@ -1,0 +1,84 @@
+# Local-only Rust game stack. This does not modify the production compose.yaml.
+name: poke-lounge-rust-local
+services:
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, "yes"]
+    ports: ["127.0.0.1:36379:6379"]
+    volumes: ["rust-local-redis:/data"]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: poke_rust_local
+      POSTGRES_PASSWORD: ${RUST_LOCAL_DB_PASSWORD:?Set a development database password}
+      POSTGRES_DB: poke_rust_local
+    ports: ["127.0.0.1:35432:5432"]
+    volumes: ["rust-local-postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U poke_rust_local -d poke_rust_local"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+  battle-worker:
+    image: node:22-bookworm-slim
+    user: "10001:10001"
+    init: true
+    working_dir: /workspace/apps/battle-worker
+    command: [node, dist/main.js]
+    volumes: [".:/workspace:ro"]
+    environment:
+      NODE_ENV: production
+      BATTLE_WEB_ROOT: /workspace/apps/web
+      BATTLE_WORKER_HOST: "0.0.0.0"
+      BATTLE_WORKER_PORT: "3021"
+      BATTLE_WORKER_TOKEN: ${BATTLE_WORKER_TOKEN:?Set a private local worker token}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3021/health',{headers:{'x-worker-token':process.env.BATTLE_WORKER_TOKEN},signal:AbortSignal.timeout(2000)}).then(async r=>{const b=await r.json();process.exit(r.ok&&b.readyWorkers>0?0:1)}).catch(()=>process.exit(1))"
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    stop_grace_period: 15s
+  api-rust:
+    image: rust:1.98.1-bookworm
+    user: "10001:10001"
+    init: true
+    working_dir: /workspace
+    command: [/workspace/target/release/poke-lounge-api-rust]
+    volumes: [".:/workspace:ro"]
+    ports: ["127.0.0.1:3011:3011"]
+    environment:
+      RUST_API_BIND_ADDR: "0.0.0.0:3011"
+      RUST_API_ALLOW_REMOTE: "true"
+      RUST_API_REDIS_URL: redis://redis:6379/0
+      BATTLE_WORKER_URL: http://battle-worker:3021
+      BATTLE_WORKER_TOKEN: ${BATTLE_WORKER_TOKEN:?Set a private local worker token}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: poke_rust_local
+      DB_DATABASE: poke_rust_local
+      DB_PASSWORD: ${RUST_LOCAL_DB_PASSWORD:?Set a development database password}
+      CORS_ORIGINS: http://localhost:3300,http://127.0.0.1:3300
+      RUST_LOG: info
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      battle-worker: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, "4", http://127.0.0.1:3011/health/ready]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    stop_grace_period: 45s
+volumes:
+  rust-local-redis:
+  rust-local-postgres:

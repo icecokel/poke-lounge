@@ -19,3 +19,6 @@ test-results
 
 data/processed
 data/roms
+
+# Rust compiler artifacts
+**/target
