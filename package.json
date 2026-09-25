@@ -29,7 +29,9 @@
     "check:api-contract": "node scripts/check-api-contract.mjs",
     "format:check": "prettier --check .",
     "generate:poke-lounge-battle-animations": "pnpm --filter @poke-lounge/web exec tsx ../../scripts/poke-lounge/extract-battle-animations.ts",
-    "player:browser": "pnpm --filter @poke-lounge/web exec tsx scripts/player-browser/cli.ts"
+    "player:browser": "pnpm --filter @poke-lounge/web exec tsx scripts/player-browser/cli.ts",
+    "dev:rust": "pnpm --filter @poke-lounge/web exec tsx ../../scripts/rust-local/dev.ts",
+    "dev:rust:stop": "pnpm --filter @poke-lounge/web exec tsx ../../scripts/rust-local/dev.ts --stop"
   },
   "devDependencies": {
     "prettier": "^3.8.4",

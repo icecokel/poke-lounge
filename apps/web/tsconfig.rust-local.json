@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "tsBuildInfoFile": "../../output/rust-local/web.tsbuildinfo" },
+  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next-rust-local/types/**/*.ts"],
+  "exclude": ["node_modules", "worktrees"]
+}

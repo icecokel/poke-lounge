@@ -1,0 +1,4 @@
+# Compatibility alias for the local game stack. Production compose.yaml is unchanged.
+# Prefer: pnpm dev:rust
+include:
+  - compose.rust-local.yaml

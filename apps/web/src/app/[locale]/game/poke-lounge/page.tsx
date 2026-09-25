@@ -11,7 +11,7 @@ const PokeLoungeLoadingScreen = () => {
 
   return (
     <main
-      className="flex min-h-screen w-full items-center justify-center bg-background px-4 text-foreground"
+      className="flex min-h-[100dvh] w-full items-center justify-center bg-[#17201a] px-4 text-[#f8fbf0]"
       data-testid="poke-lounge-loading-screen"
     >
       <div className="flex flex-col items-center gap-4 text-center">
@@ -39,5 +39,9 @@ const PokeLoungeGame = dynamic(
 );
 
 export default function PokeLoungePage() {
-  return <PokeLoungeGame />;
+  return (
+    <div className="min-h-[100dvh] bg-[#17201a]">
+      <PokeLoungeGame />
+    </div>
+  );
 }

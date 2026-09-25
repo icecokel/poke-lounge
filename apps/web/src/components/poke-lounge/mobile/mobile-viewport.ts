@@ -12,10 +12,9 @@ const LEFT = "--poke-lounge-viewport-left";
 export function bindMobileViewport(
   page: HTMLElement,
   {
-    mobile,
     fullscreenEvent,
     documentScroll = false,
-  }: { mobile: boolean; fullscreenEvent: string; documentScroll?: boolean },
+  }: { fullscreenEvent: string; documentScroll?: boolean },
 ): { update(): void; dispose(): void } {
   const owner = page.ownerDocument;
   const win = owner.defaultView;
@@ -24,11 +23,11 @@ export function bindMobileViewport(
   let frame: number | null = null;
   let disposed = false;
   const restorers: Array<() => void> = [];
-  const playLayout = mobile ? bindMobilePlayLayout(page) : null;
+  const playLayout = bindMobilePlayLayout(page);
 
   // Room entry is a document, not a locked game surface. Keep browser scrolling
   // and pull-to-refresh available there; retain gesture isolation during play.
-  if (mobile && !documentScroll) {
+  if (!documentScroll) {
     if (win.scrollX || win.scrollY) win.scrollTo(0, 0);
     for (const element of [owner.documentElement, owner.body]) {
       for (const [property, value] of [
@@ -64,7 +63,7 @@ export function bindMobileViewport(
     // Entry is a scrollable document. Compacting it on focus/blur moves the
     // submit button between pointerdown and click, swallowing the first tap.
     // Let the browser scroll the unchanged form above the software keyboard.
-    page.toggleAttribute("data-poke-lounge-keyboard-open", mobile && !documentScroll && editing);
+    page.toggleAttribute("data-poke-lounge-keyboard-open", !documentScroll && editing);
 
     if (viewport && Math.abs(viewport.scale - 1) > 0.01) return;
     const width = viewport?.width ?? win.innerWidth;
@@ -73,8 +72,8 @@ export function bindMobileViewport(
     if (width <= 0 || height <= 0) return;
     setPixelProperty(WIDTH, Math.floor(width));
     setPixelProperty(HEIGHT, Math.floor(height));
-    setPixelProperty(TOP, mobile && !documentScroll ? Math.max(0, viewport?.offsetTop ?? 0) : 0);
-    setPixelProperty(LEFT, mobile && !documentScroll ? Math.max(0, viewport?.offsetLeft ?? 0) : 0);
+    setPixelProperty(TOP, !documentScroll ? Math.max(0, viewport?.offsetTop ?? 0) : 0);
+    setPixelProperty(LEFT, !documentScroll ? Math.max(0, viewport?.offsetLeft ?? 0) : 0);
     playLayout?.update();
   };
   const refresh = () => {
@@ -89,7 +88,7 @@ export function bindMobileViewport(
   const clearRootScroll = () => {
     // overflow: clip already prevents this on modern browsers. Also protect
     // fallback engines from focus/scrollIntoView scrolling the outer game box.
-    if (mobile && !documentScroll && (viewport?.scale ?? 1) <= 1.01) {
+    if (!documentScroll && (viewport?.scale ?? 1) <= 1.01) {
       page.scrollTop = 0;
       page.scrollLeft = 0;
     }

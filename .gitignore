@@ -19,3 +19,6 @@ data/roms/
 
 # Internal project documentation stays local.
 docs/
+
+# Rust workspace build output
+/target/

@@ -23,11 +23,13 @@ export interface MobilePlayLayout {
 
 // Width / height; use the camera as the single source of truth for display geometry.
 export const MOBILE_PLAY_RATIO = MOBILE_GAME_VIEWPORT_SIZE.width / MOBILE_GAME_VIEWPORT_SIZE.height;
+export const MOBILE_APP_MAX_WIDTH = 480;
+
 const finite = (value: number, fallback = 0) =>
   Number.isFinite(value) ? Math.max(0, value) : fallback;
 
 export function calculateMobilePlayLayout(input: MobilePlayLayoutInput): MobilePlayLayout {
-  const width = Math.min(1200, finite(input.width));
+  const width = Math.min(MOBILE_APP_MAX_WIDTH, finite(input.width));
   const height = finite(input.height);
   const statusHeight = Math.min(height, finite(input.statusHeight, 56));
   const gap = Math.min(8, Math.max(0, (height - statusHeight) / 4));

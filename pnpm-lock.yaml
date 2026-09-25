@@ -138,6 +138,22 @@ importers:
         specifier: ^8.20.0
         version: 8.68.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
 
+  apps/battle-worker:
+    dependencies:
+      "@poke-lounge/battle":
+        specifier: workspace:*
+        version: link:../../packages/poke-lounge-battle
+      zod:
+        specifier: ^4.5.4
+        version: 4.5.4
+    devDependencies:
+      "@types/node":
+        specifier: ^22.10.7
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
   apps/web:
     dependencies:
       "@poke-lounge/battle":

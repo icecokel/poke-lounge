@@ -1,0 +1,145 @@
+use std::{collections::HashMap,net::{IpAddr,SocketAddr},sync::{Arc,atomic::Ordering},time::{Duration,Instant}};
+use axum::{Json,Router,extract::{ConnectInfo,DefaultBodyLimit,MatchedPath,Path,Query,Request,State,rejection::JsonRejection},http::{HeaderMap,HeaderValue,Method,StatusCode,header},middleware::{self,Next},response::{IntoResponse,Response},routing::{any,get,post}};
+use serde::Deserialize;
+use serde_json::{Value,json};
+use tokio::sync::{Mutex,Semaphore};
+use tokio_util::sync::CancellationToken;
+use tower_http::cors::CorsLayer;
+use uuid::Uuid;
+use crate::{actors::{Operation,Rooms},compute::{Compute,ENGINE_VERSION},config::{Config,REQUEST_TIMEOUT},data::Data,domain::{CreateRoom,GameCommand,normalize_code,normalize_name,session_hash,validate_player_id},error::{AppError,AppResult},repository::Repository};
+
+#[derive(Clone)]
+pub struct AppState {
+    pub repository:Repository,pub rooms:Rooms,pub compute:Compute,pub data:Data,pub shutdown:CancellationToken,pub started:Instant,
+    pub requests:Arc<Semaphore>,pub sockets:Arc<Semaphore>,pub origins:Arc<Vec<HeaderValue>>,pub budgets:Arc<Mutex<HashMap<IpAddr,Budget>>>,
+}
+pub struct Budget {since:Instant,count:u32,creates:u32}
+pub fn router(state:AppState,config:&Config)->Router {
+    Router::new()
+        .route("/",get(||async{success(json!("Poke Lounge Rust API"))}))
+        .route("/health",get(ready)).route("/health/live",get(live)).route("/health/ready",get(ready))
+        .route("/poke-lounge/rom-data",get(rom)).route("/poke-lounge/shops/{kind}/items",get(shop))
+        .route("/poke-lounge/rooms",post(create)).route("/poke-lounge/rooms/quick-play",post(quick_play))
+        .route("/poke-lounge/rooms/{code}",get(snapshot)).route("/poke-lounge/rooms/{code}/join",post(join))
+        .route("/poke-lounge/rooms/{code}/ready",post(set_ready)).route("/poke-lounge/rooms/{code}/round-ready",post(round_ready))
+        .route("/poke-lounge/rooms/{code}/start",post(start)).route("/poke-lounge/rooms/{code}/ai-participants",post(add_ai))
+        .route("/poke-lounge/rooms/{code}/ai-participants/{player}/remove",post(remove_ai))
+        .route("/poke-lounge/rooms/{code}/party-snapshot",post(party)).route("/poke-lounge/rooms/{code}/leave",post(leave))
+        .route("/poke-lounge/rooms/{code}/matches/{battle}/session-actions",post(action))
+        .route("/poke-lounge/rooms/{code}/matches/{battle}/actions",post(account_disabled))
+        .route("/poke-lounge/rooms/{code}/competitive-seat",post(account_disabled))
+        .route("/poke-lounge/rooms/{code}/result",post(||async{AppError::Invalid("Only the server may determine tournament results")}))
+        .route("/poke-lounge/ws",any(crate::socket::upgrade))
+        .route("/game/ranking",get(ranking)).route("/game/result/{id}",get(result))
+        .route("/game/result",post(account_disabled)).route("/game/poke-lounge/state",get(account_disabled).put(account_disabled))
+        .route("/mcp",post(crate::mcp::request))
+        .fallback(||async{(StatusCode::NOT_FOUND,Json(json!({"success":false,"code":"ROUTE_NOT_FOUND"})))})
+        .layer(DefaultBodyLimit::max(128*1024))
+        .layer(middleware::from_fn_with_state(state.clone(),limits))
+        .layer(CorsLayer::new().allow_origin(config.allowed_origins.clone()).allow_methods([Method::GET,Method::POST,Method::PUT,Method::DELETE,Method::OPTIONS])
+            .allow_headers([header::AUTHORIZATION,header::CONTENT_TYPE,"x-idempotency-key".parse().expect("static header"),"if-match-revision".parse().expect("static header"),"x-room-instance".parse().expect("static header"),"mcp-protocol-version".parse().expect("static header")])
+            .expose_headers(["x-request-id".parse().expect("static header")]))
+        .layer(middleware::from_fn(diagnostics)).with_state(state)
+}
+pub fn success(data:Value)->Json<Value>{Json(json!({"success":true,"data":data}))}
+async fn live(State(state):State<AppState>)->Json<Value>{success(json!({"status":"ok","backend":"rust","uptime":state.started.elapsed().as_secs()}))}
+async fn ready(State(state):State<AppState>)->AppResult<Json<Value>> {
+    if state.shutdown.is_cancelled(){return Err(AppError::Unavailable);}
+    let (now,_,_)=tokio::try_join!(state.repository.now(),state.compute.ready(),state.data.ready())?;
+    Ok(success(json!({"status":"ok","backend":"rust","engineVersion":ENGINE_VERSION.trim(),"serverNowMs":now,"lastRoomTickMs":state.rooms.last_tick_ms.load(Ordering::Relaxed),"uptime":state.started.elapsed().as_secs()})))
+}
+async fn limits(State(state):State<AppState>,request:Request,next:Next)->Response {
+    if state.shutdown.is_cancelled(){return AppError::Unavailable.into_response();}
+    let Ok(_permit)=state.requests.try_acquire() else{return AppError::Busy.into_response();};
+    if let Some(origin)=request.headers().get(header::ORIGIN){if !state.origins.contains(origin){return AppError::Forbidden.into_response();}}
+    if let Some(peer)=request.extensions().get::<ConnectInfo<SocketAddr>>() {
+        let mut budgets=state.budgets.lock().await;
+        budgets.retain(|_,b|b.since.elapsed()<Duration::from_secs(60));
+        if budgets.len()>=4096&&!budgets.contains_key(&peer.0.ip()){return AppError::Busy.into_response();}
+        let budget=budgets.entry(peer.0.ip()).or_insert(Budget{since:Instant::now(),count:0,creates:0});
+        budget.count+=1;
+        if request.method()==Method::POST&&matches!(request.uri().path(),"/poke-lounge/rooms"|"/poke-lounge/rooms/quick-play"){budget.creates+=1;}
+        if budget.count>6_000||budget.creates>60{return AppError::Busy.into_response();}
+    }
+    // WebSocket upgrades return immediately. The connection has separate limits and deadlines.
+    match tokio::time::timeout(REQUEST_TIMEOUT,next.run(request)).await{Ok(r)=>r,Err(_)=>AppError::Timeout.into_response()}
+}
+async fn diagnostics(request:Request,next:Next)->Response {
+    let id=Uuid::new_v4().to_string();let route=request.extensions().get::<MatchedPath>().map(MatchedPath::as_str).unwrap_or("unmatched").to_owned();let method=request.method().clone();let start=Instant::now();
+    let mut response=next.run(request).await;response.headers_mut().insert("x-request-id",HeaderValue::from_str(&id).expect("UUID header"));response.headers_mut().insert(header::CACHE_CONTROL,HeaderValue::from_static("no-store"));
+    tracing::info!(event="api.request",request_id=%id,%route,%method,status=response.status().as_u16(),duration_ms=start.elapsed().as_millis() as u64);response
+}
+fn body<T>(value:Result<Json<T>,JsonRejection>)->AppResult<T>{value.map(|j|j.0).map_err(|_|AppError::Invalid("Request body is invalid"))}
+fn command_id(headers:&HeaderMap)->AppResult<String>{let value=headers.get("x-idempotency-key").and_then(|v|v.to_str().ok()).ok_or(AppError::Invalid("X-Idempotency-Key required"))?;let id=Uuid::parse_str(value).map_err(|_|AppError::Invalid("Invalid idempotency key"))?;if id.get_version_num()!=4||id.to_string()!=value{return Err(AppError::Invalid("Idempotency key must be canonical UUID v4"));}Ok(value.into())}
+fn revision(headers:&HeaderMap)->AppResult<u64>{headers.get("if-match-revision").and_then(|h|h.to_str().ok()).filter(|v|!v.is_empty()&&v.bytes().all(|b|b.is_ascii_digit())).and_then(|v|v.parse().ok()).filter(|n|*n<9_007_199_254_740_991).ok_or(AppError::Invalid("If-Match-Revision required"))}
+pub fn instance(headers:&HeaderMap)->AppResult<Option<Uuid>>{headers.get("x-room-instance").map(|h|h.to_str().ok().and_then(|v|Uuid::parse_str(v).ok()).ok_or(AppError::Invalid("Invalid room instance"))).transpose()}
+#[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct Identity {player_id:String,session_id:String}
+async fn apply(state:AppState,code:String,headers:HeaderMap,identity:Identity,command:GameCommand,expected:Option<u64>)->AppResult<Json<Value>> {
+    validate_player_id(&identity.player_id)?;let session=session_hash(&identity.session_id)?;let id=state.rooms.resolve(&normalize_code(&code)?,instance(&headers)?).await?;
+    let value=state.rooms.request(id,Operation::Command{player:identity.player_id,session,id:command_id(&headers)?,expected,command,request_hash:None}).await?;Ok(success(value))
+}
+async fn create(State(state):State<AppState>,headers:HeaderMap,value:Result<Json<CreateRoom>,JsonRejection>)->AppResult<Json<Value>> {
+    if revision(&headers)?!=0{return Err(AppError::Invalid("Create revision must be zero"));}
+    Ok(success(state.rooms.create(body(value)?.normalize()?,false,command_id(&headers)?).await?))
+}
+async fn quick_play(State(state):State<AppState>,headers:HeaderMap,value:Result<Json<CreateRoom>,JsonRejection>)->AppResult<Json<Value>> {
+    let mut input=body(value)?.normalize()?;input.room_code=None;Ok(success(state.rooms.create(input,true,command_id(&headers)?).await?))
+}
+#[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct ReadQuery{after_revision:Option<u64>}
+async fn snapshot(State(state):State<AppState>,Path(code):Path<String>,headers:HeaderMap,Query(query):Query<ReadQuery>)->AppResult<Json<Value>> {
+    let id=state.rooms.resolve(&normalize_code(&code)?,instance(&headers)?).await?;Ok(success(state.rooms.request(id,Operation::Snapshot{after:query.after_revision}).await?))
+}
+#[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct JoinBody{player_id:String,session_id:String,display_name:Option<String>}
+async fn join(State(state):State<AppState>,Path(code):Path<String>,headers:HeaderMap,value:Result<Json<JoinBody>,JsonRejection>)->AppResult<Json<Value>> {
+    let b=body(value)?;let expected=revision(&headers)?;let name=normalize_name(b.display_name.as_deref().unwrap_or("플레이어"))?;
+    apply(state,code,headers,Identity{player_id:b.player_id,session_id:b.session_id},GameCommand::Join{display_name:name},Some(expected)).await
+}
+#[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct ReadyBody{player_id:String,session_id:String,ready:bool,round_index:Option<u8>}
+async fn set_ready(State(state):State<AppState>,Path(code):Path<String>,headers:HeaderMap,value:Result<Json<ReadyBody>,JsonRejection>)->AppResult<Json<Value>> {
+    let b=body(value)?;let expected=revision(&headers)?;
+    apply(state,code,headers,Identity{player_id:b.player_id,session_id:b.session_id},GameCommand::Ready{ready:b.ready,round_index:b.round_index},Some(expected)).await
+}
+#[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct RoundBody{player_id:String,session_id:String,round_index:u8}
+async fn round_ready(State(state):State<AppState>,Path(code):Path<String>,headers:HeaderMap,value:Result<Json<RoundBody>,JsonRejection>)->AppResult<Json<Value>> {
+    let b=body(value)?;if !(1..=3).contains(&b.round_index){return Err(AppError::Invalid("Invalid round"));}
+    apply(state,code,headers,Identity{player_id:b.player_id,session_id:b.session_id},GameCommand::RoundReady{round_index:b.round_index},None).await
+}
+async fn start(State(state):State<AppState>,Path(code):Path<String>,headers:HeaderMap,value:Result<Json<Identity>,JsonRejection>)->AppResult<Json<Value>>{let expected=revision(&headers)?;apply(state,code,headers,body(value)?,GameCommand::Start,Some(expected)).await}
+async fn add_ai(State(state):State<AppState>,Path(code):Path<String>,headers:HeaderMap,value:Result<Json<Identity>,JsonRejection>)->AppResult<Json<Value>>{let expected=revision(&headers)?;apply(state,code,headers,body(value)?,GameCommand::AddAi,Some(expected)).await}
+async fn remove_ai(State(state):State<AppState>,Path((code,player)):Path<(String,String)>,headers:HeaderMap,value:Result<Json<Identity>,JsonRejection>)->AppResult<Json<Value>>{let expected=revision(&headers)?;apply(state,code,headers,body(value)?,GameCommand::RemoveAi{player_id:player},Some(expected)).await}
+async fn leave(State(state):State<AppState>,Path(code):Path<String>,headers:HeaderMap,value:Result<Json<Identity>,JsonRejection>)->AppResult<Json<Value>>{let expected=revision(&headers)?;apply(state,code,headers,body(value)?,GameCommand::Leave,Some(expected)).await}
+#[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct PartyBody{player_id:String,session_id:String,display_name:Option<String>,competitive_party:Value}
+async fn party(State(state):State<AppState>,Path(code):Path<String>,headers:HeaderMap,value:Result<Json<PartyBody>,JsonRejection>)->AppResult<Json<Value>>{
+    let b=body(value)?;if let Some(name)=&b.display_name{normalize_name(name)?;}let expected=revision(&headers)?;
+    apply(state,code,headers,Identity{player_id:b.player_id,session_id:b.session_id},GameCommand::Party{party:b.competitive_party},Some(expected)).await
+}
+#[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct ActionBody{session_id:String,assignment_revision:u64,turn:u64,client_command_id:String,action:Value}
+async fn action(State(state):State<AppState>,Path((code,battle)):Path<(String,Uuid)>,headers:HeaderMap,value:Result<Json<ActionBody>,JsonRejection>)->AppResult<Json<Value>>{
+    let b=body(value)?;let session=session_hash(&b.session_id)?;
+    if b.client_command_id.is_empty()||b.client_command_id.len()>160||!b.client_command_id.is_ascii(){return Err(AppError::Invalid("Invalid action command ID"));}
+    let id=state.rooms.resolve(&normalize_code(&code)?,instance(&headers)?).await?;let (_,room)=state.repository.read(id).await?;
+    let player=room.participants.iter().find(|p|p.session_hash==session&&!p.ai).ok_or(AppError::Forbidden)?.player_id.clone();
+    Ok(success(state.rooms.request(id,Operation::Command{player,session,id:b.client_command_id,expected:None,command:GameCommand::Action{match_id:battle,assignment_revision:b.assignment_revision,turn:b.turn,action:b.action},request_hash:None}).await?))
+}
+async fn rom(State(state):State<AppState>)->Json<Value>{success(state.data.rom())}
+async fn shop(State(state):State<AppState>,Path(kind):Path<String>)->AppResult<Json<Value>>{Ok(success(state.data.shop(&kind)?))}
+#[derive(Deserialize)]
+#[serde(rename_all="camelCase",deny_unknown_fields)]
+struct RankQuery{game_type:String}
+async fn ranking(State(state):State<AppState>,Query(q):Query<RankQuery>)->AppResult<Json<Value>>{Ok(success(state.data.ranking(&q.game_type).await?))}
+async fn result(State(state):State<AppState>,Path(id):Path<Uuid>)->AppResult<Json<Value>>{Ok(success(state.data.result(id).await?))}
+async fn account_disabled()->AppError{AppError::AccountDisabled}

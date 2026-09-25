@@ -76,6 +76,12 @@ Redis는 방·경기·실시간 상태와 작업 큐를, PostgreSQL은 ROM 문�
 
 배포 전에 이미 만료·삭제된 방의 진행은 복구하지 않는다. 새 수명 정책의 전체 플레이 확인은 배포 후 새 방에서 진행한다.
 
+## Rust 백엔드 전환
+
+로컬에서 Rust 게임 서버와 TypeScript 계산 워커를 실제 프런트에 연결했다. `pnpm dev:rust`로 독립 DB·Redis, Rust API, 계산 워커, 웹을 실행한다. 주소는 `http://127.0.0.1:3300/ko-KR/game/poke-lounge`다. 중지는 웹에서 Ctrl+C 후 `pnpm dev:rust:stop`을 사용하며 볼륨은 유지한다.
+
+방 생성·3라운드 최종 결과·탐험 중 새로고침 후 복귀·정상 퇴장까지 로컬 UI 경로를 확인했다. 모든 버튼/브라우저 검증이나 운영 전환 완료 판정은 아니다. 실행 구현은 `apps/api-rust/src`, `migration-draft`는 이전 코드 보관용이다. 기본 프런트·운영 배포는 기존 서버를 유지한다. 자세한 범위와 실행법은 [Rust 백엔드 문서](apps/api-rust/README.md)에 있다.
+
 ## 로컬 실행
 
 Node.js 22와 pnpm 9.12.0을 기준으로 한다. PostgreSQL과 Redis를 먼저 준비하고, 기존 환경 파일은 덮어쓰지 않는다.

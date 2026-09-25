@@ -29,14 +29,12 @@ import {
   PokeLoungeNoticeBanner,
   PokeLoungeResultPanel,
   PokeLoungeStartupErrorScreen,
-  PokeLoungeStatusRail,
   type PokeLoungeStateHydrationStatus,
 } from "./poke-lounge-game-overlays";
 import {
   createPokeLoungeRoomEntryUrl,
   isPokeLoungeMultiplayerResultUrl,
 } from "./poke-lounge-result-navigation";
-import { PokeLoungeSettingsDialog } from "./poke-lounge-settings-dialog";
 import {
   POKE_LOUNGE_VOLUME_STEPS,
   createDefaultPokeLoungeSettings,
@@ -50,11 +48,9 @@ import styles from "./poke-lounge.module.css";
 import { setPokeLoungeMasterVolume } from "./runtime/game/audio/poke-lounge-audio";
 import type { PokeLoungeRuntimeState } from "./runtime/game/game-page-state";
 import {
-  GAME_VIEWPORT_SIZE_PRESETS,
   MOBILE_GAME_VIEWPORT_SIZE,
   type GameViewportDisplaySize,
 } from "./runtime/game/game-viewport";
-import { detectTouchGameDevice } from "./runtime/game/input/mobile-touch-controls";
 import {
   pressVirtualGamepadButton,
   releaseVirtualGamepadButton,
@@ -81,11 +77,7 @@ import {
   type PokeLoungeNoticeDetail,
   type PokeLoungeRoomLeaveRequestDetail,
 } from "./runtime/game/ui/poke-lounge-ui-events";
-import {
-  GAME_FULLSCREEN_STATE_EVENT,
-  isGameFullscreenActive,
-  toggleGameFullscreen,
-} from "./runtime/web-fullscreen";
+import { GAME_FULLSCREEN_STATE_EVENT } from "./runtime/web-fullscreen";
 import { usePokeLoungeAccessibleStatus } from "./use-poke-lounge-accessible-status";
 
 interface FinalResultState {
@@ -188,9 +180,6 @@ export function PokeLoungeGame() {
     document.addEventListener("poke-lounge:tournament-gathering", closeOverlays);
     return () => document.removeEventListener("poke-lounge:tournament-gathering", closeOverlays);
   }, []);
-  const [fullscreenActive, setFullscreenActive] = useState(false);
-  const [touchGameDevice, setTouchGameDevice] = useState(false);
-  const [touchGameDeviceResolved, setTouchGameDeviceResolved] = useState(false);
   const [gameRuntimeMounted, setGameRuntimeMounted] = useState(false);
   const [activeGameScene, setActiveGameScene] = useState<"battle" | "world" | null>(null);
   const [settingsPartySlots, setSettingsPartySlots] = useState<PokeLoungePartySlotSummary[]>([]);
@@ -235,12 +224,9 @@ export function PokeLoungeGame() {
       ? (runtimeState.roomLeave?.label ?? null)
       : null;
   const volumeValue = settings.audio.masterVolume;
-  const volumeLevelIndex = getPokeLoungeVolumeLevelIndex(volumeValue);
-  const uiSize = settings.display.uiSize;
   const volumePercent = Math.round(volumeValue * 100);
   const volumeLabel = volumePercent === 0 ? copy.volumeMuted : copy.volumeLabel(volumePercent);
   const volumeAriaLabel = copy.volumeAriaLabel(volumePercent);
-  const uiSizeLabel = uiSize === "large" ? copy.uiLarge : copy.uiNormal;
   const multiplayerRoomId =
     connectionSummary.roomId && connectionSummary.roomId !== "local-preview"
       ? connectionSummary.roomId
@@ -290,23 +276,6 @@ export function PokeLoungeGame() {
     typeof window !== "undefined" &&
     isPokeLoungeMultiplayerResultUrl(new URL(window.location.href));
 
-  const syncFullscreenState = useCallback(function memoizedCallback() {
-    const page = pageRef.current;
-    setFullscreenActive(page ? isGameFullscreenActive(page) : false);
-  }, []);
-
-  const handleFullscreenToggle = useCallback(
-    function memoizedCallback() {
-      const page = pageRef.current;
-      if (!page) {
-        return;
-      }
-
-      void toggleGameFullscreen(page).finally(syncFullscreenState);
-    },
-    [syncFullscreenState],
-  );
-
   const handleMobileSettingsOpen = useCallback(function memoizedCallback() {
     resetVirtualGamepad();
     setSettingsOpen(true);
@@ -338,18 +307,6 @@ export function PokeLoungeGame() {
         audio: {
           ...currentSettings.audio,
           masterVolume: nextVolume,
-        },
-      };
-    });
-  }, []);
-
-  const handleUiSizeToggle = useCallback(function memoizedCallback() {
-    setSettings(function callback(currentSettings) {
-      return {
-        ...currentSettings,
-        display: {
-          ...currentSettings.display,
-          uiSize: currentSettings.display.uiSize === "large" ? "normal" : "large",
         },
       };
     });
@@ -554,17 +511,13 @@ export function PokeLoungeGame() {
     };
   }, []);
 
-  const gameViewportSize = touchGameDevice
-    ? MOBILE_GAME_VIEWPORT_SIZE
-    : GAME_VIEWPORT_SIZE_PRESETS[uiSize];
+  const gameViewportSize = MOBILE_GAME_VIEWPORT_SIZE;
 
   useEffect(
     function runEffect() {
-      if (touchGameDeviceResolved) {
-        gamePageHandleRef.current?.setViewportSize(gameViewportSize);
-      }
+      gamePageHandleRef.current?.setViewportSize(gameViewportSize);
     },
-    [gameViewportSize, touchGameDeviceResolved],
+    [gameViewportSize],
   );
 
   useEffect(function runEffect() {
@@ -620,18 +573,6 @@ export function PokeLoungeGame() {
     };
   }, []);
 
-  useEffect(function runEffect() {
-    setTouchGameDevice(
-      detectTouchGameDevice({
-        maxTouchPoints: navigator.maxTouchPoints ?? 0,
-        coarsePointer: window.matchMedia?.("(pointer: coarse)").matches ?? false,
-        platform: navigator.platform ?? "",
-        userAgent: navigator.userAgent ?? "",
-      }),
-    );
-    setTouchGameDeviceResolved(true);
-  }, []);
-
   useEffect(
     function runEffect() {
       const gameRoot = pageRef.current?.querySelector<HTMLElement>("#game-root");
@@ -684,7 +625,6 @@ export function PokeLoungeGame() {
     const page = pageRef.current;
     if (!page) return;
     const binding = bindMobileViewport(page, {
-      mobile: touchGameDevice,
       documentScroll: entryDocumentScroll,
       fullscreenEvent: GAME_FULLSCREEN_STATE_EVENT,
     });
@@ -693,28 +633,12 @@ export function PokeLoungeGame() {
       viewportUpdateRef.current = null;
       binding.dispose();
     };
-  }, [touchGameDevice, entryDocumentScroll]);
+  }, [entryDocumentScroll]);
 
   // An entry field may be unmounted without a blur event when the game starts.
   useLayoutEffect(() => {
     viewportUpdateRef.current?.();
   }, [runtimeState.phase]);
-
-  useEffect(
-    function runEffect() {
-      const handleFullscreenStateChange = () => syncFullscreenState();
-
-      document.addEventListener("fullscreenchange", handleFullscreenStateChange);
-      document.addEventListener(GAME_FULLSCREEN_STATE_EVENT, handleFullscreenStateChange);
-      syncFullscreenState();
-
-      return function callback() {
-        document.removeEventListener("fullscreenchange", handleFullscreenStateChange);
-        document.removeEventListener(GAME_FULLSCREEN_STATE_EVENT, handleFullscreenStateChange);
-      };
-    },
-    [syncFullscreenState],
-  );
 
   useEffect(
     function runEffect() {
@@ -729,18 +653,14 @@ export function PokeLoungeGame() {
           )
         )
           return;
-        if (event.key === "Escape" && touchGameDevice && settingsOpen) {
+        if (event.key === "Escape" && settingsOpen) {
           event.preventDefault();
           event.stopImmediatePropagation();
           handleMobileSettingsClose();
           return;
         }
 
-        if (
-          event.key === "Escape" &&
-          touchGameDevice &&
-          hasPokeLoungeMobileFullscreenScene(document)
-        ) {
+        if (event.key === "Escape" && hasPokeLoungeMobileFullscreenScene(document)) {
           event.preventDefault();
           event.stopImmediatePropagation();
           resetVirtualGamepad();
@@ -791,7 +711,7 @@ export function PokeLoungeGame() {
         }
       };
     },
-    [handleMobileSettingsClose, settingsOpen, touchGameDevice, worldUiStore],
+    [handleMobileSettingsClose, settingsOpen, worldUiStore],
   );
 
   useEffect(
@@ -974,7 +894,7 @@ export function PokeLoungeGame() {
 
   useEffect(
     function runEffect() {
-      if (!gameHydrationReady || !touchGameDeviceResolved) {
+      if (!gameHydrationReady) {
         return;
       }
 
@@ -1026,9 +946,7 @@ export function PokeLoungeGame() {
               },
               onRoomLeaveRequest: setLeaveRequest,
               onRuntimeStateChange: setRuntimeState,
-              viewportSize: touchGameDevice
-                ? MOBILE_GAME_VIEWPORT_SIZE
-                : GAME_VIEWPORT_SIZE_PRESETS.large,
+              viewportSize: MOBILE_GAME_VIEWPORT_SIZE,
             },
           );
 
@@ -1054,15 +972,7 @@ export function PokeLoungeGame() {
 
       return cleanupGamePage;
     },
-    [
-      accountId,
-      gameHydrationReady,
-      gameStartupAttempt,
-      localTestModeActive,
-      setGamePlaying,
-      touchGameDevice,
-      touchGameDeviceResolved,
-    ],
+    [accountId, gameHydrationReady, gameStartupAttempt, localTestModeActive, setGamePlaying],
   );
 
   const handleResultRetry = useCallback(function memoizedCallback() {
@@ -1108,10 +1018,9 @@ export function PokeLoungeGame() {
   return (
     <main
       ref={pageRef}
-      className={`${styles.page} ${themeStyles.theme} ${touchGameDevice ? styles.touchGameDevice : ""}`}
+      className={`${styles.page} ${themeStyles.theme} ${styles.mobileOnly}`}
       data-testid="poke-lounge-page"
       data-poke-lounge-play-layout={
-        touchGameDevice &&
         (runtimeState.phase === "world" || runtimeState.phase === "battle") &&
         !finalResult &&
         !gameStartupError
@@ -1119,8 +1028,7 @@ export function PokeLoungeGame() {
           : undefined
       }
       data-poke-lounge-entry-open={entryDocumentScroll ? "true" : undefined}
-      data-poke-lounge-ui-size={uiSize}
-      data-poke-lounge-mobile-shell={touchGameDevice ? "true" : undefined}
+      data-poke-lounge-mobile-shell="true"
       data-poke-lounge-room-lobby-open={runtimeState.phase === "lobby" ? "true" : undefined}
       data-poke-lounge-starter-open={runtimeState.phase === "starter" ? "true" : undefined}
     >
@@ -1130,14 +1038,12 @@ export function PokeLoungeGame() {
         roomShareAvailable={Boolean(roomShareUrl)}
         roomShareStatus={roomShareStatus}
         runtimeState={runtimeState}
-        touchGameDevice={touchGameDevice}
         onOpenSettings={function handleOpenSettings() {
           return setSettingsOpen(true);
         }}
         onRoomShare={handleRoomShare}
       />
-      {touchGameDevice &&
-      gameRuntimeMounted &&
+      {gameRuntimeMounted &&
       (runtimeState.phase === "world" ||
         runtimeState.phase === "battle" ||
         runtimeState.phase === "lobby") &&
@@ -1179,35 +1085,17 @@ export function PokeLoungeGame() {
         copy={copy}
         message={stateHydrationMessage}
         status={stateHydrationStatus}
-        touchGameDevice={touchGameDevice}
         onRetry={handleStateHydrationRetry}
       />
       {gameStartupError ? (
         <PokeLoungeStartupErrorScreen
           copy={copy}
-          touchGameDevice={touchGameDevice}
           onRetry={function handleRetry() {
             return setGameStartupAttempt(function callback(attempt) {
               return attempt + 1;
             });
           }}
           onLobby={handleResultLobby}
-        />
-      ) : null}
-      {gameRuntimeMounted && !touchGameDevice && runtimeState.phase !== "lobby" ? (
-        <PokeLoungeStatusRail
-          authenticated={status === "authenticated"}
-          autosaveLabel={autosaveLabel}
-          autosaveStatus={autosaveStatus}
-          connectionLabel={connectionLabel}
-          connectionStatus={connectionSummary.connectionStatus}
-          copy={copy}
-          hydrationMessage={stateHydrationMessage}
-          hydrationRetryDisabled={hydrationRetryDisabled}
-          hydrationRetryLabel={hydrationRetryLabel}
-          multiplayer={Boolean(multiplayerRoomId)}
-          usingLocalHydrationFallback={usingLocalHydrationFallback}
-          onRetryHydration={handleStateHydrationRetry}
         />
       ) : null}
       {notice ? (
@@ -1220,38 +1108,11 @@ export function PokeLoungeGame() {
           }}
         />
       ) : null}
-      {!touchGameDevice ? (
-        <PokeLoungeSettingsDialog
-          autosaveLabel={autosaveLabel}
-          connectionLabel={connectionLabel}
-          copy={copy}
-          fullscreenActive={fullscreenActive}
-          localRoomShare={localRoomShare}
-          multiplayer={Boolean(multiplayerRoomId)}
-          open={settingsOpen}
-          party={settingsPartySlots}
-          roomShareAvailable={Boolean(roomShareUrl)}
-          roomShareStatus={roomShareStatus}
-          roomLeaveLabel={roomLeaveLabel}
-          uiSize={uiSize}
-          uiSizeLabel={uiSizeLabel}
-          volumeAriaLabel={volumeAriaLabel}
-          volumeLabel={volumeLabel}
-          volumeLevelIndex={volumeLevelIndex}
-          onExit={handleGameExitRequest}
-          onFullscreenToggle={handleFullscreenToggle}
-          onOpenChange={setSettingsOpen}
-          onRoomShare={handleRoomShare}
-          onUiSizeToggle={handleUiSizeToggle}
-          onVolumeCycle={handleVolumeCycle}
-        />
-      ) : null}
       <PokeLoungeDecisionDialogs
         copy={copy}
         exitOpen={exitConfirmationOpen}
         hydrationConflictOpen={Boolean(pendingHydrationResolution)}
         leaveRequest={leaveRequest}
-        touchGameDevice={touchGameDevice}
         onDeferHydration={handleDeferHydrationResolution}
         onExitConfirm={handleGameExitConfirm}
         onExitOpenChange={setExitConfirmationOpen}
@@ -1274,7 +1135,6 @@ export function PokeLoungeGame() {
           playTime={finalResult.playTime}
           returnsToRoomEntry={resultReturnsToRoomEntry}
           score={finalResult.score}
-          touchGameDevice={touchGameDevice}
           onLobby={handleResultLobby}
           onRetry={handleResultRetry}
         />

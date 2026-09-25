@@ -16,6 +16,7 @@ import {
 } from "@poke-lounge/battle/timing";
 import { sortTournamentParticipantsByJoinOrder } from "@poke-lounge/battle/tournament-seeding";
 import { io } from "socket.io-client";
+import { createRustRoomSocket, RUST_BACKEND_ENABLED } from "./rust-room-socket";
 import { createRoomRunId, isRoomRunId } from "../room-run-id";
 import { createCompetitivePartySnapshot } from "./competitive-party-snapshot";
 import {
@@ -65,6 +66,7 @@ type ServerPartySnapshot = components["schemas"]["PokeLoungePartySnapshotDto"];
 
 interface ServerRoomState {
   roomCode: string;
+  roomInstanceId?: string;
   visibility: ApiServerRoom["visibility"];
   hostPlayerId: string | null;
   revision: number;
@@ -152,7 +154,9 @@ type ServerRoomSocketFactory = (
 ) => ServerRoomSocket;
 type RecoveryOrigin = "transport" | "online-probe";
 
-const SERVER_IDENTITY_STORAGE_KEY = "poke-lounge:server-room-identity";
+const SERVER_IDENTITY_STORAGE_KEY = RUST_BACKEND_ENABLED
+  ? "poke-lounge:rust-room-identity:v2"
+  : "poke-lounge:server-room-identity";
 const SERVER_ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 
 const MAX_RECENT_TERMINAL_PROJECTIONS = 8;
@@ -173,6 +177,7 @@ interface StoredServerRoomIdentity {
   playerId: string;
   activeRoom?: {
     roomCode: string;
+    roomInstanceId?: string;
     expiresAtMs: number;
     runId: string;
   };
@@ -225,6 +230,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const roomRunId = resolveServerRoomRunId(options);
   let localPlayerId = serverPlayerId;
   let activeRoomId = options.roomId ?? PENDING_ROOM_ID;
+  let roomInstanceId: string | undefined = options.resumeRoom
+    ? readStoredIdentity(options.accountId)?.activeRoom?.roomInstanceId
+    : undefined;
   const fetchImpl = options.fetch ?? fetch;
   const requestTimeoutMs = options.requestTimeoutMs ?? SERVER_ROOM_REQUEST_TIMEOUT_MS;
   const fetchResponseWithTimeout = async (
@@ -242,7 +250,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
     try {
       const request = (async function callback() {
-        const response = await fetchImpl(url, { ...init, signal: controller.signal });
+        const headers = new Headers(init?.headers);
+        if (
+          RUST_BACKEND_ENABLED &&
+          roomInstanceId &&
+          new URL(url).pathname.startsWith(`/poke-lounge/rooms/${activeRoomId}`)
+        )
+          headers.set("X-Room-Instance", roomInstanceId);
+        const response = await fetchImpl(url, { ...init, headers, signal: controller.signal });
         const responseText = await readResponseBody(response);
 
         return { response, responseText };
@@ -800,6 +815,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       playerId: serverPlayerId,
       sessionId,
       afterRevision: Math.max(0, lastAppliedTerminalRevision),
+      ...(RUST_BACKEND_ENABLED && roomInstanceId ? { roomInstanceId } : {}),
     });
   };
 
@@ -1113,7 +1129,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const publishSharedWorldSnapshot = (
     type: "PLAYER_MOVED" | "PLAYER_MOVEMENT_ENDED" | "PLAYER_CHANGED_MAP",
   ) => {
-    if (!socketConnected || !roomSocket || !latestSharedWorldSnapshot) {
+    if (!socketConnected || !roomSocket || !latestSharedWorldSnapshot || isTerminalState()) {
       return;
     }
 
@@ -1359,6 +1375,11 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const applySnapshot = (state: ServerRoomState): boolean => {
     // Ignore in-flight responses from an expired/disposed session.
     if (disposed) return false;
+    if (RUST_BACKEND_ENABLED) {
+      if (!state.roomInstanceId || (roomInstanceId && state.roomInstanceId !== roomInstanceId))
+        return false;
+      roomInstanceId = state.roomInstanceId;
+    }
     const acceptsCreatedRoom = activeRoomId === PENDING_ROOM_ID;
 
     if (!acceptsCreatedRoom && state.roomCode !== activeRoomId) {
@@ -1412,6 +1433,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             roomCode: state.roomCode,
             expiresAtMs: state.expiresAtMs,
             runId: roomRunId,
+            ...(roomInstanceId ? { roomInstanceId } : {}),
           },
         },
         options.accountId,
@@ -2658,6 +2680,11 @@ function parseServerRoomState(value: unknown): ServerRoomState {
   }
 
   const room = value as Record<string, unknown>;
+  if (
+    RUST_BACKEND_ENABLED &&
+    (typeof room.roomInstanceId !== "string" || !isRoomRunId(room.roomInstanceId))
+  )
+    throw new ServerRoomSchemaError();
 
   if (
     typeof room.roomCode !== "string" ||
@@ -3177,7 +3204,9 @@ function hasSamePlayerIds(left: ReadonlyArray<string>, right: ReadonlyArray<stri
 
 function resolveServerRoomSocketFactory(): ServerRoomSocketFactory {
   return function callback(url, options) {
-    return io(url, options) as unknown as ServerRoomSocket;
+    return RUST_BACKEND_ENABLED
+      ? createRustRoomSocket(url)
+      : (io(url, options) as unknown as ServerRoomSocket);
   };
 }
 
@@ -3338,6 +3367,9 @@ function parseStoredActiveRoom(value: unknown): StoredServerRoomIdentity["active
     roomCode: activeRoom.roomCode,
     expiresAtMs: activeRoom.expiresAtMs,
     runId: activeRoom.runId,
+    ...(typeof activeRoom.roomInstanceId === "string" && isRoomRunId(activeRoom.roomInstanceId)
+      ? { roomInstanceId: activeRoom.roomInstanceId }
+      : {}),
   };
 }
 

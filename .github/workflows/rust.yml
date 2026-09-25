@@ -1,0 +1,25 @@
+name: Rust backend static checks
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ["feat/rust-backend-migration"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    container: rust:1.98.1-bookworm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # Player tests require observed UI input. This job only compiles and lints.
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Check
+        run: cargo check --workspace --locked
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Build
+        run: cargo build --workspace --release --locked
