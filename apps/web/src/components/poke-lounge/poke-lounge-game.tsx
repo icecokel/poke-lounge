@@ -67,6 +67,7 @@ import {
   buildPokeLoungeSaveSnapshot,
   type PokeLoungeSaveSnapshot,
 } from "./runtime/game/state/poke-lounge-save-snapshot";
+import { isLocalTestModeUrl } from "./runtime/game/local-test-mode";
 import { hasPokeLoungeMobileFullscreenScene } from "./runtime/game/ui/mobile-ui-capability";
 import {
   createPokeLoungePartySlotSummaries,
@@ -185,6 +186,7 @@ export function PokeLoungeGame() {
   const [settingsPartySlots, setSettingsPartySlots] = useState<PokeLoungePartySlotSummary[]>([]);
   const [settings, setSettings] = useState<PokeLoungeSettings>(createDefaultPokeLoungeSettings);
   const [settingsHydrated, setSettingsHydrated] = useState(false);
+  const [localAudioOverride, setLocalAudioOverride] = useState(false);
   const [roomShareStatus, setRoomShareStatus] = useState<PokeLoungeRoomShareStatus>("idle");
   const [stateHydrationStatus, setStateHydrationStatus] =
     useState<PokeLoungeStateHydrationStatus>("pending");
@@ -223,7 +225,10 @@ export function PokeLoungeGame() {
     runtimeState.phase === "lobby"
       ? (runtimeState.roomLeave?.label ?? null)
       : null;
-  const volumeValue = settings.audio.masterVolume;
+  const localAudioMutedByDefault =
+    typeof window !== "undefined" && isLocalTestModeUrl(new URL(window.location.href));
+  const volumeValue =
+    localAudioMutedByDefault && !localAudioOverride ? 0 : settings.audio.masterVolume;
   const volumePercent = Math.round(volumeValue * 100);
   const volumeLabel = volumePercent === 0 ? copy.volumeMuted : copy.volumeLabel(volumePercent);
   const volumeAriaLabel = copy.volumeAriaLabel(volumePercent);
@@ -297,20 +302,30 @@ export function PokeLoungeGame() {
     setExitConfirmationOpen(true);
   }, []);
 
-  const handleVolumeCycle = useCallback(function memoizedCallback() {
-    setSettings(function callback(currentSettings) {
-      const currentIndex = getPokeLoungeVolumeLevelIndex(currentSettings.audio.masterVolume);
-      const nextVolume =
-        POKE_LOUNGE_VOLUME_STEPS[(currentIndex + 1) % POKE_LOUNGE_VOLUME_STEPS.length];
-      return {
-        ...currentSettings,
-        audio: {
-          ...currentSettings.audio,
-          masterVolume: nextVolume,
-        },
-      };
-    });
-  }, []);
+  const handleVolumeCycle = useCallback(
+    function memoizedCallback() {
+      setSettings(function callback(currentSettings) {
+        const currentVolume =
+          localAudioMutedByDefault && !localAudioOverride ? 0 : currentSettings.audio.masterVolume;
+        const currentIndex = getPokeLoungeVolumeLevelIndex(currentVolume);
+        const nextVolume =
+          POKE_LOUNGE_VOLUME_STEPS[(currentIndex + 1) % POKE_LOUNGE_VOLUME_STEPS.length];
+
+        return {
+          ...currentSettings,
+          audio: {
+            ...currentSettings.audio,
+            masterVolume: nextVolume,
+          },
+        };
+      });
+
+      if (localAudioMutedByDefault) {
+        setLocalAudioOverride(true);
+      }
+    },
+    [localAudioMutedByDefault, localAudioOverride],
+  );
 
   const handleStateHydrationRetry = useCallback(
     function memoizedCallback() {
@@ -490,9 +505,9 @@ export function PokeLoungeGame() {
 
   useEffect(
     function runEffect() {
-      setPokeLoungeMasterVolume(settings.audio.masterVolume);
+      setPokeLoungeMasterVolume(volumeValue);
     },
-    [settings.audio.masterVolume],
+    [volumeValue],
   );
 
   useEffect(
