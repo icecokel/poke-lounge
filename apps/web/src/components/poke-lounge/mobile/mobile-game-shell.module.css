@@ -520,7 +520,7 @@
 
 .worldScene,
 .settingsScreen {
-  position: fixed;
+  position: absolute;
   inset: var(--poke-lounge-mobile-letterbox-top) 0 var(--poke-lounge-mobile-letterbox-bottom);
   z-index: 100;
   width: 100%;

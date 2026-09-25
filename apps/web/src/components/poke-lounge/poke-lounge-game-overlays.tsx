@@ -20,19 +20,17 @@ export function PokeLoungeHydrationScreens({
   copy,
   message,
   status,
-  touchGameDevice,
   onRetry,
 }: {
   copy: PokeLoungeCopy;
   message: string;
   status: PokeLoungeStateHydrationStatus;
-  touchGameDevice: boolean;
   onRetry(): void;
 }) {
   if (status === "pending") {
     return (
       <section
-        className={styles.loadingOverlay}
+        className={styles.mobileStateScreen}
         role="status"
         aria-live="polite"
         data-testid="poke-lounge-state-hydration-loading"
@@ -47,10 +45,7 @@ export function PokeLoungeHydrationScreens({
   }
 
   return (
-    <section
-      className={touchGameDevice ? styles.mobileStateScreen : styles.resultOverlay}
-      data-testid="poke-lounge-state-hydration-error"
-    >
+    <section className={styles.mobileStateScreen} data-testid="poke-lounge-state-hydration-error">
       <p className={styles.resultStatus} aria-live="polite">
         {message}
       </p>
@@ -63,18 +58,16 @@ export function PokeLoungeHydrationScreens({
 
 export function PokeLoungeStartupErrorScreen({
   copy,
-  touchGameDevice,
   onRetry,
   onLobby,
 }: {
   copy: PokeLoungeCopy;
-  touchGameDevice: boolean;
   onRetry(): void;
   onLobby(): void;
 }) {
   return (
     <section
-      className={touchGameDevice ? styles.mobileStateScreen : styles.loadingOverlay}
+      className={styles.mobileStateScreen}
       role="alert"
       data-testid="poke-lounge-startup-error"
     >
@@ -90,84 +83,6 @@ export function PokeLoungeStartupErrorScreen({
         </Button>
       </div>
     </section>
-  );
-}
-
-export function PokeLoungeStatusRail({
-  authenticated,
-  autosaveLabel,
-  autosaveStatus,
-  connectionLabel,
-  connectionStatus,
-  copy,
-  hydrationMessage,
-  hydrationRetryDisabled,
-  hydrationRetryLabel,
-  multiplayer,
-  usingLocalHydrationFallback,
-  onRetryHydration,
-}: {
-  authenticated: boolean;
-  autosaveLabel: string;
-  autosaveStatus: string;
-  connectionLabel: string;
-  connectionStatus: "offline" | "connecting" | "online";
-  copy: PokeLoungeCopy;
-  hydrationMessage: string;
-  hydrationRetryDisabled: boolean;
-  hydrationRetryLabel: string;
-  multiplayer: boolean;
-  usingLocalHydrationFallback: boolean;
-  onRetryHydration(): void;
-}) {
-  return (
-    <aside
-      className={styles.statusRail}
-      aria-label={copy.statusRailLabel}
-      data-poke-lounge-status-rail="true"
-    >
-      {multiplayer ? (
-        <p
-          className={styles.statusChip}
-          data-tone={connectionStatus === "online" ? "success" : "warning"}
-          data-poke-lounge-connection-status={connectionStatus}
-        >
-          {connectionLabel}
-        </p>
-      ) : null}
-      <p
-        className={styles.statusChip}
-        data-tone={
-          usingLocalHydrationFallback ? "warning" : autosaveStatus === "error" ? "error" : "neutral"
-        }
-        data-poke-lounge-save-status={
-          usingLocalHydrationFallback || !authenticated ? "local" : autosaveStatus
-        }
-      >
-        {autosaveLabel}
-      </p>
-      {usingLocalHydrationFallback ? (
-        <div
-          className={`${styles.statusChip} ${styles.hydrationFallbackChip}`}
-          data-tone="warning"
-          role="status"
-          data-testid="poke-lounge-state-hydration-local-fallback"
-        >
-          <span>{hydrationMessage}</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className={styles.hydrationFallbackRetry}
-            onClick={onRetryHydration}
-            disabled={hydrationRetryDisabled}
-            data-testid="poke-lounge-state-hydration-retry"
-          >
-            {hydrationRetryLabel}
-          </Button>
-        </div>
-      ) : null}
-    </aside>
   );
 }
 
@@ -202,7 +117,6 @@ export function PokeLoungeResultPanel({
   playTime,
   returnsToRoomEntry,
   score,
-  touchGameDevice,
   onLobby,
   onRetry,
 }: {
@@ -210,13 +124,12 @@ export function PokeLoungeResultPanel({
   playTime: number;
   returnsToRoomEntry: boolean;
   score: number;
-  touchGameDevice: boolean;
   onLobby(): void;
   onRetry(): void;
 }) {
   return (
     <section
-      className={`${touchGameDevice ? styles.mobileResultScreen : styles.resultOverlay} ${styles.trainerResult}`}
+      className={`${styles.mobileResultScreen} ${styles.trainerResult}`}
       data-poke-lounge-ui="heartgold"
       data-testid="poke-lounge-result-panel"
     >
@@ -259,7 +172,6 @@ export function PokeLoungeDecisionDialogs({
   exitOpen,
   hydrationConflictOpen,
   leaveRequest,
-  touchGameDevice,
   onDeferHydration,
   onExitConfirm,
   onExitOpenChange,
@@ -272,7 +184,6 @@ export function PokeLoungeDecisionDialogs({
   exitOpen: boolean;
   hydrationConflictOpen: boolean;
   leaveRequest: PokeLoungeRoomLeaveRequestDetail | null;
-  touchGameDevice: boolean;
   onDeferHydration(): void;
   onExitConfirm(): void;
   onExitOpenChange(open: boolean): void;
@@ -281,7 +192,7 @@ export function PokeLoungeDecisionDialogs({
   onUseLocalHydration(): void;
   onUseServerHydration(): void;
 }) {
-  const dialogClassName = touchGameDevice ? styles.mobileDecisionSheet : styles.confirmDialog;
+  const dialogClassName = styles.mobileDecisionSheet;
 
   return (
     <>

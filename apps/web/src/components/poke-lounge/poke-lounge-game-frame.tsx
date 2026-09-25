@@ -8,10 +8,7 @@ import {
 import styles from "./poke-lounge.module.css";
 import { WorldScreen } from "./runtime/game/world/world-screen";
 import { BattleScreen } from "./runtime/game/battle/battle-screen";
-import {
-  RoundCountdown,
-  TournamentCelebration,
-} from "./runtime/game/tournament/tournament-feedback";
+import { TournamentCelebration } from "./runtime/game/tournament/tournament-feedback";
 
 export function PokeLoungeGameFrame({
   copy,
@@ -19,7 +16,6 @@ export function PokeLoungeGameFrame({
   roomShareAvailable,
   roomShareStatus,
   runtimeState,
-  touchGameDevice,
   onOpenSettings,
   onRoomShare,
 }: {
@@ -28,7 +24,6 @@ export function PokeLoungeGameFrame({
   roomShareAvailable: boolean;
   roomShareStatus: "idle" | "success" | "error";
   runtimeState: PokeLoungeRuntimeState;
-  touchGameDevice: boolean;
   onOpenSettings(): void;
   onRoomShare(): void;
 }) {
@@ -76,7 +71,7 @@ export function PokeLoungeGameFrame({
     <div
       className={styles.gameFrame}
       data-poke-lounge-game-frame="true"
-      data-poke-lounge-mobile-screen={touchGameDevice ? "top" : undefined}
+      data-poke-lounge-mobile-screen="top"
       data-poke-lounge-runtime-mounted={gameRuntimeMounted}
     >
       <div
@@ -118,16 +113,13 @@ export function PokeLoungeGameFrame({
           )
         : null}
       {worldTarget && world
-        ? createPortal(
-            <WorldScreen {...world} copy={copy} desktop={!touchGameDevice} />,
-            worldTarget,
-          )
+        ? createPortal(<WorldScreen {...world} copy={copy} desktop={false} />, worldTarget)
         : null}
       {gameplayTarget && battle
         ? createPortal(
             <BattleScreen
               copy={copy}
-              desktop={!touchGameDevice}
+              desktop={false}
               gameStateStore={
                 runtimeState.phase === "battle" ? runtimeState.world?.gameStateStore : undefined
               }
@@ -137,30 +129,11 @@ export function PokeLoungeGameFrame({
           )
         : null}
       {gameplayWorld?.competitiveRoundsEnabled ? (
-        <>
-          {!touchGameDevice && runtimeState.phase !== "lobby" ? (
-            <RoundCountdown copy={copy} gameStateStore={gameplayWorld.gameStateStore} />
-          ) : null}
-          <TournamentCelebration gameStateStore={gameplayWorld.gameStateStore} />
-        </>
+        <TournamentCelebration gameStateStore={gameplayWorld.gameStateStore} />
       ) : null}
       {gameplayTarget
         ? createPortal(<PokeLoungeRuntimeControls state={runtimeState} />, gameplayTarget)
         : null}
-      {!touchGameDevice &&
-      gameRuntimeMounted &&
-      !hasRuntimeScreen &&
-      runtimeState.phase !== "lobby" ? (
-        <button
-          type="button"
-          className={styles.desktopSettingsButton}
-          onClick={onOpenSettings}
-          aria-label={copy.settingsOpenLabel}
-          data-poke-lounge-desktop-settings-toggle="true"
-        >
-          ⚙
-        </button>
-      ) : null}
     </div>
   );
 }

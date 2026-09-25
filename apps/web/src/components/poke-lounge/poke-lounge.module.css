@@ -1426,12 +1426,18 @@
   text-align: center;
 }
 
-.page.touchGameDevice {
-  /* Use visual-viewport coordinates, independent of document/keyboard scrolling.
-     Tasks are absolute children so their footers share these exact bounds. */
+.page.mobileOnly {
+  /* One mobile canvas in every browser. Wide viewports only add outer gutter;
+     the product UI itself never grows into a desktop layout. */
+  --poke-lounge-mobile-app-width: min(var(--poke-lounge-container-width), 480px);
+
   position: fixed;
-  inset: var(--poke-lounge-viewport-top, 0px) auto auto var(--poke-lounge-viewport-left, 0px);
-  width: var(--poke-lounge-container-width);
+  inset: var(--poke-lounge-viewport-top, 0px) auto auto
+    calc(
+      var(--poke-lounge-viewport-left, 0px) +
+        max(0px, calc((var(--poke-lounge-container-width) - 480px) / 2))
+    );
+  width: var(--poke-lounge-mobile-app-width);
   height: var(--poke-lounge-container-height);
   min-height: 0;
   overflow: hidden;
@@ -1439,15 +1445,15 @@
   overscroll-behavior: none;
 }
 
-.touchGameDevice {
+.mobileOnly {
   --poke-lounge-mobile-letterbox-top: max(16px, env(safe-area-inset-top, 0px));
   --poke-lounge-mobile-letterbox-bottom: max(16px, env(safe-area-inset-bottom, 0px));
 
   background: #17201a;
 }
 
-.touchGameDevice .mobileResultScreen,
-.touchGameDevice .mobileStateScreen {
+.mobileOnly .mobileResultScreen,
+.mobileOnly .mobileStateScreen {
   inset: var(--poke-lounge-mobile-letterbox-top) 0 var(--poke-lounge-mobile-letterbox-bottom);
 }
 
@@ -1538,16 +1544,16 @@
 .mobileDecisionSheet {
   position: fixed !important;
   top: auto !important;
-  right: 0;
+  right: auto;
   bottom: 0 !important;
-  left: 0 !important;
+  left: 50% !important;
   box-sizing: border-box;
-  width: 100% !important;
-  max-width: none !important;
+  width: min(100vw, 480px) !important;
+  max-width: 480px !important;
   max-height: min(72dvh, 560px);
   padding: 20px max(18px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom))
     max(18px, env(safe-area-inset-left));
-  transform: none !important;
+  transform: translateX(-50%) !important;
   translate: none !important;
   border: 3px solid #17231c;
   border-bottom: 0;
@@ -1563,35 +1569,6 @@
   border-radius: 4px;
   box-shadow: 0 3px 0 #17231c;
   font-weight: 900;
-}
-
-.desktopSettingsButton {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  z-index: 55;
-  display: inline-grid;
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  border: 3px solid #17231c;
-  border-radius: 50%;
-  background: rgba(248, 251, 240, 0.9);
-  box-shadow: 0 4px 0 rgba(23, 35, 28, 0.86);
-  color: #17201a;
-  cursor: pointer;
-  font-size: 1rem;
-  place-items: center;
-}
-
-.desktopSettingsButton:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 rgba(23, 35, 28, 0.86);
-}
-
-.page :global(#game-root[data-poke-lounge-active-scene="battle"]) + .desktopSettingsButton {
-  top: 10px;
-  bottom: auto;
 }
 
 .page[data-poke-lounge-active-scene="battle"] .statusChip[data-poke-lounge-save-status="idle"],
@@ -1676,18 +1653,18 @@
   font-weight: 900;
 }
 
-.touchGameDevice .statusRail {
+.mobileOnly .statusRail {
   top: max(8px, env(safe-area-inset-top));
   bottom: auto;
   max-width: min(210px, calc(100vw - 16px));
 }
 
-.touchGameDevice .statusChip {
+.mobileOnly .statusChip {
   padding: 4px 6px;
   font-size: 0.62rem;
 }
 
-.touchGameDevice .worldRankHud {
+.mobileOnly .worldRankHud {
   top: 64px;
 }
 
@@ -1940,10 +1917,10 @@
 /* One responsive owner: visible rectangle -> safe content -> play geometry.
    Entry, lobby and starter remain full-height tasks. Orientation and fullscreen
    never replace this with a different sizing formula. */
-.page.touchGameDevice {
+.page.mobileOnly {
   --poke-lounge-frame-available-height: 100%;
   display: grid;
-  grid-template-columns: minmax(0, min(100%, 1200px));
+  grid-template-columns: minmax(0, min(100%, 480px));
   grid-template-rows: minmax(0, 1fr);
   gap: 0;
   align-content: stretch;
@@ -1952,7 +1929,7 @@
   padding: var(--poke-lounge-mobile-letterbox-top) env(safe-area-inset-right, 0px)
     var(--poke-lounge-mobile-letterbox-bottom) env(safe-area-inset-left, 0px);
 }
-.page.touchGameDevice .gameFrame {
+.page.mobileOnly .gameFrame {
   position: relative;
   inset: auto;
   grid-column: 1;
@@ -1966,25 +1943,24 @@
   align-self: stretch;
   justify-self: center;
 }
-.page.touchGameDevice[data-poke-lounge-play-layout="true"] {
+.page.mobileOnly[data-poke-lounge-play-layout="true"] {
   grid-template-columns: minmax(0, var(--poke-lounge-layout-width, 100%));
   grid-template-rows: auto var(--poke-lounge-layout-frame-height, 40%) minmax(0, 1fr);
   gap: var(--poke-lounge-layout-gap, 8px);
 }
-.page.touchGameDevice[data-poke-lounge-play-layout="true"] .gameFrame {
+.page.mobileOnly[data-poke-lounge-play-layout="true"] .gameFrame {
   grid-row: 2;
   width: var(--poke-lounge-layout-frame-width, 100%);
   height: var(--poke-lounge-layout-frame-height, 100%);
   aspect-ratio: 4 / 3;
   align-self: center;
 }
-.page.touchGameDevice[data-poke-lounge-play-layout="true"]
-  > :global([data-poke-lounge-play-status]) {
+.page.mobileOnly[data-poke-lounge-play-layout="true"] > :global([data-poke-lounge-play-status]) {
   grid-row: 1;
   grid-column: 1 / -1;
   width: 100%;
 }
-.page.touchGameDevice[data-poke-lounge-play-layout="true"]
+.page.mobileOnly[data-poke-lounge-play-layout="true"]
   > :global([data-poke-lounge-mobile-control-dock]) {
   grid-row: 3;
   grid-column: 1;
@@ -1995,13 +1971,13 @@
   align-self: stretch;
   justify-self: stretch;
 }
-.page.touchGameDevice[data-poke-lounge-play-layout="true"][data-poke-lounge-responsive-layout="split"] {
+.page.mobileOnly[data-poke-lounge-play-layout="true"][data-poke-lounge-responsive-layout="split"] {
   grid-template-columns: var(--poke-lounge-layout-frame-width) var(
       --poke-lounge-layout-controller-width
     );
   grid-template-rows: auto minmax(0, 1fr);
 }
-.page.touchGameDevice[data-poke-lounge-play-layout="true"][data-poke-lounge-responsive-layout="split"]
+.page.mobileOnly[data-poke-lounge-play-layout="true"][data-poke-lounge-responsive-layout="split"]
   > :global([data-poke-lounge-mobile-control-dock]) {
   grid-row: 2;
   grid-column: 2;
@@ -2009,8 +1985,7 @@
   border-left: 2px solid rgba(23, 35, 28, 0.66);
 }
 
-.touchGameDevice[data-poke-lounge-keyboard-open]
-  :global([data-poke-lounge-mobile-control-dock="true"]) {
+.mobileOnly[data-poke-lounge-keyboard-open] :global([data-poke-lounge-mobile-control-dock="true"]) {
   display: none;
 }
 
@@ -4179,7 +4154,7 @@
   text-decoration: line-through;
 }
 .tournamentConfetti {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 10000;
   overflow: hidden;
@@ -4273,18 +4248,19 @@
 
 /* Room entry owns document scrolling. A fixed game viewport with two nested
    overflow:auto panels clips the header and traps pull-to-refresh on mobile. */
-.page.touchGameDevice[data-poke-lounge-entry-open="true"] {
+.page.mobileOnly[data-poke-lounge-entry-open="true"] {
   container-type: inline-size;
   position: relative;
   inset: auto;
   display: block;
-  width: 100%;
+  width: min(100%, 480px);
   height: auto;
   min-height: 100dvh;
+  margin: 0 auto;
   overflow: visible;
   overscroll-behavior: auto;
 }
-.page.touchGameDevice[data-poke-lounge-entry-open="true"] .gameFrame {
+.page.mobileOnly[data-poke-lounge-entry-open="true"] .gameFrame {
   height: auto;
   min-height: calc(
     100dvh - var(--poke-lounge-mobile-letterbox-top) - var(--poke-lounge-mobile-letterbox-bottom)
@@ -4292,15 +4268,15 @@
   max-height: none;
   aspect-ratio: auto;
 }
-.page.touchGameDevice[data-poke-lounge-entry-open="true"] .gameFrame > :global(#game-root) {
+.page.mobileOnly[data-poke-lounge-entry-open="true"] .gameFrame > :global(#game-root) {
   position: absolute;
   inset: 0;
 }
-.page.touchGameDevice[data-poke-lounge-entry-open="true"] .runtimeScreen {
+.page.mobileOnly[data-poke-lounge-entry-open="true"] .runtimeScreen {
   position: relative;
   min-height: inherit;
 }
-.page.touchGameDevice[data-poke-lounge-entry-open="true"] :global(.room-entry-screen) {
+.page.mobileOnly[data-poke-lounge-entry-open="true"] :global(.room-entry-screen) {
   height: auto;
   min-height: inherit;
   max-height: none;
@@ -4308,14 +4284,14 @@
   overscroll-behavior: auto;
   align-items: start;
 }
-.page.touchGameDevice[data-poke-lounge-entry-open="true"] :global(.room-entry-panel) {
+.page.mobileOnly[data-poke-lounge-entry-open="true"] :global(.room-entry-panel) {
   height: auto;
   max-height: none;
   overflow: visible;
   align-content: start;
   grid-auto-rows: max-content;
 }
-.page.touchGameDevice[data-poke-lounge-entry-open="true"] :global(.room-entry-intro) {
+.page.mobileOnly[data-poke-lounge-entry-open="true"] :global(.room-entry-intro) {
   overflow: clip;
 }
 .page :global(.room-entry-intro > [data-poke-lounge-page-reload]) {
