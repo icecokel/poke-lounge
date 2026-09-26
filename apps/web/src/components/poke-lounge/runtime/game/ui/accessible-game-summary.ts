@@ -30,6 +30,7 @@ interface AccessibleSummaryCopy {
     status: string,
     moves: string,
   ): string;
+  partyBasic(partySize: number, pokemon: PlayerPokemon): string;
   hp(currentHp: number, maxHp: number): string;
   hpUnknown: string;
   status(status: string): string;
@@ -56,6 +57,8 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
     scoring: "현재 게임의 누적 점수입니다.",
     party: (partySize, pokemon, hp, status, moves) =>
       `파티 ${partySize}마리. 선두 ${pokemon.name} 레벨 ${pokemon.level}, ${hp}${status}.${moves}`,
+    partyBasic: (partySize, pokemon) =>
+      `파티 ${partySize}마리. 선두 ${pokemon.name} 레벨 ${pokemon.level}.`,
     hp: (currentHp, maxHp) => `HP ${currentHp}/${maxHp}`,
     hpUnknown: "HP 정보 없음",
     status: status => `, 상태 ${status}`,
@@ -93,6 +96,8 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
     scoring: "Scores are cumulative within this game.",
     party: (partySize, pokemon, hp, status, moves) =>
       `Party of ${partySize}. Lead ${pokemon.name}, level ${pokemon.level}, ${hp}${status}.${moves}`,
+    partyBasic: (partySize, pokemon) =>
+      `Party of ${partySize}. Lead ${pokemon.name}, level ${pokemon.level}.`,
     hp: (currentHp, maxHp) => `HP ${currentHp}/${maxHp}`,
     hpUnknown: "HP unavailable",
     status: status => `, status ${status}`,
@@ -130,6 +135,8 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
     scoring: "スコアは今回のゲーム内で累計されます。",
     party: (partySize, pokemon, hp, status, moves) =>
       `パーティ ${partySize}匹。先頭 ${pokemon.name}、レベル ${pokemon.level}、${hp}${status}。${moves}`,
+    partyBasic: (partySize, pokemon) =>
+      `パーティ ${partySize}匹。先頭 ${pokemon.name}、レベル ${pokemon.level}。`,
     hp: (currentHp, maxHp) => `HP ${currentHp}/${maxHp}`,
     hpUnknown: "HP情報なし",
     status: status => `、状態 ${status}`,
@@ -152,7 +159,15 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
   },
 };
 
-export function createAccessibleGameSummary(state: GameState, locale?: string | null): string {
+export interface AccessibleGameSummaryOptions {
+  omitMutablePartyState?: boolean;
+}
+
+export function createAccessibleGameSummary(
+  state: GameState,
+  locale?: string | null,
+  options: AccessibleGameSummaryOptions = {},
+): string {
   const resolvedLocale = resolvePokeLoungeLocale(locale);
   const copy = ACCESSIBLE_SUMMARY_COPY[resolvedLocale];
   const player = state.playersById[state.currentPlayerId];
@@ -168,17 +183,21 @@ export function createAccessibleGameSummary(state: GameState, locale?: string | 
     player.party.find(function findItem(slot) {
       return slot.pokemon;
     })?.pokemon;
-  const partySummary = activePokemon
-    ? createPokemonSummary(
-        activePokemon,
-        player.party.filter(function filterItem(slot) {
-          return slot.pokemon;
-        }).length,
-        copy,
-        resolvedLocale,
-      )
-    : copy.noParty;
   const projection = state.tournament.serverProjection;
+  const activeMatch = projection
+    ? findCurrentMatch(projection.tournament.bracket, projection.tournament.activeMatchId)
+    : null;
+  const partySize = player.party.filter(function filterItem(slot) {
+    return slot.pokemon;
+  }).length;
+  const partySummary = activePokemon
+    ? options.omitMutablePartyState
+      ? copy.partyBasic(partySize, {
+          ...activePokemon,
+          name: localizePokemonName(activePokemon.name, resolvedLocale),
+        })
+      : createPokemonSummary(activePokemon, partySize, copy, resolvedLocale)
+    : copy.noParty;
 
   if (!projection) {
     const modeSummary =
@@ -189,10 +208,6 @@ export function createAccessibleGameSummary(state: GameState, locale?: string | 
     return `${modeSummary} ${partySummary}`;
   }
 
-  const activeMatch = findCurrentMatch(
-    projection.tournament.bracket,
-    projection.tournament.activeMatchId,
-  );
   const ownParticipant = projection.participants.find(function findItem(participant) {
     return participant.playerId === projection.ownPlayerId;
   });

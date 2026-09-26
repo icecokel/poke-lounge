@@ -12,7 +12,10 @@ import {
 } from "./runtime/game/ui/poke-lounge-ui-events";
 import { resolvePokeLoungeLocale } from "./poke-lounge-copy";
 
-export function usePokeLoungeAccessibleStatus(locale?: string | null): string {
+export function usePokeLoungeAccessibleStatus(
+  locale?: string | null,
+  activeScene?: "battle" | "world" | null,
+): string {
   const resolvedLocale = resolvePokeLoungeLocale(locale);
   const [gameSummary, setGameSummary] = useState(function callback() {
     return getInitialGameSummary(resolvedLocale);
@@ -25,7 +28,9 @@ export function usePokeLoungeAccessibleStatus(locale?: string | null): string {
     function runEffect() {
       const store = getDefaultGameStateStore();
       const syncSummary = () => {
-        const nextSummary = createAccessibleGameSummary(store.getState(), resolvedLocale);
+        const nextSummary = createAccessibleGameSummary(store.getState(), resolvedLocale, {
+          omitMutablePartyState: activeScene === "battle",
+        });
         setGameSummary(function callback(currentSummary) {
           return currentSummary === nextSummary ? currentSummary : nextSummary;
         });
@@ -34,7 +39,7 @@ export function usePokeLoungeAccessibleStatus(locale?: string | null): string {
       syncSummary();
       return store.subscribe(syncSummary);
     },
-    [resolvedLocale],
+    [activeScene, resolvedLocale],
   );
 
   useEffect(

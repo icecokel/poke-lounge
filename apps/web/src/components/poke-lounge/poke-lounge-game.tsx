@@ -154,7 +154,8 @@ export function PokeLoungeGame() {
     : null;
   const copy = getPokeLoungeCopy(locale);
   const sentenceEnd = copy.locale === "ja-JP" ? "。" : ".";
-  const accessibleGameStatus = usePokeLoungeAccessibleStatus(locale);
+  const [activeGameScene, setActiveGameScene] = useState<"battle" | "world" | null>(null);
+  const accessibleGameStatus = usePokeLoungeAccessibleStatus(locale, activeGameScene);
   const pageRef = useRef<HTMLElement>(null);
   const viewportUpdateRef = useRef<(() => void) | null>(null);
   const gamePageHandleRef = useRef<PokeLoungeGamePageHandle | null>(null);
@@ -182,7 +183,6 @@ export function PokeLoungeGame() {
     return () => document.removeEventListener("poke-lounge:tournament-gathering", closeOverlays);
   }, []);
   const [gameRuntimeMounted, setGameRuntimeMounted] = useState(false);
-  const [activeGameScene, setActiveGameScene] = useState<"battle" | "world" | null>(null);
   const [settingsPartySlots, setSettingsPartySlots] = useState<PokeLoungePartySlotSummary[]>([]);
   const [settings, setSettings] = useState<PokeLoungeSettings>(createDefaultPokeLoungeSettings);
   const [settingsHydrated, setSettingsHydrated] = useState(false);
