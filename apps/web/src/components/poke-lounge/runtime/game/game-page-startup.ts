@@ -31,6 +31,7 @@ import { createMultiplayerRoom } from "./network/multiplayer-room-factory";
 import {
   applyRoomRoundDurationSearchParam,
   readRoomEntryFromLocation,
+  readRoomRoundDurationMs,
   type RoomEntryMode,
 } from "./network/room-entry";
 import { shouldResetRoomEntrySession, type RoomEntrySelection } from "./network/room-entry-screen";
@@ -747,6 +748,24 @@ export async function startGamePage(
       applyRoomRoundDurationSearchParam(currentUrl);
       replaceBrowserUrl(currentUrl);
       showRoomEntry();
+      return;
+    }
+
+    if (roomEntry.mode === "server-room" && roomEntry.roomCode) {
+      emitRuntimeState({
+        phase: "entry",
+        screen: "direct-multiplayer",
+        currentUrl: new URL(currentUrl.href),
+        initialDisplayName: gameStateStore.getCurrentLocalPlayer().displayName,
+        onSubmit: displayName =>
+          selectRoomEntry({
+            mode: "server-room",
+            roomCode: roomEntry.roomCode,
+            inviteUrl: currentUrl.href,
+            displayName,
+            roundDurationMs: readRoomRoundDurationMs(currentUrl.searchParams) ?? undefined,
+          }),
+      });
       return;
     }
 
