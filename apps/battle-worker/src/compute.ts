@@ -130,7 +130,11 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
     }
     case "choose-ai": {
       const current = state(op.state);
-      const action = chooseAiCompetitiveAction(current, op.playerId);
+      const random = createSeededRandom(op.seed);
+      const action = chooseAiCompetitiveAction(current, op.playerId, {
+        difficulty: op.difficulty,
+        random: () => random.next(),
+      });
       validateCompetitiveAction({ state: current, playerId: op.playerId, action });
       return action;
     }
@@ -175,8 +179,14 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
       }
       if (!op.starting) {
         const random = createSeededRandom(op.seed);
-        advanceAiAdventure(adventure, op.nowMs, op.roundIndex, op.preparing, context, () =>
-          random.next(),
+        advanceAiAdventure(
+          adventure,
+          op.nowMs,
+          op.roundIndex,
+          op.preparing,
+          context,
+          () => random.next(),
+          op.difficulty,
         );
       }
       if (op.gathering) {

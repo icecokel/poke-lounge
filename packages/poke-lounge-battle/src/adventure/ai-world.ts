@@ -1,4 +1,5 @@
 import { normalizeGen4Traits } from "../gen4/traits";
+import { AI_DIFFICULTY_PROFILES, DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "../ai-difficulty";
 import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "../battle-presentation";
 import { estimateAiMoveDamage } from "../ai-policy";
 import { normalizeCompetitiveParty, type NormalizedCompetitiveParty } from "../competitive-party";
@@ -104,7 +105,9 @@ export function advanceAiAdventure(
   preparing: boolean,
   context: AiAdventureContext,
   random: () => number = Math.random,
+  difficulty: AiDifficulty = DEFAULT_AI_DIFFICULTY,
 ): void {
+  const profile = AI_DIFFICULTY_PROFILES[difficulty];
   const elapsedMs = Math.min(
     AI_REMOTE_PLAYER_INTERPOLATION_MS,
     Math.max(0, nowMs - state.updatedAtMs),
@@ -133,7 +136,7 @@ export function advanceAiAdventure(
   }
   if (state.battle) {
     state.activity = "hunting";
-    if (nowMs >= state.readyAtMs) advanceWildBattle(state, nowMs, context, random);
+    if (nowMs >= state.readyAtMs) advanceWildBattle(state, nowMs, context, random, difficulty);
     return;
   }
   if (nowMs < state.readyAtMs) {
@@ -243,7 +246,10 @@ export function advanceAiAdventure(
       state.path = [];
       state.activity = "hunting";
       state.readyAtMs =
-        nowMs + 640 + state.battle.messageQueue.length * BATTLE_MESSAGE_AUTO_ADVANCE_MS;
+        nowMs +
+        640 +
+        state.battle.messageQueue.length * BATTLE_MESSAGE_AUTO_ADVANCE_MS +
+        profile.wildActionDelayMs;
       return;
     }
   }
@@ -254,7 +260,9 @@ function advanceWildBattle(
   nowMs: number,
   context: AiAdventureContext,
   random: () => number,
+  difficulty: AiDifficulty,
 ): void {
+  const profile = AI_DIFFICULTY_PROFILES[difficulty];
   let battle = state.battle!;
   const previousLevels = new Map(
     state.party.map(slot => [slot.slotIndex, slot.pokemon?.level ?? 1]),
@@ -309,16 +317,19 @@ function advanceWildBattle(
     if (replacement) battle = choosePartySlot(battle, replacement.slotIndex);
   } else if (
     (state.inventory.pokeball ?? 0) > 0 &&
-    battle.opponent.pokemon.currentHp <= battle.opponent.pokemon.maxHp * 0.5
+    battle.opponent.pokemon.currentHp <= battle.opponent.pokemon.maxHp * 0.5 &&
+    (state.roundIndex !== 1 ||
+      state.party.filter(slot => slot.pokemon).length < profile.roundOnePartyLimit)
   ) {
     battle = chooseBattleBagItem({ ...battle, phase: "bag-select" }, "pokeball", {
       itemCount: state.inventory.pokeball,
       captureRandom16: () => Math.floor(random() * 65536),
+      captureRateMultiplier: profile.captureRateMultiplier,
     });
     if (battle.usedInventoryItemId === "pokeball") state.inventory.pokeball -= 1;
   } else {
     const moves = battle.player.pokemon.moves;
-    const move = moves
+    const candidates = moves
       .map((move, index) => ({ move, index }))
       .filter(
         ({ move }) =>
@@ -327,18 +338,32 @@ function advanceWildBattle(
             battle.gen4Requests[0].moves.some(
               requested => requested.moveId === move.id && requested.pp > 0 && !requested.disabled,
             )),
-      )
-      .sort(
-        (a, b) =>
-          estimateAiMoveDamage(battle.player.pokemon, battle.opponent.pokemon, b.move.id) -
-            estimateAiMoveDamage(battle.player.pokemon, battle.opponent.pokemon, a.move.id) ||
-          a.index - b.index,
-      )[0];
+      );
+    const move =
+      profile.wildMoveSelection === "random"
+        ? randomItem(candidates, random)
+        : candidates.sort(
+            (a, b) =>
+              estimateAiMoveDamage(battle.player.pokemon, battle.opponent.pokemon, b.move.id) -
+                estimateAiMoveDamage(battle.player.pokemon, battle.opponent.pokemon, a.move.id) ||
+              a.index - b.index,
+          )[0];
     battle = choosePlayerMove({ ...battle, phase: "move-select" }, move?.index ?? 0, { random });
   }
   state.battle = battle;
   state.readyAtMs =
-    nowMs + Math.max(1, battle.messageQueue.length) * BATTLE_MESSAGE_AUTO_ADVANCE_MS;
+    nowMs +
+    Math.max(1, battle.messageQueue.length) * BATTLE_MESSAGE_AUTO_ADVANCE_MS +
+    profile.wildActionDelayMs;
+}
+
+function randomItem<T>(items: readonly T[], random: () => number): T | undefined {
+  if (!items.length) return undefined;
+  const index = Math.min(
+    items.length - 1,
+    Math.floor(Math.max(0, Math.min(0.999999, random())) * items.length),
+  );
+  return items[index];
 }
 
 export function aiCompetitiveParty(state: AiAdventureState): NormalizedCompetitiveParty | null {

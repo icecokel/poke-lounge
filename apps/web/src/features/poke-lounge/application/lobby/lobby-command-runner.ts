@@ -1,4 +1,4 @@
-export type LobbyCommand = "ready" | "start" | "ai-add" | "ai-remove";
+export type LobbyCommand = "ready" | "start" | "ai-add" | "ai-difficulty" | "ai-remove";
 export interface LobbyCommandState {
   pending: LobbyCommand | null;
   failed: boolean;

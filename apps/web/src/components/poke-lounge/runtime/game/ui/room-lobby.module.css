@@ -308,6 +308,33 @@
   align-items: center;
   gap: 4px;
 }
+.difficultyButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 7px;
+  border: 1px solid #b9c8ae;
+  border-radius: 999px;
+  background: #f4f7ec;
+  color: #49613f;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.difficultyButton:disabled {
+  border-color: transparent;
+  background: transparent;
+  color: #617154;
+  cursor: default;
+}
+.difficultyButton:not(:disabled):hover {
+  background: #e8f0db;
+}
+.difficultyButton:not(:disabled):focus-visible {
+  outline: 2px solid #315c3e;
+  outline-offset: 2px;
+}
 .participantStatus {
   display: flex;
   align-items: center;

@@ -11,6 +11,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { createHash, randomInt, randomUUID } from 'node:crypto';
+import { DEFAULT_AI_DIFFICULTY } from '@poke-lounge/battle/ai-difficulty';
 import { createAiStarterParty } from '@poke-lounge/battle/ai-policy';
 import {
   CompetitivePartyValidationError,
@@ -62,6 +63,7 @@ import type {
   PokeLoungeRoomState,
   PokeLoungeTournamentMatch,
   RemovePokeLoungeAiParticipantInput,
+  SetPokeLoungeAiDifficultyInput,
   SetPokeLoungeReadyInput,
   SetPokeLoungeRoundReadyInput,
   StartPokeLoungeRoomInput,
@@ -1114,6 +1116,52 @@ export class PokeLoungeRoomService {
     });
   }
 
+  async setAiDifficulty(
+    roomCode: string,
+    input: SetPokeLoungeAiDifficultyInput,
+    command: PokeLoungeRoomCommandContext,
+  ): Promise<PokeLoungeRoomSnapshot> {
+    const playerId = input.playerId.trim();
+    const sessionId = input.sessionId.trim();
+    const aiPlayerId = input.aiPlayerId.trim();
+    const nowMs = this.normalizeNow(input.nowMs);
+
+    return this.mutateRoom({
+      operation: 'ai-difficulty',
+      roomCode,
+      actorPlayerId: playerId,
+      command,
+      nowMs,
+      body: {
+        playerId,
+        sessionId,
+        aiPlayerId,
+        difficulty: input.difficulty,
+      },
+      apply: (room) => {
+        assertRoomJoinable(room);
+        const host = findParticipant(room, playerId);
+        assertParticipantSession(
+          host,
+          sessionId,
+          'AI management sessionId does not match this participant',
+        );
+        if (getPokeLoungeRoomHostPlayerId(room) !== playerId) {
+          throw new BadRequestException('Only the room host can manage AI');
+        }
+        const ai = findParticipant(room, aiPlayerId);
+        if (ai.controller !== 'ai') {
+          throw new BadRequestException(
+            'Only AI participants can change difficulty',
+          );
+        }
+        ai.aiDifficulty = input.difficulty;
+        room.updatedAtMs = nowMs;
+        return room;
+      },
+    });
+  }
+
   async removeAiParticipant(
     roomCode: string,
     input: RemovePokeLoungeAiParticipantInput,
@@ -1583,6 +1631,7 @@ function appendAiParticipant(
     playerId: aiPlayerId,
     displayName,
     controller: 'ai',
+    aiDifficulty: DEFAULT_AI_DIFFICULTY,
     role: 'participant',
     ready: true,
     connected: true,

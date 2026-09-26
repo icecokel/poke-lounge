@@ -1,6 +1,7 @@
+import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 
-export type RoomLobbyMutation = "ready" | "start" | "ai-add" | "ai-remove" | null;
+export type RoomLobbyMutation = "ready" | "start" | "ai-add" | "ai-difficulty" | "ai-remove" | null;
 
 export interface RoomLobbyViewState {
   participantCount: number;
@@ -16,6 +17,7 @@ export interface RoomLobbyRuntimeState {
   onSetReady(ready: boolean): Promise<void>;
   onStart(): Promise<void>;
   onAddAi(): Promise<void>;
+  onChangeAiDifficulty(aiPlayerId: string, difficulty: AiDifficulty): Promise<void>;
   onRemoveAi(aiPlayerId: string): Promise<void>;
 }
 

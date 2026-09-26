@@ -11,6 +11,7 @@ export const MAX_JOBS = 64;
 export const JOB_TIMEOUT_MS = 8_000;
 
 const boundedId = z.string().min(1).max(160);
+const aiDifficulty = z.enum(["easy", "normal", "hard"]);
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export const requestSchema = z.strictObject({
   protocolVersion: z.literal(1),
@@ -42,7 +43,13 @@ export const requestSchema = z.strictObject({
       actions: z.record(z.string(), z.unknown()),
       seed: boundedId,
     }),
-    z.strictObject({ kind: z.literal("choose-ai"), state: z.unknown(), playerId: boundedId }),
+    z.strictObject({
+      kind: z.literal("choose-ai"),
+      state: z.unknown(),
+      playerId: boundedId,
+      difficulty: aiDifficulty,
+      seed: boundedId,
+    }),
     z.strictObject({ kind: z.literal("forfeit"), state: z.unknown(), loserPlayerId: boundedId }),
     z.strictObject({
       kind: z.literal("ai-step"),
@@ -55,6 +62,7 @@ export const requestSchema = z.strictObject({
       gathering: z.boolean(),
       playerId: boundedId,
       playerIds: z.array(boundedId).min(1).max(8),
+      difficulty: aiDifficulty,
       startAtMs: integer.nullable(),
       roundDurationMs: z.union([z.literal(90_000), z.literal(180_000), z.literal(300_000)]),
       seed: boundedId,

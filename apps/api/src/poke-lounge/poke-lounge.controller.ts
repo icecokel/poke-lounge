@@ -40,6 +40,7 @@ import { LeavePokeLoungeRoomDto } from './dto/leave-poke-lounge-room.dto';
 import { ManagePokeLoungeAiParticipantDto } from './dto/manage-poke-lounge-ai-participant.dto';
 import { PokeLoungeRoomResponseDto } from './dto/poke-lounge-room-response.dto';
 import { PokeLoungeRomDataResponseDto } from './dto/poke-lounge-rom-data-response.dto';
+import { SetPokeLoungeAiDifficultyDto } from './dto/set-poke-lounge-ai-difficulty.dto';
 import { SetPokeLoungeReadyDto } from './dto/set-poke-lounge-ready.dto';
 import { SetPokeLoungeRoundReadyDto } from './dto/set-poke-lounge-round-ready.dto';
 import { StartPokeLoungeRoomDto } from './dto/start-poke-lounge-room.dto';
@@ -394,6 +395,32 @@ export class PokeLoungeController {
       await this.roomService.addAiParticipant(
         roomCode,
         { playerId: body.playerId, sessionId: body.sessionId },
+        parseRoomCommandHeaders(request),
+      ),
+    );
+  }
+
+  @Post('rooms/:roomCode/ai-participants/:aiPlayerId/difficulty')
+  @ApiHeader({ name: IDEMPOTENCY_HEADER, required: true })
+  @ApiHeader({ name: REVISION_HEADER, required: true, example: '0' })
+  @ApiBody({ type: SetPokeLoungeAiDifficultyDto })
+  @ApiCreatedResponse({ type: PokeLoungeRoomResponseDto })
+  @ApiConflictResponse({ type: PokeLoungeRoomConflictResponseDto })
+  async setAiDifficulty(
+    @Param('roomCode') roomCode: string,
+    @Param('aiPlayerId') aiPlayerId: string,
+    @Body() body: SetPokeLoungeAiDifficultyDto,
+    @Req() request: Request,
+  ) {
+    return toPokeLoungePublicRoomState(
+      await this.roomService.setAiDifficulty(
+        roomCode,
+        {
+          playerId: body.playerId,
+          sessionId: body.sessionId,
+          aiPlayerId,
+          difficulty: body.difficulty,
+        },
         parseRoomCommandHeaders(request),
       ),
     );

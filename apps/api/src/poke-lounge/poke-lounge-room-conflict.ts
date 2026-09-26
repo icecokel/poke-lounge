@@ -1,3 +1,4 @@
+import { DEFAULT_AI_DIFFICULTY } from '@poke-lounge/battle/ai-difficulty';
 import { ConflictException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { PokeLoungeRoomResponseDto } from './dto/poke-lounge-room-response.dto';
@@ -105,6 +106,9 @@ export function toPokeLoungePublicRoomState(
         playerId: participant.playerId,
         displayName: participant.displayName,
         controller: participant.controller === 'ai' ? 'ai' : 'human',
+        ...(participant.controller === 'ai'
+          ? { aiDifficulty: participant.aiDifficulty ?? DEFAULT_AI_DIFFICULTY }
+          : {}),
         role: participant.role,
         ready: participant.ready,
         connected:

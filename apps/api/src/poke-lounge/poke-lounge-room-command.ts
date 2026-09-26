@@ -7,6 +7,7 @@ export type PokeLoungeRoomOperation =
   | 'round-ready'
   | 'start'
   | 'ai-add'
+  | 'ai-difficulty'
   | 'ai-remove'
   | 'party-snapshot'
   | 'presence'

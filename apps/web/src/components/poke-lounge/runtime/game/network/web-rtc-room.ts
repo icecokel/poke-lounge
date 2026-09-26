@@ -174,6 +174,7 @@ export function createWebRtcRoom(options: WebRtcRoomOptions = {}): WebRtcRoom {
     setLobbyReady: async () => undefined,
     startChampionship: async () => undefined,
     addAiParticipant: async () => undefined,
+    setAiDifficulty: async () => undefined,
     removeAiParticipant: async () => undefined,
     connect() {
       connected = true;

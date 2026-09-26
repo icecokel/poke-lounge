@@ -1,3 +1,4 @@
+import { DEFAULT_AI_DIFFICULTY } from '@poke-lounge/battle/ai-difficulty';
 import { beginPokeLoungePreparationIfReady } from '../poke-lounge-room-policy';
 import {
   isRoundStartBlocked,
@@ -211,6 +212,8 @@ export class PokeLoungeAiWorkerService
             room.status === 'round-started' &&
               !isTournamentGatheringDue(room.status, room.round, nowMs),
             context,
+            Math.random,
+            participant.aiDifficulty ?? DEFAULT_AI_DIFFICULTY,
           );
         if (isTournamentGatheringDue(room.status, room.round, nowMs)) {
           const position = getTournamentGatherPosition(

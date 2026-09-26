@@ -337,6 +337,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/poke-lounge/rooms/{roomCode}/ai-participants/{aiPlayerId}/difficulty": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["PokeLoungeController_setAiDifficulty"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/poke-lounge/rooms/{roomCode}/ai-participants/{aiPlayerId}/remove": {
     parameters: {
       query?: never;
@@ -767,6 +783,11 @@ export interface components {
        */
       controller: "human" | "ai";
       /**
+       * @example easy
+       * @enum {string}
+       */
+      aiDifficulty?: "easy" | "normal" | "hard";
+      /**
        * @example participant
        * @enum {string}
        */
@@ -1098,6 +1119,17 @@ export interface components {
       playerId: string;
       /** @example session-a */
       sessionId: string;
+    };
+    SetPokeLoungeAiDifficultyDto: {
+      /** @example player-a */
+      playerId: string;
+      /** @example session-a */
+      sessionId: string;
+      /**
+       * @example easy
+       * @enum {string}
+       */
+      difficulty: "easy" | "normal" | "hard";
     };
     CompetitiveEffortValuesDto: {
       hp: number;
@@ -1882,6 +1914,47 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["ManagePokeLoungeAiParticipantDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PokeLoungeRoomResponseDto"];
+          };
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PokeLoungeRoomConflictResponseDto"];
+        };
+      };
+    };
+  };
+  PokeLoungeController_setAiDifficulty: {
+    parameters: {
+      query?: never;
+      header: {
+        "If-Match-Revision": string;
+        "X-Idempotency-Key": string;
+      };
+      path: {
+        roomCode: string;
+        aiPlayerId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetPokeLoungeAiDifficultyDto"];
       };
     };
     responses: {

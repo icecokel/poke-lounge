@@ -14,6 +14,11 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
+import {
+  DEFAULT_AI_DIFFICULTY,
+  nextAiDifficulty,
+  type AiDifficulty,
+} from "@poke-lounge/battle/ai-difficulty";
 import { useEffect, useId, useRef, useState } from "react";
 import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
 import type { PokeLoungeRuntimeState } from "../game-page-state";
@@ -264,7 +269,12 @@ export function RoomLobbyScreen({
                     participant={participant}
                     projection={state.projection}
                     locale={fullCopy.locale}
-                    canRemove={view.isHost && mutation === null && !!own?.connected}
+                    canEditAi={view.isHost && mutation === null && !!own?.connected}
+                    onChangeDifficulty={difficulty =>
+                      void runMutation("ai-difficulty", () =>
+                        state.onChangeAiDifficulty(participant.playerId, difficulty),
+                      )
+                    }
                     onRemove={() =>
                       void runMutation("ai-remove", () => state.onRemoveAi(participant.playerId))
                     }
@@ -344,13 +354,15 @@ function ParticipantRow({
   participant,
   projection,
   locale,
-  canRemove,
+  canEditAi,
+  onChangeDifficulty,
   onRemove,
 }: {
   participant: TournamentRoomParticipant;
   projection: TournamentStateRoomPayload;
   locale: string;
-  canRemove: boolean;
+  canEditAi: boolean;
+  onChangeDifficulty(difficulty: AiDifficulty): void;
   onRemove(): void;
 }) {
   const fullCopy = getPokeLoungeCopyForUrl(new URL(`http://localhost/${locale}`));
@@ -359,6 +371,8 @@ function ParticipantRow({
   const self = participant.playerId === projection.ownPlayerId;
   const host = participant.playerId === projection.hostPlayerId;
   const ai = participant.controller === "ai";
+  const difficulty = participant.aiDifficulty ?? DEFAULT_AI_DIFFICULTY;
+  const difficultyLabel = getAiDifficultyLabel(locale, difficulty);
   const spectator = participant.role !== "participant";
   const name = localizeTrainerName(participant.displayName, fullCopy.locale);
   const state = !participant.connected ? "offline" : participant.ready ? "ready" : "waiting";
@@ -386,6 +400,20 @@ function ParticipantRow({
             </span>
           ) : null}
           {ai ? <span data-room-lobby-badge="true">{copy.aiBadge}</span> : null}
+          {ai ? (
+            <button
+              type="button"
+              className={styles.difficultyButton}
+              disabled={!canEditAi}
+              onClick={() => onChangeDifficulty(nextAiDifficulty(difficulty))}
+              aria-label={copy.aiBadge + ": " + difficultyLabel}
+              data-room-lobby-ai-difficulty={participant.playerId}
+              data-difficulty={difficulty}
+            >
+              {difficultyLabel}
+              {canEditAi ? <ChevronRight size={12} aria-hidden="true" /> : null}
+            </button>
+          ) : null}
           {spectator ? <span>{text.spectators}</span> : null}
           {!host && !ai && !spectator ? <span>{text.human}</span> : null}
           <span className={styles.participantStatus} data-room-lobby-badge="true">
@@ -407,7 +435,7 @@ function ParticipantRow({
         </div>
       </div>
 
-      {ai && canRemove ? (
+      {ai && canEditAi ? (
         <button
           type="button"
           className={styles.removeButton}
@@ -420,4 +448,14 @@ function ParticipantRow({
       ) : null}
     </li>
   );
+}
+
+function getAiDifficultyLabel(locale: string, difficulty: AiDifficulty): string {
+  if (locale.toLowerCase().startsWith("ko")) {
+    return { easy: "쉬움", normal: "보통", hard: "어려움" }[difficulty];
+  }
+  if (locale.toLowerCase().startsWith("ja")) {
+    return { easy: "かんたん", normal: "ふつう", hard: "むずかしい" }[difficulty];
+  }
+  return { easy: "Easy", normal: "Normal", hard: "Hard" }[difficulty];
 }

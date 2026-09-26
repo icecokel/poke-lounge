@@ -10,6 +10,7 @@ import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
 } from '@poke-lounge/battle/competitive-ruleset-config';
+import { DEFAULT_AI_DIFFICULTY } from '@poke-lounge/battle/ai-difficulty';
 import { createSeededRandom } from '@poke-lounge/battle/prng';
 import { chooseAiCompetitiveAction } from '@poke-lounge/battle/ai-policy';
 import { getReadyTournamentMatches } from '@poke-lounge/battle/tournament-bracket';
@@ -711,24 +712,37 @@ export class RedisPokeLoungeRepository
   }): Promise<CanonicalCompetitiveAction | null> {
     const current = await this.readDocument(input.roomCode);
     const match = current?.document.matches[input.matchId];
+    const participant = current?.document.room.participants.find(
+      (candidate) =>
+        candidate.playerId === input.playerId &&
+        candidate.controller === 'ai' &&
+        candidate.connected,
+    );
     if (
+      !current ||
       !match ||
+      !participant ||
       match.status === 'completed' ||
       match.currentTurn !== input.turn ||
       match.assignmentRevision !== input.assignmentRevision ||
-      !current.document.room.participants.some(
-        (participant) =>
-          participant.playerId === input.playerId &&
-          participant.controller === 'ai' &&
-          participant.connected,
-      ) ||
       !getCompetitiveActionPlayerIds(match.currentState).includes(
         input.playerId,
       )
     )
       return null;
+    const random = createSeededRandom(
+      [
+        current.document.id,
+        match.matchId,
+        input.playerId,
+        String(input.turn),
+      ].join(':'),
+    );
     // Keep private combat stats inside the server; public projections intentionally omit them.
-    return chooseAiCompetitiveAction(match.currentState, input.playerId);
+    return chooseAiCompetitiveAction(match.currentState, input.playerId, {
+      difficulty: participant.aiDifficulty ?? DEFAULT_AI_DIFFICULTY,
+      random: () => random.next(),
+    });
   }
 
   async findRoomSnapshot(

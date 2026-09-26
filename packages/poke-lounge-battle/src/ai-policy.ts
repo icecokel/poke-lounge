@@ -1,4 +1,5 @@
 import type { CanonicalCompetitiveAction } from "./actions";
+import { AI_DIFFICULTY_PROFILES, DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "./ai-difficulty";
 import {
   COMPETITIVE_MOVE_CATALOG,
   COMPETITIVE_SPECIES_CATALOG,
@@ -43,10 +44,19 @@ export function createAiStarterParty(random: () => number): NormalizedCompetitiv
   });
 }
 
+export interface AiCompetitiveDecisionOptions {
+  difficulty?: AiDifficulty;
+  random?: () => number;
+}
+
 export function chooseAiCompetitiveAction(
   state: Pick<CanonicalBattleState, "playersById">,
   playerId: string,
+  options: AiCompetitiveDecisionOptions = {},
 ): CanonicalCompetitiveAction {
+  const difficulty = options.difficulty ?? DEFAULT_AI_DIFFICULTY;
+  const profile = AI_DIFFICULTY_PROFILES[difficulty];
+  const random = options.random ?? Math.random;
   const player = state.playersById[playerId];
   if (!player) throw new Error("AI is not a battle participant");
   const active = player.team.find(function findItem(member) {
@@ -62,20 +72,23 @@ export function chooseAiCompetitiveAction(
   const target = opponent?.team.find(member => member.slotIndex === opponent.activeSlotIndex);
   if (!target) throw new Error("AI opponent Pokemon is missing");
 
-  const move = [...(request?.moves ?? active.moves)]
-    .filter(function filterItem(candidate) {
-      return (
-        candidate.pp > 0 &&
-        (!("disabled" in candidate) || !candidate.disabled) &&
-        (request || isCompetitiveMoveSelectable(candidate.moveId))
-      );
-    })
-    .sort(function compareItems(left, right) {
-      return (
-        estimateAiMoveDamage(active, target, right.moveId) -
-          estimateAiMoveDamage(active, target, left.moveId) || left.moveId - right.moveId
-      );
-    })[0];
+  const legalMoves = [...(request?.moves ?? active.moves)].filter(function filterItem(candidate) {
+    return (
+      candidate.pp > 0 &&
+      (!("disabled" in candidate) || !candidate.disabled) &&
+      (request || isCompetitiveMoveSelectable(candidate.moveId))
+    );
+  });
+  const move =
+    profile.pvpMoveSelection === "random"
+      ? randomItem(legalMoves, random)
+      : legalMoves.sort(function compareItems(left, right) {
+          return (
+            estimateAiMoveDamage(active, target, right.moveId) -
+              estimateAiMoveDamage(active, target, left.moveId) || left.moveId - right.moveId
+          );
+        })[0];
+
   const forcedSwitch = request?.kind === "switch" || active.currentHp <= 0;
   const replacements = player.team
     .filter(
@@ -92,8 +105,14 @@ export function chooseAiCompetitiveAction(
         left.slotIndex - right.slotIndex,
     );
   if (forcedSwitch) {
-    if (!replacements[0]) throw new Error("AI has no legal replacement");
-    return { kind: "switch", slotIndex: replacements[0].slotIndex };
+    const replacement =
+      profile.pvpMoveSelection === "random" ? randomItem(replacements, random) : replacements[0];
+    if (!replacement) throw new Error("AI has no legal replacement");
+    return { kind: "switch", slotIndex: replacement.slotIndex };
+  }
+
+  if (profile.pvpMoveSelection === "random") {
+    return { kind: "move", moveId: move?.moveId ?? COMPETITIVE_STRUGGLE_MOVE_ID };
   }
 
   const outgoing = estimateAiMoveDamage(
@@ -112,6 +131,15 @@ export function chooseAiCompetitiveAction(
   );
   if (safer) return { kind: "switch", slotIndex: safer.slotIndex };
   return { kind: "move", moveId: move?.moveId ?? COMPETITIVE_STRUGGLE_MOVE_ID };
+}
+
+function randomItem<T>(items: readonly T[], random: () => number): T | undefined {
+  if (!items.length) return undefined;
+  const index = Math.min(
+    items.length - 1,
+    Math.floor(Math.max(0, Math.min(0.999999, random())) * items.length),
+  );
+  return items[index];
 }
 
 type AiDamagePokemon = Pick<

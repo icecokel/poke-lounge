@@ -29,6 +29,14 @@ pub enum Status {
     Completed,
     Closed,
 }
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AiDifficulty {
+    #[default]
+    Easy,
+    Normal,
+    Hard,
+}
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CreateRoom {
@@ -72,6 +80,10 @@ pub enum GameCommand {
     },
     Start,
     AddAi,
+    SetAiDifficulty {
+        player_id: String,
+        difficulty: AiDifficulty,
+    },
     RemoveAi {
         player_id: String,
     },
@@ -93,6 +105,8 @@ pub struct Participant {
     pub display_name: String,
     pub session_hash: String,
     pub ai: bool,
+    #[serde(default)]
+    pub ai_difficulty: AiDifficulty,
     pub ready: bool,
     pub connected: bool,
     pub admitted: bool,
@@ -111,6 +125,7 @@ impl Participant {
                 .unwrap_or_else(|| "플레이어".into()),
             session_hash: session_hash(&input.session_id)?,
             ai: false,
+            ai_difficulty: AiDifficulty::Easy,
             ready: false,
             connected: true,
             admitted: false,
@@ -122,6 +137,9 @@ impl Participant {
     }
     pub fn public(&self) -> Value {
         let mut value = json!({"playerId":self.player_id,"displayName":self.display_name,"controller":if self.ai {"ai"} else {"human"},"role":"participant","ready":self.ready,"connected":self.connected&&self.admitted,"joinedAtMs":self.joined_at_ms});
+        if self.ai {
+            value["aiDifficulty"] = json!(self.ai_difficulty);
+        }
         if let Some(left) = self.left_at_ms {
             value["leftAtMs"] = json!(left);
         }
@@ -411,6 +429,7 @@ impl Room {
                     session_hash: session.into(),
                     display_name: normalize_name(display_name)?,
                     ai: false,
+                    ai_difficulty: AiDifficulty::Easy,
                     ready: false,
                     connected: true,
                     admitted: false,
@@ -495,6 +514,23 @@ impl Room {
                     return Err(AppError::Forbidden);
                 }
                 self.add_ai(now, compute).await?;
+            }
+            GameCommand::SetAiDifficulty {
+                player_id,
+                difficulty,
+            } => {
+                if self.status != Status::Waiting || self.host() != Some(player) {
+                    return Err(AppError::Forbidden);
+                }
+                let participant = self
+                    .participants
+                    .iter_mut()
+                    .find(|p| p.player_id == player_id && p.ai)
+                    .ok_or(AppError::Invalid("AI participant not found"))?;
+                if participant.ai_difficulty != difficulty {
+                    participant.ai_difficulty = difficulty;
+                    self.touch(now);
+                }
             }
             GameCommand::RemoveAi { player_id } => {
                 if self.status != Status::Waiting || self.host() != Some(player) {
@@ -614,6 +650,7 @@ impl Room {
             display_name: format!("트레이너 {number}"),
             session_hash: hash_bytes(Uuid::new_v4().as_bytes()),
             ai: true,
+            ai_difficulty: AiDifficulty::Easy,
             ready: true,
             connected: true,
             admitted: true,
@@ -746,7 +783,19 @@ impl Room {
                         .cloned()
                         .collect::<Vec<_>>();
                     for player in ais {
-                        let action=compute.run(self.room_instance_id,self.storage_version,json!({"kind":"choose-ai","state":self.matches[&id].pack.state,"playerId":player})).await?;
+                        let difficulty = self
+                            .participants
+                            .iter()
+                            .find(|p| p.player_id == player)
+                            .map(|p| p.ai_difficulty)
+                            .unwrap_or_default();
+                        let decision_seed = format!(
+                            "{}:{}:{}",
+                            self.matches[&id].seed,
+                            player,
+                            self.matches[&id].turn()
+                        );
+                        let action=compute.run(self.room_instance_id,self.storage_version,json!({"kind":"choose-ai","state":self.matches[&id].pack.state,"playerId":player,"difficulty":difficulty,"seed":decision_seed})).await?;
                         self.matches
                             .get_mut(&id)
                             .ok_or(AppError::ActionConflict)?
@@ -941,8 +990,8 @@ impl Room {
                 .ends_at_ms
                 .is_some_and(|at| now >= at.saturating_sub(5_000));
         let jobs=self.participants.iter().filter(|p|p.ai&&p.connected).map(|p|{
-            let id=p.player_id.clone();let party=self.parties.get(&id).map(|p|p.competitive_party.clone()).unwrap_or(Value::Null);
-            let operation=json!({"kind":"ai-step","party":party,"adventure":self.adventures.get(&id),"nowMs":now,"roundIndex":self.round.index,"preparing":self.status==Status::RoundStarted&&!gathering&&!starting,"starting":starting,"gathering":gathering,"playerId":id,"playerIds":ids,"startAtMs":self.round.started_at_ms,"roundDurationMs":self.round.duration_ms,"seed":format!("{}:{id}:{now}",self.room_instance_id)});
+            let id=p.player_id.clone();let difficulty=p.ai_difficulty;let party=self.parties.get(&id).map(|p|p.competitive_party.clone()).unwrap_or(Value::Null);
+            let operation=json!({"kind":"ai-step","party":party,"adventure":self.adventures.get(&id),"nowMs":now,"roundIndex":self.round.index,"preparing":self.status==Status::RoundStarted&&!gathering&&!starting,"starting":starting,"gathering":gathering,"playerId":id,"playerIds":ids,"difficulty":difficulty,"startAtMs":self.round.started_at_ms,"roundDurationMs":self.round.duration_ms,"seed":format!("{}:{id}:{now}",self.room_instance_id)});
             let revision=self.storage_version;let room=self.room_instance_id;
             async move {compute.run(room,revision,operation).await.map(|value|(id,value))}
         });

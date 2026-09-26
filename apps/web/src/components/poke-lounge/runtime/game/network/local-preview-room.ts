@@ -10,6 +10,7 @@ import type { PlayerPokemonSlot } from "../player/player-types";
 import type { PlayerPokemon } from "../state/game-state-store";
 import type { components } from "@/types/api";
 import type { TournamentStateRoomPayload } from "./tournament-projection";
+import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 
 type GeneratedCompetitiveProjection = components["schemas"]["CompetitiveActionResponseDto"];
 
@@ -106,6 +107,7 @@ export interface MultiplayerRoom {
   setPreparationReady?(roundIndex: number): Promise<void>;
   startChampionship(): Promise<void>;
   addAiParticipant(): Promise<void>;
+  setAiDifficulty(aiPlayerId: string, difficulty: AiDifficulty): Promise<void>;
   removeAiParticipant(aiPlayerId: string): Promise<void>;
   leave?(): Promise<void>;
   dispose(): void;
@@ -314,6 +316,7 @@ export function createLocalPreviewRoom(options: LocalPreviewRoomOptions = {}): M
     setLobbyReady: async () => undefined,
     startChampionship: async () => undefined,
     addAiParticipant: async () => undefined,
+    setAiDifficulty: async () => undefined,
     removeAiParticipant: async () => undefined,
     connect(initialSnapshot) {
       if (disposed || connected) {

@@ -1,3 +1,4 @@
+import type { AiDifficulty } from '@poke-lounge/battle/ai-difficulty';
 import {
   ApiExtraModels,
   ApiProperty,
@@ -71,6 +72,9 @@ class PokeLoungeRoomParticipantDto implements PokeLoungePublicRoomParticipant {
 
   @ApiProperty({ enum: participantControllers, example: 'human' })
   controller!: PokeLoungeParticipantController;
+
+  @ApiPropertyOptional({ enum: ['easy', 'normal', 'hard'], example: 'easy' })
+  aiDifficulty?: AiDifficulty;
 
   @ApiProperty({ enum: participantRoles, example: 'participant' })
   role!: PokeLoungeParticipantRole;

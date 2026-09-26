@@ -1,4 +1,5 @@
 import type { components } from "@/types/api";
+import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import type {
   TournamentBye,
   TournamentElimination,
@@ -45,6 +46,7 @@ export interface TournamentRoomParticipant {
   playerId: string;
   displayName: string;
   controller?: ApiRoomParticipant["controller"];
+  aiDifficulty?: AiDifficulty;
   role: ApiRoomParticipant["role"];
   ready: boolean;
   partyReady: boolean;

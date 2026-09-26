@@ -1,6 +1,7 @@
 import { acknowledgePreparation } from "@/features/poke-lounge/application/round/acknowledge-preparation";
 import { getApiBaseUrl } from "@/lib/constants";
 import type { components } from "@/types/api";
+import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import {
   INITIAL_WORKFLOW_RETRY_MAX_DELAY_MS,
@@ -61,7 +62,9 @@ type SharedWorldPlayerEvent = {
 };
 
 type ApiServerRoom = components["schemas"]["PokeLoungeRoomResponseDto"];
-type ServerParticipant = ApiServerRoom["participants"][number];
+type ServerParticipant = ApiServerRoom["participants"][number] & {
+  aiDifficulty?: AiDifficulty;
+};
 type ServerPartySnapshot = components["schemas"]["PokeLoungePartySnapshotDto"];
 
 interface ServerRoomState {
@@ -1657,7 +1660,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
               state.participants.filter(p => p.role === "participant").map(p => p.playerId),
             ),
             displayName: participant.displayName,
-            ...(participant.controller === "ai" ? { controller: "ai" as const } : {}),
+            ...(participant.controller === "ai"
+              ? {
+                  controller: "ai" as const,
+                  aiDifficulty: participant.aiDifficulty ?? DEFAULT_AI_DIFFICULTY,
+                }
+              : {}),
             role: participant.role,
             ready: participant.ready,
             partyReady: Object.hasOwn(state.partySnapshots, participant.playerId),
@@ -2107,6 +2115,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       const state = await mutateRoom(
         `/poke-lounge/rooms/${activeRoomId}/ai-participants`,
         { playerId: serverPlayerId, sessionId },
+        getLatestRevision,
+      );
+      applyExpectedTransitionSnapshot(state);
+    },
+    async setAiDifficulty(aiPlayerId, difficulty) {
+      const state = await mutateRoom(
+        `/poke-lounge/rooms/${activeRoomId}/ai-participants/${encodeURIComponent(aiPlayerId)}/difficulty`,
+        { playerId: serverPlayerId, sessionId, difficulty },
         getLatestRevision,
       );
       applyExpectedTransitionSnapshot(state);
@@ -2779,6 +2795,7 @@ function parseServerRoomParticipants(value: unknown[]): ServerParticipant[] {
       (participant.role !== "participant" && participant.role !== "spectator") ||
       typeof participant.ready !== "boolean" ||
       typeof participant.connected !== "boolean" ||
+      (participant.aiDifficulty !== undefined && !isAiDifficulty(participant.aiDifficulty)) ||
       !isNonnegativeTimestamp(participant.joinedAtMs) ||
       (participant.leftAtMs !== undefined && !isNonnegativeTimestamp(participant.leftAtMs))
     ) {
@@ -2788,6 +2805,10 @@ function parseServerRoomParticipants(value: unknown[]): ServerParticipant[] {
     playerIds.add(participant.playerId);
     return candidate as ServerParticipant;
   });
+}
+
+function isAiDifficulty(value: unknown): value is AiDifficulty {
+  return value === "easy" || value === "normal" || value === "hard";
 }
 
 function parseServerRoomRound(value: unknown): ServerRoomState["round"] {

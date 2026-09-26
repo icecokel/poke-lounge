@@ -1,3 +1,4 @@
+import type { AiDifficulty } from '@poke-lounge/battle/ai-difficulty';
 import type {
   CompetitivePartyInput,
   NormalizedCompetitiveParty,
@@ -29,6 +30,7 @@ export interface PokeLoungeRoomParticipant {
   userId?: string;
   displayName: string;
   controller?: PokeLoungeParticipantController;
+  aiDifficulty?: AiDifficulty;
   role: PokeLoungeParticipantRole;
   ready: boolean;
   connected: boolean;
@@ -169,6 +171,11 @@ export interface AddPokeLoungeAiParticipantInput {
   playerId: string;
   sessionId: string;
   nowMs?: number;
+}
+
+export interface SetPokeLoungeAiDifficultyInput extends AddPokeLoungeAiParticipantInput {
+  aiPlayerId: string;
+  difficulty: AiDifficulty;
 }
 
 export interface RemovePokeLoungeAiParticipantInput extends AddPokeLoungeAiParticipantInput {

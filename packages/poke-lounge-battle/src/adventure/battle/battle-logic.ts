@@ -82,6 +82,7 @@ export interface ChooseBattleCommandOptions {
 export interface ChooseBattleBagItemOptions {
   itemCount?: number;
   captureRandom16?: () => number;
+  captureRateMultiplier?: number;
 }
 
 export interface ChoosePlayerMoveOptions {
@@ -364,7 +365,15 @@ function chooseCaptureBallItem(
     cartridgeRules: state.mechanicsVersion === 3,
     maxHp: state.opponent.pokemon.maxHp,
     currentHp: state.opponent.pokemon.currentHp,
-    catchRate: state.opponent.pokemon.catchRate,
+    catchRate: Math.min(
+      255,
+      Math.max(
+        1,
+        Math.round(
+          state.opponent.pokemon.catchRate * Math.max(0, options.captureRateMultiplier ?? 1),
+        ),
+      ),
+    ),
     ballBonus: ball.ballBonus,
     statusBonus: ["asleep", "frozen"].includes(state.opponent.pokemon.status)
       ? 2

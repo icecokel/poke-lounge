@@ -4,7 +4,8 @@ use crate::{
     config::{Config, REQUEST_TIMEOUT},
     data::Data,
     domain::{
-        CreateRoom, GameCommand, normalize_code, normalize_name, session_hash, validate_player_id,
+        AiDifficulty, CreateRoom, GameCommand, normalize_code, normalize_name, session_hash,
+        validate_player_id,
     },
     error::{AppError, AppResult},
     repository::Repository,
@@ -70,6 +71,10 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/poke-lounge/rooms/{code}/round-ready", post(round_ready))
         .route("/poke-lounge/rooms/{code}/start", post(start))
         .route("/poke-lounge/rooms/{code}/ai-participants", post(add_ai))
+        .route(
+            "/poke-lounge/rooms/{code}/ai-participants/{player}/difficulty",
+            post(set_ai_difficulty),
+        )
         .route(
             "/poke-lounge/rooms/{code}/ai-participants/{player}/remove",
             post(remove_ai),
@@ -468,6 +473,37 @@ async fn add_ai(
         headers,
         body(value)?,
         GameCommand::AddAi,
+        Some(expected),
+    )
+    .await
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AiDifficultyBody {
+    player_id: String,
+    session_id: String,
+    difficulty: AiDifficulty,
+}
+async fn set_ai_difficulty(
+    State(state): State<AppState>,
+    Path((code, ai_player)): Path<(String, String)>,
+    headers: HeaderMap,
+    value: Result<Json<AiDifficultyBody>, JsonRejection>,
+) -> AppResult<Json<Value>> {
+    let expected = revision(&headers)?;
+    let body = body(value)?;
+    apply(
+        state,
+        code,
+        headers,
+        Identity {
+            player_id: body.player_id,
+            session_id: body.session_id,
+        },
+        GameCommand::SetAiDifficulty {
+            player_id: ai_player,
+            difficulty: body.difficulty,
+        },
         Some(expected),
     )
     .await
