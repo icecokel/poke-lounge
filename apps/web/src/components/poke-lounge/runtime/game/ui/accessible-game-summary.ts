@@ -232,6 +232,16 @@ interface AccessibleSceneCopy {
     opponentCurrent: string,
     opponentMax: string,
   ): string;
+  spectatorHealth(
+    playerName: string,
+    playerPokemon: string,
+    playerCurrent: string,
+    playerMax: string,
+    opponentName: string,
+    opponentPokemon: string,
+    opponentCurrent: string,
+    opponentMax: string,
+  ): string;
   battleCommand(command: string): string;
   moveSelected(pp: string, maxPp: string): string;
   chooseMove: string;
@@ -254,6 +264,17 @@ const ACCESSIBLE_SCENE_COPY: Record<Exclude<PokeLoungeLocale, "ko-KR">, Accessib
     field: "Exploring the field",
     battleHealth: (playerCurrent, playerMax, opponentCurrent, opponentMax) =>
       `Your Pokémon HP ${playerCurrent}/${playerMax}. Opponent Pokémon HP ${opponentCurrent}/${opponentMax}.`,
+    spectatorHealth: (
+      playerName,
+      playerPokemon,
+      playerCurrent,
+      playerMax,
+      opponentName,
+      opponentPokemon,
+      opponentCurrent,
+      opponentMax,
+    ) =>
+      `Spectating. ${playerName}'s ${playerPokemon} HP ${playerCurrent}/${playerMax}. ${opponentName}'s ${opponentPokemon} HP ${opponentCurrent}/${opponentMax}.`,
     battleCommand: command => `Battle command selected: ${command}.`,
     moveSelected: (pp, maxPp) => `Move selected. PP ${pp}/${maxPp}.`,
     chooseMove: "Choose a move.",
@@ -280,6 +301,17 @@ const ACCESSIBLE_SCENE_COPY: Record<Exclude<PokeLoungeLocale, "ko-KR">, Accessib
     field: "フィールド探索中",
     battleHealth: (playerCurrent, playerMax, opponentCurrent, opponentMax) =>
       `自分のポケモン HP ${playerCurrent}/${playerMax}。相手のポケモン HP ${opponentCurrent}/${opponentMax}。`,
+    spectatorHealth: (
+      playerName,
+      playerPokemon,
+      playerCurrent,
+      playerMax,
+      opponentName,
+      opponentPokemon,
+      opponentCurrent,
+      opponentMax,
+    ) =>
+      `観戦中。${playerName}の${playerPokemon} HP ${playerCurrent}/${playerMax}。${opponentName}の${opponentPokemon} HP ${opponentCurrent}/${opponentMax}。`,
     battleCommand: command => `バトルコマンド「${command}」を選択。`,
     moveSelected: (pp, maxPp) => `わざを選択。PP ${pp}/${maxPp}。`,
     chooseMove: "使用するわざを選んでください。",
@@ -318,6 +350,25 @@ export function localizePokeLoungeAccessibleSceneStatus(
   const copy = ACCESSIBLE_SCENE_COPY[resolvedLocale];
   if (rawStatus === "필드 탐색") {
     return copy.field;
+  }
+
+  const spectatorBattle = rawStatus.match(
+    /^관전 중\. (.+?)의 (.+?) HP (\d+)\/(\d+)\. (.+?)의 (.+?) HP (\d+)\/(\d+)\.(?: (.*))?$/,
+  );
+  if (spectatorBattle) {
+    const [
+      ,
+      playerName,
+      playerPokemon,
+      playerCurrent,
+      playerMax,
+      opponentName,
+      opponentPokemon,
+      opponentCurrent,
+      opponentMax,
+      interaction = "",
+    ] = spectatorBattle;
+    return `${copy.spectatorHealth(localizeTrainerName(playerName, resolvedLocale), localizePokemonName(playerPokemon, resolvedLocale), playerCurrent, playerMax, localizeTrainerName(opponentName, resolvedLocale), localizePokemonName(opponentPokemon, resolvedLocale), opponentCurrent, opponentMax)} ${localizeBattleInteraction(interaction, copy)}`.trim();
   }
 
   const battle = rawStatus.match(/^내 .+ HP (\d+)\/(\d+)\. 상대 .+ HP (\d+)\/(\d+)\.(?: (.*))?$/);

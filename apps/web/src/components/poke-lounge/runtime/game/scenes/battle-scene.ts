@@ -2940,7 +2940,10 @@ export class BattleController {
   private publishAccessibleStatus(): void {
     const playerPokemon = this.state.player.pokemon;
     const opponentPokemon = this.state.opponent.pokemon;
-    const healthSummary = `내 ${playerPokemon.name} HP ${playerPokemon.currentHp}/${playerPokemon.maxHp}. 상대 ${opponentPokemon.name} HP ${opponentPokemon.currentHp}/${opponentPokemon.maxHp}.`;
+    const gameState = this.gameStateStore.getState();
+    const healthSummary = this.authoritativeSpectating
+      ? `관전 중. ${resolvePlayerDisplayName(gameState, this.state.player.playerId, this.state.player.displayName)}의 ${playerPokemon.name} HP ${playerPokemon.currentHp}/${playerPokemon.maxHp}. ${resolvePlayerDisplayName(gameState, this.state.opponent.playerId, this.state.opponent.displayName)}의 ${opponentPokemon.name} HP ${opponentPokemon.currentHp}/${opponentPokemon.maxHp}.`
+      : `내 ${playerPokemon.name} HP ${playerPokemon.currentHp}/${playerPokemon.maxHp}. 상대 ${opponentPokemon.name} HP ${opponentPokemon.currentHp}/${opponentPokemon.maxHp}.`;
     const queuedMessage = this.getVisibleBattleMessage();
     let interactionSummary = queuedMessage ?? "";
 
