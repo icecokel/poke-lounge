@@ -8,6 +8,7 @@ logs
 node_modules
 output
 Output
+.playwright-cli/
 playwright-report
 storybook-static
 test-results
