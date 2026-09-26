@@ -1629,7 +1629,8 @@ export class BattleController {
             !destination ||
             (this.authoritativeTerminalTransition !== null &&
               this.authoritativeTerminalTransition.status !== "transitioned") ||
-            !isRoundReadinessDue(payload.roomStatus, payload.roomRound, nowMs)
+            (payload.roomStatus !== "completed" &&
+              !isRoundReadinessDue(payload.roomStatus, payload.roomRound, nowMs))
           ) {
             return;
           }
