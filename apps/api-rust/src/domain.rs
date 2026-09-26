@@ -996,6 +996,9 @@ impl Room {
         Ok(())
     }
     pub fn active_matches(&self) -> Vec<Uuid> {
+        if self.status != Status::Tournament {
+            return Vec::new();
+        }
         let ids = self
             .bracket
             .as_ref()
@@ -1038,11 +1041,14 @@ impl Room {
             .filter_map(|id| self.matches.get(id))
             .map(Match::projection)
             .collect::<Vec<_>>();
-        let ready = self
-            .bracket
-            .as_ref()
-            .map(Bracket::ready)
-            .unwrap_or_default();
+        let ready = if self.status == Status::Tournament {
+            self.bracket
+                .as_ref()
+                .map(Bracket::ready)
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         let parties=self.parties.iter().filter_map(|(id,p)| {
             let members=p.competitive_party["members"].as_array()?;let active=members.iter().find(|m|m["slotIndex"]==p.competitive_party["activeSlotIndex"])?;
             Some((id.clone(),json!({"playerId":id,"displayName":self.participants.iter().find(|p|&p.player_id==id).map(|p|p.display_name.as_str()).unwrap_or(id),"representativePokemon":{"speciesId":active["speciesId"],"level":active["level"],"currentHp":active["currentHp"],"maxHp":active["maxHp"]},"partySize":members.len(),"updatedAtMs":p.updated_at_ms})))
