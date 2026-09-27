@@ -14,7 +14,6 @@ import {
 } from "../runtime/game/scenes/world-scene-hud";
 import { localizeRuntimeText } from "../runtime/game/i18n/runtime-game-localization";
 import { getMobileUiCopy } from "./mobile-ui-copy";
-import styles from "./mobile-ui.module.css";
 
 const noSubscription = () => () => {};
 const noState = () => null;
@@ -48,7 +47,7 @@ export function MobileGameSummary({
   if (detail) {
     const player = state.playersById[state.currentPlayerId];
     return (
-      <div className={styles.settingsStatus}>
+      <div className="grid gap-2 rounded-[7px] border-2 border-[#82989d] bg-[repeating-linear-gradient(0deg,#f4f8ed_0_24px,#e8efe3_24px_48px)] p-4 text-sm whitespace-pre-line shadow-[inset_0_0_0_2px_#fffdf0]">
         {competitive ? (
           <span>{localizeRuntimeText(formatRoundHudText(state.round, now), copy.locale)}</span>
         ) : null}
@@ -71,7 +70,11 @@ export function MobileGameSummary({
     );
   }
   return competitive ? (
-    <span className={styles.playStatus} role="timer" aria-live="off">
+    <span
+      className="min-w-0 text-sm leading-[1.4] whitespace-pre-line [overflow-wrap:anywhere]"
+      role="timer"
+      aria-live="off"
+    >
       {localizeRuntimeText(formatRoundHudText(state.round, now), copy.locale)}
     </span>
   ) : null;
@@ -109,19 +112,24 @@ export function MobilePlayStatus({
     return () => window.clearInterval(timer);
   }, [deadline]);
   return (
-    <header className={styles.playBar} data-poke-lounge-play-status="true">
+    <header
+      className="flex min-h-12 items-center justify-between gap-3 border-b-2 border-[#17231c] bg-[linear-gradient(#fffdf0_55%,#d7e6d7_55%)] px-3 text-[#17231c] shadow-[inset_0_2px_0_#fffdf0]"
+      data-poke-lounge-play-status="true"
+    >
       {deadline != null ? (
-        <span className={styles.timer} role="timer" aria-live="off">
+        <span className="text-sm font-bold tabular-nums" role="timer" aria-live="off">
           {text.timeLeft} {Math.max(0, Math.ceil((deadline - now) / 1000))}s
         </span>
       ) : competitive ? (
         <MobileGameSummary copy={copy} gameStateStore={gameStateStore} competitive />
       ) : (
-        <span className={styles.playStatus}>Poke Lounge</span>
+        <span className="min-w-0 text-sm leading-[1.4] whitespace-pre-line [overflow-wrap:anywhere]">
+          Poke Lounge
+        </span>
       )}
       <button
         type="button"
-        className={styles.menuButton}
+        className="grid min-h-12 min-w-12 shrink-0 touch-manipulation place-items-center border-0 bg-transparent p-2 font-bold focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3"
         onClick={onMenu}
         aria-label={copy.settingsOpenLabel}
         data-poke-lounge-mobile-menu="true"

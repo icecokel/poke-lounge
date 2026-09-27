@@ -23,7 +23,6 @@ import {
   StatusBadge,
 } from "../../../ui/poke-lounge-ui-primitives";
 import { TournamentBracketPanel } from "../tournament/tournament-bracket-panel";
-import styles from "../../../poke-lounge.module.css";
 import {
   localizeMobileWorldUiState,
   localizeMoveName,
@@ -64,7 +63,7 @@ export function WorldUiLayer({
   };
 
   return (
-    <div className={styles.worldUiLayer} data-poke-lounge-world-ui="true">
+    <div className="absolute inset-0 z-[20000] font-[var(--pl-font-game)] text-[var(--pl-color-ink)] [image-rendering:auto]" data-poke-lounge-world-ui="true">
       <WorldHud
         copy={copy}
         desktop={desktop}
@@ -104,7 +103,7 @@ export function WorldHud({
   if (!player) return null;
 
   return (
-    <div className={styles.worldHud} data-poke-lounge-world-hud="true">
+    <div className="pointer-events-none absolute inset-0" data-poke-lounge-world-hud="true">
       {desktop ? (
         <>
           <CurrencyHud copy={copy} value={player.wallet.pokeDollars} />
@@ -153,7 +152,7 @@ export function WorldHud({
 
 export function CurrencyHud({ copy, value }: { copy: PokeLoungeCopy; value: number }) {
   return (
-    <StatusBadge className={styles.worldCurrencyHud} tone="gold">
+    <StatusBadge className="absolute top-2.5 left-3 text-sm whitespace-pre-line" tone="gold">
       {formatPokeDollars(value, copy.locale)}
     </StatusBadge>
   );
@@ -169,7 +168,7 @@ export function RankScoreHud({
   stats: { rank: number | null; score: number };
 }) {
   return (
-    <StatusBadge className={styles.worldRankHud} tone="blue">
+    <StatusBadge className="absolute top-16 right-3 text-right text-xs whitespace-pre-line" tone="blue">
       {localizeRuntimeText(
         formatRankScoreHud(stats, competitive ? "competitive" : "solo", copy.locale),
         copy.locale,
@@ -204,7 +203,7 @@ export function RoundHud({
   }, []);
 
   return (
-    <StatusBadge className={styles.worldRoundHud} tone="green">
+    <StatusBadge className="absolute top-2.5 left-1/2 -translate-x-1/2 text-center text-xs whitespace-pre-line" tone="green">
       {localizeRuntimeText(formatRoundHudText(state.round, now), copy.locale)}
     </StatusBadge>
   );
@@ -224,7 +223,7 @@ export function PartyHud({
   selectedSlotIndex: number | null;
 }) {
   return (
-    <div className={styles.worldPartyHud} data-poke-lounge-world-party-hud="true">
+    <div className="pointer-events-auto absolute top-1/2 left-3 grid w-[clamp(150px,14vw,190px)] origin-left -translate-y-1/2 scale-[var(--poke-lounge-party-hud-scale,1)] grid-cols-[minmax(0,1fr)] gap-[7px]" data-poke-lounge-world-party-hud="true">
       {Array.from({ length: 6 }, function callback(_, slotIndex) {
         const pokemon =
           party.find(function findItem(slot) {
@@ -263,7 +262,7 @@ export function PartyHudSlot({
 }) {
   return (
     <PokemonSlot
-      className={styles.worldPartyHudSlot}
+      className="min-h-[51px] rounded-[7px_14px_7px_14px] border-[#4c747a] bg-[linear-gradient(#f8fdef_49%,#e0eddf_49%)] text-[clamp(10px,1.05vw,14px)] data-[active=true]:border-[#987638] data-[active=true]:bg-[linear-gradient(#fff4ce_49%,#e9ddb9_49%)]"
       active={active}
       emptyLabel={copy.partySlotLabel(slotIndex + 1)}
       hp={
@@ -318,16 +317,16 @@ export function PokemonStatusPanel({
   const canSetLead = !isActive && pokemon.status !== "fainted";
 
   return (
-    <PixelPanel className={styles.worldPokemonPanel} data-poke-lounge-pokemon-status="true">
+    <PixelPanel className="pointer-events-auto absolute top-1/2 left-28 grid min-h-[310px] w-[300px] -translate-y-1/2 gap-1.5 rounded-[10px] border-[length:var(--pl-panel-border)] border-[#4c747a] bg-[repeating-linear-gradient(0deg,#f7faeb_0_24px,#e9f0e1_24px_48px)] px-[18px] py-4 shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1] [&_p]:m-0 [&_h3]:m-0 [&_h3]:text-[11px] [&_ul]:m-0 [&_ul]:grid [&_ul]:list-none [&_ul]:gap-[3px] [&_ul]:p-0 [&_li]:flex [&_li]:justify-between [&_li]:gap-2 [&_li]:text-[10px] [&_meter]:w-full [&>button:not([data-world-panel-close])]:min-h-7 [&>button:not([data-world-panel-close])]:rounded-[3px] [&>button:not([data-world-panel-close])]:border-2 [&>button:not([data-world-panel-close])]:border-[var(--pl-color-ink)] [&>button:not([data-world-panel-close])]:bg-[var(--pl-color-gold-soft)] [&>button:not([data-world-panel-close])]:font-black [&>button:not([data-world-panel-close])]:shadow-[0_2px_0_var(--pl-color-ink)] [&>button:disabled]:bg-[var(--pl-color-surface-muted)] [&>button:disabled]:shadow-none" data-poke-lounge-pokemon-status="true">
       <button
         type="button"
-        className={styles.worldPanelClose}
+        className="absolute top-2 right-2 border-0 bg-transparent text-xl text-[var(--pl-color-ink)]" data-world-panel-close="true"
         onClick={onClose}
         aria-label={copy.settingsClose}
       >
         ×
       </button>
-      <div className={styles.worldPokemonHeading}>
+      <div className="flex items-center gap-2 [&>div]:grid [&>div]:gap-[3px]">
         <PokemonSprite pokemon={pokemon} size={48} />
         <div>
           <strong>{localizePokemonName(pokemon.name, copy.locale)}</strong>
@@ -375,7 +374,7 @@ export function PokemonSprite({ pokemon, size }: { pokemon: PlayerPokemon; size:
   return (
     <span
       aria-hidden="true"
-      className={styles.worldPokemonSprite}
+      className="inline-block shrink-0 bg-no-repeat [image-rendering:pixelated]"
       style={{
         backgroundImage: `url(${sprite.path})`,
         backgroundPosition: `${-column * size}px ${-row * size}px`,
@@ -404,13 +403,13 @@ export function WorldNoticeLayer({
   const tournamentProjection = gameState.tournament.serverProjection;
 
   return (
-    <div className={styles.worldNoticeLayer} aria-live="polite">
+    <div className="pointer-events-none absolute inset-0" aria-live="polite">
       {ui.areaAnnouncement ? (
-        <div className={styles.worldAreaAnnouncement}>{ui.areaAnnouncement}</div>
+        <div className="absolute top-[78px] left-1/2 -translate-x-1/2 rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black whitespace-pre-line text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">{ui.areaAnnouncement}</div>
       ) : null}
-      {ui.nurseMessage ? <div className={styles.worldNurseMessage}>{ui.nurseMessage}</div> : null}
+      {ui.nurseMessage ? <div className="absolute bottom-[74px] left-1/2 -translate-x-1/2 rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black whitespace-pre-line text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">{ui.nurseMessage}</div> : null}
       {ui.interactionPrompt ? (
-        <div className={styles.worldInteractionPrompt}>{ui.interactionPrompt}</div>
+        <div className="absolute bottom-11 left-1/2 -translate-x-1/2 text-center text-xs leading-[1.25] font-black whitespace-pre-line text-[#fff9dd] [text-shadow:-2px_-2px_#263238,2px_-2px_#263238,-2px_2px_#263238,2px_2px_#263238]">{ui.interactionPrompt}</div>
       ) : null}
       {ui.nurseHealing.active ? <NurseHealingEffect key={ui.nurseHealing.effectCount} /> : null}
       {ui.tournamentAnnouncement && tournamentProjection ? (
@@ -421,7 +420,7 @@ export function WorldNoticeLayer({
         />
       ) : ui.tournamentAnnouncement ? (
         <PixelPanel
-          className={styles.worldTournamentAnnouncement}
+          className="pointer-events-none absolute top-[78px] left-1/2 z-[900] box-border w-[min(calc(100%-24px),720px)] max-h-[calc(100%-96px)] -translate-x-1/2 animate-[tournament-briefing-in_var(--pl-motion-panel)_ease-out_both] overflow-hidden rounded-[9px] border-[3px] border-[#506d7b] bg-[#293d48] px-3 py-2.5 text-center text-sm leading-[1.45] font-black whitespace-pre-line text-[var(--pl-color-surface-raised)] shadow-[inset_0_0_0_2px_#b0c1b3,0_4px_0_#20333c]"
           data-poke-lounge-tournament-announcement="true"
         >
           {ui.tournamentAnnouncement}
@@ -429,7 +428,7 @@ export function WorldNoticeLayer({
       ) : null}
       {ui.tournamentResult ? (
         <section
-          className={styles.worldTournamentResult}
+          className="pointer-events-auto absolute top-3 left-1/2 z-[900] box-border max-h-[calc(100%-24px)] w-[min(calc(100%-24px),720px)] -translate-x-1/2 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain rounded-[9px] border-[3px] border-[#4c6977] bg-[#fffdf0] p-3 text-left leading-[1.6] text-[#304550] shadow-[var(--hg-frame),0_3px_0_#304550] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[var(--pl-color-gold)] focus-visible:-outline-offset-5"
           data-poke-lounge-tournament-result="true"
           aria-label={ui.tournamentResult.split("\n")[0]}
           tabIndex={0}
@@ -437,12 +436,12 @@ export function WorldNoticeLayer({
           // Runtime key-up uses capture, so releasing a previously held key still works.
           onKeyDown={event => event.stopPropagation()}
         >
-          <header className={styles.resultRecordHeader}>
+          <header className="flex items-center gap-2.5 rounded-md border-2 border-[#78909b] border-b-[3px] border-b-[#b89a4b] bg-[linear-gradient(#dcebf0_50%,#edf3ed_50%)] px-3 py-2.5 text-base leading-[1.45] whitespace-normal text-[#304550] [&>span]:grid [&>span]:size-[30px] [&>span]:shrink-0 [&>span]:place-items-center [&>span]:rounded-full [&>span]:border-2 [&>span]:border-[#a3893e] [&>span]:bg-[#f8dc7d] [&>span]:text-[#775b22] [&>span]:before:content-['★']">
             <span aria-hidden="true" />
             <strong>{ui.tournamentResult.split("\n")[0]}</strong>
           </header>
           {"\n"}
-          <div className={styles.resultRecordBody}>
+          <div className="mt-2 rounded-[5px] border border-[#b0bdab] bg-[repeating-linear-gradient(0deg,#fffdf0_0_25px,#eef2e5_25px_50px)] px-3 py-2.5 text-sm leading-[1.7] whitespace-pre-line text-[#304550] [overflow-wrap:anywhere]">
             {ui.tournamentResult.split("\n").slice(1).join("\n")}
           </div>
         </section>
@@ -454,7 +453,7 @@ export function WorldNoticeLayer({
 export function NurseHealingEffect() {
   return (
     <div
-      className={styles.worldNurseEffect}
+      className="absolute top-[40%] left-1/2 size-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(ellipse,rgb(183_216_151_/_75%),transparent_70%)] shadow-[0_0_32px_rgb(183_216_151_/_50%)] [&_i]:absolute [&_i]:size-2 [&_i]:rotate-45 [&_i]:bg-[#fff176] [&_i]:animate-[world-nurse-sparkle_1000ms_ease-out_forwards] [&_i:nth-child(2)]:left-6 [&_i:nth-child(2)]:bg-[#81d4fa] [&_i:nth-child(2)]:[animation-delay:60ms] [&_i:nth-child(3)]:left-12 [&_i:nth-child(3)]:bg-[#f8bbd0] [&_i:nth-child(3)]:[animation-delay:100ms] [&_i:nth-child(4)]:left-[70px] [&_i:nth-child(4)]:bg-[#c5e1a5] [&_i:nth-child(4)]:[animation-delay:140ms]"
       data-poke-lounge-nurse-effect="true"
       aria-hidden="true"
     >
@@ -478,7 +477,7 @@ export function WorldSurfaceRouter({
   if (!ui.mobile || ui.mobile.screen === "explore") return null;
 
   return (
-    <div className={styles.worldSurfaceScrim}>
+    <div className="pointer-events-auto absolute inset-0 z-10 bg-[rgb(16_24_32_/_30%)]">
       <MobileWorldScreen
         copy={copy}
         onAction={function handleAction(action) {

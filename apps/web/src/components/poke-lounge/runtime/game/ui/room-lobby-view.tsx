@@ -19,6 +19,7 @@ import {
   nextAiDifficulty,
   type AiDifficulty,
 } from "@poke-lounge/battle/ai-difficulty";
+import { cn } from "@/lib/utils";
 import { useEffect, useId, useRef, useState } from "react";
 import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
 import type { PokeLoungeRuntimeState } from "../game-page-state";
@@ -31,8 +32,13 @@ import type {
 import { RoomControlsGuide } from "./room-controls-guide";
 import { getRoomLobbyCopy } from "./room-lobby-copy";
 import { createRoomLobbyViewState } from "./room-lobby-screen";
-import styles from "./room-lobby.module.css";
 import { useRoomLobbyCommands } from "./use-room-lobby-commands";
+
+const SECONDARY_BUTTON =
+  "inline-flex min-h-11 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-[7px] border-2 border-[#627f85] bg-[linear-gradient(#fffdf0_50%,#dfe9df_50%)] px-2.5 py-2 font-bold text-[#304e36] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#536b73] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]";
+
+const PRIMARY_BUTTON =
+  "inline-flex min-h-12 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-lg border-2 border-[#304550] bg-[linear-gradient(#638f62_50%,#386747_50%)] px-2.5 py-2 font-bold text-white shadow-[var(--hg-button)] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]";
 
 export function RoomLobbyScreen({
   roomShareAvailable,
@@ -117,7 +123,7 @@ export function RoomLobbyScreen({
 
   return (
     <section
-      className={styles.screen}
+      className="absolute inset-0 grid min-h-0 min-w-0 place-items-stretch overflow-hidden bg-[#edf3e5] [background-image:var(--hg-stripes)] p-2 text-base leading-[1.45] text-[var(--hg-ink)]"
       data-room-lobby="true"
       data-room-lobby-info-open={showInfo ? "true" : undefined}
       aria-labelledby={titleId}
@@ -131,13 +137,18 @@ export function RoomLobbyScreen({
       }}
       onKeyUp={event => event.stopPropagation()}
     >
-      <div className={styles.panel}>
-        <header className={styles.header}>
-          <span className={styles.emblem} aria-hidden="true">
+      <div className="grid h-full min-h-0 min-w-0 w-full grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] overflow-hidden rounded-[10px] border-[3px] border-[#304550] bg-[#edf3e5] shadow-[inset_0_0_0_2px_#fffdf0,0_4px_0_#304550]">
+        <header className="flex items-center gap-[9px] bg-[linear-gradient(#c0dce7_50%,#e2edf0_50%)] px-3 pt-2 pb-[5px] shadow-[inset_0_2px_0_#fffdf0]">
+          <span
+            className="grid size-10 shrink-0 place-items-center rounded-lg border-2 border-[#4e7484] bg-[#fffdf0] text-[#467e9b] shadow-[inset_0_0_0_2px_#d5e5e6]"
+            aria-hidden="true"
+          >
             <Users size={26} />
           </span>
-          <div className={styles.titleBlock}>
-            <p className={styles.eyebrow}>POKE LOUNGE</p>
+          <div className="min-w-0 flex-1 [&_h1]:text-lg [&_h1]:leading-[1.3] [&_h1]:font-extrabold [&_h1]:text-[#304550] [&_h1]:[overflow-wrap:anywhere] [&_h1]:focus:outline-none">
+            <p className="hidden text-[0.6875rem] font-extrabold tracking-[0.13em] text-[#54705b]">
+              POKE LOUNGE
+            </p>
             <h1 ref={heading} tabIndex={-1} id={titleId}>
               {copy.title}
             </h1>
@@ -145,7 +156,7 @@ export function RoomLobbyScreen({
           {onOpenSettings ? (
             <button
               type="button"
-              className={styles.iconButton}
+              className="inline-flex min-h-11 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-[7px] border-2 border-[#627f85] bg-[linear-gradient(#fffdf0_50%,#dfe9df_50%)] px-2.5 py-2 font-bold text-[#304e36] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#536b73] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]"
               onClick={onOpenSettings}
               aria-label={fullCopy.settingsOpenLabel}
               data-poke-lounge-mobile-menu="true"
@@ -154,23 +165,26 @@ export function RoomLobbyScreen({
             </button>
           ) : null}
         </header>
-        <div className={styles.roomBar}>
-          <span className={styles.roomCode}>
+        <div className="flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1 border-b-[3px] border-[#526e7a] bg-[#e2edf0] px-3 pb-2 text-[0.8125rem] text-[#50624c]">
+          <span className="flex min-w-0 items-baseline gap-2 [&_strong]:rounded [&_strong]:border [&_strong]:border-[#8299a0] [&_strong]:bg-[#fffdf0] [&_strong]:px-1.5 [&_strong]:py-px [&_strong]:font-mono [&_strong]:text-[0.9375rem] [&_strong]:text-[#273a2d] [&_strong]:[overflow-wrap:anywhere]">
             <span>{text.room}</span>
             <strong data-room-lobby-code>{state.projection.roomCode}</strong>
           </span>
-          <span className={styles.duration} data-room-lobby-duration>
+          <span
+            className="flex items-center gap-[5px] [&_b]:whitespace-nowrap [&_b]:text-[#273a2d] [&_b]:tabular-nums"
+            data-room-lobby-duration
+          >
             <Clock3 size={16} aria-hidden="true" />
             <span>
               {text.duration} <b>{duration}</b>
             </span>
           </span>
         </div>
-        <div className={styles.tools}>
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2">
           {roomShareAvailable ? (
             <button
               type="button"
-              className={styles.inviteButton}
+              className="flex-1 inline-flex min-h-11 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-[7px] border-2 border-[#627f85] bg-[linear-gradient(#fffdf0_50%,#dfe9df_50%)] px-2.5 py-2 font-bold text-[#304e36] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#536b73] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]"
               onClick={onRoomShare}
               aria-label={shareText}
               data-room-lobby-share="true"
@@ -181,14 +195,12 @@ export function RoomLobbyScreen({
               </span>
             </button>
           ) : (
-            <span className={styles.inviteHint}>
-              {view.isHost ? text.hostWaiting : text.eyebrow}
-            </span>
+            <span className="flex-1 text-sm">{view.isHost ? text.hostWaiting : text.eyebrow}</span>
           )}
           <button
             ref={infoButton}
             type="button"
-            className={styles.secondaryButton}
+            className="inline-flex min-h-11 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-[7px] border-2 border-[#627f85] bg-[linear-gradient(#fffdf0_50%,#dfe9df_50%)] px-2.5 py-2 font-bold text-[#304e36] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#536b73] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]"
             data-room-lobby-controls
             aria-expanded={showInfo}
             aria-controls={infoId}
@@ -202,12 +214,17 @@ export function RoomLobbyScreen({
             <span>{showInfo ? text.closeInfo : text.info}</span>
           </button>
         </div>
-        <div className={styles.content}>
+        <div className="min-h-0 min-w-0 overflow-hidden px-3">
           {showInfo ? (
-            <section id={infoId} className={styles.infoBody} aria-label={text.info} tabIndex={0}>
-              <div className={styles.infoCard}>
+            <section
+              id={infoId}
+              className="h-full overflow-y-auto overscroll-contain px-[3px] pt-0.5 pb-3 [&>[data-room-controls-guide]]:overflow-visible"
+              aria-label={text.info}
+              tabIndex={0}
+            >
+              <div className="mb-4 rounded-lg border-2 border-[#839b9a] bg-[#fffdf0] p-4 shadow-[inset_0_0_0_2px_#dce7dc] [&_h2]:text-base [&_h2]:font-bold [&_p]:mt-2.5 [&_p]:text-sm [&_p]:text-[#56684d]">
                 <h2>{text.next}</h2>
-                <ol className={styles.steps}>
+                <ol className="my-3 flex list-none flex-wrap gap-2.5 p-0 text-[0.8125rem] [&_li]:flex [&_li]:items-center [&_li]:gap-1.5 [&_b]:grid [&_b]:size-6 [&_b]:place-items-center [&_b]:rounded-full [&_b]:bg-[#e4ecd8] [&_[aria-current]_b]:bg-[#315c3e] [&_[aria-current]_b]:text-white">
                   <li aria-current="step">
                     <b>1</b>
                     {text.stepLobby}
@@ -227,13 +244,16 @@ export function RoomLobbyScreen({
               <RoomControlsGuide locale={fullCopy.locale} />
             </section>
           ) : (
-            <section className={styles.roster} aria-label={copy.participantListLabel}>
-              <div className={styles.rosterHeader}>
+            <section
+              className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]"
+              aria-label={copy.participantListLabel}
+            >
+              <div className="flex items-center justify-between gap-2 pb-[7px] [&_h2]:text-sm [&_h2]:font-extrabold [&_p]:flex [&_p]:flex-wrap [&_p]:gap-2.5 [&_p]:text-xs [&_p]:text-[#596a52]">
                 <div>
                   <h2>{text.players}</h2>
                   <p>
                     {copy.participantCount(view.participantCount)}{" "}
-                    <span className={styles.readyCount}>
+                    <span className="font-bold text-[#315c3e]">
                       {text.readyCount(readyCount, participants.length)}
                     </span>
                   </p>
@@ -241,7 +261,7 @@ export function RoomLobbyScreen({
                 {view.isHost ? (
                   <button
                     type="button"
-                    className={styles.secondaryButton}
+                    className="inline-flex min-h-11 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-[7px] border-2 border-[#627f85] bg-[linear-gradient(#fffdf0_50%,#dfe9df_50%)] px-2.5 py-2 font-bold text-[#304e36] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#536b73] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]"
                     disabled={view.participantCount >= 8 || mutation !== null || !own?.connected}
                     onClick={() => void runMutation("ai-add", state.onAddAi)}
                     data-room-lobby-ai-add="true"
@@ -252,7 +272,7 @@ export function RoomLobbyScreen({
                 ) : null}
               </div>
               <ul
-                className={styles.participants}
+                className="m-0 grid min-h-0 min-w-0 list-none content-start gap-[7px] overflow-y-auto overscroll-contain px-[3px] pt-[3px] pb-2 [scroll-padding-block:4px]"
                 data-room-lobby-participants="true"
                 tabIndex={0}
                 aria-label={copy.participantListLabel}
@@ -281,20 +301,23 @@ export function RoomLobbyScreen({
                   />
                 ))}
                 {state.projection.participants.length === 0 ? (
-                  <li className={styles.empty}>{text.empty}</li>
+                  <li className="p-6 text-center text-[#617154]">{text.empty}</li>
                 ) : null}
               </ul>
-              <p className={styles.autoFill}>
+              <p className="flex items-center gap-1.5 py-1.5 text-[0.6875rem] text-[#5a6b50]">
                 <Bot size={16} aria-hidden="true" />
                 {text.autoFill}
               </p>
             </section>
           )}
         </div>
-        <footer className={styles.footer} data-room-lobby-actions="true">
+        <footer
+          className="grid gap-1.5 border-t-[3px] border-[#526e7a] bg-[#fffdf0] px-3 pt-2 pb-[9px] shadow-[inset_0_3px_0_#e9d689]"
+          data-room-lobby-actions="true"
+        >
           <p
             id={statusId}
-            className={styles.status}
+            className="flex items-start gap-[7px] text-[0.8125rem] leading-[1.3] data-[complete=true]:text-[#315c3e] [&_svg]:mt-px"
             role="status"
             data-room-lobby-status="true"
             data-complete={!mutation && view.startDisabledReason === null}
@@ -306,14 +329,21 @@ export function RoomLobbyScreen({
             )}
             <span>{status}</span>
           </p>
-          <p role="alert" className={styles.error} data-room-lobby-error="true">
+          <p
+            role="alert"
+            className="text-sm text-[#9d302b] [overflow-wrap:anywhere] empty:hidden"
+            data-room-lobby-error="true"
+          >
             {errorMessage}
           </p>
-          <div className={styles.actions} aria-busy={mutation !== null}>
+          <div
+            className="flex gap-2.5 [&>button]:min-h-[46px] [&>button]:flex-1 [&>button]:px-2.5 [&>button]:py-2"
+            aria-busy={mutation !== null}
+          >
             {own ? (
               <button
                 type="button"
-                className={view.ownReady ? styles.secondaryButton : styles.primaryButton}
+                className={cn(view.ownReady ? SECONDARY_BUTTON : PRIMARY_BUTTON)}
                 aria-pressed={view.ownReady}
                 disabled={view.readyDisabled}
                 onClick={() => void runMutation("ready", () => state.onSetReady(!view.ownReady))}
@@ -332,7 +362,7 @@ export function RoomLobbyScreen({
             {view.isHost ? (
               <button
                 type="button"
-                className={styles.primaryButton}
+                className="inline-flex min-h-12 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-lg border-2 border-[#304550] bg-[linear-gradient(#638f62_50%,#386747_50%)] px-2.5 py-2 font-bold text-white shadow-[var(--hg-button)] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]"
                 disabled={view.startDisabledReason !== null}
                 aria-describedby={statusId}
                 onClick={() => void runMutation("start", state.onStart)}
@@ -343,7 +373,9 @@ export function RoomLobbyScreen({
               </button>
             ) : null}
           </div>
-          <p className={styles.nextStep}>{copy.starterSelectionHint}</p>
+          <p className="text-center text-[0.6875rem] leading-[1.25] text-[#66735d]">
+            {copy.starterSelectionHint}
+          </p>
         </footer>
       </div>
     </section>
@@ -378,21 +410,28 @@ function ParticipantRow({
   const state = !participant.connected ? "offline" : participant.ready ? "ready" : "waiting";
   return (
     <li
-      className={styles.participant}
+      className="group/participant grid min-h-[68px] grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2 rounded-[7px] border border-[#7c969a] bg-[linear-gradient(#fffdf0_0_50%,#e3edf0_50%)] p-[9px] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#9aada9] data-[room-lobby-self=true]:border-2 data-[room-lobby-self=true]:border-[#a47d39] data-[room-lobby-self=true]:bg-[linear-gradient(#fff4c9_50%,#ebddb3_50%)] data-[room-lobby-self=true]:p-2 data-[room-lobby-self=true]:shadow-[inset_0_0_0_2px_#fffdf0] data-[state=offline]:border-dashed data-[state=offline]:bg-[#e6e3db]"
       data-room-lobby-participant="true"
       data-player-id={participant.playerId}
       data-room-lobby-self={self ? "true" : undefined}
       data-state={state}
     >
-      <span className={styles.avatar} aria-hidden="true">
+      <span
+        className="grid h-9 w-8 place-items-center rounded-md border-2 border-[#6c8c91] bg-[linear-gradient(#bdd8df_50%,#eaf1e8_50%)] text-[#3e6678]"
+        aria-hidden="true"
+      >
         {ai ? <Bot size={24} /> : <UserRound size={24} />}
       </span>
-      <div className={styles.identity}>
-        <div className={styles.name}>
+      <div className="min-w-0">
+        <div className="flex flex-nowrap items-baseline gap-x-1.5 gap-y-1 [&_strong]:min-w-0 [&_strong]:text-[0.9375rem] [&_strong]:leading-[1.35] [&_strong]:font-bold [&_strong]:[overflow-wrap:anywhere] [&_strong]:[word-break:keep-all]">
           <strong>{name}</strong>
-          {self ? <span className={styles.self}>{text.me}</span> : null}
+          {self ? (
+            <span className="shrink-0 rounded bg-[#355c3f] px-[5px] text-[0.6875rem] whitespace-nowrap text-white">
+              {text.me}
+            </span>
+          ) : null}
         </div>
-        <div className={styles.roles}>
+        <div className="mt-1 flex flex-wrap items-center gap-x-[7px] gap-y-[3px] text-[0.6875rem] text-[#617154] [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1">
           {host ? (
             <span data-room-lobby-badge="true">
               <Crown size={13} aria-hidden="true" />
@@ -403,7 +442,7 @@ function ParticipantRow({
           {ai ? (
             <button
               type="button"
-              className={styles.difficultyButton}
+              className="inline-flex items-center gap-0.5 rounded-full border border-[#b9c8ae] bg-[#f4f7ec] px-[7px] py-0.5 font-bold leading-[1.35] text-[#49613f] enabled:hover:bg-[#e8f0db] focus-visible:outline-2 focus-visible:outline-[#315c3e] focus-visible:outline-offset-2 disabled:cursor-default disabled:border-transparent disabled:bg-transparent disabled:text-[#617154]"
               disabled={!canEditAi}
               onClick={() => onChangeDifficulty(nextAiDifficulty(difficulty))}
               aria-label={copy.aiBadge + ": " + difficultyLabel}
@@ -416,7 +455,10 @@ function ParticipantRow({
           ) : null}
           {spectator ? <span>{text.spectators}</span> : null}
           {!host && !ai && !spectator ? <span>{text.human}</span> : null}
-          <span className={styles.participantStatus} data-room-lobby-badge="true">
+          <span
+            className="ml-auto inline-flex items-center gap-1 rounded border border-[#b3a480] bg-[#f8eed2] px-[5px] py-0.5 text-[0.6875rem] font-semibold text-[#726948] group-data-[state=ready]/participant:border-[#87a479] group-data-[state=ready]/participant:bg-[#dbeccf] group-data-[state=ready]/participant:text-[#2c6039] group-data-[state=offline]/participant:border-[#b1887b] group-data-[state=offline]/participant:bg-[#f0d8d0] group-data-[state=offline]/participant:text-[#9e4431]"
+            data-room-lobby-badge="true"
+          >
             {state === "offline" ? (
               <WifiOff size={16} aria-hidden="true" />
             ) : state === "ready" ? (
@@ -438,7 +480,7 @@ function ParticipantRow({
       {ai && canEditAi ? (
         <button
           type="button"
-          className={styles.removeButton}
+          className="grid size-11 place-items-center rounded-[10px] border border-[#d5c6b5] bg-[#fff7eb] text-[#855041] focus-visible:outline-2 focus-visible:outline-[#985512] focus-visible:outline-offset-2"
           onClick={onRemove}
           aria-label={text.removeAi(name)}
           data-room-lobby-ai-remove={participant.playerId}

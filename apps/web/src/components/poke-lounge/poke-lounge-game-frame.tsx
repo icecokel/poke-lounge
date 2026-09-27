@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import type { PokeLoungeCopy } from "./poke-lounge-copy";
 import { createPortal } from "react-dom";
 import type { PokeLoungeRuntimeState } from "./runtime/game/game-page-state";
@@ -5,7 +6,6 @@ import {
   PokeLoungeRuntimeControls,
   PokeLoungeRuntimeScreen,
 } from "./runtime/game/ui/poke-lounge-runtime-screen";
-import styles from "./poke-lounge.module.css";
 import { WorldScreen } from "./runtime/game/world/world-screen";
 import { BattleScreen } from "./runtime/game/battle/battle-screen";
 import { TournamentCelebration } from "./runtime/game/tournament/tournament-feedback";
@@ -60,6 +60,7 @@ export function PokeLoungeGameFrame({
     runtimeState.phase === "lobby"
       ? runtimeState.battle
       : undefined;
+  const playing = runtimeState.phase === "world" || runtimeState.phase === "battle";
   const roomShareLabel =
     roomShareStatus === "success"
       ? copy.settingsShareCopied
@@ -69,13 +70,23 @@ export function PokeLoungeGameFrame({
 
   return (
     <div
-      className={styles.gameFrame}
+      className={cn(
+        "relative col-start-1 row-start-1 h-full w-full max-h-full max-w-full self-stretch justify-self-center bg-[var(--rom-screen-background)]",
+        playing &&
+          "row-start-2 h-[var(--poke-lounge-layout-frame-height,100%)] w-[var(--poke-lounge-layout-frame-width,100%)] aspect-[4/3] self-center",
+        runtimeState.phase === "entry" &&
+          "h-auto min-h-[calc(100dvh-var(--poke-lounge-mobile-letterbox-top)-var(--poke-lounge-mobile-letterbox-bottom))] max-h-none",
+      )}
       data-poke-lounge-game-frame="true"
       data-poke-lounge-mobile-screen="top"
       data-poke-lounge-runtime-mounted={gameRuntimeMounted}
     >
       <div
         id="game-root"
+        className={cn(
+          "relative h-full w-full bg-[var(--rom-screen-background)]",
+          runtimeState.phase === "entry" && "absolute inset-0",
+        )}
         tabIndex={0}
         role="region"
         aria-label={copy.gameRegionLabel}
@@ -85,7 +96,13 @@ export function PokeLoungeGameFrame({
         data-testid="poke-lounge-game-root"
       />
       {hasRuntimeScreen ? (
-        <div className={styles.runtimeScreen} data-poke-lounge-runtime-screen="true">
+        <div
+          className={cn(
+            "absolute inset-0 z-70 min-h-0 min-w-0",
+            runtimeState.phase === "entry" && "relative inset-auto min-h-[inherit]",
+          )}
+          data-poke-lounge-runtime-screen="true"
+        >
           <PokeLoungeRuntimeScreen
             onOpenSettings={onOpenSettings}
             roomShareAvailable={roomShareAvailable}
@@ -98,7 +115,7 @@ export function PokeLoungeGameFrame({
       {lobbyTarget
         ? createPortal(
             <div
-              className={`${styles.runtimeScreen} ${styles.runtimeLobbyScreen}`}
+              className="absolute inset-0 z-45 min-h-0 min-w-0"
               data-poke-lounge-runtime-screen="true"
             >
               <PokeLoungeRuntimeScreen

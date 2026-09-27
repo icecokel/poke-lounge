@@ -11,7 +11,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { PokeLoungeCopy } from "./poke-lounge-copy";
 import type { PokeLoungeRoomLeaveRequestDetail } from "./runtime/game/ui/poke-lounge-ui-events";
-import styles from "./poke-lounge.module.css";
+
+const stateScreenClassName =
+  "absolute inset-x-0 top-[var(--poke-lounge-mobile-letterbox-top,0px)] bottom-[var(--poke-lounge-mobile-letterbox-bottom,0px)] z-90 grid content-center justify-items-center gap-3 overflow-auto bg-[#d8e6d4] px-[max(20px,env(safe-area-inset-right,0px))] py-[max(24px,env(safe-area-inset-top,0px))] text-center text-[#17201a]";
+const resultEyebrowClassName = "m-0 text-xs font-extrabold uppercase text-[#4a5b4d]";
+const resultStatusClassName = "m-0 min-h-5 text-[0.85rem] font-bold text-[#4a5b4d]";
+const resultActionsClassName =
+  "grid grid-cols-2 gap-2 [&>:first-child:last-child]:col-span-2 [&>:last-child:nth-child(odd)]:col-span-2";
+const dialogClassName =
+  "!fixed !top-auto !right-auto !bottom-0 !left-1/2 !z-[1100] !w-[min(100vw,480px)] !max-w-[480px] !max-h-[min(72dvh,560px)] !-translate-x-1/2 !translate-y-0 overflow-auto rounded-t-2xl rounded-b-none border-[3px] border-b-0 border-[#304550] bg-[#fffdf0] px-[max(18px,env(safe-area-inset-right,0px))] pt-5 pb-[max(20px,env(safe-area-inset-bottom,0px))] text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1] [&_button]:rounded [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:font-black [&_button]:shadow-[0_3px_0_#17231c]";
 
 export type PokeLoungeStateHydrationStatus =
   "pending" | "ready" | "local-ready" | "conflict" | "unavailable";
@@ -30,23 +38,21 @@ export function PokeLoungeHydrationScreens({
   if (status === "pending") {
     return (
       <section
-        className={styles.mobileStateScreen}
+        className={stateScreenClassName}
         role="status"
         aria-live="polite"
         data-testid="poke-lounge-state-hydration-loading"
       >
-        <p className={styles.resultEyebrow}>Poke Lounge</p>
-        <p className={styles.resultStatus}>{copy.hydrationLoading}</p>
+        <p className={resultEyebrowClassName}>Poke Lounge</p>
+        <p className={resultStatusClassName}>{copy.hydrationLoading}</p>
       </section>
     );
   }
-  if (status !== "unavailable") {
-    return null;
-  }
+  if (status !== "unavailable") return null;
 
   return (
-    <section className={styles.mobileStateScreen} data-testid="poke-lounge-state-hydration-error">
-      <p className={styles.resultStatus} aria-live="polite">
+    <section className={stateScreenClassName} data-testid="poke-lounge-state-hydration-error">
+      <p className={resultStatusClassName} aria-live="polite">
         {message}
       </p>
       <Button type="button" onClick={onRetry} data-testid="poke-lounge-state-hydration-retry">
@@ -66,15 +72,11 @@ export function PokeLoungeStartupErrorScreen({
   onLobby(): void;
 }) {
   return (
-    <section
-      className={styles.mobileStateScreen}
-      role="alert"
-      data-testid="poke-lounge-startup-error"
-    >
-      <p className={styles.resultEyebrow}>Poke Lounge</p>
-      <h2 className={styles.startupErrorTitle}>{copy.startup.title}</h2>
-      <p className={styles.resultStatus}>{copy.startup.description}</p>
-      <div className={styles.resultActions}>
+    <section className={stateScreenClassName} role="alert" data-testid="poke-lounge-startup-error">
+      <p className={resultEyebrowClassName}>Poke Lounge</p>
+      <h2 className="m-0 text-base font-black">{copy.startup.title}</h2>
+      <p className={resultStatusClassName}>{copy.startup.description}</p>
+      <div className={resultActionsClassName}>
         <Button type="button" onClick={onRetry} data-testid="poke-lounge-startup-retry">
           {copy.startup.retry}
         </Button>
@@ -99,7 +101,7 @@ export function PokeLoungeNoticeBanner({
 }) {
   return (
     <aside
-      className={styles.noticeBanner}
+      className="absolute top-[max(14px,env(safe-area-inset-top,0px))] left-1/2 z-70 grid w-[min(440px,calc(100vw-28px))] -translate-x-1/2 grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-lg border-[3px] border-[#304550] bg-[#fffdf0] p-2.5 text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1,0_4px_0_#304550] max-[760px]:grid-cols-1 data-[tone=error]:border-[#8f5e53] data-[tone=error]:bg-[#fae0d7] data-[tone=error]:text-[#763b32] [&_p]:m-0 [&_p]:text-[0.78rem] [&_p]:font-extrabold [&_button]:min-h-[34px] [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:font-black [&_button]:shadow-[0_3px_0_#17231c]"
       data-tone={tone}
       role={tone === "error" ? "alert" : "status"}
       data-poke-lounge-notice="true"
@@ -129,23 +131,30 @@ export function PokeLoungeResultPanel({
 }) {
   return (
     <section
-      className={`${styles.mobileResultScreen} ${styles.trainerResult}`}
+      className="absolute inset-x-0 top-[var(--poke-lounge-mobile-letterbox-top,0px)] bottom-[var(--poke-lounge-mobile-letterbox-bottom,0px)] z-90 grid content-start justify-items-stretch gap-3 overflow-y-auto rounded-[9px] border-[3px] border-[#4c6977] bg-[#edf3e5] bg-[#edf3e5] [background-image:var(--hg-stripes)] px-[max(20px,env(safe-area-inset-right,0px))] py-[max(24px,env(safe-area-inset-top,0px))] text-center text-[#304550] shadow-[var(--hg-frame)] [&>*]:mx-auto [&>*]:w-[min(100%,520px)] [&_button]:h-auto [&_button]:min-h-12 [&_button]:whitespace-normal [&_button]:rounded-[7px] [&_button]:border-2 [&_button]:border-[#577781] [&_button]:bg-[linear-gradient(#fffdf0_50%,#dce7e2_50%)] [&_button]:p-2.5 [&_button]:text-[#304550] [&_button]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#304550] [&_a]:h-auto [&_a]:min-h-12 [&_a]:whitespace-normal [&_a]:rounded-[7px] [&_a]:border-2 [&_a]:border-[#577781] [&_a]:bg-[linear-gradient(#fffdf0_50%,#dce7e2_50%)] [&_a]:p-2.5 [&_a]:text-[#304550] [&_a]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#304550]"
       data-poke-lounge-ui="heartgold"
       data-testid="poke-lounge-result-panel"
     >
-      <p className={styles.resultEyebrow}>{copy.resultEyebrow}</p>
-      <div className={styles.resultScore} data-testid="poke-lounge-result-score">
+      <p className="m-0 rounded-md border-2 border-[#7290a0] border-b-[3px] border-b-[#b89a4b] bg-[linear-gradient(#c8e0ec_50%,#edf3ed_50%)] p-2.5 text-lg font-extrabold uppercase text-[#304550] before:mr-2.5 before:text-[#94722a] before:content-['★']">
+        {copy.resultEyebrow}
+      </p>
+      <div
+        className="min-h-12 rounded-lg border-[3px] border-[#ae9454] bg-[linear-gradient(#fff3c5_50%,#ebdcad_50%)] p-[18px] text-[2.5rem] font-black leading-none text-[#6a5126] shadow-[inset_0_0_0_2px_#fffdf0]"
+        data-testid="poke-lounge-result-score"
+      >
         {score}
       </div>
-      <p className={styles.resultMeta}>{copy.resultPlayTime(playTime)}</p>
-      <p className={styles.resultStatus}>{copy.resultUnranked}</p>
-      <p className={styles.resultStatus}>{copy.resultStarPrompt}</p>
+      <p className="m-0 min-h-5 rounded-[5px] border border-[#a9b7a5] bg-[#fffdf0] p-2.5 text-[0.85rem] font-bold text-[#304550]">
+        {copy.resultPlayTime(playTime)}
+      </p>
+      <p className={resultStatusClassName}>{copy.resultUnranked}</p>
+      <p className={resultStatusClassName}>{copy.resultStarPrompt}</p>
       <Button asChild>
         <a href="https://github.com/icecokel/poke-lounge" data-testid="poke-lounge-result-github">
           {copy.resultStar}
         </a>
       </Button>
-      <div className={styles.resultActions}>
+      <div className={resultActionsClassName}>
         <Button
           type="button"
           variant="outline"
@@ -192,8 +201,6 @@ export function PokeLoungeDecisionDialogs({
   onUseLocalHydration(): void;
   onUseServerHydration(): void;
 }) {
-  const dialogClassName = styles.mobileDecisionSheet;
-
   return (
     <>
       <AlertDialog open={hydrationConflictOpen} onOpenChange={onHydrationOpenChange}>

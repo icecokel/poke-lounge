@@ -6,7 +6,6 @@ import {
   getAiActivityLabel,
   isChampionshipFinished,
 } from "@/features/poke-lounge/presentation/world/ai-activity-view";
-import styles from "../../../poke-lounge.module.css";
 import { BATTLE_INTRO_TIMING, createBattleIntroStripes } from "../battle/battle-intro";
 import { localizeTrainerName } from "../i18n/runtime-game-localization";
 import { RoundStartController } from "../round/round-start-controller";
@@ -107,9 +106,9 @@ export function WorldScreen({
   );
 
   return (
-    <div className={styles.worldScreen} data-poke-lounge-world-screen="true">
+    <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden bg-[var(--rom-screen-background)] [image-rendering:pixelated]" data-poke-lounge-world-screen="true">
       <WorldViewport ref={viewportRef} aria-hidden="true">
-        <div ref={stageRef} className={styles.worldStage}>
+        <div ref={stageRef} className="absolute inset-0 origin-top-left">
           <WorldMap ref={mapRef} model={model}>
             <WorldTileLayer model={model} layer={model.layers[0]} depth={0} />
             <WorldTileLayer model={model} layer={model.layers[1]} depth={10} />
@@ -172,7 +171,7 @@ export const WorldViewport = forwardRef<
   { children: React.ReactNode; "aria-hidden"?: "true" }
 >(function WorldViewport({ children, ...props }, ref) {
   return (
-    <div ref={ref} className={styles.worldViewport} {...props}>
+    <div ref={ref} className="absolute inset-0 overflow-hidden" {...props}>
       {children}
     </div>
   );
@@ -185,7 +184,7 @@ export const WorldMap = forwardRef<
   return (
     <div
       ref={ref}
-      className={styles.worldMap}
+      className="absolute inset-auto [will-change:transform]"
       style={{ width: model.widthInPixels, height: model.heightInPixels }}
     >
       {children}
@@ -204,7 +203,7 @@ export function WorldTileLayer({
 }) {
   if (!layer) return null;
   return (
-    <div className={styles.worldTileLayer} data-world-layer={layer.name} style={{ zIndex: depth }}>
+    <div className="absolute inset-auto size-full" data-world-layer={layer.name} style={{ zIndex: depth }}>
       {layer.tiles.map(function mapItem(tile) {
         return <WorldTile key={tile.key} model={model} tile={tile} />;
       })}
@@ -239,7 +238,7 @@ function WorldGrassLayer({
   tiles: WorldMapTile[];
 }) {
   return (
-    <div className={styles.worldTileLayer} data-world-layer={name} style={{ zIndex: depth }}>
+    <div className="absolute inset-auto size-full" data-world-layer={name} style={{ zIndex: depth }}>
       {tiles.map(function mapItem(tile) {
         return <WorldTile key={tile.key} model={model} tile={tile} />;
       })}
@@ -251,7 +250,7 @@ function WorldTile({ model, tile }: { model: WorldMapModel; tile: WorldMapTile }
   const source = getWorldTileSourcePosition(model, tile.gid);
   return (
     <span
-      className={styles.worldTile}
+      className="absolute block bg-no-repeat [image-rendering:pixelated]"
       style={{
         backgroundImage: `url(${model.tileset.imageUrl})`,
         backgroundPosition: `${-source.x}px ${-source.y}px`,
@@ -265,17 +264,17 @@ function WorldTile({ model, tile }: { model: WorldMapModel; tile: WorldMapTile }
 }
 
 export function WorldActorLayer({ children }: { children: React.ReactNode }) {
-  return <div className={styles.worldActorLayer}>{children}</div>;
+  return <div className="absolute inset-auto z-20 size-full">{children}</div>;
 }
 
 export const LocalPlayerActor = forwardRef<HTMLDivElement>(function LocalPlayerActor(_, ref) {
-  return <div ref={ref} className={styles.worldPlayerActor} data-world-local-player="true" />;
+  return <div ref={ref} className="absolute z-20 block size-10 bg-no-repeat [image-rendering:pixelated] [will-change:transform,background-position]" data-world-local-player="true" />;
 });
 
 export const RemotePlayerActor = forwardRef<HTMLDivElement, { displayName: string }>(
   function RemotePlayerActor({ displayName }, ref) {
     return (
-      <div ref={ref} className={`${styles.worldPlayerActor} ${styles.worldRemotePlayerActor}`}>
+      <div ref={ref} className="absolute z-[19] block size-10 bg-no-repeat [image-rendering:pixelated] [will-change:transform,background-position] [filter:sepia(0.18)_saturate(1.45)_hue-rotate(174deg)_brightness(1.08)]">
         <PlayerNameLabel>{displayName}</PlayerNameLabel>
       </div>
     );
@@ -283,7 +282,7 @@ export const RemotePlayerActor = forwardRef<HTMLDivElement, { displayName: strin
 );
 
 export function PlayerNameLabel({ children }: { children: React.ReactNode }) {
-  return <span className={styles.worldPlayerNameLabel}>{children}</span>;
+  return <span className="absolute bottom-[38px] left-1/2 -translate-x-1/2 px-[3px] py-px font-mono text-[8px] leading-none font-bold whitespace-nowrap text-[#f8fbf0] [text-shadow:-1px_-1px_#17231c,1px_-1px_#17231c,-1px_1px_#17231c,1px_1px_#17231c]">{children}</span>;
 }
 
 export function NpcActor({ npc }: { npc: WorldMapNpcModel }) {
@@ -293,7 +292,7 @@ export function NpcActor({ npc }: { npc: WorldMapNpcModel }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       alt=""
-      className={styles.worldNpcActor}
+      className="absolute z-[18] block object-fill [image-rendering:pixelated]"
       data-world-npc={npc.name}
       draggable={false}
       src={npc.imageUrl}
@@ -308,7 +307,7 @@ export function NpcActor({ npc }: { npc: WorldMapNpcModel }) {
 }
 
 export function WorldEffectLayer({ children }: { children: React.ReactNode }) {
-  return <div className={styles.worldEffectLayer}>{children}</div>;
+  return <div className="absolute inset-0 z-[30000] overflow-hidden">{children}</div>;
 }
 
 export const WorldBattleTransition = forwardRef<
@@ -319,7 +318,7 @@ export const WorldBattleTransition = forwardRef<
   }
 >(function WorldBattleTransition({ registerStripe, viewport }, ref) {
   return (
-    <div ref={ref} className={styles.worldBattleTransition} data-world-battle-transition="true">
+    <div ref={ref} className="absolute inset-0 overflow-hidden bg-[#101820] opacity-0" data-world-battle-transition="true">
       {createBattleIntroStripes({
         width: viewport.width,
         height: viewport.height,
@@ -331,7 +330,7 @@ export const WorldBattleTransition = forwardRef<
             ref={function handleEvent(node) {
               return registerStripe(index, node);
             }}
-            className={styles.worldBattleTransitionStripe}
+            className="absolute bg-[#101820] [will-change:transform]"
             style={{
               height: stripe.height,
               left: stripe.x,

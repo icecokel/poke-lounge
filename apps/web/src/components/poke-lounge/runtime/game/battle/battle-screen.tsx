@@ -17,7 +17,6 @@ import {
 } from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
-import styles from "../../../poke-lounge.module.css";
 import {
   HealthBar,
   MessageBox,
@@ -121,7 +120,7 @@ export function BattleScreen({
 
   return (
     <section
-      className={styles.battleScreen}
+      className="absolute inset-0 z-40 overflow-hidden bg-[var(--pl-color-surface-muted)] [container-type:size] [image-rendering:pixelated]"
       data-poke-lounge-battle-screen="true"
       data-poke-lounge-battle-phase={presentation.phase}
       aria-label={copy.mobile.battleDeckLabel}
@@ -139,7 +138,7 @@ export function BattleScreen({
       {desktop ? (
         <button
           type="button"
-          className={styles.battleHelpButton}
+          className="absolute top-[2.5%] right-[2%] z-[850] grid aspect-square w-[clamp(28px,4.2cqw,56px)] place-items-center rounded-full border-[max(1px,0.15cqw)] border-[rgb(255_255_255_/_62%)] bg-[rgb(43_55_66_/_88%)] p-0 font-extrabold text-[#f8fbf0]"
           aria-label={copy.game.battleHelpLabel}
           data-poke-lounge-battle-help="true"
           onClick={function handleClick() {
@@ -211,13 +210,13 @@ export function BattleStage({
   const layout = desktop ? DESKTOP_BATTLE_STAGE_LAYOUT : MOBILE_BATTLE_STAGE_LAYOUT;
   return (
     <div
-      className={styles.battleStage}
+      className="group/battle-stage absolute inset-0 overflow-hidden text-[clamp(8px,3.125cqw,44px)] text-[var(--pl-color-ink)]"
       data-poke-lounge-battle-layout={desktop ? "desktop" : "mobile"}
     >
       <BattleBackground evolution={Boolean(presentation.evolution)} />
       {presentation.authoritative.spectating ? (
         <div
-          className={styles.battleSpectatorBanner}
+          className="absolute top-0 left-1/2 z-45 flex w-max max-w-[88%] -translate-x-1/2 items-center gap-[0.5em] border-2 border-[var(--pl-color-ink)] bg-[var(--pl-color-surface-raised)] px-[0.6em] py-[0.15em] text-[max(9px,0.45em)] font-black [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:font-medium"
           role="status"
           data-poke-lounge-spectating="true"
         >
@@ -265,7 +264,7 @@ export function BattleStage({
       !presentation.help.open ? (
         <button
           type="button"
-          className={styles.battleBackButton}
+          className="absolute right-[2%] bottom-[31.5%] z-30 inline-flex min-h-7 items-center gap-[0.4em] rounded-md border border-[#24313b] bg-[#fffef4] px-[0.75em] py-[0.35em] text-[0.65em] text-[#24313b] [&_kbd]:font-[inherit] [&_kbd]:font-black"
           data-poke-lounge-battle-back="true"
           aria-keyshortcuts="X"
           onClick={() => onAction({ type: "go-back" })}
@@ -298,7 +297,7 @@ export function BattleBackground({ evolution }: { evolution: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className={styles.battleBackground}
+      className="absolute inset-0 bg-center bg-[length:100%_100%] bg-no-repeat group-data-[poke-lounge-battle-layout=mobile]/battle-stage:bg-cover data-[poke-lounge-battle-background=field]:bg-[#f8f8e0] data-[poke-lounge-battle-background=field]:bg-[length:100%_auto] data-[poke-lounge-battle-background=field]:bg-top data-[poke-lounge-battle-background=field]:after:absolute data-[poke-lounge-battle-background=field]:after:[inset:18.75cqw_0_0] data-[poke-lounge-battle-background=field]:after:bg-[#f8f8e0] data-[poke-lounge-battle-background=field]:after:content-['']"
       data-poke-lounge-battle-background={evolution ? "evolution" : "field"}
       style={{
         backgroundImage: `url(${evolution ? ROM_BATTLE_DESIGN_ASSETS.evolutionBackground.path : ROM_BATTLE_DESIGN_ASSETS.background.path})`,
@@ -315,7 +314,7 @@ export function BattlePokemonLayer({
   layout?: BattleStageLayout;
 }) {
   return (
-    <div className={styles.battlePokemonLayer} aria-hidden="true">
+    <div className="pointer-events-none absolute inset-0" aria-hidden="true">
       {(["opponent", "player"] as const).map(side => {
         const combatant = presentation[side];
         const fromBall = side === "player" || presentation.battleKind !== "wild";
@@ -332,7 +331,7 @@ export function BattlePokemonLayer({
             />
             {fromBall ? (
               <span
-                className={styles.battleSendOutBall}
+                className="absolute aspect-square w-[4.6875%] animate-[battle-send-out-ball_640ms_ease-out_both] bg-contain bg-no-repeat [image-rendering:pixelated]"
                 data-poke-lounge-send-out-ball={side}
                 style={{
                   backgroundImage: `url(${ROM_BATTLE_DESIGN_ASSETS.pokeball.path})`,
@@ -342,7 +341,7 @@ export function BattlePokemonLayer({
             ) : null}
             {combatant.healing ? (
               <span
-                className={styles.battleHealingEffect}
+                className="absolute rounded-full bg-[radial-gradient(ellipse,rgb(183_216_151_/_70%),transparent_70%)] text-[#42713d] [&_i]:absolute [&_i]:bottom-0 [&_i]:left-[15%] [&_i]:animate-[battle-heal-rise_560ms_ease-out_infinite] [&_i]:not-italic [&_i]:font-black [&_i]:[text-shadow:0_0_2px_white] [&_i:nth-child(2)]:left-[40%] [&_i:nth-child(2)]:[animation-delay:-140ms] [&_i:nth-child(3)]:left-[65%] [&_i:nth-child(3)]:[animation-delay:-280ms] [&_i:nth-child(4)]:left-[85%] [&_i:nth-child(4)]:[animation-delay:-420ms]"
                 data-poke-lounge-healing={side}
                 style={toCenteredBattleActorRectStyle(combatant.sprite, layout)}
               >
@@ -396,7 +395,7 @@ export function BattlePokemonSprite({
 
   return (
     <span
-      className={styles.battlePokemonSprite}
+      className="pointer-events-none absolute block bg-no-repeat [image-rendering:pixelated] data-[from-ball=true]:origin-bottom data-[from-ball=true]:animate-[battle-send-out-pokemon_640ms_ease-out_backwards]"
       data-poke-lounge-battle-pokemon={side}
       data-from-ball={fromBall || undefined}
       style={{
@@ -443,7 +442,7 @@ export function BattleHpPanel({
         : `${experience?.remaining ?? 0} EXP to next level`;
   return (
     <PixelPanel
-      className={styles.battleHpPanel}
+      className="absolute grid grid-cols-[1fr_auto] content-start gap-x-[0.4em] gap-y-[0.15em] overflow-hidden border-[max(1px,0.18cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface-raised)] px-[5%] py-[1%] text-[0.8em] leading-none shadow-[0.7cqw_0.7cqw_0_rgb(138_149_139_/_86%),inset_0_0_0_max(1px,0.08cqw)_#fff] data-[healing=true]:shadow-[0_0_2cqw_#b7d897] [&_strong]:overflow-hidden [&_strong]:whitespace-nowrap [&_small]:text-[0.72em] [&_small]:font-bold"
       data-poke-lounge-battle-hp-panel={side}
       data-healing={combatant.healing || undefined}
       style={toBattleRectStyle(rect, layout)}
@@ -455,24 +454,33 @@ export function BattleHpPanel({
       {status ? (
         <span style={{ color: status.color }}>{copy.game.statusLabel[combatant.status]}</span>
       ) : null}
-      <div className={styles.battleHpRow}>
+      <div className="col-[1/-1] flex min-w-0 items-center gap-[0.45em]">
         <HealthBar
-          className={styles.battleHpTrack}
+          className="m-0 h-[max(5px,1cqw)] min-w-0 flex-1"
           value={hpRatio(hp, combatant.maxHp)}
           aria-label={`${combatant.name} HP`}
         />
-        <span className={styles.battleHpValue} data-poke-lounge-hp-value={side}>
+        <span
+          className="shrink-0 text-[0.8em] font-extrabold whitespace-nowrap tabular-nums"
+          data-poke-lounge-hp-value={side}
+        >
           {hp}/{combatant.maxHp}
         </span>
       </div>
-      <small className={styles.battleTrainerName} data-poke-lounge-battle-trainer={side}>
+      <small
+        className="col-[1/-1] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--pl-color-ink-muted)] data-[poke-lounge-battle-trainer=player]:text-right"
+        data-poke-lounge-battle-trainer={side}
+      >
         {combatant.displayName}
       </small>
       {experience ? (
-        <div className={styles.battleExperienceRow} title={expLabel}>
+        <div
+          className="col-[1/-1] flex min-w-0 items-center gap-[0.45em] [&_small]:text-[0.58em] [&_small]:leading-none [&_small]:font-extrabold"
+          title={expLabel}
+        >
           <small>EXP</small>
           <span
-            className={styles.battleExperienceTrack}
+            className="block h-[max(3px,0.65cqw)] min-w-0 flex-1 overflow-hidden rounded-sm border border-[#527b90] bg-[#d9e7ed] [&>i]:block [&>i]:h-full [&>i]:bg-[#77cefa] [&>i]:transition-[width] [&>i]:duration-240 [&>i]:ease-linear motion-reduce:[&>i]:transition-none"
             role="progressbar"
             aria-label={expLabel}
             aria-valuemin={0}
@@ -507,7 +515,7 @@ export function BattleSurfaceRouter({
   if (!desktop) return null;
   if (controls.learnedMove && presentation.message) {
     return (
-      <div className={styles.battleMoveLearningSurface}>
+      <div className="absolute inset-0 z-35 flex items-center justify-center overflow-auto bg-[rgb(14_28_19_/_88%)] p-[clamp(10px,2.5cqw,22px)] [&>section]:max-w-[650px] [&>section]:shrink-0">
         <LearnedMoveNotice
           copy={copy}
           move={controls.learnedMove}
@@ -571,7 +579,7 @@ export function BattleMessagePanel({
 }) {
   return (
     <MessageBox
-      className={`${styles.battleWindow} ${styles.battleMessagePanel}`}
+      className="absolute bottom-0 left-0 m-0 h-[30.208333%] w-full rounded-none border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] p-[2.34375%] font-[inherit] text-[var(--pl-color-ink)] shadow-[inset_0_0_0_max(1px,0.12cqw)_#fff,inset_0_0_0_max(2px,0.45cqw)_rgb(139_149_136_/_65%)] z-20 left-[1.171875%] flex h-[27.083333%] w-[97.65625%] cursor-pointer items-start justify-start rounded-[max(2px,0.35cqw)] border-[max(2px,0.32cqw)] border-[#454d5b] bg-[#fffef4] px-[13.28125%] py-[3.90625%] pl-[4.6875%] text-left leading-[1.35] shadow-[inset_0_0_0_max(2px,0.28cqw)_#858b96,inset_0_0_0_max(4px,0.62cqw)_#f2f1e8,0_max(2px,0.28cqw)_0_var(--pl-color-gold)] disabled:cursor-default disabled:opacity-100 data-[poke-lounge-battle-surface=message]:before:absolute data-[poke-lounge-battle-surface=message]:before:top-[20%] data-[poke-lounge-battle-surface=message]:before:right-[3.125%] data-[poke-lounge-battle-surface=message]:before:h-[23.076923%] data-[poke-lounge-battle-surface=message]:before:w-[6.25%] data-[poke-lounge-battle-surface=message]:before:rounded-[max(3px,0.7cqw)] data-[poke-lounge-battle-surface=message]:before:border-[max(1px,0.16cqw)] data-[poke-lounge-battle-surface=message]:before:border-[#d8d9d4] data-[poke-lounge-battle-surface=message]:before:bg-[#fffef4] data-[poke-lounge-battle-surface=message]:before:shadow-[inset_0_0_0_max(1px,0.12cqw)_#f5f4ed] data-[poke-lounge-battle-surface=message]:before:content-[''] data-[poke-lounge-battle-surface=message]:after:absolute data-[poke-lounge-battle-surface=message]:after:right-[3.125%] data-[poke-lounge-battle-surface=message]:after:bottom-[20%] data-[poke-lounge-battle-surface=message]:after:h-[23.076923%] data-[poke-lounge-battle-surface=message]:after:w-[6.25%] data-[poke-lounge-battle-surface=message]:after:animate-[battle-message-advance_720ms_steps(2,end)_infinite] data-[poke-lounge-battle-surface=message]:after:rounded-[max(3px,0.7cqw)] data-[poke-lounge-battle-surface=message]:after:border-[max(1px,0.16cqw)] data-[poke-lounge-battle-surface=message]:after:border-[#d8d9d4] data-[poke-lounge-battle-surface=message]:after:bg-[#f7aeb7] data-[poke-lounge-battle-surface=message]:after:shadow-[inset_0_0_0_max(1px,0.12cqw)_#f5f4ed] data-[poke-lounge-battle-surface=message]:after:content-[''] motion-reduce:data-[poke-lounge-battle-surface=message]:after:animate-none"
       data-poke-lounge-battle-surface="message"
       disabled={locked}
       onClick={onConfirm}
@@ -598,7 +606,7 @@ export function BattleCommandPanel({
   };
   return (
     <div
-      className={`${styles.battleWindow} ${styles.battleOptionGrid}`}
+      className="absolute bottom-0 left-0 m-0 h-[30.208333%] w-full rounded-none border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] p-[2.34375%] font-[inherit] text-[var(--pl-color-ink)] shadow-[inset_0_0_0_max(1px,0.12cqw)_#fff,inset_0_0_0_max(2px,0.45cqw)_rgb(139_149_136_/_65%)] z-20 grid grid-cols-2 grid-rows-2 gap-x-[1.5625%] gap-y-[2.083333%] [&>button]:relative [&>button]:flex [&>button]:min-w-0 [&>button]:items-center [&>button]:justify-between [&>button]:gap-[0.4em] [&>button]:px-[0.75em] [&>button]:py-[0.2em] [&>button]:text-left [&>button]:text-[var(--pl-color-ink)] [&>button[data-selected=true]]:bg-[var(--pl-color-gold-soft)] [&>button[data-selected=true]]:shadow-[inset_max(2px,0.75cqw)_0_var(--pl-color-johto)] [&>button:disabled]:cursor-default [&>button:disabled]:text-[#7a827c] [&>button:disabled]:opacity-[0.62] [&_small]:text-[0.62em] [&_small]:whitespace-nowrap [&_small]:text-[var(--pl-color-ink-muted)]"
       data-poke-lounge-battle-surface="command"
     >
       {controls.commands.map(function mapItem(command, index) {
@@ -633,7 +641,7 @@ export function BattleMovePanel({
 }) {
   return (
     <div
-      className={`${styles.battleWindow} ${styles.battleOptionGrid}`}
+      className="absolute bottom-0 left-0 m-0 h-[30.208333%] w-full rounded-none border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] p-[2.34375%] font-[inherit] text-[var(--pl-color-ink)] shadow-[inset_0_0_0_max(1px,0.12cqw)_#fff,inset_0_0_0_max(2px,0.45cqw)_rgb(139_149_136_/_65%)] z-20 grid grid-cols-2 grid-rows-2 gap-x-[1.5625%] gap-y-[2.083333%] [&>button]:relative [&>button]:flex [&>button]:min-w-0 [&>button]:items-center [&>button]:justify-between [&>button]:gap-[0.4em] [&>button]:px-[0.75em] [&>button]:py-[0.2em] [&>button]:text-left [&>button]:text-[var(--pl-color-ink)] [&>button[data-selected=true]]:bg-[var(--pl-color-gold-soft)] [&>button[data-selected=true]]:shadow-[inset_max(2px,0.75cqw)_0_var(--pl-color-johto)] [&>button:disabled]:cursor-default [&>button:disabled]:text-[#7a827c] [&>button:disabled]:opacity-[0.62] [&_small]:text-[0.62em] [&_small]:whitespace-nowrap [&_small]:text-[var(--pl-color-ink-muted)]"
       data-poke-lounge-battle-surface="moves"
     >
       {Array.from({ length: 4 }, function callback(_, index) {
@@ -671,7 +679,7 @@ export function BattleMoveReplacementPanel({
   if (!controls.moveReplacement) return null;
   return (
     <div
-      className={styles.battleMoveLearningSurface}
+      className="absolute inset-0 z-35 flex items-center justify-center overflow-auto bg-[rgb(14_28_19_/_88%)] p-[clamp(10px,2.5cqw,22px)] [&>section]:max-w-[650px] [&>section]:shrink-0"
       data-poke-lounge-battle-surface="move-replacement"
     >
       <MoveLearningPanel
@@ -706,7 +714,10 @@ export function BattlePartyPanel({
   onAction(action: MobileBattleUiAction): void;
 }) {
   return (
-    <div className={styles.battlePartyPanel} data-poke-lounge-battle-surface="party">
+    <div
+      className="absolute inset-[71.875%_0_0] z-20 grid grid-rows-[auto_1fr] border-[max(1px,0.18cqw)] border-[rgb(255_255_255_/_54%)] bg-[rgb(43_55_66_/_92%)] px-[0.5em] pt-[0.35em] pb-[0.45em] text-[0.56em] text-[#f8fbf0] [&>header]:flex [&>header]:justify-between [&>header]:pb-[0.25em] [&>div]:grid [&>div]:min-h-0 [&>div]:grid-cols-3 [&>div]:grid-rows-2 [&>div]:gap-[0.3em]"
+      data-poke-lounge-battle-surface="party"
+    >
       <header>
         <strong>
           {controls.itemTargetName
@@ -723,7 +734,7 @@ export function BattlePartyPanel({
             <button
               key={pokemon.slotIndex}
               type="button"
-              className={styles.battlePartySlot}
+              className="relative grid min-w-0 grid-cols-[24%_1fr] grid-rows-2 overflow-hidden border-[max(1px,0.12cqw)] border-[#2b3742] bg-[#f4f7e3] py-[0.3em] pr-[0.35em] pl-[24%] text-left text-[#17201a] shadow-[inset_0_0_0_max(1px,0.1cqw)_#fff] data-[selected=true]:bg-[#fff4a3] data-[selected=true]:shadow-[inset_max(2px,0.5cqw)_0_#43b65c,inset_0_0_0_max(1px,0.1cqw)_#fff] data-[current=true]:border-[#355c7d] disabled:opacity-70 [&_[data-poke-lounge-battle-pokemon=party]]:top-0 [&_[data-poke-lounge-battle-pokemon=party]]:left-0 [&_[data-poke-lounge-battle-pokemon=party]]:h-full [&_[data-poke-lounge-battle-pokemon=party]]:w-[24%] [&_strong]:col-start-2 [&_strong]:overflow-hidden [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_small]:col-start-2 [&_small]:overflow-hidden [&_small]:text-[0.82em] [&_small]:text-ellipsis [&_small]:whitespace-nowrap"
               data-current={pokemon.isCurrent}
               data-selected={pokemon.selected}
               disabled={!pokemon.canSwitch}
@@ -784,7 +795,7 @@ export function BattleBagPanel({
   const canBrowse = canChooseBattleAction(controls);
   return (
     <div
-      className={`${styles.battleWindow} ${styles.battleBagPanel}`}
+      className="absolute bottom-0 left-0 m-0 h-[30.208333%] w-full rounded-none border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] p-[2.34375%] font-[inherit] text-[var(--pl-color-ink)] shadow-[inset_0_0_0_max(1px,0.12cqw)_#fff,inset_0_0_0_max(2px,0.45cqw)_rgb(139_149_136_/_65%)] z-20 grid grid-cols-2 grid-rows-2 gap-[0.1em] has-[nav]:grid-rows-[repeat(2,minmax(0,1fr))_auto] [&>button]:flex [&>button]:min-w-0 [&>button]:items-center [&>button]:justify-between [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-[0.5em] [&>button]:py-0 [&>button]:text-left [&>button]:text-[#17201a] [&>button[data-selected=true]]:bg-[#fff4a3] [&>button:disabled]:text-[#7a827c] [&>button>span]:min-w-0 [&>button>span]:[overflow-wrap:anywhere] [&>button>small]:ml-[0.25em] [&>button>small]:shrink-0"
       data-poke-lounge-battle-surface="bag"
     >
       {controls.items
@@ -809,7 +820,10 @@ export function BattleBagPanel({
           );
         })}
       {pageCount > 1 ? (
-        <nav className={styles.battleBagPagination} aria-label={copy.mobile.bag}>
+        <nav
+          className="col-[1/-1] row-start-3 flex items-center justify-between gap-[0.4em] border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] px-[0.35em] py-[0.2em] text-[0.72em] text-[var(--pl-color-ink)] [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-[0.4em] [&>button]:py-[0.25em] [&>button]:text-inherit [&>button:disabled]:cursor-default [&>button:disabled]:opacity-45"
+          aria-label={copy.mobile.bag}
+        >
           <button
             type="button"
             aria-label={text.previousPage}
@@ -838,7 +852,7 @@ export function BattleBagPanel({
 export function BattleWaitingPanel({ copy }: { copy: PokeLoungeCopy }) {
   return (
     <div
-      className={`${styles.battleWindow} ${styles.battleMessagePanel}`}
+      className="absolute bottom-0 left-0 m-0 h-[30.208333%] w-full rounded-none border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] p-[2.34375%] font-[inherit] text-[var(--pl-color-ink)] shadow-[inset_0_0_0_max(1px,0.12cqw)_#fff,inset_0_0_0_max(2px,0.45cqw)_rgb(139_149_136_/_65%)] left-[1.171875%] z-20 flex h-[27.083333%] w-[97.65625%] items-start justify-start border-[max(2px,0.32cqw)] border-[#454d5b] bg-[#fffef4] px-[4.6875%] py-[3.90625%] pr-[13.28125%] text-left leading-[1.35] shadow-[inset_0_0_0_max(2px,0.28cqw)_#858b96,inset_0_0_0_max(4px,0.62cqw)_#f2f1e8,0_max(2px,0.28cqw)_0_var(--pl-color-gold)]"
       data-poke-lounge-battle-surface="waiting"
     >
       {copy.game.battleProcessing}
@@ -881,7 +895,10 @@ export function BattleShortcutGuide({
 }) {
   const rows = createShortcutGuideRows("battle", state.help.inputMode, copy.locale);
   return (
-    <section className={styles.battleShortcutGuide} data-poke-lounge-battle-surface="help">
+    <section
+      className="absolute top-[15.625%] left-[18.75%] z-[800] min-h-[68.75%] w-[77.34375%] border-[max(2px,0.4cqw)] border-[#2b3742] bg-[#f4f7e3] px-[4.7%] py-[4%] text-[0.82em] shadow-[0.7cqw_0.7cqw_0_#8b9588,inset_0_0_0_max(1px,0.15cqw)_#fff] [&_header]:flex [&_header]:justify-between [&_header]:gap-[1em] [&_header_button]:border-0 [&_header_button]:bg-transparent [&_header_button]:p-0 [&_header_button]:text-[0.8em] [&_dl]:my-[1em] [&_dl]:grid [&_dl]:gap-[0.5em] [&_dl>div]:flex [&_dl>div]:justify-between [&_dl>div]:gap-[1em] [&_dt]:text-[#4b554f] [&_dd]:m-0 [&_p]:m-0 [&_p]:text-[0.78em] [&_p]:text-[#4b554f]"
+      data-poke-lounge-battle-surface="help"
+    >
       <header>
         <strong>{createShortcutGuideTitle("battle", state.help.inputMode, copy.locale)}</strong>
         <button type="button" onClick={onClose}>
@@ -915,13 +932,13 @@ export function BattleCaptureEffect({
   const resultProgress = capture.resultProgress;
   return (
     <div
-      className={styles.battleCaptureEffect}
+      className="pointer-events-none absolute inset-0 z-15 [&>i]:absolute [&>i]:size-[max(2px,0.5cqw)] [&>i]:origin-top-left"
       data-poke-lounge-battle-capture="true"
       aria-hidden="true"
     >
       {capture.showBall ? (
         <span
-          className={styles.battleCaptureBall}
+          className="absolute aspect-square w-[4.6875%] bg-contain bg-no-repeat [image-rendering:pixelated]"
           data-ball={capture.ballItemId}
           style={{
             backgroundImage: `url(${capture.ballItemId === "ultraBall" ? ROM_BATTLE_DESIGN_ASSETS.ultraBall.path : ROM_BATTLE_DESIGN_ASSETS.pokeball.path})`,
@@ -952,7 +969,10 @@ export function BattleCaptureEffect({
 export function BattleEvolutionScene({ evolution }: { evolution: BattleEvolutionPresentation }) {
   const energy = createEvolutionEnergyLines(evolution.progress);
   return (
-    <div className={styles.battleEvolutionScene} data-poke-lounge-battle-evolution="true">
+    <div
+      className="pointer-events-none absolute top-1/2 right-0 left-0 z-10 h-[75cqw] -translate-y-1/2 [&_svg]:absolute [&_svg]:inset-0 [&_svg]:size-full [&_svg]:fill-none [&_svg]:stroke-[#e9fff8] [&_svg]:[stroke-width:1.4]"
+      data-poke-lounge-battle-evolution="true"
+    >
       <svg viewBox="0 0 256 192" aria-hidden="true">
         {energy.lines.map(function mapItem(line, index) {
           return <line key={index} {...line} opacity={energy.alpha * 0.52} />;
@@ -977,7 +997,7 @@ export function BattleEvolutionScene({ evolution }: { evolution: BattleEvolution
         view={{ ...evolution.sprite, tint: "white" }}
       />
       {evolution.flashAlpha > 0 ? (
-        <i className={styles.battleEvolutionFlash} style={{ opacity: evolution.flashAlpha }} />
+        <i className="absolute inset-0 bg-white" style={{ opacity: evolution.flashAlpha }} />
       ) : null}
     </div>
   );
@@ -991,7 +1011,7 @@ export function BattleEntranceEffect({
   if (!entrance.active && entrance.progress >= 1) return null;
   return (
     <div
-      className={styles.battleEntranceEffect}
+      className="pointer-events-none absolute inset-0 z-[1000] [&_i]:absolute [&_i]:block [&_i]:h-1/6 [&_i]:bg-[#f8fbf0]"
       data-poke-lounge-battle-entrance="true"
       style={{ backgroundColor: `rgb(16 24 32 / ${Math.max(0, 1 - entrance.progress)})` }}
       aria-hidden="true"

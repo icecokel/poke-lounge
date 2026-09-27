@@ -8,7 +8,6 @@ import {
 } from "./move-animation-model";
 import type { BattlePresentationState } from "./battle-ui-store";
 import type { BattleStageLayout } from "./battle-stage-layout";
-import styles from "./battle-move-effects.module.css";
 
 export function BattleMoveEffects({
   presentation,
@@ -58,7 +57,7 @@ export function BattleMoveEffects({
     : undefined;
   return (
     <svg
-      className={styles.effects}
+      className="pointer-events-none absolute inset-0 z-[18] size-full overflow-hidden text-[#fff8ce] [contain:paint] [image-rendering:pixelated]"
       viewBox={`0 0 ${layout.width} ${layout.height}`}
       preserveAspectRatio="none"
       aria-hidden="true"
@@ -117,7 +116,7 @@ export function BattleMoveEffects({
         ) : null}
         {["ground", "water"].includes(profile.windup) && effect.progress < 0.6 ? (
           <ellipse
-            className={styles.ground}
+            className="fill-[#51352d] stroke-[#b28b52] [stroke-width:2px] data-[windup-surface=water]:fill-[#409bd4] data-[windup-surface=water]:stroke-[#a4e5fa] motion-reduce:hidden"
             cx={origin.x}
             cy={origin.y + 17}
             rx={22}

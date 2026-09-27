@@ -10,6 +10,7 @@ import {
   type ApiTokenSession,
 } from "@/lib/auth-token";
 import { useLocalTestSession } from "@/lib/use-local-test-session";
+import { cn } from "@/lib/utils";
 import { loadPokeLoungeState } from "@/services/poke-lounge-state-service";
 import { useLocale } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -43,8 +44,6 @@ import {
   writePokeLoungeSettings,
   type PokeLoungeSettings,
 } from "./poke-lounge-settings-storage";
-import themeStyles from "./poke-lounge-theme.module.css";
-import styles from "./poke-lounge.module.css";
 import { setPokeLoungeMasterVolume } from "./runtime/game/audio/poke-lounge-audio";
 import type { PokeLoungeRuntimeState } from "./runtime/game/game-page-state";
 import {
@@ -1033,7 +1032,23 @@ export function PokeLoungeGame() {
   return (
     <main
       ref={pageRef}
-      className={`${styles.page} ${themeStyles.theme} ${styles.mobileOnly}`}
+      className={cn(
+        "fixed grid min-h-0 w-[var(--poke-lounge-mobile-app-width)] overflow-clip overscroll-none bg-[#17201a] text-[var(--pl-color-ink)] [--poke-lounge-container-width:100vw] [--poke-lounge-container-height:100dvh] [--poke-lounge-frame-available-height:100%] [--poke-lounge-max-display-width:1440px] [--poke-lounge-mobile-app-width:min(var(--poke-lounge-container-width),480px)] [--poke-lounge-mobile-letterbox-bottom:max(16px,env(safe-area-inset-bottom,0px))] [--poke-lounge-mobile-letterbox-top:max(16px,env(safe-area-inset-top,0px))] [--rom-screen-background:var(--pl-color-ink)] [container-name:poke-viewport] [container-type:size] [font-family:var(--pl-font-game)]",
+        "top-[var(--poke-lounge-viewport-top,0px)] left-[calc(var(--poke-lounge-viewport-left,0px)+max(0px,(var(--poke-lounge-container-width)-480px)/2))] h-[var(--poke-lounge-container-height)]",
+        "grid-cols-[minmax(0,min(100%,480px))] grid-rows-[minmax(0,1fr)] content-stretch items-stretch justify-center gap-0 pt-[var(--poke-lounge-mobile-letterbox-top)] pr-[env(safe-area-inset-right,0px)] pb-[var(--poke-lounge-mobile-letterbox-bottom)] pl-[env(safe-area-inset-left,0px)]",
+        !entryDocumentScroll &&
+          "min-[769px]:[--poke-lounge-mobile-app-height:min(var(--poke-lounge-container-height),calc(var(--poke-lounge-mobile-app-width)*16/9))] min-[769px]:top-[calc(var(--poke-lounge-viewport-top,0px)+max(0px,(var(--poke-lounge-container-height)-var(--poke-lounge-mobile-app-height))/2))] min-[769px]:h-[var(--poke-lounge-mobile-app-height)]",
+        (runtimeState.phase === "world" || runtimeState.phase === "battle") &&
+          !finalResult &&
+          !gameStartupError &&
+          "grid-cols-[minmax(0,var(--poke-lounge-layout-width,100%))] grid-rows-[auto_var(--poke-lounge-layout-frame-height,40%)_minmax(0,1fr)] gap-[var(--poke-lounge-layout-gap,8px)] data-[poke-lounge-responsive-layout=split]:grid-cols-[var(--poke-lounge-layout-frame-width)_var(--poke-lounge-layout-controller-width)] data-[poke-lounge-responsive-layout=split]:grid-rows-[auto_minmax(0,1fr)]",
+        entryDocumentScroll &&
+          "relative top-auto left-auto mx-auto block h-auto min-h-dvh w-[min(100%,480px)] overflow-visible overscroll-auto [container-type:inline-size]",
+        "[&>[data-poke-lounge-play-status]]:col-[1/-1] [&>[data-poke-lounge-play-status]]:row-start-1 [&>[data-poke-lounge-play-status]]:w-full",
+        "[&>[data-poke-lounge-mobile-control-dock]]:col-start-1 [&>[data-poke-lounge-mobile-control-dock]]:row-start-3 [&>[data-poke-lounge-mobile-control-dock]]:h-full [&>[data-poke-lounge-mobile-control-dock]]:w-full [&>[data-poke-lounge-mobile-control-dock]]:min-h-0 [&>[data-poke-lounge-mobile-control-dock]]:min-w-0",
+        "data-[poke-lounge-responsive-layout=split]:[&>[data-poke-lounge-mobile-control-dock]]:col-start-2 data-[poke-lounge-responsive-layout=split]:[&>[data-poke-lounge-mobile-control-dock]]:row-start-2 data-[poke-lounge-responsive-layout=split]:[&>[data-poke-lounge-mobile-control-dock]]:border-l-2 data-[poke-lounge-responsive-layout=split]:[&>[data-poke-lounge-mobile-control-dock]]:border-t-0",
+        "data-[poke-lounge-keyboard-open]:[&>[data-poke-lounge-mobile-control-dock=true]]:hidden",
+      )}
       data-testid="poke-lounge-page"
       data-poke-lounge-play-layout={
         (runtimeState.phase === "world" || runtimeState.phase === "battle") &&
@@ -1154,12 +1169,7 @@ export function PokeLoungeGame() {
           onRetry={handleResultRetry}
         />
       ) : null}
-      <div
-        id="poke-lounge-accessible-status"
-        className={styles.srOnly}
-        role="status"
-        aria-live="polite"
-      >
+      <div id="poke-lounge-accessible-status" className="sr-only" role="status" aria-live="polite">
         {accessibleGameStatus} {multiplayerRoomId ? `${connectionLabel}${sentenceEnd} ` : ""}
         {autosaveLabel}
         {sentenceEnd} {copy.accessibleHelp}

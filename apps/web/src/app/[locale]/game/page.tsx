@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 
-import themeStyles from "@/components/poke-lounge/poke-lounge-theme.module.css";
 import { Link } from "@/i18n/navigation";
 
 import styles from "./page.module.css";
@@ -15,7 +14,7 @@ export default async function GamePage() {
   ];
 
   return (
-    <main className={`${styles.page} ${themeStyles.theme}`}>
+    <main className={styles.page}>
       <section className={styles.hero} aria-labelledby="poke-lounge-intro-title">
         <header className={styles.header}>
           <Link href="/game" className={styles.brand} aria-label="Poke Lounge">

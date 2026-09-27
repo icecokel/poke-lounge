@@ -11,8 +11,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import type { PokeLoungeLocale } from "../poke-lounge-copy";
-import styles from "./page-reload-button.module.css";
 
 const messages = {
   "ko-KR": {
@@ -63,26 +63,26 @@ export function PageReloadButton({
     if (submitted.current) return;
     submitted.current = true;
     setPending(true);
-    // Keep the current URL/session identity for the existing reconnect flow.
     window.location.reload();
   };
   return (
     <>
-      <button
+      <Button
         ref={trigger}
         type="button"
-        className={styles.button}
+        variant="outline"
+        className="min-h-11 gap-1.5 rounded-md border-2 border-[#304c3a] bg-[#fffef3] px-3 py-2 text-sm font-extrabold text-[#17201a] shadow-none touch-manipulation hover:bg-[#fff4c2] focus-visible:border-[#304c3a] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-[#ffcf55] focus-visible:outline-offset-2 disabled:cursor-default disabled:opacity-60"
         disabled={disabled || pending}
         data-poke-lounge-page-reload
         onClick={() => (confirmBeforeReload ? setOpen(true) : reload())}
       >
         <span aria-hidden="true">↻</span>
         {text.label}
-      </button>
+      </Button>
       {confirmBeforeReload ? (
         <AlertDialog open={open} onOpenChange={setOpen}>
           <AlertDialogContent
-            className={styles.dialog}
+            className="max-h-[calc(100dvh-32px)] overflow-auto rounded-[9px] border-[3px] border-[#304550] bg-[#fffdf0] p-6 text-[#17201a] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1,0_4px_0_#304550] [&_[data-slot=button]]:min-h-11 [&_[data-slot=button]]:rounded-md [&_[data-slot=button]]:border-2 [&_[data-slot=button]]:border-[#607e84] [&_[data-slot=button]]:shadow-[inset_0_0_0_1px_#fffdf0,0_2px_0_#304550]"
             data-poke-lounge-reload-confirm
             onCloseAutoFocus={event => {
               event.preventDefault();
@@ -91,7 +91,7 @@ export function PageReloadButton({
           >
             <AlertDialogHeader>
               <AlertDialogTitle>{text.title}</AlertDialogTitle>
-              <AlertDialogDescription className={styles.description}>
+              <AlertDialogDescription className="text-[#405244]">
                 {text.description}
               </AlertDialogDescription>
             </AlertDialogHeader>

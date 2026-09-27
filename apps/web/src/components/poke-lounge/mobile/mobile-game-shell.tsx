@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { PokeLoungeCopy } from "../poke-lounge-copy";
 import { PixelButton } from "../ui/poke-lounge-ui-primitives";
 import { primePokeLoungeAudio } from "../runtime/game/audio/poke-lounge-audio";
@@ -30,8 +31,6 @@ import {
   type VirtualGamepadButton,
   type VirtualGamepadController,
 } from "../runtime/game/input/virtual-gamepad";
-import styles from "./mobile-game-shell.module.css";
-import uiStyles from "./mobile-ui.module.css";
 import { MobileBattleDeck } from "./mobile-battle-deck";
 export {
   MobileBattleDeck,
@@ -237,7 +236,7 @@ export function MobileGameShell({
             }}
           />
           <section
-            className={styles.shell}
+            className="relative z-40 grid min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden border-t-2 border-[rgb(23_35_28_/_66%)] bg-[radial-gradient(circle_at_12%_20%,rgb(255_255_255_/_54%)_0_1px,transparent_1.5px),linear-gradient(180deg,#e9f1df_0%,#d6e5d1_100%)] bg-[length:12px_12px,auto] text-[#17201a] [container-name:poke-controller] [container-type:inline-size]"
             aria-label={
               activeScene === "battle" ? copy.mobile.battleDeckLabel : copy.mobile.exploreDeckLabel
             }
@@ -290,24 +289,27 @@ function MobileExploreDeck({
 }) {
   return (
     <div
-      className={styles.exploreDeck}
+      className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] content-start gap-2 overflow-y-auto overscroll-contain bg-[#edf3e5] [background-image:var(--hg-stripes)] px-3 pt-2.5 pb-3 font-sans shadow-[inset_0_0_0_3px_#fffdf0,inset_0_0_0_5px_#b7c6af]"
       data-poke-lounge-mobile-deck="explore"
       data-poke-lounge-ui="heartgold"
     >
       {activePokemon ? (
-        <div className={styles.activePokemon} data-poke-lounge-mobile-lead="true">
+        <div
+          className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1 rounded border-l-4 border-[var(--hg-accent)] bg-[#fffdf0] px-2.5 py-[5px] text-left tracking-normal [&_strong]:overflow-hidden [&_strong]:text-base [&_strong]:font-black [&_strong]:text-ellipsis [&_strong]:whitespace-nowrap [&_strong]:text-[#35513a] [&_span]:overflow-hidden [&_span]:text-sm [&_span]:font-extrabold [&_span]:text-ellipsis [&_span]:whitespace-nowrap [&_span]:text-[#4a5b4d]"
+          data-poke-lounge-mobile-lead="true"
+        >
           <strong>{activePokemon.name}</strong>
           <span>
             {formatMobileHp(activePokemon.currentHp, activePokemon.maxHp, activePokemon.status)}
           </span>
         </div>
       ) : null}
-      <div className={styles.controlCluster}>
+      <div className="mx-auto flex min-h-0 w-full max-w-[400px] items-center justify-between gap-3 self-start">
         <MobileDirectionalJoystick ariaLabel={copy.mobile.exploreDeckLabel} input={input} />
-        <div className={styles.fieldActions}>
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
           <TouchHoldButton
             control="confirm"
-            className={styles.primaryAction}
+            className="col-span-2 flex min-h-16 touch-manipulation items-center justify-center gap-[5px] rounded-[9px] border-2 border-[var(--hg-ink)] bg-[linear-gradient(#d96950_50%,#ab4d3e_50%)] p-2 font-black text-[#fffdf4] shadow-[var(--hg-button)] data-[pressed=true]:translate-y-[3px] data-[pressed=true]:shadow-none [&>span]:text-base [&>span]:leading-[1.3] [&>span]:[overflow-wrap:anywhere] [&>small]:text-[0.64rem]"
             ariaLabel={copy.mobile.interact}
             input={input}
           >
@@ -316,7 +318,7 @@ function MobileExploreDeck({
           </TouchHoldButton>
           <TouchHoldButton
             control="bag"
-            className={styles.secondaryAction}
+            className="grid min-h-14 touch-manipulation content-center justify-items-center gap-[5px] rounded-[9px] border-2 border-[var(--hg-ink)] bg-[linear-gradient(#f9df86_50%,#dcbe68_50%)] p-2 font-black text-[#17201a] shadow-[var(--hg-button)] data-[pressed=true]:translate-y-[3px] data-[pressed=true]:shadow-none [&>span]:text-base [&>span]:leading-[1.3] [&>span]:[overflow-wrap:anywhere] [&>small]:text-[0.64rem]"
             ariaLabel={copy.mobile.bag}
             input={input}
           >
@@ -325,7 +327,7 @@ function MobileExploreDeck({
           </TouchHoldButton>
           <button
             type="button"
-            className={styles.partyAction}
+            className="grid min-h-14 touch-manipulation content-center justify-items-center gap-[5px] rounded-[9px] border-2 border-[var(--hg-ink)] bg-[linear-gradient(#b4d997_50%,#83b87b_50%)] p-2 font-black text-[#17201a] shadow-[var(--hg-button)] active:translate-y-[3px] active:shadow-none [&>span]:text-base [&>span]:leading-[1.3] [&>span]:[overflow-wrap:anywhere] [&>small]:text-[0.64rem]"
             onClick={function handleClick() {
               return onAction({ type: "open-party" });
             }}
@@ -415,7 +417,7 @@ function MobileDirectionalJoystick({
 
   return (
     <div
-      className={styles.joystick}
+      className="group/joystick relative isolate grid aspect-square w-[clamp(96px,36cqw,144px)] max-w-[42%] shrink-0 touch-none select-none place-items-center rounded-full border-[3px] border-[#17231c] bg-[radial-gradient(circle_at_center,#e9f1df_0_36%,#d6e5d1_37%_100%)] shadow-[inset_0_0_0_6px_rgb(248_251_240_/_42%),0_3px_0_#17231c] transition-[background,box-shadow] duration-120 before:pointer-events-none before:absolute before:inset-[16%] before:z-0 before:rounded-full before:border before:border-[rgb(23_35_28_/_36%)] before:content-[''] focus-visible:outline-3 focus-visible:outline-[#42713d] focus-visible:outline-offset-3 data-[active=true]:bg-[radial-gradient(circle_at_center,#f8fbf0_0_36%,#b7d897_37%_100%)]"
       role="group"
       tabIndex={0}
       aria-label={ariaLabel}
@@ -492,7 +494,7 @@ function MobileDirectionalJoystick({
       }}
     >
       <span
-        className={styles.joystickThumb}
+        className="pointer-events-none absolute top-1/2 left-1/2 z-[1] aspect-square w-[42%] rounded-full border-[3px] border-[#17231c] bg-[#f8fbf0] shadow-[0_2px_0_#17231c] transition-[transform,background] duration-75 group-data-[active=true]/joystick:bg-[#b7d897]"
         aria-hidden="true"
         style={{
           transform: `translate(calc(-50% + ${thumbOffset.x}px), calc(-50% + ${thumbOffset.y}px))`,
@@ -605,7 +607,11 @@ export function MobileWorldScreen({
 
   return (
     <section
-      className={`${styles.worldScene} ${variant === "desktop" ? styles.worldSceneDesktop : ""}`}
+      className={cn(
+        "absolute z-[100] grid min-h-0 w-full grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[#edf3e5] [background-image:var(--hg-stripes)] text-[var(--hg-ink)] shadow-[var(--hg-frame)] [inset:var(--poke-lounge-mobile-letterbox-top)_0_var(--poke-lounge-mobile-letterbox-bottom)]",
+        variant === "desktop" &&
+          "top-1/2 left-1/2 z-[1] h-[min(78%,480px)] min-h-[300px] w-[min(70%,560px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border-[3px] border-[#17231c] shadow-[0_6px_0_rgb(23_35_28_/_76%)]",
+      )}
       aria-labelledby="poke-lounge-mobile-world-scene-title"
       data-poke-lounge-ui="heartgold"
       data-poke-lounge-world-surface={state.screen}
@@ -617,7 +623,9 @@ export function MobileWorldScreen({
         title={state.title}
         walletPokeDollars={state.walletPokeDollars}
       />
-      <div className={styles.worldSceneBody}>{content}</div>
+      <div className="flex min-h-0 flex-col gap-3 overflow-auto overscroll-contain px-[max(16px,env(safe-area-inset-left))] pt-4 pb-3.5 [scroll-padding-block:12px]">
+        {content}
+      </div>
       {footer}
     </section>
   );
@@ -631,7 +639,7 @@ export function MobileWorldHelpScreen({
   state: MobileWorldUiState;
 }) {
   return (
-    <ul className={styles.helpList}>
+    <ul className="m-0 grid list-none gap-2.5 p-0 [&_li]:grid [&_li]:gap-1 [&_li]:rounded-xl [&_li]:border [&_li]:border-[rgb(53_81_58_/_52%)] [&_li]:bg-[rgb(248_251_240_/_86%)] [&_li]:p-3.5 [&_b]:text-[0.8rem] [&_b]:text-[#35513a] [&_span]:text-[0.72rem] [&_span]:leading-[1.35] [&_span]:font-bold [&_span]:text-[#4a5b4d]">
       {createShortcutGuideRows("world", state.inputMode, copy.locale).map(function mapItem(row) {
         return (
           <li key={row.action}>
@@ -654,13 +662,13 @@ export function MobileInventoryItemList({
   state: MobileWorldUiState;
 }) {
   return (
-    <div className={styles.inventoryLayout}>
-      <div className={styles.inventoryGrid}>
+    <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3">
+      <div className="grid min-h-0 grid-cols-2 content-start gap-[9px] overflow-auto overscroll-contain px-[3px] pt-[3px] pb-1.5">
         {state.items.map(function mapItem(item) {
           return (
             <PixelButton
               key={item.id}
-              className={styles.inventorySlot}
+              className="relative grid min-h-[104px] grid-rows-[minmax(42px,1fr)_auto] place-items-center gap-[7px] rounded-[7px] bg-[linear-gradient(#fffdf0_50%,#eee5c9_50%)] px-[7px] pt-2.5 pb-2 text-center"
               data-poke-lounge-inventory-item={item.id}
               selected={item.selected}
               onClick={function handleClick() {
@@ -668,14 +676,18 @@ export function MobileInventoryItemList({
               }}
             >
               <HgssItemIcon id={item.id} />
-              <span className={styles.inventorySlotName}>{item.name}</span>
-              <small className={styles.inventorySlotCount}>×{item.count}</small>
+              <span className="max-h-[2.3em] w-full overflow-hidden text-[0.68rem] leading-[1.15] whitespace-normal [overflow-wrap:anywhere]">
+                {item.name}
+              </span>
+              <small className="absolute top-1.5 right-1.5 min-w-6 rounded-full border border-[var(--pl-color-ink)] bg-[var(--pl-color-surface-raised)] px-1 py-0.5 text-[0.58rem] leading-none text-[var(--pl-color-ink)]">
+                ×{item.count}
+              </small>
             </PixelButton>
           );
         })}
       </div>
-      <div className={styles.inventoryDetail}>
-        <p className={styles.detailText}>
+      <div className="grid gap-[5px] border-t-2 border-[rgb(23_35_28_/_38%)] pt-2.5">
+        <p className="m-0 px-0.5 text-[0.74rem] leading-[1.35] font-bold text-[#4a5b4d]">
           {state.selectedItemDescription || copy.game.noUsableItems}
         </p>
         <MobileWorldMessage message={state.message} />
@@ -693,8 +705,10 @@ export function MobileInventoryPartyTarget({
 }) {
   return (
     <>
-      <p className={styles.detailText}>{state.selectedItemName}</p>
-      <div className={styles.compactList}>
+      <p className="m-0 px-0.5 text-[0.74rem] leading-[1.35] font-bold text-[#4a5b4d]">
+        {state.selectedItemName}
+      </p>
+      <div className="grid min-h-0 shrink-0 content-start gap-2">
         {state.party
           .filter(function filterItem(pokemon) {
             return !pokemon.isEmpty;
@@ -704,7 +718,7 @@ export function MobileInventoryPartyTarget({
               <button
                 key={pokemon.slotIndex}
                 type="button"
-                className={styles.listButton}
+                className="grid min-h-[54px] touch-manipulation grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-[11px] border-2 border-[#17231c] bg-[#f8fbf0] px-[11px] py-[9px] text-left font-black text-[#17201a] shadow-[0_2px_0_#17231c] active:translate-y-[3px] active:shadow-none data-[selected=true]:bg-[#fff1a8] disabled:cursor-default disabled:opacity-60 [&>span]:overflow-hidden [&>span]:text-[0.8rem] [&>span]:text-ellipsis [&>span]:whitespace-nowrap [&>small]:overflow-hidden [&>small]:text-[0.64rem] [&>small]:font-extrabold [&>small]:text-ellipsis [&>small]:whitespace-nowrap [&>small]:text-[#4a5b4d]"
                 data-poke-lounge-inventory-party-slot={pokemon.slotIndex}
                 data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
                 onClick={function handleClick() {
@@ -765,30 +779,33 @@ export function MobileShopPanel({
 }) {
   const selected = state.items.find(item => item.selected);
   return (
-    <div className={styles.shopPanel} data-poke-lounge-shop-panel="true">
-      <div className={styles.shopList}>
+    <div className="grid min-w-0 shrink-0 content-start gap-3" data-poke-lounge-shop-panel="true">
+      <div className="grid min-w-0 gap-2">
         {state.items.map(item => (
           <button
             key={item.id}
             type="button"
-            className={styles.shopRow}
+            className="grid min-h-[72px] touch-manipulation grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[7px] border-2 border-[#75949d] bg-[linear-gradient(#fffdf0_50%,#e6eef0_50%)] px-3 py-2.5 text-left text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#75949d] focus-visible:outline-3 focus-visible:outline-[#246b85] focus-visible:outline-offset-2 data-[selected=true]:border-[#a97630] data-[selected=true]:bg-[#fff0b9] data-[selected=true]:shadow-[inset_5px_0_0_#e9ab48,inset_0_0_0_2px_#fffdf0]"
             data-poke-lounge-shop-item={item.id}
             data-selected={item.selected}
             aria-pressed={item.selected}
             onClick={() => onAction({ type: "select-shop-item", index: item.index })}
           >
             <HgssItemIcon id={item.id} />
-            <span className={styles.shopIdentity}>
+            <span className="grid min-w-0 gap-[3px] [overflow-wrap:anywhere] [&_strong]:text-base [&_small]:text-[0.8125rem] [&_small]:text-[#53676b]">
               <strong>{item.name}</strong>
               <small>×{item.count}</small>
             </span>
-            <span className={styles.shopPrice}>
+            <span className="rounded-[5px] border border-[#b6a571] bg-[#fff3bd] px-[7px] py-1 text-sm font-bold whitespace-nowrap tabular-nums text-[#675023]">
               {formatMobilePokeDollars(item.price ?? 0, copy.locale)}
             </span>
           </button>
         ))}
       </div>
-      <div className={styles.shopDetail} data-poke-lounge-item-description="true">
+      <div
+        className="grid min-w-0 gap-x-3 gap-y-2 rounded-lg border-[3px] border-[#8b7950] bg-[#fffdf0] p-3 text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#c3d2c5] [&_p]:m-0 [&_p]:text-sm [&_p]:leading-[1.5] [&_p]:[overflow-wrap:anywhere]"
+        data-poke-lounge-item-description="true"
+      >
         {selected ? <strong>{selected.name}</strong> : null}
         <p>{state.selectedItemDescription || copy.game.noUsableItems}</p>
       </div>
@@ -811,11 +828,11 @@ export function MobilePcPanel({
     ? state.party.find(slot => slot.slotIndex === state.selectedPartySlotIndex && !slot.isEmpty)
     : state.box.find(slot => slot.selected);
   return (
-    <div className={styles.pcPanel} data-poke-lounge-pc-panel="true">
-      <div className={styles.pcTabs} role="group" aria-label="PC">
+    <div className="grid min-w-0 shrink-0 content-start gap-3" data-poke-lounge-pc-panel="true">
+      <div className="grid grid-cols-2 gap-2" role="group" aria-label="PC">
         <button
           type="button"
-          className={styles.panelAction}
+          className="min-h-12 touch-manipulation rounded-[7px] border-2 border-[#456778] bg-[#e1edf0] p-2 text-base font-black text-[#304550] shadow-[0_3px_0_#17231c] active:translate-y-[3px] active:shadow-none data-[selected=true]:bg-[linear-gradient(#5c93ad_50%,#3e708b_50%)] data-[selected=true]:text-[#fffdf0] data-[selected=true]:shadow-[inset_0_-4px_0_#efcb64]"
           data-selected={isPartyFocused}
           aria-pressed={isPartyFocused}
           onClick={() => onAction({ type: "select-pc-focus", focus: "party" })}
@@ -824,7 +841,7 @@ export function MobilePcPanel({
         </button>
         <button
           type="button"
-          className={styles.panelAction}
+          className="min-h-12 touch-manipulation rounded-[7px] border-2 border-[#456778] bg-[#e1edf0] p-2 text-base font-black text-[#304550] shadow-[0_3px_0_#17231c] active:translate-y-[3px] active:shadow-none data-[selected=true]:bg-[linear-gradient(#5c93ad_50%,#3e708b_50%)] data-[selected=true]:text-[#fffdf0] data-[selected=true]:shadow-[inset_0_-4px_0_#efcb64]"
           data-selected={!isPartyFocused}
           aria-pressed={!isPartyFocused}
           onClick={() => onAction({ type: "select-pc-focus", focus: "box" })}
@@ -832,7 +849,10 @@ export function MobilePcPanel({
           {copy.mobile.pcBox}
         </button>
       </div>
-      <div className={styles.pcSelection} data-poke-lounge-pc-selection="true">
+      <div
+        className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border-[3px] border-[#597681] bg-[#fffdf0] p-3 text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#c3d2c5] [&>div]:min-w-0 [&>div]:flex-1 [&>div]:[overflow-wrap:anywhere] [&_p]:m-0 [&_p]:text-sm [&_p]:leading-[1.5] [&_p]:[overflow-wrap:anywhere]"
+        data-poke-lounge-pc-selection="true"
+      >
         {selected ? (
           <>
             <MobilePokemonThumbnail sprite={selected.sprite} />
@@ -847,13 +867,16 @@ export function MobilePcPanel({
           <p>{copy.game.empty}</p>
         )}
       </div>
-      <div className={styles.pcGrid} data-poke-lounge-pc-grid="true">
+      <div
+        className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,88px),1fr))] gap-[9px] rounded-lg border-[3px] border-[#6d929b] bg-[#c2ded7] bg-[linear-gradient(#fffdf044_1px,transparent_1px),linear-gradient(90deg,#fffdf044_1px,transparent_1px)] bg-[length:20px_20px] p-3 shadow-[inset_0_0_0_2px_#f4fae9]"
+        data-poke-lounge-pc-grid="true"
+      >
         {isPartyFocused ? (
           state.party.map(pokemon => (
             <button
               key={pokemon.slotIndex}
               type="button"
-              className={styles.pcSlot}
+              className="relative flex min-h-[108px] min-w-0 touch-manipulation flex-col items-center justify-center gap-1 rounded-[7px] border-2 border-[#779a8f] bg-[#f0f7e6] px-1.5 py-2 text-center text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0] focus-visible:outline-3 focus-visible:outline-[#246b85] focus-visible:outline-offset-2 data-[empty=true]:border-dashed data-[empty=true]:bg-[#d5e7d9] data-[fainted=true]:bg-[#ebd7cf] data-[selected=true]:border-[#ab7334] data-[selected=true]:bg-[#fff0ba] data-[selected=true]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#8e6a36] [&_strong]:max-w-full [&_strong]:text-sm [&_strong]:leading-[1.3] [&_strong]:[overflow-wrap:anywhere] [&_small]:text-xs"
               data-poke-lounge-pc-party-slot={pokemon.slotIndex}
               data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
               data-empty={pokemon.isEmpty || undefined}
@@ -861,11 +884,17 @@ export function MobilePcPanel({
               aria-pressed={pokemon.slotIndex === state.selectedPartySlotIndex}
               onClick={() => onAction({ type: "select-pc-party", slotIndex: pokemon.slotIndex })}
             >
-              <span className={styles.pcSlotNumber} aria-hidden="true">
+              <span
+                className="absolute top-1 left-[5px] font-mono text-[10px] leading-[1.3] font-bold text-[#657c7d]"
+                aria-hidden="true"
+              >
                 {String(pokemon.slotIndex + 1).padStart(2, "0")}
               </span>
               {pokemon.isEmpty ? (
-                <span className={styles.pcEmptyGlyph} aria-hidden="true">
+                <span
+                  className="grid size-14 place-items-center text-2xl text-[#7a9a8a]"
+                  aria-hidden="true"
+                >
                   ＋
                 </span>
               ) : (
@@ -882,14 +911,17 @@ export function MobilePcPanel({
             <button
               key={pokemon.boxIndex}
               type="button"
-              className={styles.pcSlot}
+              className="relative flex min-h-[108px] min-w-0 touch-manipulation flex-col items-center justify-center gap-1 rounded-[7px] border-2 border-[#779a8f] bg-[#f0f7e6] px-1.5 py-2 text-center text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0] focus-visible:outline-3 focus-visible:outline-[#246b85] focus-visible:outline-offset-2 data-[empty=true]:border-dashed data-[empty=true]:bg-[#d5e7d9] data-[fainted=true]:bg-[#ebd7cf] data-[selected=true]:border-[#ab7334] data-[selected=true]:bg-[#fff0ba] data-[selected=true]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#8e6a36] [&_strong]:max-w-full [&_strong]:text-sm [&_strong]:leading-[1.3] [&_strong]:[overflow-wrap:anywhere] [&_small]:text-xs"
               data-poke-lounge-pc-box-slot={pokemon.boxIndex}
               data-selected={pokemon.selected}
               data-fainted={pokemon.currentHp === 0 || undefined}
               aria-pressed={pokemon.selected}
               onClick={() => onAction({ type: "select-pc-box", boxIndex: pokemon.boxIndex })}
             >
-              <span className={styles.pcSlotNumber} aria-hidden="true">
+              <span
+                className="absolute top-1 left-[5px] font-mono text-[10px] leading-[1.3] font-bold text-[#657c7d]"
+                aria-hidden="true"
+              >
                 {String(pokemon.boxIndex + 1).padStart(2, "0")}
               </span>
               <MobilePokemonThumbnail sprite={pokemon.sprite} />
@@ -898,7 +930,7 @@ export function MobilePcPanel({
             </button>
           ))
         ) : (
-          <p className={styles.pcEmpty}>{copy.game.empty}</p>
+          <p className="col-span-full p-5 text-center text-[#49665e]">{copy.game.empty}</p>
         )}
       </div>
       <MobileWorldMessage message={state.message} />
@@ -919,19 +951,19 @@ export function MobileDicePanel({
     <>
       {state.dice ? (
         <>
-          <p className={styles.diceMeta}>
+          <p className="m-0 text-[0.62rem] font-black text-[#4a5b4d]">
             {copy.game.diceTargetAndBet(
               state.dice.targetNumber,
               formatMobilePokeDollars(state.dice.stakePokeDollars, copy.locale),
             )}
           </p>
-          <div className={styles.compactList}>
+          <div className="grid min-h-0 shrink-0 content-start gap-2">
             {state.dice.options.map(function mapItem(option) {
               return (
                 <button
                   key={option.prediction}
                   type="button"
-                  className={styles.listButton}
+                  className="grid min-h-[54px] touch-manipulation grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-[11px] border-2 border-[#17231c] bg-[#f8fbf0] px-[11px] py-[9px] text-left font-black text-[#17201a] shadow-[0_2px_0_#17231c] active:translate-y-[3px] active:shadow-none data-[selected=true]:bg-[#fff1a8] disabled:cursor-default disabled:opacity-60 [&>span]:overflow-hidden [&>span]:text-[0.8rem] [&>span]:text-ellipsis [&>span]:whitespace-nowrap [&>small]:overflow-hidden [&>small]:text-[0.64rem] [&>small]:font-extrabold [&>small]:text-ellipsis [&>small]:whitespace-nowrap [&>small]:text-[#4a5b4d]"
                   data-poke-lounge-dice-option={option.prediction}
                   data-selected={option.selected}
                   disabled={option.disabled}
@@ -968,7 +1000,7 @@ export function MobilePartyPanel({
   state: MobileWorldUiState;
 }) {
   return (
-    <div className={uiStyles.cardList}>
+    <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-2">
       {state.party
         .filter(pokemon => !pokemon.isEmpty)
         .map(pokemon => (
@@ -1002,11 +1034,11 @@ function MobileWorldSceneHeader({
   walletPokeDollars: number;
 }) {
   return (
-    <header className={styles.worldSceneHeader}>
+    <header className="grid min-h-[62px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 border-b-[3px] border-[#304550] bg-[linear-gradient(#d8e9ee_50%,#fffdf0_50%)] px-[max(14px,env(safe-area-inset-left))] py-2">
       {showClose ? (
         <button
           type="button"
-          className={styles.sceneBack}
+          className="inline-flex min-h-10 touch-manipulation items-center gap-[3px] rounded-[10px] border-2 border-[#17231c] bg-[#f8fbf0] px-2.5 py-1.5 text-[0.7rem] font-black text-[#17201a] shadow-[0_2px_0_#17231c] active:translate-y-[3px] active:shadow-none [&>:first-child]:text-[1.35rem] [&>:first-child]:leading-[0.6]"
           onClick={onClose}
           aria-label={copy.mobile.back}
           data-poke-lounge-mobile-deck-close="true"
@@ -1017,7 +1049,10 @@ function MobileWorldSceneHeader({
       ) : (
         <span aria-hidden="true" />
       )}
-      <strong id="poke-lounge-mobile-world-scene-title" className={styles.worldSceneTitle}>
+      <strong
+        id="poke-lounge-mobile-world-scene-title"
+        className="overflow-hidden text-center text-base font-black text-ellipsis whitespace-nowrap text-[#35513a]"
+      >
         {title}
       </strong>
       <MobileWorldMeta copy={copy} value={walletPokeDollars} />
@@ -1041,13 +1076,17 @@ function MobileWorldSceneFooter({
   onConfirm(): void;
 }) {
   return (
-    <footer className={styles.deckFooter}>
-      <button type="button" className={styles.panelAction} onClick={onBack}>
+    <footer className="grid grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] gap-2.5 border-t-[3px] border-[#304550] bg-[#fffdf0] px-[max(16px,env(safe-area-inset-left))] pt-2.5 pb-3">
+      <button
+        type="button"
+        className="min-h-12 touch-manipulation rounded-[7px] border-2 border-[#456778] bg-[#e1edf0] p-2 text-base font-black text-[#304550] shadow-[0_3px_0_#17231c] active:translate-y-[3px] active:shadow-none data-[selected=true]:bg-[linear-gradient(#5c93ad_50%,#3e708b_50%)] data-[selected=true]:text-[#fffdf0] data-[selected=true]:shadow-[inset_0_-4px_0_#efcb64]"
+        onClick={onBack}
+      >
         ‹ {backLabel ?? copy.mobile.back}
       </button>
       <button
         type="button"
-        className={styles.panelActionPrimary}
+        className="min-h-12 touch-manipulation rounded-[11px] border-2 border-[#17231c] bg-[#e57a55] px-2.5 py-2 text-[0.76rem] font-black text-[#fffdf4] shadow-[0_3px_0_#17231c] active:translate-y-[3px] active:shadow-none disabled:opacity-60"
         disabled={confirmDisabled}
         onClick={onConfirm}
       >
@@ -1059,14 +1098,18 @@ function MobileWorldSceneFooter({
 
 function MobileWorldMeta({ copy, value }: { copy: PokeLoungeCopy; value: number }) {
   return (
-    <p className={styles.deckMeta}>
+    <p className="m-0 max-w-[104px] text-right text-[0.62rem] font-black text-[#4a5b4d]">
       {copy.mobile.wallet} · {formatMobilePokeDollars(value, copy.locale)}
     </p>
   );
 }
 
 function MobileWorldMessage({ message }: { message: string }) {
-  return message ? <p className={styles.deckMessage}>{message}</p> : null;
+  return message ? (
+    <p className="m-0 rounded-lg border-[3px] border-[#304550] bg-[#fffdf0] px-3.5 py-3 text-sm leading-[1.5] font-extrabold text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">
+      {message}
+    </p>
+  ) : null;
 }
 
 function formatMobilePokeDollars(value: number, locale: string): string {
@@ -1126,8 +1169,12 @@ function MobileSettingsScreen({
       onBack={onClose}
       returnFocusSelector="[data-poke-lounge-mobile-menu='true']"
     >
-      <div className={uiStyles.settingsList}>
-        <button type="button" className={uiStyles.primaryButton} onClick={onClose}>
+      <div className="grid gap-3 [&>button]:h-auto [&>button]:min-h-14 [&>button]:whitespace-normal [&>button]:text-base">
+        <button
+          type="button"
+          className="min-h-14 w-full touch-manipulation rounded-lg border-2 border-[#304550] bg-[linear-gradient(#5c9268_50%,#3a694c_50%)] px-3 py-2 font-bold text-white shadow-[var(--hg-button)] focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3 disabled:cursor-default disabled:border-[#8d9c98] disabled:bg-[#d8e0d6] disabled:text-[#536164] disabled:shadow-[inset_0_0_0_2px_#eef0e8]"
+          onClick={onClose}
+        >
           {lobby
             ? getRoomLobbyCopy(copy.locale).returnToLobby
             : getMobileUiCopy(copy.locale).returnToGame}
@@ -1137,7 +1184,7 @@ function MobileSettingsScreen({
           variant="outline"
           onClick={onVolumeCycle}
           aria-label={volumeAriaLabel}
-          className={uiStyles.settingRow}
+          className="h-auto min-h-14 justify-between gap-3 whitespace-normal rounded-[7px] border-2 border-[#78909b] bg-[linear-gradient(#fffdf0_50%,#e4edf0_50%)] px-4 py-3 text-left text-base text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#536d79] hover:bg-[linear-gradient(#fffdf0_50%,#e4edf0_50%)] hover:text-[#304550] [&>span]:min-w-0 [&>span]:flex-1"
           data-poke-lounge-setting-action="volume"
         >
           <Volume2 size={22} aria-hidden="true" />
@@ -1172,7 +1219,10 @@ function MobileSettingsScreen({
           competitive={competitive}
           detail
         />
-        <div className={uiStyles.settingsStatus} aria-live="polite">
+        <div
+          className="grid gap-2 rounded-[7px] border-2 border-[#82989d] bg-[repeating-linear-gradient(0deg,#f4f8ed_0_24px,#e8efe3_24px_48px)] p-4 text-sm whitespace-pre-line shadow-[inset_0_0_0_2px_#fffdf0]"
+          aria-live="polite"
+        >
           <span>{connectionLabel}</span>
           <span>{autosaveLabel}</span>
           {hydrationFallbackMessage ? (
@@ -1194,7 +1244,7 @@ function MobileSettingsScreen({
         ) : null}
         <button
           type="button"
-          className={uiStyles.dangerButton}
+          className="min-h-14 w-full touch-manipulation rounded-lg border-2 border-[#543e38] bg-[linear-gradient(#ac5748_50%,#864033_50%)] px-3 py-2 font-bold text-white shadow-[var(--hg-button)] focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3 disabled:cursor-default disabled:border-[#8d9c98] disabled:bg-[#d8e0d6] disabled:text-[#536164]"
           onClick={onExit}
           data-poke-lounge-mobile-game-exit="true"
           data-room-leave={roomLeaveLabel ? "true" : undefined}
@@ -1320,7 +1370,7 @@ function MobileWorldTask({
     const items = state.items.filter(option => option.count > 0);
     body = (
       <>
-        <div className={uiStyles.cardList}>
+        <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-2">
           {items.map(option => (
             <MobileItemRow
               key={option.id}
@@ -1335,7 +1385,9 @@ function MobileWorldTask({
             />
           ))}
         </div>
-        {!items.length ? <p className={uiStyles.emptyNotice}>{text.noItems}</p> : null}
+        {!items.length ? (
+          <p className="rounded-[10px] border border-[#a6b69d] bg-[#fffef5] p-4">{text.noItems}</p>
+        ) : null}
         <MobileWorldMessage message={state.message} />
       </>
     );
@@ -1347,7 +1399,7 @@ function MobileWorldTask({
     const party = state.party.filter(slot => !slot.isEmpty);
     body = (
       <>
-        <div className={uiStyles.cardList}>
+        <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-2">
           {party.map(slot => (
             <MobilePokemonCard
               key={slot.slotIndex}
@@ -1414,7 +1466,7 @@ function MobileWorldTask({
     <MobileTaskScreen
       title={state.title}
       name={`world-${state.screen}`}
-      className={uiStyles.worldTask}
+      className="[&_button]:min-h-14 [&_button_span]:text-base [&_button_span]:whitespace-normal [&_button_small]:text-sm [&_p]:text-sm [&_p]:whitespace-pre-line [&_li]:bg-[#fffef5] [&_li_b]:text-base [&_li_span]:text-sm"
       backLabel={copy.mobile.back}
       onBack={state.screen === "inventory-move-replace" ? undefined : goBack}
       returnFocusSelector={
@@ -1442,10 +1494,14 @@ function MobileWorldTask({
       footer={
         confirm ? (
           <>
-            {summary ? <p className={uiStyles.selectionSummary}>{summary}</p> : null}
+            {summary ? (
+              <p className="border-l-4 border-[var(--hg-accent)] pl-2.5 text-sm text-[var(--hg-ink)] [overflow-wrap:anywhere]">
+                {summary}
+              </p>
+            ) : null}
             <button
               type="button"
-              className={uiStyles.primaryButton}
+              className="min-h-14 w-full touch-manipulation rounded-lg border-2 border-[#304550] bg-[linear-gradient(#5c9268_50%,#3a694c_50%)] px-3 py-2 font-bold text-white shadow-[var(--hg-button)] focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3 disabled:cursor-default disabled:border-[#8d9c98] disabled:bg-[#d8e0d6] disabled:text-[#536164] disabled:shadow-[inset_0_0_0_2px_#eef0e8]"
               onClick={confirm}
               disabled={disabled}
             >
