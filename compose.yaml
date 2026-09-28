@@ -1,25 +1,22 @@
 name: poke-lounge
 
-x-app: &app
-  image: poke-lounge:local
+x-node-app: &node-app
+  image: poke-lounge-node:local
   build:
     context: .
+    dockerfile: Dockerfile
     args:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+      NEXT_PUBLIC_POKE_BACKEND: rust
   init: true
 
-x-api-environment: &api-environment
-  NODE_ENV: production
-  PORT: 3001
-  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+x-db-environment: &db-environment
   DB_HOST: postgres
   DB_PORT: 5432
   DB_USERNAME: ${DB_USERNAME:-poke_lounge}
   DB_PASSWORD: ${DB_PASSWORD:-poke_lounge}
   DB_DATABASE: ${DB_DATABASE:-poke_lounge}
   DB_SYNCHRONIZE: "false"
-  REDIS_URL: redis://redis:6379
-  AI_RUNTIME_API_URL: http://api:3001
 
 services:
   postgres:
@@ -50,57 +47,91 @@ services:
       - redis-data:/data
 
   migrate:
-    <<: *app
+    <<: *node-app
     command:
       [
         "sh",
         "-lc",
         "pnpm --filter @poke-lounge/api migration:run && pnpm --filter @poke-lounge/api rom-data:import",
       ]
-    environment: *api-environment
+    environment: *db-environment
     depends_on:
       postgres:
         condition: service_healthy
 
-  api:
-    <<: *app
+  battle-worker:
+    <<: *node-app
     restart: unless-stopped
-    command: ["pnpm", "--filter", "@poke-lounge/api", "start:prod"]
-    environment: *api-environment
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
+    command: ["pnpm", "--filter", "@poke-lounge/battle-worker", "start"]
+    environment:
+      NODE_ENV: production
+      BATTLE_WEB_ROOT: /app/apps/web
+      BATTLE_WORKER_HOST: 0.0.0.0
+      BATTLE_WORKER_PORT: 3021
+      BATTLE_WORKER_TOKEN: ${BATTLE_WORKER_TOKEN:?Set BATTLE_WORKER_TOKEN}
     healthcheck:
       test:
         [
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3001/health').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+          "fetch('http://127.0.0.1:3021/health',{headers:{'x-worker-token':process.env.BATTLE_WORKER_TOKEN},signal:AbortSignal.timeout(2000)}).then(async response=>{const body=await response.json();process.exit(response.ok&&body.readyWorkers>0?0:1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    stop_grace_period: 15s
+
+  api:
+    image: poke-lounge-api-rust:local
+    build:
+      context: .
+      dockerfile: apps/api-rust/Dockerfile
+    init: true
+    restart: unless-stopped
+    environment:
+      RUST_API_BIND_ADDR: 0.0.0.0:3011
+      RUST_API_ALLOW_REMOTE: "true"
+      RUST_API_REDIS_URL: redis://redis:6379/0
+      BATTLE_WORKER_URL: http://battle-worker:3021
+      BATTLE_WORKER_TOKEN: ${BATTLE_WORKER_TOKEN:?Set BATTLE_WORKER_TOKEN}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-poke_lounge}
+      DB_PASSWORD: ${DB_PASSWORD:-poke_lounge}
+      DB_DATABASE: ${DB_DATABASE:-poke_lounge}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      RUST_LOG: info
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      battle-worker:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "--silent",
+          "--max-time",
+          "4",
+          "http://127.0.0.1:3011/health/ready",
         ]
       interval: 5s
       timeout: 5s
       retries: 12
+    stop_grace_period: 45s
     ports:
-      - "${BIND_ADDRESS:-0.0.0.0}:${API_PORT:-3001}:3001"
-
-  turn-worker:
-    <<: *app
-    restart: unless-stopped
-    command: ["pnpm", "--filter", "@poke-lounge/api", "start:turn-worker"]
-    environment: *api-environment
-    depends_on:
-      api:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
+      - "${BIND_ADDRESS:-0.0.0.0}:${API_PORT:-3001}:3011"
 
   web:
-    <<: *app
+    <<: *node-app
     restart: unless-stopped
     command:
       [
@@ -118,6 +149,7 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+      NEXT_PUBLIC_POKE_BACKEND: rust
     depends_on:
       api:
         condition: service_healthy

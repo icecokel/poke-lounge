@@ -5,6 +5,8 @@ on:
     secrets:
       DB_PASSWORD:
         required: true
+      BATTLE_WORKER_TOKEN:
+        required: true
 
 permissions:
   contents: read
@@ -25,6 +27,7 @@ jobs:
       NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
       CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      BATTLE_WORKER_TOKEN: ${{ secrets.BATTLE_WORKER_TOKEN }}
       COMPOSE_BAKE: "false" # ponytail: Remove after docker-buildx is installed on the runner.
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +39,7 @@ jobs:
           test -n "$NEXT_PUBLIC_API_URL"
           test -n "$CORS_ORIGINS"
           test -n "$DB_PASSWORD"
+          test -n "$BATTLE_WORKER_TOKEN"
           command -v docker
           docker compose version
 
@@ -45,4 +49,6 @@ jobs:
       - name: Verify health
         run: |
           curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/health" >/dev/null
+          curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/health/ready" >/dev/null
+          curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/poke-lounge/rooms/public" >/dev/null
           curl --fail --silent --show-error "http://127.0.0.1:${WEB_PORT}/ko-KR/game" >/dev/null

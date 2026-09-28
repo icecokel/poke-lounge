@@ -19,6 +19,7 @@ jobs:
       cancel-in-progress: true
     env:
       NEXT_PUBLIC_API_URL: http://127.0.0.1:3001
+      NEXT_PUBLIC_POKE_BACKEND: "rust"
       NEXT_TELEMETRY_DISABLED: "1"
       LOCAL_TEST_AUTH_TOKEN: ""
     steps:
@@ -53,6 +54,11 @@ jobs:
           pnpm check:poke-lounge-battle-resolution
           pnpm poke-lounge:audio:verify
 
+      - name: Rust backend static checks
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace rust:1.98.1-bookworm sh -c \
+            "cargo fmt --all --check && cargo check --workspace --locked && cargo clippy --workspace --all-targets --locked -- -D warnings"
+
       # Only build/static checks run in CI. Player testing requires observed browser input.
       - name: Production build without account authentication
         run: pnpm build
@@ -67,3 +73,4 @@ jobs:
     uses: ./.github/workflows/deploy-api.yml
     secrets:
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      BATTLE_WORKER_TOKEN: ${{ secrets.BATTLE_WORKER_TOKEN }}

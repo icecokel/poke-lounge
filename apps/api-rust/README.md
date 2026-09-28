@@ -1,10 +1,10 @@
-# Rust 로컬 게임 백엔드
+# Rust 게임 백엔드
 
 브랜치: `feat/rust-backend-migration`, 시작점 `main@cfcd039`.
 
 **대기실 실험 서버가 아니라, 실제 프런트와 연결된 로컬 게임 서버다.** 방 생성·참가·준비, 스타터 준비 장벽, 3라운드 탐험·토너먼트, AI, 누적 점수·최종 결과, WebSocket 구독·재접속을 실제 실행 경로에서 처리한다. `migration-draft/`는 이전 중간 코드 보관용이며 실행 대상이 아니다.
 
-운영 전환은 별도다. 기존 `compose.yaml`, 운영 Dockerfile·배포 파이프라인과 기본 프런트 연결은 바꾸지 않았다. 커밋·푸시·머지·배포를 수행한 상태가 아니다.
+운영 `compose.yaml`은 Rust API와 `apps/battle-worker` 계산 워커를 실행한다. 기존 NestJS API 코드는 런타임 서버로 실행하지 않고 PostgreSQL migration과 ROM 데이터 import를 위한 빌드 도구로만 재사용한다. 운영 웹은 `NEXT_PUBLIC_POKE_BACKEND=rust`로 빌드하며 기존 외부 API 포트 계약은 유지한다.
 
 ## 로컬 실행
 
@@ -37,7 +37,7 @@ pnpm dev:rust:stop
 
 개발 DB 비밀번호와 워커 토큰은 Git 제외 경로 `output/rust-local/local.env`에 최초 자동 생성된다. 파일 권한은 `0600`이고 기존 파일은 덮어쓰지 않는다. 이 파일을 지우고 기존 DB 볼륨만 남기면 생성된 비밀번호와 DB 비밀번호가 달라질 수 있다. 토큰을 브라우저 번들·`NEXT_PUBLIC_*`에 넣지 않는다.
 
-웹은 `NEXT_PUBLIC_POKE_BACKEND=rust`일 때만 네이티브 WebSocket 어댑터를 선택한다. 기본 실행은 기존 Socket.IO 경로 그대로다. 로컬 출력·타입 설정은 `.next-rust-local`, `tsconfig.rust-local.json`으로 분리한다. 실행기가 종료되면 `next-env.d.ts`의 Next 자동 생성 참조만 원래 내용으로 복원하고 외부 편집은 덮어쓰지 않는다.
+웹은 `NEXT_PUBLIC_POKE_BACKEND=rust`일 때 네이티브 WebSocket 어댑터를 선택하며 운영 빌드는 이 값을 `rust`로 고정한다. 로컬 `pnpm dev:rust`도 같은 연결 모드를 사용하지만 출력·타입 설정은 `.next-rust-local`, `tsconfig.rust-local.json`으로 분리한다. 실행기가 종료되면 `next-env.d.ts`의 Next 자동 생성 참조만 원래 내용으로 복원하고 외부 편집은 덮어쓰지 않는다.
 
 ## 책임과 안정성 규칙
 
@@ -85,6 +85,8 @@ pnpm --filter @poke-lounge/web exec tsc --noEmit -p tsconfig.rust-local.json
 
 컴파일·타입·린트·포맷은 개발 검사이지 플레이어 테스트를 대신하지 않는다. 실제 검증 방법은 루트 `PLAYER_TESTING.md`를 따른다. API 직접 조작, 상태 주입, 자동 플레이 루프, 단위/API/E2E 테스트 runner를 추가하거나 실행하지 않았다.
 
-## 운영 전환 전 남은 작업
+## 운영 전환과 남은 검증
 
-수동 기술·강제 교체·취소·중복 입력, 여러 사람이 동시에 참가하는 경우, Safari·삼성 인터넷·카카오 브라우저, 화면 잠금과 네트워크 전환, 서버/워커 재기동을 추가로 검증해야 한다. 운영 이미지/배포 게이트, 기존 방 종료·신규 방 배정·롤백 절차도 연결되지 않았다. **로컬 플레이 경로가 연결됐다는 의미이지 운영 머지 준비 완료 판정은 아니다.**
+운영 이미지는 Rust API, TypeScript 계산 워커, Rust 연결 모드 웹으로 구성한다. 배포 게이트는 Rust `/health/ready`와 공개방 목록 경로까지 확인해 기존 Nest 런타임이 남아 있는 경우 성공으로 처리하지 않는다. 기존 PostgreSQL·Redis 볼륨과 외부 API 포트는 유지한다.
+
+수동 기술·강제 교체·취소·중복 입력, 여러 사람이 동시에 참가하는 경우, Safari·삼성 인터넷·카카오 브라우저, 화면 잠금과 네트워크 전환, 서버/워커 재기동은 계속 운영 검증 대상이다. 배포 전 존재하던 Nest 방 상태는 Rust 전용 Redis namespace로 승계하지 않으므로 전환 이후 새 방을 기준으로 검증한다.

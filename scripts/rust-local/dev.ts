@@ -120,7 +120,7 @@ async function main(): Promise<void> {
     "battle-worker",
   ]);
   console.log("Rust local game: http://127.0.0.1:3300/ko-KR/game/poke-lounge");
-  console.log("Only this local stack is used. Production deployment is unchanged.");
+  console.log("Local Rust development uses isolated containers and does not touch production.");
   const nextEnvPath = resolve(root, "apps/web/next-env.d.ts");
   const originalNextEnv = readFileSync(nextEnvPath, "utf8");
   try {

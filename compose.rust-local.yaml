@@ -1,4 +1,4 @@
-# Local-only Rust game stack. This does not modify the production compose.yaml.
+# Isolated local Rust game stack. Production uses compose.yaml with separate volumes.
 name: poke-lounge-rust-local
 services:
   redis:

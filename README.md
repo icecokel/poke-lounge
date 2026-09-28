@@ -55,12 +55,14 @@ Poke Lounge는 같은 마을에서 포켓몬을 탐색·포획·육성하고 3�
 
 ## 구조
 
-| 경로                                  | 역할                                         |
-| ------------------------------------- | -------------------------------------------- |
-| `apps/web/src/components/poke-lounge` | React 화면, 입력, 연출, 기존 런타임 연결부   |
-| `apps/web/src/features/poke-lounge`   | 분리한 도메인·응용·표시 모델·어댑터          |
-| `apps/api`                            | REST/Socket.IO, 방·서버 권위 경기·AI/턴 워커 |
-| `packages/poke-lounge-battle`         | Web/API가 공유하는 전투·대진·라운드 규칙     |
+| 경로                                  | 역할                                                |
+| ------------------------------------- | --------------------------------------------------- |
+| `apps/web/src/components/poke-lounge` | React 화면, 입력, 연출, Rust 런타임 연결부          |
+| `apps/web/src/features/poke-lounge`   | 분리한 도메인·응용·표시 모델·어댑터                 |
+| `apps/api-rust`                       | 운영 REST/WebSocket, 방·서버 권위 경기 상태         |
+| `apps/battle-worker`                  | Rust가 호출하는 TypeScript 전투 계산 워커           |
+| `apps/api`                            | PostgreSQL migration·ROM import 등 기존 스키마 도구 |
+| `packages/poke-lounge-battle`         | Web/계산 워커가 공유하는 전투·대진·라운드 규칙      |
 
 Redis는 방·경기·실시간 상태와 작업 큐를, PostgreSQL은 ROM 문서와 영속 스키마를 담당한다.
 
@@ -78,9 +80,9 @@ Redis는 방·경기·실시간 상태와 작업 큐를, PostgreSQL은 ROM 문�
 
 ## Rust 백엔드 전환
 
-로컬에서 Rust 게임 서버와 TypeScript 계산 워커를 실제 프런트에 연결했다. `pnpm dev:rust`로 독립 DB·Redis, Rust API, 계산 워커, 웹을 실행한다. 주소는 `http://127.0.0.1:3300/ko-KR/game/poke-lounge`다. 중지는 웹에서 Ctrl+C 후 `pnpm dev:rust:stop`을 사용하며 볼륨은 유지한다.
+Rust 게임 서버와 TypeScript 계산 워커를 실제 프런트에 연결했다. 운영 `compose.yaml`은 Rust API와 계산 워커를 실행하며, 기존 Nest API는 PostgreSQL 스키마 migration과 ROM 데이터 import 도구로만 남긴다. 웹은 운영 빌드에서 `NEXT_PUBLIC_POKE_BACKEND=rust`를 사용한다.
 
-방 생성·3라운드 최종 결과·탐험 중 새로고침 후 복귀·정상 퇴장까지 로컬 UI 경로를 확인했다. 모든 버튼/브라우저 검증이나 운영 전환 완료 판정은 아니다. 실행 구현은 `apps/api-rust/src`, `migration-draft`는 이전 코드 보관용이다. 기본 프런트·운영 배포는 기존 서버를 유지한다. 자세한 범위와 실행법은 [Rust 백엔드 문서](apps/api-rust/README.md)에 있다.
+로컬 개발은 `pnpm dev:rust`로 운영과 분리된 DB·Redis, Rust API, 계산 워커, 웹을 실행한다. 주소는 `http://127.0.0.1:3300/ko-KR/game/poke-lounge`다. 중지는 웹에서 Ctrl+C 후 `pnpm dev:rust:stop`을 사용하며 로컬 볼륨은 유지한다. 실행 구현은 `apps/api-rust/src`, `migration-draft`는 이전 코드 보관용이다. 자세한 범위와 실행법은 [Rust 백엔드 문서](apps/api-rust/README.md)에 있다.
 
 ## 로컬 실행
 
