@@ -460,7 +460,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
   roomEntry: {
     title: "방 만들기",
     fanNotice:
-      "Poke Lounge는 친구들과 함께 즐기기 위해 만든 비공식 팬 게임입니다. Pokémon 관련 권리는 각 권리자에게 있습니다.",
+      "Poke Lounge는 Pokémon에 대한 애정과 존중을 담아 만든 비공식 팬 게임입니다. 원작과 Pokémon 관련 권리는 각 권리자에게 있습니다.",
     localTestTitle: "로컬 싱글 테스트",
     localTestDescription:
       "고정 테스트 계정에 진행도를 저장하며 전투, 상호작용, 이어하기 완성도를 반복 확인합니다. 멀티플레이 테스트에는 사용하지 않습니다.",
