@@ -2,12 +2,6 @@ name: poke-lounge
 
 x-node-app: &node-app
   image: poke-lounge-node:local
-  build:
-    context: .
-    dockerfile: Dockerfile
-    args:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-      NEXT_PUBLIC_POKE_BACKEND: rust
   init: true
 
 x-db-environment: &db-environment
@@ -48,6 +42,12 @@ services:
 
   migrate:
     <<: *node-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+        NEXT_PUBLIC_POKE_BACKEND: rust
     command:
       [
         "sh",
