@@ -172,12 +172,15 @@ export class PokeLoungeRoomService {
         createdAtMs: nowMs,
         updatedAtMs: nowMs,
         participants: [
-          createParticipant(
-            normalized,
-            'participant',
-            nowMs,
-            options.requireSocketAcknowledgement === true,
-          ),
+          {
+            ...createParticipant(
+              normalized,
+              'participant',
+              nowMs,
+              options.requireSocketAcknowledgement === true,
+            ),
+            ready: true,
+          },
         ],
         partySnapshots: {},
         round: {

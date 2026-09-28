@@ -126,7 +126,7 @@ impl Participant {
             session_hash: session_hash(&input.session_id)?,
             ai: false,
             ai_difficulty: AiDifficulty::Easy,
-            ready: false,
+            ready: true,
             connected: true,
             admitted: false,
             disconnect_pending: false,
