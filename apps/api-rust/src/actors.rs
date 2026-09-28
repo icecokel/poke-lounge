@@ -1,7 +1,10 @@
 use crate::{
     compute::Compute,
     config::{MAILBOX_CAPACITY, MAX_ACTORS, REQUEST_TIMEOUT},
-    domain::{CreateRoom, GameCommand, PRESENCE_LEASE_MS, Room, Status, session_hash},
+    domain::{
+        CreateRoom, GameCommand, MAX_PARTICIPANTS, PRESENCE_LEASE_MS, Room, RoomVisibility, Status,
+        session_hash,
+    },
     error::{AppError, AppResult},
     repository::{Receipt, Repository, fingerprint},
 };
@@ -158,10 +161,81 @@ impl Rooms {
         }
         Ok(())
     }
-    pub async fn create(&self, input: CreateRoom, public: bool, id: String) -> AppResult<Value> {
+    pub async fn public_rooms(&self) -> AppResult<Value> {
+        let mut rooms = Vec::new();
+        for room_id in self.repository.active_ids().await? {
+            let (now, room) = match self.repository.read(room_id).await {
+                Ok(value) => value,
+                Err(AppError::NotFound) => continue,
+                Err(error) => return Err(error),
+            };
+            if !room.public
+                || matches!(room.status, Status::Completed | Status::Closed)
+                || room.active_deadline() <= now
+            {
+                continue;
+            }
+
+            let participant_count = room
+                .participants
+                .iter()
+                .filter(|participant| participant.left_at_ms.is_none())
+                .count();
+            let human_participant_count = room
+                .participants
+                .iter()
+                .filter(|participant| !participant.ai && participant.left_at_ms.is_none())
+                .count();
+            let joinable = room.status == Status::Waiting
+                && room.round.phase == "waiting"
+                && participant_count < MAX_PARTICIPANTS;
+
+            rooms.push((
+                room.created_at_ms,
+                room.room_code.clone(),
+                json!({
+                    "roomCode": room.room_code,
+                    "roomInstanceId": room.room_instance_id,
+                    "visibility": "public",
+                    "status": room.status,
+                    "revision": room.revision,
+                    "participantCount": participant_count,
+                    "humanParticipantCount": human_participant_count,
+                    "maxParticipants": MAX_PARTICIPANTS,
+                    "roundDurationMs": room.round.duration_ms,
+                    "createdAtMs": room.created_at_ms,
+                    "updatedAtMs": room.updated_at_ms,
+                    "expiresAtMs": room.active_deadline(),
+                    "joinable": joinable,
+                }),
+            ));
+        }
+        rooms.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
+        Ok(json!({
+            "rooms": rooms
+                .into_iter()
+                .map(|(_, _, room)| room)
+                .collect::<Vec<_>>()
+        }))
+    }
+    pub async fn create(&self, input: CreateRoom, id: String) -> AppResult<Value> {
+        self.create_internal(input, id, false).await
+    }
+    pub async fn quick_play(&self, mut input: CreateRoom, id: String) -> AppResult<Value> {
+        input.visibility = RoomVisibility::Public;
+        input.room_code = None;
+        self.create_internal(input, id, true).await
+    }
+    async fn create_internal(
+        &self,
+        input: CreateRoom,
+        id: String,
+        match_existing_public: bool,
+    ) -> AppResult<Value> {
         let _guard = tokio::time::timeout(REQUEST_TIMEOUT, self.creation.lock())
             .await
             .map_err(|_| AppError::Busy)?;
+        let public = input.visibility == RoomVisibility::Public;
         let session = session_hash(&input.session_id)?;
         let hash = fingerprint(&("create", public, &input))?;
         if let Some(receipt) = self.repository.receipt(&session, &id).await? {
@@ -175,13 +249,13 @@ impl Rooms {
                 )
                 .await;
         }
-        if public {
+        if public && match_existing_public {
             let mut candidates = Vec::new();
             for room_id in self.repository.active_ids().await? {
                 if let Ok((now, room)) = self.repository.read(room_id).await
                     && room.public
                     && room.status == Status::Waiting
-                    && room.participants.len() < 8
+                    && room.participants.len() < MAX_PARTICIPANTS
                     && room.active_deadline() > now
                 {
                     candidates.push(room);

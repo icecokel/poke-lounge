@@ -37,6 +37,13 @@ pub enum AiDifficulty {
     Normal,
     Hard,
 }
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RoomVisibility {
+    #[default]
+    Private,
+    Public,
+}
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CreateRoom {
@@ -48,6 +55,8 @@ pub struct CreateRoom {
     pub room_code: Option<String>,
     #[serde(default)]
     pub round_duration_ms: Option<u64>,
+    #[serde(default)]
+    pub visibility: RoomVisibility,
 }
 impl CreateRoom {
     pub fn normalize(mut self) -> AppResult<Self> {

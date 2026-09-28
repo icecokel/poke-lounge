@@ -223,6 +223,20 @@ export interface PokeLoungeCopy {
     publicGameTitle: string;
     publicGameDescription: string;
     privateGameTitle: string;
+    publicRoomsTitle: string;
+    publicRoomsDescription: string;
+    publicRoomsRefresh: string;
+    publicRoomsLoading: string;
+    publicRoomsEmpty: string;
+    publicRoomsLoadFailed: string;
+    publicRoomCreate: string;
+    publicRoomJoin: string;
+    publicRoomUnavailable: string;
+    publicRoomPlayers(current: number, max: number): string;
+    publicRoomHumans(count: number): string;
+    publicRoomStatusWaiting: string;
+    publicRoomStatusRoundStarted: string;
+    publicRoomStatusTournament: string;
     temporaryPasswordLabel: string;
     temporaryPasswordDescription: string;
     temporaryPasswordPlaceholder: string;
@@ -458,7 +472,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     },
   },
   roomEntry: {
-    title: "방 만들기",
+    title: "멀티플레이",
     fanNotice:
       "Poke Lounge는 Pokémon에 대한 애정과 존중을 담아 만든 비공식 팬 게임입니다. 원작과 Pokémon 관련 권리는 각 권리자에게 있습니다.",
     localTestTitle: "로컬 싱글 테스트",
@@ -484,11 +498,27 @@ const KOREAN_COPY: PokeLoungeCopy = {
     roundDurationOptions: ["90초", "3분", "5분"],
     roundDurationDescription:
       "90초: 전원 100% · 3분: 선두 100%, 나머지 각각 50% · 5분: 경험치 공유 없음",
-    multiplayerDescription: "현재는 비공개 방만 만들 수 있습니다.",
+    multiplayerDescription:
+      "공개방에 참가하거나 새 방을 만들고, 지인과는 비공개 방으로 플레이할 수 있습니다.",
     roomVisibilityLabel: "공개 범위",
     publicGameTitle: "공개",
-    publicGameDescription: "준비 중",
+    publicGameDescription: "목록에서 직접 선택해 참가합니다.",
     privateGameTitle: "비공개",
+    publicRoomsTitle: "공개방",
+    publicRoomsDescription:
+      "입장 가능한 방을 직접 골라 참가하세요. 자동 참가는 아직 사용하지 않습니다.",
+    publicRoomsRefresh: "새로고침",
+    publicRoomsLoading: "공개방을 불러오는 중...",
+    publicRoomsEmpty: "아직 공개방이 없습니다. 새 공개방을 만들어 보세요.",
+    publicRoomsLoadFailed: "공개방 목록을 불러오지 못했습니다. 다시 시도해 주세요.",
+    publicRoomCreate: "새 공개방 만들기",
+    publicRoomJoin: "입장",
+    publicRoomUnavailable: "입장 불가",
+    publicRoomPlayers: (current, max) => `${current}/${max}명`,
+    publicRoomHumans: count => `사람 ${count}명`,
+    publicRoomStatusWaiting: "대기 중",
+    publicRoomStatusRoundStarted: "탐험 중",
+    publicRoomStatusTournament: "토너먼트 중",
     temporaryPasswordLabel: "임시 비밀번호",
     temporaryPasswordDescription:
       "함께 플레이할 친구끼리 같은 영문·숫자 6자리를 입력하세요. 원문은 저장하거나 전송하지 않습니다.",
@@ -726,7 +756,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     },
   },
   roomEntry: {
-    title: "Create a room",
+    title: "Multiplayer",
     fanNotice:
       "Poke Lounge is an unofficial fan game made for playing with friends. Pokémon rights belong to their respective owners.",
     localTestTitle: "Local solo test",
@@ -752,11 +782,27 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     roundDurationOptions: ["90 sec", "3 min", "5 min"],
     roundDurationDescription:
       "90 sec: everyone 100% · 3 min: lead 100%, teammates 50% each · 5 min: no experience sharing",
-    multiplayerDescription: "Only private rooms can be created right now.",
+    multiplayerDescription:
+      "Join or create a public room, or use a private room when playing with friends.",
     roomVisibilityLabel: "Visibility",
     publicGameTitle: "Public",
-    publicGameDescription: "Coming soon",
+    publicGameDescription: "Choose a room from the list and join directly.",
     privateGameTitle: "Private",
+    publicRoomsTitle: "Public rooms",
+    publicRoomsDescription:
+      "Choose an available room yourself. Automatic quick join is not enabled yet.",
+    publicRoomsRefresh: "Refresh",
+    publicRoomsLoading: "Loading public rooms...",
+    publicRoomsEmpty: "There are no public rooms yet. Create one to get started.",
+    publicRoomsLoadFailed: "Could not load public rooms. Try again.",
+    publicRoomCreate: "Create public room",
+    publicRoomJoin: "Join",
+    publicRoomUnavailable: "Unavailable",
+    publicRoomPlayers: (current, max) => `${current}/${max} players`,
+    publicRoomHumans: count => `${count} human`,
+    publicRoomStatusWaiting: "Waiting",
+    publicRoomStatusRoundStarted: "Exploring",
+    publicRoomStatusTournament: "Tournament",
     temporaryPasswordLabel: "Temporary password",
     temporaryPasswordDescription:
       "Enter the same 6-character letter and number code as your friends. The original is never stored or sent.",
@@ -996,7 +1042,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     },
   },
   roomEntry: {
-    title: "ルームを作成",
+    title: "マルチプレイ",
     fanNotice:
       "ポケラウンジは友達と楽しむための非公式ファンゲームです。Pokémonに関する権利は各権利者に帰属します。",
     localTestTitle: "ローカルソロテスト",
@@ -1021,11 +1067,25 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     roundDurationLabel: "ラウンド間の準備時間",
     roundDurationOptions: ["90秒", "3分", "5分"],
     roundDurationDescription: "90秒：全員100% · 3分：先頭100%、控え各50% · 5分：経験値共有なし",
-    multiplayerDescription: "現在作成できるのは非公開ルームのみです。",
+    multiplayerDescription: "公開ルームに参加・作成したり、友達とは非公開ルームで遊べます。",
     roomVisibilityLabel: "公開範囲",
     publicGameTitle: "公開",
-    publicGameDescription: "準備中",
+    publicGameDescription: "一覧からルームを選んで直接参加します。",
     privateGameTitle: "非公開",
+    publicRoomsTitle: "公開ルーム",
+    publicRoomsDescription: "参加可能なルームを自分で選んでください。自動参加はまだ使用しません。",
+    publicRoomsRefresh: "更新",
+    publicRoomsLoading: "公開ルームを読み込み中...",
+    publicRoomsEmpty: "公開ルームがありません。新しい公開ルームを作成できます。",
+    publicRoomsLoadFailed: "公開ルーム一覧を読み込めませんでした。もう一度お試しください。",
+    publicRoomCreate: "公開ルームを作成",
+    publicRoomJoin: "参加",
+    publicRoomUnavailable: "参加不可",
+    publicRoomPlayers: (current, max) => `${current}/${max}人`,
+    publicRoomHumans: count => `人間 ${count}人`,
+    publicRoomStatusWaiting: "待機中",
+    publicRoomStatusRoundStarted: "探索中",
+    publicRoomStatusTournament: "トーナメント中",
     temporaryPasswordLabel: "一時パスワード",
     temporaryPasswordDescription:
       "一緒に遊ぶ友達同士で同じ半角英数字6文字を入力してください。原文は保存も送信もしません。",

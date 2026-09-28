@@ -31,11 +31,13 @@ export function createMultiplayerRoom(options: MultiplayerRoomFactoryOptions): M
     return createServerRoom({
       accountId: options.accountId,
       roomId: options.roomId ?? roomEntry.roomCode ?? undefined,
+      roomInstanceId: roomEntry.roomInstanceId,
       roomRunId: options.roomRunId,
       sessionId: options.searchParams.get("serverSessionId") ?? undefined,
       playerId: options.searchParams.get("serverPlayerId") ?? undefined,
       createRoom: roomEntry.createRoom === true,
       quickPlay: roomEntry.quickPlay === true,
+      visibility: roomEntry.visibility,
       roundDurationMs: readRoomRoundDurationMs(options.searchParams) ?? undefined,
       idToken: options.idToken,
       getIdToken: options.getIdToken,

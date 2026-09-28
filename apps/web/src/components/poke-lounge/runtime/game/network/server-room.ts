@@ -88,11 +88,13 @@ interface ServerRoomState {
 export interface ServerRoomOptions {
   accountId?: string;
   roomId?: string;
+  roomInstanceId?: string;
   roomRunId?: string;
   sessionId?: string;
   playerId?: string;
   createRoom?: boolean;
   quickPlay?: boolean;
+  visibility?: "private" | "public";
   resumeRoom?: boolean;
   roundDurationMs?: number;
   persistRoomCodeInUrl?: boolean;
@@ -188,6 +190,7 @@ interface StoredServerRoomIdentity {
 
 export interface StoredServerRoomResume {
   roomCode: string;
+  roomInstanceId?: string;
   runId: string;
 }
 
@@ -233,9 +236,11 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const roomRunId = resolveServerRoomRunId(options);
   let localPlayerId = serverPlayerId;
   let activeRoomId = options.roomId ?? PENDING_ROOM_ID;
-  let roomInstanceId: string | undefined = options.resumeRoom
-    ? readStoredIdentity(options.accountId)?.activeRoom?.roomInstanceId
-    : undefined;
+  let roomInstanceId: string | undefined =
+    options.roomInstanceId ??
+    (options.resumeRoom
+      ? readStoredIdentity(options.accountId)?.activeRoom?.roomInstanceId
+      : undefined);
   const fetchImpl = options.fetch ?? fetch;
   const requestTimeoutMs = options.requestTimeoutMs ?? SERVER_ROOM_REQUEST_TIMEOUT_MS;
   const fetchResponseWithTimeout = async (
@@ -2310,6 +2315,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       ...(options.createRoom && options.roundDurationMs
         ? { roundDurationMs: options.roundDurationMs }
         : {}),
+      ...(options.createRoom ? { visibility: options.visibility ?? "private" } : {}),
     };
 
     if (options.createRoom) {
@@ -2642,6 +2648,21 @@ function dispatchWindowEvent<T>(eventName: string, detail: T): void {
   }
 
   window.dispatchEvent(new CustomEvent<T>(eventName, { detail }));
+}
+
+export function clearStoredServerRoomResume(accountId?: string): void {
+  const identity = readStoredIdentity(accountId);
+  if (!identity) {
+    return;
+  }
+
+  writeStoredIdentity(
+    {
+      sessionId: identity.sessionId,
+      playerId: identity.playerId,
+    },
+    accountId,
+  );
 }
 
 export function clearStoredServerRoomSession(accountId?: string): void {
@@ -3364,7 +3385,11 @@ export function readStoredServerRoomResume(accountId?: string): StoredServerRoom
     return null;
   }
 
-  return { roomCode: activeRoom.roomCode, runId: activeRoom.runId };
+  return {
+    roomCode: activeRoom.roomCode,
+    runId: activeRoom.runId,
+    ...(activeRoom.roomInstanceId ? { roomInstanceId: activeRoom.roomInstanceId } : {}),
+  };
 }
 
 function parseStoredActiveRoom(value: unknown): StoredServerRoomIdentity["activeRoom"] | null {

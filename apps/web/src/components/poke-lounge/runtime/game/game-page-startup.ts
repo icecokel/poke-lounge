@@ -38,6 +38,7 @@ import { shouldResetRoomEntrySession, type RoomEntrySelection } from "./network/
 import {
   POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT,
   POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT,
+  clearStoredServerRoomResume,
   readStoredServerRoomResume,
   type PokeLoungeServerRoomErrorDetail,
   type PokeLoungeFreshSessionRequiredDetail,
@@ -352,7 +353,7 @@ export async function startGamePage(
       worldUiStore,
     });
     activeGame = game;
-    const returnToRoomEntry = () => {
+    const returnToRoomEntry = (preserveDisplayName?: string) => {
       starterSelectionRequestId += 1;
       starterState = null;
       removeFreshSessionListener?.();
@@ -370,6 +371,13 @@ export async function startGamePage(
       temporaryRoomCode = undefined;
       resumingStoredRoom = false;
       restoreOwnerGameState(true);
+      if (preserveDisplayName) {
+        const localPlayer = gameStateStore.getCurrentLocalPlayer();
+        gameStateStore.upsertLocalPlayer({
+          ...localPlayer,
+          displayName: preserveDisplayName,
+        });
+      }
       clearRoomEntrySearchParams(currentUrl);
       replaceBrowserUrl(currentUrl);
       game?.destroy();
@@ -417,8 +425,26 @@ export async function startGamePage(
     };
     const handleServerRoomError = (event: Event) => {
       const detail = (event as CustomEvent<PokeLoungeServerRoomErrorDetail>).detail;
+      const activeRoomEntry = readRoomEntryFromLocation(gameUrl);
 
-      if (!detail || readRoomEntryFromLocation(gameUrl).mode !== "server-room") {
+      if (!detail || activeRoomEntry.mode !== "server-room") {
+        return;
+      }
+
+      const shouldReturnPublicDirectory =
+        activeRoomEntry.visibility === "public" &&
+        activeRoomEntry.createRoom !== true &&
+        !detail.recoverable &&
+        (detail.code === "ROOM_FULL" || detail.code === "ROOM_JOIN_FAILED");
+
+      if (shouldReturnPublicDirectory) {
+        dispatchPokeLoungeNotice(mount.ownerDocument, {
+          message: getServerRoomErrorMessage(copy.locale, detail.code),
+          tone: "warning",
+        });
+        const displayName = gameStateStore.getCurrentLocalPlayer().displayName;
+        clearStoredServerRoomResume(dependencies.accountId);
+        returnToRoomEntry(displayName);
         return;
       }
 
@@ -738,6 +764,11 @@ export async function startGamePage(
       currentUrl.searchParams.delete("create");
       currentUrl.searchParams.delete("quick");
       currentUrl.searchParams.set("room", storedResume.roomCode);
+      if (storedResume.roomInstanceId) {
+        currentUrl.searchParams.set("roomInstance", storedResume.roomInstanceId);
+      } else {
+        currentUrl.searchParams.delete("roomInstance");
+      }
       roomEntrySelectionPending = true;
       startGameAfterStarterSelection(currentUrl);
       return;
@@ -763,6 +794,8 @@ export async function startGamePage(
             roomCode: roomEntry.roomCode,
             inviteUrl: currentUrl.href,
             displayName,
+            ...(roomEntry.roomInstanceId ? { roomInstanceId: roomEntry.roomInstanceId } : {}),
+            ...(roomEntry.visibility ? { visibility: roomEntry.visibility } : {}),
             roundDurationMs: readRoomRoundDurationMs(currentUrl.searchParams) ?? undefined,
           }),
       });
@@ -826,6 +859,8 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
       url.searchParams.set("quick", "1");
       url.searchParams.delete("create");
       url.searchParams.delete("room");
+      url.searchParams.delete("visibility");
+      url.searchParams.delete("roomInstance");
       return;
     }
 
@@ -834,13 +869,29 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
     if (selection.createRoom) {
       url.searchParams.set("create", "1");
       url.searchParams.delete("room");
+      url.searchParams.delete("roomInstance");
+      if (selection.visibility === "public") {
+        url.searchParams.set("visibility", "public");
+      } else {
+        url.searchParams.delete("visibility");
+      }
       return;
     }
 
     url.searchParams.delete("create");
+    if (selection.visibility === "public") {
+      url.searchParams.set("visibility", "public");
+    } else {
+      url.searchParams.delete("visibility");
+    }
 
     if (selection.roomCode) {
       url.searchParams.set("room", selection.roomCode);
+      if (selection.roomInstanceId) {
+        url.searchParams.set("roomInstance", selection.roomInstanceId);
+      } else {
+        url.searchParams.delete("roomInstance");
+      }
     }
 
     return;
@@ -858,6 +909,8 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
 function clearRoomEntrySearchParams(url: URL): void {
   url.searchParams.delete("create");
   url.searchParams.delete("quick");
+  url.searchParams.delete("visibility");
+  url.searchParams.delete("roomInstance");
   url.searchParams.delete("network");
   url.searchParams.delete("room");
   url.searchParams.delete("serverPlayerId");

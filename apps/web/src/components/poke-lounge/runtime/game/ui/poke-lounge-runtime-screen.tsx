@@ -184,6 +184,8 @@ function RoomEntryScreen({
       roomCode: room.roomCode,
       inviteUrl: null,
       displayName: normalizedName,
+      roomInstanceId: room.roomInstanceId,
+      visibility: "public",
       roundDurationMs: room.roundDurationMs,
     });
   };

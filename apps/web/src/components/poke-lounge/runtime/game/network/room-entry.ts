@@ -1,6 +1,8 @@
 export const ROOM_CODE_LENGTH = 6;
 export const TEMPORARY_PASSWORD_LENGTH = 6;
 export const ROOM_ROUND_DURATION_QUERY_PARAM = "roundMs";
+export const ROOM_VISIBILITY_QUERY_PARAM = "visibility";
+export const ROOM_INSTANCE_QUERY_PARAM = "roomInstance";
 export { ROUND_DURATION_OPTIONS_MS as ROOM_ROUND_DURATION_OPTIONS_MS } from "@poke-lounge/battle/round-settings";
 import { ROUND_DURATION_OPTIONS_MS as ROOM_ROUND_DURATION_OPTIONS_MS } from "@poke-lounge/battle/round-settings";
 
@@ -14,6 +16,8 @@ export interface RoomEntryIntent {
   roomCode: string | null;
   createRoom?: boolean;
   quickPlay?: boolean;
+  visibility?: "private" | "public";
+  roomInstanceId?: string;
 }
 
 export function normalizeRoomCode(value: string): string | null {
@@ -23,6 +27,17 @@ export function normalizeRoomCode(value: string): string | null {
     .slice(0, ROOM_CODE_LENGTH);
 
   return normalized.length > 0 ? normalized : null;
+}
+
+export function normalizeRoomInstanceId(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(normalized)
+    ? normalized
+    : null;
 }
 
 export function createRoomCode(random: () => number = Math.random): string {
@@ -164,6 +179,7 @@ export function readRoomEntryFromSearchParams(
   }
 
   const roomCode = normalizeRoomCode(searchParams.get("room") ?? "");
+  const roomInstanceId = normalizeRoomInstanceId(searchParams.get(ROOM_INSTANCE_QUERY_PARAM));
 
   if (network === "server" && searchParams.get("quick") === "1") {
     return {
@@ -177,6 +193,10 @@ export function readRoomEntryFromSearchParams(
     return {
       mode: "server-room",
       roomCode,
+      ...(roomInstanceId ? { roomInstanceId } : {}),
+      ...(searchParams.get(ROOM_VISIBILITY_QUERY_PARAM) === "public"
+        ? { visibility: "public" as const }
+        : {}),
     };
   }
 
@@ -185,6 +205,7 @@ export function readRoomEntryFromSearchParams(
       mode: "server-room",
       roomCode: null,
       createRoom: true,
+      visibility: searchParams.get(ROOM_VISIBILITY_QUERY_PARAM) === "public" ? "public" : "private",
     };
   }
 

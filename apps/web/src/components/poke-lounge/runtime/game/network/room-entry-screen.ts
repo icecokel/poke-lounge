@@ -10,6 +10,8 @@ export interface RoomEntrySelection {
   displayName?: string;
   createRoom?: boolean;
   quickPlay?: boolean;
+  visibility?: "private" | "public";
+  roomInstanceId?: string;
   roundDurationMs?: RoomRoundDurationMs;
   resetSession?: boolean;
 }

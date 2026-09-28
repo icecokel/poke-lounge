@@ -64,6 +64,7 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/poke-lounge/rom-data", get(rom))
         .route("/poke-lounge/shops/{kind}/items", get(shop))
         .route("/poke-lounge/rooms", post(create))
+        .route("/poke-lounge/rooms/public", get(public_rooms))
         .route("/poke-lounge/rooms/quick-play", post(quick_play))
         .route("/poke-lounge/rooms/{code}", get(snapshot))
         .route("/poke-lounge/rooms/{code}/join", post(join))
@@ -305,21 +306,22 @@ async fn create(
     Ok(success(
         state
             .rooms
-            .create(body(value)?.normalize()?, false, command_id(&headers)?)
+            .create(body(value)?.normalize()?, command_id(&headers)?)
             .await?,
     ))
+}
+async fn public_rooms(State(state): State<AppState>) -> AppResult<Json<Value>> {
+    Ok(success(state.rooms.public_rooms().await?))
 }
 async fn quick_play(
     State(state): State<AppState>,
     headers: HeaderMap,
     value: Result<Json<CreateRoom>, JsonRejection>,
 ) -> AppResult<Json<Value>> {
-    let mut input = body(value)?.normalize()?;
-    input.room_code = None;
     Ok(success(
         state
             .rooms
-            .create(input, true, command_id(&headers)?)
+            .quick_play(body(value)?.normalize()?, command_id(&headers)?)
             .await?,
     ))
 }
