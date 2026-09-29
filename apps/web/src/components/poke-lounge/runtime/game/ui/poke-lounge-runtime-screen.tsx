@@ -96,23 +96,30 @@ function RoomEntryScreen({
       copy.roomEntry.multiplayerNameNouns,
     );
   });
-  const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [entryPanel, setEntryPanel] = useState<"create" | "join">("create");
+  const [roomVisibility, setRoomVisibility] = useState<"public" | "private">("public");
+  const [privateRoomCode, setPrivateRoomCode] = useState("");
+  const [joinPrivateRoomCode, setJoinPrivateRoomCode] = useState("");
   const [roundDurationMs, setRoundDurationMs] =
     useState<(typeof ROUND_DURATION_OPTIONS_MS)[number]>(DEFAULT_ROUND_DURATION_MS);
   const [publicRooms, setPublicRooms] = useState<PublicRoomSummary[]>([]);
-  const [publicRoomsLoading, setPublicRoomsLoading] = useState(true);
+  const [publicRoomsLoading, setPublicRoomsLoading] = useState(false);
   const [publicRoomsError, setPublicRoomsError] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
-  useEffect(function initializeTemporaryPassword() {
-    setTemporaryPassword(function setInitialPassword(currentPassword) {
-      return currentPassword || createTemporaryPassword();
+  useEffect(function initializePrivateRoomCode() {
+    setPrivateRoomCode(function setInitialCode(currentCode) {
+      return currentCode || createTemporaryPassword();
     });
   }, []);
 
   useEffect(
     function loadPublicRoomDirectory() {
+      if (entryPanel !== "join") {
+        return undefined;
+      }
+
       const controller = new AbortController();
 
       setPublicRoomsLoading(true);
@@ -137,7 +144,7 @@ function RoomEntryScreen({
         controller.abort();
       };
     },
-    [copy.roomEntry.publicRoomsLoadFailed],
+    [copy.roomEntry.publicRoomsLoadFailed, entryPanel],
   );
 
   const normalizeDisplayNameForAction = (): string | null => {
@@ -148,6 +155,18 @@ function RoomEntryScreen({
       return null;
     }
     return normalizedName;
+  };
+
+  const selectEntryPanel = (panel: "create" | "join") => {
+    if (pending || entryPanel === panel) {
+      return;
+    }
+
+    if (panel === "join") {
+      setPublicRoomsLoading(true);
+    }
+    setEntryPanel(panel);
+    setMessage("");
   };
 
   const handleRefreshPublicRooms = async () => {
@@ -190,7 +209,8 @@ function RoomEntryScreen({
     });
   };
 
-  const handleCreatePublicRoom = () => {
+  const handleCreateRoom = async (event: FormEvent) => {
+    event.preventDefault();
     if (pending) {
       return;
     }
@@ -200,30 +220,25 @@ function RoomEntryScreen({
       return;
     }
 
-    playConfirmSound();
-    setPending(true);
-    setMessage(copy.roomEntry.preparing);
-    state.onSelect({
-      mode: "server-room",
-      roomCode: null,
-      inviteUrl: null,
-      displayName: normalizedName,
-      createRoom: true,
-      visibility: "public",
-      roundDurationMs,
-    });
-  };
-
-  const handleCreatePrivateRoom = async (event: FormEvent) => {
-    event.preventDefault();
-    const normalizedName = normalizeDisplayNameForAction();
-    const normalizedPassword = normalizeTemporaryPassword(temporaryPassword);
-    setTemporaryPassword(normalizedPassword);
-
-    if (!normalizedName) {
+    if (roomVisibility === "public") {
+      playConfirmSound();
+      setPending(true);
+      setMessage(copy.roomEntry.preparing);
+      state.onSelect({
+        mode: "server-room",
+        roomCode: null,
+        inviteUrl: null,
+        displayName: normalizedName,
+        createRoom: true,
+        visibility: "public",
+        roundDurationMs,
+      });
       return;
     }
-    if (normalizedPassword.length !== TEMPORARY_PASSWORD_LENGTH) {
+
+    const normalizedCode = normalizeTemporaryPassword(privateRoomCode);
+    setPrivateRoomCode(normalizedCode);
+    if (normalizedCode.length !== TEMPORARY_PASSWORD_LENGTH) {
       setMessage(copy.roomEntry.temporaryPasswordRequired);
       return;
     }
@@ -231,7 +246,7 @@ function RoomEntryScreen({
     setPending(true);
     setMessage(copy.roomEntry.preparing);
     try {
-      const roomCode = await deriveTemporaryRoomCode(normalizedPassword);
+      const roomCode = await deriveTemporaryRoomCode(normalizedCode);
       playConfirmSound();
       state.onSelect({
         mode: "server-room",
@@ -241,6 +256,42 @@ function RoomEntryScreen({
         createRoom: true,
         visibility: "private",
         roundDurationMs,
+      });
+    } catch {
+      setPending(false);
+      setMessage(copy.roomEntry.multiplayerConnectFailed);
+    }
+  };
+
+  const handleJoinPrivateRoom = async (event: FormEvent) => {
+    event.preventDefault();
+    if (pending) {
+      return;
+    }
+
+    const normalizedName = normalizeDisplayNameForAction();
+    if (!normalizedName) {
+      return;
+    }
+
+    const normalizedCode = normalizeTemporaryPassword(joinPrivateRoomCode);
+    setJoinPrivateRoomCode(normalizedCode);
+    if (normalizedCode.length !== TEMPORARY_PASSWORD_LENGTH) {
+      setMessage(copy.roomEntry.temporaryPasswordRequired);
+      return;
+    }
+
+    setPending(true);
+    setMessage(copy.roomEntry.preparing);
+    try {
+      const roomCode = await deriveTemporaryRoomCode(normalizedCode);
+      playConfirmSound();
+      state.onSelect({
+        mode: "server-room",
+        roomCode,
+        inviteUrl: null,
+        displayName: normalizedName,
+        visibility: "private",
       });
     } catch {
       setPending(false);
@@ -344,153 +395,168 @@ function RoomEntryScreen({
               />
             </LabeledField>
 
-            <fieldset
-              className="m-0 grid grid-cols-3 gap-2 border-0 p-0 [&>legend]:col-span-full"
-              disabled={pending}
+            <div
+              className="grid grid-cols-2 gap-2 rounded-lg border-2 border-[#17231c] bg-[#dfe8dc] p-1.5"
+              role="tablist"
+              aria-label={copy.roomEntry.title}
+              data-room-entry-tabs
             >
-              <legend className="mb-2 text-xs font-black text-[#17201a]">
-                {copy.roomEntry.roundDurationLabel}
-              </legend>
-              {ROUND_DURATION_OPTIONS_MS.map((duration, index) => (
-                <label
-                  key={duration}
-                  className="relative grid min-h-[50px] grid-cols-[auto_1fr] items-center gap-x-2 rounded-md border-2 border-[#17231c] bg-[#fffef3] px-2.5 py-2 text-xs font-black text-[#17201a] shadow-[0_3px_0_#8a958b] has-[:checked]:bg-[#fff1a8] has-[:checked]:shadow-[inset_6px_0_#5f8f70,0_3px_0_#17231c] [&_input]:min-h-0 [&_input]:w-auto [&_input]:p-0"
-                >
-                  <input
-                    type="radio"
-                    name="round-duration"
-                    value={duration}
-                    checked={roundDurationMs === duration}
-                    onChange={() => setRoundDurationMs(duration)}
-                    data-room-entry-round-duration
-                  />
-                  <span>{copy.roomEntry.roundDurationOptions[index]}</span>
-                </label>
-              ))}
-            </fieldset>
-
-            <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
-              <section
-                className="grid min-w-0 gap-3 rounded-lg border-2 border-[#2f5964] bg-[#e7f3f0] p-3 shadow-[0_4px_0_#2f5964]"
-                aria-labelledby="poke-lounge-public-rooms-title"
-                data-room-entry-public-rooms
+              <button
+                id="poke-lounge-room-create-tab"
+                type="button"
+                role="tab"
+                aria-selected={entryPanel === "create"}
+                aria-controls="poke-lounge-room-create-panel"
+                disabled={pending}
+                className={
+                  "flex min-h-12! items-center justify-center gap-2 text-sm " +
+                  (entryPanel === "create"
+                    ? "bg-[#f4cf58]! shadow-[inset_6px_0_#c9534c,0_3px_0_#17231c]!"
+                    : "bg-[#f7f8ed]!")
+                }
+                onClick={() => selectEntryPanel("create")}
+                data-room-entry-create-tab
               >
-                <header className="grid gap-2 border-b-2 border-[#7d9b99] pb-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Globe2 className="size-5 shrink-0" aria-hidden="true" />
-                      <h2
-                        id="poke-lounge-public-rooms-title"
-                        className="m-0 truncate text-lg font-black"
-                      >
-                        {copy.roomEntry.publicRoomsTitle}
-                      </h2>
-                    </div>
-                    <button
-                      type="button"
-                      className="flex w-auto! shrink-0 items-center gap-1.5 px-2.5! text-xs"
-                      disabled={publicRoomsLoading || pending}
-                      onClick={() => void handleRefreshPublicRooms()}
-                      data-room-entry-public-refresh
-                    >
-                      <RefreshCw
-                        className={"size-4 " + (publicRoomsLoading ? "animate-spin" : "")}
-                        aria-hidden="true"
-                      />
-                      {copy.roomEntry.publicRoomsRefresh}
-                    </button>
-                  </div>
-                  <p className="m-0 text-xs font-bold leading-[1.45] text-[#405d5e]">
-                    {copy.roomEntry.publicRoomsDescription}
-                  </p>
-                </header>
-
-                <div
-                  className="grid max-h-[280px] min-h-[90px] gap-2 overflow-y-auto pr-1"
-                  aria-live="polite"
-                  aria-busy={publicRoomsLoading}
-                >
-                  {publicRoomsLoading && publicRooms.length === 0 ? (
-                    <PublicRoomDirectoryNotice>
-                      {copy.roomEntry.publicRoomsLoading}
-                    </PublicRoomDirectoryNotice>
-                  ) : publicRoomsError ? (
-                    <PublicRoomDirectoryNotice tone="error">
-                      {publicRoomsError}
-                    </PublicRoomDirectoryNotice>
-                  ) : publicRooms.length === 0 ? (
-                    <PublicRoomDirectoryNotice>
-                      {copy.roomEntry.publicRoomsEmpty}
-                    </PublicRoomDirectoryNotice>
-                  ) : (
-                    publicRooms.map(room => (
-                      <PublicRoomCard
-                        key={room.roomInstanceId}
-                        copy={copy}
-                        room={room}
-                        pending={pending}
-                        onJoin={handleJoinPublicRoom}
-                      />
-                    ))
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  className="flex min-h-[50px]! items-center justify-between bg-[#d8f0dc]! px-4! text-left text-sm shadow-[inset_7px_0_#5f8f70,0_4px_0_#17231c]!"
-                  disabled={pending}
-                  onClick={handleCreatePublicRoom}
-                  data-room-entry-public-create
-                >
-                  <span className="flex items-center gap-2">
-                    <Plus className="size-4" aria-hidden="true" />
-                    {copy.roomEntry.publicRoomCreate}
-                  </span>
-                  <ChevronRight className="size-4" aria-hidden="true" />
-                </button>
-              </section>
-
-              <section
-                className="grid gap-3 rounded-lg border-2 border-[#7d6741] bg-[#fff8dc] p-3 shadow-[0_4px_0_#7d6741]"
-                aria-labelledby="poke-lounge-private-room-title"
-                data-room-entry-private-room
+                <Plus className="size-4" aria-hidden="true" />
+                {copy.roomEntry.roomCreateTab}
+              </button>
+              <button
+                id="poke-lounge-room-join-tab"
+                type="button"
+                role="tab"
+                aria-selected={entryPanel === "join"}
+                aria-controls="poke-lounge-room-join-panel"
+                disabled={pending}
+                className={
+                  "flex min-h-12! items-center justify-center gap-2 text-sm " +
+                  (entryPanel === "join"
+                    ? "bg-[#d8f0dc]! shadow-[inset_6px_0_#5f8f70,0_3px_0_#17231c]!"
+                    : "bg-[#f7f8ed]!")
+                }
+                onClick={() => selectEntryPanel("join")}
+                data-room-entry-join-tab
               >
-                <header className="grid gap-2 border-b-2 border-[#baa66b] pb-3">
-                  <div className="flex items-center gap-2">
-                    <LockKeyhole className="size-5 shrink-0" aria-hidden="true" />
-                    <h2 id="poke-lounge-private-room-title" className="m-0 text-lg font-black">
-                      {copy.roomEntry.multiplayerTitle}
-                    </h2>
-                  </div>
+                <Users className="size-4" aria-hidden="true" />
+                {copy.roomEntry.roomJoinTab}
+              </button>
+            </div>
+
+            {entryPanel === "create" ? (
+              <form
+                id="poke-lounge-room-create-panel"
+                role="tabpanel"
+                aria-labelledby="poke-lounge-room-create-tab"
+                className="grid gap-4 rounded-lg border-2 border-[#7d6741] bg-[#fff8dc] p-3 shadow-[0_4px_0_#7d6741]"
+                onSubmit={handleCreateRoom}
+                data-room-entry-create-panel
+              >
+                <header className="grid gap-1 border-b-2 border-[#baa66b] pb-3">
+                  <h2 className="m-0 text-lg font-black">{copy.roomEntry.roomCreateTab}</h2>
                   <p className="m-0 text-xs font-bold leading-[1.45] text-[#66583a]">
-                    {copy.roomEntry.temporaryPasswordDescription}
+                    {copy.roomEntry.roomCreateDescription}
                   </p>
                 </header>
 
-                <form className="grid gap-3" onSubmit={handleCreatePrivateRoom}>
+                <fieldset
+                  className="m-0 grid grid-cols-3 gap-2 border-0 p-0 [&>legend]:col-span-full"
+                  disabled={pending}
+                >
+                  <legend className="mb-2 text-xs font-black text-[#17201a]">
+                    {copy.roomEntry.roundDurationLabel}
+                  </legend>
+                  {ROUND_DURATION_OPTIONS_MS.map((duration, index) => (
+                    <label
+                      key={duration}
+                      className="relative grid min-h-[50px] grid-cols-[auto_1fr] items-center gap-x-2 rounded-md border-2 border-[#17231c] bg-[#fffef3] px-2.5 py-2 text-xs font-black text-[#17201a] shadow-[0_3px_0_#8a958b] has-[:checked]:bg-[#fff1a8] has-[:checked]:shadow-[inset_6px_0_#5f8f70,0_3px_0_#17231c] [&_input]:min-h-0 [&_input]:w-auto [&_input]:p-0"
+                    >
+                      <input
+                        type="radio"
+                        name="round-duration"
+                        value={duration}
+                        checked={roundDurationMs === duration}
+                        onChange={() => setRoundDurationMs(duration)}
+                        data-room-entry-round-duration
+                      />
+                      <span>{copy.roomEntry.roundDurationOptions[index]}</span>
+                    </label>
+                  ))}
+                </fieldset>
+
+                <fieldset
+                  className="m-0 grid gap-2 border-0 p-0 sm:grid-cols-2 [&>legend]:sm:col-span-2"
+                  disabled={pending}
+                >
+                  <legend className="mb-1 text-xs font-black text-[#17201a]">
+                    {copy.roomEntry.roomVisibilityLabel}
+                  </legend>
+                  <label className="grid min-h-[86px] grid-cols-[auto_1fr] items-start gap-3 rounded-lg border-2 border-[#17231c] bg-[#f7fbef] p-3 shadow-[0_3px_0_#8a958b] has-[:checked]:bg-[#dff3e5] has-[:checked]:shadow-[inset_7px_0_#5f8f70,0_3px_0_#17231c] [&_input]:mt-1 [&_input]:min-h-0 [&_input]:w-auto [&_input]:p-0">
+                    <input
+                      type="radio"
+                      name="room-visibility"
+                      value="public"
+                      checked={roomVisibility === "public"}
+                      onChange={() => {
+                        setRoomVisibility("public");
+                        setMessage("");
+                      }}
+                      data-room-entry-visibility="public"
+                    />
+                    <span className="grid gap-1">
+                      <span className="flex items-center gap-2 font-black">
+                        <Globe2 className="size-4" aria-hidden="true" />
+                        {copy.roomEntry.publicGameTitle}
+                      </span>
+                      <span className="text-xs font-bold leading-[1.45] text-[#52615e]">
+                        {copy.roomEntry.publicGameDescription}
+                      </span>
+                    </span>
+                  </label>
+                  <label className="grid min-h-[86px] grid-cols-[auto_1fr] items-start gap-3 rounded-lg border-2 border-[#17231c] bg-[#fffdf0] p-3 shadow-[0_3px_0_#8a958b] has-[:checked]:bg-[#fff1a8] has-[:checked]:shadow-[inset_7px_0_#c9534c,0_3px_0_#17231c] [&_input]:mt-1 [&_input]:min-h-0 [&_input]:w-auto [&_input]:p-0">
+                    <input
+                      type="radio"
+                      name="room-visibility"
+                      value="private"
+                      checked={roomVisibility === "private"}
+                      onChange={() => {
+                        setRoomVisibility("private");
+                        setMessage("");
+                      }}
+                      data-room-entry-visibility="private"
+                    />
+                    <span className="grid gap-1">
+                      <span className="flex items-center gap-2 font-black">
+                        <LockKeyhole className="size-4" aria-hidden="true" />
+                        {copy.roomEntry.privateGameTitle}
+                      </span>
+                      <span className="text-xs font-bold leading-[1.45] text-[#66583a]">
+                        {copy.roomEntry.privateGameDescription}
+                      </span>
+                    </span>
+                  </label>
+                </fieldset>
+
+                {roomVisibility === "private" ? (
                   <LabeledField
-                    id="poke-lounge-temporary-password"
+                    id="poke-lounge-private-room-code"
                     label={copy.roomEntry.temporaryPasswordLabel}
-                    description=""
+                    description={copy.roomEntry.temporaryPasswordDescription}
                   >
                     <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 [&_button]:w-auto [&_button]:min-w-20">
                       <input
-                        id="poke-lounge-temporary-password"
+                        id="poke-lounge-private-room-code"
                         type="text"
                         inputMode="text"
                         autoComplete="off"
                         autoCapitalize="characters"
                         maxLength={TEMPORARY_PASSWORD_LENGTH}
                         placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
-                        value={temporaryPassword}
+                        value={privateRoomCode}
                         disabled={pending}
                         aria-invalid={
-                          temporaryPassword.length !== TEMPORARY_PASSWORD_LENGTH || undefined
+                          privateRoomCode.length !== TEMPORARY_PASSWORD_LENGTH || undefined
                         }
                         onChange={function handleChange(event) {
-                          setTemporaryPassword(
-                            normalizeTemporaryPassword(event.currentTarget.value),
-                          );
+                          setPrivateRoomCode(normalizeTemporaryPassword(event.currentTarget.value));
                           setMessage("");
                         }}
                         data-room-entry-temporary-password
@@ -499,7 +565,7 @@ function RoomEntryScreen({
                         type="button"
                         disabled={pending}
                         onClick={function handleClick() {
-                          setTemporaryPassword(createTemporaryPassword());
+                          setPrivateRoomCode(createTemporaryPassword());
                           setMessage("");
                         }}
                         data-room-entry-temporary-password-generate
@@ -508,23 +574,161 @@ function RoomEntryScreen({
                       </button>
                     </div>
                   </LabeledField>
+                ) : null}
 
-                  <button
-                    type="submit"
-                    className="flex min-h-[50px]! items-center justify-between bg-[#f4cf58]! px-4! text-left text-sm shadow-[inset_7px_0_#c9534c,0_4px_0_#17231c]!"
-                    disabled={pending}
-                    data-room-entry-multiplayer-submit
+                <button
+                  type="submit"
+                  className="flex min-h-[52px]! items-center justify-between bg-[#f4cf58]! px-4! text-left text-sm shadow-[inset_7px_0_#c9534c,0_4px_0_#17231c]!"
+                  disabled={pending}
+                  data-room-entry-public-create={roomVisibility === "public" || undefined}
+                  data-room-entry-multiplayer-submit={roomVisibility === "private" || undefined}
+                >
+                  <span className="flex items-center gap-2">
+                    {roomVisibility === "public" ? (
+                      <Globe2 className="size-4" aria-hidden="true" />
+                    ) : (
+                      <LockKeyhole className="size-4" aria-hidden="true" />
+                    )}
+                    {roomVisibility === "public"
+                      ? copy.roomEntry.publicRoomCreate
+                      : copy.roomEntry.multiplayerConnect}
+                  </span>
+                  <ChevronRight className="size-4" aria-hidden="true" />
+                </button>
+
+                <p className="m-0 text-xs font-bold leading-[1.45] text-[#66583a]">
+                  {copy.roomEntry.roundDurationDescription}
+                </p>
+              </form>
+            ) : (
+              <div
+                id="poke-lounge-room-join-panel"
+                role="tabpanel"
+                aria-labelledby="poke-lounge-room-join-tab"
+                className="grid gap-4"
+                data-room-entry-join-panel
+              >
+                <header className="grid gap-1">
+                  <h2 className="m-0 text-lg font-black">{copy.roomEntry.roomJoinTab}</h2>
+                  <p className="m-0 text-xs font-bold leading-[1.45] text-[#52615e]">
+                    {copy.roomEntry.roomJoinDescription}
+                  </p>
+                </header>
+
+                <form
+                  className="grid gap-3 rounded-lg border-2 border-[#7d6741] bg-[#fff8dc] p-3 shadow-[0_4px_0_#7d6741]"
+                  onSubmit={handleJoinPrivateRoom}
+                  data-room-entry-private-join
+                >
+                  <div className="flex items-center gap-2 border-b-2 border-[#baa66b] pb-3">
+                    <LockKeyhole className="size-5 shrink-0" aria-hidden="true" />
+                    <h3 className="m-0 text-base font-black">{copy.roomEntry.privateGameTitle}</h3>
+                  </div>
+                  <LabeledField
+                    id="poke-lounge-private-room-join-code"
+                    label={copy.roomEntry.temporaryPasswordLabel}
+                    description={copy.roomEntry.privateRoomJoinDescription}
                   >
-                    <span>{copy.roomEntry.multiplayerConnect}</span>
-                    <ChevronRight className="size-4" aria-hidden="true" />
-                  </button>
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_button]:sm:min-w-40">
+                      <input
+                        id="poke-lounge-private-room-join-code"
+                        type="text"
+                        inputMode="text"
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        maxLength={TEMPORARY_PASSWORD_LENGTH}
+                        placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
+                        value={joinPrivateRoomCode}
+                        disabled={pending}
+                        onChange={function handleChange(event) {
+                          setJoinPrivateRoomCode(
+                            normalizeTemporaryPassword(event.currentTarget.value),
+                          );
+                          setMessage("");
+                        }}
+                        data-room-entry-private-join-code
+                      />
+                      <button
+                        type="submit"
+                        className="flex items-center justify-center gap-2 bg-[#f4cf58]!"
+                        disabled={pending}
+                        data-room-entry-private-join-submit
+                      >
+                        {copy.roomEntry.privateRoomJoin}
+                        <ChevronRight className="size-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </LabeledField>
                 </form>
-              </section>
-            </div>
 
-            <p className="m-0 text-xs font-bold leading-[1.45] text-[#4a5b4d]">
-              {copy.roomEntry.roundDurationDescription}
-            </p>
+                <section
+                  className="grid min-w-0 gap-3 rounded-lg border-2 border-[#2f5964] bg-[#e7f3f0] p-3 shadow-[0_4px_0_#2f5964]"
+                  aria-labelledby="poke-lounge-public-rooms-title"
+                  data-room-entry-public-rooms
+                >
+                  <header className="grid gap-2 border-b-2 border-[#7d9b99] pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Globe2 className="size-5 shrink-0" aria-hidden="true" />
+                        <h3
+                          id="poke-lounge-public-rooms-title"
+                          className="m-0 truncate text-base font-black"
+                        >
+                          {copy.roomEntry.publicRoomsTitle}
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        className="flex w-auto! shrink-0 items-center gap-1.5 px-2.5! text-xs"
+                        disabled={publicRoomsLoading || pending}
+                        onClick={() => void handleRefreshPublicRooms()}
+                        data-room-entry-public-refresh
+                      >
+                        <RefreshCw
+                          className={"size-4 " + (publicRoomsLoading ? "animate-spin" : "")}
+                          aria-hidden="true"
+                        />
+                        {copy.roomEntry.publicRoomsRefresh}
+                      </button>
+                    </div>
+                    <p className="m-0 text-xs font-bold leading-[1.45] text-[#405d5e]">
+                      {copy.roomEntry.publicRoomsDescription}
+                    </p>
+                  </header>
+
+                  <div
+                    className="grid max-h-[320px] min-h-[110px] gap-2 overflow-y-auto pr-1"
+                    aria-live="polite"
+                    aria-busy={publicRoomsLoading}
+                  >
+                    {publicRoomsLoading && publicRooms.length === 0 ? (
+                      <PublicRoomDirectoryNotice>
+                        {copy.roomEntry.publicRoomsLoading}
+                      </PublicRoomDirectoryNotice>
+                    ) : publicRoomsError ? (
+                      <PublicRoomDirectoryNotice tone="error">
+                        {publicRoomsError}
+                      </PublicRoomDirectoryNotice>
+                    ) : publicRooms.length === 0 ? (
+                      <PublicRoomDirectoryNotice>
+                        {copy.roomEntry.publicRoomsEmpty}
+                      </PublicRoomDirectoryNotice>
+                    ) : (
+                      publicRooms.map(room => (
+                        <PublicRoomCard
+                          key={room.roomInstanceId}
+                          copy={copy}
+                          room={room}
+                          pending={pending}
+                          onJoin={handleJoinPublicRoom}
+                        />
+                      ))
+                    )}
+                  </div>
+                </section>
+              </div>
+            )}
+
             <p
               className="m-0 min-h-[18px] text-sm font-black text-[#8d2f24]"
               role="alert"

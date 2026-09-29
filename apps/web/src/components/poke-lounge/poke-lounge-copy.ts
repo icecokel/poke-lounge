@@ -216,6 +216,10 @@ export interface PokeLoungeCopy {
     localDescription: string;
     multiplayerTitle: string;
     multiplayerDescription: string;
+    roomCreateTab: string;
+    roomJoinTab: string;
+    roomCreateDescription: string;
+    roomJoinDescription: string;
     roomVisibilityLabel: string;
     roundDurationLabel: string;
     roundDurationOptions: [string, string, string];
@@ -223,6 +227,7 @@ export interface PokeLoungeCopy {
     publicGameTitle: string;
     publicGameDescription: string;
     privateGameTitle: string;
+    privateGameDescription: string;
     publicRoomsTitle: string;
     publicRoomsDescription: string;
     publicRoomsRefresh: string;
@@ -242,6 +247,8 @@ export interface PokeLoungeCopy {
     temporaryPasswordPlaceholder: string;
     temporaryPasswordGenerate: string;
     temporaryPasswordRequired: string;
+    privateRoomJoinDescription: string;
+    privateRoomJoin: string;
     multiplayerConnect: string;
     multiplayerConnectFailed: string;
     preparing: string;
@@ -499,17 +506,22 @@ const KOREAN_COPY: PokeLoungeCopy = {
     roundDurationDescription:
       "90초: 전원 100% · 3분: 선두 100%, 나머지 각각 50% · 5분: 경험치 공유 없음",
     multiplayerDescription:
-      "공개방에 참가하거나 새 방을 만들고, 지인과는 비공개 방으로 플레이할 수 있습니다.",
+      "새 방을 만들거나, 비공개방 코드와 공개방 목록에서 원하는 방에 참여할 수 있습니다.",
+    roomCreateTab: "방 만들기",
+    roomJoinTab: "방 참여",
+    roomCreateDescription: "공개 여부와 라운드 설정을 정한 뒤 새 방을 만듭니다.",
+    roomJoinDescription: "비공개방 코드를 입력하거나 공개방 목록에서 입장할 방을 선택하세요.",
     roomVisibilityLabel: "공개 범위",
-    publicGameTitle: "공개",
-    publicGameDescription: "목록에서 직접 선택해 참가합니다.",
-    privateGameTitle: "비공개",
+    publicGameTitle: "공개방",
+    publicGameDescription: "공개방 목록에 표시되어 다른 트레이너가 바로 참여할 수 있습니다.",
+    privateGameTitle: "비공개방",
+    privateGameDescription: "6자리 코드를 아는 사람만 참여할 수 있습니다.",
     publicRoomsTitle: "공개방",
     publicRoomsDescription:
       "입장 가능한 방을 직접 골라 참가하세요. 자동 참가는 아직 사용하지 않습니다.",
     publicRoomsRefresh: "새로고침",
     publicRoomsLoading: "공개방을 불러오는 중...",
-    publicRoomsEmpty: "아직 공개방이 없습니다. 새 공개방을 만들어 보세요.",
+    publicRoomsEmpty: "입장 가능한 공개방이 없습니다. 방 만들기에서 새 공개방을 만들 수 있습니다.",
     publicRoomsLoadFailed: "공개방 목록을 불러오지 못했습니다. 다시 시도해 주세요.",
     publicRoomCreate: "새 공개방 만들기",
     publicRoomJoin: "입장",
@@ -519,13 +531,15 @@ const KOREAN_COPY: PokeLoungeCopy = {
     publicRoomStatusWaiting: "대기 중",
     publicRoomStatusRoundStarted: "탐험 중",
     publicRoomStatusTournament: "토너먼트 중",
-    temporaryPasswordLabel: "임시 비밀번호",
+    temporaryPasswordLabel: "비공개방 코드",
     temporaryPasswordDescription:
-      "함께 플레이할 친구끼리 같은 영문·숫자 6자리를 입력하세요. 원문은 저장하거나 전송하지 않습니다.",
+      "친구에게 공유할 영문·숫자 6자리 코드입니다. 원문은 서버에 저장하거나 전송하지 않습니다.",
     temporaryPasswordPlaceholder: "영문·숫자 6자리 입력",
     temporaryPasswordGenerate: "랜덤 생성",
-    temporaryPasswordRequired: "영문·숫자 6자리 임시 비밀번호를 입력해 주세요.",
-    multiplayerConnect: "비공개 방 만들기",
+    temporaryPasswordRequired: "영문·숫자 6자리 비공개방 코드를 입력해 주세요.",
+    privateRoomJoinDescription: "친구에게 받은 6자리 비공개방 코드를 입력하세요.",
+    privateRoomJoin: "비공개방 들어가기",
+    multiplayerConnect: "비공개방 만들기",
     multiplayerConnectFailed: "멀티플레이 접속 정보를 만들지 못했습니다. 다시 시도해 주세요.",
     preparing: "준비 중...",
     freshSession: "멀티플레이 연결 정보가 만료되어 입장 화면으로 돌아왔습니다. 다시 접속해 주세요.",
@@ -783,17 +797,22 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     roundDurationDescription:
       "90 sec: everyone 100% · 3 min: lead 100%, teammates 50% each · 5 min: no experience sharing",
     multiplayerDescription:
-      "Join or create a public room, or use a private room when playing with friends.",
+      "Create a new room, enter a private room code, or choose a public room to join.",
+    roomCreateTab: "Create room",
+    roomJoinTab: "Join room",
+    roomCreateDescription: "Choose visibility and round settings, then create a new room.",
+    roomJoinDescription: "Enter a private room code or choose a room from the public list.",
     roomVisibilityLabel: "Visibility",
-    publicGameTitle: "Public",
-    publicGameDescription: "Choose a room from the list and join directly.",
-    privateGameTitle: "Private",
+    publicGameTitle: "Public room",
+    publicGameDescription: "Listed publicly so other trainers can join directly.",
+    privateGameTitle: "Private room",
+    privateGameDescription: "Only players who know the 6-character code can join.",
     publicRoomsTitle: "Public rooms",
     publicRoomsDescription:
       "Choose an available room yourself. Automatic quick join is not enabled yet.",
     publicRoomsRefresh: "Refresh",
     publicRoomsLoading: "Loading public rooms...",
-    publicRoomsEmpty: "There are no public rooms yet. Create one to get started.",
+    publicRoomsEmpty: "There are no public rooms to join. Create one from the Create room tab.",
     publicRoomsLoadFailed: "Could not load public rooms. Try again.",
     publicRoomCreate: "Create public room",
     publicRoomJoin: "Join",
@@ -803,12 +822,14 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     publicRoomStatusWaiting: "Waiting",
     publicRoomStatusRoundStarted: "Exploring",
     publicRoomStatusTournament: "Tournament",
-    temporaryPasswordLabel: "Temporary password",
+    temporaryPasswordLabel: "Private room code",
     temporaryPasswordDescription:
-      "Enter the same 6-character letter and number code as your friends. The original is never stored or sent.",
+      "Share this 6-character letter and number code with friends. The original is never stored or sent to the server.",
     temporaryPasswordPlaceholder: "Enter 6 letters or numbers",
     temporaryPasswordGenerate: "Generate",
-    temporaryPasswordRequired: "Enter a 6-character letter and number code.",
+    temporaryPasswordRequired: "Enter a 6-character private room code.",
+    privateRoomJoinDescription: "Enter the 6-character private room code you received.",
+    privateRoomJoin: "Join private room",
     multiplayerConnect: "Create private room",
     multiplayerConnectFailed: "Could not prepare multiplayer access. Try again.",
     preparing: "Preparing...",
@@ -1067,16 +1088,22 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     roundDurationLabel: "ラウンド間の準備時間",
     roundDurationOptions: ["90秒", "3分", "5分"],
     roundDurationDescription: "90秒：全員100% · 3分：先頭100%、控え各50% · 5分：経験値共有なし",
-    multiplayerDescription: "公開ルームに参加・作成したり、友達とは非公開ルームで遊べます。",
+    multiplayerDescription:
+      "新しいルームを作成するか、非公開ルームのコードや公開ルーム一覧から参加できます。",
+    roomCreateTab: "ルーム作成",
+    roomJoinTab: "ルーム参加",
+    roomCreateDescription: "公開範囲とラウンド設定を選んで新しいルームを作成します。",
+    roomJoinDescription: "非公開ルームのコードを入力するか、公開ルーム一覧から選んで参加します。",
     roomVisibilityLabel: "公開範囲",
-    publicGameTitle: "公開",
-    publicGameDescription: "一覧からルームを選んで直接参加します。",
-    privateGameTitle: "非公開",
+    publicGameTitle: "公開ルーム",
+    publicGameDescription: "公開ルーム一覧に表示され、他のトレーナーが直接参加できます。",
+    privateGameTitle: "非公開ルーム",
+    privateGameDescription: "6文字のコードを知っている人だけが参加できます。",
     publicRoomsTitle: "公開ルーム",
     publicRoomsDescription: "参加可能なルームを自分で選んでください。自動参加はまだ使用しません。",
     publicRoomsRefresh: "更新",
     publicRoomsLoading: "公開ルームを読み込み中...",
-    publicRoomsEmpty: "公開ルームがありません。新しい公開ルームを作成できます。",
+    publicRoomsEmpty: "参加できる公開ルームがありません。ルーム作成タブから新しく作成できます。",
     publicRoomsLoadFailed: "公開ルーム一覧を読み込めませんでした。もう一度お試しください。",
     publicRoomCreate: "公開ルームを作成",
     publicRoomJoin: "参加",
@@ -1086,12 +1113,14 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     publicRoomStatusWaiting: "待機中",
     publicRoomStatusRoundStarted: "探索中",
     publicRoomStatusTournament: "トーナメント中",
-    temporaryPasswordLabel: "一時パスワード",
+    temporaryPasswordLabel: "非公開ルームコード",
     temporaryPasswordDescription:
-      "一緒に遊ぶ友達同士で同じ半角英数字6文字を入力してください。原文は保存も送信もしません。",
+      "友達に共有する半角英数字6文字のコードです。元のコードはサーバーに保存・送信しません。",
     temporaryPasswordPlaceholder: "半角英数字6文字を入力",
     temporaryPasswordGenerate: "ランダム生成",
-    temporaryPasswordRequired: "半角英数字6文字の一時パスワードを入力してください。",
+    temporaryPasswordRequired: "半角英数字6文字の非公開ルームコードを入力してください。",
+    privateRoomJoinDescription: "友達から受け取った6文字の非公開ルームコードを入力してください。",
+    privateRoomJoin: "非公開ルームに参加",
     multiplayerConnect: "非公開ルームを作成",
     multiplayerConnectFailed: "マルチプレイ接続を準備できませんでした。もう一度お試しください。",
     preparing: "準備中...",
