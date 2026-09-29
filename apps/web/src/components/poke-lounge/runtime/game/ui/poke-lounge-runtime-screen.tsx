@@ -615,117 +615,121 @@ function RoomEntryScreen({
                   </p>
                 </header>
 
-                <form
-                  className="grid gap-3 rounded-lg border-2 border-[#7d6741] bg-[#fff8dc] p-3 shadow-[0_4px_0_#7d6741]"
-                  onSubmit={handleJoinPrivateRoom}
-                  data-room-entry-private-join
-                >
-                  <div className="flex items-center gap-2 border-b-2 border-[#baa66b] pb-3">
-                    <LockKeyhole className="size-5 shrink-0" aria-hidden="true" />
-                    <h3 className="m-0 text-base font-black">{copy.roomEntry.privateGameTitle}</h3>
-                  </div>
-                  <LabeledField
-                    id="poke-lounge-private-room-join-code"
-                    label={copy.roomEntry.temporaryPasswordLabel}
-                    description={copy.roomEntry.privateRoomJoinDescription}
+                <div className="overflow-hidden rounded-lg border-2 border-[#17231c] shadow-[0_4px_0_#17231c]">
+                  <form
+                    className="grid gap-3 border-b-2 border-[#8a958b] bg-[#fff8dc] p-3"
+                    onSubmit={handleJoinPrivateRoom}
+                    data-room-entry-private-join
                   >
-                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_button]:sm:min-w-40">
-                      <input
-                        id="poke-lounge-private-room-join-code"
-                        type="text"
-                        inputMode="text"
-                        autoComplete="off"
-                        autoCapitalize="characters"
-                        maxLength={TEMPORARY_PASSWORD_LENGTH}
-                        placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
-                        value={joinPrivateRoomCode}
-                        disabled={pending}
-                        onChange={function handleChange(event) {
-                          setJoinPrivateRoomCode(
-                            normalizeTemporaryPassword(event.currentTarget.value),
-                          );
-                          setMessage("");
-                        }}
-                        data-room-entry-private-join-code
-                      />
-                      <button
-                        type="submit"
-                        className="flex items-center justify-center gap-2 bg-[#f4cf58]!"
-                        disabled={pending}
-                        data-room-entry-private-join-submit
-                      >
-                        {copy.roomEntry.privateRoomJoin}
-                        <ChevronRight className="size-4" aria-hidden="true" />
-                      </button>
+                    <div className="flex items-center gap-2 border-b-2 border-[#baa66b] pb-3">
+                      <LockKeyhole className="size-5 shrink-0" aria-hidden="true" />
+                      <h3 className="m-0 text-base font-black">
+                        {copy.roomEntry.privateGameTitle}
+                      </h3>
                     </div>
-                  </LabeledField>
-                </form>
-
-                <section
-                  className="grid min-w-0 gap-3 rounded-lg border-2 border-[#2f5964] bg-[#e7f3f0] p-3 shadow-[0_4px_0_#2f5964]"
-                  aria-labelledby="poke-lounge-public-rooms-title"
-                  data-room-entry-public-rooms
-                >
-                  <header className="grid gap-2 border-b-2 border-[#7d9b99] pb-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Globe2 className="size-5 shrink-0" aria-hidden="true" />
-                        <h3
-                          id="poke-lounge-public-rooms-title"
-                          className="m-0 truncate text-base font-black"
+                    <LabeledField
+                      id="poke-lounge-private-room-join-code"
+                      label={copy.roomEntry.temporaryPasswordLabel}
+                      description={copy.roomEntry.privateRoomJoinDescription}
+                    >
+                      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_button]:sm:min-w-40">
+                        <input
+                          id="poke-lounge-private-room-join-code"
+                          type="text"
+                          inputMode="text"
+                          autoComplete="off"
+                          autoCapitalize="characters"
+                          maxLength={TEMPORARY_PASSWORD_LENGTH}
+                          placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
+                          value={joinPrivateRoomCode}
+                          disabled={pending}
+                          onChange={function handleChange(event) {
+                            setJoinPrivateRoomCode(
+                              normalizeTemporaryPassword(event.currentTarget.value),
+                            );
+                            setMessage("");
+                          }}
+                          data-room-entry-private-join-code
+                        />
+                        <button
+                          type="submit"
+                          className="flex items-center justify-center gap-2 bg-[#f4cf58]!"
+                          disabled={pending}
+                          data-room-entry-private-join-submit
                         >
-                          {copy.roomEntry.publicRoomsTitle}
-                        </h3>
+                          {copy.roomEntry.privateRoomJoin}
+                          <ChevronRight className="size-4" aria-hidden="true" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="flex w-auto! shrink-0 items-center gap-1.5 px-2.5! text-xs"
-                        disabled={publicRoomsLoading || pending}
-                        onClick={() => void handleRefreshPublicRooms()}
-                        data-room-entry-public-refresh
-                      >
-                        <RefreshCw
-                          className={"size-4 " + (publicRoomsLoading ? "animate-spin" : "")}
-                          aria-hidden="true"
-                        />
-                        {copy.roomEntry.publicRoomsRefresh}
-                      </button>
-                    </div>
-                    <p className="m-0 text-xs font-bold leading-[1.45] text-[#405d5e]">
-                      {copy.roomEntry.publicRoomsDescription}
-                    </p>
-                  </header>
+                    </LabeledField>
+                  </form>
 
-                  <div
-                    className="grid max-h-[320px] min-h-[110px] gap-2 overflow-y-auto pr-1"
-                    aria-live="polite"
-                    aria-busy={publicRoomsLoading}
+                  <section
+                    className="grid min-w-0 gap-3 bg-[#e7f3f0] p-3"
+                    aria-labelledby="poke-lounge-public-rooms-title"
+                    data-room-entry-public-rooms
                   >
-                    {publicRoomsLoading && publicRooms.length === 0 ? (
-                      <PublicRoomDirectoryNotice>
-                        {copy.roomEntry.publicRoomsLoading}
-                      </PublicRoomDirectoryNotice>
-                    ) : publicRoomsError ? (
-                      <PublicRoomDirectoryNotice tone="error">
-                        {publicRoomsError}
-                      </PublicRoomDirectoryNotice>
-                    ) : publicRooms.length === 0 ? (
-                      <PublicRoomDirectoryNotice>
-                        {copy.roomEntry.publicRoomsEmpty}
-                      </PublicRoomDirectoryNotice>
-                    ) : (
-                      publicRooms.map(room => (
-                        <PublicRoomCard
-                          key={room.roomInstanceId}
-                          copy={copy}
-                          room={room}
-                          pending={pending}
-                          onJoin={handleJoinPublicRoom}
-                        />
-                      ))
-                    )}
-                  </div>
-                </section>
+                    <header className="grid gap-2 border-b-2 border-[#7d9b99] pb-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Globe2 className="size-5 shrink-0" aria-hidden="true" />
+                          <h3
+                            id="poke-lounge-public-rooms-title"
+                            className="m-0 truncate text-base font-black"
+                          >
+                            {copy.roomEntry.publicRoomsTitle}
+                          </h3>
+                        </div>
+                        <button
+                          type="button"
+                          className="flex w-auto! shrink-0 items-center gap-1.5 px-2.5! text-xs"
+                          disabled={publicRoomsLoading || pending}
+                          onClick={() => void handleRefreshPublicRooms()}
+                          data-room-entry-public-refresh
+                        >
+                          <RefreshCw
+                            className={"size-4 " + (publicRoomsLoading ? "animate-spin" : "")}
+                            aria-hidden="true"
+                          />
+                          {copy.roomEntry.publicRoomsRefresh}
+                        </button>
+                      </div>
+                      <p className="m-0 text-xs font-bold leading-[1.45] text-[#405d5e]">
+                        {copy.roomEntry.publicRoomsDescription}
+                      </p>
+                    </header>
+
+                    <div
+                      className="grid max-h-[320px] min-h-[110px] gap-2 overflow-y-auto pr-1"
+                      aria-live="polite"
+                      aria-busy={publicRoomsLoading}
+                    >
+                      {publicRoomsLoading && publicRooms.length === 0 ? (
+                        <PublicRoomDirectoryNotice>
+                          {copy.roomEntry.publicRoomsLoading}
+                        </PublicRoomDirectoryNotice>
+                      ) : publicRoomsError ? (
+                        <PublicRoomDirectoryNotice tone="error">
+                          {publicRoomsError}
+                        </PublicRoomDirectoryNotice>
+                      ) : publicRooms.length === 0 ? (
+                        <PublicRoomDirectoryNotice>
+                          {copy.roomEntry.publicRoomsEmpty}
+                        </PublicRoomDirectoryNotice>
+                      ) : (
+                        publicRooms.map(room => (
+                          <PublicRoomCard
+                            key={room.roomInstanceId}
+                            copy={copy}
+                            room={room}
+                            pending={pending}
+                            onJoin={handleJoinPublicRoom}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </section>
+                </div>
               </div>
             )}
 
