@@ -403,15 +403,6 @@ body {
   }
 }
 
-@keyframes tournament-briefing-in {
-  from {
-    transform: translate(-50%, 8px);
-  }
-  to {
-    transform: translate(-50%, 0);
-  }
-}
-
 @keyframes tournament-own-match {
   50% {
     background: var(--pl-color-gold);

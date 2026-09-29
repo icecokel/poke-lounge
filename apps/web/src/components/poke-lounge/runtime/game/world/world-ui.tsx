@@ -420,7 +420,7 @@ export function WorldNoticeLayer({
         />
       ) : ui.tournamentAnnouncement ? (
         <PixelPanel
-          className="pointer-events-none absolute top-[78px] left-1/2 z-[900] box-border w-[min(calc(100%-24px),720px)] max-h-[calc(100%-96px)] -translate-x-1/2 animate-[tournament-briefing-in_var(--pl-motion-panel)_ease-out_both] overflow-hidden rounded-[9px] border-[3px] border-[#506d7b] bg-[#293d48] px-3 py-2.5 text-center text-sm leading-[1.45] font-black whitespace-pre-line text-[var(--pl-color-surface-raised)] shadow-[inset_0_0_0_2px_#b0c1b3,0_4px_0_#20333c]"
+          className="pointer-events-none absolute top-2 left-1/2 z-[900] box-border w-[min(calc(100%-16px),720px)] -translate-x-1/2 rounded-[9px] border-[3px] border-[#506d7b] bg-[#293d48] px-3 py-2.5 text-center text-sm leading-[1.45] font-black whitespace-pre-line text-[var(--pl-color-surface-raised)] shadow-[inset_0_0_0_2px_#b0c1b3,0_4px_0_#20333c]"
           data-poke-lounge-tournament-announcement="true"
         >
           {ui.tournamentAnnouncement}
