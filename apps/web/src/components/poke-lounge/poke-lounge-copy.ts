@@ -220,10 +220,14 @@ export interface PokeLoungeCopy {
     roomJoinTab: string;
     roomCreateDescription: string;
     roomJoinDescription: string;
+    roomSetupStart: string;
+    roomSetupBack: string;
+    roomSelectionTitle: string;
+    roomSelectionDescription: string;
     roomVisibilityLabel: string;
     roundDurationLabel: string;
     roundDurationOptions: [string, string, string];
-    roundDurationDescription: string;
+    roundDurationDescriptions: [string, string, string];
     publicGameTitle: string;
     publicGameDescription: string;
     privateGameTitle: string;
@@ -503,14 +507,21 @@ const KOREAN_COPY: PokeLoungeCopy = {
     multiplayerTitle: "비공개 방 만들기",
     roundDurationLabel: "라운드 간 준비 시간",
     roundDurationOptions: ["90초", "3분", "5분"],
-    roundDurationDescription:
-      "90초: 전원 100% · 3분: 선두 100%, 나머지 각각 50% · 5분: 경험치 공유 없음",
+    roundDurationDescriptions: [
+      "전원 경험치 100%",
+      "선두 100%, 나머지 각각 50%",
+      "경험치 공유 없음",
+    ],
     multiplayerDescription:
       "새 방을 만들거나, 비공개방 코드와 공개방 목록에서 원하는 방에 참여할 수 있습니다.",
     roomCreateTab: "방 만들기",
     roomJoinTab: "방 참여",
     roomCreateDescription: "공개 여부와 라운드 설정을 정한 뒤 새 방을 만듭니다.",
     roomJoinDescription: "비공개방 코드를 입력하거나 공개방 목록에서 입장할 방을 선택하세요.",
+    roomSetupStart: "시작하기",
+    roomSetupBack: "트레이너 정보로 돌아가기",
+    roomSelectionTitle: "방 선택",
+    roomSelectionDescription: "새 방을 만들거나 참여할 방을 선택하세요.",
     roomVisibilityLabel: "공개 범위",
     publicGameTitle: "공개방",
     publicGameDescription: "공개방 목록에 표시되어 다른 트레이너가 바로 참여할 수 있습니다.",
@@ -794,14 +805,21 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     multiplayerTitle: "Create a private room",
     roundDurationLabel: "Preparation between rounds",
     roundDurationOptions: ["90 sec", "3 min", "5 min"],
-    roundDurationDescription:
-      "90 sec: everyone 100% · 3 min: lead 100%, teammates 50% each · 5 min: no experience sharing",
+    roundDurationDescriptions: [
+      "Everyone receives 100% experience",
+      "Lead 100%, teammates 50% each",
+      "No experience sharing",
+    ],
     multiplayerDescription:
       "Create a new room, enter a private room code, or choose a public room to join.",
     roomCreateTab: "Create room",
     roomJoinTab: "Join room",
     roomCreateDescription: "Choose visibility and round settings, then create a new room.",
     roomJoinDescription: "Enter a private room code or choose a room from the public list.",
+    roomSetupStart: "Continue",
+    roomSetupBack: "Back to trainer info",
+    roomSelectionTitle: "Choose a room",
+    roomSelectionDescription: "Create a new room or choose a room to join.",
     roomVisibilityLabel: "Visibility",
     publicGameTitle: "Public room",
     publicGameDescription: "Listed publicly so other trainers can join directly.",
@@ -1087,13 +1105,21 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     multiplayerTitle: "非公開ルームを作成",
     roundDurationLabel: "ラウンド間の準備時間",
     roundDurationOptions: ["90秒", "3分", "5分"],
-    roundDurationDescription: "90秒：全員100% · 3分：先頭100%、控え各50% · 5分：経験値共有なし",
+    roundDurationDescriptions: [
+      "全員が経験値100%",
+      "先頭100%、控えはそれぞれ50%",
+      "経験値共有なし",
+    ],
     multiplayerDescription:
       "新しいルームを作成するか、非公開ルームのコードや公開ルーム一覧から参加できます。",
     roomCreateTab: "ルーム作成",
     roomJoinTab: "ルーム参加",
     roomCreateDescription: "公開範囲とラウンド設定を選んで新しいルームを作成します。",
     roomJoinDescription: "非公開ルームのコードを入力するか、公開ルーム一覧から選んで参加します。",
+    roomSetupStart: "はじめる",
+    roomSetupBack: "トレーナー情報に戻る",
+    roomSelectionTitle: "ルーム選択",
+    roomSelectionDescription: "新しいルームを作成するか、参加するルームを選んでください。",
     roomVisibilityLabel: "公開範囲",
     publicGameTitle: "公開ルーム",
     publicGameDescription: "公開ルーム一覧に表示され、他のトレーナーが直接参加できます。",

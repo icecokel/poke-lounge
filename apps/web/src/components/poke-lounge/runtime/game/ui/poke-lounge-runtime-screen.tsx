@@ -96,12 +96,14 @@ function RoomEntryScreen({
       copy.roomEntry.multiplayerNameNouns,
     );
   });
+  const [entryStep, setEntryStep] = useState<"profile" | "rooms">("profile");
   const [entryPanel, setEntryPanel] = useState<"create" | "join">("create");
   const [roomVisibility, setRoomVisibility] = useState<"public" | "private">("public");
   const [privateRoomCode, setPrivateRoomCode] = useState("");
   const [joinPrivateRoomCode, setJoinPrivateRoomCode] = useState("");
   const [roundDurationMs, setRoundDurationMs] =
     useState<(typeof ROUND_DURATION_OPTIONS_MS)[number]>(DEFAULT_ROUND_DURATION_MS);
+  const selectedRoundDurationIndex = ROUND_DURATION_OPTIONS_MS.indexOf(roundDurationMs);
   const [publicRooms, setPublicRooms] = useState<PublicRoomSummary[]>([]);
   const [publicRoomsLoading, setPublicRoomsLoading] = useState(false);
   const [publicRoomsError, setPublicRoomsError] = useState("");
@@ -116,7 +118,7 @@ function RoomEntryScreen({
 
   useEffect(
     function loadPublicRoomDirectory() {
-      if (entryPanel !== "join") {
+      if (entryStep !== "rooms" || entryPanel !== "join") {
         return undefined;
       }
 
@@ -144,7 +146,7 @@ function RoomEntryScreen({
         controller.abort();
       };
     },
-    [copy.roomEntry.publicRoomsLoadFailed, entryPanel],
+    [copy.roomEntry.publicRoomsLoadFailed, entryPanel, entryStep],
   );
 
   const normalizeDisplayNameForAction = (): string | null => {
@@ -155,6 +157,31 @@ function RoomEntryScreen({
       return null;
     }
     return normalizedName;
+  };
+
+  const handleContinueToRoomSelection = (event: FormEvent) => {
+    event.preventDefault();
+    if (pending) {
+      return;
+    }
+
+    const normalizedName = normalizeDisplayNameForAction();
+    if (!normalizedName) {
+      return;
+    }
+
+    playConfirmSound();
+    setMessage("");
+    setEntryStep("rooms");
+  };
+
+  const handleBackToProfile = () => {
+    if (pending) {
+      return;
+    }
+
+    setMessage("");
+    setEntryStep("profile");
   };
 
   const selectEntryPanel = (panel: "create" | "join") => {
@@ -306,23 +333,45 @@ function RoomEntryScreen({
       data-local-test-mode-active={state.localTestMode?.active || undefined}
     >
       <div className="grid w-full max-w-[820px] gap-4 overflow-auto rounded-xl border-[3px] border-[#17231c] bg-[#f8fbf0] p-4 shadow-[0_8px_0_#17231c] [&_button]:min-h-10 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:bg-[#fffdf0] [&_button]:px-3 [&_button]:font-black [&_button]:text-[#17201a] [&_button]:shadow-[0_3px_0_#17231c] [&_button:active]:translate-y-0.5 [&_button:active]:shadow-[0_1px_0_#17231c] [&_button:disabled]:cursor-default [&_button:disabled]:opacity-55 [&_input]:min-h-10 [&_input]:w-full [&_input]:rounded-md [&_input]:border-2 [&_input]:border-[#17231c] [&_input]:bg-[#fffef3] [&_input]:px-3 [&_input]:text-[#17201a] [&_input]:outline-none [&_input:focus-visible]:ring-2 [&_input:focus-visible]:ring-[#2f6b78]">
-        <header className="grid gap-4 border-b-2 border-[#8a958b] pb-4">
-          <div className="flex items-center gap-3 text-xs font-black tracking-[0.14em] text-[#b88b20]">
-            <span
-              className="relative size-10 rounded-full border-[3px] border-[#fffdf0] bg-[linear-gradient(to_bottom,#f4cf58_0_44%,#24313b_44%_56%,#fffdf0_56%_100%)] shadow-[0_3px_0_rgb(0_0_0_/_24%)] after:absolute after:top-1/2 after:left-1/2 after:size-3 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:border-2 after:border-[#fffdf0] after:bg-[#24313b] after:content-['']"
-              aria-hidden="true"
-            />
-            <span>POKE LOUNGE</span>
-          </div>
-          <div className="grid gap-2 [&_h1]:m-0 [&_h1]:text-3xl [&_h1]:font-black [&_h1]:tracking-[-0.05em] [&_p]:m-0 [&_p]:text-sm [&_p]:font-bold [&_p]:leading-relaxed [&_p]:text-[#52615e]">
-            <h1>{copy.roomEntry.title}</h1>
-            <p>{copy.roomEntry.multiplayerDescription}</p>
-          </div>
-          <PageReloadButton locale={copy.locale} disabled={pending} />
-          <FanNotice copy={copy} />
-        </header>
+        {entryStep === "profile" ? (
+          <header className="grid gap-4 border-b-2 border-[#8a958b] pb-4">
+            <div className="flex items-center gap-3 text-xs font-black tracking-[0.14em] text-[#b88b20]">
+              <span
+                className="relative size-10 rounded-full border-[3px] border-[#fffdf0] bg-[linear-gradient(to_bottom,#f4cf58_0_44%,#24313b_44%_56%,#fffdf0_56%_100%)] shadow-[0_3px_0_rgb(0_0_0_/_24%)] after:absolute after:top-1/2 after:left-1/2 after:size-3 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:border-2 after:border-[#fffdf0] after:bg-[#24313b] after:content-['']"
+                aria-hidden="true"
+              />
+              <span>POKE LOUNGE</span>
+            </div>
+            <div className="grid gap-2 [&_h1]:m-0 [&_h1]:text-3xl [&_h1]:font-black [&_h1]:tracking-[-0.05em] [&_p]:m-0 [&_p]:text-sm [&_p]:font-bold [&_p]:leading-relaxed [&_p]:text-[#52615e]">
+              <h1>{copy.roomEntry.title}</h1>
+              <p>{copy.roomEntry.multiplayerDescription}</p>
+            </div>
+            <PageReloadButton locale={copy.locale} disabled={pending} />
+            <FanNotice copy={copy} />
+          </header>
+        ) : (
+          <header className="grid gap-3 border-b-2 border-[#8a958b] pb-4">
+            <div className="flex items-center gap-3 text-xs font-black tracking-[0.14em] text-[#b88b20]">
+              <span
+                className="relative size-8 rounded-full border-[3px] border-[#fffdf0] bg-[linear-gradient(to_bottom,#f4cf58_0_44%,#24313b_44%_56%,#fffdf0_56%_100%)] shadow-[0_2px_0_rgb(0_0_0_/_24%)] after:absolute after:top-1/2 after:left-1/2 after:size-2.5 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:border-2 after:border-[#fffdf0] after:bg-[#24313b] after:content-['']"
+                aria-hidden="true"
+              />
+              <span>POKE LOUNGE</span>
+            </div>
+            <div className="grid gap-1 [&_h1]:m-0 [&_h1]:text-2xl [&_h1]:font-black [&_h1]:tracking-[-0.04em] [&_p]:m-0 [&_p]:text-sm [&_p]:font-bold [&_p]:leading-relaxed [&_p]:text-[#52615e]">
+              <h1>{copy.roomEntry.roomSelectionTitle}</h1>
+              <p>{copy.roomEntry.roomSelectionDescription}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button type="button" disabled={pending} onClick={handleBackToProfile}>
+                {copy.roomEntry.roomSetupBack}
+              </button>
+              <PageReloadButton locale={copy.locale} disabled={pending} />
+            </div>
+          </header>
+        )}
 
-        {state.localTestMode ? (
+        {entryStep === "profile" && state.localTestMode ? (
           <section
             className="grid gap-3 rounded-lg border-2 border-[#4f653f] bg-[#eef4df] p-3 data-[local-test-mode-active]:border-[#2f6548] data-[local-test-mode-active]:bg-[#dff3e5]"
             data-room-entry-mode="solo"
@@ -371,8 +420,12 @@ function RoomEntryScreen({
           </section>
         ) : null}
 
-        {!state.localTestMode?.active ? (
-          <section className="grid gap-4" data-room-entry-mode="multiplayer">
+        {entryStep === "profile" && !state.localTestMode?.active ? (
+          <form
+            className="grid gap-4"
+            onSubmit={handleContinueToRoomSelection}
+            data-room-entry-profile-step
+          >
             <LabeledField
               id="poke-lounge-multiplayer-display-name"
               label={copy.roomEntry.multiplayerNameLabel}
@@ -395,6 +448,34 @@ function RoomEntryScreen({
               />
             </LabeledField>
 
+            <button
+              type="submit"
+              className="flex min-h-[52px]! items-center justify-between bg-[#f4cf58]! px-4! text-left text-sm shadow-[inset_7px_0_#c9534c,0_4px_0_#17231c]!"
+              disabled={pending}
+              data-room-entry-profile-submit
+            >
+              <span>{copy.roomEntry.roomSetupStart}</span>
+              <ChevronRight className="size-4" aria-hidden="true" />
+            </button>
+
+            <p
+              className="m-0 min-h-[18px] text-sm font-black text-[#8d2f24]"
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+              data-room-entry-message="true"
+            >
+              {message}
+            </p>
+          </form>
+        ) : null}
+
+        {entryStep === "rooms" && !state.localTestMode?.active ? (
+          <section
+            className="grid gap-4"
+            data-room-entry-mode="multiplayer"
+            data-room-entry-room-step
+          >
             <div
               className="grid grid-cols-2 gap-2 rounded-lg border-2 border-[#17231c] bg-[#dfe8dc] p-1.5"
               role="tablist"
@@ -481,6 +562,14 @@ function RoomEntryScreen({
                     </label>
                   ))}
                 </fieldset>
+
+                <p
+                  className="-mt-1 m-0 rounded-md bg-[#fff1a8] px-3 py-2 text-xs font-black leading-[1.45] text-[#66583a]"
+                  aria-live="polite"
+                  data-room-entry-round-duration-description
+                >
+                  {copy.roomEntry.roundDurationDescriptions[selectedRoundDurationIndex]}
+                </p>
 
                 <fieldset
                   className="m-0 grid gap-2 border-0 p-0 sm:grid-cols-2 [&>legend]:sm:col-span-2"
@@ -595,10 +684,6 @@ function RoomEntryScreen({
                   </span>
                   <ChevronRight className="size-4" aria-hidden="true" />
                 </button>
-
-                <p className="m-0 text-xs font-bold leading-[1.45] text-[#66583a]">
-                  {copy.roomEntry.roundDurationDescription}
-                </p>
               </form>
             ) : (
               <div
