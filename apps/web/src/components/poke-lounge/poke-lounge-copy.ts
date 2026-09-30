@@ -222,8 +222,6 @@ export interface PokeLoungeCopy {
     roomJoinDescription: string;
     roomSetupStart: string;
     roomSetupBack: string;
-    roomSelectionTitle: string;
-    roomSelectionDescription: string;
     roomVisibilityLabel: string;
     roundDurationLabel: string;
     roundDurationOptions: [string, string, string];
@@ -518,10 +516,8 @@ const KOREAN_COPY: PokeLoungeCopy = {
     roomJoinTab: "방 참여",
     roomCreateDescription: "공개 여부와 라운드 설정을 정한 뒤 새 방을 만듭니다.",
     roomJoinDescription: "비공개방 코드를 입력하거나 공개방 목록에서 입장할 방을 선택하세요.",
-    roomSetupStart: "시작하기",
+    roomSetupStart: "게임 참여하기",
     roomSetupBack: "트레이너 정보로 돌아가기",
-    roomSelectionTitle: "방 선택",
-    roomSelectionDescription: "새 방을 만들거나 참여할 방을 선택하세요.",
     roomVisibilityLabel: "공개 범위",
     publicGameTitle: "공개방",
     publicGameDescription: "공개방 목록에 표시되어 다른 트레이너가 바로 참여할 수 있습니다.",
@@ -816,10 +812,8 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     roomJoinTab: "Join room",
     roomCreateDescription: "Choose visibility and round settings, then create a new room.",
     roomJoinDescription: "Enter a private room code or choose a room from the public list.",
-    roomSetupStart: "Continue",
+    roomSetupStart: "Join game",
     roomSetupBack: "Back to trainer info",
-    roomSelectionTitle: "Choose a room",
-    roomSelectionDescription: "Create a new room or choose a room to join.",
     roomVisibilityLabel: "Visibility",
     publicGameTitle: "Public room",
     publicGameDescription: "Listed publicly so other trainers can join directly.",
@@ -1116,10 +1110,8 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     roomJoinTab: "ルーム参加",
     roomCreateDescription: "公開範囲とラウンド設定を選んで新しいルームを作成します。",
     roomJoinDescription: "非公開ルームのコードを入力するか、公開ルーム一覧から選んで参加します。",
-    roomSetupStart: "はじめる",
+    roomSetupStart: "ゲームに参加",
     roomSetupBack: "トレーナー情報に戻る",
-    roomSelectionTitle: "ルーム選択",
-    roomSelectionDescription: "新しいルームを作成するか、参加するルームを選んでください。",
     roomVisibilityLabel: "公開範囲",
     publicGameTitle: "公開ルーム",
     publicGameDescription: "公開ルーム一覧に表示され、他のトレーナーが直接参加できます。",

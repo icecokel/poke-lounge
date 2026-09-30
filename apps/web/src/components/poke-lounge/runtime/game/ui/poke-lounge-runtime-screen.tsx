@@ -358,10 +358,6 @@ function RoomEntryScreen({
               />
               <span>POKE LOUNGE</span>
             </div>
-            <div className="grid gap-1 [&_h1]:m-0 [&_h1]:text-2xl [&_h1]:font-black [&_h1]:tracking-[-0.04em] [&_p]:m-0 [&_p]:text-sm [&_p]:font-bold [&_p]:leading-relaxed [&_p]:text-[#52615e]">
-              <h1>{copy.roomEntry.roomSelectionTitle}</h1>
-              <p>{copy.roomEntry.roomSelectionDescription}</p>
-            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -532,17 +528,10 @@ function RoomEntryScreen({
                 id="poke-lounge-room-create-panel"
                 role="tabpanel"
                 aria-labelledby="poke-lounge-room-create-tab"
-                className="grid gap-4 rounded-lg border-2 border-[#7d6741] bg-[#fff8dc] p-3 shadow-[0_4px_0_#7d6741]"
+                className="grid gap-3 rounded-lg border-2 border-[#7d6741] bg-[#fff8dc] p-3 shadow-[0_4px_0_#7d6741]"
                 onSubmit={handleCreateRoom}
                 data-room-entry-create-panel
               >
-                <header className="grid gap-1 border-b-2 border-[#baa66b] pb-3">
-                  <h2 className="m-0 text-lg font-black">{copy.roomEntry.roomCreateTab}</h2>
-                  <p className="m-0 text-xs font-bold leading-[1.45] text-[#66583a]">
-                    {copy.roomEntry.roomCreateDescription}
-                  </p>
-                </header>
-
                 <fieldset
                   className="m-0 grid grid-cols-3 gap-2 border-0 p-0 [&>legend]:col-span-full"
                   disabled={pending}
@@ -553,7 +542,7 @@ function RoomEntryScreen({
                   {ROUND_DURATION_OPTIONS_MS.map((duration, index) => (
                     <label
                       key={duration}
-                      className="relative grid min-h-[50px] grid-cols-[auto_1fr] items-center gap-x-2 rounded-md border-2 border-[#17231c] bg-[#fffef3] px-2.5 py-2 text-xs font-black text-[#17201a] shadow-[0_3px_0_#8a958b] has-[:checked]:bg-[#fff1a8] has-[:checked]:shadow-[inset_6px_0_#5f8f70,0_3px_0_#17231c] [&_input]:min-h-0 [&_input]:w-auto [&_input]:p-0"
+                      className="relative grid min-h-11 grid-cols-[auto_1fr] items-center gap-x-2 rounded-md border-2 border-[#17231c] bg-[#fffef3] px-2.5 py-1.5 text-xs font-black text-[#17201a] shadow-[0_3px_0_#8a958b] has-[:checked]:bg-[#fff1a8] has-[:checked]:shadow-[inset_6px_0_#5f8f70,0_3px_0_#17231c] [&_input]:min-h-0 [&_input]:w-auto [&_input]:p-0"
                     >
                       <input
                         type="radio"
@@ -569,7 +558,7 @@ function RoomEntryScreen({
                 </fieldset>
 
                 <p
-                  className="-mt-1 m-0 rounded-md bg-[#fff1a8] px-3 py-2 text-xs font-black leading-[1.45] text-[#66583a]"
+                  className="-mt-1 m-0 rounded-md bg-[#fff1a8] px-3 py-1.5 text-xs font-black leading-[1.45] text-[#66583a]"
                   aria-live="polite"
                   data-room-entry-round-duration-description
                 >
@@ -577,14 +566,22 @@ function RoomEntryScreen({
                 </p>
 
                 <fieldset
-                  className="m-0 grid gap-2 border-0 p-0 sm:grid-cols-2 [&>legend]:sm:col-span-2"
+                  className="m-0 grid grid-cols-2 gap-2 border-0 p-0 [&>legend]:col-span-2"
                   disabled={pending}
                 >
                   <legend className="mb-1 text-xs font-black text-[#17201a]">
                     {copy.roomEntry.roomVisibilityLabel}
                   </legend>
-                  <label className="grid min-h-[86px] grid-cols-[auto_1fr] items-start gap-3 rounded-lg border-2 border-[#17231c] bg-[#f7fbef] p-3 shadow-[0_3px_0_#8a958b] has-[:checked]:bg-[#dff3e5] has-[:checked]:shadow-[inset_7px_0_#5f8f70,0_3px_0_#17231c] [&_input]:mt-1 [&_input]:min-h-0 [&_input]:w-auto [&_input]:p-0">
+                  <label
+                    className={
+                      "relative flex min-h-11 items-center justify-center gap-2 rounded-md border-2 border-[#17231c] px-3 py-1.5 text-xs font-black text-[#17201a] shadow-[0_3px_0_#8a958b] " +
+                      (roomVisibility === "public"
+                        ? "bg-[#dff3e5] shadow-[inset_6px_0_#5f8f70,0_3px_0_#17231c]"
+                        : "bg-[#fffef3]")
+                    }
+                  >
                     <input
+                      className="absolute min-h-0! w-px! opacity-0"
                       type="radio"
                       name="room-visibility"
                       value="public"
@@ -595,18 +592,19 @@ function RoomEntryScreen({
                       }}
                       data-room-entry-visibility="public"
                     />
-                    <span className="grid gap-1">
-                      <span className="flex items-center gap-2 font-black">
-                        <Globe2 className="size-4" aria-hidden="true" />
-                        {copy.roomEntry.publicGameTitle}
-                      </span>
-                      <span className="text-xs font-bold leading-[1.45] text-[#52615e]">
-                        {copy.roomEntry.publicGameDescription}
-                      </span>
-                    </span>
+                    <Globe2 className="size-4" aria-hidden="true" />
+                    <span>{copy.roomEntry.publicGameTitle}</span>
                   </label>
-                  <label className="grid min-h-[86px] grid-cols-[auto_1fr] items-start gap-3 rounded-lg border-2 border-[#17231c] bg-[#fffdf0] p-3 shadow-[0_3px_0_#8a958b] has-[:checked]:bg-[#fff1a8] has-[:checked]:shadow-[inset_7px_0_#c9534c,0_3px_0_#17231c] [&_input]:mt-1 [&_input]:min-h-0 [&_input]:w-auto [&_input]:p-0">
+                  <label
+                    className={
+                      "relative flex min-h-11 items-center justify-center gap-2 rounded-md border-2 border-[#17231c] px-3 py-1.5 text-xs font-black text-[#17201a] shadow-[0_3px_0_#8a958b] " +
+                      (roomVisibility === "private"
+                        ? "bg-[#fff1a8] shadow-[inset_6px_0_#c9534c,0_3px_0_#17231c]"
+                        : "bg-[#fffef3]")
+                    }
+                  >
                     <input
+                      className="absolute min-h-0! w-px! opacity-0"
                       type="radio"
                       name="room-visibility"
                       value="private"
@@ -617,17 +615,20 @@ function RoomEntryScreen({
                       }}
                       data-room-entry-visibility="private"
                     />
-                    <span className="grid gap-1">
-                      <span className="flex items-center gap-2 font-black">
-                        <LockKeyhole className="size-4" aria-hidden="true" />
-                        {copy.roomEntry.privateGameTitle}
-                      </span>
-                      <span className="text-xs font-bold leading-[1.45] text-[#66583a]">
-                        {copy.roomEntry.privateGameDescription}
-                      </span>
-                    </span>
+                    <LockKeyhole className="size-4" aria-hidden="true" />
+                    <span>{copy.roomEntry.privateGameTitle}</span>
                   </label>
                 </fieldset>
+
+                <p
+                  className="-mt-1 m-0 rounded-md bg-[#fffef3] px-3 py-1.5 text-xs font-bold leading-[1.45] text-[#66583a]"
+                  aria-live="polite"
+                  data-room-entry-visibility-description
+                >
+                  {roomVisibility === "public"
+                    ? copy.roomEntry.publicGameDescription
+                    : copy.roomEntry.privateGameDescription}
+                </p>
 
                 {roomVisibility === "private" ? (
                   <LabeledField
