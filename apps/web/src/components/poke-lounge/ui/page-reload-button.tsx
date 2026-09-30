@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,10 +50,12 @@ export function PageReloadButton({
   locale,
   disabled = false,
   confirmBeforeReload = false,
+  iconOnly = false,
 }: {
   locale: PokeLoungeLocale;
   disabled?: boolean;
   confirmBeforeReload?: boolean;
+  iconOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -71,13 +74,18 @@ export function PageReloadButton({
         ref={trigger}
         type="button"
         variant="outline"
-        className="min-h-11 gap-1.5 rounded-md border-2 border-[#304c3a] bg-[#fffef3] px-3 py-2 text-sm font-extrabold text-[#17201a] shadow-none touch-manipulation hover:bg-[#fff4c2] focus-visible:border-[#304c3a] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-[#ffcf55] focus-visible:outline-offset-2 disabled:cursor-default disabled:opacity-60"
+        className={
+          "min-h-11 gap-1.5 rounded-md border-2 border-[#304c3a] bg-[#fffef3] py-2 text-sm font-extrabold text-[#17201a] shadow-none touch-manipulation hover:bg-[#fff4c2] focus-visible:border-[#304c3a] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-[#ffcf55] focus-visible:outline-offset-2 disabled:cursor-default disabled:opacity-60 " +
+          (iconOnly ? "size-11! shrink-0 px-0!" : "px-3")
+        }
         disabled={disabled || pending}
+        aria-label={iconOnly ? text.label : undefined}
+        title={iconOnly ? text.label : undefined}
         data-poke-lounge-page-reload
         onClick={() => (confirmBeforeReload ? setOpen(true) : reload())}
       >
-        <span aria-hidden="true">↻</span>
-        {text.label}
+        <RefreshCw className="size-4" aria-hidden="true" />
+        {iconOnly ? null : text.label}
       </Button>
       {confirmBeforeReload ? (
         <AlertDialog open={open} onOpenChange={setOpen}>

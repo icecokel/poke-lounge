@@ -362,11 +362,16 @@ function RoomEntryScreen({
               <h1>{copy.roomEntry.roomSelectionTitle}</h1>
               <p>{copy.roomEntry.roomSelectionDescription}</p>
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button type="button" disabled={pending} onClick={handleBackToProfile}>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="min-w-0 flex-1"
+                disabled={pending}
+                onClick={handleBackToProfile}
+              >
                 {copy.roomEntry.roomSetupBack}
               </button>
-              <PageReloadButton locale={copy.locale} disabled={pending} />
+              <PageReloadButton locale={copy.locale} disabled={pending} iconOnly />
             </div>
           </header>
         )}
