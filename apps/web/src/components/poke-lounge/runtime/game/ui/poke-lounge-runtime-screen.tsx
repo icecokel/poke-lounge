@@ -473,12 +473,12 @@ function RoomEntryScreen({
 
         {entryStep === "rooms" && !state.localTestMode?.active ? (
           <section
-            className="grid gap-4"
+            className="grid gap-3"
             data-room-entry-mode="multiplayer"
             data-room-entry-room-step
           >
             <div
-              className="grid grid-cols-2 gap-2 rounded-lg border-2 border-[#17231c] bg-[#dfe8dc] p-1.5"
+              className="grid grid-cols-2 border-b-2 border-[#17231c]"
               role="tablist"
               aria-label={copy.roomEntry.title}
               data-room-entry-tabs
@@ -491,10 +491,10 @@ function RoomEntryScreen({
                 aria-controls="poke-lounge-room-create-panel"
                 disabled={pending}
                 className={
-                  "flex min-h-12! items-center justify-center gap-2 text-sm " +
+                  "relative -mb-0.5 flex min-h-11! items-center justify-center gap-2 rounded-none! border-0! border-b-4! px-3! text-sm shadow-none! transition-colors " +
                   (entryPanel === "create"
-                    ? "bg-[#f4cf58]! shadow-[inset_6px_0_#c9534c,0_3px_0_#17231c]!"
-                    : "bg-[#f7f8ed]!")
+                    ? "border-b-[#c9534c]! bg-[#fff8dc]! text-[#17201a]!"
+                    : "border-b-transparent! bg-transparent! text-[#68736c]! hover:bg-[#edf1e8]!")
                 }
                 onClick={() => selectEntryPanel("create")}
                 data-room-entry-create-tab
@@ -510,10 +510,10 @@ function RoomEntryScreen({
                 aria-controls="poke-lounge-room-join-panel"
                 disabled={pending}
                 className={
-                  "flex min-h-12! items-center justify-center gap-2 text-sm " +
+                  "relative -mb-0.5 flex min-h-11! items-center justify-center gap-2 rounded-none! border-0! border-b-4! px-3! text-sm shadow-none! transition-colors " +
                   (entryPanel === "join"
-                    ? "bg-[#d8f0dc]! shadow-[inset_6px_0_#5f8f70,0_3px_0_#17231c]!"
-                    : "bg-[#f7f8ed]!")
+                    ? "border-b-[#5f8f70]! bg-[#eef7ef]! text-[#17201a]!"
+                    : "border-b-transparent! bg-transparent! text-[#68736c]! hover:bg-[#edf1e8]!")
                 }
                 onClick={() => selectEntryPanel("join")}
                 data-room-entry-join-tab
