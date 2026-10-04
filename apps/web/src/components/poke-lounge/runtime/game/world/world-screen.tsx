@@ -106,7 +106,10 @@ export function WorldScreen({
   );
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden bg-[var(--rom-screen-background)] [image-rendering:pixelated]" data-poke-lounge-world-screen="true">
+    <div
+      className="pointer-events-none absolute inset-0 z-30 overflow-hidden bg-[var(--rom-screen-background)] [image-rendering:pixelated]"
+      data-poke-lounge-world-screen="true"
+    >
       <WorldViewport ref={viewportRef} aria-hidden="true">
         <div ref={stageRef} className="absolute inset-0 origin-top-left">
           <WorldMap ref={mapRef} model={model}>
@@ -203,7 +206,11 @@ export function WorldTileLayer({
 }) {
   if (!layer) return null;
   return (
-    <div className="absolute inset-auto size-full" data-world-layer={layer.name} style={{ zIndex: depth }}>
+    <div
+      className="absolute inset-auto size-full"
+      data-world-layer={layer.name}
+      style={{ zIndex: depth }}
+    >
       {layer.tiles.map(function mapItem(tile) {
         return <WorldTile key={tile.key} model={model} tile={tile} />;
       })}
@@ -238,7 +245,11 @@ function WorldGrassLayer({
   tiles: WorldMapTile[];
 }) {
   return (
-    <div className="absolute inset-auto size-full" data-world-layer={name} style={{ zIndex: depth }}>
+    <div
+      className="absolute inset-auto size-full"
+      data-world-layer={name}
+      style={{ zIndex: depth }}
+    >
       {tiles.map(function mapItem(tile) {
         return <WorldTile key={tile.key} model={model} tile={tile} />;
       })}
@@ -268,13 +279,22 @@ export function WorldActorLayer({ children }: { children: React.ReactNode }) {
 }
 
 export const LocalPlayerActor = forwardRef<HTMLDivElement>(function LocalPlayerActor(_, ref) {
-  return <div ref={ref} className="absolute z-20 block size-10 bg-no-repeat [image-rendering:pixelated] [will-change:transform,background-position]" data-world-local-player="true" />;
+  return (
+    <div
+      ref={ref}
+      className="absolute z-20 block size-10 bg-no-repeat [image-rendering:pixelated] [will-change:transform,background-position]"
+      data-world-local-player="true"
+    />
+  );
 });
 
 export const RemotePlayerActor = forwardRef<HTMLDivElement, { displayName: string }>(
   function RemotePlayerActor({ displayName }, ref) {
     return (
-      <div ref={ref} className="absolute z-[19] block size-10 bg-no-repeat [image-rendering:pixelated] [will-change:transform,background-position] [filter:sepia(0.18)_saturate(1.45)_hue-rotate(174deg)_brightness(1.08)]">
+      <div
+        ref={ref}
+        className="absolute z-[19] block size-10 bg-no-repeat [image-rendering:pixelated] [will-change:transform,background-position] [filter:sepia(0.18)_saturate(1.45)_hue-rotate(174deg)_brightness(1.08)]"
+      >
         <PlayerNameLabel>{displayName}</PlayerNameLabel>
       </div>
     );
@@ -282,7 +302,11 @@ export const RemotePlayerActor = forwardRef<HTMLDivElement, { displayName: strin
 );
 
 export function PlayerNameLabel({ children }: { children: React.ReactNode }) {
-  return <span className="absolute bottom-[38px] left-1/2 -translate-x-1/2 px-[3px] py-px font-mono text-[8px] leading-none font-bold whitespace-nowrap text-[#f8fbf0] [text-shadow:-1px_-1px_#17231c,1px_-1px_#17231c,-1px_1px_#17231c,1px_1px_#17231c]">{children}</span>;
+  return (
+    <span className="absolute bottom-[38px] left-1/2 -translate-x-1/2 px-[3px] py-px font-mono text-[8px] leading-none font-bold whitespace-nowrap text-[#f8fbf0] [text-shadow:-1px_-1px_#17231c,1px_-1px_#17231c,-1px_1px_#17231c,1px_1px_#17231c]">
+      {children}
+    </span>
+  );
 }
 
 export function NpcActor({ npc }: { npc: WorldMapNpcModel }) {
@@ -318,7 +342,11 @@ export const WorldBattleTransition = forwardRef<
   }
 >(function WorldBattleTransition({ registerStripe, viewport }, ref) {
   return (
-    <div ref={ref} className="absolute inset-0 overflow-hidden bg-[#101820] opacity-0" data-world-battle-transition="true">
+    <div
+      ref={ref}
+      className="absolute inset-0 overflow-hidden bg-[#101820] opacity-0"
+      data-world-battle-transition="true"
+    >
       {createBattleIntroStripes({
         width: viewport.width,
         height: viewport.height,

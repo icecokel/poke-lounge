@@ -48,7 +48,10 @@ export function TournamentBracketPanel({
   const me = copy.locale === "ko-KR" ? "나" : copy.locale === "ja-JP" ? "自分" : "YOU";
 
   const ownPosition = (
-    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-[5px] border-2 border-[#9ae8ff] bg-[#153e56] px-3 py-[9px] text-left text-sm text-white [overflow-wrap:anywhere] [&>b]:rounded-[3px] [&>b]:bg-[#9ae8ff] [&>b]:px-[7px] [&>b]:py-[3px] [&>b]:text-[#082733] [&>span]:basis-full [&>span]:text-xs" data-poke-lounge-own-position>
+    <div
+      className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-[5px] border-2 border-[#9ae8ff] bg-[#153e56] px-3 py-[9px] text-left text-sm text-white [overflow-wrap:anywhere] [&>b]:rounded-[3px] [&>b]:bg-[#9ae8ff] [&>b]:px-[7px] [&>b]:py-[3px] [&>b]:text-[#082733] [&>span]:basis-full [&>span]:text-xs"
+      data-poke-lounge-own-position
+    >
       <b>{me}</b>
       <strong>{localizeTrainerName(ownName ?? me, copy.locale)}</strong>
       <span>
@@ -119,7 +122,10 @@ export function TournamentBracketPanel({
             side="left"
             single={finalOnly}
           />
-          <div className="relative grid min-w-0 content-center justify-items-center gap-0.5 text-[var(--pl-color-gold)] before:absolute before:top-1/2 before:right-0 before:left-0 before:border-t-2 before:border-[var(--pl-color-gold)] before:content-[''] [&>span]:z-[1] [&>span]:bg-[var(--pl-color-ink)] [&>span]:px-[5px] [&>span]:py-0.5 [&>span]:text-[28px] [&>span]:leading-none [&>strong]:z-[1] [&>strong]:bg-[var(--pl-color-ink)] [&>strong]:px-[5px] [&>strong]:py-0.5 [&>strong]:text-[9px]" data-bracket-stage="final">
+          <div
+            className="relative grid min-w-0 content-center justify-items-center gap-0.5 text-[var(--pl-color-gold)] before:absolute before:top-1/2 before:right-0 before:left-0 before:border-t-2 before:border-[var(--pl-color-gold)] before:content-[''] [&>span]:z-[1] [&>span]:bg-[var(--pl-color-ink)] [&>span]:px-[5px] [&>span]:py-0.5 [&>span]:text-[28px] [&>span]:leading-none [&>strong]:z-[1] [&>strong]:bg-[var(--pl-color-ink)] [&>strong]:px-[5px] [&>strong]:py-0.5 [&>strong]:text-[9px]"
+            data-bracket-stage="final"
+          >
             <span aria-hidden="true">🏆</span>
             <strong>{copy.game.final}</strong>
           </div>
@@ -171,7 +177,11 @@ function TournamentBracketSide({
             return participant.playerId === ownPlayerId;
           });
           return (
-            <li className="group/pair grid min-w-0 content-around gap-0.5" key={`${side}-${pair.id}`} data-own-match={ownMatch || undefined}>
+            <li
+              className="group/pair grid min-w-0 content-around gap-0.5"
+              key={`${side}-${pair.id}`}
+              data-own-match={ownMatch || undefined}
+            >
               {pair.participants.map(function mapParticipant(participant) {
                 return (
                   <span
@@ -200,7 +210,9 @@ function TournamentBracketSide({
                 );
               })}
               {pair.bye ? (
-                <span className="grid min-h-[22px] min-w-0 place-items-center border-2 border-[var(--pl-color-shadow)] bg-[var(--pl-color-surface-raised)] text-[8px] text-[var(--pl-color-ink-muted)] shadow-[0_2px_0_rgb(0_0_0_/_34%)] min-[769px]:text-xs">{copy.game.bye}</span>
+                <span className="grid min-h-[22px] min-w-0 place-items-center border-2 border-[var(--pl-color-shadow)] bg-[var(--pl-color-surface-raised)] text-[8px] text-[var(--pl-color-ink-muted)] shadow-[0_2px_0_rgb(0_0_0_/_34%)] min-[769px]:text-xs">
+                  {copy.game.bye}
+                </span>
               ) : null}
             </li>
           );
