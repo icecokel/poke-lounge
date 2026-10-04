@@ -48,7 +48,7 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         ],
         battle: [
           { action: "기술 실행", keys: "싸운다 → 기술 터치" },
-          { action: "아이템", keys: "가방 → 아이템 선택 → 사용" },
+          { action: "아이템", keys: "가방 → 아이템 → 대상 선택" },
           { action: "교체", keys: "포켓몬 선택 → 교체 확인" },
           { action: "뒤로", keys: "뒤로 버튼" },
         ],
@@ -61,8 +61,8 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         party: "↑↓ 대상 · Enter 사용 · Esc 뒤로 · I 닫기",
       },
       touch: {
-        items: "아이템 터치 · 사용 버튼 · 뒤로",
-        party: "대상 터치 · 사용 버튼 · 뒤로",
+        items: "아이템 터치 → 대상 터치 · 뒤로",
+        party: "대상 터치 즉시 사용 · 뒤로",
       },
     },
     pc: {
@@ -101,7 +101,7 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         ],
         battle: [
           { action: "Use a move", keys: "Fight → tap a move" },
-          { action: "Item", keys: "Bag → select item → use" },
+          { action: "Item", keys: "Bag → item → target" },
           { action: "Switch", keys: "Select Pokémon → confirm switch" },
           { action: "Back", keys: "Back button" },
         ],
@@ -114,8 +114,8 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         party: "↑↓ Target · Enter use · Esc back · I close",
       },
       touch: {
-        items: "Tap item · Use button · Back",
-        party: "Tap target · Use button · Back",
+        items: "Tap item → tap target · Back",
+        party: "Tap target to use · Back",
       },
     },
     pc: {
@@ -154,7 +154,7 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         ],
         battle: [
           { action: "技を使う", keys: "たたかう → 技をタップ" },
-          { action: "道具", keys: "バッグ → 道具選択 → 使用" },
+          { action: "道具", keys: "バッグ → 道具 → 対象選択" },
           { action: "交代", keys: "ポケモン選択 → 交代確認" },
           { action: "戻る", keys: "戻るボタン" },
         ],
@@ -167,8 +167,8 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         party: "↑↓ 対象 · Enter 使用 · Esc 戻る · I 閉じる",
       },
       touch: {
-        items: "道具をタップ · 使用ボタン · 戻る",
-        party: "対象をタップ · 使用ボタン · 戻る",
+        items: "道具をタップ → 対象をタップ · 戻る",
+        party: "対象をタップして即使用 · 戻る",
       },
     },
     pc: {

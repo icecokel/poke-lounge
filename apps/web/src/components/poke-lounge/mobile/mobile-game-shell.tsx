@@ -538,28 +538,10 @@ export function MobileWorldScreen({
     content = <MobileWorldHelpScreen copy={copy} state={state} />;
   } else if (state.screen === "inventory-items") {
     content = <MobileInventoryItemList copy={copy} onAction={onAction} state={state} />;
-    footer = (
-      <MobileWorldSceneFooter
-        copy={copy}
-        onBack={back}
-        onConfirm={function handleConfirm() {
-          return onAction({ type: "use-inventory-item" });
-        }}
-        confirmLabel={copy.mobile.use}
-      />
-    );
+    footer = <MobileWorldSceneFooter copy={copy} onBack={back} />;
   } else if (state.screen === "inventory-party") {
     content = <MobileInventoryPartyTarget onAction={onAction} state={state} />;
-    footer = (
-      <MobileWorldSceneFooter
-        copy={copy}
-        onBack={back}
-        onConfirm={function handleConfirm() {
-          return onAction({ type: "use-inventory-item" });
-        }}
-        confirmLabel={copy.mobile.use}
-      />
-    );
+    footer = <MobileWorldSceneFooter copy={copy} onBack={back} />;
   } else if (state.screen === "inventory-move-replace") {
     content = <MobileInventoryMoveReplacement copy={copy} onAction={onAction} state={state} />;
     footer = null;
@@ -1070,13 +1052,18 @@ function MobileWorldSceneFooter({
 }: {
   backLabel?: string;
   confirmDisabled?: boolean;
-  confirmLabel: string;
+  confirmLabel?: string;
   copy: PokeLoungeCopy;
   onBack(): void;
-  onConfirm(): void;
+  onConfirm?: () => void;
 }) {
   return (
-    <footer className="grid grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] gap-2.5 border-t-[3px] border-[#304550] bg-[#fffdf0] px-[max(16px,env(safe-area-inset-left))] pt-2.5 pb-3">
+    <footer
+      className={cn(
+        "grid gap-2.5 border-t-[3px] border-[#304550] bg-[#fffdf0] px-[max(16px,env(safe-area-inset-left))] pt-2.5 pb-3",
+        onConfirm ? "grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)]" : "grid-cols-1",
+      )}
+    >
       <button
         type="button"
         className="min-h-12 touch-manipulation rounded-[7px] border-2 border-[#456778] bg-[#e1edf0] p-2 text-base font-black text-[#304550] shadow-[0_3px_0_#17231c] active:translate-y-[3px] active:shadow-none data-[selected=true]:bg-[linear-gradient(#5c93ad_50%,#3e708b_50%)] data-[selected=true]:text-[#fffdf0] data-[selected=true]:shadow-[inset_0_-4px_0_#efcb64]"
@@ -1084,14 +1071,16 @@ function MobileWorldSceneFooter({
       >
         ‹ {backLabel ?? copy.mobile.back}
       </button>
-      <button
-        type="button"
-        className="min-h-12 touch-manipulation rounded-[11px] border-2 border-[#17231c] bg-[#e57a55] px-2.5 py-2 text-[0.76rem] font-black text-[#fffdf4] shadow-[0_3px_0_#17231c] active:translate-y-[3px] active:shadow-none disabled:opacity-60"
-        disabled={confirmDisabled}
-        onClick={onConfirm}
-      >
-        {confirmLabel}
-      </button>
+      {onConfirm && confirmLabel ? (
+        <button
+          type="button"
+          className="min-h-12 touch-manipulation rounded-[11px] border-2 border-[#17231c] bg-[#e57a55] px-2.5 py-2 text-[0.76rem] font-black text-[#fffdf4] shadow-[0_3px_0_#17231c] active:translate-y-[3px] active:shadow-none disabled:opacity-60"
+          disabled={confirmDisabled}
+          onClick={onConfirm}
+        >
+          {confirmLabel}
+        </button>
+      ) : null}
     </footer>
   );
 }
@@ -1391,10 +1380,6 @@ function MobileWorldTask({
         <MobileWorldMessage message={state.message} />
       </>
     );
-    confirm = () => onAction({ type: "use-inventory-item" });
-    confirmLabel = copy.mobile.use;
-    summary = item?.name ?? text.chooseItem;
-    disabled = !item || item.disabled || item.count <= 0;
   } else if (state.screen === "inventory-party" || state.screen === "party") {
     const party = state.party.filter(slot => !slot.isEmpty);
     body = (
@@ -1434,12 +1419,6 @@ function MobileWorldTask({
         <MobileWorldMessage message={state.message} />
       </>
     );
-    if (state.screen === "inventory-party") {
-      confirm = () => onAction({ type: "use-inventory-item" });
-      confirmLabel = copy.mobile.use;
-      summary = `${state.selectedItemName} · ${pokemon?.name ?? text.missing}`;
-      disabled = !pokemon;
-    }
   } else if (state.screen === "inventory-move-replace") {
     body = <MobileInventoryMoveReplacement copy={copy} state={state} onAction={onAction} />;
   } else if (state.screen === "shop") {

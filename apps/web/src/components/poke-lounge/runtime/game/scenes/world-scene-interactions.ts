@@ -256,7 +256,8 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       );
       this.inventoryTargetItemId = null;
       this.inventoryMessage = "";
-      this.renderInventoryUi();
+      playBattleConfirmSound();
+      this.confirmInventorySelection();
       return;
     }
 
@@ -316,7 +317,8 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
       this.inventoryPartySlotIndex = action.slotIndex;
       this.inventoryMessage = "";
-      this.renderInventoryUi();
+      playBattleConfirmSound();
+      this.confirmInventorySelection();
       return;
     }
 
