@@ -45,6 +45,7 @@ export function createAuthoritativeEffectSequence(
           status: event.status,
           hit: event.hit,
           damage: event.damage,
+          effectMessage: event.effectMessage,
         },
         targets: {
           [source]: { hp: event.actorHp, status: event.actorStatus },

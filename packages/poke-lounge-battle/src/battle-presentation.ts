@@ -16,6 +16,7 @@ export interface ResolvedAnimationEvent {
   targetHp: number;
   actorStatus: PresentationStatus;
   targetStatus: PresentationStatus;
+  effectMessage?: string;
 }
 export interface ResolvedTurnPresentation {
   turn: number;
@@ -29,6 +30,7 @@ export interface BattleAnimationCue {
   status: PresentationStatus;
   hit: boolean;
   damage: number;
+  effectMessage?: string;
 }
 
 /** Optional visual data is bounded and may be discarded without rejecting valid battle state. */
@@ -86,6 +88,11 @@ export function parseResolvedTurnPresentation(
           e.actorPlayerId !== e.targetPlayerId))
     )
       return undefined;
+    if (
+      e.effectMessage !== undefined &&
+      (typeof e.effectMessage !== "string" || e.effectMessage.length > 160)
+    )
+      return undefined;
     result.push({
       kind: e.kind,
       actorPlayerId: e.actorPlayerId as string,
@@ -100,6 +107,7 @@ export function parseResolvedTurnPresentation(
       targetHp: e.targetHp as number,
       actorStatus: e.actorStatus as PresentationStatus,
       targetStatus: e.targetStatus as PresentationStatus,
+      ...(e.effectMessage ? { effectMessage: e.effectMessage as string } : {}),
     });
   }
   return { turn: v.turn as number, events: result };

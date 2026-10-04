@@ -157,23 +157,36 @@ function applyFrame(
     };
   }
   const events: ResolvedAnimationEvent[] = frame.steps
-    .filter(s => s.kind !== "message")
+    .map((step, index) => ({ step, index }))
+    .filter(({ step }) => step.kind !== "message")
     .slice(0, 64)
-    .map(s => ({
-      kind: s.kind as "move" | "status",
-      actorPlayerId: ids[s.actorSide],
-      targetPlayerId: ids[s.targetSide],
-      actorSlotIndex: s.actorSlotIndex,
-      targetSlotIndex: s.targetSlotIndex,
-      moveId: s.moveId,
-      status: s.kind === "move" ? "normal" : s.targetSide === 0 ? s.playerStatus : s.opponentStatus,
-      hit: s.hit,
-      damage: s.damage,
-      actorHp: s.actorSide === 0 ? s.playerHp : s.opponentHp,
-      targetHp: s.targetSide === 0 ? s.playerHp : s.opponentHp,
-      actorStatus: s.actorSide === 0 ? s.playerStatus : s.opponentStatus,
-      targetStatus: s.targetSide === 0 ? s.playerStatus : s.opponentStatus,
-    }));
+    .map(({ step: s, index }) => {
+      const effectMessages: string[] = [];
+      if (s.kind === "move" && COMPETITIVE_MOVE_CATALOG[s.moveId]?.category === "status") {
+        for (const next of frame.steps.slice(index + 1)) {
+          if (next.kind !== "message" || effectMessages.length === 2) break;
+          effectMessages.push(next.text);
+        }
+      }
+      const effectMessage = effectMessages.join(" ").slice(0, 160);
+      return {
+        kind: s.kind as "move" | "status",
+        actorPlayerId: ids[s.actorSide],
+        targetPlayerId: ids[s.targetSide],
+        actorSlotIndex: s.actorSlotIndex,
+        targetSlotIndex: s.targetSlotIndex,
+        moveId: s.moveId,
+        status:
+          s.kind === "move" ? "normal" : s.targetSide === 0 ? s.playerStatus : s.opponentStatus,
+        hit: s.hit,
+        damage: s.damage,
+        actorHp: s.actorSide === 0 ? s.playerHp : s.opponentHp,
+        targetHp: s.targetSide === 0 ? s.playerHp : s.opponentHp,
+        actorStatus: s.actorSide === 0 ? s.playerStatus : s.opponentStatus,
+        targetStatus: s.targetSide === 0 ? s.playerStatus : s.opponentStatus,
+        ...(effectMessage ? { effectMessage } : {}),
+      };
+    });
   return {
     ...previous,
     rulesetVersion: 3,

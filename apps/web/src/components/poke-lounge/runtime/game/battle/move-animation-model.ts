@@ -67,9 +67,11 @@ export function getBattleEffectTiming(cue: BattleAnimationCue) {
   const special = getMoveAnimationProfile(cue).windup !== "none";
   return cue.kind === "status"
     ? { durationMs: BATTLE_STATUS_EFFECT_DURATION_MS, impact: 0.1 }
-    : special
-      ? { durationMs: BATTLE_SPECIAL_EFFECT_DURATION_MS, impact: 0.52 }
-      : { durationMs: BATTLE_DEFAULT_EFFECT_DURATION_MS, impact: 0.3 };
+    : cue.effectMessage
+      ? { durationMs: Math.max(BATTLE_SPECIAL_EFFECT_DURATION_MS, 2_100), impact: 0.3 }
+      : special
+        ? { durationMs: BATTLE_SPECIAL_EFFECT_DURATION_MS, impact: 0.52 }
+        : { durationMs: BATTLE_DEFAULT_EFFECT_DURATION_MS, impact: 0.3 };
 }
 export function getEffectPhase(effect: ActiveBattleEffect): "windup" | "strike" | "recovery" {
   const { impact } = getBattleEffectTiming(effect.cue);

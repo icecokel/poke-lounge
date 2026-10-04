@@ -2223,6 +2223,7 @@ export class BattleController {
     const timing = getBattleEffectTiming(entry.cue);
     const generation = this.sceneGeneration;
     let impacted = false;
+    let effectMessageShown = false;
     const tween = animateRuntimeValue({
       duration: timing.durationMs,
       onUpdate: progress => {
@@ -2245,6 +2246,10 @@ export class BattleController {
           )
             this.authoritativeHitTargets.add(entry.cue.target);
           this.syncDisplayedHpTargets({ animateHpDecrease: true });
+        }
+        if (!effectMessageShown && entry.cue.effectMessage && progress >= 0.3) {
+          effectMessageShown = true;
+          this.render();
         }
         this.animationFrameUpdateCount += 1;
         this.publishBattlePresentationState();
@@ -3012,7 +3017,9 @@ export class BattleController {
       if (cue.kind === "status" && cue.damage === 0 && cue.status !== "paralyzed")
         return cue.status === "poisoned" ? `${name}은 독에 걸렸다!` : `${name}은 화상을 입었다!`;
       return cue.kind === "move"
-        ? `${name}의 ${getRuntimeMoveName(cue.moveId)}!`
+        ? cue.effectMessage && this.activeBattleEffect.progress >= 0.3
+          ? cue.effectMessage
+          : `${name}의 ${getRuntimeMoveName(cue.moveId)}!`
         : cue.status === "poisoned"
           ? `${name}은 독에 의한 데미지를 입었다!`
           : cue.status === "burned"

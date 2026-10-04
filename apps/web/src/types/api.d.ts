@@ -610,6 +610,7 @@ export interface components {
       actorSlotIndex: number;
       targetSlotIndex: number;
       moveId: number;
+      effectMessage?: string;
       /** @enum {string} */
       status:
         | "normal"

@@ -132,6 +132,7 @@ class CompetitiveAnimationEventDto {
   @ApiProperty({ minimum: 0, maximum: 5 }) actorSlotIndex!: number;
   @ApiProperty({ minimum: 0, maximum: 5 }) targetSlotIndex!: number;
   @ApiProperty({ minimum: 0, maximum: 470 }) moveId!: number;
+  @ApiPropertyOptional({ maxLength: 160 }) effectMessage?: string;
   @ApiProperty({
     enum: [
       'normal',
