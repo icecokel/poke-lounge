@@ -24,10 +24,6 @@ export interface RemotePlayerPokemonSummary {
   level: number;
 }
 
-export interface PlayerWallet {
-  pokeDollars: number;
-}
-
 export type PlayerInventory = Record<string, number>;
 
 export interface PlayerCompetitiveStats {
@@ -45,7 +41,6 @@ export interface LocalPlayerState {
   party: Array<PlayerPokemonSlot<PlayerPokemon>>;
   pokemonBox: PlayerPokemon[];
   activePartySlotIndex: number;
-  wallet: PlayerWallet;
   inventory: PlayerInventory;
   competitive: PlayerCompetitiveStats;
   guide: PlayerGuideState;
@@ -99,28 +94,11 @@ export type GameStateListener = (state: GameState) => void;
 
 export type GameStateUnsubscribe = () => void;
 
-export interface ShopItem {
+export interface InventoryItemDetails {
   id: string;
   displayName: string;
-  price: number;
   description: string;
 }
-
-export type BuyShopItemResult =
-  | { ok: true }
-  | {
-      ok: false;
-      reason: "unknown-item" | "invalid-quantity" | "insufficient-funds";
-    };
-
-export interface DiceGambleSettlementInput {
-  stakePokeDollars: number;
-  rewardPokeDollars: number;
-}
-
-export type DiceGambleSettlementResult =
-  | { ok: true; walletPokeDollars: number }
-  | { ok: false; reason: "invalid-stake" | "invalid-reward" | "insufficient-funds" };
 
 export type ConsumeInventoryItemResult =
   { ok: true } | { ok: false; reason: "invalid-quantity" | "insufficient-quantity" };
@@ -228,11 +206,8 @@ export interface GameStateStore {
   hydrateLocalPlayers(localPlayers: LocalPlayersSaveState): void;
   setCurrentPlayer(playerId: string): void;
   upsertLocalPlayer(localPlayer: LocalPlayerState): void;
-  setLocalPlayerPokeDollars(pokeDollars: number): void;
   setLocalPlayerCompetitiveStats(stats: PlayerCompetitiveStats): void;
   markCurrentLocalPlayerShortcutGuideViewed(): void;
-  buyShopItem(itemId: string, quantity: number): BuyShopItemResult;
-  buyPremiumShopItem(itemId: string, quantity: number): BuyShopItemResult;
   consumeInventoryItem(itemId: string, quantity: number): ConsumeInventoryItemResult;
   useInventoryItemOnPartySlot(itemId: string, slotIndex: number): UseInventoryItemOnPartySlotResult;
   resolveInventoryItemMoveReplacements(
@@ -241,7 +216,6 @@ export interface GameStateStore {
     decisions: ReadonlyArray<number | null>,
   ): UseInventoryItemOnPartySlotResult;
   healCurrentParty(): void;
-  settleDiceGambleResult(input: DiceGambleSettlementInput): DiceGambleSettlementResult;
   setStarterPokemon(pokemon: PlayerPokemon): void;
   updateActivePokemon(pokemon: PlayerPokemon): void;
   addPokemonToParty(pokemon: PlayerPokemon): AddPokemonToPartyResult;

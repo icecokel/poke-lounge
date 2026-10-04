@@ -18,7 +18,7 @@ import {
   localizeRuntimeText,
 } from "../runtime/game/i18n/runtime-game-localization";
 import { primePokeLoungeAudio } from "../runtime/game/audio/poke-lounge-audio";
-import { getShopItemById } from "../runtime/game/state/game-state-store";
+import { getInventoryItemById } from "../runtime/game/state/game-state-store";
 import { OpponentPartyIndicator } from "../runtime/game/battle/opponent-party-indicator";
 import { MobileTaskScreen } from "./mobile-task-screen";
 import { MobileItemRow, MobilePokemonCard, MobilePokemonThumbnail } from "./mobile-selection-cards";
@@ -599,7 +599,7 @@ export function MobileBattleBagDeck(props: DeckProps) {
             name={item.name}
             count={item.count}
             description={localizeRuntimeText(
-              getShopItemById(item.id)?.description ?? "",
+              getInventoryItemById(item.id)?.description ?? "",
               copy.locale,
             )}
             selected={selection.candidate?.identity === item.id}

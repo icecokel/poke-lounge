@@ -138,7 +138,7 @@ import {
 import type { RuntimeKeyboard } from "../runtime-input";
 import { getDefaultGameStateStore } from "../state/default-game-state-store";
 import {
-  getShopItemById,
+  getInventoryItemById,
   resolvePlayerDisplayName,
   type GameStateStore,
   type LocalPlayerState,
@@ -884,7 +884,7 @@ export class BattleController {
         this.authoritativeInputPending ||
         this.shortcutGuideOpen,
       itemTargetName: this.state.pendingBattleItemId
-        ? (getShopItemById(this.state.pendingBattleItemId)?.displayName ?? null)
+        ? (getInventoryItemById(this.state.pendingBattleItemId)?.displayName ?? null)
         : null,
       canGoBack:
         this.state.messageQueue.length === 0 &&
@@ -984,7 +984,7 @@ export class BattleController {
           selected: boolean;
           disabled: boolean;
         } {
-          const item = getShopItemById(itemId);
+          const item = getInventoryItemById(itemId);
           const count = inventory[itemId] ?? 0;
 
           return {
@@ -2982,7 +2982,7 @@ export class BattleController {
         : selectionSummary;
     } else if (!queuedMessage && this.state.phase === "bag-select") {
       const itemId = this.getBattleBagItemIds()[this.selectedBagItemIndex];
-      const item = itemId ? getShopItemById(itemId) : undefined;
+      const item = itemId ? getInventoryItemById(itemId) : undefined;
       const quantity = itemId
         ? (this.gameStateStore.getCurrentLocalPlayer().inventory[itemId] ?? 0)
         : 0;

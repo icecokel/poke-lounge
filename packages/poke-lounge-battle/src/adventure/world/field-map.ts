@@ -61,21 +61,6 @@ export const FIELD_MAP = {
       textureKey: "field-npc-nurse",
       imageUrl: "/assets/poke-lounge/textures/a_0_8_1_0133/pcwoman1_5.png",
     },
-    shopkeeper: {
-      ...FIELD_NPC_BASE,
-      textureKey: "field-npc-shopkeeper",
-      imageUrl: "/assets/poke-lounge/textures/a_0_8_1_0132/shopm1_5.png",
-    },
-    premiumShopkeeper: {
-      ...FIELD_NPC_BASE,
-      textureKey: "field-npc-premium-shopkeeper",
-      imageUrl: "/assets/poke-lounge/textures/a_0_8_1_0039/gentleman_5.png",
-    },
-    gamehost: {
-      ...FIELD_NPC_BASE,
-      textureKey: "field-npc-gamehost",
-      imageUrl: "/assets/poke-lounge/textures/a_0_8_1_0184/mania_5.png",
-    },
     soloChallenger: {
       ...FIELD_NPC_BASE,
       textureKey: "field-npc-solo-challenger",

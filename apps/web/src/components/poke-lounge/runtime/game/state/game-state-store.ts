@@ -1,6 +1,5 @@
 import type {
   ApplyTournamentCompletedFromRoomInput,
-  BuyShopItemResult,
   CreateGameStateStoreOptions,
   GameState,
   GameStateListener,
@@ -11,15 +10,12 @@ import type {
   PlayerCompetitiveStats,
   PlayerGuideState,
   PlayerInventory,
-  PlayerWallet,
 } from "@/features/poke-lounge/contracts/game-state";
-import { purchaseItem } from "@/features/poke-lounge/domain/inventory/purchase-item";
 import * as playerOperations from "@/features/poke-lounge/domain/player/operations";
 import type { PlayerChange } from "@/features/poke-lounge/domain/player/player-change";
 import {
   healLocalPlayer,
   isValidPartySlotIndex,
-  normalizePokeDollars,
 } from "@/features/poke-lounge/domain/player/player-helpers";
 import type { PlayerPokemon } from "@poke-lounge/battle/adventure/player/pokemon-types";
 import type { TournamentParticipant } from "@poke-lounge/battle/tournament-bracket";
@@ -31,7 +27,6 @@ import {
   type TournamentRoundScore,
 } from "@poke-lounge/battle/tournament-scoring";
 import { isSupportedPokemonSpeciesId } from "../battle/pokemon-species";
-import { getRuntimeShopItemIds, hasRuntimeShopItemIds } from "../items/runtime-items";
 import {
   findCurrentMatch,
   type TournamentStateRoomPayload,
@@ -58,11 +53,8 @@ export type {
   ApplyTournamentRoomEventResult,
   ApplyTournamentSnapshotFromRoomResult,
   ApplyTournamentStartedFromRoomInput,
-  BuyShopItemResult,
   ConsumeInventoryItemResult,
   CreateGameStateStoreOptions,
-  DiceGambleSettlementInput,
-  DiceGambleSettlementResult,
   GameState,
   GameStateListener,
   GameStateStorage,
@@ -77,19 +69,18 @@ export type {
   PlayerCompetitiveStats,
   PlayerGuideState,
   PlayerInventory,
-  PlayerWallet,
   RecordTournamentMatchResultResult,
   RemotePlayerPokemonSummary,
   RemotePlayerState,
   ReplacePokemonMoveResult,
   SetActivePartySlotResult,
-  ShopItem,
+  InventoryItemDetails,
   StartTournamentSessionResult,
   SwapPartyPokemonWithBoxResult,
   UpdatePokemonInPartySlotResult,
   UseInventoryItemOnPartySlotResult,
 } from "@/features/poke-lounge/contracts/game-state";
-export { getShopItemById } from "@/features/poke-lounge/domain/inventory/item-catalog";
+export { getInventoryItemById } from "@/features/poke-lounge/domain/inventory/item-catalog";
 export { healLocalPlayer } from "@/features/poke-lounge/domain/player/player-helpers";
 export type {
   PlayerPokemon,
@@ -179,13 +170,6 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
     return change.result;
   };
 
-  const buyItemFromCatalog = (
-    itemIds: readonly string[],
-    itemId: string,
-    quantity: number,
-  ): BuyShopItemResult =>
-    commitPlayerChange(purchaseItem(getCurrentLocalPlayer(state), itemIds, itemId, quantity));
-
   return {
     getState() {
       return state;
@@ -227,17 +211,6 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
     upsertLocalPlayer(localPlayer) {
       setCurrentLocalPlayer(localPlayer);
     },
-    setLocalPlayerPokeDollars(pokeDollars) {
-      const localPlayer = getCurrentLocalPlayer(state);
-
-      setCurrentLocalPlayer({
-        ...localPlayer,
-        wallet: {
-          ...localPlayer.wallet,
-          pokeDollars: normalizePokeDollars(pokeDollars),
-        },
-      });
-    },
     setLocalPlayerCompetitiveStats(stats) {
       const localPlayer = getCurrentLocalPlayer(state);
 
@@ -260,18 +233,6 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
           shortcutGuideViewed: true,
         },
       });
-    },
-    buyShopItem(itemId, quantity) {
-      if (!hasRuntimeShopItemIds("basic")) {
-        return { ok: false, reason: "unknown-item" };
-      }
-      return buyItemFromCatalog(getRuntimeShopItemIds("basic"), itemId, quantity);
-    },
-    buyPremiumShopItem(itemId, quantity) {
-      if (!hasRuntimeShopItemIds("premium")) {
-        return { ok: false, reason: "unknown-item" };
-      }
-      return buyItemFromCatalog(getRuntimeShopItemIds("premium"), itemId, quantity);
     },
     consumeInventoryItem(...args: Parameters<GameStateStore["consumeInventoryItem"]>) {
       return commitPlayerChange(
@@ -298,11 +259,6 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
     healCurrentParty(...args: Parameters<GameStateStore["healCurrentParty"]>) {
       return commitPlayerChange(
         playerOperations.healCurrentParty(getCurrentLocalPlayer(state), ...args),
-      );
-    },
-    settleDiceGambleResult(...args: Parameters<GameStateStore["settleDiceGambleResult"]>) {
-      return commitPlayerChange(
-        playerOperations.settleDiceGambleResult(getCurrentLocalPlayer(state), ...args),
       );
     },
     setStarterPokemon(...args: Parameters<GameStateStore["setStarterPokemon"]>) {
@@ -884,7 +840,6 @@ export function createDefaultLocalPlayer(playerId = "player-1"): LocalPlayerStat
     party: createEmptyParty(),
     pokemonBox: [],
     activePartySlotIndex: 0,
-    wallet: createDefaultPlayerWallet(),
     inventory: createDefaultPlayerInventory(),
     competitive: createDefaultCompetitiveStats(),
     guide: createDefaultPlayerGuideState(),
@@ -907,12 +862,6 @@ export function createDefaultCompetitiveStats(): PlayerCompetitiveStats {
 export function createDefaultPlayerGuideState(): PlayerGuideState {
   return {
     shortcutGuideViewed: false,
-  };
-}
-
-export function createDefaultPlayerWallet(): PlayerWallet {
-  return {
-    pokeDollars: 0,
   };
 }
 
@@ -998,11 +947,6 @@ function ensureLocalPlayerDefaults(localPlayer: LocalPlayerState): LocalPlayerSt
       })?.slotIndex ??
       party[0]?.slotIndex ??
       0,
-    wallet: {
-      ...createDefaultPlayerWallet(),
-      ...(localPlayer.wallet ?? {}),
-      pokeDollars: normalizePokeDollars(localPlayer.wallet?.pokeDollars ?? 0),
-    },
     inventory: normalizeInventory(localPlayer.inventory ?? createDefaultPlayerInventory()),
     pokemonBox: normalizePokemonBox(localPlayer.pokemonBox),
     competitive: normalizeCompetitiveStats(

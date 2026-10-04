@@ -141,17 +141,6 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
     "en-US": "All of your Pokémon are fully healed.",
     "ja-JP": "ポケモンはみんな元気になりました。",
   },
-  "상품을 불러오는 중…": { "en-US": "Loading items…", "ja-JP": "商品を読み込んでいます…" },
-  "판매 목록을 불러오지 못했다. 상점을 닫고 다시 시도해 주세요.": {
-    "en-US": "The item list couldn't be loaded. Close the shop and try again.",
-    "ja-JP": "商品一覧を読み込めませんでした。店を閉じてもう一度お試しください。",
-  },
-  "아직 살 수 있는 상품이 없다.": {
-    "en-US": "There are no items available to buy yet.",
-    "ja-JP": "まだ購入できる商品がありません。",
-  },
-  "돈이 부족하다.": { "en-US": "You don't have enough money.", "ja-JP": "お金が足りません。" },
-  "구매할 수 없다.": { "en-US": "You can't buy that.", "ja-JP": "購入できません。" },
   "사용할 아이템이 없다.": {
     "en-US": "There are no usable items.",
     "ja-JP": "使えるどうぐがありません。",
@@ -222,16 +211,9 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
   "사용할 포켓몬": { "en-US": "Choose a Pokémon", "ja-JP": "使うポケモン" },
   가방: { "en-US": "Bag", "ja-JP": "バッグ" },
   "PC 박스": { "en-US": "PC Box", "ja-JP": "PCボックス" },
-  "주사위 겜블": { "en-US": "Dice game", "ja-JP": "サイコロゲーム" },
   파티: { "en-US": "Party", "ja-JP": "手持ち" },
-  "기본 상점": { "en-US": "Poké Mart", "ja-JP": "フレンドリィショップ" },
-  "희귀 상점": { "en-US": "Rare shop", "ja-JP": "レアショップ" },
-  상점: { "en-US": "Shop", "ja-JP": "ショップ" },
   "파티 회복": { "en-US": "Heal party", "ja-JP": "手持ちを回復" },
   "솔로 챌린지": { "en-US": "Solo challenge", "ja-JP": "ソロチャレンジ" },
-  낮다: { "en-US": "Lower", "ja-JP": "小さい" },
-  같다: { "en-US": "Equal", "ja-JP": "同じ" },
-  높다: { "en-US": "Higher", "ja-JP": "大きい" },
   "준비 시간이 끝났습니다": {
     "en-US": "Preparation time is over",
     "ja-JP": "準備時間が終了しました",
@@ -449,16 +431,6 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name, amount) => `${name}は経験値を${amount}もらった！`,
   ),
   pattern(
-    /^(.+) 경험치 (\d+)과 (.+)[을를] 얻었다!$/,
-    (_, name, amount, money) => `${name} gained ${amount} Exp. Points and ${money}!`,
-    (_, name, amount, money) => `${name}は経験値${amount}と${money}をもらった！`,
-  ),
-  pattern(
-    /^(₽ .+)[을를] 얻었다!$/,
-    (_, money) => `Received ${money}!`,
-    (_, money) => `${money}を手に入れた！`,
-  ),
-  pattern(
     /^(.+)[은는] Lv\.(\d+)(?:이\(가\)|[이가]) 되었다!$/,
     (_, name, level) => `${name} grew to Lv.${level}!`,
     (_, name, level) => `${name}はLv.${level}になった！`,
@@ -533,19 +505,9 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (match, name, move) => (catalog.moves[move] ? `${name}の${move}！` : match),
   ),
   pattern(
-    /^구매 완료: (.+)$/,
-    (_, item) => `Purchase complete: ${item}`,
-    (_, item) => `購入完了: ${item}`,
-  ),
-  pattern(
     /^포획 성공: (.+)$/,
     (_, name) => `Caught: ${name}`,
     (_, name) => `捕獲成功: ${name}`,
-  ),
-  pattern(
-    /^(.+)[을를] 구매했다\.$/,
-    (_, item) => `Bought ${item}.`,
-    (_, item) => `${item}を購入しました。`,
   ),
   pattern(
     /^(.+)[을를] 사용할 대상을 선택해라\.$/,
@@ -613,7 +575,7 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name) => `${name}に進化した！`,
   ),
   pattern(
-    /^(.+) · (기본 상점|희귀 상점|PC 박스|파티 회복|솔로 챌린지|주사위 겜블)$/,
+    /^(.+) · (PC 박스|파티 회복|솔로 챌린지)$/,
     (_, key, action) =>
       `${localizeRuntimeText(key, "en-US")} · ${localizeRuntimeText(action, "en-US")}`,
     (_, key, action) =>
@@ -944,15 +906,6 @@ export function localizeMobileWorldUiState(
           moves: state.moveReplacement.moves.map(move => ({
             ...move,
             name: localizeMoveName(move.name, locale),
-          })),
-        }
-      : null,
-    dice: state.dice
-      ? {
-          ...state.dice,
-          options: state.dice.options.map(option => ({
-            ...option,
-            label: localizeRuntimeText(option.label, locale),
           })),
         }
       : null,

@@ -303,7 +303,6 @@ export class WorldController {
     this.applyReturnedTournamentResult(data);
     if (!this.competitiveRoundsEnabled) this.gameStateStore.resetCompetitiveSession();
     playPokeLoungeBgm("field-day");
-    this.createCurrencyHud();
     this.createRankScoreHud();
     if (this.competitiveRoundsEnabled) {
       this.createRoundHud(
@@ -406,10 +405,6 @@ export class WorldController {
 
   private getViewportSize(): { width: number; height: number } {
     return resolveGameViewportSize(this.viewportSize);
-  }
-
-  private createCurrencyHud(): void {
-    this.hud.createCurrencyHud();
   }
 
   private createRankScoreHud(): void {

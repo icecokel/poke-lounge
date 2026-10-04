@@ -18,7 +18,6 @@ import type {
 import { applyInventoryItemEffect } from "../items/inventory-item-effects";
 import { getRuntimeGameItem } from "../items/runtime-items";
 import { BATTLE_PARTY_SLOT_COUNT, syncActivePartyPokemon } from "./battle-party";
-import { calculateWildBattlePokeDollarReward, formatBattlePokeDollars } from "./battle-rewards";
 import { resolveGen4CaptureAttempt } from "./capture-logic";
 import { applyExperienceGain, calculateWildBattleExpGain } from "./experience";
 import { calculateGen4Damage, checkGen4Accuracy, getGen4FixedDamage } from "../../gen4-battle-math";
@@ -384,12 +383,6 @@ function chooseCaptureBallItem(
   });
 
   if (captureAttempt.caught) {
-    const rewardPokeDollars = calculateWildBattlePokeDollarReward({
-      baseExpYield: state.opponent.pokemon.baseExpYield,
-      defeatedLevel: state.opponent.pokemon.level,
-      outcome: "capture",
-    });
-
     return {
       ...state,
       phase: "ended",
@@ -397,9 +390,6 @@ function chooseCaptureBallItem(
       messageQueue: appendBattleEndConfirmMessage([
         `${ball.displayName}을 던졌다!`,
         `${state.opponent.pokemon.name}을 잡았다!`,
-        ...(rewardPokeDollars > 0
-          ? [`${formatBattlePokeDollars(rewardPokeDollars)}을 얻었다!`]
-          : []),
       ]),
       usedInventoryItemId: ball.itemId,
       captureAttempt: {
@@ -413,7 +403,6 @@ function chooseCaptureBallItem(
         reason: "capture",
         capturedPokemon:
           state.mechanicsVersion === 3 ? restoreGen4FieldPokemon(state, 1) : state.opponent.pokemon,
-        rewardPokeDollars,
       },
     };
   }
@@ -1241,16 +1230,10 @@ function withTopicParticle(name: string): string {
 export function formatWildVictoryRewardMessage(
   pokemonName: string,
   experienceGained: number,
-  rewardPokeDollars: number,
 ): string {
   const subject = withTopicParticle(pokemonName);
   const normalizedExperience = Math.max(0, Math.floor(experienceGained));
-
-  if (rewardPokeDollars <= 0) {
-    return `${subject} ${normalizedExperience} 경험치를 얻었다!`;
-  }
-
-  return `${subject} 경험치 ${normalizedExperience}과 ${formatBattlePokeDollars(rewardPokeDollars)}을 얻었다!`;
+  return `${subject} ${normalizedExperience} 경험치를 얻었다!`;
 }
 
 function getTopicParticle(name: string): "은" | "는" {
@@ -1975,14 +1958,6 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
             : experienceMultiplier,
         )
       : null;
-  const wildVictoryRewardPokeDollars =
-    input.state.battleKind === "wild"
-      ? calculateWildBattlePokeDollarReward({
-          baseExpYield: input.opponentPokemon.baseExpYield,
-          defeatedLevel: input.opponentPokemon.level,
-          outcome: "faint",
-        })
-      : 0;
   const resolvedPlayerPokemon = wildVictoryExperience?.pokemon ?? input.playerPokemon;
   const partyExperienceRatio =
     input.state.partyExperienceRatio ?? (input.state.sharePartyExperience ? 1 : 0);
@@ -2005,11 +1980,10 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
       : undefined;
   const wildVictoryRewardMessage = wildVictoryExperience
     ? partyExperience
-      ? `${partyExperienceRatio === 1 ? `팀 전원이 각각 ${wildVictoryExperience.experienceGained} 경험치를 얻었다!` : `${resolvedPlayerPokemon.name}: ${wildVictoryExperience.experienceGained} 경험치 · 나머지 팀원: 각각 ${Math.floor(wildVictoryExperience.experienceGained * partyExperienceRatio)} 경험치를 얻었다!`}${wildVictoryRewardPokeDollars > 0 ? `\n${formatBattlePokeDollars(wildVictoryRewardPokeDollars)}을 얻었다!` : ""}`
+      ? `${partyExperienceRatio === 1 ? `팀 전원이 각각 ${wildVictoryExperience.experienceGained} 경험치를 얻었다!` : `${resolvedPlayerPokemon.name}: ${wildVictoryExperience.experienceGained} 경험치 · 나머지 팀원: 각각 ${Math.floor(wildVictoryExperience.experienceGained * partyExperienceRatio)} 경험치를 얻었다!`}`
       : formatWildVictoryRewardMessage(
           resolvedPlayerPokemon.name,
           wildVictoryExperience.experienceGained,
-          wildVictoryRewardPokeDollars,
         )
     : "";
   const victoryMessages = wildVictoryExperience
@@ -2050,7 +2024,6 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
         ? {
             experienceGained: wildVictoryExperience.experienceGained,
             levelsGained: wildVictoryExperience.levelsGained,
-            rewardPokeDollars: wildVictoryRewardPokeDollars,
           }
         : {}),
     },

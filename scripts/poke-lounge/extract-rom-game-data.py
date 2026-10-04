@@ -103,11 +103,6 @@ EXPECTED_ITEM_NAMES = {
     80: "태양의돌",
     109: "각성의돌",
 }
-SHOP_CATALOGS = {
-    "basic": [17, 4, 18, 26],
-    "premium": [80, 81, 82, 83, 84, 85, 107, 108, 109, 25, 28, 2, 50],
-}
-
 NATIONAL_DEX_SPECIES_COUNT = 493
 KOREAN_CHARACTER_CODE_OFFSET = 0x401
 MESSAGE_TABLE_KEY_MULTIPLIER = 0x2FD
@@ -440,7 +435,6 @@ def main() -> None:
             "itemNameRecords": len(item_names),
             "itemDescriptionRecords": len(item_descriptions),
         },
-        "shopCatalogs": SHOP_CATALOGS,
         "items": {str(record["id"]): record for record in item_records},
     }
     growth_table_data = {
@@ -768,15 +762,6 @@ def validate_extracted_records(
     pokemon_by_id = {record["speciesId"]: record for record in pokemon_records}
     moves_by_id = {record["id"]: record for record in move_records}
     items_by_id = {record["id"]: record for record in item_records}
-
-    missing_shop_item_ids = {
-        item_id
-        for item_ids in SHOP_CATALOGS.values()
-        for item_id in item_ids
-        if item_id not in items_by_id
-    }
-    if missing_shop_item_ids:
-        raise ValueError(f"shop catalog items are missing: {sorted(missing_shop_item_ids)}")
 
     validate_exact_value(
         "Pidgey safari flee rate",

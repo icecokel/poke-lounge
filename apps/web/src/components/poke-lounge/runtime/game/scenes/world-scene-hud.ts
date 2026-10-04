@@ -44,7 +44,6 @@ export interface WorldSceneHudDependencies {
 
 export interface WorldSceneHudController extends WorldSceneHud {
   closePokemonStatusPanel(options?: { rerenderPartyHud?: boolean }): void;
-  createCurrencyHud(): void;
   createPartyHud(): void;
   createRankScoreHud(): void;
   createRoundHud(nowMs: number, preparationDurationMs?: number): void;
@@ -69,7 +68,6 @@ class DefaultWorldSceneHud implements WorldSceneHudController {
 
   constructor(private readonly dependencies: WorldSceneHudDependencies) {}
 
-  createCurrencyHud(): void {}
   createRankScoreHud(): void {}
 
   createRoundHud(nowMs: number, preparationDurationMs = DEFAULT_PREPARATION_DURATION_MS): void {
@@ -239,10 +237,6 @@ export function getPokemonExperienceProgress(pokemon: PlayerPokemon): PokemonExp
     : levelStart;
   const current = Math.min(required, Math.max(0, totalExperience - levelStart));
   return { current, required, ratio: current / required, atMaxLevel: false };
-}
-
-export function formatPokeDollars(pokeDollars: number, locale = "en-US"): string {
-  return `₽ ${Math.max(0, Math.floor(pokeDollars)).toLocaleString(locale)}`;
 }
 
 export function formatRankScoreHud(

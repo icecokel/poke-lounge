@@ -227,36 +227,6 @@ export const storyMobileWorldState: MobileWorldUiState = {
       status: "normal",
     },
   ],
-  dice: {
-    options: [
-      {
-        disabled: false,
-        label: "낮다",
-        prediction: "lower",
-        rewardPokeDollars: 200,
-        selected: true,
-        winningCaseCount: 3,
-      },
-      {
-        disabled: false,
-        label: "같다",
-        prediction: "equal",
-        rewardPokeDollars: 600,
-        selected: false,
-        winningCaseCount: 1,
-      },
-      {
-        disabled: false,
-        label: "높다",
-        prediction: "higher",
-        rewardPokeDollars: 300,
-        selected: false,
-        winningCaseCount: 2,
-      },
-    ],
-    stakePokeDollars: 100,
-    targetNumber: 4,
-  },
   items: [
     {
       count: 4,
@@ -265,7 +235,6 @@ export const storyMobileWorldState: MobileWorldUiState = {
       id: "potion",
       index: 0,
       name: "상처약",
-      price: 300,
       selected: true,
     },
     {
@@ -275,7 +244,6 @@ export const storyMobileWorldState: MobileWorldUiState = {
       id: "pokeball",
       index: 1,
       name: "몬스터볼",
-      price: 200,
       selected: false,
     },
   ],
@@ -298,7 +266,6 @@ export const storyMobileWorldState: MobileWorldUiState = {
   selectedItemName: "상처약",
   selectedPartySlotIndex: 0,
   title: "필드 조작",
-  walletPokeDollars: 3_200,
 };
 
 export const storyBattleControls: MobileBattleUiState = {
@@ -440,7 +407,6 @@ export function createStoryGameStateStore(): GameStateStore {
       { slotIndex: 1, pokemon: storySecondPokemon },
     ],
     pokemonBox: [{ speciesId: 158, name: "리아코", level: 16, currentHp: 48, maxHp: 48 }],
-    wallet: { pokeDollars: 3_200 },
     competitive: { rank: 7, score: 1_240 },
   };
   const defaultState = createDefaultGameState();
@@ -475,14 +441,6 @@ export const storyWorldModel: WorldMapModel = {
       name: "nurse",
       role: "healer",
       x: 640,
-      y: 304,
-    },
-    {
-      displayName: "상점 주인",
-      imageUrl: "/assets/poke-lounge/textures/a_0_8_1_0132/shopm1_5.png",
-      name: "shopkeeper",
-      role: "shop",
-      x: 720,
       y: 304,
     },
   ],

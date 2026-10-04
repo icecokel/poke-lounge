@@ -1,4 +1,3 @@
-import { POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS } from "../../runtime-item-ids";
 import { canonicalize } from "../../canonical-json";
 import {
   GEN4_PLAYABLE_MOVE_MAX_ID,
@@ -17,10 +16,6 @@ export const BATTLE_POKEMON_ASSETS_JSON_PATH = "/game-data/battle-pokemon-assets
 export const POKEMON_DATA_JSON_PATH = "/game-data/pokemon-data.json";
 export const ITEM_DATA_JSON_PATH = "/game-data/item-data.json";
 export const POKE_LOUNGE_ROM_DATA_API_PATH = "/poke-lounge/rom-data";
-export const POKE_LOUNGE_SHOP_ITEMS_API_PATHS = {
-  basic: "/poke-lounge/shops/basic/items",
-  premium: "/poke-lounge/shops/premium/items",
-} as const;
 export const BATTLE_POKEMON_SPRITE_FRAME_SIZE = 80;
 export const BATTLE_POKEMON_SPRITE_SHEET_GRID_SIZE = 16;
 
@@ -30,9 +25,6 @@ const HGSS_GROWTH_TABLE_COUNT = 8;
 const HGSS_GROWTH_TABLE_LEVEL_COUNT = 101;
 const EXPECTED_ROM_SHA1 = "5834fb3a2d751c48501d47d6a56898d7af6ccf9e";
 const CONTENT_SHA256_PATTERN = /^[0-9a-f]{64}$/;
-const SUPPORTED_RUNTIME_ITEM_ROM_IDS = new Set<number>(
-  Object.values(POKE_LOUNGE_RUNTIME_ITEM_ROM_IDS),
-);
 const ROM_DOCUMENT_KEYS = [
   "pokemon-data",
   "item-data",
@@ -41,9 +33,6 @@ const ROM_DOCUMENT_KEYS = [
 ] as const;
 
 type RomDocumentKey = (typeof ROM_DOCUMENT_KEYS)[number];
-export type RuntimeShopKind = "basic" | "premium";
-type RuntimeShopCatalogs = Partial<Record<RuntimeShopKind, readonly number[]>>;
-
 export interface LevelUpMoveRow {
   level: number;
   moveId: number;
@@ -118,7 +107,6 @@ export interface BattlePokemonSpriteSheetRangeRecord {
 interface RuntimeGameDataJsonState {
   pokemonData: unknown | null;
   itemData: unknown | null;
-  shopCatalogs: RuntimeShopCatalogs;
   pokemonDataRecordCount: number | null;
   moveNames: Record<number, string> | null;
   levelUpMoveTable: Record<number, LevelUpMoveRow[]> | null;
@@ -139,7 +127,6 @@ export interface RuntimeGameDataJson {
 const runtimeGameDataJsonState: RuntimeGameDataJsonState = {
   pokemonData: null,
   itemData: null,
-  shopCatalogs: {},
   pokemonDataRecordCount: null,
   moveNames: null,
   levelUpMoveTable: null,
@@ -215,7 +202,6 @@ export function registerRuntimeGameDataJson(data: RuntimeGameDataJson): void {
 
   runtimeGameDataJsonState.pokemonData = normalizedPokemonData;
   runtimeGameDataJsonState.itemData = normalizedItemData;
-  runtimeGameDataJsonState.shopCatalogs = {};
   runtimeGameDataJsonState.pokemonDataRecordCount = pokemonDataRecordCount;
   runtimeGameDataJsonState.moveNames = moveNames;
   runtimeGameDataJsonState.levelUpMoveTable = normalizedLevelUpMoveTable;
@@ -310,62 +296,6 @@ export function getRuntimeItemDetails(itemId: number): RuntimeItemDetails | null
       hpRestoreParam,
     },
   };
-}
-
-export function getRuntimeShopItemRomIds(shopKind: RuntimeShopKind): readonly number[] {
-  const itemIds = runtimeGameDataJsonState.shopCatalogs?.[shopKind];
-
-  if (!itemIds) {
-    throw new Error("Required Poke Lounge shop catalog is not loaded.");
-  }
-
-  return itemIds;
-}
-
-export function hasRuntimeShopItemRomIds(shopKind: RuntimeShopKind): boolean {
-  return runtimeGameDataJsonState.shopCatalogs[shopKind] !== undefined;
-}
-
-export async function loadRuntimeShopItemRomIds(
-  shopKind: RuntimeShopKind,
-  loadShopItemIds: (path: string) => Promise<unknown>,
-): Promise<readonly number[]> {
-  const itemIds = await loadShopItemIds(POKE_LOUNGE_SHOP_ITEMS_API_PATHS[shopKind]);
-  const normalizedItemIds = normalizeRuntimeShopItemRomIds(
-    itemIds,
-    runtimeGameDataJsonState.itemData,
-  );
-
-  if (!normalizedItemIds) {
-    throw new Error(`Required Poke Lounge ${shopKind} shop catalog response is invalid.`);
-  }
-
-  return normalizedItemIds;
-}
-
-export function registerRuntimeShopItemRomIds(
-  shopKind: RuntimeShopKind,
-  itemIds: readonly number[],
-): void {
-  const normalizedItemIds = normalizeRuntimeShopItemRomIds(
-    itemIds,
-    runtimeGameDataJsonState.itemData,
-  );
-
-  if (!normalizedItemIds) {
-    throw new Error(`Required Poke Lounge ${shopKind} shop catalog response is invalid.`);
-  }
-
-  runtimeGameDataJsonState.shopCatalogs = {
-    ...runtimeGameDataJsonState.shopCatalogs,
-    [shopKind]: normalizedItemIds,
-  };
-}
-
-export function clearRuntimeShopItemRomIds(shopKind: RuntimeShopKind): void {
-  const shopCatalogs = { ...runtimeGameDataJsonState.shopCatalogs };
-  delete shopCatalogs[shopKind];
-  runtimeGameDataJsonState.shopCatalogs = shopCatalogs;
 }
 
 export function getRuntimePokemonMoveSummary(moveId: number): RuntimePokemonMoveSummary | null {
@@ -532,7 +462,6 @@ export function getRuntimeMoveName(moveId: number): string {
 function resetRuntimeGameDataJsonState(): void {
   runtimeGameDataJsonState.pokemonData = null;
   runtimeGameDataJsonState.itemData = null;
-  runtimeGameDataJsonState.shopCatalogs = {};
   runtimeGameDataJsonState.pokemonDataRecordCount = null;
   runtimeGameDataJsonState.moveNames = null;
   runtimeGameDataJsonState.levelUpMoveTable = null;
@@ -728,37 +657,6 @@ function hasCompleteItemCoverage(data: unknown): boolean {
   }
 
   return Object.keys(data.items).length === HGSS_ITEM_RECORD_COUNT;
-}
-
-function normalizeRuntimeShopItemRomIds(data: unknown, itemData: unknown): number[] | null {
-  if (
-    !Array.isArray(data) ||
-    data.length === 0 ||
-    !isRecord(itemData) ||
-    !isRecord(itemData.items)
-  ) {
-    return null;
-  }
-  const items = itemData.items;
-  const seenItemIds = new Set<number>();
-  const normalizedItemIds: number[] = [];
-
-  for (const itemId of data) {
-    const normalizedItemId = readPositiveInteger(itemId);
-    if (
-      normalizedItemId === null ||
-      normalizedItemId !== itemId ||
-      !isRecord(items[String(normalizedItemId)]) ||
-      !SUPPORTED_RUNTIME_ITEM_ROM_IDS.has(normalizedItemId) ||
-      seenItemIds.has(normalizedItemId)
-    ) {
-      return null;
-    }
-    seenItemIds.add(normalizedItemId);
-    normalizedItemIds.push(normalizedItemId);
-  }
-
-  return normalizedItemIds;
 }
 
 function hasCompleteLevelUpMoveCoverage(

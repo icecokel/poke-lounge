@@ -7,7 +7,6 @@ import type { PokeLoungeCopy } from "../poke-lounge-copy";
 import type { GameStateStore } from "../runtime/game/state/game-state-store";
 import type { BattleUiStore } from "../runtime/game/battle/battle-ui-store";
 import {
-  formatPokeDollars,
   formatRankScoreHud,
   formatRoundHudText,
   getCurrentGameRankScore,
@@ -45,16 +44,10 @@ export function MobileGameSummary({
   }, [competitive]);
   if (!state) return null;
   if (detail) {
-    const player = state.playersById[state.currentPlayerId];
     return (
       <div className="grid gap-2 rounded-[7px] border-2 border-[#82989d] bg-[repeating-linear-gradient(0deg,#f4f8ed_0_24px,#e8efe3_24px_48px)] p-4 text-sm whitespace-pre-line shadow-[inset_0_0_0_2px_#fffdf0]">
         {competitive ? (
           <span>{localizeRuntimeText(formatRoundHudText(state.round, now), copy.locale)}</span>
-        ) : null}
-        {player ? (
-          <span>
-            {copy.mobile.wallet} · {formatPokeDollars(player.wallet.pokeDollars, copy.locale)}
-          </span>
         ) : null}
         <span>
           {localizeRuntimeText(

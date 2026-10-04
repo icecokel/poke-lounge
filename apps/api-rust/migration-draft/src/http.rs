@@ -18,7 +18,7 @@ pub fn router(state:AppState,config:&Config)->Router {
     Router::new()
         .route("/",get(||async{success(json!("Poke Lounge Rust API"))}))
         .route("/health",get(ready)).route("/health/live",get(live)).route("/health/ready",get(ready))
-        .route("/poke-lounge/rom-data",get(rom)).route("/poke-lounge/shops/{kind}/items",get(shop))
+        .route("/poke-lounge/rom-data",get(rom))
         .route("/poke-lounge/rooms",post(create)).route("/poke-lounge/rooms/quick-play",post(quick_play))
         .route("/poke-lounge/rooms/{code}",get(snapshot)).route("/poke-lounge/rooms/{code}/join",post(join))
         .route("/poke-lounge/rooms/{code}/ready",post(set_ready)).route("/poke-lounge/rooms/{code}/round-ready",post(round_ready))
@@ -136,7 +136,6 @@ async fn action(State(state):State<AppState>,Path((code,battle)):Path<(String,Uu
     Ok(success(state.rooms.request(id,Operation::Command{player,session,id:b.client_command_id,expected:None,command:GameCommand::Action{match_id:battle,assignment_revision:b.assignment_revision,turn:b.turn,action:b.action},request_hash:None}).await?))
 }
 async fn rom(State(state):State<AppState>)->Json<Value>{success(state.data.rom())}
-async fn shop(State(state):State<AppState>,Path(kind):Path<String>)->AppResult<Json<Value>>{Ok(success(state.data.shop(&kind)?))}
 #[derive(Deserialize)]
 #[serde(rename_all="camelCase",deny_unknown_fields)]
 struct RankQuery{game_type:String}

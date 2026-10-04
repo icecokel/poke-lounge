@@ -1,4 +1,3 @@
-import type { DiceGamblePrediction } from "../gamble/dice-gamble";
 import { PLAYER_PARTY_SLOT_COUNT, type PlayerPokemonSlot } from "../player/player-types";
 import type { PlayerPokemon } from "../state/game-state-store";
 import { getBattlePokemonAssets } from "../battle/battle-pokemon-assets";
@@ -11,9 +10,7 @@ export type MobileWorldUiScreen =
   | "inventory-items"
   | "inventory-move-replace"
   | "inventory-party"
-  | "shop"
   | "pc"
-  | "dice"
   | "party";
 
 export interface MobileWorldItemOption {
@@ -23,7 +20,6 @@ export interface MobileWorldItemOption {
   id: string;
   index: number;
   name: string;
-  price: number | null;
   selected: boolean;
 }
 
@@ -69,21 +65,6 @@ export interface MobileWorldBoxOption {
   status: string | null;
 }
 
-export interface MobileWorldDiceOption {
-  disabled: boolean;
-  label: string;
-  prediction: DiceGamblePrediction;
-  rewardPokeDollars: number;
-  selected: boolean;
-  winningCaseCount: number;
-}
-
-export interface MobileWorldDiceState {
-  options: MobileWorldDiceOption[];
-  stakePokeDollars: number;
-  targetNumber: number;
-}
-
 export interface MobileWorldUiState {
   box: MobileWorldBoxOption[];
   items: MobileWorldItemOption[];
@@ -97,8 +78,6 @@ export interface MobileWorldUiState {
   selectedItemName: string;
   selectedPartySlotIndex: number;
   title: string;
-  walletPokeDollars: number;
-  dice: MobileWorldDiceState | null;
 }
 
 export type MobileWorldUiAction =
@@ -113,14 +92,10 @@ export type MobileWorldUiAction =
   | { type: "skip-inventory-move" }
   | { type: "confirm-inventory-move" }
   | { type: "select-inventory-party"; slotIndex: number }
-  | { type: "select-shop-item"; index: number }
-  | { type: "purchase-shop-item" }
   | { type: "select-pc-focus"; focus: "party" | "box" }
   | { type: "select-pc-party"; slotIndex: number }
   | { type: "select-pc-box"; boxIndex: number }
   | { type: "confirm-pc-selection" }
-  | { type: "select-dice-prediction"; prediction: DiceGamblePrediction }
-  | { type: "confirm-dice-selection" }
   | { type: "set-party-lead"; slotIndex: number };
 
 export function createPokeLoungePartySlotSummaries({

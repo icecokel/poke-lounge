@@ -101,7 +101,6 @@ export interface PokeLoungeCopy {
     noUsableItems: string;
     moveReplacementUnavailable: string;
     empty: string;
-    diceTargetAndBet(target: number, bet: string): string;
     pokemonDetails(name: string, level: number): string;
     emptyPartySlot(slot: number): string;
     experience: string;
@@ -147,14 +146,11 @@ export interface PokeLoungeCopy {
     battleHelpAdvance: string;
     battleHelpBack: string;
     use: string;
-    buy: string;
     deposit: string;
     withdraw: string;
     setLead: string;
-    roll: string;
     pcParty: string;
     pcBox: string;
-    wallet: string;
     waiting: string;
     waitingForReplacement: string;
     roundWaiting: string;
@@ -368,7 +364,6 @@ const KOREAN_COPY: PokeLoungeCopy = {
     noUsableItems: "사용할 아이템이 없습니다.",
     moveReplacementUnavailable: "기술 교체 정보를 불러올 수 없습니다.",
     empty: "비어 있음",
-    diceTargetAndBet: (target, bet) => `기준 ${target} · 배팅 ${bet}`,
     pokemonDetails: (name, level) => `${name} Lv.${level} 상세`,
     emptyPartySlot: slot => `빈 파티 슬롯 ${slot}`,
     experience: "경험치",
@@ -424,14 +419,11 @@ const KOREAN_COPY: PokeLoungeCopy = {
     battleHelpAdvance: "전투 문구는 자동으로 진행됩니다. 결과 화면에서만 확인을 누릅니다.",
     battleHelpBack: "기술·가방·포켓몬 선택에서 이전 화면으로 돌아갑니다.",
     use: "사용",
-    buy: "구매",
     deposit: "보관",
     withdraw: "데려오기",
     setLead: "선두로 지정",
-    roll: "굴리기",
     pcParty: "파티",
     pcBox: "박스",
-    wallet: "보유",
     waiting: "상대의 선택을 기다리는 중...",
     waitingForReplacement: "상대가 다음 포켓몬을 고르고 있습니다...",
     roundWaiting: "다른 플레이어를 기다리는 중...",
@@ -664,7 +656,6 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     noUsableItems: "There are no usable items.",
     moveReplacementUnavailable: "Move replacement details are unavailable.",
     empty: "Empty",
-    diceTargetAndBet: (target, bet) => `Target ${target} · Bet ${bet}`,
     pokemonDetails: (name, level) => `${name} Lv.${level} details`,
     emptyPartySlot: slot => `Empty party slot ${slot}`,
     experience: "Experience",
@@ -720,14 +711,11 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     battleHelpAdvance: "Battle messages advance automatically. Confirm only the final result.",
     battleHelpBack: "Return from move, Bag, or Pokémon selection with Back.",
     use: "Use",
-    buy: "Buy",
     deposit: "Store",
     withdraw: "Take out",
     setLead: "Set lead",
-    roll: "Roll",
     pcParty: "Party",
     pcBox: "Box",
-    wallet: "Wallet",
     waiting: "Waiting for the other trainer...",
     waitingForReplacement: "The other trainer is choosing their next Pokémon...",
     roundWaiting: "Waiting for the other players...",
@@ -962,7 +950,6 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     noUsableItems: "使えるどうぐがありません。",
     moveReplacementUnavailable: "わざの入れ替え情報を読み込めません。",
     empty: "空き",
-    diceTargetAndBet: (target, bet) => `基準 ${target} · ベット ${bet}`,
     pokemonDetails: (name, level) => `${name} Lv.${level} 詳細`,
     emptyPartySlot: slot => `空きパーティスロット ${slot}`,
     experience: "経験値",
@@ -1018,14 +1005,11 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     battleHelpAdvance: "バトルメッセージは自動で進みます。結果画面でのみ確認を押します。",
     battleHelpBack: "わざ・バッグ・ポケモン選択から「戻る」で前の画面に戻ります。",
     use: "使う",
-    buy: "購入",
     deposit: "預ける",
     withdraw: "連れ出す",
     setLead: "先頭にする",
-    roll: "振る",
     pcParty: "手持ち",
     pcBox: "ボックス",
-    wallet: "所持金",
     waiting: "相手の選択を待っています...",
     waitingForReplacement: "相手が次のポケモンを選んでいます...",
     roundWaiting: "ほかのプレイヤーを待っています...",

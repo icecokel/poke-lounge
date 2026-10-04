@@ -8,7 +8,6 @@ import { getBattlePokemonAssets } from "../battle/battle-pokemon-assets";
 import type { GameStateStore, PlayerPokemon } from "../state/game-state-store";
 import {
   formatPokemonHp,
-  formatPokeDollars,
   formatRankScoreHud,
   getCurrentGameRankScore,
   formatRoundHudText,
@@ -115,7 +114,6 @@ export function WorldHud({
     <div className="pointer-events-none absolute inset-0" data-poke-lounge-world-hud="true">
       {desktop ? (
         <>
-          <CurrencyHud copy={copy} value={player.wallet.pokeDollars} />
           <RankScoreHud
             copy={copy}
             competitive={competitiveRoundsEnabled}
@@ -156,14 +154,6 @@ export function WorldHud({
         />
       ) : null}
     </div>
-  );
-}
-
-export function CurrencyHud({ copy, value }: { copy: PokeLoungeCopy; value: number }) {
-  return (
-    <StatusBadge className="absolute top-2.5 left-3 text-sm whitespace-pre-line" tone="gold">
-      {formatPokeDollars(value, copy.locale)}
-    </StatusBadge>
   );
 }
 

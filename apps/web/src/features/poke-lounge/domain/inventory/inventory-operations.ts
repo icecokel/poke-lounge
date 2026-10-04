@@ -6,7 +6,7 @@ import type {
 
 import type { LocalPlayerState } from "../../contracts/game-state";
 
-import { getShopItemById } from "../inventory/item-catalog";
+import { getInventoryItemById } from "../inventory/item-catalog";
 
 import type { PlayerChange } from "../player/player-change";
 
@@ -54,7 +54,7 @@ export function useInventoryItemOnPartySlot(
   itemId: string,
   slotIndex: number,
 ): PlayerChange<UseInventoryItemOnPartySlotResult> {
-  const item = getShopItemById(itemId);
+  const item = getInventoryItemById(itemId);
   if (!item) {
     return {
       player: localPlayer,
@@ -154,7 +154,7 @@ export function resolveInventoryItemMoveReplacements(
   slotIndex: number,
   decisions: ReadonlyArray<number | null>,
 ): PlayerChange<UseInventoryItemOnPartySlotResult> {
-  const item = getShopItemById(itemId);
+  const item = getInventoryItemById(itemId);
   if (!item) {
     return {
       player: localPlayer,

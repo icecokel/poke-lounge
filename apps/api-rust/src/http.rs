@@ -62,7 +62,6 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/health/live", get(live))
         .route("/health/ready", get(ready))
         .route("/poke-lounge/rom-data", get(rom))
-        .route("/poke-lounge/shops/{kind}/items", get(shop))
         .route("/poke-lounge/rooms", post(create))
         .route("/poke-lounge/rooms/public", get(public_rooms))
         .route("/poke-lounge/rooms/quick-play", post(quick_play))
@@ -656,9 +655,6 @@ async fn action(
 }
 async fn rom(State(state): State<AppState>) -> Json<Value> {
     success(state.data.rom())
-}
-async fn shop(State(state): State<AppState>, Path(kind): Path<String>) -> AppResult<Json<Value>> {
-    Ok(success(state.data.shop(&kind)?))
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

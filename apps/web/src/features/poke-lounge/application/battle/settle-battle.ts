@@ -22,7 +22,6 @@ export type BattleSettlementPort = Pick<
   | "updateActivePokemon"
   | "updatePokemonInPartySlot"
   | "addPokemonToParty"
-  | "setLocalPlayerPokeDollars"
   | "setLocalPlayerPosition"
   | "completeSoloChallenge"
 >;
@@ -84,16 +83,6 @@ export function settleBattleToWorld({
   const capturedPokemon =
     state.result?.reason === "capture" ? state.result.capturedPokemon : undefined;
   const placement = persistCapturedPokemonToWorld({ capturedPokemon, gameStateStore: store });
-
-  if (
-    state.result?.winnerPlayerId === localPlayer.playerId &&
-    (state.result.rewardPokeDollars ?? 0) > 0
-  ) {
-    const currentLocalPlayer = store.getCurrentLocalPlayer();
-    store.setLocalPlayerPokeDollars(
-      currentLocalPlayer.wallet.pokeDollars + (state.result.rewardPokeDollars ?? 0),
-    );
-  }
 
   const localBattleParticipant = [state.player, state.opponent].find(
     function findItem(participant) {

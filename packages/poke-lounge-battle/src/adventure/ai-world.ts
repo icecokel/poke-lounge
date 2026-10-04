@@ -49,7 +49,6 @@ export interface AiAdventureState {
   party: PlayerPokemonSlot<BattlePokemon>[];
   activeSlotIndex: number;
   inventory: Record<string, number>;
-  pokeDollars: number;
   box: BattlePokemon[];
   battle: BattleScreenState | null;
   readyAtMs: number;
@@ -79,7 +78,6 @@ export function createAiAdventure(
     path: [],
     activeSlotIndex: party.activeSlotIndex,
     inventory: { pokeball: 10, potion: 5 },
-    pokeDollars: 0,
     box: [],
     battle: null,
     readyAtMs: nowMs,
@@ -291,18 +289,17 @@ function advanceWildBattle(
     });
     const caught = battle.result.capturedPokemon;
     if (battle.result.winnerPlayerId === battle.player.playerId)
-      state.pokeDollars += battle.result.rewardPokeDollars ?? 0;
-    if (caught) {
-      const slotIndex = Array.from({ length: 6 }, (_, i) => i).find(
-        i => !state.party.some(slot => slot.slotIndex === i && slot.pokemon),
-      );
-      if (slotIndex === undefined) state.box.push(caught);
-      else
-        state.party = [
-          ...state.party.filter(slot => slot.slotIndex !== slotIndex),
-          { slotIndex, pokemon: caught },
-        ];
-    }
+      if (caught) {
+        const slotIndex = Array.from({ length: 6 }, (_, i) => i).find(
+          i => !state.party.some(slot => slot.slotIndex === i && slot.pokemon),
+        );
+        if (slotIndex === undefined) state.box.push(caught);
+        else
+          state.party = [
+            ...state.party.filter(slot => slot.slotIndex !== slotIndex),
+            { slotIndex, pokemon: caught },
+          ];
+      }
     state.battle = null;
     if (state.party.every(slot => !slot.pokemon || slot.pokemon.currentHp <= 0)) {
       // The player's defeated party also returns to the nurse before healing.

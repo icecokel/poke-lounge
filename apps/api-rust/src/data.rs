@@ -4,7 +4,7 @@ use crate::{
     repository::hash_bytes,
 };
 use serde_json::{Value, json};
-use std::{collections::BTreeSet, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_postgres::{Client, NoTls};
 use uuid::Uuid;
@@ -20,7 +20,6 @@ pub struct Data {
     config: Arc<tokio_postgres::Config>,
     client: Arc<Mutex<Option<Arc<Client>>>>,
     rom: Arc<Value>,
-    shops: Arc<[Value; 2]>,
 }
 impl Data {
     pub async fn connect(config: tokio_postgres::Config) -> AppResult<Self> {
@@ -28,7 +27,6 @@ impl Data {
             config: Arc::new(config),
             client: Arc::new(Mutex::new(None)),
             rom: Arc::new(Value::Null),
-            shops: Arc::new([Value::Null, Value::Null]),
         };
         let rows=data.client().await?.query("SELECT document_key,schema_version::int AS schema_version,rom_sha1,content_sha256,payload FROM poke_lounge_rom_document ORDER BY document_key",&[]).await?;
         let mut documents = std::collections::BTreeMap::new();
@@ -54,26 +52,6 @@ impl Data {
         if KEYS.iter().any(|key| !documents.contains_key(*key)) {
             return Err(AppError::Configuration("Required ROM document missing"));
         }
-        let items = &documents["item-data"]["payload"];
-        let mut seen = BTreeSet::new();
-        let mut shops = [Value::Null, Value::Null];
-        for (index, key) in ["basic", "premium"].iter().enumerate() {
-            let list = items["shopCatalogs"][key]
-                .as_array()
-                .filter(|v| !v.is_empty())
-                .ok_or(AppError::Configuration("Shop catalog missing"))?;
-            for item in list {
-                let id = item
-                    .as_u64()
-                    .filter(|i| *i > 0 && *i <= 536)
-                    .ok_or(AppError::Configuration("Invalid shop item"))?;
-                if !seen.insert(id) || items["items"][id.to_string()]["id"] != id {
-                    return Err(AppError::Configuration("Invalid shop catalog"));
-                }
-            }
-            shops[index] = json!(list);
-        }
-        data.shops = Arc::new(shops);
         data.rom = Arc::new(
             json!({"documents":KEYS.iter().map(|key|documents[*key].clone()).collect::<Vec<_>>()}),
         );
@@ -102,13 +80,6 @@ impl Data {
     }
     pub fn rom(&self) -> Value {
         (*self.rom).clone()
-    }
-    pub fn shop(&self, kind: &str) -> AppResult<Value> {
-        match kind {
-            "basic" => Ok(self.shops[0].clone()),
-            "premium" => Ok(self.shops[1].clone()),
-            _ => Err(AppError::NotFound),
-        }
     }
     pub async fn ranking(&self, game_type: &str) -> AppResult<Value> {
         if game_type == "POKE_LOUNGE" {

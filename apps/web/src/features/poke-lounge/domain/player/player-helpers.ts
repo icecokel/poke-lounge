@@ -4,14 +4,6 @@ import {
   type PlayerPokemonSlot,
 } from "@poke-lounge/battle/adventure/player/player-types";
 import type { LocalPlayerState, PlayerPokemon } from "../../contracts/game-state";
-export function normalizePokeDollars(pokeDollars: number): number {
-  if (!Number.isFinite(pokeDollars)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.floor(pokeDollars));
-}
-
 export function isPositiveInteger(value: number): boolean {
   return Number.isFinite(value) && Number.isInteger(value) && value >= 1;
 }

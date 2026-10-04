@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet,sync::Arc};
+use std::sync::Arc;
 use serde_json::{Value,json};
 use tokio::sync::Mutex;
 use tokio_postgres::{Client,NoTls};
@@ -7,10 +7,10 @@ use crate::{config::IO_TIMEOUT,error::{AppError,AppResult},repository::hash_byte
 const ROM_SHA1:&str="5834fb3a2d751c48501d47d6a56898d7af6ccf9e";
 const KEYS:[&str;4]=["pokemon-data","item-data","level-up-move-table","growth-table"];
 #[derive(Clone)]
-pub struct Data {config:Arc<tokio_postgres::Config>,client:Arc<Mutex<Option<Arc<Client>>>>,rom:Arc<Value>,shops:Arc<[Value;2]>}
+pub struct Data {config:Arc<tokio_postgres::Config>,client:Arc<Mutex<Option<Arc<Client>>>>,rom:Arc<Value>}
 impl Data {
     pub async fn connect(config:tokio_postgres::Config)->AppResult<Self>{
-        let mut data=Self{config:Arc::new(config),client:Arc::new(Mutex::new(None)),rom:Arc::new(Value::Null),shops:Arc::new([Value::Null,Value::Null])};
+        let mut data=Self{config:Arc::new(config),client:Arc::new(Mutex::new(None)),rom:Arc::new(Value::Null)};
         let rows=data.client().await?.query("SELECT document_key,schema_version,rom_sha1,content_sha256,payload FROM poke_lounge_rom_document ORDER BY document_key",&[]).await?;
         let mut documents=std::collections::BTreeMap::new();
         for row in rows {
@@ -19,14 +19,7 @@ impl Data {
             if documents.insert(key.clone(),json!({"documentKey":key,"schemaVersion":version,"romSha1":rom,"contentSha256":hash,"payload":payload})).is_some(){return Err(AppError::Configuration("Duplicate ROM document"));}
         }
         if KEYS.iter().any(|key|!documents.contains_key(*key)){return Err(AppError::Configuration("Required ROM document missing"));}
-        let items=&documents["item-data"]["payload"];let mut seen=BTreeSet::new();
-        let mut shops=[Value::Null,Value::Null];
-        for (index,key) in ["basic","premium"].iter().enumerate(){
-            let list=items["shopCatalogs"][key].as_array().filter(|v|!v.is_empty()).ok_or(AppError::Configuration("Shop catalog missing"))?;
-            for item in list {let id=item.as_u64().filter(|i|*i>0&&*i<=536).ok_or(AppError::Configuration("Invalid shop item"))?;if !seen.insert(id)||items["items"][id.to_string()]["id"]!=id{return Err(AppError::Configuration("Invalid shop catalog"));}}
-            shops[index]=json!(list);
-        }
-        data.shops=Arc::new(shops);data.rom=Arc::new(json!({"documents":KEYS.iter().map(|key|documents[*key].clone()).collect::<Vec<_>>()}));Ok(data)
+        data.rom=Arc::new(json!({"documents":KEYS.iter().map(|key|documents[*key].clone()).collect::<Vec<_>>()}));Ok(data)
     }
     async fn client(&self)->AppResult<Arc<Client>> {
         let mut guard=self.client.lock().await;
@@ -37,7 +30,6 @@ impl Data {
     }
     pub async fn ready(&self)->AppResult<()> {self.client().await?.simple_query("SELECT 1").await?;Ok(())}
     pub fn rom(&self)->Value{(*self.rom).clone()}
-    pub fn shop(&self,kind:&str)->AppResult<Value>{match kind{"basic"=>Ok(self.shops[0].clone()),"premium"=>Ok(self.shops[1].clone()),_=>Err(AppError::NotFound)}}
     pub async fn ranking(&self,game_type:&str)->AppResult<Value>{
         if game_type=="POKE_LOUNGE"{return Ok(json!([]));}
         if game_type!="SKY_DROP"{return Err(AppError::Invalid("Invalid game type"));}

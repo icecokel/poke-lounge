@@ -91,7 +91,6 @@ export interface BattleResult {
   capturedPokemon?: BattlePokemon;
   experienceGained?: number;
   levelsGained?: number;
-  rewardPokeDollars?: number;
 }
 
 export interface BattleExperienceReward {

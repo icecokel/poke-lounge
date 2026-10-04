@@ -116,7 +116,6 @@ function sanitizeLocalPlayerState(
     !Array.isArray(value.party) ||
     !Array.isArray(value.pokemonBox) ||
     !isPartySlotIndex(value.activePartySlotIndex) ||
-    !isRecord(value.wallet) ||
     !isRecord(value.inventory) ||
     !isRecord(value.competitive) ||
     !isRecord(value.guide) ||
@@ -127,7 +126,6 @@ function sanitizeLocalPlayerState(
 
   const party = sanitizeParty(value.party);
   const pokemonBox = sanitizePokemonCollection(value.pokemonBox);
-  const walletPokeDollars = value.wallet.pokeDollars;
   const inventory = sanitizeInventory(value.inventory);
   const rank = value.competitive.rank;
   const score = value.competitive.score;
@@ -136,7 +134,6 @@ function sanitizeLocalPlayerState(
   if (
     !party ||
     !pokemonBox ||
-    !isNonNegativeInteger(walletPokeDollars) ||
     !inventory ||
     !isValidRank(rank) ||
     !isNonNegativeInteger(score) ||
@@ -152,7 +149,6 @@ function sanitizeLocalPlayerState(
     party,
     pokemonBox,
     activePartySlotIndex: value.activePartySlotIndex,
-    wallet: { pokeDollars: walletPokeDollars },
     inventory,
     competitive: { rank, score },
     guide: { shortcutGuideViewed: value.guide.shortcutGuideViewed },
