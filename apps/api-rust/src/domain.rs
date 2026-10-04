@@ -17,6 +17,7 @@ pub const ADMISSION_MS: u64 = 15_000;
 pub const COMPLETED_RETENTION_MS: u64 = 15 * 60_000;
 pub const CLOSED_RETENTION_MS: u64 = 60_000;
 pub const TURN_MS: u64 = 30_000;
+pub const AI_ONLY_TURN_READY_MS: u64 = 500;
 pub const MAX_PARTICIPANTS: usize = 8;
 pub const MAX_COMMANDS: u64 = 16_384;
 const ROOM_CODE_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -799,7 +800,12 @@ impl Room {
                 self.finish_match(id, now)?;
             } else {
                 let m = &self.matches[&id];
-                if now >= m.turn_started_at_ms + 1_000 && now < m.turn_started_at_ms + TURN_MS {
+                let ready_ms = if is_ai_only_match(&self.participants, m) {
+                    AI_ONLY_TURN_READY_MS
+                } else {
+                    1_000
+                };
+                if now >= m.turn_started_at_ms + ready_ms && now < m.turn_started_at_ms + TURN_MS {
                     let ais = m
                         .pack
                         .required_player_ids
@@ -1165,6 +1171,15 @@ impl Room {
         )
     }
 }
+
+fn is_ai_only_match(participants: &[Participant], battle: &Match) -> bool {
+    battle.players.iter().all(|id| {
+        participants
+            .iter()
+            .any(|participant| participant.player_id == *id && participant.ai)
+    })
+}
+
 pub fn normalize_name(value: &str) -> AppResult<String> {
     let value = value.trim();
     if value.is_empty() || value.chars().count() > 24 || value.chars().any(char::is_control) {
