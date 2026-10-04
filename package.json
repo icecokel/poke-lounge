@@ -39,7 +39,15 @@
   },
   "pnpm": {
     "overrides": {
-      "next>@playwright/test": "-"
+      "next>@playwright/test": "-",
+      "postcss@<8.5.23": "8.5.26",
+      "multer@<2.4.0": "2.4.0",
+      "fast-uri@>=3.0.0 <3.1.8": "3.1.8",
+      "js-yaml@>=5.0.0 <5.4.1": "5.4.1",
+      "ip-address@<10.7.3": "10.7.3",
+      "moment@>=2.29.2 <2.31.0": "2.31.0",
+      "brace-expansion@>=2.0.0 <2.1.7": "2.1.7",
+      "engine.io@>=6.6.0 <6.6.10": "6.6.11"
     }
   }
 }
