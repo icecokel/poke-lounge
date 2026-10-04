@@ -20,6 +20,26 @@ pub const TURN_MS: u64 = 30_000;
 pub const MAX_PARTICIPANTS: usize = 8;
 pub const MAX_COMMANDS: u64 = 16_384;
 const ROOM_CODE_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const AI_DISPLAY_NAMES: [&str; 18] = [
+    "반바지 꼬마 오성",
+    "반바지 꼬마 강철",
+    "반바지 꼬마 정수",
+    "곤충채집소년 미키",
+    "곤충채집소년 광일",
+    "피크닉걸 은향",
+    "캠프보이 고광",
+    "낚시꾼 세형",
+    "낚시꾼 주원",
+    "낚시꾼 태명",
+    "새조련사 선정",
+    "등산가 스톰",
+    "애호가클럽 동휘",
+    "쌍둥이 아롱&다롱",
+    "불놀이꾼 다인",
+    "선원 시현",
+    "저글러 죤",
+    "피크닉걸 진미",
+];
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -651,17 +671,14 @@ impl Room {
                 json!({"kind":"initial-party","seed":seed}),
             )
             .await?;
-        let number = (1..=8)
-            .find(|n| {
-                !self
-                    .participants
-                    .iter()
-                    .any(|p| p.display_name == format!("트레이너 {n}"))
-            })
-            .unwrap_or(8);
+        let start_index = (Uuid::new_v4().as_u128() as usize) % AI_DISPLAY_NAMES.len();
+        let display_name = (0..AI_DISPLAY_NAMES.len())
+            .map(|offset| AI_DISPLAY_NAMES[(start_index + offset) % AI_DISPLAY_NAMES.len()])
+            .find(|name| !self.participants.iter().any(|p| p.display_name == *name))
+            .ok_or(AppError::Invalid("AI display name pool exhausted"))?;
         self.participants.push(Participant {
             player_id: id.clone(),
-            display_name: format!("트레이너 {number}"),
+            display_name: display_name.to_owned(),
             session_hash: hash_bytes(Uuid::new_v4().as_bytes()),
             ai: true,
             ai_difficulty: AiDifficulty::Easy,
