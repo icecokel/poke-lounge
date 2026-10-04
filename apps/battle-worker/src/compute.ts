@@ -23,7 +23,11 @@ import {
 } from "@poke-lounge/battle/adventure/ai-world";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
-import { sharesPartyExperience, getPartyExperienceRatio } from "@poke-lounge/battle/round-settings";
+import {
+  getExperienceMultiplier,
+  getPartyExperienceRatio,
+  sharesPartyExperience,
+} from "@poke-lounge/battle/round-settings";
 import {
   requestSchema,
   partySchema,
@@ -157,6 +161,7 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
     case "ai-step": {
       const context = {
         ...(await getContext()),
+        experienceMultiplier: getExperienceMultiplier(op.roundDurationMs),
         sharePartyExperience: sharesPartyExperience(op.roundDurationMs),
         partyExperienceRatio: getPartyExperienceRatio(op.roundDurationMs),
       };

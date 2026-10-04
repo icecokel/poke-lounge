@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto';
 import { Queue, Worker, type Job } from 'bullmq';
 import { getCompetitiveActionPlayerIds } from '@poke-lounge/battle/actions';
 import {
+  getExperienceMultiplier,
   getPartyExperienceRatio,
   sharesPartyExperience,
 } from '@poke-lounge/battle/round-settings';
@@ -172,6 +173,7 @@ export class PokeLoungeAiWorkerService
       const loadingStartedAt = Date.now();
       const context = {
         ...(await this.runtime.getContext()),
+        experienceMultiplier: getExperienceMultiplier(room.round.durationMs),
         sharePartyExperience: sharesPartyExperience(room.round.durationMs),
         partyExperienceRatio: getPartyExperienceRatio(room.round.durationMs),
       };

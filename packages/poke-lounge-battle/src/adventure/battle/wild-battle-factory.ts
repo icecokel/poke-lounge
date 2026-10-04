@@ -52,6 +52,7 @@ export interface RomRefinedMoveCollection {
 export interface CreateWildBattleStateInput {
   sharePartyExperience?: boolean;
   partyExperienceRatio?: 0 | 0.5 | 1;
+  experienceMultiplier?: 1 | 1.5;
   encounter: WildEncounterCandidate;
   personalRecords: RomPersonalRecordCollection;
   moveRecords: RomRefinedMoveCollection;
@@ -68,6 +69,7 @@ const PLAYER_LEVEL = 10;
 export function createWildBattleState({
   sharePartyExperience = false,
   partyExperienceRatio,
+  experienceMultiplier = 1,
   encounter,
   moveRecords,
   personalRecords,
@@ -103,6 +105,7 @@ export function createWildBattleState({
     battleKind: "wild",
     sharePartyExperience,
     ...(partyExperienceRatio !== undefined ? { partyExperienceRatio } : {}),
+    experienceMultiplier,
     phase: "intro",
     roundIndex: 0,
     matchIndex: 0,

@@ -5,6 +5,11 @@ export function sharesPartyExperience(durationMs: number): boolean {
   return getPartyExperienceRatio(durationMs) > 0;
 }
 
+/** 90초 룰은 짧은 육성 시간을 보정하기 위해 야생전 경험치를 1.5배로 지급한다. */
+export function getExperienceMultiplier(durationMs: number): 1 | 1.5 {
+  return durationMs === ROUND_DURATION_OPTIONS_MS[0] ? 1.5 : 1;
+}
+
 /** The lead keeps its full reward. Compare base presets, not a local playtest clock multiplier. */
 export function getPartyExperienceRatio(durationMs: number): 0 | 0.5 | 1 {
   if (durationMs === ROUND_DURATION_OPTIONS_MS[0]) return 1;

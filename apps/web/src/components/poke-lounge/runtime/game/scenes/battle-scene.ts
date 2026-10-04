@@ -8,7 +8,11 @@ import { PLAYER_PARTY_SLOT_COUNT } from "@poke-lounge/battle/adventure/player/pl
 import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "@poke-lounge/battle/battle-presentation";
 import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
 import { canUseGen4ItemOnMember } from "@poke-lounge/battle/gen4/engine";
-import { getPartyExperienceRatio, sharesPartyExperience } from "@poke-lounge/battle/round-settings";
+import {
+  getExperienceMultiplier,
+  getPartyExperienceRatio,
+  sharesPartyExperience,
+} from "@poke-lounge/battle/round-settings";
 import {
   BATTLE_ENTRANCE_TWEEN_MS,
   BATTLE_HIT_TWEEN_MS,
@@ -1272,6 +1276,9 @@ export class BattleController {
 
       return createWildBattleState({
         encounter: data.encounter,
+        experienceMultiplier: getExperienceMultiplier(
+          this.gameStateStore.getState().round.preparationDurationMs,
+        ),
         sharePartyExperience: sharesPartyExperience(
           this.gameStateStore.getState().round.preparationDurationMs,
         ),

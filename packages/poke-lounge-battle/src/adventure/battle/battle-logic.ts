@@ -1964,12 +1964,15 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
     };
   }
 
+  const experienceMultiplier = input.state.experienceMultiplier ?? 1;
   const wildVictoryExperience =
     input.state.battleKind === "wild"
       ? applyWildVictoryExperience(
           input.playerPokemon,
           input.opponentPokemon,
-          input.state.mechanicsVersion === 3 && input.playerPokemon.currentHp <= 0 ? 0 : 1,
+          input.state.mechanicsVersion === 3 && input.playerPokemon.currentHp <= 0
+            ? 0
+            : experienceMultiplier,
         )
       : null;
   const wildVictoryRewardPokeDollars =
@@ -1996,7 +1999,7 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
                 : applyWildVictoryExperience(
                     slot.pokemon,
                     input.opponentPokemon,
-                    partyExperienceRatio,
+                    partyExperienceRatio * experienceMultiplier,
                   ).pokemon,
         }))
       : undefined;

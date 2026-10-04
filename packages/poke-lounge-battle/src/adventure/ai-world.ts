@@ -58,6 +58,7 @@ export interface AiAdventureState {
 export interface AiAdventureContext {
   sharePartyExperience?: boolean;
   partyExperienceRatio?: 0 | 0.5 | 1;
+  experienceMultiplier?: 1 | 1.5;
   model: WorldMapModel;
   pokemonData: RomPersonalRecordCollection;
   moveData: RomRefinedMoveCollection;
@@ -238,6 +239,7 @@ export function advanceAiAdventure(
         encounter,
         sharePartyExperience: context.sharePartyExperience,
         partyExperienceRatio: context.partyExperienceRatio,
+        experienceMultiplier: context.experienceMultiplier,
         personalRecords: context.pokemonData,
         moveRecords: context.moveData,
         playerParty: state.party,

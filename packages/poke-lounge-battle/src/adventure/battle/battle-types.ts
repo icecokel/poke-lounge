@@ -137,6 +137,7 @@ export interface BattleScreenState {
   battleKind: BattleKind;
   sharePartyExperience?: boolean;
   partyExperienceRatio?: 0 | 0.5 | 1;
+  experienceMultiplier?: 1 | 1.5;
   phase: BattlePhase;
   roundIndex: number;
   matchIndex: number;

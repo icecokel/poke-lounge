@@ -506,7 +506,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     roundDurationLabel: "라운드 간 준비 시간",
     roundDurationOptions: ["90초", "3분", "5분"],
     roundDurationDescriptions: [
-      "전원 경험치 100%",
+      "전원 경험치 150%",
       "선두 100%, 나머지 각각 50%",
       "경험치 공유 없음",
     ],
@@ -802,7 +802,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     roundDurationLabel: "Preparation between rounds",
     roundDurationOptions: ["90 sec", "3 min", "5 min"],
     roundDurationDescriptions: [
-      "Everyone receives 100% experience",
+      "Everyone receives 150% experience",
       "Lead 100%, teammates 50% each",
       "No experience sharing",
     ],
@@ -1100,7 +1100,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     roundDurationLabel: "ラウンド間の準備時間",
     roundDurationOptions: ["90秒", "3分", "5分"],
     roundDurationDescriptions: [
-      "全員が経験値100%",
+      "全員が経験値150%",
       "先頭100%、控えはそれぞれ50%",
       "経験値共有なし",
     ],
