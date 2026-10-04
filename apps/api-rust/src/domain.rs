@@ -234,15 +234,13 @@ impl Room {
             schema_version: SCHEMA_VERSION,
             storage_version: 0,
             room_instance_id: Uuid::new_v4(),
-            room_code: input
-                .room_code
-                .unwrap_or_else(|| {
-                    let random = Uuid::new_v4();
-                    random.as_bytes()[..6]
-                        .iter()
-                        .map(|byte| ROOM_CODE_ALPHABET[(*byte & 31) as usize] as char)
-                        .collect()
-                }),
+            room_code: input.room_code.unwrap_or_else(|| {
+                let random = Uuid::new_v4();
+                random.as_bytes()[..6]
+                    .iter()
+                    .map(|byte| ROOM_CODE_ALPHABET[(*byte & 31) as usize] as char)
+                    .collect()
+            }),
             public,
             revision: 0,
             accepted_commands: 1,

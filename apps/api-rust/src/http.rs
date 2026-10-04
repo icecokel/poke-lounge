@@ -251,7 +251,10 @@ fn revision(headers: &HeaderMap) -> AppResult<u64> {
         .ok_or(AppError::Invalid("If-Match-Revision required"))
 }
 fn optional_revision(headers: &HeaderMap) -> AppResult<Option<u64>> {
-    headers.get("if-match-revision").map(|_| revision(headers)).transpose()
+    headers
+        .get("if-match-revision")
+        .map(|_| revision(headers))
+        .transpose()
 }
 pub fn instance(headers: &HeaderMap) -> AppResult<Option<Uuid>> {
     headers
