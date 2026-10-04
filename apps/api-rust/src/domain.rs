@@ -19,6 +19,7 @@ pub const CLOSED_RETENTION_MS: u64 = 60_000;
 pub const TURN_MS: u64 = 30_000;
 pub const MAX_PARTICIPANTS: usize = 8;
 pub const MAX_COMMANDS: u64 = 16_384;
+const ROOM_CODE_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -235,7 +236,13 @@ impl Room {
             room_instance_id: Uuid::new_v4(),
             room_code: input
                 .room_code
-                .unwrap_or_else(|| Uuid::new_v4().simple().to_string()[..6].to_uppercase()),
+                .unwrap_or_else(|| {
+                    let random = Uuid::new_v4();
+                    random.as_bytes()[..6]
+                        .iter()
+                        .map(|byte| ROOM_CODE_ALPHABET[(*byte & 31) as usize] as char)
+                        .collect()
+                }),
             public,
             revision: 0,
             accepted_commands: 1,

@@ -25,6 +25,10 @@ pub enum Operation {
     Snapshot {
         after: Option<u64>,
     },
+    ReadSnapshot {
+        after: Option<u64>,
+        requester: Option<(String, String)>,
+    },
     Command {
         player: String,
         session: String,
@@ -441,6 +445,13 @@ impl Actor {
         self.reload().await?;
         match operation {
             Operation::Snapshot { after } => Ok(self.room.snapshot(after)),
+            Operation::ReadSnapshot { after, requester } => {
+                if !self.room.public {
+                    let (player, session) = requester.ok_or(AppError::Forbidden)?;
+                    self.room.authorize(&player, &session)?;
+                }
+                Ok(self.room.snapshot(after))
+            }
             Operation::Resync { connection } => {
                 if !self.connections.contains_key(&connection) {
                     return Err(AppError::Forbidden);
@@ -455,6 +466,8 @@ impl Actor {
                 command,
                 request_hash,
             } => {
+                let can_read_snapshot =
+                    self.room.public || self.room.authorize(&player, &session).is_ok();
                 let hash = request_hash.unwrap_or(fingerprint(&(
                     self.room.room_instance_id,
                     &player,
@@ -464,6 +477,9 @@ impl Actor {
                     if receipt.room_instance_id != self.room.room_instance_id
                         || receipt.request_hash != hash
                     {
+                        if !can_read_snapshot {
+                            return Err(AppError::CommandConflict);
+                        }
                         return Err(AppError::Conflict(
                             "POKE_LOUNGE_IDEMPOTENCY_CONFLICT",
                             Box::new(self.room.snapshot(None)),
@@ -472,6 +488,9 @@ impl Actor {
                     return Ok(receipt.response.unwrap_or_else(|| self.room.snapshot(None)));
                 }
                 if expected.is_some_and(|r| r != self.room.revision) {
+                    if !can_read_snapshot {
+                        return Err(AppError::RevisionConflict);
+                    }
                     return Err(AppError::Conflict(
                         "POKE_LOUNGE_REVISION_CONFLICT",
                         Box::new(self.room.snapshot(None)),
