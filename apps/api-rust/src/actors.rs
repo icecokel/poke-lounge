@@ -19,6 +19,7 @@ use std::{
 };
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tracing::{Instrument, Span};
 use uuid::Uuid;
 
 pub enum Operation {
@@ -61,6 +62,7 @@ pub enum Operation {
 struct Envelope {
     operation: Operation,
     reply: oneshot::Sender<AppResult<Value>>,
+    span: Span,
 }
 #[derive(Clone)]
 pub struct Handle {
@@ -74,7 +76,11 @@ impl Handle {
     pub async fn request(&self, operation: Operation) -> AppResult<Value> {
         let (reply, receiver) = oneshot::channel();
         self.sender
-            .try_send(Envelope { operation, reply })
+            .try_send(Envelope {
+                operation,
+                reply,
+                span: Span::current(),
+            })
             .map_err(|e| match e {
                 mpsc::error::TrySendError::Full(_) => AppError::Busy,
                 mpsc::error::TrySendError::Closed(_) => AppError::Unavailable,
@@ -340,7 +346,7 @@ impl Actor {
                 }
                 message=receiver.recv()=>{
                     let Some(message)=message else{break;};
-                    let result=self.execute(message.operation).await;let _=message.reply.send(result);
+                    let result=self.execute(message.operation).instrument(message.span).await;let _=message.reply.send(result);
                 }
             }
         }

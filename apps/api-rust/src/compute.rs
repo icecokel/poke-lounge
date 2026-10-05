@@ -72,29 +72,38 @@ impl Compute {
             .try_acquire_owned()
             .map_err(|_| AppError::Busy)?;
         let request_id = Uuid::new_v4();
-        let response=self.client.post(format!("{}/compute",self.url)).header("x-worker-token",self.token.as_ref())
-            .json(&json!({"protocolVersion":1,"requestId":request_id,"roomInstanceId":id,"stateRevision":revision,"engineVersion":ENGINE_VERSION.trim(),"operation":operation}))
-            .send().await.map_err(|_|AppError::ComputeUnavailable)?;
-        let status = response.status();
-        let body = self.read(response).await?;
-        if body["requestId"] != request_id.to_string()
-            || body["roomInstanceId"] != id.to_string()
-            || body["stateRevision"] != revision
-            || body["engineVersion"] != ENGINE_VERSION.trim()
-            || body["protocolVersion"] != 1
-        {
-            return Err(AppError::ComputeUnavailable);
+        let kind = operation["kind"].as_str().unwrap_or("unknown").to_owned();
+        let started = std::time::Instant::now();
+        let result: AppResult<Value> = async {
+            let response = self.client.post(format!("{}/compute", self.url))
+                .header("x-worker-token", self.token.as_ref())
+                .json(&json!({"protocolVersion":1,"requestId":request_id,"roomInstanceId":id,"stateRevision":revision,"engineVersion":ENGINE_VERSION.trim(),"operation":operation}))
+                .send().await.map_err(|_| AppError::ComputeUnavailable)?;
+            let status = response.status();
+            let body = self.read(response).await?;
+            if body["requestId"] != request_id.to_string()
+                || body["roomInstanceId"] != id.to_string()
+                || body["stateRevision"] != revision
+                || body["engineVersion"] != ENGINE_VERSION.trim()
+                || body["protocolVersion"] != 1
+            {
+                return Err(AppError::ComputeUnavailable);
+            }
+            if !status.is_success() || body["ok"] != true {
+                return Err(if body["code"] == "INVALID_INPUT" {
+                    AppError::Invalid("Invalid battle or party input")
+                } else {
+                    AppError::ComputeUnavailable
+                });
+            }
+            body.get("data").cloned().ok_or(AppError::ComputeUnavailable)
+        }.await;
+        if result.is_err() {
+            tracing::error!(event="compute.failed",compute_request_id=%request_id,room_instance_id=%id,revision,operation=%kind,duration_ms=started.elapsed().as_millis() as u64);
+        } else if started.elapsed() >= Duration::from_secs(2) {
+            tracing::warn!(event="compute.slow",compute_request_id=%request_id,room_instance_id=%id,revision,operation=%kind,duration_ms=started.elapsed().as_millis() as u64);
         }
-        if !status.is_success() || body["ok"] != true {
-            return Err(if body["code"] == "INVALID_INPUT" {
-                AppError::Invalid("Invalid battle or party input")
-            } else {
-                AppError::ComputeUnavailable
-            });
-        }
-        body.get("data")
-            .cloned()
-            .ok_or(AppError::ComputeUnavailable)
+        result
     }
     pub async fn battle(
         &self,

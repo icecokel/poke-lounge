@@ -139,6 +139,7 @@ Git에서 추적하는 기준 문서는 다음과 같다.
 - [플레이어 테스트 지침](PLAYER_TESTING.md): 허용 도구·실제 조작·모든 버튼 확인·판정
 - 이 README: 제품 개요·현재 흐름·로컬 실행
 - [API 배포 가이드](apps/api/DEPLOY.md): Compose·CI 배포·DB 변경·복구 경계
+- [운영 오류 추적](OBSERVABILITY.md): 브라우저·API·전투 워커 로그 연결과 조회
 - [기능 경계](apps/web/src/features/poke-lounge/README.md): UI와 비즈니스 로직의 책임 분리
 - [에이전트 브라우저 테스트](.agents/skills/poke-lounge-agent-browser-test/SKILL.md): 직접 플레이 절차·안전한 관찰
 

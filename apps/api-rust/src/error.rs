@@ -83,7 +83,17 @@ impl IntoResponse for AppError {
             }
         };
         if status.is_server_error() {
-            tracing::error!(event = "api.error", code);
+            let source = match &self {
+                Self::Storage(_) => "redis",
+                Self::Database(_) => "postgres",
+                Self::ComputeUnavailable => "compute",
+                Self::Corrupt(_) => "stored_data",
+                Self::Timeout => "timeout",
+                Self::Unavailable => "backend",
+                Self::Configuration(_) => "configuration",
+                _ => "other",
+            };
+            tracing::error!(event = "api.error", code, source);
         }
         let message = if matches!(self, Self::Corrupt(_) | Self::Configuration(_)) {
             "Internal server error".into()

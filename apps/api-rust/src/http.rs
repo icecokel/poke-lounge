@@ -32,6 +32,7 @@ use std::{
 use tokio::sync::{Mutex, Semaphore};
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::CorsLayer;
+use tracing::Instrument;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -51,6 +52,7 @@ pub struct Budget {
     since: Instant,
     count: u32,
     creates: u32,
+    diagnostics: u32,
 }
 pub fn router(state: AppState, config: &Config) -> Router {
     Router::new()
@@ -61,6 +63,7 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/health", get(ready))
         .route("/health/live", get(live))
         .route("/health/ready", get(ready))
+        .route("/diagnostics/client-errors", post(client_error))
         .route("/poke-lounge/rom-data", get(rom))
         .route("/poke-lounge/rooms", post(create))
         .route("/poke-lounge/rooms/public", get(public_rooms))
@@ -134,6 +137,7 @@ pub fn router(state: AppState, config: &Config) -> Router {
                     "x-player-id".parse().expect("static header"),
                     "x-session-id".parse().expect("static header"),
                     "mcp-protocol-version".parse().expect("static header"),
+                    "x-request-id".parse().expect("static header"),
                 ])
                 .expose_headers(["x-request-id".parse().expect("static header")]),
         )
@@ -181,6 +185,7 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             since: Instant::now(),
             count: 0,
             creates: 0,
+            diagnostics: 0,
         });
         budget.count += 1;
         if request.method() == Method::POST
@@ -191,7 +196,10 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
         {
             budget.creates += 1;
         }
-        if budget.count > 6_000 || budget.creates > 60 {
+        if request.uri().path() == "/diagnostics/client-errors" {
+            budget.diagnostics += 1;
+        }
+        if budget.count > 6_000 || budget.creates > 60 || budget.diagnostics > 600 {
             return AppError::Busy.into_response();
         }
     }
@@ -202,7 +210,14 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
     }
 }
 async fn diagnostics(request: Request, next: Next) -> Response {
-    let id = Uuid::new_v4().to_string();
+    let id = request
+        .headers()
+        .get("x-request-id")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| Uuid::parse_str(value).ok())
+        .filter(|value| value.get_version_num() == 4)
+        .unwrap_or_else(Uuid::new_v4)
+        .to_string();
     let route = request
         .extensions()
         .get::<MatchedPath>()
@@ -210,8 +225,14 @@ async fn diagnostics(request: Request, next: Next) -> Response {
         .unwrap_or("unmatched")
         .to_owned();
     let method = request.method().clone();
+    let room_instance_id = request
+        .headers()
+        .get("x-room-instance")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| Uuid::parse_str(value).ok());
     let start = Instant::now();
-    let mut response = next.run(request).await;
+    let span = tracing::info_span!("http.request", request_id = %id, route = %route, method = %method, room_instance_id = ?room_instance_id);
+    let mut response = next.run(request).instrument(span).await;
     response.headers_mut().insert(
         "x-request-id",
         HeaderValue::from_str(&id).expect("UUID header"),
@@ -219,8 +240,68 @@ async fn diagnostics(request: Request, next: Next) -> Response {
     response
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-    tracing::info!(event="api.request",request_id=%id,%route,%method,status=response.status().as_u16(),duration_ms=start.elapsed().as_millis() as u64);
+    let status = response.status().as_u16();
+    if status >= 500 {
+        tracing::error!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,status,duration_ms=start.elapsed().as_millis() as u64);
+    } else {
+        tracing::info!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,status,duration_ms=start.elapsed().as_millis() as u64);
+    }
     response
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ClientError {
+    kind: String,
+    code: String,
+    request_id: Option<Uuid>,
+    page: String,
+    line: Option<u32>,
+    column: Option<u32>,
+    release: Option<String>,
+    script: Option<String>,
+    room_instance_id: Option<Uuid>,
+}
+
+async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode> {
+    let valid_label = |value: &str, max: usize| {
+        !value.is_empty()
+            && value.len() <= max
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+    };
+    if !valid_label(&payload.kind, 32)
+        || !valid_label(&payload.code, 64)
+        || !matches!(payload.page.as_str(), "poke-lounge" | "other")
+        || payload.line.is_some_and(|line| line > 1_000_000)
+        || payload.column.is_some_and(|column| column > 1_000_000)
+        || payload.release.as_ref().is_some_and(|release| {
+            release.len() != 40 || !release.bytes().all(|byte| byte.is_ascii_hexdigit())
+        })
+        || payload.script.as_ref().is_some_and(|script| {
+            !script.starts_with("/_next/static/")
+                || script.len() > 200
+                || !script.bytes().all(|byte| {
+                    byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'_' | b'.' | b'-')
+                })
+        })
+    {
+        return Err(AppError::Invalid("Invalid diagnostic event"));
+    }
+    tracing::warn!(
+        event = "browser.error",
+        kind = %payload.kind,
+        code = %payload.code,
+        related_request_id = ?payload.request_id,
+        page = %payload.page,
+        line = ?payload.line,
+        column = ?payload.column,
+        release = ?payload.release,
+        script = ?payload.script,
+        room_instance_id = ?payload.room_instance_id,
+    );
+    Ok(StatusCode::NO_CONTENT)
 }
 fn body<T>(value: Result<Json<T>, JsonRejection>) -> AppResult<T> {
     value
