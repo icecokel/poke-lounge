@@ -179,6 +179,7 @@ export async function startGamePage(
   let activeMultiplayerRoom: ReturnType<typeof createMultiplayerRoom> | null = null;
   let requestRoomLeaveAction: (() => void) | null = null;
   let temporaryRoomCode: string | undefined;
+  let privateRoomAccess: { roomCode: string; code: string } | undefined;
   let activeRoomRunId: string | null = null;
   let resumingStoredRoom = false;
   let activeViewportSize = dependencies.viewportSize;
@@ -415,7 +416,14 @@ export async function startGamePage(
             world,
           };
           gameplayState = lobby
-            ? { ...controls, ...lobby, phase: "lobby" }
+            ? {
+                ...controls,
+                ...lobby,
+                ...(privateRoomAccess?.roomCode === lobby.projection.roomCode
+                  ? { privateRoomAccessCode: privateRoomAccess.code }
+                  : {}),
+                phase: "lobby",
+              }
             : { ...controls, phase: "world" };
           emitCurrentGameplayState();
         },
@@ -446,6 +454,7 @@ export async function startGamePage(
         connectionStatus: "offline",
       });
       temporaryRoomCode = undefined;
+      privateRoomAccess = undefined;
       resumingStoredRoom = false;
       restoreOwnerGameState(true);
       if (preserveDisplayName) {
@@ -726,6 +735,10 @@ export async function startGamePage(
     temporaryRoomCode =
       selection.mode === "server-room" && selection.createRoom
         ? (selection.roomCode ?? undefined)
+        : undefined;
+    privateRoomAccess =
+      selection.mode === "server-room" && selection.roomCode && selection.privateRoomAccessCode
+        ? { roomCode: selection.roomCode, code: selection.privateRoomAccessCode }
         : undefined;
     resumingStoredRoom = false;
 

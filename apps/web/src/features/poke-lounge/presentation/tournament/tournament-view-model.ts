@@ -7,7 +7,6 @@ import { ROUND_TOTAL_COUNT } from "@/components/poke-lounge/runtime/game/round/r
 import { isWaitingForStarterSelections } from "@/components/poke-lounge/runtime/game/starter-selection-flow";
 import { type GameState } from "@/features/poke-lounge/contracts/game-state";
 import {
-  createTournamentBracketState,
   type TournamentBracketState,
   type TournamentMatch,
   type TournamentStanding,
@@ -130,21 +129,10 @@ export function createTournamentBracketPreview(
     return null;
   }
 
-  const participants = projection.participants.filter(function filterItem(participant) {
-    return participant.role === "participant" && participant.connected && participant.partyReady;
-  });
-  if (!projection.tournament.bracket && (participants.length < 2 || participants.length > 8)) {
-    return null;
-  }
-
-  const bracket =
-    projection.tournament.bracket ??
-    createTournamentBracketState(
-      participants.map(function mapItem(participant) {
-        return { playerId: participant.playerId, displayName: participant.displayName };
-      }),
-      projection.roundIndex,
-    );
+  // The roster can change until the server starts the tournament. Only show
+  // opponents from the committed bracket used to create the actual matches.
+  const bracket = projection.tournament.bracket;
+  if (!bracket) return null;
   const openingRound = bracket.currentRound ?? bracket.completedRounds.at(-1);
   if (!openingRound) return null;
   const entrantCount = openingRound.matches.length * 2 + openingRound.byes.length;

@@ -733,10 +733,18 @@ impl Room {
                 .filter(|p| p.connected)
                 .all(|p| p.ai || p.ready)
         {
-            let participants = self
+            let mut entrants = self
                 .participants
                 .iter()
                 .filter(|p| p.connected)
+                .collect::<Vec<_>>();
+            entrants.sort_by(|a, b| {
+                a.joined_at_ms
+                    .cmp(&b.joined_at_ms)
+                    .then(a.player_id.cmp(&b.player_id))
+            });
+            let participants = entrants
+                .into_iter()
                 .enumerate()
                 .map(|(i, p)| Entrant {
                     player_id: p.player_id.clone(),
