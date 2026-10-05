@@ -14,6 +14,7 @@ export interface RoomLobbyViewState {
 
 export interface RoomLobbyRuntimeState {
   projection: TournamentStateRoomPayload;
+  privateRoomAccessCode?: string;
   onSetReady(ready: boolean): Promise<void>;
   onStart(): Promise<void>;
   onAddAi(): Promise<void>;

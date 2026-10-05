@@ -3,7 +3,8 @@ import { resolvePokeLoungeLocale } from "../../../poke-lounge-copy";
 const copy = {
   "ko-KR": {
     eyebrow: "함께하는 모험",
-    room: "방 코드",
+    room: "방 ID",
+    privateCode: "비공개방 코드",
     duration: "탐험 준비 시간",
     me: "나",
     players: "함께할 트레이너",
@@ -40,7 +41,8 @@ const copy = {
   },
   "en-US": {
     eyebrow: "An adventure together",
-    room: "Room code",
+    room: "Room ID",
+    privateCode: "Private room code",
     duration: "Preparation time",
     me: "You",
     players: "Your fellow trainers",
@@ -77,7 +79,8 @@ const copy = {
   },
   "ja-JP": {
     eyebrow: "みんなで冒険",
-    room: "ルームコード",
+    room: "ルーム ID",
+    privateCode: "非公開ルームコード",
     duration: "探索の準備時間",
     me: "自分",
     players: "一緒に遊ぶトレーナー",
