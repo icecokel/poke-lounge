@@ -30,8 +30,11 @@ import {
 import { createMultiplayerRoom } from "./network/multiplayer-room-factory";
 import {
   applyRoomRoundDurationSearchParam,
+  isSupportedRoomEntryQueryVersion,
   readRoomEntryFromLocation,
   readRoomRoundDurationMs,
+  ROOM_ENTRY_QUERY_VERSION,
+  ROOM_ENTRY_QUERY_VERSION_PARAM,
   type RoomEntryMode,
 } from "./network/room-entry";
 import { shouldResetRoomEntrySession, type RoomEntrySelection } from "./network/room-entry-screen";
@@ -766,6 +769,12 @@ export async function startGamePage(
       });
     }
 
+    if (!isSupportedRoomEntryQueryVersion(currentUrl.searchParams)) {
+      clearRoomEntrySearchParams(currentUrl);
+      applyRoomRoundDurationSearchParam(currentUrl);
+      replaceBrowserUrl(currentUrl);
+    }
+
     const roomEntry = readRoomEntryFromLocation(currentUrl);
     const storedResume = readStoredServerRoomResume(dependencies.accountId);
     const canResumeStoredRoom =
@@ -782,6 +791,7 @@ export async function startGamePage(
       temporaryRoomCode = storedResume.roomCode;
       resumingStoredRoom = true;
       currentUrl.searchParams.set("network", "server");
+      currentUrl.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
       currentUrl.searchParams.delete("create");
       currentUrl.searchParams.delete("quick");
       currentUrl.searchParams.set("room", storedResume.roomCode);
@@ -855,6 +865,7 @@ function isCompetitiveRoomEntryMode(mode: RoomEntryMode): boolean {
 
 function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void {
   if (selection.mode === "solo") {
+    url.searchParams.delete(ROOM_ENTRY_QUERY_VERSION_PARAM);
     url.searchParams.delete("create");
     url.searchParams.delete("quick");
     url.searchParams.delete("network");
@@ -864,6 +875,7 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
   }
 
   if (selection.mode === "webrtc") {
+    url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
     url.searchParams.delete("create");
     url.searchParams.delete("quick");
     url.searchParams.set("network", "webrtc");
@@ -873,6 +885,7 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
   }
 
   if (selection.mode === "server-room") {
+    url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
     url.searchParams.set("network", "server");
     applyRoomRoundDurationSearchParam(url, selection.roundDurationMs);
 
@@ -919,6 +932,7 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
   }
 
   if (selection.roomCode) {
+    url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
     url.searchParams.delete("create");
     url.searchParams.delete("quick");
     url.searchParams.set("network", "local");
@@ -928,6 +942,7 @@ function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void 
 }
 
 function clearRoomEntrySearchParams(url: URL): void {
+  url.searchParams.delete(ROOM_ENTRY_QUERY_VERSION_PARAM);
   url.searchParams.delete("create");
   url.searchParams.delete("quick");
   url.searchParams.delete("visibility");

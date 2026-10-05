@@ -3,6 +3,8 @@ export const TEMPORARY_PASSWORD_LENGTH = 6;
 export const ROOM_ROUND_DURATION_QUERY_PARAM = "roundMs";
 export const ROOM_VISIBILITY_QUERY_PARAM = "visibility";
 export const ROOM_INSTANCE_QUERY_PARAM = "roomInstance";
+export const ROOM_ENTRY_QUERY_VERSION_PARAM = "roomV";
+export const ROOM_ENTRY_QUERY_VERSION = "1";
 export { ROUND_DURATION_OPTIONS_MS as ROOM_ROUND_DURATION_OPTIONS_MS } from "@poke-lounge/battle/round-settings";
 import { ROUND_DURATION_OPTIONS_MS as ROOM_ROUND_DURATION_OPTIONS_MS } from "@poke-lounge/battle/round-settings";
 
@@ -88,6 +90,7 @@ export async function deriveTemporaryRoomCode(password: string): Promise<string>
 
 export function createInviteUrl(baseUrl: URL, roomCode: string, roundDurationMs?: number): URL {
   const url = new URL(baseUrl.href);
+  url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
   url.searchParams.set("network", "local");
   url.searchParams.set("room", roomCode);
   applyRoomRoundDurationSearchParam(url, roundDurationMs);
@@ -101,6 +104,7 @@ export function createServerInviteUrl(
   roundDurationMs?: number,
 ): URL {
   const url = new URL(baseUrl.href);
+  url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
   url.searchParams.set("network", "server");
   url.searchParams.set("room", roomCode);
   applyRoomRoundDurationSearchParam(url, roundDurationMs);
@@ -109,6 +113,9 @@ export function createServerInviteUrl(
 }
 
 export function createRoomShareUrl(currentUrl: URL, roomCode?: string | null): string | null {
+  if (!isSupportedRoomEntryQueryVersion(currentUrl.searchParams)) {
+    return null;
+  }
   const network = currentUrl.searchParams.get("network");
   const normalizedRoomCode = normalizeRoomCode(
     roomCode ?? currentUrl.searchParams.get("room") ?? "",
@@ -119,6 +126,7 @@ export function createRoomShareUrl(currentUrl: URL, roomCode?: string | null): s
   }
 
   const shareUrl = new URL(currentUrl.href);
+  shareUrl.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
   shareUrl.searchParams.set("network", network);
   shareUrl.searchParams.set("room", normalizedRoomCode);
   shareUrl.searchParams.delete("create");
@@ -152,7 +160,18 @@ export function normalizeRoomRoundDurationMs(value: unknown): RoomRoundDurationM
 export function readRoomRoundDurationMs(
   searchParams: Pick<URLSearchParams, "get">,
 ): RoomRoundDurationMs | null {
+  if (!isSupportedRoomEntryQueryVersion(searchParams)) {
+    return null;
+  }
   return normalizeRoomRoundDurationMs(searchParams.get(ROOM_ROUND_DURATION_QUERY_PARAM));
+}
+
+export function isSupportedRoomEntryQueryVersion(
+  searchParams: Pick<URLSearchParams, "get">,
+): boolean {
+  const version = searchParams.get(ROOM_ENTRY_QUERY_VERSION_PARAM);
+  // Existing invite links have no version and still use the validated v1 fields.
+  return version === null || version === ROOM_ENTRY_QUERY_VERSION;
 }
 
 export function applyRoomRoundDurationSearchParam(url: URL, roundDurationMs?: number): void {
@@ -169,6 +188,9 @@ export function applyRoomRoundDurationSearchParam(url: URL, roundDurationMs?: nu
 export function readRoomEntryFromSearchParams(
   searchParams: Pick<URLSearchParams, "get">,
 ): RoomEntryIntent {
+  if (!isSupportedRoomEntryQueryVersion(searchParams)) {
+    return { mode: "unset", roomCode: null };
+  }
   const network = searchParams.get("network");
 
   if (network === "webrtc") {

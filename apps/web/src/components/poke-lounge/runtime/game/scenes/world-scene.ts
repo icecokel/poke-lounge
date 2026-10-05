@@ -15,6 +15,7 @@ import {
   type RoomMessage,
   type RoomUnsubscribe,
 } from "../network/local-preview-room";
+import { isSupportedRoomEntryQueryVersion } from "../network/room-entry";
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 import type {
   RoundScoreUpdatedRoomPayload,
@@ -106,6 +107,9 @@ export interface ResolvedWorldSpawn {
 }
 
 export function readRoundDurationOverride(url: URL): number | null {
+  if (!isSupportedRoomEntryQueryVersion(url.searchParams)) {
+    return null;
+  }
   const rawDuration = url.searchParams.get(ROUND_DURATION_QUERY_PARAM);
   const parsedDuration = rawDuration ? Number(rawDuration) : NaN;
 
