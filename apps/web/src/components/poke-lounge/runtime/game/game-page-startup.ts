@@ -1,6 +1,8 @@
 import { createStarterPlayerPokemon } from "@/features/poke-lounge/domain/player/create-starter-pokemon";
+import { reportClientDiagnostic } from "@/lib/client-diagnostics";
 import { getPokeLoungeCopyForUrl } from "../../poke-lounge-copy";
 import { loadBootstrapData } from "../bootstrap";
+import { RequiredGameAssetError } from "../required-game-asset-error";
 import type { GameBootstrapData } from "../types";
 import {
   loadPokeLoungeRuntimeAssets,
@@ -521,10 +523,24 @@ export async function startGamePage(
     }
     emitCurrentGameplayState();
   };
-  const showStartupError = (retry: () => void) => {
+  const showStartupError = (
+    retry: () => void,
+    error: unknown,
+    stage: "GAME_START_FAILED" | "STARTER_DATA_FAILED",
+  ) => {
     if (destroyed) {
       return;
     }
+
+    const assetError = error instanceof RequiredGameAssetError ? error : null;
+    reportClientDiagnostic({
+      kind: "runtime",
+      code: assetError
+        ? `GAME_ASSET_${assetError.reason}${assetError.status ? `_${assetError.status}` : ""}`
+        : stage,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      resourcePath: assetError?.resourcePath,
+    });
 
     roomEntrySelectionPending = false;
     if (activeGame) {
@@ -589,24 +605,36 @@ export async function startGamePage(
       readRoomEntryFromLocation(gameUrl).mode === "server-room" ||
       !gameStateStore.canChooseStarter()
     ) {
-      void startGame(gameUrl).catch(function handleRejected() {
-        showStartupError(function callback() {
-          return startGameAfterStarterSelection(gameUrl);
-        });
+      void startGame(gameUrl).catch(function handleRejected(error) {
+        showStartupError(
+          function callback() {
+            return startGameAfterStarterSelection(gameUrl);
+          },
+          error,
+          "GAME_START_FAILED",
+        );
       });
       return;
     }
 
     void showStarterSelection(function callback() {
-      void startGame(gameUrl).catch(function handleRejected() {
-        showStartupError(function callback() {
+      void startGame(gameUrl).catch(function handleRejected(error) {
+        showStartupError(
+          function callback() {
+            return startGameAfterStarterSelection(gameUrl);
+          },
+          error,
+          "GAME_START_FAILED",
+        );
+      });
+    }).catch(function handleRejected(error) {
+      showStartupError(
+        function callback() {
           return startGameAfterStarterSelection(gameUrl);
-        });
-      });
-    }).catch(function handleRejected() {
-      showStartupError(function callback() {
-        return startGameAfterStarterSelection(gameUrl);
-      });
+        },
+        error,
+        "STARTER_DATA_FAILED",
+      );
     });
   };
   const selectRoomEntry = (selection: RoomEntrySelection) => {

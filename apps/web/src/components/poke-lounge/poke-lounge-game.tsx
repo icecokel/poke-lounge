@@ -3,6 +3,7 @@
 import { useGame } from "@/contexts/game-context";
 import { hydrateGameProgress } from "@/features/poke-lounge/application/persistence/hydrate-game-progress";
 import { useRouter } from "@/i18n/navigation";
+import { reportClientDiagnostic } from "@/lib/client-diagnostics";
 import {
   getSessionApiAccountId,
   getSessionApiIdToken,
@@ -944,12 +945,15 @@ export function PokeLoungeGame() {
       };
 
       void (async function callback() {
+        let startupStage: "GAME_MODULE_LOAD_FAILED" | "GAME_RUNTIME_INIT_FAILED" =
+          "GAME_MODULE_LOAD_FAILED";
         try {
           const { startGamePageFromDocument } = await import("./runtime/game-page");
           if (cancelled) {
             return;
           }
 
+          startupStage = "GAME_RUNTIME_INIT_FAILED";
           const gamePage = await startGamePageFromDocument(
             document,
             new URL(window.location.href),
@@ -984,8 +988,13 @@ export function PokeLoungeGame() {
             }
             gamePage.destroy();
           };
-        } catch {
+        } catch (error) {
           if (!cancelled) {
+            reportClientDiagnostic({
+              kind: "runtime",
+              code: startupStage,
+              errorName: error instanceof Error ? error.name : "UnknownError",
+            });
             setGameStartupError(true);
             setGamePlaying(false);
           }

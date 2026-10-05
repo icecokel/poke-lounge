@@ -1,13 +1,23 @@
 import type { GameBootstrapData } from "./types";
+import { RequiredGameAssetError } from "./required-game-asset-error";
 
 const BOOTSTRAP_PATH = "/game-data/bootstrap.json";
 
 export async function loadBootstrapData(fetcher: typeof fetch = fetch): Promise<GameBootstrapData> {
-  const response = await fetcher(BOOTSTRAP_PATH);
-
-  if (!response.ok) {
-    throw new Error(`Unable to load game bootstrap data: ${response.status}`);
+  let response: Response;
+  try {
+    response = await fetcher(BOOTSTRAP_PATH);
+  } catch {
+    throw new RequiredGameAssetError(BOOTSTRAP_PATH, "NETWORK");
   }
 
-  return response.json() as Promise<GameBootstrapData>;
+  if (!response.ok) {
+    throw new RequiredGameAssetError(BOOTSTRAP_PATH, "HTTP", response.status);
+  }
+
+  try {
+    return (await response.json()) as GameBootstrapData;
+  } catch {
+    throw new RequiredGameAssetError(BOOTSTRAP_PATH, "INVALID_JSON");
+  }
 }

@@ -8,6 +8,8 @@ type ClientDiagnostic = {
   column?: number;
   script?: string;
   roomInstanceId?: string;
+  errorName?: string;
+  resourcePath?: string;
 };
 
 let sent = 0;
@@ -22,9 +24,17 @@ export function reportClientDiagnostic(event: ClientDiagnostic): void {
   }
   if (sent++ >= 10) return;
 
-  // Only fixed labels and coordinates leave the browser. Never send URLs, room codes,
-  // error messages, stacks, tokens, or request/response bodies.
+  // Only fixed labels, coordinates, and validated public asset paths leave the browser.
+  // Never send full URLs, room codes, error messages, stacks, tokens, or bodies.
   const code = /^[A-Za-z0-9._-]{1,64}$/.test(event.code) ? event.code : "UNKNOWN";
+  const errorName =
+    event.errorName && /^[A-Za-z0-9._-]{1,48}$/.test(event.errorName) ? event.errorName : undefined;
+  const resourcePath =
+    event.resourcePath &&
+    /^\/(?:assets|game-data)\/[A-Za-z0-9._/-]{1,180}$/.test(event.resourcePath) &&
+    !event.resourcePath.includes("..")
+      ? event.resourcePath
+      : undefined;
   try {
     void fetch(`${getApiBaseUrl()}/diagnostics/client-errors`, {
       method: "POST",
@@ -41,6 +51,8 @@ export function reportClientDiagnostic(event: ClientDiagnostic): void {
         column: event.column,
         script: event.script,
         roomInstanceId: event.roomInstanceId,
+        errorName,
+        resourcePath,
         release: process.env.NEXT_PUBLIC_RELEASE_SHA || undefined,
       }),
     }).catch(() => {});

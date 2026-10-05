@@ -45,7 +45,9 @@ for file in /archive/*.log.gz; do
 done' sh '여기에-요청-또는-계산-UUID'
 ```
 
-`api.request`의 `route`는 템플릿 경로이며 요청 본문은 기록하지 않는다. `browser.error`에는 종류·오류 코드·연관 요청 ID·페이지 범주와 실행 코드 위치만 기록한다. 실제 게임 중 UI에 표시된 방 코드를 검색 키로 사용하지 않는다. Rust `api.error`의 `source`는 Redis·PostgreSQL·전투 계산 등 실패 계층이다. `compute.failed`에 기록된 작업 종류와 상태로 워커의 같은 ID를 찾는다. `backend.started`, `compute.started`의 `release`와 브라우저 오류의 `release`로 배포 버전을 대조한다.
+`api.request`의 `route`는 템플릿 경로이며 요청 본문은 기록하지 않는다. `browser.error`에는 종류·오류 코드·연관 요청 ID·페이지 범주·실행 코드 위치·오류 이름·검증된 공개 정적 리소스 경로만 기록한다. 실제 게임 중 UI에 표시된 방 코드를 검색 키로 사용하지 않는다. Rust `api.error`의 `source`는 Redis·PostgreSQL·전투 계산 등 실패 계층이다. `compute.failed`에 기록된 작업 종류와 상태로 워커의 같은 ID를 찾는다. `backend.started`, `compute.started`의 `release`와 브라우저 오류의 `release`로 배포 버전을 대조한다.
+
+게임 시작 실패 화면이 표시되면 `browser.error`의 `GAME_ASSET_*`, `STARTER_DATA_FAILED`, `GAME_START_FAILED`, `GAME_MODULE_LOAD_FAILED`, `GAME_RUNTIME_INIT_FAILED` 코드를 찾는다. 정적 리소스 실패는 공개 `/assets/` 또는 `/game-data/` 경로와 HTTP 상태를 기록한다. 오류 이름은 `error_name`으로 구분한다. 오류 메시지·스택·전체 URL은 수집하지 않는다.
 
 ## 보존과 한계
 
