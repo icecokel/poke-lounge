@@ -39,6 +39,7 @@ import {
   POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT,
   POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT,
   clearStoredServerRoomResume,
+  consumeLegacyServerRoomIdentity,
   readStoredServerRoomResume,
   type PokeLoungeServerRoomErrorDetail,
   type PokeLoungeFreshSessionRequiredDetail,
@@ -743,6 +744,13 @@ export async function startGamePage(
     if (currentUrl.searchParams.has(LOCAL_TEST_MODE_START_QUERY_PARAM)) {
       currentUrl.searchParams.delete(LOCAL_TEST_MODE_START_QUERY_PARAM);
       replaceBrowserUrl(currentUrl);
+    }
+
+    if (consumeLegacyServerRoomIdentity(dependencies.accountId)) {
+      dispatchPokeLoungeNotice(mount.ownerDocument, {
+        message: copy.roomEntry.legacySessionExpired,
+        tone: "warning",
+      });
     }
 
     const roomEntry = readRoomEntryFromLocation(currentUrl);

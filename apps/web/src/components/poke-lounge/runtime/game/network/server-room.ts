@@ -90,8 +90,6 @@ export interface ServerRoomOptions {
   roomId?: string;
   roomInstanceId?: string;
   roomRunId?: string;
-  sessionId?: string;
-  playerId?: string;
   createRoom?: boolean;
   quickPlay?: boolean;
   visibility?: "private" | "public";
@@ -160,8 +158,14 @@ type ServerRoomSocketFactory = (
 type RecoveryOrigin = "transport" | "online-probe";
 
 const SERVER_IDENTITY_STORAGE_KEY = RUST_BACKEND_ENABLED
-  ? "poke-lounge:rust-room-identity:v2"
+  ? "poke-lounge:rust-room-identity:v3"
   : "poke-lounge:server-room-identity";
+const LEGACY_RUST_IDENTITY_STORAGE_KEY = "poke-lounge:rust-room-identity:v2";
+const RUST_IDENTITY_STORAGE_VERSION = 3;
+const RUST_IDENTITY_UUID_PATTERN =
+  "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+const RUST_SESSION_ID_PATTERN = new RegExp(`^server-session-${RUST_IDENTITY_UUID_PATTERN}$`, "i");
+const RUST_PLAYER_ID_PATTERN = new RegExp(`^server-player-${RUST_IDENTITY_UUID_PATTERN}$`, "i");
 const SERVER_ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 
 const MAX_RECENT_TERMINAL_PROJECTIONS = 8;
@@ -178,6 +182,7 @@ interface ServerRoomConflictResponse {
 }
 
 interface StoredServerRoomIdentity {
+  version?: number;
   sessionId: string;
   playerId: string;
   activeRoom?: {
@@ -433,6 +438,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         headers: {
           ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}),
           ...init?.headers,
+          ...(RUST_BACKEND_ENABLED && (!init?.method || init.method === "GET")
+            ? { "X-Player-Id": serverPlayerId, "X-Session-Id": sessionId }
+            : {}),
         },
       });
     } catch (error) {
@@ -2273,7 +2281,25 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     };
 
     if (options.resumeRoom) {
-      const current = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
+      let current: ServerRoomState;
+      try {
+        current = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
+      } catch (error) {
+        if (
+          !RUST_BACKEND_ENABLED ||
+          !(error instanceof ServerRoomRequestError) ||
+          error.status !== 403
+        ) {
+          throw error;
+        }
+        const rejoined = await mutateIdempotentRoom(
+          `/poke-lounge/rooms/${activeRoomId}/join`,
+          participantBody,
+          initialOpenIdempotencyKey,
+        );
+        resumeRejoinedParticipant = true;
+        return rejoined;
+      }
       if (
         current.participants.some(function testItem(participant) {
           return participant.playerId === serverPlayerId;
@@ -2333,6 +2359,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
         return state;
       });
+    }
+
+    if (RUST_BACKEND_ENABLED) {
+      return mutateIdempotentRoom(
+        `/poke-lounge/rooms/${activeRoomId}/join`,
+        body,
+        initialOpenIdempotencyKey,
+      );
     }
 
     return mutateRoom(
@@ -2679,6 +2713,33 @@ export function clearStoredServerRoomSession(accountId?: string): void {
     }
   } catch {
     // A fresh identity is still generated when storage is unavailable.
+  }
+}
+
+export function consumeLegacyServerRoomIdentity(accountId?: string): boolean {
+  if (!RUST_BACKEND_ENABLED || typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    // v2 could contain URL-selected credentials, so only retire it; never copy it into v3.
+    const hadCurrentIdentity = readStoredIdentity(accountId) !== null;
+    const legacyKeys = new Set([
+      getServerIdentityStorageKeyFor(LEGACY_RUST_IDENTITY_STORAGE_KEY, accountId),
+      LEGACY_RUST_IDENTITY_STORAGE_KEY,
+    ]);
+    let hadLegacyIdentity = false;
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      for (const key of legacyKeys) {
+        if (storage.getItem(key) !== null) {
+          storage.removeItem(key);
+          hadLegacyIdentity = true;
+        }
+      }
+    }
+    return hadLegacyIdentity && !hadCurrentIdentity;
+  } catch {
+    return false;
   }
 }
 
@@ -3272,30 +3333,13 @@ function resolveServerIdentity(options: ServerRoomOptions): {
   sessionId: string;
   playerId: string;
 } {
-  const searchParams =
-    typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
-  const sessionIdOverride = options.sessionId ?? searchParams?.get("serverSessionId") ?? undefined;
-  const playerIdOverride = options.playerId ?? searchParams?.get("serverPlayerId") ?? undefined;
-
-  if (sessionIdOverride && playerIdOverride) {
-    return {
-      sessionId: sessionIdOverride,
-      playerId: playerIdOverride,
-    };
-  }
-
   const stored = readStoredIdentity(options.accountId);
   const identity = {
-    sessionId: sessionIdOverride ?? stored?.sessionId ?? `server-session-${createIdentityToken()}`,
-    playerId: playerIdOverride ?? stored?.playerId ?? `server-player-${createIdentityToken()}`,
+    sessionId: stored?.sessionId ?? `server-session-${createIdentityToken()}`,
+    playerId: stored?.playerId ?? `server-player-${createIdentityToken()}`,
   };
 
-  writeStoredIdentity(
-    stored?.sessionId === identity.sessionId && stored.playerId === identity.playerId
-      ? { ...stored, ...identity }
-      : identity,
-    options.accountId,
-  );
+  writeStoredIdentity(stored ? { ...stored, ...identity } : identity, options.accountId);
 
   return identity;
 }
@@ -3307,45 +3351,41 @@ function readStoredIdentity(accountId?: string): StoredServerRoomIdentity | null
 
   try {
     const storageKey = getServerIdentityStorageKey(accountId);
-    let stored = window.localStorage?.getItem(storageKey) ?? null;
+    const sources: Array<{ storage: Storage; key: string }> = [
+      { storage: window.localStorage, key: storageKey },
+      { storage: window.sessionStorage, key: storageKey },
+      ...(accountId?.trim()
+        ? [
+            { storage: window.localStorage, key: SERVER_IDENTITY_STORAGE_KEY },
+            { storage: window.sessionStorage, key: SERVER_IDENTITY_STORAGE_KEY },
+          ]
+        : []),
+    ];
 
-    if (!stored) {
-      stored =
-        window.sessionStorage?.getItem(storageKey) ??
-        (accountId?.trim()
-          ? (window.localStorage?.getItem(SERVER_IDENTITY_STORAGE_KEY) ?? null)
-          : null) ??
-        (accountId?.trim()
-          ? (window.sessionStorage?.getItem(SERVER_IDENTITY_STORAGE_KEY) ?? null)
-          : null);
-      if (stored) {
-        window.localStorage?.setItem(storageKey, stored);
-        window.sessionStorage?.removeItem(storageKey);
-        if (accountId?.trim()) {
-          window.localStorage?.removeItem(SERVER_IDENTITY_STORAGE_KEY);
-          window.sessionStorage?.removeItem(SERVER_IDENTITY_STORAGE_KEY);
+    for (const source of sources) {
+      const identity = parseStoredIdentity(source.storage.getItem(source.key));
+      if (!identity) {
+        continue;
+      }
+      if (source.storage !== window.localStorage || source.key !== storageKey) {
+        writeStoredIdentity(identity, accountId);
+        try {
+          const migrated = parseStoredIdentity(window.localStorage.getItem(storageKey));
+          if (
+            migrated?.sessionId === identity.sessionId &&
+            migrated.playerId === identity.playerId
+          ) {
+            source.storage.removeItem(source.key);
+            if (accountId?.trim()) {
+              window.localStorage.removeItem(SERVER_IDENTITY_STORAGE_KEY);
+              window.sessionStorage.removeItem(SERVER_IDENTITY_STORAGE_KEY);
+            }
+          }
+        } catch {
+          // The source identity is still usable when old storage cannot be removed.
         }
       }
-    }
-
-    if (!stored) {
-      return null;
-    }
-
-    const parsed = JSON.parse(stored) as Partial<{
-      sessionId: unknown;
-      playerId: unknown;
-      activeRoom: unknown;
-    }>;
-
-    if (typeof parsed.sessionId === "string" && typeof parsed.playerId === "string") {
-      const activeRoom = parseStoredActiveRoom(parsed.activeRoom);
-
-      return {
-        sessionId: parsed.sessionId,
-        playerId: parsed.playerId,
-        ...(activeRoom ? { activeRoom } : {}),
-      };
+      return identity;
     }
   } catch {
     return null;
@@ -3354,13 +3394,49 @@ function readStoredIdentity(accountId?: string): StoredServerRoomIdentity | null
   return null;
 }
 
+function parseStoredIdentity(stored: string | null): StoredServerRoomIdentity | null {
+  if (!stored) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(stored) as Partial<StoredServerRoomIdentity>;
+    if (typeof parsed.sessionId !== "string" || typeof parsed.playerId !== "string") {
+      return null;
+    }
+    if (
+      RUST_BACKEND_ENABLED &&
+      // Earlier v3 builds did not write a version field, but did generate UUID v4 credentials.
+      ((parsed.version !== undefined && parsed.version !== RUST_IDENTITY_STORAGE_VERSION) ||
+        !RUST_SESSION_ID_PATTERN.test(parsed.sessionId) ||
+        !RUST_PLAYER_ID_PATTERN.test(parsed.playerId))
+    ) {
+      return null;
+    }
+
+    const activeRoom = parseStoredActiveRoom(parsed.activeRoom);
+    return {
+      sessionId: parsed.sessionId,
+      playerId: parsed.playerId,
+      ...(activeRoom ? { activeRoom } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
 function writeStoredIdentity(identity: StoredServerRoomIdentity, accountId?: string): void {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
-    window.localStorage.setItem(getServerIdentityStorageKey(accountId), JSON.stringify(identity));
+    window.localStorage.setItem(
+      getServerIdentityStorageKey(accountId),
+      JSON.stringify(
+        RUST_BACKEND_ENABLED ? { ...identity, version: RUST_IDENTITY_STORAGE_VERSION } : identity,
+      ),
+    );
   } catch {
     // Ignore storage failures; generated identities still work for the current page lifetime.
   }
@@ -3438,19 +3514,20 @@ function resolveServerRoomRunId(options: ServerRoomOptions): string {
 }
 
 function getServerIdentityStorageKey(accountId?: string): string {
+  return getServerIdentityStorageKeyFor(SERVER_IDENTITY_STORAGE_KEY, accountId);
+}
+
+function getServerIdentityStorageKeyFor(baseKey: string, accountId?: string): string {
   const normalizedAccountId = accountId?.trim();
 
-  return normalizedAccountId
-    ? `${SERVER_IDENTITY_STORAGE_KEY}:${encodeURIComponent(normalizedAccountId)}`
-    : SERVER_IDENTITY_STORAGE_KEY;
+  return normalizedAccountId ? `${baseKey}:${encodeURIComponent(normalizedAccountId)}` : baseKey;
 }
 
 function createIdentityToken(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
+  if (typeof crypto === "undefined" || !("randomUUID" in crypto)) {
+    throw new Error("crypto.randomUUID is required for Poke Lounge room identity");
   }
-
-  return Math.random().toString(36).slice(2);
+  return crypto.randomUUID();
 }
 
 function applyCreatedRoomToLocation(roomCode: string, persistRoomCode: boolean): void {

@@ -251,6 +251,7 @@ export interface PokeLoungeCopy {
     multiplayerConnectFailed: string;
     preparing: string;
     freshSession: string;
+    legacySessionExpired: string;
     leaveTournamentTitle: string;
     leaveTournamentDescription: string;
     leaveRoomTitle: string;
@@ -542,6 +543,8 @@ const KOREAN_COPY: PokeLoungeCopy = {
     multiplayerConnectFailed: "멀티플레이 접속 정보를 만들지 못했습니다. 다시 시도해 주세요.",
     preparing: "준비 중...",
     freshSession: "멀티플레이 연결 정보가 만료되어 입장 화면으로 돌아왔습니다. 다시 접속해 주세요.",
+    legacySessionExpired:
+      "보안 업데이트로 이전 멀티플레이 연결이 만료되었습니다. 새 방을 만들거나 다시 입장해 주세요.",
     leaveTournamentTitle: "경기에서 나갈까요?",
     leaveTournamentDescription: "지금 나가면 진행 중인 경기가 기권 처리될 수 있습니다.",
     leaveRoomTitle: "방에서 나갈까요?",
@@ -835,6 +838,8 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     preparing: "Preparing...",
     freshSession:
       "The multiplayer session expired, so you were returned to play selection. Connect again.",
+    legacySessionExpired:
+      "A security update expired your previous multiplayer connection. Create or join a room again.",
     leaveTournamentTitle: "Leave the match?",
     leaveTournamentDescription: "Leaving now may count as forfeiting the active match.",
     leaveRoomTitle: "Leave the room?",
@@ -1128,6 +1133,8 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     preparing: "準備中...",
     freshSession:
       "マルチプレイ接続情報の期限が切れたため、プレイ選択に戻りました。もう一度接続してください。",
+    legacySessionExpired:
+      "セキュリティ更新により以前のマルチプレイ接続は期限切れになりました。ルームを作成するか、もう一度参加してください。",
     leaveTournamentTitle: "試合から退出しますか？",
     leaveTournamentDescription: "今退出すると、進行中の試合が棄権扱いになる場合があります。",
     leaveRoomTitle: "ルームから退出しますか？",

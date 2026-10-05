@@ -33,8 +33,6 @@ export function createMultiplayerRoom(options: MultiplayerRoomFactoryOptions): M
       roomId: options.roomId ?? roomEntry.roomCode ?? undefined,
       roomInstanceId: roomEntry.roomInstanceId,
       roomRunId: options.roomRunId,
-      sessionId: options.searchParams.get("serverSessionId") ?? undefined,
-      playerId: options.searchParams.get("serverPlayerId") ?? undefined,
       createRoom: roomEntry.createRoom === true,
       quickPlay: roomEntry.quickPlay === true,
       visibility: roomEntry.visibility,

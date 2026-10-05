@@ -20,6 +20,7 @@ pub const TURN_MS: u64 = 30_000;
 pub const AI_ONLY_TURN_READY_MS: u64 = 500;
 pub const MAX_PARTICIPANTS: usize = 8;
 pub const MAX_COMMANDS: u64 = 16_384;
+const ROOM_CODE_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const AI_DISPLAY_NAMES: [&str; 18] = [
     "반바지 꼬마 오성",
     "반바지 꼬마 강철",
@@ -254,9 +255,13 @@ impl Room {
             schema_version: SCHEMA_VERSION,
             storage_version: 0,
             room_instance_id: Uuid::new_v4(),
-            room_code: input
-                .room_code
-                .unwrap_or_else(|| Uuid::new_v4().simple().to_string()[..6].to_uppercase()),
+            room_code: input.room_code.unwrap_or_else(|| {
+                let random = Uuid::new_v4();
+                random.as_bytes()[..6]
+                    .iter()
+                    .map(|byte| ROOM_CODE_ALPHABET[(*byte & 31) as usize] as char)
+                    .collect()
+            }),
             public,
             revision: 0,
             accepted_commands: 1,
