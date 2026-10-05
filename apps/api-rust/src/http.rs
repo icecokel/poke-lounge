@@ -261,6 +261,8 @@ struct ClientError {
     release: Option<String>,
     script: Option<String>,
     room_instance_id: Option<Uuid>,
+    room_code: Option<String>,
+    session_id: Option<String>,
     error_name: Option<String>,
     error_text: Option<String>,
     startup_step: Option<String>,
@@ -296,6 +298,14 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
             .error_name
             .as_ref()
             .is_some_and(|name| !valid_label(name, 48))
+        || payload
+            .room_code
+            .as_ref()
+            .is_some_and(|code| !valid_label(code, 64))
+        || payload
+            .session_id
+            .as_ref()
+            .is_some_and(|id| !valid_label(id, 80))
         || payload.error_text.as_ref().is_some_and(|text| {
             text.is_empty()
                 || text.len() > 8192
@@ -339,6 +349,8 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
         release = %payload.release.as_deref().unwrap_or("none"),
         script = %payload.script.as_deref().unwrap_or("none"),
         room_instance_id = %payload.room_instance_id.map(|id| id.to_string()).unwrap_or_else(|| "none".to_string()),
+        room_code = %payload.room_code.as_deref().unwrap_or("none"),
+        session_id = %payload.session_id.as_deref().unwrap_or("none"),
         error_name = %payload.error_name.as_deref().unwrap_or("none"),
         error_text = %payload.error_text.as_deref().unwrap_or("none"),
         startup_step = %payload.startup_step.as_deref().unwrap_or("none"),

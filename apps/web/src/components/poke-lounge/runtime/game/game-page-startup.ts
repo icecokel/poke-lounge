@@ -35,6 +35,7 @@ import {
   resolveLocalTestModeState,
   type LocalTestModeState,
 } from "./local-test-mode";
+import type { MultiplayerRoom } from "./network/local-preview-room";
 import { createMultiplayerRoom } from "./network/multiplayer-room-factory";
 import {
   applyRoomRoundDurationSearchParam,
@@ -105,6 +106,7 @@ export interface StartGamePageDependencies {
 function reportGameStartupFailure(
   error: unknown,
   stage: "GAME_START_FAILED" | "STARTER_DATA_FAILED",
+  room?: MultiplayerRoom | null,
 ): PokeLoungeErrorCode {
   const originalError = error instanceof GameStartupStepError ? error.originalError : error;
   const assetError = originalError instanceof RequiredGameAssetError ? originalError : null;
@@ -122,6 +124,8 @@ function reportGameStartupFailure(
     error: originalError,
     startupStep: error instanceof GameStartupStepError ? error.step : undefined,
     resourcePath: assetError?.resourcePath,
+    roomCode: room?.roomId,
+    sessionId: room?.sessionId,
     userCode,
   });
   return userCode;
@@ -377,7 +381,7 @@ export async function startGamePage(
         },
       ).catch(function handleStarterLoadError(error) {
         if (destroyed || activeMultiplayerRoom !== multiplayerRoom) return;
-        const errorCode = reportGameStartupFailure(error, "STARTER_DATA_FAILED");
+        const errorCode = reportGameStartupFailure(error, "STARTER_DATA_FAILED", multiplayerRoom);
         starterState = {
           phase: "error",
           description: copy.startup.description,
@@ -600,7 +604,7 @@ export async function startGamePage(
       return;
     }
 
-    const errorCode = reportGameStartupFailure(error, stage);
+    const errorCode = reportGameStartupFailure(error, stage, activeMultiplayerRoom);
 
     roomEntrySelectionPending = false;
     if (activeGame) {

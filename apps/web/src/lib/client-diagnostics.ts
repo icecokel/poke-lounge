@@ -8,6 +8,8 @@ type ClientDiagnostic = {
   column?: number;
   script?: string;
   roomInstanceId?: string;
+  roomCode?: string;
+  sessionId?: string;
   errorName?: string;
   error?: unknown;
   startupStep?: string;
@@ -96,6 +98,14 @@ export function reportClientDiagnostic(event: ClientDiagnostic): void {
       ? event.resourcePath
       : undefined;
   const userCode = event.userCode && /^\d{5}$/.test(event.userCode) ? event.userCode : undefined;
+  const roomCodeCandidate =
+    event.roomCode ?? new URLSearchParams(window.location.search).get("room");
+  const roomCode =
+    roomCodeCandidate && /^[A-Za-z0-9_-]{1,64}$/.test(roomCodeCandidate)
+      ? roomCodeCandidate
+      : undefined;
+  const sessionId =
+    event.sessionId && /^[A-Za-z0-9_-]{1,80}$/.test(event.sessionId) ? event.sessionId : undefined;
   try {
     void fetch(`${getApiBaseUrl()}/diagnostics/client-errors`, {
       method: "POST",
@@ -112,6 +122,8 @@ export function reportClientDiagnostic(event: ClientDiagnostic): void {
         column: event.column,
         script: event.script,
         roomInstanceId: event.roomInstanceId,
+        roomCode,
+        sessionId,
         errorName,
         errorText,
         startupStep,

@@ -276,7 +276,13 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           headers.set("X-Room-Instance", roomInstanceId);
         const response = await fetchImpl(url, { ...init, headers, signal: controller.signal });
         if (response.status >= 500) {
-          reportClientDiagnostic({ kind: "api", code: `HTTP_${response.status}`, requestId });
+          reportClientDiagnostic({
+            kind: "api",
+            code: `HTTP_${response.status}`,
+            requestId,
+            roomCode: activeRoomId === PENDING_ROOM_ID ? undefined : activeRoomId,
+            sessionId,
+          });
         }
         const responseText = await readResponseBody(response);
 
@@ -293,6 +299,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             : "NETWORK_ERROR",
         requestId,
         error,
+        roomCode: activeRoomId === PENDING_ROOM_ID ? undefined : activeRoomId,
+        sessionId,
       });
       throw error;
     } finally {
@@ -420,6 +428,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       kind: "room",
       code: detail.code,
       roomInstanceId,
+      roomCode: activeRoomId === PENDING_ROOM_ID ? undefined : activeRoomId,
+      sessionId,
       userCode: ROOM_ERROR_CODES[detail.code],
       error,
     });
