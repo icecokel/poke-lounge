@@ -131,7 +131,7 @@ async fn run() -> AppResult<()> {
         requests: Arc::new(Semaphore::new(64)),
     };
     let router = http::router(state, &config);
-    tracing::info!(event = "backend.started", bind = %config.bind, protocol = "rust-game-v2");
+    tracing::info!(event = "backend.started", bind = %config.bind, protocol = "rust-game-v2", release = %std::env::var("RELEASE_SHA").unwrap_or_else(|_| "local".into()));
     let server = axum::serve(
         listener,
         router.into_make_service_with_connect_info::<std::net::SocketAddr>(),

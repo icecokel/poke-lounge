@@ -28,6 +28,7 @@ type Pending = {
   input: ComputeRequest;
   response: ServerResponse;
   timer: ReturnType<typeof setTimeout>;
+  started: number;
 };
 type Slot = { worker: Worker; ready: boolean; pending: Pending | null; restarting: boolean };
 const slots: Slot[] = [];
@@ -50,6 +51,19 @@ function finish(slot: Slot, status: number, result: unknown): void {
   clearTimeout(pending.timer);
   slot.pending = null;
   inFlight--;
+  if (status >= 400 || Date.now() - pending.started >= 2_000) {
+    process.stderr.write(
+      JSON.stringify({
+        event: status >= 400 ? "compute.failed" : "compute.slow",
+        requestId: pending.input.requestId,
+        roomInstanceId: pending.input.roomInstanceId,
+        revision: pending.input.stateRevision,
+        operation: pending.input.operation.kind,
+        status,
+        durationMs: Date.now() - pending.started,
+      }) + "\n",
+    );
+  }
   json(pending.response, status, result);
   dispatch();
 }
@@ -196,7 +210,17 @@ async function receive(request: IncomingMessage, response: ServerResponse): Prom
           inFlight--;
         }
         json(response, 504, { code: "COMPUTE_TIMEOUT" });
+        process.stderr.write(
+          JSON.stringify({
+            event: "compute.timeout",
+            requestId: input.requestId,
+            roomInstanceId: input.roomInstanceId,
+            revision: input.stateRevision,
+            operation: input.operation.kind,
+          }) + "\n",
+        );
       }, JOB_TIMEOUT_MS),
+      started: Date.now(),
     };
     queued = true;
     waiting.push(pending);
@@ -221,6 +245,7 @@ server.listen(
     process.stdout.write(
       JSON.stringify({
         event: "compute.started",
+        release: process.env.RELEASE_SHA ?? "local",
         workers: concurrency,
         engineVersion: ENGINE_VERSION,
       }) + "\n",

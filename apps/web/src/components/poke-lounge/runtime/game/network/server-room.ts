@@ -1,5 +1,6 @@
 import { acknowledgePreparation } from "@/features/poke-lounge/application/round/acknowledge-preparation";
 import { getApiBaseUrl } from "@/lib/constants";
+import { createDiagnosticRequestId, reportClientDiagnostic } from "@/lib/client-diagnostics";
 import type { components } from "@/types/api";
 import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
@@ -252,6 +253,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     url: string,
     init?: RequestInit,
   ): Promise<{ response: Response; responseText: string }> => {
+    const requestId = createDiagnosticRequestId();
     const controller = new AbortController();
     let timeoutHandle: number | null = null;
     const timeout = new Promise<never>(function resolvePromise(_resolve, reject) {
@@ -264,6 +266,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     try {
       const request = (async function callback() {
         const headers = new Headers(init?.headers);
+        headers.set("X-Request-Id", requestId);
         if (
           RUST_BACKEND_ENABLED &&
           roomInstanceId &&
@@ -271,12 +274,25 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         )
           headers.set("X-Room-Instance", roomInstanceId);
         const response = await fetchImpl(url, { ...init, headers, signal: controller.signal });
+        if (response.status >= 500) {
+          reportClientDiagnostic({ kind: "api", code: `HTTP_${response.status}`, requestId });
+        }
         const responseText = await readResponseBody(response);
 
         return { response, responseText };
       })();
 
       return await Promise.race([request, timeout]);
+    } catch (error) {
+      reportClientDiagnostic({
+        kind: "api",
+        code:
+          error instanceof Error && error.message.includes("timed out")
+            ? "TIMEOUT"
+            : "NETWORK_ERROR",
+        requestId,
+      });
+      throw error;
     } finally {
       if (timeoutHandle !== null) {
         window.clearTimeout(timeoutHandle);
@@ -395,6 +411,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   const dispatchServerRoomError = (detail: Omit<PokeLoungeServerRoomErrorDetail, "cancel">) => {
     if (disposed) return;
+    reportClientDiagnostic({ kind: "room", code: detail.code, roomInstanceId });
     dispatchWindowEvent<PokeLoungeServerRoomErrorDetail>(POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT, {
       ...detail,
       cancel: returnToRoomEntry,

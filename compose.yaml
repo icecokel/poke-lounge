@@ -1,8 +1,15 @@
 name: poke-lounge
 
+x-logging: &bounded-logging
+  driver: local
+  options:
+    max-size: "20m"
+    max-file: "10"
+
 x-node-app: &node-app
   image: poke-lounge-node:local
   init: true
+  logging: *bounded-logging
 
 x-db-environment: &db-environment
   DB_HOST: postgres
@@ -16,6 +23,7 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *bounded-logging
     environment:
       POSTGRES_USER: ${DB_USERNAME:-poke_lounge}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-poke_lounge}
@@ -31,6 +39,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *bounded-logging
     command: ["redis-server", "--appendonly", "yes"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -48,6 +57,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
         NEXT_PUBLIC_POKE_BACKEND: rust
+        NEXT_PUBLIC_RELEASE_SHA: ${RELEASE_SHA:-}
     command:
       [
         "sh",
@@ -69,6 +79,7 @@ services:
       BATTLE_WORKER_HOST: 0.0.0.0
       BATTLE_WORKER_PORT: 3021
       BATTLE_WORKER_TOKEN: ${BATTLE_WORKER_TOKEN:?Set BATTLE_WORKER_TOKEN}
+      RELEASE_SHA: ${RELEASE_SHA:-local}
     healthcheck:
       test:
         [
@@ -90,6 +101,7 @@ services:
       dockerfile: apps/api-rust/Dockerfile
     init: true
     restart: unless-stopped
+    logging: *bounded-logging
     environment:
       RUST_API_BIND_ADDR: 0.0.0.0:3011
       RUST_API_ALLOW_REMOTE: "true"
@@ -103,6 +115,7 @@ services:
       DB_DATABASE: ${DB_DATABASE:-poke_lounge}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       RUST_LOG: info
+      RELEASE_SHA: ${RELEASE_SHA:-local}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -150,6 +163,7 @@ services:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
       NEXT_PUBLIC_POKE_BACKEND: rust
+      NEXT_PUBLIC_RELEASE_SHA: ${RELEASE_SHA:-}
     depends_on:
       api:
         condition: service_healthy
