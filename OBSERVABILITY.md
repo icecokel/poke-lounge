@@ -45,7 +45,35 @@ for file in /archive/*.log.gz; do
 done' sh '여기에-요청-또는-계산-UUID'
 ```
 
-`api.request`의 `route`는 템플릿 경로이며 요청 본문은 기록하지 않는다. `browser.error`에는 종류·오류 코드·연관 요청 ID·페이지 범주와 실행 코드 위치만 기록한다. 실제 게임 중 UI에 표시된 방 코드를 검색 키로 사용하지 않는다. Rust `api.error`의 `source`는 Redis·PostgreSQL·전투 계산 등 실패 계층이다. `compute.failed`에 기록된 작업 종류와 상태로 워커의 같은 ID를 찾는다. `backend.started`, `compute.started`의 `release`와 브라우저 오류의 `release`로 배포 버전을 대조한다.
+`api.request`의 `route`는 템플릿 경로이며 요청 본문은 기록하지 않는다. `browser.error`에는 종류·오류 코드·연관 요청 ID·페이지 범주·실행 코드 위치·오류 이름·검증된 공개 정적 리소스 경로만 기록한다. 실제 게임 중 UI에 표시된 방 코드를 검색 키로 사용하지 않는다. Rust `api.error`의 `source`는 Redis·PostgreSQL·전투 계산 등 실패 계층이다. `compute.failed`에 기록된 작업 종류와 상태로 워커의 같은 ID를 찾는다. `backend.started`, `compute.started`의 `release`와 브라우저 오류의 `release`로 배포 버전을 대조한다.
+
+게임 시작 실패 화면이 표시되면 `browser.error`의 `GAME_ASSET_*`, `STARTER_DATA_FAILED`, `GAME_START_FAILED`, `GAME_MODULE_LOAD_FAILED`, `GAME_RUNTIME_INIT_FAILED` 코드를 찾는다. 정적 리소스 실패는 공개 `/assets/` 또는 `/game-data/` 경로와 HTTP 상태를 기록한다. 오류 이름은 `error_name`으로 구분한다. 오류 메시지·스택·전체 URL은 수집하지 않는다.
+
+## 화면 오류 코드
+
+게임 시작·방 연결 실패 화면에는 고정된 5자리 코드를 표시한다. 같은 숫자가 API의 `browser.error.user_code`에도 남는다. `code`는 내부 원인 분류이며, 화면의 숫자로 로그를 먼저 검색한 다음 `code`·`resource_path`·`release`를 대조한다.
+
+| 코드    | 의미                           |
+| ------- | ------------------------------ |
+| `11001` | 게임 화면 모듈 로드 실패       |
+| `11002` | 게임 런타임 초기화 실패        |
+| `11003` | 스타터 선택 데이터 로드 실패   |
+| `11004` | 게임 시작 처리 실패            |
+| `11101` | 필수 정적 리소스 HTTP 오류     |
+| `11102` | 필수 정적 리소스 네트워크 오류 |
+| `11103` | 필수 JSON 파싱 오류            |
+| `11104` | 필수 정적 데이터 형식 오류     |
+| `11105` | 필수 이미지 로드 실패          |
+| `21001` | 방 생성 실패                   |
+| `21002` | 방 참가 실패                   |
+| `21003` | 파티 동기화 실패               |
+| `21004` | 준비 상태 반영 실패            |
+| `21005` | 방 연결 실패                   |
+| `21006` | 방 인원 초과                   |
+| `21007` | 방 만료                        |
+| `21008` | 방 연결 정보 만료              |
+
+기존 브라우저 탭은 새 코드를 표시하거나 전송하지 않을 수 있다. `11101`의 HTTP 상태는 `code`의 `GAME_ASSET_HTTP_<상태>` 값으로 확인한다.
 
 ## 보존과 한계
 

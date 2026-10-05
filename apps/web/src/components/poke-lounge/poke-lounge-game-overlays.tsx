@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { PokeLoungeCopy } from "./poke-lounge-copy";
+import type { PokeLoungeErrorCode } from "./poke-lounge-error-codes";
 import type { PokeLoungeRoomLeaveRequestDetail } from "./runtime/game/ui/poke-lounge-ui-events";
 
 const stateScreenClassName =
@@ -64,10 +65,12 @@ export function PokeLoungeHydrationScreens({
 
 export function PokeLoungeStartupErrorScreen({
   copy,
+  errorCode,
   onRetry,
   onLobby,
 }: {
   copy: PokeLoungeCopy;
+  errorCode: PokeLoungeErrorCode;
   onRetry(): void;
   onLobby(): void;
 }) {
@@ -76,6 +79,9 @@ export function PokeLoungeStartupErrorScreen({
       <p className={resultEyebrowClassName}>Poke Lounge</p>
       <h2 className="m-0 text-base font-black">{copy.startup.title}</h2>
       <p className={resultStatusClassName}>{copy.startup.description}</p>
+      <p className="m-0 text-xs font-black tabular-nums" data-testid="poke-lounge-error-code">
+        {copy.startup.errorCodeLabel}: {errorCode}
+      </p>
       <div className={resultActionsClassName}>
         <Button type="button" onClick={onRetry} data-testid="poke-lounge-startup-retry">
           {copy.startup.retry}

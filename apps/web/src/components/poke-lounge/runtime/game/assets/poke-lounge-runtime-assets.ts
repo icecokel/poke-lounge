@@ -3,6 +3,7 @@ import {
   parsePokeLoungeAudioManifest,
   POKE_LOUNGE_AUDIO_MANIFEST_PATH,
 } from "../audio/poke-lounge-audio";
+import { RequiredGameAssetError } from "../../required-game-asset-error";
 import type {
   PokeLoungeAudioManifest,
   PokeLoungeBgmId,
@@ -85,7 +86,7 @@ export async function loadPokeLoungeRuntimeAssets({
   );
   const audioManifest = parsePokeLoungeAudioManifest(audioManifestValue);
   if (!audioManifest) {
-    throw new Error("Required Poke Lounge audio manifest is invalid.");
+    throw new RequiredGameAssetError(POKE_LOUNGE_AUDIO_MANIFEST_PATH, "INVALID_DATA");
   }
 
   const spriteSheetAssets = toBattlePokemonPreloadAssets();
@@ -134,8 +135,11 @@ export async function loadPokeLoungeRuntimeAssets({
     fetchRequiredJson(fetcher, FIELD_MAP.mapUrl, signal).then(complete),
     fetchRequiredJson(fetcher, FIELD_MAP.player.atlasJsonUrl, signal).then(complete),
   ]);
-  if (!isObject(tilemapValue) || !isObject(playerAtlasValue)) {
-    throw new Error("Required Poke Lounge map or player atlas data is invalid.");
+  if (!isObject(tilemapValue)) {
+    throw new RequiredGameAssetError(FIELD_MAP.mapUrl, "INVALID_DATA");
+  }
+  if (!isObject(playerAtlasValue)) {
+    throw new RequiredGameAssetError(FIELD_MAP.player.atlasJsonUrl, "INVALID_DATA");
   }
   for (const [key, value] of jsonEntries) {
     json.set(key, value);
@@ -189,11 +193,21 @@ async function fetchRequiredJson(
   path: string,
   signal?: AbortSignal,
 ): Promise<unknown> {
-  const response = await fetcher(path, { cache: "force-cache", signal });
-  if (!response.ok) {
-    throw new Error(`Failed to load required Poke Lounge asset ${path}: ${response.status}`);
+  let response: Response;
+  try {
+    response = await fetcher(path, { cache: "force-cache", signal });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new RequiredGameAssetError(path, "NETWORK");
   }
-  return response.json();
+  if (!response.ok) {
+    throw new RequiredGameAssetError(path, "HTTP", response.status);
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw new RequiredGameAssetError(path, "INVALID_JSON");
+  }
 }
 
 async function fetchRequiredArrayBuffer(
@@ -201,11 +215,21 @@ async function fetchRequiredArrayBuffer(
   path: string,
   signal?: AbortSignal,
 ): Promise<ArrayBuffer> {
-  const response = await fetcher(path, { cache: "force-cache", signal });
-  if (!response.ok) {
-    throw new Error(`Failed to load required Poke Lounge asset ${path}: ${response.status}`);
+  let response: Response;
+  try {
+    response = await fetcher(path, { cache: "force-cache", signal });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new RequiredGameAssetError(path, "NETWORK");
   }
-  return response.arrayBuffer();
+  if (!response.ok) {
+    throw new RequiredGameAssetError(path, "HTTP", response.status);
+  }
+  try {
+    return await response.arrayBuffer();
+  } catch {
+    throw new RequiredGameAssetError(path, "NETWORK");
+  }
 }
 
 function loadBrowserImage(path: string, signal?: AbortSignal): Promise<HTMLImageElement> {
@@ -227,7 +251,7 @@ function loadBrowserImage(path: string, signal?: AbortSignal): Promise<HTMLImage
     };
     image.onerror = function callback() {
       cleanup();
-      reject(new Error(`Failed to load required Poke Lounge image ${path}.`));
+      reject(new RequiredGameAssetError(path, "IMAGE"));
     };
     if (signal?.aborted) {
       handleAbort();

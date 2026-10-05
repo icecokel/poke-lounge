@@ -261,6 +261,9 @@ struct ClientError {
     release: Option<String>,
     script: Option<String>,
     room_instance_id: Option<Uuid>,
+    error_name: Option<String>,
+    resource_path: Option<String>,
+    user_code: Option<String>,
 }
 
 async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode> {
@@ -286,6 +289,22 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
                     byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'_' | b'.' | b'-')
                 })
         })
+        || payload
+            .error_name
+            .as_ref()
+            .is_some_and(|name| !valid_label(name, 48))
+        || payload.resource_path.as_ref().is_some_and(|path| {
+            path.len() > 200
+                || !(path.starts_with("/assets/") || path.starts_with("/game-data/"))
+                || path.contains("..")
+                || !path.bytes().all(|byte| {
+                    byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'_' | b'.' | b'-')
+                })
+        })
+        || payload
+            .user_code
+            .as_ref()
+            .is_some_and(|code| code.len() != 5 || !code.bytes().all(|byte| byte.is_ascii_digit()))
     {
         return Err(AppError::Invalid("Invalid diagnostic event"));
     }
@@ -300,6 +319,9 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
         release = ?payload.release,
         script = ?payload.script,
         room_instance_id = ?payload.room_instance_id,
+        error_name = ?payload.error_name,
+        resource_path = ?payload.resource_path,
+        user_code = %payload.user_code.as_deref().unwrap_or("none"),
     );
     Ok(StatusCode::NO_CONTENT)
 }
