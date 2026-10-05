@@ -24,6 +24,7 @@ import {
   type PokeLoungeAutosaveStatus,
 } from "./poke-lounge-autosave";
 import { getPokeLoungeCopy } from "./poke-lounge-copy";
+import { STARTUP_ERROR_CODES, type PokeLoungeErrorCode } from "./poke-lounge-error-codes";
 import { PokeLoungeGameFrame } from "./poke-lounge-game-frame";
 import {
   PokeLoungeDecisionDialogs,
@@ -205,7 +206,10 @@ export function PokeLoungeGame() {
   const [leaveRequest, setLeaveRequest] = useState<PokeLoungeRoomLeaveRequestDetail | null>(null);
   const [notice, setNotice] = useState<PokeLoungeNoticeDetail | null>(null);
   const [gameStartupAttempt, setGameStartupAttempt] = useState(0);
-  const [gameStartupError, setGameStartupError] = useState(false);
+  const [gameStartupErrorCode, setGameStartupErrorCode] = useState<PokeLoungeErrorCode | null>(
+    null,
+  );
+  const gameStartupError = gameStartupErrorCode !== null;
   const [runtimeState, setRuntimeState] = useState<PokeLoungeRuntimeState>({
     phase: "hydrating",
   });
@@ -925,7 +929,7 @@ export function PokeLoungeGame() {
       let cleanedUp = false;
       let destroyGamePage: (() => void) | null = null;
       const idToken = accountId ? accountTokensRef.current.get(accountId) : undefined;
-      setGameStartupError(false);
+      setGameStartupErrorCode(null);
       setGamePlaying(true);
       startedAtMsRef.current = Date.now();
       const cleanupGamePage = () => {
@@ -990,12 +994,17 @@ export function PokeLoungeGame() {
           };
         } catch (error) {
           if (!cancelled) {
+            const userCode =
+              startupStage === "GAME_MODULE_LOAD_FAILED"
+                ? STARTUP_ERROR_CODES.MODULE_LOAD
+                : STARTUP_ERROR_CODES.RUNTIME_INIT;
             reportClientDiagnostic({
               kind: "runtime",
               code: startupStage,
               errorName: error instanceof Error ? error.name : "UnknownError",
+              userCode,
             });
-            setGameStartupError(true);
+            setGameStartupErrorCode(userCode);
             setGamePlaying(false);
           }
         }
@@ -1134,9 +1143,10 @@ export function PokeLoungeGame() {
         status={stateHydrationStatus}
         onRetry={handleStateHydrationRetry}
       />
-      {gameStartupError ? (
+      {gameStartupErrorCode ? (
         <PokeLoungeStartupErrorScreen
           copy={copy}
+          errorCode={gameStartupErrorCode}
           onRetry={function handleRetry() {
             return setGameStartupAttempt(function callback(attempt) {
               return attempt + 1;

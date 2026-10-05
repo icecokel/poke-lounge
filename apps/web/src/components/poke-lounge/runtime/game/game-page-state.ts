@@ -1,4 +1,5 @@
 import type { GameBootstrapData, StarterPokemon } from "../types";
+import type { PokeLoungeErrorCode } from "../../poke-lounge-error-codes";
 import type { RoomEntrySelection } from "./network/room-entry-screen";
 import type { WebRtcRoom } from "./network/web-rtc-room";
 import type { RoomLobbyRuntimeState } from "./ui/room-lobby-screen";
@@ -71,6 +72,7 @@ export type PokeLoungeRuntimeState =
   | {
       phase: "error";
       description: string;
+      errorCode: PokeLoungeErrorCode;
       onRetry?: () => void;
       onReturnToEntry(): void;
     };

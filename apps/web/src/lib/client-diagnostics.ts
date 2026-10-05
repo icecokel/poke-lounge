@@ -10,6 +10,7 @@ type ClientDiagnostic = {
   roomInstanceId?: string;
   errorName?: string;
   resourcePath?: string;
+  userCode?: string;
 };
 
 let sent = 0;
@@ -35,6 +36,7 @@ export function reportClientDiagnostic(event: ClientDiagnostic): void {
     !event.resourcePath.includes("..")
       ? event.resourcePath
       : undefined;
+  const userCode = event.userCode && /^\d{5}$/.test(event.userCode) ? event.userCode : undefined;
   try {
     void fetch(`${getApiBaseUrl()}/diagnostics/client-errors`, {
       method: "POST",
@@ -53,6 +55,7 @@ export function reportClientDiagnostic(event: ClientDiagnostic): void {
         roomInstanceId: event.roomInstanceId,
         errorName,
         resourcePath,
+        userCode,
         release: process.env.NEXT_PUBLIC_RELEASE_SHA || undefined,
       }),
     }).catch(() => {});

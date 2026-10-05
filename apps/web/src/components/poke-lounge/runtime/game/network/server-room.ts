@@ -1,6 +1,7 @@
 import { acknowledgePreparation } from "@/features/poke-lounge/application/round/acknowledge-preparation";
 import { getApiBaseUrl } from "@/lib/constants";
 import { createDiagnosticRequestId, reportClientDiagnostic } from "@/lib/client-diagnostics";
+import { ROOM_ERROR_CODES } from "../../../poke-lounge-error-codes";
 import type { components } from "@/types/api";
 import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
@@ -411,7 +412,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   const dispatchServerRoomError = (detail: Omit<PokeLoungeServerRoomErrorDetail, "cancel">) => {
     if (disposed) return;
-    reportClientDiagnostic({ kind: "room", code: detail.code, roomInstanceId });
+    reportClientDiagnostic({
+      kind: "room",
+      code: detail.code,
+      roomInstanceId,
+      userCode: ROOM_ERROR_CODES[detail.code],
+    });
     dispatchWindowEvent<PokeLoungeServerRoomErrorDetail>(POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT, {
       ...detail,
       cancel: returnToRoomEntry,

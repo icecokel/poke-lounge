@@ -1,6 +1,12 @@
 import { createStarterPlayerPokemon } from "@/features/poke-lounge/domain/player/create-starter-pokemon";
 import { reportClientDiagnostic } from "@/lib/client-diagnostics";
 import { getPokeLoungeCopyForUrl } from "../../poke-lounge-copy";
+import {
+  ASSET_ERROR_CODES,
+  ROOM_ERROR_CODES,
+  STARTUP_ERROR_CODES,
+  type PokeLoungeErrorCode,
+} from "../../poke-lounge-error-codes";
 import { loadBootstrapData } from "../bootstrap";
 import { RequiredGameAssetError } from "../required-game-asset-error";
 import type { GameBootstrapData } from "../types";
@@ -94,6 +100,28 @@ export interface StartGamePageDependencies {
   onRoomLeaveRequest?: (request: PokeLoungeRoomLeaveRequestDetail) => void;
   onRuntimeStateChange?: (state: PokeLoungeRuntimeState) => void;
   viewportSize?: GameViewportDisplaySize;
+}
+
+function reportGameStartupFailure(
+  error: unknown,
+  stage: "GAME_START_FAILED" | "STARTER_DATA_FAILED",
+): PokeLoungeErrorCode {
+  const assetError = error instanceof RequiredGameAssetError ? error : null;
+  const userCode = assetError
+    ? ASSET_ERROR_CODES[assetError.reason]
+    : stage === "STARTER_DATA_FAILED"
+      ? STARTUP_ERROR_CODES.STARTER_DATA
+      : STARTUP_ERROR_CODES.GAME_START;
+  reportClientDiagnostic({
+    kind: "runtime",
+    code: assetError
+      ? `GAME_ASSET_${assetError.reason}${assetError.status ? `_${assetError.status}` : ""}`
+      : stage,
+    errorName: error instanceof Error ? error.name : "UnknownError",
+    resourcePath: assetError?.resourcePath,
+    userCode,
+  });
+  return userCode;
 }
 
 export async function startGamePage(
@@ -312,11 +340,13 @@ export async function startGamePage(
           starterState = state;
           emitCurrentGameplayState();
         },
-      ).catch(function handleStarterLoadError() {
+      ).catch(function handleStarterLoadError(error) {
         if (destroyed || activeMultiplayerRoom !== multiplayerRoom) return;
+        const errorCode = reportGameStartupFailure(error, "STARTER_DATA_FAILED");
         starterState = {
           phase: "error",
           description: copy.startup.description,
+          errorCode,
           onRetry: function retryStarterSelection() {
             requestInGameStarterSelection(onComplete);
           },
@@ -457,6 +487,7 @@ export async function startGamePage(
       emitRuntimeState({
         phase: "error",
         description: getServerRoomErrorMessage(copy.locale, detail.code),
+        errorCode: ROOM_ERROR_CODES[detail.code],
         ...(detail.recoverable && detail.retry
           ? {
               onRetry: () => {
@@ -532,15 +563,7 @@ export async function startGamePage(
       return;
     }
 
-    const assetError = error instanceof RequiredGameAssetError ? error : null;
-    reportClientDiagnostic({
-      kind: "runtime",
-      code: assetError
-        ? `GAME_ASSET_${assetError.reason}${assetError.status ? `_${assetError.status}` : ""}`
-        : stage,
-      errorName: error instanceof Error ? error.name : "UnknownError",
-      resourcePath: assetError?.resourcePath,
-    });
+    const errorCode = reportGameStartupFailure(error, stage);
 
     roomEntrySelectionPending = false;
     if (activeGame) {
@@ -559,6 +582,7 @@ export async function startGamePage(
     emitRuntimeState({
       phase: "error",
       description: copy.startup.description,
+      errorCode,
       onRetry: retry,
       onReturnToEntry: () => {
         restoreOwnerGameState(true);

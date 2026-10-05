@@ -987,6 +987,12 @@ function RuntimeErrorScreen({
         <p className="m-0 text-xs font-bold leading-[1.45] text-[#4a5b4d]">
           {state.description || copy.startup.description}
         </p>
+        <p
+          className="m-0 text-xs font-black tabular-nums text-[#4a5b4d]"
+          data-testid="poke-lounge-error-code"
+        >
+          {copy.startup.errorCodeLabel}: {state.errorCode}
+        </p>
         <div
           className="grid grid-cols-2 gap-2 [&_button]:min-h-10 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:font-black"
           data-game-startup-error-actions="true"
