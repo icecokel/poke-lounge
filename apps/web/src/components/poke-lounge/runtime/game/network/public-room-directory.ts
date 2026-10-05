@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/constants";
+import { createDiagnosticRequestId, reportClientDiagnostic } from "@/lib/client-diagnostics";
 import {
   normalizeRoomCode,
   normalizeRoomInstanceId,
@@ -39,18 +40,36 @@ const PUBLIC_ROOM_STATUSES = new Set<PublicRoomStatus>([
 ]);
 
 export async function fetchPublicRooms(signal?: AbortSignal): Promise<PublicRoomSummary[]> {
-  const response = await fetch(`${getApiBaseUrl()}/poke-lounge/rooms/public`, {
-    method: "GET",
-    cache: "no-store",
-    signal,
-  });
+  const requestId = createDiagnosticRequestId();
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}/poke-lounge/rooms/public`, {
+      method: "GET",
+      cache: "no-store",
+      headers: { "X-Request-Id": requestId },
+      signal,
+    });
+  } catch (error) {
+    if (!signal?.aborted) {
+      reportClientDiagnostic({ kind: "api", code: "NETWORK_ERROR", requestId });
+    }
+    throw error;
+  }
 
   if (!response.ok) {
+    if (response.status >= 500) {
+      reportClientDiagnostic({ kind: "api", code: `HTTP_${response.status}`, requestId });
+    }
     throw new Error(`공개방 목록 요청 실패 (${response.status})`);
   }
 
-  const payload: unknown = await response.json();
-  return parsePublicRoomListEnvelope(payload).data.rooms;
+  try {
+    const payload: unknown = await response.json();
+    return parsePublicRoomListEnvelope(payload).data.rooms;
+  } catch (error) {
+    reportClientDiagnostic({ kind: "api", code: "INVALID_RESPONSE", requestId });
+    throw error;
+  }
 }
 
 function parsePublicRoomListEnvelope(value: unknown): PublicRoomListEnvelope {
