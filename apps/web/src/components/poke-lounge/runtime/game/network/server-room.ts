@@ -90,6 +90,8 @@ export interface ServerRoomOptions {
   roomId?: string;
   roomInstanceId?: string;
   roomRunId?: string;
+  sessionId?: string;
+  playerId?: string;
   createRoom?: boolean;
   quickPlay?: boolean;
   visibility?: "private" | "public";
@@ -158,7 +160,7 @@ type ServerRoomSocketFactory = (
 type RecoveryOrigin = "transport" | "online-probe";
 
 const SERVER_IDENTITY_STORAGE_KEY = RUST_BACKEND_ENABLED
-  ? "poke-lounge:rust-room-identity:v3"
+  ? "poke-lounge:rust-room-identity:v2"
   : "poke-lounge:server-room-identity";
 const SERVER_ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 
@@ -431,9 +433,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         headers: {
           ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}),
           ...init?.headers,
-          ...(RUST_BACKEND_ENABLED && (!init?.method || init.method === "GET")
-            ? { "X-Player-Id": serverPlayerId, "X-Session-Id": sessionId }
-            : {}),
         },
       });
     } catch (error) {
@@ -2274,25 +2273,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     };
 
     if (options.resumeRoom) {
-      let current: ServerRoomState;
-      try {
-        current = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
-      } catch (error) {
-        if (
-          !RUST_BACKEND_ENABLED ||
-          !(error instanceof ServerRoomRequestError) ||
-          error.status !== 403
-        ) {
-          throw error;
-        }
-        const rejoined = await mutateIdempotentRoom(
-          `/poke-lounge/rooms/${activeRoomId}/join`,
-          participantBody,
-          initialOpenIdempotencyKey,
-        );
-        resumeRejoinedParticipant = true;
-        return rejoined;
-      }
+      const current = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
       if (
         current.participants.some(function testItem(participant) {
           return participant.playerId === serverPlayerId;
@@ -2352,14 +2333,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
         return state;
       });
-    }
-
-    if (RUST_BACKEND_ENABLED) {
-      return mutateIdempotentRoom(
-        `/poke-lounge/rooms/${activeRoomId}/join`,
-        body,
-        initialOpenIdempotencyKey,
-      );
     }
 
     return mutateRoom(
@@ -3299,13 +3272,30 @@ function resolveServerIdentity(options: ServerRoomOptions): {
   sessionId: string;
   playerId: string;
 } {
+  const searchParams =
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
+  const sessionIdOverride = options.sessionId ?? searchParams?.get("serverSessionId") ?? undefined;
+  const playerIdOverride = options.playerId ?? searchParams?.get("serverPlayerId") ?? undefined;
+
+  if (sessionIdOverride && playerIdOverride) {
+    return {
+      sessionId: sessionIdOverride,
+      playerId: playerIdOverride,
+    };
+  }
+
   const stored = readStoredIdentity(options.accountId);
   const identity = {
-    sessionId: stored?.sessionId ?? `server-session-${createIdentityToken()}`,
-    playerId: stored?.playerId ?? `server-player-${createIdentityToken()}`,
+    sessionId: sessionIdOverride ?? stored?.sessionId ?? `server-session-${createIdentityToken()}`,
+    playerId: playerIdOverride ?? stored?.playerId ?? `server-player-${createIdentityToken()}`,
   };
 
-  writeStoredIdentity(stored ? { ...stored, ...identity } : identity, options.accountId);
+  writeStoredIdentity(
+    stored?.sessionId === identity.sessionId && stored.playerId === identity.playerId
+      ? { ...stored, ...identity }
+      : identity,
+    options.accountId,
+  );
 
   return identity;
 }
@@ -3456,10 +3446,11 @@ function getServerIdentityStorageKey(accountId?: string): string {
 }
 
 function createIdentityToken(): string {
-  if (typeof crypto === "undefined" || !("randomUUID" in crypto)) {
-    throw new Error("crypto.randomUUID is required for Poke Lounge room identity");
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
   }
-  return crypto.randomUUID();
+
+  return Math.random().toString(36).slice(2);
 }
 
 function applyCreatedRoomToLocation(roomCode: string, persistRoomCode: boolean): void {

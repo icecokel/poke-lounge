@@ -131,8 +131,6 @@ pub fn router(state: AppState, config: &Config) -> Router {
                     "x-idempotency-key".parse().expect("static header"),
                     "if-match-revision".parse().expect("static header"),
                     "x-room-instance".parse().expect("static header"),
-                    "x-player-id".parse().expect("static header"),
-                    "x-session-id".parse().expect("static header"),
                     "mcp-protocol-version".parse().expect("static header"),
                 ])
                 .expose_headers(["x-request-id".parse().expect("static header")]),
@@ -249,12 +247,6 @@ fn revision(headers: &HeaderMap) -> AppResult<u64> {
         .filter(|n| *n < 9_007_199_254_740_991)
         .ok_or(AppError::Invalid("If-Match-Revision required"))
 }
-fn optional_revision(headers: &HeaderMap) -> AppResult<Option<u64>> {
-    headers
-        .get("if-match-revision")
-        .map(|_| revision(headers))
-        .transpose()
-}
 pub fn instance(headers: &HeaderMap) -> AppResult<Option<Uuid>> {
     headers
         .get("x-room-instance")
@@ -343,16 +335,6 @@ async fn snapshot(
     headers: HeaderMap,
     Query(query): Query<ReadQuery>,
 ) -> AppResult<Json<Value>> {
-    let requester = match (headers.get("x-player-id"), headers.get("x-session-id")) {
-        (Some(player), Some(session)) => {
-            let player = player.to_str().map_err(|_| AppError::Forbidden)?;
-            validate_player_id(player)?;
-            let session = session.to_str().map_err(|_| AppError::Forbidden)?;
-            Some((player.to_owned(), session_hash(session)?))
-        }
-        (None, None) => None,
-        _ => return Err(AppError::Forbidden),
-    };
     let id = state
         .rooms
         .resolve(&normalize_code(&code)?, instance(&headers)?)
@@ -362,9 +344,8 @@ async fn snapshot(
             .rooms
             .request(
                 id,
-                Operation::ReadSnapshot {
+                Operation::Snapshot {
                     after: query.after_revision,
-                    requester,
                 },
             )
             .await?,
@@ -384,7 +365,7 @@ async fn join(
     value: Result<Json<JoinBody>, JsonRejection>,
 ) -> AppResult<Json<Value>> {
     let b = body(value)?;
-    let expected = optional_revision(&headers)?;
+    let expected = revision(&headers)?;
     let name = normalize_name(b.display_name.as_deref().unwrap_or("플레이어"))?;
     apply(
         state,
@@ -395,7 +376,7 @@ async fn join(
             session_id: b.session_id,
         },
         GameCommand::Join { display_name: name },
-        expected,
+        Some(expected),
     )
     .await
 }
