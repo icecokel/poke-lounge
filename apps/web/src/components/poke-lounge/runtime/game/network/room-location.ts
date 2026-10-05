@@ -1,3 +1,5 @@
+import { ROOM_ENTRY_QUERY_VERSION, ROOM_ENTRY_QUERY_VERSION_PARAM } from "./room-entry";
+
 /** Consume a successful create/join intent without exposing private room codes. */
 export function createJoinedRoomLocation(
   current: URL,
@@ -7,6 +9,7 @@ export function createJoinedRoomLocation(
   const url = new URL(current.href);
   url.searchParams.delete("create");
   url.searchParams.delete("quick");
+  url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
   url.searchParams.set("network", "server");
   if (persistRoomCode) {
     url.searchParams.set("room", roomCode);

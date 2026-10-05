@@ -11,6 +11,7 @@ import type { PlayerPokemon } from "../state/game-state-store";
 import type { components } from "@/types/api";
 import type { TournamentStateRoomPayload } from "./tournament-projection";
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
+import { isSupportedRoomEntryQueryVersion } from "./room-entry";
 
 type GeneratedCompetitiveProjection = components["schemas"]["CompetitiveActionResponseDto"];
 
@@ -448,8 +449,11 @@ function readRoomIdFromLocation(): string | null {
   }
 
   try {
-    const roomId = new URL(window.location.href).searchParams.get("room")?.trim();
-
+    const url = new URL(window.location.href);
+    if (!isSupportedRoomEntryQueryVersion(url.searchParams)) {
+      return null;
+    }
+    const roomId = url.searchParams.get("room")?.trim();
     return roomId || null;
   } catch {
     return null;

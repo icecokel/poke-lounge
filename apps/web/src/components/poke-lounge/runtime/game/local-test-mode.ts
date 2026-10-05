@@ -1,3 +1,5 @@
+import { ROOM_ENTRY_QUERY_VERSION_PARAM } from "./network/room-entry";
+
 const LOCAL_TEST_MODE_ENDPOINT = "/api/local-test-mode";
 export const LOCAL_TEST_MODE_START_QUERY_PARAM = "localTest";
 
@@ -8,6 +10,9 @@ const multiplayerSearchParams = [
   "network",
   "room",
   "roundMs",
+  ROOM_ENTRY_QUERY_VERSION_PARAM,
+  "roomInstance",
+  "visibility",
   "serverPlayerId",
   "serverSessionId",
 ] as const;
