@@ -106,7 +106,8 @@ function reportGameStartupFailure(
   error: unknown,
   stage: "GAME_START_FAILED" | "STARTER_DATA_FAILED",
 ): PokeLoungeErrorCode {
-  const assetError = error instanceof RequiredGameAssetError ? error : null;
+  const originalError = error instanceof GameStartupStepError ? error.originalError : error;
+  const assetError = originalError instanceof RequiredGameAssetError ? originalError : null;
   const userCode = assetError
     ? ASSET_ERROR_CODES[assetError.reason]
     : stage === "STARTER_DATA_FAILED"
@@ -117,11 +118,39 @@ function reportGameStartupFailure(
     code: assetError
       ? `GAME_ASSET_${assetError.reason}${assetError.status ? `_${assetError.status}` : ""}`
       : stage,
-    errorName: error instanceof Error ? error.name : "UnknownError",
+    errorName: originalError instanceof Error ? originalError.name : "UnknownError",
+    error: originalError,
+    startupStep: error instanceof GameStartupStepError ? error.step : undefined,
     resourcePath: assetError?.resourcePath,
     userCode,
   });
   return userCode;
+}
+
+type GameStartupStep =
+  | "runtime_data"
+  | "runtime_assets"
+  | "room_creation"
+  | "world_model"
+  | "player_atlas"
+  | "game_construction";
+
+class GameStartupStepError extends Error {
+  constructor(
+    readonly step: GameStartupStep,
+    readonly originalError: unknown,
+  ) {
+    super(`Game startup failed during ${step}`);
+    this.name = "GameStartupStepError";
+  }
+}
+
+function withStartupStep<T>(step: GameStartupStep, operation: () => T): T {
+  try {
+    return operation();
+  } catch (error) {
+    throw new GameStartupStepError(step, error);
+  }
 }
 
 export async function startGamePage(
@@ -165,7 +194,7 @@ export async function startGamePage(
       return await runtimeGameDataPromise;
     } catch (error) {
       runtimeGameDataPromise = null;
-      throw error;
+      throw new GameStartupStepError("runtime_data", error);
     }
   };
 
@@ -194,7 +223,7 @@ export async function startGamePage(
       runtimeAssetsAbortController?.abort();
       runtimeAssetsPromise = null;
       runtimeAssetsAbortController = null;
-      throw error;
+      throw new GameStartupStepError("runtime_assets", error);
     }
   };
 
@@ -282,28 +311,34 @@ export async function startGamePage(
     }
 
     const roomEntry = readRoomEntryFromLocation(gameUrl);
-    const multiplayerRoom = (dependencies.createMultiplayerRoom ?? createMultiplayerRoom)({
-      accountId: resumingStoredRoom || !temporaryRoomCode ? dependencies.accountId : undefined,
-      createWebRtcRoom,
-      idToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.idToken : undefined,
-      getIdToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.getIdToken : undefined,
-      roomId: temporaryRoomCode,
-      roomRunId: activeRoomRunId ?? undefined,
-      persistRoomCodeInUrl: temporaryRoomCode ? false : undefined,
-      resumeRoom: resumingStoredRoom,
-      sharedWorldOnly: Boolean(temporaryRoomCode),
-      competitiveRoundsEnabled: isCompetitiveRoomEntryMode(roomEntry.mode),
-      searchParams: gameUrl.searchParams,
-    });
+    const multiplayerRoom = withStartupStep("room_creation", () =>
+      (dependencies.createMultiplayerRoom ?? createMultiplayerRoom)({
+        accountId: resumingStoredRoom || !temporaryRoomCode ? dependencies.accountId : undefined,
+        createWebRtcRoom,
+        idToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.idToken : undefined,
+        getIdToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.getIdToken : undefined,
+        roomId: temporaryRoomCode,
+        roomRunId: activeRoomRunId ?? undefined,
+        persistRoomCodeInUrl: temporaryRoomCode ? false : undefined,
+        resumeRoom: resumingStoredRoom,
+        sharedWorldOnly: Boolean(temporaryRoomCode),
+        competitiveRoundsEnabled: isCompetitiveRoomEntryMode(roomEntry.mode),
+        searchParams: gameUrl.searchParams,
+      }),
+    );
     const competitiveRoundsEnabled = isCompetitiveRoomEntryMode(roomEntry.mode);
     const worldFrameStore = createWorldFrameStore();
-    const worldModel = createWorldMapModel(runtimeAssets.tilemap);
+    const worldModel = withStartupStep("world_model", () =>
+      createWorldMapModel(runtimeAssets.tilemap),
+    );
     const worldRuntime = createWorldRuntime(worldModel, worldFrameStore);
     const worldUiStore = createWorldUiStore();
     const battleUiStore = createBattleUiStore();
     const battle = { uiStore: battleUiStore };
     const world = {
-      atlas: createWorldPlayerAtlasModel(runtimeAssets.playerAtlas.data),
+      atlas: withStartupStep("player_atlas", () =>
+        createWorldPlayerAtlasModel(runtimeAssets.playerAtlas.data),
+      ),
       competitiveRoundsEnabled,
       ...(multiplayerRoom.setPreparationReady
         ? {
@@ -357,37 +392,39 @@ export async function startGamePage(
         emitCurrentGameplayState();
       });
     }
-    const game = (dependencies.createPokeLoungeGame ?? createPokeLoungeGame)(mount, {
-      competitiveRoundsEnabled,
-      gameStateStore,
-      initialScene,
-      multiplayerRoom,
-      onGameResult: roomEntry.mode === "server-room" ? undefined : dependencies.onGameResult,
-      onStarterSelectionRequested: requestInGameStarterSelection,
-      onRoomLobbyStateChange: lobby => {
-        if (destroyed) {
-          return;
-        }
-        const controls = {
-          battle,
-          ...(gameplayState.roomLeave ? { roomLeave: gameplayState.roomLeave } : {}),
-          ...(gameplayState.webRtc ? { webRtc: gameplayState.webRtc } : {}),
-          world,
-        };
-        gameplayState = lobby
-          ? { ...controls, ...lobby, phase: "lobby" }
-          : { ...controls, phase: "world" };
-        emitCurrentGameplayState();
-      },
-      serverAuthoritativeRounds: roomEntry.mode === "server-room",
-      battleUiStore,
-      runtimeAssets,
-      viewportSize: activeViewportSize,
-      worldFrameStore,
-      worldModel,
-      worldRuntime,
-      worldUiStore,
-    });
+    const game = withStartupStep("game_construction", () =>
+      (dependencies.createPokeLoungeGame ?? createPokeLoungeGame)(mount, {
+        competitiveRoundsEnabled,
+        gameStateStore,
+        initialScene,
+        multiplayerRoom,
+        onGameResult: roomEntry.mode === "server-room" ? undefined : dependencies.onGameResult,
+        onStarterSelectionRequested: requestInGameStarterSelection,
+        onRoomLobbyStateChange: lobby => {
+          if (destroyed) {
+            return;
+          }
+          const controls = {
+            battle,
+            ...(gameplayState.roomLeave ? { roomLeave: gameplayState.roomLeave } : {}),
+            ...(gameplayState.webRtc ? { webRtc: gameplayState.webRtc } : {}),
+            world,
+          };
+          gameplayState = lobby
+            ? { ...controls, ...lobby, phase: "lobby" }
+            : { ...controls, phase: "world" };
+          emitCurrentGameplayState();
+        },
+        serverAuthoritativeRounds: roomEntry.mode === "server-room",
+        battleUiStore,
+        runtimeAssets,
+        viewportSize: activeViewportSize,
+        worldFrameStore,
+        worldModel,
+        worldRuntime,
+        worldUiStore,
+      }),
+    );
     activeGame = game;
     const returnToRoomEntry = (preserveDisplayName?: string) => {
       starterSelectionRequestId += 1;

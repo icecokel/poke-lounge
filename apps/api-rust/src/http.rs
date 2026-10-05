@@ -262,8 +262,11 @@ struct ClientError {
     script: Option<String>,
     room_instance_id: Option<Uuid>,
     error_name: Option<String>,
+    error_text: Option<String>,
+    startup_step: Option<String>,
     resource_path: Option<String>,
     user_code: Option<String>,
+    user_agent: Option<String>,
 }
 
 async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode> {
@@ -293,6 +296,20 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
             .error_name
             .as_ref()
             .is_some_and(|name| !valid_label(name, 48))
+        || payload.error_text.as_ref().is_some_and(|text| {
+            text.is_empty()
+                || text.len() > 8192
+                || text
+                    .chars()
+                    .any(|character| character.is_control() && !matches!(character, '\n' | '\t'))
+        })
+        || payload.startup_step.as_ref().is_some_and(|step| {
+            step.is_empty()
+                || step.len() > 48
+                || !step
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte == b'_')
+        })
         || payload.resource_path.as_ref().is_some_and(|path| {
             path.len() > 200
                 || !(path.starts_with("/assets/") || path.starts_with("/game-data/"))
@@ -305,6 +322,9 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
             .user_code
             .as_ref()
             .is_some_and(|code| code.len() != 5 || !code.bytes().all(|byte| byte.is_ascii_digit()))
+        || payload.user_agent.as_ref().is_some_and(|agent| {
+            agent.is_empty() || agent.len() > 1024 || agent.chars().any(char::is_control)
+        })
     {
         return Err(AppError::Invalid("Invalid diagnostic event"));
     }
@@ -312,16 +332,19 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
         event = "browser.error",
         kind = %payload.kind,
         code = %payload.code,
-        related_request_id = ?payload.request_id,
+        related_request_id = %payload.request_id.map(|id| id.to_string()).unwrap_or_else(|| "none".to_string()),
         page = %payload.page,
         line = ?payload.line,
         column = ?payload.column,
-        release = ?payload.release,
-        script = ?payload.script,
-        room_instance_id = ?payload.room_instance_id,
-        error_name = ?payload.error_name,
-        resource_path = ?payload.resource_path,
+        release = %payload.release.as_deref().unwrap_or("none"),
+        script = %payload.script.as_deref().unwrap_or("none"),
+        room_instance_id = %payload.room_instance_id.map(|id| id.to_string()).unwrap_or_else(|| "none".to_string()),
+        error_name = %payload.error_name.as_deref().unwrap_or("none"),
+        error_text = %payload.error_text.as_deref().unwrap_or("none"),
+        startup_step = %payload.startup_step.as_deref().unwrap_or("none"),
+        resource_path = %payload.resource_path.as_deref().unwrap_or("none"),
         user_code = %payload.user_code.as_deref().unwrap_or("none"),
+        user_agent = %payload.user_agent.as_deref().unwrap_or("none"),
     );
     Ok(StatusCode::NO_CONTENT)
 }

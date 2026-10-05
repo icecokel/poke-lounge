@@ -184,20 +184,30 @@ export function registerRuntimeGameDataJson(data: RuntimeGameDataJson): void {
   const normalizedWildBattleMoveSets = normalizeWildBattleMoveSets(wildBattleMoveSets);
   const normalizedBattlePokemonAssets = normalizeBattlePokemonAssetManifest(battlePokemonAssets);
 
+  const incompleteSections: string[] = [];
+  if (!normalizedPokemonData) incompleteSections.push("pokemon_data");
+  if (!normalizedItemData) incompleteSections.push("item_data");
+  if (!pokemonDataRecordCount) incompleteSections.push("pokemon_record_count");
+  if (!moveNames) incompleteSections.push("move_names");
+  if (!normalizedLevelUpMoveTable) incompleteSections.push("level_up_move_table");
+  if (!growthExperienceTables) incompleteSections.push("growth_experience_tables");
+  if (!normalizedWildBattleMoveSets) incompleteSections.push("wild_battle_move_sets");
+  if (!normalizedBattlePokemonAssets) incompleteSections.push("battle_pokemon_assets");
+  if (normalizedPokemonData && !hasCompleteSupportedPokemonCoverage(normalizedPokemonData)) {
+    incompleteSections.push("supported_pokemon_coverage");
+  }
   if (
-    !normalizedPokemonData ||
-    !normalizedItemData ||
-    !pokemonDataRecordCount ||
-    !moveNames ||
-    !normalizedLevelUpMoveTable ||
-    !growthExperienceTables ||
-    !normalizedWildBattleMoveSets ||
-    !normalizedBattlePokemonAssets ||
-    !hasCompleteSupportedPokemonCoverage(normalizedPokemonData) ||
+    normalizedLevelUpMoveTable &&
+    moveNames &&
     !hasCompleteLevelUpMoveCoverage(normalizedLevelUpMoveTable, moveNames)
   ) {
+    incompleteSections.push("level_up_move_coverage");
+  }
+  if (incompleteSections.length > 0) {
     resetRuntimeGameDataJsonState();
-    throw new Error("Required Poke Lounge runtime game data is incomplete.");
+    throw new Error(
+      `Required Poke Lounge runtime game data is incomplete: ${incompleteSections.join(", ")}`,
+    );
   }
 
   runtimeGameDataJsonState.pokemonData = normalizedPokemonData;
@@ -843,46 +853,56 @@ async function readRomDataResponse(
 ): Promise<
   Pick<RuntimeGameDataJson, "pokemonData" | "itemData" | "levelUpMoveTable" | "growthTable">
 > {
-  if (!isRecord(data) || !Array.isArray(data.documents) || data.documents.length !== 4) {
-    throw invalidRomDataResponse();
+  if (!isRecord(data) || !Array.isArray(data.documents)) {
+    throw invalidRomDataResponse("documents_missing");
+  }
+  if (data.documents.length !== 4) {
+    throw invalidRomDataResponse("document_count");
   }
 
   const documents = new Map<RomDocumentKey, Record<string, unknown>>();
   for (const candidate of data.documents) {
+    if (!isRecord(candidate)) throw invalidRomDataResponse("document_shape");
     if (
-      !isRecord(candidate) ||
       typeof candidate.documentKey !== "string" ||
-      !ROM_DOCUMENT_KEYS.includes(candidate.documentKey as RomDocumentKey) ||
-      documents.has(candidate.documentKey as RomDocumentKey) ||
-      candidate.schemaVersion !== 1 ||
-      candidate.romSha1 !== EXPECTED_ROM_SHA1 ||
-      typeof candidate.contentSha256 !== "string" ||
-      !CONTENT_SHA256_PATTERN.test(candidate.contentSha256) ||
-      !isRecord(candidate.payload) ||
-      candidate.payload.version !== 1 ||
-      !isRecord(candidate.payload.source) ||
-      candidate.payload.source.romSha1 !== EXPECTED_ROM_SHA1
+      !ROM_DOCUMENT_KEYS.includes(candidate.documentKey as RomDocumentKey)
     ) {
-      throw invalidRomDataResponse();
+      throw invalidRomDataResponse("document_key");
     }
-
+    const key = candidate.documentKey as RomDocumentKey;
+    if (documents.has(key)) throw invalidRomDataResponse(`${key}_duplicate`);
+    if (candidate.schemaVersion !== 1) throw invalidRomDataResponse(`${key}_schema_version`);
+    if (candidate.romSha1 !== EXPECTED_ROM_SHA1) throw invalidRomDataResponse(`${key}_rom_sha1`);
+    if (
+      typeof candidate.contentSha256 !== "string" ||
+      !CONTENT_SHA256_PATTERN.test(candidate.contentSha256)
+    ) {
+      throw invalidRomDataResponse(`${key}_content_sha256`);
+    }
+    if (!isRecord(candidate.payload)) throw invalidRomDataResponse(`${key}_payload`);
+    if (candidate.payload.version !== 1) throw invalidRomDataResponse(`${key}_payload_version`);
+    if (!isRecord(candidate.payload.source)) throw invalidRomDataResponse(`${key}_source`);
+    if (candidate.payload.source.romSha1 !== EXPECTED_ROM_SHA1) {
+      throw invalidRomDataResponse(`${key}_source_rom_sha1`);
+    }
+    let contentSha256: string;
     try {
-      if ((await sha256CanonicalJson(candidate.payload)) !== candidate.contentSha256) {
-        throw invalidRomDataResponse();
-      }
-    } catch {
-      throw invalidRomDataResponse();
+      contentSha256 = await sha256CanonicalJson(candidate.payload);
+    } catch (cause) {
+      throw new Error(`Required Poke Lounge ROM data hash failed: ${key}`, { cause });
+    }
+    if (contentSha256 !== candidate.contentSha256) {
+      throw invalidRomDataResponse(`${key}_content_hash_mismatch`);
     }
 
-    documents.set(candidate.documentKey as RomDocumentKey, candidate.payload);
+    documents.set(key, candidate.payload);
   }
 
-  if (
-    ROM_DOCUMENT_KEYS.some(function testItem(key) {
-      return !documents.has(key);
-    })
-  ) {
-    throw invalidRomDataResponse();
+  const missingKey = ROM_DOCUMENT_KEYS.find(function findKey(key) {
+    return !documents.has(key);
+  });
+  if (missingKey) {
+    throw invalidRomDataResponse(`${missingKey}_missing`);
   }
 
   return {
@@ -903,8 +923,8 @@ async function sha256CanonicalJson(value: unknown): Promise<string> {
   }).join("");
 }
 
-function invalidRomDataResponse(): Error {
-  return new Error("Required Poke Lounge ROM data response is invalid.");
+function invalidRomDataResponse(reason: string): Error {
+  return new Error(`Required Poke Lounge ROM data response is invalid: ${reason}`);
 }
 
 async function fetchRequiredJson(fetcher: typeof fetch, path: string): Promise<unknown> {

@@ -51,7 +51,7 @@ export async function fetchPublicRooms(signal?: AbortSignal): Promise<PublicRoom
     });
   } catch (error) {
     if (!signal?.aborted) {
-      reportClientDiagnostic({ kind: "api", code: "NETWORK_ERROR", requestId });
+      reportClientDiagnostic({ kind: "api", code: "NETWORK_ERROR", requestId, error });
     }
     throw error;
   }
@@ -67,7 +67,7 @@ export async function fetchPublicRooms(signal?: AbortSignal): Promise<PublicRoom
     const payload: unknown = await response.json();
     return parsePublicRoomListEnvelope(payload).data.rooms;
   } catch (error) {
-    reportClientDiagnostic({ kind: "api", code: "INVALID_RESPONSE", requestId });
+    reportClientDiagnostic({ kind: "api", code: "INVALID_RESPONSE", requestId, error });
     throw error;
   }
 }

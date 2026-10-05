@@ -16,6 +16,7 @@ export function ClientDiagnosticsListener() {
       reportClientDiagnostic({
         kind: "runtime",
         code: event.error instanceof Error ? event.error.name : "WindowError",
+        error: event.error ?? event.message,
         line: event.lineno || undefined,
         column: event.colno || undefined,
         script,
@@ -25,6 +26,7 @@ export function ClientDiagnosticsListener() {
       reportClientDiagnostic({
         kind: "rejection",
         code: event.reason instanceof Error ? event.reason.name : "UnhandledRejection",
+        error: event.reason,
       });
     };
     window.addEventListener("error", onError);

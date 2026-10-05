@@ -17,6 +17,7 @@ export default function AppError({
         error.digest && /^[A-Za-z0-9_-]{1,40}$/.test(error.digest)
           ? `RENDER_${error.digest}`
           : "RENDER_ERROR",
+      error,
     });
   }, [error]);
 
