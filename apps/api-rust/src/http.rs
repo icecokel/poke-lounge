@@ -301,9 +301,10 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
                     byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'_' | b'.' | b'-')
                 })
         })
-        || payload.user_code.as_ref().is_some_and(|code| {
-            code.len() != 5 || !code.bytes().all(|byte| byte.is_ascii_digit())
-        })
+        || payload
+            .user_code
+            .as_ref()
+            .is_some_and(|code| code.len() != 5 || !code.bytes().all(|byte| byte.is_ascii_digit()))
     {
         return Err(AppError::Invalid("Invalid diagnostic event"));
     }
