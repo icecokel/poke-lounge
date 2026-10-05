@@ -78,6 +78,7 @@ async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaph
         _ => None,
     };
     let Some(subscription) = subscription else {
+        tracing::warn!(event="socket.subscription_rejected",connection_id=%id,reason="invalid_frame");
         let _ = send(
             &mut socket,
             "room.subscription-error",
@@ -97,10 +98,11 @@ async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaph
             )
             .await?;
         let handle = state.rooms.handle(room_id).await?;
-        Ok::<_, AppError>((handle, hash))
+        Ok::<_, AppError>((handle, hash, room_id))
     }
     .await;
-    let Ok((handle, hash)) = prepared else {
+    let Ok((handle, hash, room_id)) = prepared else {
+        tracing::warn!(event="socket.subscription_rejected",connection_id=%id,reason="invalid_identity_or_room");
         let _ = send(
             &mut socket,
             "room.subscription-error",
@@ -119,10 +121,18 @@ async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaph
         })
         .await;
     if let Ok(value) = initial {
+        tracing::info!(event="socket.connected",connection_id=%id,room_instance_id=%room_id);
         if publish_state(&mut socket, value).await.is_ok() {
-            let _ = serve(&mut socket, &state, &handle, &mut events, id, &subscription).await;
+            if let Err(error) =
+                serve(&mut socket, &state, &handle, &mut events, id, &subscription).await
+            {
+                tracing::warn!(event="socket.disconnected_error",connection_id=%id,room_instance_id=%room_id,error=%error);
+            }
+        } else {
+            tracing::warn!(event="socket.publish_failed",connection_id=%id,room_instance_id=%room_id);
         }
     } else {
+        tracing::warn!(event="socket.subscription_rejected",connection_id=%id,reason="connect_failed",room_instance_id=%room_id);
         let _ = send(
             &mut socket,
             "room.subscription-error",

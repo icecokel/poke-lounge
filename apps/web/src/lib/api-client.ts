@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/constants";
+import { createDiagnosticRequestId, reportClientDiagnostic } from "@/lib/client-diagnostics";
 
 /**
  * API 에러 클래스
@@ -69,22 +70,31 @@ export const apiClient = {
   ): Promise<ApiClientResponse<T>> {
     const { token, body, ...fetchOptions } = options;
 
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      ...options.headers,
-    };
+    const headers = new Headers(options.headers);
+    headers.set("Content-Type", "application/json");
+    const requestId = createDiagnosticRequestId();
+    headers.set("X-Request-Id", requestId);
 
     if (token) {
-      (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+      headers.set("Authorization", `Bearer ${token}`);
     }
 
-    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
-      ...fetchOptions,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+        ...fetchOptions,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (error) {
+      reportClientDiagnostic({ kind: "api", code: "NETWORK_ERROR", requestId });
+      throw error;
+    }
 
     if (!response.ok) {
+      if (response.status >= 500) {
+        reportClientDiagnostic({ kind: "api", code: `HTTP_${response.status}`, requestId });
+      }
       const errorData = await response.json().catch(function handleRejected() {
         return null;
       });

@@ -24,6 +24,7 @@ jobs:
       BIND_ADDRESS: ${{ vars.BIND_ADDRESS || '127.0.0.1' }}
       WEB_PORT: ${{ vars.WEB_PORT || '3100' }}
       API_PORT: ${{ vars.API_PORT || '3101' }}
+      RELEASE_SHA: ${{ github.sha }}
       NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
       CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
