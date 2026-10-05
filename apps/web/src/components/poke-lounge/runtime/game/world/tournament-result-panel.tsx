@@ -18,6 +18,7 @@ interface TournamentResultTableView {
     cumulativeScore: string;
     rank: string;
     roundScore: string;
+    score: string;
     trainer: string;
   };
   rankingLabel: string | null;
@@ -60,9 +61,9 @@ export function TournamentResultPanel({
               {table.roundWinnerLabel}
             </p>
           ) : null}
-          <div className="overflow-x-auto rounded-[5px] border border-[#b0bdab]">
+          <div className="rounded-[5px] border border-[#b0bdab]">
             <table
-              className="w-full min-w-[460px] table-fixed border-collapse text-sm"
+              className="w-full table-fixed border-collapse text-sm"
               data-poke-lounge-tournament-result-table="true"
             >
               {table.rankingLabel ? (
@@ -72,16 +73,19 @@ export function TournamentResultPanel({
               ) : null}
               <thead className="bg-[#dcebf0] text-xs text-[#405761]">
                 <tr>
-                  <th className="w-[18%] border-r border-[#b0bdab] px-2 py-2 text-center">
+                  <th className="w-[18%] border-r border-[#b0bdab] px-1 py-2 text-center sm:px-2">
                     {table.labels.rank}
                   </th>
-                  <th className="w-[40%] border-r border-[#b0bdab] px-2 py-2 text-left">
+                  <th className="w-[42%] border-r border-[#b0bdab] px-1 py-2 text-left sm:w-[40%] sm:px-2">
                     {table.labels.trainer}
                   </th>
-                  <th className="w-[20%] border-r border-[#b0bdab] px-2 py-2 text-right">
+                  <th className="hidden w-[20%] border-r border-[#b0bdab] px-2 py-2 text-right sm:table-cell">
                     {table.labels.roundScore}
                   </th>
-                  <th className="w-[22%] px-2 py-2 text-right">{table.labels.cumulativeScore}</th>
+                  <th className="hidden w-[22%] px-2 py-2 text-right sm:table-cell">
+                    {table.labels.cumulativeScore}
+                  </th>
+                  <th className="w-[40%] px-1 py-2 text-right sm:hidden">{table.labels.score}</th>
                 </tr>
               </thead>
               <tbody>
@@ -92,11 +96,11 @@ export function TournamentResultPanel({
                       className="border-t border-[#c6d0c1] odd:bg-[#fffdf0] even:bg-[#eef2e5] data-[champion=true]:bg-[#fff3c5]"
                       data-champion={row.champion}
                     >
-                      <td className="border-r border-[#c6d0c1] px-2 py-2 text-center font-black whitespace-nowrap">
+                      <td className="border-r border-[#c6d0c1] px-1 py-2 text-center font-black sm:px-2">
                         {formatTournamentResultRank(row, locale)}
                       </td>
-                      <td className="border-r border-[#c6d0c1] px-2 py-2 font-bold">
-                        <span className="flex min-w-0 items-center gap-1.5">
+                      <td className="border-r border-[#c6d0c1] px-1 py-2 font-bold sm:px-2">
+                        <span className="flex min-w-0 flex-wrap items-center gap-1.5">
                           {row.champion ? (
                             <span className="shrink-0 rounded border border-[#ae9454] bg-[#f8dc7d] px-1.5 py-0.5 text-[0.64rem] font-black text-[#6a5126]">
                               {table.labels.champion}
@@ -105,11 +109,19 @@ export function TournamentResultPanel({
                           <span className="min-w-0 truncate">{row.displayName}</span>
                         </span>
                       </td>
-                      <td className="border-r border-[#c6d0c1] px-2 py-2 text-right font-bold tabular-nums">
+                      <td className="hidden border-r border-[#c6d0c1] px-2 py-2 text-right font-bold tabular-nums sm:table-cell">
                         +{row.roundScore}
                       </td>
-                      <td className="px-2 py-2 text-right font-black tabular-nums">
+                      <td className="hidden px-2 py-2 text-right font-black tabular-nums sm:table-cell">
                         {row.cumulativeScore}
+                      </td>
+                      <td className="px-1 py-2 text-right tabular-nums sm:hidden">
+                        <span className="block text-xs font-bold">
+                          {table.labels.roundScore} +{row.roundScore}
+                        </span>
+                        <strong className="block">
+                          {table.labels.cumulativeScore} {row.cumulativeScore}
+                        </strong>
                       </td>
                     </tr>
                   );
@@ -217,6 +229,7 @@ function getTournamentResultTableLabels(locale: PokeLoungeLocale) {
       cumulativeScore: "Total",
       rank: "Rank",
       roundScore: "Round",
+      score: "Score",
       trainer: "Trainer",
     };
   }
@@ -227,6 +240,7 @@ function getTournamentResultTableLabels(locale: PokeLoungeLocale) {
       cumulativeScore: "累計",
       rank: "順位",
       roundScore: "今回",
+      score: "得点",
       trainer: "トレーナー",
     };
   }
@@ -236,6 +250,7 @@ function getTournamentResultTableLabels(locale: PokeLoungeLocale) {
     cumulativeScore: "누적",
     rank: "순위",
     roundScore: "이번",
+    score: "점수",
     trainer: "트레이너",
   };
 }

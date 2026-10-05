@@ -5,6 +5,7 @@ import {
   canChooseBattleAction,
 } from "@/features/poke-lounge/presentation/battle/selection-model";
 import { getMobileUiCopy } from "../../../mobile/mobile-ui-copy";
+import { getBattleMoveDetails } from "@/features/poke-lounge/presentation/battle/move-details";
 import { OpponentPartyIndicator } from "./opponent-party-indicator";
 import { BATTLE_BAG_PAGE_SIZE } from "./battle-bag-selection";
 
@@ -546,7 +547,7 @@ export function BattleSurfaceRouter({
     return <BattleCommandPanel copy={copy} controls={controls} onAction={onAction} />;
   }
   if (presentation.phase === "move-select") {
-    return <BattleMovePanel controls={controls} onAction={onAction} />;
+    return <BattleMovePanel copy={copy} controls={controls} onAction={onAction} />;
   }
   if (presentation.phase === "move-replace-select") {
     return <BattleMoveReplacementPanel copy={copy} controls={controls} onAction={onAction} />;
@@ -633,37 +634,52 @@ export function BattleCommandPanel({
 }
 
 export function BattleMovePanel({
+  copy,
   controls,
   onAction,
 }: {
+  copy: PokeLoungeCopy;
   controls: MobileBattleUiState;
   onAction(action: MobileBattleUiAction): void;
 }) {
+  const selectedMove = controls.moves.find(move => move.selected);
+  const details = selectedMove ? getBattleMoveDetails(selectedMove, copy.locale) : null;
   return (
-    <div
-      className="absolute bottom-0 left-0 m-0 h-[30.208333%] w-full rounded-none border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] p-[2.34375%] font-[inherit] text-[var(--pl-color-ink)] shadow-[inset_0_0_0_max(1px,0.12cqw)_#fff,inset_0_0_0_max(2px,0.45cqw)_rgb(139_149_136_/_65%)] z-20 grid grid-cols-2 grid-rows-2 gap-x-[1.5625%] gap-y-[2.083333%] [&>button]:relative [&>button]:flex [&>button]:min-w-0 [&>button]:items-center [&>button]:justify-between [&>button]:gap-[0.4em] [&>button]:px-[0.75em] [&>button]:py-[0.2em] [&>button]:text-left [&>button]:text-[var(--pl-color-ink)] [&>button[data-selected=true]]:bg-[var(--pl-color-gold-soft)] [&>button[data-selected=true]]:shadow-[inset_max(2px,0.75cqw)_0_var(--pl-color-johto)] [&>button:disabled]:cursor-default [&>button:disabled]:text-[#7a827c] [&>button:disabled]:opacity-[0.62] [&_small]:text-[0.62em] [&_small]:whitespace-nowrap [&_small]:text-[var(--pl-color-ink-muted)]"
-      data-poke-lounge-battle-surface="moves"
-    >
-      {Array.from({ length: 4 }, function callback(_, index) {
-        const move = controls.moves[index];
-        return (
-          <BattleOptionButton
-            key={move?.index ?? `empty-${index}`}
-            disabled={!move || move.disabled}
-            label={move?.name ?? "-"}
-            meta={
-              move
-                ? `PP ${move.pp}/${move.maxPp} ${move.type}${move.effectNotice ? ` · ${move.effectNotice}` : ""}`
-                : undefined
-            }
-            selected={Boolean(move?.selected)}
-            onClick={function handleClick() {
-              return move && onAction({ type: "select-move", index: move.index });
-            }}
-          />
-        );
-      })}
-    </div>
+    <>
+      {selectedMove && details ? (
+        <div
+          className="pointer-events-none absolute right-0 bottom-[30.208333%] left-0 z-20 border-[max(1px,0.3cqw)] border-b-0 border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] px-[2.34375%] py-[0.5%] text-[0.68em] leading-[1.25] text-[var(--pl-color-ink)]"
+          aria-live="polite"
+        >
+          <strong>{selectedMove.name}</strong> · {details.stats} · {details.effect}
+          {selectedMove.effectNotice ? ` · ${selectedMove.effectNotice}` : ""}
+        </div>
+      ) : null}
+      <div
+        className="absolute bottom-0 left-0 m-0 h-[30.208333%] w-full rounded-none border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] p-[2.34375%] font-[inherit] text-[var(--pl-color-ink)] shadow-[inset_0_0_0_max(1px,0.12cqw)_#fff,inset_0_0_0_max(2px,0.45cqw)_rgb(139_149_136_/_65%)] z-20 grid grid-cols-2 grid-rows-2 gap-x-[1.5625%] gap-y-[2.083333%] [&>button]:relative [&>button]:flex [&>button]:min-w-0 [&>button]:items-center [&>button]:justify-between [&>button]:gap-[0.4em] [&>button]:px-[0.75em] [&>button]:py-[0.2em] [&>button]:text-left [&>button]:text-[var(--pl-color-ink)] [&>button[data-selected=true]]:bg-[var(--pl-color-gold-soft)] [&>button[data-selected=true]]:shadow-[inset_max(2px,0.75cqw)_0_var(--pl-color-johto)] [&>button:disabled]:cursor-default [&>button:disabled]:text-[#7a827c] [&>button:disabled]:opacity-[0.62] [&_small]:text-[0.62em] [&_small]:whitespace-nowrap [&_small]:text-[var(--pl-color-ink-muted)]"
+        data-poke-lounge-battle-surface="moves"
+      >
+        {Array.from({ length: 4 }, function callback(_, index) {
+          const move = controls.moves[index];
+          return (
+            <BattleOptionButton
+              key={move?.index ?? `empty-${index}`}
+              disabled={!move || move.disabled}
+              label={move?.name ?? "-"}
+              meta={
+                move
+                  ? `PP ${move.pp}/${move.maxPp} ${move.type}${move.effectNotice ? ` · ${move.effectNotice}` : ""}`
+                  : undefined
+              }
+              selected={Boolean(move?.selected)}
+              onClick={function handleClick() {
+                return move && onAction({ type: "select-move", index: move.index });
+              }}
+            />
+          );
+        })}
+      </div>
+    </>
   );
 }
 
