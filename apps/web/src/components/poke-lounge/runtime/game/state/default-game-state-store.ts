@@ -61,16 +61,29 @@ function createBrowserStorageAdapter() {
     return undefined;
   }
 
-  if (!window.localStorage) {
+  let localStorage: Storage | undefined;
+  let sessionStorage: Storage | undefined;
+  try {
+    localStorage = window.localStorage;
+  } catch {
+    // Safari can deny access to one storage area while the page remains usable.
+  }
+  try {
+    sessionStorage = window.sessionStorage;
+  } catch {
+    // An unavailable session store does not prevent an in-memory game.
+  }
+
+  const storage = localStorage ?? sessionStorage;
+  if (!storage) {
     return undefined;
   }
-
-  if (window.sessionStorage) {
-    migrateGameStateStorageToLocalStorage(window.sessionStorage, window.localStorage);
+  if (localStorage && sessionStorage) {
+    migrateGameStateStorageToLocalStorage(sessionStorage, localStorage);
   }
-
   return createWebStorageGameStateStorage({
-    storage: window.localStorage,
+    storage,
+    ...(localStorage && sessionStorage ? { fallbackStorage: sessionStorage } : {}),
     getScope: getDefaultGameStateStorageScope,
   });
 }

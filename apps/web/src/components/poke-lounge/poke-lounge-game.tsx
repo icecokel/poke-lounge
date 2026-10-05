@@ -493,12 +493,16 @@ export function PokeLoungeGame() {
   );
 
   useEffect(function runEffect() {
-    setSettings(
-      readPokeLoungeSettings({
-        localStorage: window.localStorage,
-        sessionStorage: window.sessionStorage,
-      }),
-    );
+    try {
+      setSettings(
+        readPokeLoungeSettings({
+          localStorage: window.localStorage,
+          sessionStorage: window.sessionStorage,
+        }),
+      );
+    } catch {
+      // Browser storage may be blocked or full; keep the in-memory defaults.
+    }
     setSettingsHydrated(true);
   }, []);
 
@@ -514,7 +518,11 @@ export function PokeLoungeGame() {
       if (!settingsHydrated) {
         return;
       }
-      writePokeLoungeSettings(window.localStorage, settings);
+      try {
+        writePokeLoungeSettings(window.localStorage, settings);
+      } catch {
+        // Keep the current settings for this page when persistence is unavailable.
+      }
     },
     [settings, settingsHydrated],
   );
