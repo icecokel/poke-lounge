@@ -35,6 +35,7 @@ import {
   type BattleCandidate,
 } from "./mobile-selection-model";
 import { getMobileUiCopy } from "./mobile-ui-copy";
+import { getBattleMoveDetails } from "@/features/poke-lounge/presentation/battle/move-details";
 
 const subscribeToNothing = () => () => {};
 const emptySnapshot = () => null;
@@ -384,6 +385,8 @@ export function MobileBattleMoveDeck({ copy, onAction, state }: DeckProps) {
             <small>
               {move.type} · PP {move.pp}/{move.maxPp}
             </small>
+            <small>{getBattleMoveDetails(move, copy.locale).stats}</small>
+            <small>{getBattleMoveDetails(move, copy.locale).effect}</small>
             {move.pp <= 0 || move.effectNotice ? (
               <small>{move.pp <= 0 ? text.ppEmpty : move.effectNotice}</small>
             ) : null}

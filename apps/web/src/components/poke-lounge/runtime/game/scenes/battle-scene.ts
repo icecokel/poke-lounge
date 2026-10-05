@@ -912,21 +912,33 @@ export class BattleController {
           move: BattleMove,
           index: number,
         ): {
+          id: number;
           index: number;
           name: string;
           pp: number;
           maxPp: number;
           type: string;
+          power: number;
+          accuracy: number;
+          category: BattleMove["category"];
+          effectCode: number;
+          effectChance: number;
           effectNotice: string | null;
           selected: boolean;
           disabled: boolean;
         } {
           return {
+            id: move.id,
             index,
             name: move.name,
             pp: move.pp,
             maxPp: move.maxPp,
             type: move.type,
+            power: move.power,
+            accuracy: move.accuracy,
+            category: move.category,
+            effectCode: move.effectCode,
+            effectChance: move.effectChance ?? 0,
             effectNotice:
               move.competitiveEffectSupport === "unsupported-primary"
                 ? "효과 미지원"

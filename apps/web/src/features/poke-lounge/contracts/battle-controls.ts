@@ -22,11 +22,17 @@ export interface MobileBattleCommandOption {
 }
 
 export interface MobileBattleMoveOption {
+  id: number;
   index: number;
   name: string;
   pp: number;
   maxPp: number;
   type: string;
+  power: number;
+  accuracy: number;
+  category: "physical" | "special" | "status";
+  effectCode: number;
+  effectChance: number;
   effectNotice: string | null;
   selected: boolean;
   disabled: boolean;
