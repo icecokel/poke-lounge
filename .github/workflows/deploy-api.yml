@@ -44,6 +44,9 @@ jobs:
           command -v docker
           docker compose version
 
+      - name: Archive logs from the current containers
+        run: bash scripts/deploy/archive-poke-lounge-logs.sh
+
       - name: Deploy Docker Compose stack
         run: docker compose up --build --detach --remove-orphans --wait --wait-timeout 180
 
