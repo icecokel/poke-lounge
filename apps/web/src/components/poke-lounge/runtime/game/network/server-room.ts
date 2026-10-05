@@ -276,7 +276,13 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           headers.set("X-Room-Instance", roomInstanceId);
         const response = await fetchImpl(url, { ...init, headers, signal: controller.signal });
         if (response.status >= 500) {
-          reportClientDiagnostic({ kind: "api", code: `HTTP_${response.status}`, requestId });
+          reportClientDiagnostic({
+            kind: "api",
+            code: `HTTP_${response.status}`,
+            requestId,
+            roomCode: activeRoomId === PENDING_ROOM_ID ? undefined : activeRoomId,
+            sessionId,
+          });
         }
         const responseText = await readResponseBody(response);
 
@@ -292,6 +298,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             ? "TIMEOUT"
             : "NETWORK_ERROR",
         requestId,
+        error,
+        roomCode: activeRoomId === PENDING_ROOM_ID ? undefined : activeRoomId,
+        sessionId,
       });
       throw error;
     } finally {
@@ -410,13 +419,19 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     });
   };
 
-  const dispatchServerRoomError = (detail: Omit<PokeLoungeServerRoomErrorDetail, "cancel">) => {
+  const dispatchServerRoomError = (
+    detail: Omit<PokeLoungeServerRoomErrorDetail, "cancel">,
+    error?: unknown,
+  ) => {
     if (disposed) return;
     reportClientDiagnostic({
       kind: "room",
       code: detail.code,
       roomInstanceId,
+      roomCode: activeRoomId === PENDING_ROOM_ID ? undefined : activeRoomId,
+      sessionId,
       userCode: ROOM_ERROR_CODES[detail.code],
+      error,
     });
     dispatchWindowEvent<PokeLoungeServerRoomErrorDetail>(POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT, {
       ...detail,
@@ -432,11 +447,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       console.error(error);
     }
 
-    dispatchServerRoomError({
-      code: "ROOM_TRANSPORT_FAILED",
-      message: error.message,
-      recoverable: true,
-    });
+    dispatchServerRoomError(
+      {
+        code: "ROOM_TRANSPORT_FAILED",
+        message: error.message,
+        recoverable: true,
+      },
+      error,
+    );
   };
 
   const handleMissingRoom = () => {
@@ -640,10 +658,13 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       (options.createRoom === true || options.quickPlay === true) && options.resumeRoom !== true,
     );
     emitConnectionStatus("offline");
-    dispatchServerRoomError({
-      ...detail,
-      ...(recoverable ? { retry: retryInitialWorkflow } : {}),
-    });
+    dispatchServerRoomError(
+      {
+        ...detail,
+        ...(recoverable ? { retry: retryInitialWorkflow } : {}),
+      },
+      error,
+    );
 
     if (!recoverable || initialWorkflowTimer !== null) {
       return;
@@ -1374,11 +1395,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     } else {
       console.error(cursorError);
     }
-    dispatchServerRoomError({
-      code: "CURSOR_REGRESSION",
-      message: cursorError.message,
-      recoverable: false,
-    });
+    dispatchServerRoomError(
+      {
+        code: "CURSOR_REGRESSION",
+        message: cursorError.message,
+        recoverable: false,
+      },
+      cursorError,
+    );
     dispatchWindowEvent(POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT, {
       roomCode: activeRoomId,
     });

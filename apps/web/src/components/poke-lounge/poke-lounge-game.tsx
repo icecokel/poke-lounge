@@ -1002,6 +1002,9 @@ export function PokeLoungeGame() {
               kind: "runtime",
               code: startupStage,
               errorName: error instanceof Error ? error.name : "UnknownError",
+              error,
+              startupStep:
+                startupStage === "GAME_MODULE_LOAD_FAILED" ? "module_load" : "runtime_init",
               userCode,
             });
             setGameStartupErrorCode(userCode);

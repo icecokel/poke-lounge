@@ -6,6 +6,7 @@ const MAX_MULTIPLAYER_DISPLAY_NAME_LENGTH = 12;
 export interface RoomEntrySelection {
   mode: Exclude<RoomEntryMode, "unset">;
   roomCode: string | null;
+  privateRoomAccessCode?: string;
   inviteUrl: string | null;
   displayName?: string;
   createRoom?: boolean;

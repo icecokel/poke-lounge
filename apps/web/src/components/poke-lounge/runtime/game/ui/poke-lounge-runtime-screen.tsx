@@ -278,6 +278,7 @@ function RoomEntryScreen({
       state.onSelect({
         mode: "server-room",
         roomCode,
+        privateRoomAccessCode: normalizedCode,
         inviteUrl: null,
         displayName: normalizedName,
         createRoom: true,
@@ -316,6 +317,7 @@ function RoomEntryScreen({
       state.onSelect({
         mode: "server-room",
         roomCode,
+        privateRoomAccessCode: normalizedCode,
         inviteUrl: null,
         displayName: normalizedName,
         visibility: "private",
