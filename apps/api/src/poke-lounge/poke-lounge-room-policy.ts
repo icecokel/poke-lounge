@@ -20,7 +20,7 @@ import type { PokeLoungeRoomSnapshot } from './poke-lounge-room.repository';
 import type { PokeLoungeRoomState } from './poke-lounge-room.types';
 import type { PokeLoungeMatchResultReason } from './poke-lounge-room.types';
 
-export const POKE_LOUNGE_ROOM_CAPACITY = 20;
+export const POKE_LOUNGE_ROOM_CAPACITY = 30;
 export const POKE_LOUNGE_CREATION_ADVISORY_LOCK = 742198451;
 export { POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS } from '@poke-lounge/battle/timing';
 export const POKE_LOUNGE_GAME_ROUND_COUNT = 3;

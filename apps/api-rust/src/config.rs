@@ -2,7 +2,7 @@ use crate::error::{AppError, AppResult};
 use axum::http::HeaderValue;
 use std::{env, net::SocketAddr, time::Duration};
 pub const REDIS_PREFIX: &str = "poke-lounge:{rust-v2}";
-pub const MAX_ROOMS: usize = 20;
+pub const MAX_ROOMS: usize = 30;
 pub const MAX_ACTORS: usize = 64;
 pub const MAILBOX_CAPACITY: usize = 64;
 pub const IO_TIMEOUT: Duration = Duration::from_secs(2);

@@ -317,7 +317,7 @@ export class PokeLoungeRoomService {
       command.idempotencyKey,
     );
 
-    // ponytail: bounded by the existing 20-room cap; add a public-room index only if that cap grows.
+    // ponytail: bounded by the room cap; add a public-room index if this scan becomes costly.
     for (let attempt = 0; attempt < POKE_LOUNGE_ROOM_CAPACITY; attempt += 1) {
       const rooms: PokeLoungeRoomSnapshot[] = [];
       for (const roomCode of await this.repository.listRoomCodes(nowMs)) {
