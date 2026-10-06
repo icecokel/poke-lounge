@@ -1,6 +1,6 @@
-# Web·API·워커 배포와 환경
+# Web·Rust API·계산 워커 배포와 환경
 
-구현 대조: `617a60c` · 2026-09-08 KST. 이 문서는 Git에서 제외된 내부 `docs/` 없이도 배포 조건을 확인할 수 있는 안내다. 운영 값·비밀번호·실제 방 ID는 기록하지 않는다.
+구현 대조: `9e9b422` · 2026-10-06 KST. 이 문서는 Git에서 제외된 내부 `docs/` 없이도 배포 조건을 확인할 수 있는 안내다. 운영 값·비밀번호·실제 방 ID는 기록하지 않는다.
 
 ## 배포 경로
 
@@ -11,6 +11,7 @@
 | `NEXT_PUBLIC_API_URL`   | 저장소 variable. 브라우저가 실제 접근할 API 주소이며 이미지 빌드 인자로 들어간다. 변경 시 웹 이미지를 다시 빌드한다. |
 | `CORS_ORIGINS`          | 저장소 variable. 실제 웹 origin 목록.                                                                                |
 | `DB_PASSWORD`           | 필수 저장소 secret. 문서·로그에 출력하지 않는다.                                                                     |
+| `BATTLE_WORKER_TOKEN`   | 필수 저장소 secret. Rust API와 계산 워커 사이 인증에 사용한다.                                                       |
 | `BIND_ADDRESS`          | 배포 workflow 기본 `127.0.0.1`. Compose 단독 실행 기본은 `0.0.0.0`이므로 외부 노출을 별도 확인한다.                  |
 | `WEB_PORT` / `API_PORT` | workflow 기본 3100/3101, Compose 단독 기본 3000/3001.                                                                |
 
@@ -18,14 +19,14 @@
 
 ## Compose 실행 순서
 
-[compose.yaml](../../compose.yaml)은 PostgreSQL·Redis·마이그레이션·API·턴 워커·Web을 실행한다. API와 워커는 같은 앱 이미지를 사용한다.
+[compose.yaml](../../compose.yaml)은 PostgreSQL·Redis·Node 마이그레이션·Node 계산 워커·Rust API·Web을 실행한다. 마이그레이션과 계산 워커는 Node 이미지를 공유하고 Rust API는 별도 이미지다.
 
 ```text
 PostgreSQL healthy → migrate: migration:run → rom-data:import
-Redis healthy + migrate 성공 → API healthy → 턴 워커와 Web
+계산 워커 healthy + migrate 성공 + PostgreSQL/Redis healthy → Rust API ready → Web
 ```
 
-턴 워커에는 AI 초기화·이동·전투와 경쟁 턴 작업이 포함된다. 워커가 없으면 AI 준비 및 제한 시간 처리가 완료되지 않을 수 있다. 워커의 `AI_RUNTIME_API_URL`은 Compose 내부 `http://api:3001`이며 브라우저용 URL과 혼동하지 않는다. API/워커의 `DB_HOST=postgres`, `REDIS_URL=redis://redis:6379`도 컨테이너 내부 주소다.
+계산 워커는 `http://battle-worker:3021`에서 Rust API의 전투 계산 요청을 처리한다. Rust API는 Compose 내부 `0.0.0.0:3011`에서 실행하고 외부 `API_PORT`로 노출된다. 내부 워커 URL과 브라우저용 `NEXT_PUBLIC_API_URL`을 혼동하지 않는다. PostgreSQL과 Redis는 Compose 내부 호스트명 `postgres`, `redis`로 접근한다.
 
 로컬에서 전체 스택을 실행할 때:
 
@@ -53,13 +54,13 @@ ROM import는 `poke_lounge_rom_document` 테이블에 검증한 문서를 upsert
 
 실행 전에는 백업, 마이그레이션 이력, 디스크·볼륨, API 주소·CORS·접근 범위를 확인한다. 설정 전체를 출력하면 secret이 포함될 수 있으므로 마스킹 없이 공유하지 않는다.
 
-실행 후 기본 health 확인은 API `/health`, Web `/ko-KR/game`이다. 이 응답만으로 ROM 데이터·AI·다인 전투가 정상이라고 판단하지 않는다. 직접 플레이의 기대 동작은 [현재 게임 흐름](../../README.md)을 기준으로 확인한다.
+배포 workflow는 API `/health`, `/health/ready`, `/poke-lounge/rooms/public`과 Web `/ko-KR/game`을 확인한다. 이 응답만으로 ROM 데이터·AI·다인 전투가 정상이라고 판단하지 않는다. 직접 플레이의 기대 동작은 [현재 게임 흐름](../../README.md)을 기준으로 확인한다.
 
 CI는 정적 검사와 프로덕션 빌드만 수행한다. 자동 테스트와 Storybook은 제거했다. 플레이어 테스트는 [직접 조작 지침](../../PLAYER_TESTING.md)에 따라 실제 브라우저에서 별도로 수행하며 CI 성공을 플레이 PASS로 해석하지 않는다.
 
 ## 장애 확인·복구 경계
 
-`migrate` 실패라면 API를 강제로 먼저 띄우지 않는다. 어떤 마이그레이션 또는 ROM 문서가 실패했는지 확인하고 데이터 보존을 우선한다. AI 준비에서 멈추면 워커 프로세스, Redis 큐, 워커가 접근하는 ROM API와 public 파일을 확인한다. 웹 요청 실패는 브라우저용 API URL·CORS와 내부 컨테이너 주소를 구분한다.
+`migrate` 실패라면 API를 강제로 먼저 띄우지 않는다. 어떤 마이그레이션 또는 ROM 문서가 실패했는지 확인하고 데이터 보존을 우선한다. 전투 계산이 멈추면 `battle-worker`의 준비 상태와 Rust API의 워커 연결·토큰 설정을 확인한다. AI 준비가 멈추면 Rust API의 Redis·ROM 데이터·계산 워커 연결을 확인한다. 웹 요청 실패는 브라우저용 API URL·CORS와 내부 컨테이너 주소를 구분한다.
 
 방은 Redis, ROM 문서는 PostgreSQL에 있으므로 한 저장소의 복원으로 전체 게임 상태가 복구된다고 가정하지 않는다. 애플리케이션 버전 롤백과 DB 복원은 별도 판단이다. 검증된 백업/복원 절차와 운영자 승인이 없이 `FLUSHDB`, 테이블 삭제, volume 삭제, migration 이력 조작을 실행하지 않는다.
 
