@@ -164,10 +164,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
   handleUiAction(action: MobileWorldUiAction): void {
     if (action.type === "open-inventory") {
-      if (!this.isMobileWorldSurfaceOpen() && !this.battleIntroPlaying) {
-        playBattleConfirmSound();
-        this.openInventory();
-      }
       return;
     }
 
@@ -692,8 +688,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private handleFieldInteractionInput(): void {
     this.updateFieldGuidance();
     if (consumeVirtualGamepadPress("bag") || this.dependencies.keyboard.consume("KeyI")) {
-      playBattleConfirmSound();
-      this.openInventory();
       return;
     }
     if (consumeVirtualGamepadPress("help") || this.dependencies.keyboard.consume("KeyH")) {

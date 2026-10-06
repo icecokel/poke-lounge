@@ -44,7 +44,7 @@ export {
 } from "./mobile-battle-deck";
 import { MobileTaskScreen } from "./mobile-task-screen";
 import { MobilePokemonCard, MobileItemRow, MobilePokemonThumbnail } from "./mobile-selection-cards";
-import { Backpack, CircleDot, MessageSquare, Volume2, ChevronRight } from "lucide-react";
+import { CircleDot, MessageSquare, Volume2, ChevronRight } from "lucide-react";
 import { HgssItemIcon } from "../ui/hgss-item-icon";
 import { MobilePlayStatus, MobileGameSummary } from "./mobile-play-status";
 import { getMobileUiCopy } from "./mobile-ui-copy";
@@ -306,24 +306,15 @@ function MobileExploreDeck({
       ) : null}
       <div className="mx-auto flex min-h-0 w-full max-w-[400px] items-center justify-between gap-3 self-start">
         <MobileDirectionalJoystick ariaLabel={copy.mobile.exploreDeckLabel} input={input} />
-        <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+        <div className="grid min-w-0 flex-1 gap-2">
           <TouchHoldButton
             control="confirm"
-            className="col-span-2 flex min-h-16 touch-manipulation items-center justify-center gap-[5px] rounded-[9px] border-2 border-[var(--hg-ink)] bg-[linear-gradient(#d96950_50%,#ab4d3e_50%)] p-2 font-black text-[#fffdf4] shadow-[var(--hg-button)] data-[pressed=true]:translate-y-[3px] data-[pressed=true]:shadow-none [&>span]:text-base [&>span]:leading-[1.3] [&>span]:[overflow-wrap:anywhere] [&>small]:text-[0.64rem]"
+            className="flex min-h-16 touch-manipulation items-center justify-center gap-[5px] rounded-[9px] border-2 border-[var(--hg-ink)] bg-[linear-gradient(#d96950_50%,#ab4d3e_50%)] p-2 font-black text-[#fffdf4] shadow-[var(--hg-button)] data-[pressed=true]:translate-y-[3px] data-[pressed=true]:shadow-none [&>span]:text-base [&>span]:leading-[1.3] [&>span]:[overflow-wrap:anywhere] [&>small]:text-[0.64rem]"
             ariaLabel={copy.mobile.interact}
             input={input}
           >
             <MessageSquare size={24} aria-hidden="true" />
             <span>{copy.mobile.interact}</span>
-          </TouchHoldButton>
-          <TouchHoldButton
-            control="bag"
-            className="grid min-h-14 touch-manipulation content-center justify-items-center gap-[5px] rounded-[9px] border-2 border-[var(--hg-ink)] bg-[linear-gradient(#f9df86_50%,#dcbe68_50%)] p-2 font-black text-[#17201a] shadow-[var(--hg-button)] data-[pressed=true]:translate-y-[3px] data-[pressed=true]:shadow-none [&>span]:text-base [&>span]:leading-[1.3] [&>span]:[overflow-wrap:anywhere] [&>small]:text-[0.64rem]"
-            ariaLabel={copy.mobile.bag}
-            input={input}
-          >
-            <Backpack size={24} aria-hidden="true" />
-            <span>{copy.mobile.bag}</span>
           </TouchHoldButton>
           <button
             type="button"

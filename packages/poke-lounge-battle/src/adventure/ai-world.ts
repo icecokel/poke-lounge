@@ -77,7 +77,7 @@ export function createAiAdventure(
     activity: "idle",
     path: [],
     activeSlotIndex: party.activeSlotIndex,
-    inventory: { pokeball: 10, potion: 5 },
+    inventory: {},
     box: [],
     battle: null,
     readyAtMs: nowMs,
@@ -315,17 +315,14 @@ function advanceWildBattle(
     );
     if (replacement) battle = choosePartySlot(battle, replacement.slotIndex);
   } else if (
-    (state.inventory.pokeball ?? 0) > 0 &&
     battle.opponent.pokemon.currentHp <= battle.opponent.pokemon.maxHp * 0.5 &&
     (state.roundIndex !== 1 ||
       state.party.filter(slot => slot.pokemon).length < profile.roundOnePartyLimit)
   ) {
     battle = chooseBattleBagItem({ ...battle, phase: "bag-select" }, "pokeball", {
-      itemCount: state.inventory.pokeball,
       captureRandom16: () => Math.floor(random() * 65536),
       captureRateMultiplier: profile.captureRateMultiplier,
     });
-    if (battle.usedInventoryItemId === "pokeball") state.inventory.pokeball -= 1;
   } else {
     const moves = battle.player.pokemon.moves;
     const candidates = moves

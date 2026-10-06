@@ -80,6 +80,7 @@ export function canChooseBattleCommand(
   return (
     state.phase === "command" &&
     canChooseBattleAction(state, now) &&
-    !(state.isAuthoritative && (command === "bag" || command === "run"))
+    !(state.isAuthoritative && (command === "bag" || command === "run")) &&
+    (command !== "bag" || state.canCapture !== false)
   );
 }

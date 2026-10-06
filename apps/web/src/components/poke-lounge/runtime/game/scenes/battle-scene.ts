@@ -171,7 +171,7 @@ import type { CompetitiveBattleLaunchKey } from "./competitive-battle-launch";
 import { isCompetitiveAssignmentForPlayer } from "./competitive-battle-launch";
 export { isBattleParticipantDefeated } from "@/features/poke-lounge/domain/battle/party-defeat";
 
-export const BATTLE_COMMAND_LABELS = ["싸운다", "가방", "포켓몬", "도망"] as const;
+export const BATTLE_COMMAND_LABELS = ["싸운다", "몬스터볼", "포켓몬", "도망"] as const;
 export const BATTLE_SPRITE_CROP = { x: 0, y: 0, ...BATTLE_POKEMON_FRAME_SIZE } as const;
 export const BATTLE_SPRITE_SOURCE_SIZE = BATTLE_POKEMON_FRAME_SIZE;
 export const BATTLE_SPRITE_VISIBLE_ALPHA_THRESHOLD = 8;
@@ -378,7 +378,7 @@ export const getBattleCommandIndexAtPoint = getBattleOptionIndexAtPoint;
 
 const COMMANDS: Array<{ label: (typeof BATTLE_COMMAND_LABELS)[number]; command: BattleCommand }> = [
   { label: "싸운다", command: "fight" },
-  { label: "가방", command: "bag" },
+  { label: "몬스터볼", command: "bag" },
   { label: "포켓몬", command: "pokemon" },
   { label: "도망", command: "run" },
 ];
@@ -641,12 +641,12 @@ export class BattleController {
     ) {
       playBattleConfirmSound();
       this.selectedBagItemIndex = 0;
-      if (this.authoritativeProjection)
+      if (this.authoritativeProjection || this.state.battleKind !== "wild")
         this.setBattleState({
           ...this.state,
-          messageQueue: ["서버 대전에서는 가방을 사용할 수 없습니다."],
+          messageQueue: ["야생 포켓몬에게만 몬스터볼을 던질 수 있습니다."],
         });
-      else this.setBattleState(chooseBattleCommand(this.state, "bag"));
+      else this.setBattleState(this.throwPokeball());
       return;
     }
 
@@ -742,6 +742,7 @@ export class BattleController {
         return;
       }
 
+      if (COMMANDS[action.index].command === "bag" && this.state.battleKind !== "wild") return;
       this.selectedCommandIndex = action.index;
       playBattleConfirmSound();
       this.confirmSelection();
@@ -873,6 +874,7 @@ export class BattleController {
         this.authoritativeProjection?.status === "completed",
       spectating: this.authoritativeSpectating,
       isAuthoritative: Boolean(this.authoritativeProjection),
+      canCapture: this.state.battleKind === "wild" && !this.authoritativeProjection,
       isInputLocked:
         this.battleEntrancePlaying ||
         this.captureAnimationPlaying ||
@@ -1394,6 +1396,11 @@ export class BattleController {
 
     if (this.state.phase === "command") {
       const command = COMMANDS[this.selectedCommandIndex]?.command ?? "fight";
+      if (command === "bag") {
+        if (this.state.battleKind === "wild" && !this.authoritativeProjection)
+          this.setBattleState(this.throwPokeball());
+        return;
+      }
       const nextState = executeBattleChoice(
         this.state,
         { kind: "command", command },
@@ -1405,10 +1412,6 @@ export class BattleController {
           this.state.player.party,
           this.state.player.activePartySlotIndex,
         );
-      }
-
-      if (command === "bag") {
-        this.selectedBagItemIndex = 0;
       }
 
       this.setBattleState(nextState);
@@ -3122,6 +3125,12 @@ export class BattleController {
     const owned = BATTLE_BAG_ITEM_IDS.filter(itemId => (inventory[itemId] ?? 0) > 0);
     this.selectedBagItemIndex = Math.min(this.selectedBagItemIndex, Math.max(0, owned.length - 1));
     return owned;
+  }
+
+  private throwPokeball(): BattleScreenState {
+    const bagState = chooseBattleCommand(this.state, "bag");
+    return executeBattleChoice(bagState, { kind: "item", itemId: "pokeball" }, this.gameStateStore)
+      .state;
   }
 }
 

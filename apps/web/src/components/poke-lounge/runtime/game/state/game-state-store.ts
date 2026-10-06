@@ -866,10 +866,7 @@ export function createDefaultPlayerGuideState(): PlayerGuideState {
 }
 
 export function createDefaultPlayerInventory(): PlayerInventory {
-  return {
-    pokeball: 10,
-    potion: 5,
-  };
+  return {};
 }
 
 export function createEmptyParty(): Array<PlayerPokemonSlot<PlayerPokemon>> {
@@ -947,7 +944,7 @@ function ensureLocalPlayerDefaults(localPlayer: LocalPlayerState): LocalPlayerSt
       })?.slotIndex ??
       party[0]?.slotIndex ??
       0,
-    inventory: normalizeInventory(localPlayer.inventory ?? createDefaultPlayerInventory()),
+    inventory: createDefaultPlayerInventory(),
     pokemonBox: normalizePokemonBox(localPlayer.pokemonBox),
     competitive: normalizeCompetitiveStats(
       localPlayer.competitive ?? createDefaultCompetitiveStats(),
@@ -960,21 +957,6 @@ function formatDefaultPlayerName(playerId: string): string {
   const match = /^player-(\d+)$/.exec(playerId);
 
   return match ? `Player ${match[1]}` : playerId;
-}
-
-function normalizeInventory(inventory: Record<string, unknown>): PlayerInventory {
-  return Object.fromEntries(
-    Object.entries(inventory)
-      .map(function mapItem([itemId, quantity]) {
-        return [itemId, typeof quantity === "number" ? quantity : Number(quantity)] as const;
-      })
-      .filter(function filterItem([, quantity]) {
-        return Number.isFinite(quantity) && quantity >= 1;
-      })
-      .map(function mapItem([itemId, quantity]) {
-        return [itemId, Math.floor(quantity)];
-      }),
-  );
 }
 
 function normalizePokemonBox(pokemonBox: unknown): PlayerPokemon[] {

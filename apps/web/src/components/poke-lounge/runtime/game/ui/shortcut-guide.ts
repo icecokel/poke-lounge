@@ -27,7 +27,6 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         world: [
           { action: "이동", keys: "WASD / 방향키" },
           { action: "확인 / 대화", keys: "Enter / Space / Z" },
-          { action: "가방", keys: "I 키" },
           { action: "도움말", keys: "H" },
           { action: "닫기", keys: "Esc / Backspace" },
         ],
@@ -42,13 +41,13 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         world: [
           { action: "이동", keys: "조이스틱 드래그" },
           { action: "확인 / 대화", keys: "대화 버튼" },
-          { action: "가방 / 파티", keys: "가방 / 포켓몬 버튼" },
+          { action: "파티", keys: "포켓몬 버튼" },
           { action: "도움말", keys: "설정 → 조작 안내" },
           { action: "닫기 / 뒤로", keys: "닫기 / 뒤로 버튼" },
         ],
         battle: [
           { action: "기술 실행", keys: "싸운다 → 기술 터치" },
-          { action: "아이템", keys: "가방 → 아이템 → 대상 선택" },
+          { action: "포획", keys: "몬스터볼 터치 (야생전)" },
           { action: "교체", keys: "포켓몬 선택 → 교체 확인" },
           { action: "뒤로", keys: "뒤로 버튼" },
         ],
@@ -80,7 +79,6 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         world: [
           { action: "Move", keys: "WASD / Arrow keys" },
           { action: "Confirm / Talk", keys: "Enter / Space / Z" },
-          { action: "Bag", keys: "I" },
           { action: "Help", keys: "H" },
           { action: "Close", keys: "Esc / Backspace" },
         ],
@@ -95,13 +93,13 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         world: [
           { action: "Move", keys: "Drag the joystick" },
           { action: "Confirm / Talk", keys: "Talk button" },
-          { action: "Bag / Party", keys: "Bag / Pokémon buttons" },
+          { action: "Party", keys: "Pokémon button" },
           { action: "Help", keys: "Settings → Controls" },
           { action: "Close / Back", keys: "Close / Back button" },
         ],
         battle: [
           { action: "Use a move", keys: "Fight → tap a move" },
-          { action: "Item", keys: "Bag → item → target" },
+          { action: "Capture", keys: "Tap Poké Ball (wild battle)" },
           { action: "Switch", keys: "Select Pokémon → confirm switch" },
           { action: "Back", keys: "Back button" },
         ],
@@ -133,7 +131,6 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         world: [
           { action: "移動", keys: "WASD / 矢印キー" },
           { action: "決定 / 話す", keys: "Enter / Space / Z" },
-          { action: "バッグ", keys: "I" },
           { action: "ヘルプ", keys: "H" },
           { action: "閉じる", keys: "Esc / Backspace" },
         ],
@@ -148,13 +145,13 @@ const SHORTCUT_GUIDE_COPY: Record<PokeLoungeLocale, ShortcutGuideCopy> = {
         world: [
           { action: "移動", keys: "ジョイスティックをドラッグ" },
           { action: "決定 / 話す", keys: "話すボタン" },
-          { action: "バッグ / 手持ち", keys: "バッグ / ポケモンボタン" },
+          { action: "手持ち", keys: "ポケモンボタン" },
           { action: "ヘルプ", keys: "設定 → 操作ガイド" },
           { action: "閉じる / 戻る", keys: "閉じる / 戻るボタン" },
         ],
         battle: [
           { action: "技を使う", keys: "たたかう → 技をタップ" },
-          { action: "道具", keys: "バッグ → 道具 → 対象選択" },
+          { action: "捕獲", keys: "モンスターボールをタップ（野生戦）" },
           { action: "交代", keys: "ポケモン選択 → 交代確認" },
           { action: "戻る", keys: "戻るボタン" },
         ],

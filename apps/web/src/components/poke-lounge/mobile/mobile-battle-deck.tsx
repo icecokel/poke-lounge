@@ -273,7 +273,7 @@ export function MobileBattleCommandDeck({ copy, onAction, state }: DeckProps) {
   const text = getMobileUiCopy(copy.locale);
   const labels = {
     fight: copy.mobile.fight,
-    bag: copy.mobile.bag,
+    bag: localizeRuntimeText("몬스터볼", copy.locale),
     pokemon: copy.mobile.party,
     run: text.runCommand,
   };
@@ -326,7 +326,8 @@ export function MobileBattleCommandDeck({ copy, onAction, state }: DeckProps) {
               ) : null}
               <strong>{labels[command.id]}</strong>
             </span>
-            {state.isAuthoritative && (command.id === "bag" || command.id === "run") ? (
+            {(state.isAuthoritative && command.id === "run") ||
+            (command.id === "bag" && !state.canCapture) ? (
               <small className="block max-w-full text-xs font-semibold leading-[1.35] [overflow-wrap:anywhere]">
                 {text.competitiveUnavailable}
               </small>
@@ -557,7 +558,7 @@ export function MobileBattleBagDeck(props: DeckProps) {
     : (presentation?.player.name ?? text.activeTarget);
   return (
     <MobileTaskScreen
-      title={copy.mobile.bag}
+      title={localizeRuntimeText("몬스터볼", copy.locale)}
       name="battle-bag"
       backLabel={copy.mobile.back}
       onBack={

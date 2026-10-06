@@ -28,6 +28,7 @@ import { primePokeLoungeAudio } from "../audio/poke-lounge-audio";
 import {
   localizeBattlePresentationState,
   localizeMobileBattleUiState,
+  localizeRuntimeText,
 } from "../i18n/runtime-game-localization";
 import type { GameStateStore } from "../state/game-state-store";
 import { TournamentBracketPanel } from "../tournament/tournament-bracket-panel";
@@ -600,7 +601,7 @@ export function BattleCommandPanel({
   onAction(action: MobileBattleUiAction): void;
 }) {
   const labels = {
-    bag: copy.mobile.bag,
+    bag: localizeRuntimeText("몬스터볼", copy.locale),
     fight: copy.mobile.fight,
     pokemon: copy.mobile.party,
     run: copy.mobile.run,
@@ -838,7 +839,7 @@ export function BattleBagPanel({
       {pageCount > 1 ? (
         <nav
           className="col-[1/-1] row-start-3 flex items-center justify-between gap-[0.4em] border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] px-[0.35em] py-[0.2em] text-[0.72em] text-[var(--pl-color-ink)] [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-[0.4em] [&>button]:py-[0.25em] [&>button]:text-inherit [&>button:disabled]:cursor-default [&>button:disabled]:opacity-45"
-          aria-label={copy.mobile.bag}
+          aria-label={localizeRuntimeText("몬스터볼", copy.locale)}
         >
           <button
             type="button"

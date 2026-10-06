@@ -36,7 +36,11 @@ export function executeBattleChoice(
     });
   else if (choice.kind === "party") next = choosePartySlot(state, choice.slotIndex);
   else next = choosePlayerMove(state, choice.moveIndex);
-  if ((choice.kind === "item" || choice.kind === "party") && next.usedInventoryItemId)
+  if (
+    (choice.kind === "item" || choice.kind === "party") &&
+    next.usedInventoryItemId &&
+    next.usedInventoryItemId !== "pokeball"
+  )
     inventory.consumeInventoryItem(next.usedInventoryItemId, 1);
   return {
     state: next,

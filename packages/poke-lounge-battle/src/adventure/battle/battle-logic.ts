@@ -282,7 +282,7 @@ export function chooseBattleBagItem(
   }
 
   if (itemId === "pokeball") {
-    return chooseCaptureBallItem(state, itemCount, options, {
+    return chooseCaptureBallItem(state, options, {
       itemId: "pokeball",
       displayName: battleItemDisplayName("pokeball"),
       ballBonus: 1,
@@ -290,7 +290,7 @@ export function chooseBattleBagItem(
   }
 
   if (itemId === "ultraBall") {
-    return chooseCaptureBallItem(state, itemCount, options, {
+    return chooseCaptureBallItem(state, options, {
       itemId: "ultraBall",
       displayName: battleItemDisplayName("ultraBall"),
       ballBonus: ULTRA_BALL_BONUS,
@@ -338,7 +338,6 @@ export function chooseBattleBagItem(
 
 function chooseCaptureBallItem(
   state: BattleScreenState,
-  itemCount: number,
   options: ChooseBattleBagItemOptions,
   ball: CaptureBallConfig,
 ): BattleScreenState {
@@ -346,15 +345,6 @@ function chooseCaptureBallItem(
     return {
       ...state,
       messageQueue: ["트레이너전에서는 사용할 수 없다."],
-      result: null,
-      usedInventoryItemId: null,
-    };
-  }
-
-  if (itemCount <= 0) {
-    return {
-      ...state,
-      messageQueue: [`${withSubjectParticle(ball.displayName)} 없다!`],
       result: null,
       usedInventoryItemId: null,
     };
