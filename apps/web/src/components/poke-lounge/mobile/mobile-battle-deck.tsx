@@ -370,7 +370,7 @@ export function MobileBattleMoveDeck({ copy, onAction, state }: DeckProps) {
         </button>
       </header>
       <div
-        className="grid min-h-0 flex-1 grid-cols-2 auto-rows-[minmax(72px,auto)] content-start gap-2 overflow-y-auto overscroll-contain p-1 [scroll-padding-block:4px]"
+        className="grid min-h-0 flex-1 grid-cols-2 auto-rows-max content-start gap-2 overflow-y-auto overscroll-contain p-1 [scroll-padding-block:4px]"
         data-poke-lounge-mobile-option-grid="moves"
       >
         {state.moves.map(move => (
@@ -387,7 +387,6 @@ export function MobileBattleMoveDeck({ copy, onAction, state }: DeckProps) {
               {move.type} · PP {move.pp}/{move.maxPp}
             </small>
             <small>{getBattleMoveDetails(move, copy.locale).stats}</small>
-            <small>{getBattleMoveDetails(move, copy.locale).effect}</small>
             {move.pp <= 0 || move.effectNotice ? (
               <small>{move.pp <= 0 ? text.ppEmpty : move.effectNotice}</small>
             ) : null}

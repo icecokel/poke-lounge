@@ -1008,7 +1008,7 @@ function MobileSettingsScreen({
       name="settings"
       backLabel={copy.settingsClose}
       onBack={onClose}
-      returnFocusSelector="[data-poke-lounge-mobile-menu='true']"
+      returnFocusSelector={lobby ? "[data-poke-lounge-mobile-menu='true']" : "#game-root"}
     >
       <div className="grid gap-3 [&>button]:h-auto [&>button]:min-h-14 [&>button]:whitespace-normal [&>button]:text-base">
         <button
