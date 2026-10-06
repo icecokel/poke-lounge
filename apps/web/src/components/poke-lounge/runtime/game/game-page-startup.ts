@@ -1,6 +1,14 @@
 import { createStarterPlayerPokemon } from "@/features/poke-lounge/domain/player/create-starter-pokemon";
+import { reportClientDiagnostic } from "@/lib/client-diagnostics";
 import { getPokeLoungeCopyForUrl } from "../../poke-lounge-copy";
+import {
+  ASSET_ERROR_CODES,
+  ROOM_ERROR_CODES,
+  STARTUP_ERROR_CODES,
+  type PokeLoungeErrorCode,
+} from "../../poke-lounge-error-codes";
 import { loadBootstrapData } from "../bootstrap";
+import { RequiredGameAssetError } from "../required-game-asset-error";
 import type { GameBootstrapData } from "../types";
 import {
   loadPokeLoungeRuntimeAssets,
@@ -27,6 +35,7 @@ import {
   resolveLocalTestModeState,
   type LocalTestModeState,
 } from "./local-test-mode";
+import type { MultiplayerRoom } from "./network/local-preview-room";
 import { createMultiplayerRoom } from "./network/multiplayer-room-factory";
 import {
   applyRoomRoundDurationSearchParam,
@@ -94,6 +103,60 @@ export interface StartGamePageDependencies {
   viewportSize?: GameViewportDisplaySize;
 }
 
+function reportGameStartupFailure(
+  error: unknown,
+  stage: "GAME_START_FAILED" | "STARTER_DATA_FAILED",
+  room?: MultiplayerRoom | null,
+): PokeLoungeErrorCode {
+  const originalError = error instanceof GameStartupStepError ? error.originalError : error;
+  const assetError = originalError instanceof RequiredGameAssetError ? originalError : null;
+  const userCode = assetError
+    ? ASSET_ERROR_CODES[assetError.reason]
+    : stage === "STARTER_DATA_FAILED"
+      ? STARTUP_ERROR_CODES.STARTER_DATA
+      : STARTUP_ERROR_CODES.GAME_START;
+  reportClientDiagnostic({
+    kind: "runtime",
+    code: assetError
+      ? `GAME_ASSET_${assetError.reason}${assetError.status ? `_${assetError.status}` : ""}`
+      : stage,
+    errorName: originalError instanceof Error ? originalError.name : "UnknownError",
+    error: originalError,
+    startupStep: error instanceof GameStartupStepError ? error.step : undefined,
+    resourcePath: assetError?.resourcePath,
+    roomCode: room?.roomId,
+    sessionId: room?.sessionId,
+    userCode,
+  });
+  return userCode;
+}
+
+type GameStartupStep =
+  | "runtime_data"
+  | "runtime_assets"
+  | "room_creation"
+  | "world_model"
+  | "player_atlas"
+  | "game_construction";
+
+class GameStartupStepError extends Error {
+  constructor(
+    readonly step: GameStartupStep,
+    readonly originalError: unknown,
+  ) {
+    super(`Game startup failed during ${step}`);
+    this.name = "GameStartupStepError";
+  }
+}
+
+function withStartupStep<T>(step: GameStartupStep, operation: () => T): T {
+  try {
+    return operation();
+  } catch (error) {
+    throw new GameStartupStepError(step, error);
+  }
+}
+
 export async function startGamePage(
   mount: HTMLElement,
   location: GamePageLocation,
@@ -136,7 +199,7 @@ export async function startGamePage(
       return await runtimeGameDataPromise;
     } catch (error) {
       runtimeGameDataPromise = null;
-      throw error;
+      throw new GameStartupStepError("runtime_data", error);
     }
   };
 
@@ -165,7 +228,7 @@ export async function startGamePage(
       runtimeAssetsAbortController?.abort();
       runtimeAssetsPromise = null;
       runtimeAssetsAbortController = null;
-      throw error;
+      throw new GameStartupStepError("runtime_assets", error);
     }
   };
 
@@ -253,28 +316,34 @@ export async function startGamePage(
     }
 
     const roomEntry = readRoomEntryFromLocation(gameUrl);
-    const multiplayerRoom = (dependencies.createMultiplayerRoom ?? createMultiplayerRoom)({
-      accountId: resumingStoredRoom || !temporaryRoomCode ? dependencies.accountId : undefined,
-      createWebRtcRoom,
-      idToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.idToken : undefined,
-      getIdToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.getIdToken : undefined,
-      roomId: temporaryRoomCode,
-      roomRunId: activeRoomRunId ?? undefined,
-      persistRoomCodeInUrl: temporaryRoomCode ? false : undefined,
-      resumeRoom: resumingStoredRoom,
-      sharedWorldOnly: Boolean(temporaryRoomCode),
-      competitiveRoundsEnabled: isCompetitiveRoomEntryMode(roomEntry.mode),
-      searchParams: gameUrl.searchParams,
-    });
+    const multiplayerRoom = withStartupStep("room_creation", () =>
+      (dependencies.createMultiplayerRoom ?? createMultiplayerRoom)({
+        accountId: resumingStoredRoom || !temporaryRoomCode ? dependencies.accountId : undefined,
+        createWebRtcRoom,
+        idToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.idToken : undefined,
+        getIdToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.getIdToken : undefined,
+        roomId: temporaryRoomCode,
+        roomRunId: activeRoomRunId ?? undefined,
+        persistRoomCodeInUrl: temporaryRoomCode ? false : undefined,
+        resumeRoom: resumingStoredRoom,
+        sharedWorldOnly: Boolean(temporaryRoomCode),
+        competitiveRoundsEnabled: isCompetitiveRoomEntryMode(roomEntry.mode),
+        searchParams: gameUrl.searchParams,
+      }),
+    );
     const competitiveRoundsEnabled = isCompetitiveRoomEntryMode(roomEntry.mode);
     const worldFrameStore = createWorldFrameStore();
-    const worldModel = createWorldMapModel(runtimeAssets.tilemap);
+    const worldModel = withStartupStep("world_model", () =>
+      createWorldMapModel(runtimeAssets.tilemap),
+    );
     const worldRuntime = createWorldRuntime(worldModel, worldFrameStore);
     const worldUiStore = createWorldUiStore();
     const battleUiStore = createBattleUiStore();
     const battle = { uiStore: battleUiStore };
     const world = {
-      atlas: createWorldPlayerAtlasModel(runtimeAssets.playerAtlas.data),
+      atlas: withStartupStep("player_atlas", () =>
+        createWorldPlayerAtlasModel(runtimeAssets.playerAtlas.data),
+      ),
       competitiveRoundsEnabled,
       ...(multiplayerRoom.setPreparationReady
         ? {
@@ -311,11 +380,13 @@ export async function startGamePage(
           starterState = state;
           emitCurrentGameplayState();
         },
-      ).catch(function handleStarterLoadError() {
+      ).catch(function handleStarterLoadError(error) {
         if (destroyed || activeMultiplayerRoom !== multiplayerRoom) return;
+        const errorCode = reportGameStartupFailure(error, "STARTER_DATA_FAILED", multiplayerRoom);
         starterState = {
           phase: "error",
           description: copy.startup.description,
+          errorCode,
           onRetry: function retryStarterSelection() {
             requestInGameStarterSelection(onComplete);
           },
@@ -326,44 +397,46 @@ export async function startGamePage(
         emitCurrentGameplayState();
       });
     }
-    const game = (dependencies.createPokeLoungeGame ?? createPokeLoungeGame)(mount, {
-      competitiveRoundsEnabled,
-      gameStateStore,
-      initialScene,
-      multiplayerRoom,
-      onGameResult: roomEntry.mode === "server-room" ? undefined : dependencies.onGameResult,
-      onStarterSelectionRequested: requestInGameStarterSelection,
-      onRoomLobbyStateChange: lobby => {
-        if (destroyed) {
-          return;
-        }
-        const controls = {
-          battle,
-          ...(gameplayState.roomLeave ? { roomLeave: gameplayState.roomLeave } : {}),
-          ...(gameplayState.webRtc ? { webRtc: gameplayState.webRtc } : {}),
-          world,
-        };
-        gameplayState = lobby
-          ? {
-              ...controls,
-              ...lobby,
-              ...(privateRoomAccess?.roomCode === lobby.projection.roomCode
-                ? { privateRoomAccessCode: privateRoomAccess.code }
-                : {}),
-              phase: "lobby",
-            }
-          : { ...controls, phase: "world" };
-        emitCurrentGameplayState();
-      },
-      serverAuthoritativeRounds: roomEntry.mode === "server-room",
-      battleUiStore,
-      runtimeAssets,
-      viewportSize: activeViewportSize,
-      worldFrameStore,
-      worldModel,
-      worldRuntime,
-      worldUiStore,
-    });
+    const game = withStartupStep("game_construction", () =>
+      (dependencies.createPokeLoungeGame ?? createPokeLoungeGame)(mount, {
+        competitiveRoundsEnabled,
+        gameStateStore,
+        initialScene,
+        multiplayerRoom,
+        onGameResult: roomEntry.mode === "server-room" ? undefined : dependencies.onGameResult,
+        onStarterSelectionRequested: requestInGameStarterSelection,
+        onRoomLobbyStateChange: lobby => {
+          if (destroyed) {
+            return;
+          }
+          const controls = {
+            battle,
+            ...(gameplayState.roomLeave ? { roomLeave: gameplayState.roomLeave } : {}),
+            ...(gameplayState.webRtc ? { webRtc: gameplayState.webRtc } : {}),
+            world,
+          };
+          gameplayState = lobby
+            ? {
+                ...controls,
+                ...lobby,
+                ...(privateRoomAccess?.roomCode === lobby.projection.roomCode
+                  ? { privateRoomAccessCode: privateRoomAccess.code }
+                  : {}),
+                phase: "lobby",
+              }
+            : { ...controls, phase: "world" };
+          emitCurrentGameplayState();
+        },
+        serverAuthoritativeRounds: roomEntry.mode === "server-room",
+        battleUiStore,
+        runtimeAssets,
+        viewportSize: activeViewportSize,
+        worldFrameStore,
+        worldModel,
+        worldRuntime,
+        worldUiStore,
+      }),
+    );
     activeGame = game;
     const returnToRoomEntry = (preserveDisplayName?: string) => {
       starterSelectionRequestId += 1;
@@ -464,6 +537,7 @@ export async function startGamePage(
       emitRuntimeState({
         phase: "error",
         description: getServerRoomErrorMessage(copy.locale, detail.code),
+        errorCode: ROOM_ERROR_CODES[detail.code],
         ...(detail.recoverable && detail.retry
           ? {
               onRetry: () => {
@@ -530,10 +604,16 @@ export async function startGamePage(
     }
     emitCurrentGameplayState();
   };
-  const showStartupError = (retry: () => void) => {
+  const showStartupError = (
+    retry: () => void,
+    error: unknown,
+    stage: "GAME_START_FAILED" | "STARTER_DATA_FAILED",
+  ) => {
     if (destroyed) {
       return;
     }
+
+    const errorCode = reportGameStartupFailure(error, stage, activeMultiplayerRoom);
 
     roomEntrySelectionPending = false;
     if (activeGame) {
@@ -552,6 +632,7 @@ export async function startGamePage(
     emitRuntimeState({
       phase: "error",
       description: copy.startup.description,
+      errorCode,
       onRetry: retry,
       onReturnToEntry: () => {
         restoreOwnerGameState(true);
@@ -598,24 +679,36 @@ export async function startGamePage(
       readRoomEntryFromLocation(gameUrl).mode === "server-room" ||
       !gameStateStore.canChooseStarter()
     ) {
-      void startGame(gameUrl).catch(function handleRejected() {
-        showStartupError(function callback() {
-          return startGameAfterStarterSelection(gameUrl);
-        });
+      void startGame(gameUrl).catch(function handleRejected(error) {
+        showStartupError(
+          function callback() {
+            return startGameAfterStarterSelection(gameUrl);
+          },
+          error,
+          "GAME_START_FAILED",
+        );
       });
       return;
     }
 
     void showStarterSelection(function callback() {
-      void startGame(gameUrl).catch(function handleRejected() {
-        showStartupError(function callback() {
+      void startGame(gameUrl).catch(function handleRejected(error) {
+        showStartupError(
+          function callback() {
+            return startGameAfterStarterSelection(gameUrl);
+          },
+          error,
+          "GAME_START_FAILED",
+        );
+      });
+    }).catch(function handleRejected(error) {
+      showStartupError(
+        function callback() {
           return startGameAfterStarterSelection(gameUrl);
-        });
-      });
-    }).catch(function handleRejected() {
-      showStartupError(function callback() {
-        return startGameAfterStarterSelection(gameUrl);
-      });
+        },
+        error,
+        "STARTER_DATA_FAILED",
+      );
     });
   };
   const selectRoomEntry = (selection: RoomEntrySelection) => {

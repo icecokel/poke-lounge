@@ -4,13 +4,17 @@
 
 ## 문제 발생 시 조회
 
-운영 호스트에서 실행한다. `docker compose logs`는 배포 비밀 환경변수를 요구하므로 조회에는 컨테이너 이름을 지정하는 `docker logs`를 사용한다. 쿼리·응답 본문, 토큰, 방 코드, 세션 ID를 로그나 공유 문서에 붙이지 않는다.
+운영 호스트에서 실행한다. `docker compose logs`는 배포 비밀 환경변수를 요구하므로 조회에는 컨테이너 이름을 지정하는 `docker logs`를 사용한다. 브라우저 오류 로그에는 방 코드와 세션 ID가 포함될 수 있으므로 로그 공유 범위를 운영 담당자로 제한한다. 요청·응답 본문과 인증 토큰은 기록하지 않는다.
 
 ```bash
 # 최근 오류: FE 수집 이벤트, API 실패, 소켓 오류, 전투 계산 실패
 for name in poke-lounge-api-1 poke-lounge-battle-worker-1 poke-lounge-web-1; do
   docker logs --since 2h --timestamps "$name" 2>&1
 done | grep -E 'browser.error|api.error|compute.failed|compute.timeout|socket.*error|api.request' | grep -v '"route":"/health'
+
+# 화면 코드 11004의 단계와 오류 텍스트를 사람이 읽기 좋게 출력
+docker logs --since 2h poke-lounge-api-1 2>&1 |
+  jq -Rr 'fromjson? | select(.fields.event == "browser.error" and .fields.user_code == "11004") | "\(.timestamp) step=\(.fields.startup_step)\n\(.fields.error_text)"'
 
 # 브라우저 오류의 related_request_id 또는 HTTP 응답의 X-Request-Id로 연관 기록 조회
 for name in poke-lounge-api-1 poke-lounge-battle-worker-1; do
@@ -26,6 +30,10 @@ done | grep -F '여기에-계산-UUID'
 for name in poke-lounge-api-1 poke-lounge-battle-worker-1; do
   docker logs --since 24h --timestamps "$name" 2>&1
 done | grep -F '여기에-방-인스턴스-UUID'
+
+# 화면에 보이는 방 코드나 세션 ID로 브라우저 오류 검색
+docker logs --since 24h poke-lounge-api-1 2>&1 |
+  jq -Rr 'fromjson? | select(.fields.event == "browser.error" and (.fields.room_code == "여기에-방-코드" or .fields.session_id == "여기에-세션-ID"))'
 ```
 
 ## 배포 이전 기록
@@ -45,11 +53,39 @@ for file in /archive/*.log.gz; do
 done' sh '여기에-요청-또는-계산-UUID'
 ```
 
-`api.request`의 `route`는 템플릿 경로이며 요청 본문은 기록하지 않는다. `browser.error`에는 종류·오류 코드·연관 요청 ID·페이지 범주와 실행 코드 위치만 기록한다. 실제 게임 중 UI에 표시된 방 코드를 검색 키로 사용하지 않는다. Rust `api.error`의 `source`는 Redis·PostgreSQL·전투 계산 등 실패 계층이다. `compute.failed`에 기록된 작업 종류와 상태로 워커의 같은 ID를 찾는다. `backend.started`, `compute.started`의 `release`와 브라우저 오류의 `release`로 배포 버전을 대조한다.
+`api.request`의 `route`는 템플릿 경로이며 요청 본문은 기록하지 않는다. `browser.error`에는 종류·오류 코드·연관 요청 ID·페이지 범주·실행 코드 위치·오류 이름·오류 텍스트·게임 시작 단계·브라우저 User-Agent·검증된 공개 정적 리소스 경로·방 코드·세션 ID를 기록한다. 방 코드는 방 연결 정보 또는 페이지 URL의 `room` 값에서 가져온다. 방 연결 전에는 방 코드나 세션 ID가 없을 수 있다. 오류 텍스트는 이름·메시지·최대 9줄의 스택과 최대 2단계의 원인을 묶은 **문자열**이다. 오류 텍스트 속 URL의 쿼리·해시와 흔한 인증 토큰·비밀번호 표현을 가리고 2,048자로 제한한다. Rust `api.error`의 `source`는 Redis·PostgreSQL·전투 계산 등 실패 계층이다. `compute.failed`에 기록된 작업 종류와 상태로 워커의 같은 ID를 찾는다. `backend.started`, `compute.started`의 `release`와 브라우저 오류의 `release`로 배포 버전을 대조한다.
+
+게임 시작 실패 화면이 표시되면 `browser.error`의 `GAME_ASSET_*`, `STARTER_DATA_FAILED`, `GAME_START_FAILED`, `GAME_MODULE_LOAD_FAILED`, `GAME_RUNTIME_INIT_FAILED` 코드를 찾는다. `startup_step`으로 런타임 데이터, 리소스, 방 생성, 월드 모델, 아틀라스, 게임 생성 단계 등을 구분하고 `error_text`로 실제 예외를 읽는다. ROM 데이터 응답이나 게임 데이터 검증 실패는 메시지에 실패한 문서·검증 항목의 고정 이름을 포함한다. 정적 리소스 실패는 공개 `/assets/` 또는 `/game-data/` 경로와 HTTP 상태도 기록한다. 전체 URL과 요청·응답 본문은 수집하지 않는다.
+
+## 화면 오류 코드
+
+게임 시작·방 연결 실패 화면에는 고정된 5자리 코드를 표시한다. 같은 숫자가 API의 `browser.error.user_code`에도 남는다. `code`는 내부 원인 분류이며, 화면의 숫자로 로그를 먼저 검색한 다음 `code`·`resource_path`·`release`를 대조한다.
+
+| 코드    | 의미                           |
+| ------- | ------------------------------ |
+| `11001` | 게임 화면 모듈 로드 실패       |
+| `11002` | 게임 런타임 초기화 실패        |
+| `11003` | 스타터 선택 데이터 로드 실패   |
+| `11004` | 게임 시작 처리 실패            |
+| `11101` | 필수 정적 리소스 HTTP 오류     |
+| `11102` | 필수 정적 리소스 네트워크 오류 |
+| `11103` | 필수 JSON 파싱 오류            |
+| `11104` | 필수 정적 데이터 형식 오류     |
+| `11105` | 필수 이미지 로드 실패          |
+| `21001` | 방 생성 실패                   |
+| `21002` | 방 참가 실패                   |
+| `21003` | 파티 동기화 실패               |
+| `21004` | 준비 상태 반영 실패            |
+| `21005` | 방 연결 실패                   |
+| `21006` | 방 인원 초과                   |
+| `21007` | 방 만료                        |
+| `21008` | 방 연결 정보 만료              |
+
+기존 브라우저 탭은 새 코드를 표시하거나 전송하지 않을 수 있다. `11101`의 HTTP 상태는 `code`의 `GAME_ASSET_HTTP_<상태>` 값으로 확인한다.
 
 ## 보존과 한계
 
-Compose 서비스는 Docker `local` 로깅 드라이버를 사용하며 컨테이너당 최대 20 MiB 파일 10개를 보존한다. 배포 스크립트는 그 시점에 남아 있는 로그만 보관하고, 30일이 지난 보관 파일은 다음 배포 때 정리한다. 이는 크기 기준 회전이므로 배포 사이의 24시간 보존도 보장하지 않는다. 수동으로 컨테이너를 제거하면 배포 전 보관을 거치지 않는다. 디스크가 가득 차면 로그가 누락될 수 있다. 별도 장기 보존·검색 UI·알림은 제공하지 않는다. 브라우저 수집은 분당 최대 10건/탭, 서버는 분당 최대 600건/IP를 허용한다. 네트워크가 완전히 끊기면 브라우저 오류 전송도 실패할 수 있다. 오류 텍스트·스택·개인정보를 수집하지 않으므로 런타임 오류는 빌드 버전과 스크립트 위치로 원인을 좁힌다.
+API와 워커는 이벤트를 **한 줄 JSON 문자열**로 표준 출력에 쓰고, Compose 서비스는 Docker `local` 로깅 드라이버로 컨테이너당 최대 20 MiB 파일 10개를 보존한다. 배포 스크립트는 그 시점에 남아 있는 로그만 `poke-lounge-trace-archive` 볼륨에 gzip으로 보관하고, 30일이 지난 보관 파일은 다음 배포 때 정리한다. 이는 크기 기준 회전이므로 배포 사이의 24시간 보존도 보장하지 않는다. 수동으로 컨테이너를 제거하면 배포 전 보관을 거치지 않는다. 디스크가 가득 차면 로그가 누락될 수 있다. 별도 장기 보존·검색 UI·알림은 제공하지 않는다. 브라우저 수집은 분당 최대 10건/탭, 서버는 분당 최대 600건/IP를 허용한다. 네트워크가 완전히 끊기면 브라우저 오류 전송도 실패할 수 있다. 오류 텍스트의 자동 가림은 모든 민감값을 완벽하게 탐지하지 못할 수 있으므로 운영 로그 접근을 제한한다.
 
 ## 적용 확인
 

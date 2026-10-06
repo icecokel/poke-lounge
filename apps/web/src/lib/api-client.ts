@@ -87,7 +87,7 @@ export const apiClient = {
         body: body ? JSON.stringify(body) : undefined,
       });
     } catch (error) {
-      reportClientDiagnostic({ kind: "api", code: "NETWORK_ERROR", requestId });
+      reportClientDiagnostic({ kind: "api", code: "NETWORK_ERROR", requestId, error });
       throw error;
     }
 

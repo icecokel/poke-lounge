@@ -164,6 +164,7 @@ export interface PokeLoungeCopy {
   startup: {
     title: string;
     description: string;
+    errorCodeLabel: string;
     retry: string;
     retrying: string;
     lobby: string;
@@ -439,6 +440,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     title: "게임을 시작하지 못했습니다",
     description:
       "필요한 게임 데이터나 화면 코드를 불러오지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.",
+    errorCodeLabel: "오류 코드",
     retry: "다시 시도",
     retrying: "다시 불러오는 중...",
     lobby: "입장 화면으로 돌아가기",
@@ -733,6 +735,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     title: "Could not start the game",
     description:
       "Required game data or screen code could not be loaded. Check your connection and try again.",
+    errorCodeLabel: "Error code",
     retry: "Try again",
     retrying: "Loading again...",
     lobby: "Back to play selection",
@@ -1029,6 +1032,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     title: "ゲームを開始できませんでした",
     description:
       "必要なゲームデータまたは画面コードを読み込めませんでした。接続を確認して再試行してください。",
+    errorCodeLabel: "エラーコード",
     retry: "再試行",
     retrying: "再読み込み中...",
     lobby: "プレイ選択に戻る",
