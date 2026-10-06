@@ -132,7 +132,7 @@ export async function loadPokeLoungeRuntimeAssets({
         return [key, complete(await fetchRequiredJson(fetcher, path, signal))] as const;
       }),
     ),
-    fetchRequiredJson(fetcher, FIELD_MAP.mapUrl, signal).then(complete),
+    fetchRequiredJson(fetcher, FIELD_MAP.mapUrl, signal, "no-store").then(complete),
     fetchRequiredJson(fetcher, FIELD_MAP.player.atlasJsonUrl, signal).then(complete),
   ]);
   if (!isObject(tilemapValue)) {
@@ -192,10 +192,11 @@ async function fetchRequiredJson(
   fetcher: typeof fetch,
   path: string,
   signal?: AbortSignal,
+  cache: RequestCache = "force-cache",
 ): Promise<unknown> {
   let response: Response;
   try {
-    response = await fetcher(path, { cache: "force-cache", signal });
+    response = await fetcher(path, { cache, signal });
   } catch (error) {
     if (signal?.aborted) throw error;
     throw new RequiredGameAssetError(path, "NETWORK");
