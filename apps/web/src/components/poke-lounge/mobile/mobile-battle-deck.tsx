@@ -391,7 +391,6 @@ export function MobileBattleMoveDeck({ copy, onAction, state }: DeckProps) {
               {move.type} · PP {move.pp}/{move.maxPp}
             </small>
             <small>{getBattleMoveDetails(move, copy.locale).stats}</small>
-            <small>{getBattleMoveDetails(move, copy.locale).effect}</small>
             {move.pp <= 0 || move.effectNotice ? (
               <small>{move.pp <= 0 ? text.ppEmpty : move.effectNotice}</small>
             ) : null}
