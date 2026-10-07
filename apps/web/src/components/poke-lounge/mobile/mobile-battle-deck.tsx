@@ -381,7 +381,7 @@ export function MobileBattleMoveDeck({ copy, onAction, state }: DeckProps) {
           <button
             key={move.index}
             type="button"
-            className="grid min-h-[72px] min-w-0 touch-manipulation content-center gap-1 rounded-xl border-[3px] border-[#52594b] bg-[linear-gradient(#fffdf2_0_49%,#e9e5d3_49%_100%)] p-2.5 text-left text-[#17231c] shadow-[inset_0_0_0_2px_#fffef5,0_2px_0_#52594b] focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3 active:translate-y-px active:shadow-[inset_0_0_0_2px_#fffef5] disabled:cursor-default disabled:border-dashed disabled:bg-[#e7eddf] [&_strong]:text-base [&_strong]:leading-[1.4] [&_strong]:[overflow-wrap:anywhere] [&_small]:text-sm [&_small]:leading-[1.4] [&_small]:[overflow-wrap:anywhere]"
+            className="grid min-h-[72px] min-w-0 touch-manipulation content-center gap-0.5 rounded-xl border-[3px] border-[#52594b] bg-[linear-gradient(#fffdf2_0_49%,#e9e5d3_49%_100%)] p-1.5 text-left text-[#17231c] shadow-[inset_0_0_0_2px_#fffef5,0_2px_0_#52594b] focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3 active:translate-y-px active:shadow-[inset_0_0_0_2px_#fffef5] disabled:cursor-default disabled:border-dashed disabled:bg-[#e7eddf] [&_strong]:text-sm [&_strong]:leading-[1.25] [&_strong]:[overflow-wrap:anywhere] [&_small]:text-xs [&_small]:leading-[1.25] [&_small]:[overflow-wrap:anywhere]"
             disabled={move.disabled || !canChooseBattleAction(state)}
             data-selected={move.selected}
             onClick={() => onAction({ type: "select-move", index: move.index })}
