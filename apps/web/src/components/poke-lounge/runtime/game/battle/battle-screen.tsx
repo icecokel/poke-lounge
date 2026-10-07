@@ -5,6 +5,7 @@ import {
   canChooseBattleAction,
 } from "@/features/poke-lounge/presentation/battle/selection-model";
 import { getMobileUiCopy } from "../../../mobile/mobile-ui-copy";
+import { useBattleClock } from "../../../mobile/mobile-battle-deck";
 import { getBattleMoveDetails } from "@/features/poke-lounge/presentation/battle/move-details";
 import { OpponentPartyIndicator } from "./opponent-party-indicator";
 import { BATTLE_BAG_PAGE_SIZE } from "./battle-bag-selection";
@@ -288,6 +289,7 @@ export function BattleStage({
             return onAction({ type: "toggle-help" });
           }}
           state={presentation}
+          turnEndsAtMs={controls.turnEndsAtMs ?? null}
         />
       ) : null}
       <BattleEntranceEffect entrance={presentation.entrance} />
@@ -621,7 +623,9 @@ export function BattleCommandPanel({
             meta={
               controls.isAuthoritative && (command.id === "bag" || command.id === "run")
                 ? getMobileUiCopy(copy.locale).competitiveUnavailable
-                : undefined
+                : command.id === "bag" && controls.canCapture
+                  ? getMobileUiCopy(copy.locale).captureHint
+                  : undefined
             }
             onClick={function handleClick() {
               if (!canChooseBattleCommand(controls, command.id)) return;
@@ -905,12 +909,18 @@ export function BattleShortcutGuide({
   copy,
   onClose,
   state,
+  turnEndsAtMs,
 }: {
   copy: PokeLoungeCopy;
   onClose(): void;
   state: BattlePresentationState;
+  turnEndsAtMs: number | null;
 }) {
   const rows = createShortcutGuideRows("battle", state.help.inputMode, copy.locale);
+  const now = useBattleClock(turnEndsAtMs);
+  const seconds =
+    turnEndsAtMs === null ? null : Math.max(0, Math.ceil((turnEndsAtMs - now) / 1000));
+  const timerCopy = getMobileUiCopy(copy.locale);
   return (
     <section
       className="absolute top-[15.625%] left-[18.75%] z-[800] min-h-[68.75%] w-[77.34375%] border-[max(2px,0.4cqw)] border-[#2b3742] bg-[#f4f7e3] px-[4.7%] py-[4%] text-[0.82em] shadow-[0.7cqw_0.7cqw_0_#8b9588,inset_0_0_0_max(1px,0.15cqw)_#fff] [&_header]:flex [&_header]:justify-between [&_header]:gap-[1em] [&_header_button]:border-0 [&_header_button]:bg-transparent [&_header_button]:p-0 [&_header_button]:text-[0.8em] [&_dl]:my-[1em] [&_dl]:grid [&_dl]:gap-[0.5em] [&_dl>div]:flex [&_dl>div]:justify-between [&_dl>div]:gap-[1em] [&_dt]:text-[#4b554f] [&_dd]:m-0 [&_p]:m-0 [&_p]:text-[0.78em] [&_p]:text-[#4b554f]"
@@ -922,6 +932,11 @@ export function BattleShortcutGuide({
           {copy.settingsClose}
         </button>
       </header>
+      {seconds !== null ? (
+        <p role="timer" aria-live="off" className="font-bold tabular-nums">
+          {seconds > 0 ? `${timerCopy.timeLeft} ${seconds}s` : timerCopy.timeExpired}
+        </p>
+      ) : null}
       <dl>
         {rows.map(function mapItem(row) {
           return (

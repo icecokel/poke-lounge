@@ -1,6 +1,7 @@
 import type { PokeLoungeLocale } from "@/components/poke-lounge/poke-lounge-copy";
 import type { MobileBattleMoveOption } from "../../contracts/battle-controls";
 import moveEffects from "./gen4-move-effects.json";
+import koreanMoveEffects from "./gen4-move-effects.ko.json";
 
 // Gen4 short descriptions are sourced from the installed @pkmn/sim move catalog.
 
@@ -35,6 +36,10 @@ export function getBattleMoveDetails(
   } as const;
   const knownEffect = EFFECTS[move.effectCode]?.[language];
   const catalogEffect = (moveEffects as Record<string, string>)[String(move.id)];
+  const localizedCatalogEffect =
+    language === 0 && catalogEffect
+      ? (koreanMoveEffects as Record<string, string>)[catalogEffect]
+      : catalogEffect;
   const fallback = labels[move.category][language];
   const chance =
     move.effectChance > 0 && (move.effectCode === 4 || move.effectCode === 6)
@@ -43,6 +48,6 @@ export function getBattleMoveDetails(
 
   return {
     stats: `${labels.power[language]} ${move.power > 0 ? move.power : "—"} · ${labels.accuracy[language]} ${move.accuracy > 0 ? `${move.accuracy}%` : "—"}`,
-    effect: `${labels.effect[language]}: ${language === 1 ? catalogEffect || knownEffect || fallback : (knownEffect ?? catalogEffect ?? fallback)}${knownEffect && language !== 1 ? chance : ""}`,
+    effect: `${labels.effect[language]}: ${language === 1 ? catalogEffect || knownEffect || fallback : (knownEffect ?? localizedCatalogEffect ?? fallback)}${knownEffect && language !== 1 ? chance : ""}`,
   };
 }

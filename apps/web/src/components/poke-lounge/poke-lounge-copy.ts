@@ -76,6 +76,7 @@ export interface PokeLoungeCopy {
   resultStarPrompt: string;
   resultStar: string;
   resultRetry: string;
+  resultNewGame: string;
   resultRoomEntry: string;
   resultLobby: string;
   accessibleHelp: string;
@@ -341,8 +342,9 @@ const KOREAN_COPY: PokeLoungeCopy = {
   resultStarPrompt: "친구와 즐거웠다면 GitHub Star로 Poke Lounge를 응원해 주세요.",
   resultStar: "GitHub에서 Star",
   resultRetry: "다시 플레이",
+  resultNewGame: "새 게임",
   resultRoomEntry: "새 방 선택",
-  resultLobby: "게임 로비로",
+  resultLobby: "대기실로",
   accessibleHelp: "게임 조작 도움말은 H 키 또는 물음표 버튼으로 열 수 있습니다.",
   game: {
     starterTitle: "첫 파트너 선택",
@@ -637,6 +639,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   resultStarPrompt: "Had fun with friends? Support Poke Lounge with a GitHub Star.",
   resultStar: "Star on GitHub",
   resultRetry: "Play again",
+  resultNewGame: "New game",
   resultRoomEntry: "Choose another room",
   resultLobby: "Game lobby",
   accessibleHelp: "Open the controls guide with H or the question-mark button.",
@@ -935,6 +938,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   resultStarPrompt: "友達と楽しめたら、GitHub StarでPoke Loungeを応援してください。",
   resultStar: "GitHubでStar",
   resultRetry: "もう一度プレイ",
+  resultNewGame: "新しいゲーム",
   resultRoomEntry: "別のルームを選ぶ",
   resultLobby: "ゲームロビーへ",
   accessibleHelp: "Hキーまたは「？」ボタンで操作ガイドを開けます。",

@@ -96,7 +96,9 @@ function RoomEntryScreen({
       copy.roomEntry.multiplayerNameNouns,
     );
   });
-  const [entryStep, setEntryStep] = useState<"profile" | "rooms">("profile");
+  const [entryStep, setEntryStep] = useState<"profile" | "rooms">(
+    state.openCreateRoom ? "rooms" : "profile",
+  );
   const [entryPanel, setEntryPanel] = useState<"create" | "join">("create");
   const [roomVisibility, setRoomVisibility] = useState<"public" | "private">("public");
   const [privateRoomCode, setPrivateRoomCode] = useState("");

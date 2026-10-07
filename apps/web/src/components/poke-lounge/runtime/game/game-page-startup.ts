@@ -80,6 +80,7 @@ type PokeLoungeGameInstance = ReturnType<typeof createPokeLoungeGame>;
 
 export interface GamePageHandle {
   destroy(): void;
+  leaveRoomForResult(openCreateRoom?: boolean): Promise<boolean>;
   requestRoomLeave(): boolean;
   setViewportSize(viewportSize: GameViewportDisplaySize): void;
 }
@@ -178,6 +179,8 @@ export async function startGamePage(
   let activeGame: PokeLoungeGameInstance | null = null;
   let activeMultiplayerRoom: ReturnType<typeof createMultiplayerRoom> | null = null;
   let requestRoomLeaveAction: (() => void) | null = null;
+  let leaveRoomForResultAction: ((openCreateRoom?: boolean) => Promise<boolean>) | null = null;
+  let openCreateRoomOnEntry = false;
   let temporaryRoomCode: string | undefined;
   let privateRoomAccess: { roomCode: string; code: string } | undefined;
   let activeRoomRunId: string | null = null;
@@ -282,6 +285,7 @@ export async function startGamePage(
       activeGame = null;
       activeMultiplayerRoom = null;
       requestRoomLeaveAction = null;
+      leaveRoomForResultAction = null;
       gameStateStore.setSession({
         sessionId: null,
         roomId: null,
@@ -296,6 +300,9 @@ export async function startGamePage(
 
       requestRoomLeaveAction();
       return true;
+    },
+    leaveRoomForResult(openCreateRoom = false) {
+      return leaveRoomForResultAction?.(openCreateRoom) ?? Promise.resolve(false);
     },
     setViewportSize(nextViewportSize: GameViewportDisplaySize) {
       activeViewportSize = nextViewportSize;
@@ -474,23 +481,29 @@ export async function startGamePage(
         activeMultiplayerRoom = null;
       }
       requestRoomLeaveAction = null;
+      leaveRoomForResultAction = null;
       showRoomEntry();
     };
-    const leaveAndReturnToRoomEntry = () => {
-      void (async function callback() {
-        try {
-          await multiplayerRoom.leave?.();
-        } catch {
-          dispatchPokeLoungeNotice(mount.ownerDocument, {
-            message: copy.lobby.mutationFailed,
-            tone: "error",
-          });
-          return;
-        }
+    let leavingRoom = false;
+    const leaveAndReturnToRoomEntry = async (openCreateRoom = false): Promise<boolean> => {
+      if (leavingRoom) return false;
+      leavingRoom = true;
+      try {
+        await multiplayerRoom.leave?.();
+      } catch {
+        leavingRoom = false;
+        dispatchPokeLoungeNotice(mount.ownerDocument, {
+          message: copy.lobby.mutationFailed,
+          tone: "error",
+        });
+        return false;
+      }
 
-        returnToRoomEntry();
-      })();
+      openCreateRoomOnEntry = openCreateRoom;
+      returnToRoomEntry(gameStateStore.getCurrentLocalPlayer().displayName);
+      return true;
     };
+    leaveRoomForResultAction = leaveAndReturnToRoomEntry;
     const handleFreshSessionRequired = (event: Event) => {
       const detail = (event as CustomEvent<PokeLoungeFreshSessionRequiredDetail>).detail;
       dispatchPokeLoungeNotice(mount.ownerDocument, {
@@ -575,13 +588,13 @@ export async function startGamePage(
                 title: copy.roomEntry.leaveRoomTitle,
                 description: copy.roomEntry.leaveRoomDescription,
               }),
-          confirm: leaveAndReturnToRoomEntry,
+          confirm: () => void leaveAndReturnToRoomEntry(),
         };
 
         if (dependencies.onRoomLeaveRequest) {
           dependencies.onRoomLeaveRequest(request);
         } else {
-          leaveAndReturnToRoomEntry();
+          void leaveAndReturnToRoomEntry();
         }
       };
       gameplayState = {
@@ -598,7 +611,7 @@ export async function startGamePage(
         ...gameplayState,
         webRtc: {
           room: multiplayerRoom,
-          onLeave: leaveAndReturnToRoomEntry,
+          onLeave: () => void leaveAndReturnToRoomEntry(),
         },
       };
     }
@@ -757,10 +770,13 @@ export async function startGamePage(
     }
 
     roomEntrySelectionPending = false;
+    const openCreateRoom = openCreateRoomOnEntry;
+    openCreateRoomOnEntry = false;
     emitRuntimeState({
       phase: "entry",
       screen: "room",
       currentUrl: new URL(currentUrl.href),
+      openCreateRoom,
       localTestMode: localTestModeState.available
         ? {
             active: localTestModeState.active,

@@ -326,8 +326,12 @@ export function MobileBattleCommandDeck({ copy, onAction, state }: DeckProps) {
               ) : null}
               <strong>{labels[command.id]}</strong>
             </span>
-            {(state.isAuthoritative && command.id === "run") ||
-            (command.id === "bag" && !state.canCapture) ? (
+            {command.id === "bag" && state.canCapture ? (
+              <small className="block max-w-full text-xs font-semibold leading-[1.35] [overflow-wrap:anywhere]">
+                {text.captureHint}
+              </small>
+            ) : (state.isAuthoritative && command.id === "run") ||
+              (command.id === "bag" && !state.canCapture) ? (
               <small className="block max-w-full text-xs font-semibold leading-[1.35] [overflow-wrap:anywhere]">
                 {text.competitiveUnavailable}
               </small>
@@ -387,6 +391,7 @@ export function MobileBattleMoveDeck({ copy, onAction, state }: DeckProps) {
               {move.type} · PP {move.pp}/{move.maxPp}
             </small>
             <small>{getBattleMoveDetails(move, copy.locale).stats}</small>
+            <small>{getBattleMoveDetails(move, copy.locale).effect}</small>
             {move.pp <= 0 || move.effectNotice ? (
               <small>{move.pp <= 0 ? text.ppEmpty : move.effectNotice}</small>
             ) : null}
@@ -623,13 +628,7 @@ export function MobileBattleBagDeck(props: DeckProps) {
   );
 }
 
-export function MobileBattleHelpDeck({
-  copy,
-  onAction,
-}: {
-  copy: PokeLoungeCopy;
-  onAction(action: MobileBattleUiAction): void;
-}) {
+export function MobileBattleHelpDeck({ copy, onAction, state, presentation }: DeckProps) {
   return (
     <MobileTaskScreen
       title={copy.mobile.help}
@@ -637,6 +636,7 @@ export function MobileBattleHelpDeck({
       backLabel={copy.settingsClose}
       onBack={() => onAction({ type: "toggle-help" })}
       returnFocusSelector="[data-poke-lounge-mobile-menu='true']"
+      context={<MobileBattleContext copy={copy} state={state} presentation={presentation} />}
     >
       <ul className="m-0 grid list-none gap-3 p-0 [&_li]:rounded-[10px] [&_li]:border [&_li]:border-[#9dad93] [&_li]:bg-[#fffef5] [&_li]:p-4 [&_p]:mt-2">
         <li>

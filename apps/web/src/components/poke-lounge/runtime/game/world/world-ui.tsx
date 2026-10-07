@@ -35,12 +35,16 @@ export function WorldUiLayer({
   competitiveRoundsEnabled,
   desktop,
   gameStateStore,
+  onResultLobby,
+  onResultNewGame,
   uiStore,
 }: {
   copy: PokeLoungeCopy;
   competitiveRoundsEnabled: boolean;
   desktop: boolean;
   gameStateStore: GameStateStore;
+  onResultLobby(): void;
+  onResultNewGame(): void;
   uiStore: WorldUiStore;
 }) {
   const rawUi = useSyncExternalStore(uiStore.subscribe, uiStore.getSnapshot, uiStore.getSnapshot);
@@ -79,6 +83,8 @@ export function WorldUiLayer({
         copy={copy}
         gameStateStore={gameStateStore}
         rawTournamentResult={rawUi.tournamentResult}
+        onResultLobby={onResultLobby}
+        onResultNewGame={onResultNewGame}
         ui={ui}
       />
       {desktop ? <WorldSurfaceRouter copy={copy} ui={ui} uiStore={uiStore} /> : null}
@@ -401,11 +407,15 @@ export function PokemonSprite({ pokemon, size }: { pokemon: PlayerPokemon; size:
 export function WorldNoticeLayer({
   copy,
   gameStateStore,
+  onResultLobby,
+  onResultNewGame,
   rawTournamentResult,
   ui,
 }: {
   copy: PokeLoungeCopy;
   gameStateStore: GameStateStore;
+  onResultLobby(): void;
+  onResultNewGame(): void;
   rawTournamentResult: string | null;
   ui: WorldUiSnapshot;
 }) {
@@ -450,9 +460,13 @@ export function WorldNoticeLayer({
       ) : null}
       {ui.tournamentResult ? (
         <TournamentResultPanel
+          copy={copy}
           locale={copy.locale}
           localizedText={ui.tournamentResult}
           rawText={rawTournamentResult}
+          final={gameState.round.phase === "game-result"}
+          onLobby={onResultLobby}
+          onNewGame={onResultNewGame}
         />
       ) : null}
     </div>

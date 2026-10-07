@@ -44,6 +44,7 @@ export type PokeLoungeRuntimeState =
       screen: "room";
       currentUrl: URL;
       initialDisplayName: string;
+      openCreateRoom?: boolean;
       localTestMode?: {
         active: boolean;
         onExit(): void;

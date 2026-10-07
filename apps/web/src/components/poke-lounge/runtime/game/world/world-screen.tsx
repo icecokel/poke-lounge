@@ -32,6 +32,8 @@ export function WorldScreen({
   model,
   copy,
   desktop,
+  onResultLobby,
+  onResultNewGame,
   uiStore,
 }: {
   atlas: WorldPlayerAtlasModel;
@@ -42,6 +44,8 @@ export function WorldScreen({
   model: WorldMapModel;
   copy: PokeLoungeCopy;
   desktop: boolean;
+  onResultLobby(): void;
+  onResultNewGame(): void;
   uiStore: WorldUiStore;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -163,6 +167,8 @@ export function WorldScreen({
         competitiveRoundsEnabled={competitiveRoundsEnabled}
         desktop={desktop}
         gameStateStore={gameStateStore}
+        onResultLobby={onResultLobby}
+        onResultNewGame={onResultNewGame}
         uiStore={uiStore}
       />
     </div>

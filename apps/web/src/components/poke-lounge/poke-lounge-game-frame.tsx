@@ -18,6 +18,8 @@ export function PokeLoungeGameFrame({
   runtimeState,
   onOpenSettings,
   onRoomShare,
+  onResultLobby,
+  onResultNewGame,
 }: {
   copy: PokeLoungeCopy;
   gameRuntimeMounted: boolean;
@@ -26,6 +28,8 @@ export function PokeLoungeGameFrame({
   runtimeState: PokeLoungeRuntimeState;
   onOpenSettings(): void;
   onRoomShare(): void;
+  onResultLobby(): void;
+  onResultNewGame(): void;
 }) {
   const hasRuntimeScreen =
     runtimeState.phase === "entry" ||
@@ -130,7 +134,16 @@ export function PokeLoungeGameFrame({
           )
         : null}
       {worldTarget && world
-        ? createPortal(<WorldScreen {...world} copy={copy} desktop={false} />, worldTarget)
+        ? createPortal(
+            <WorldScreen
+              {...world}
+              copy={copy}
+              desktop={false}
+              onResultLobby={onResultLobby}
+              onResultNewGame={onResultNewGame}
+            />,
+            worldTarget,
+          )
         : null}
       {gameplayTarget && battle
         ? createPortal(

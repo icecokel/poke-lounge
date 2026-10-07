@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import type { PokeLoungeLocale } from "../../../poke-lounge-copy";
 import { localizeRuntimeText } from "../i18n/runtime-game-localization";
 
@@ -29,12 +31,20 @@ interface TournamentResultTableView {
 }
 
 export function TournamentResultPanel({
+  copy,
+  final,
   locale,
   localizedText,
+  onLobby,
+  onNewGame,
   rawText,
 }: {
+  copy: PokeLoungeCopy;
+  final: boolean;
   locale: PokeLoungeLocale;
   localizedText: string;
+  onLobby(): void;
+  onNewGame(): void;
   rawText: string | null;
 }) {
   const table = createTournamentResultTable(rawText, locale);
@@ -140,6 +150,16 @@ export function TournamentResultPanel({
           {localizedText.split("\n").slice(1).join("\n")}
         </div>
       )}
+      {final ? (
+        <div className="sticky bottom-0 mt-3 grid grid-cols-2 gap-2 border-t border-[#b0bdab] bg-[#fffdf0] pt-2 [&_button]:min-h-12 [&_button]:rounded-[7px] [&_button]:border-2 [&_button]:border-[#577781] [&_button]:bg-[linear-gradient(#fffdf0_50%,#dce7e2_50%)] [&_button]:font-bold [&_button]:text-[#304550] [&_button]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#304550]">
+          <Button type="button" variant="outline" onClick={onLobby}>
+            {copy.resultLobby}
+          </Button>
+          <Button type="button" variant="outline" onClick={onNewGame}>
+            {copy.resultNewGame}
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }

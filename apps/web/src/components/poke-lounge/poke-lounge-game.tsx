@@ -102,6 +102,7 @@ const OPEN_MODAL_DIALOG_SELECTOR = [
 
 type PokeLoungeGamePageHandle = {
   destroy(): void;
+  leaveRoomForResult(openCreateRoom?: boolean): Promise<boolean>;
   requestRoomLeave(): boolean;
   setViewportSize(viewportSize: GameViewportDisplaySize): void;
 };
@@ -1049,6 +1050,14 @@ export function PokeLoungeGame() {
     [router],
   );
 
+  const handleFinalResultLobby = useCallback(() => {
+    void gamePageHandleRef.current?.leaveRoomForResult();
+  }, []);
+
+  const handleFinalResultNewGame = useCallback(() => {
+    void gamePageHandleRef.current?.leaveRoomForResult(true);
+  }, []);
+
   const handleGameExitConfirm = useCallback(
     function memoizedCallback() {
       resetVirtualGamepad();
@@ -1101,6 +1110,8 @@ export function PokeLoungeGame() {
           return setSettingsOpen(true);
         }}
         onRoomShare={handleRoomShare}
+        onResultLobby={handleFinalResultLobby}
+        onResultNewGame={handleFinalResultNewGame}
       />
       {gameRuntimeMounted &&
       (runtimeState.phase === "world" ||
