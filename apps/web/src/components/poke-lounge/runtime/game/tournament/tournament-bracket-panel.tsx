@@ -1,5 +1,8 @@
 "use client";
-import { POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS } from "@poke-lounge/battle/timing";
+import {
+  POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS,
+  TOURNAMENT_BRIEFING_DURATION_MS,
+} from "@poke-lounge/battle/timing";
 
 import {
   createTournamentBracketPreview,
@@ -78,7 +81,10 @@ export function TournamentBracketPanel({
     );
   }
 
-  const remainingMs = Math.max(0, (projection.roomRound.endsAtMs ?? now) - now);
+  const remainingMs = Math.max(
+    0,
+    (projection.roomRound.endsAtMs ?? now) + TOURNAMENT_BRIEFING_DURATION_MS - now,
+  );
   const pairs = preview.bracket.currentRound.slots.map(function mapSlot(slot) {
     return createOpeningPair(preview.bracket, slot);
   });

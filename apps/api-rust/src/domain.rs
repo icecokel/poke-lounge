@@ -18,6 +18,8 @@ pub const COMPLETED_RETENTION_MS: u64 = 15 * 60_000;
 pub const CLOSED_RETENTION_MS: u64 = 60_000;
 pub const TURN_MS: u64 = 30_000;
 pub const AI_ONLY_TURN_READY_MS: u64 = 500;
+pub const TOURNAMENT_BRIEFING_MS: u64 = 5_000;
+pub const TOURNAMENT_RESULT_MS: u64 = 5_000;
 pub const MAX_PARTICIPANTS: usize = 8;
 pub const MAX_COMMANDS: u64 = 16_384;
 const ROOM_CODE_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -706,6 +708,26 @@ impl Room {
         if self.terminal() {
             return Ok(());
         }
+        if self.status == Status::Tournament
+            && self
+                .bracket
+                .as_ref()
+                .is_some_and(|b| b.status == "completed")
+        {
+            if self.round.ends_at_ms.is_some_and(|at| now >= at) {
+                self.round.index += 1;
+                self.bracket = None;
+                self.status = Status::RoundStarted;
+                self.round.phase = "round-started".into();
+                self.round.started_at_ms = None;
+                self.round.ends_at_ms = None;
+                for p in &mut self.participants {
+                    p.ready = false;
+                }
+                self.touch(now);
+            }
+            return Ok(());
+        }
         if self.status == Status::RoundStarted
             && self.round.started_at_ms.is_none()
             && self.participants.iter().all(|p| {
@@ -726,7 +748,10 @@ impl Room {
             self.touch(now);
         }
         if self.status == Status::RoundStarted
-            && self.round.ends_at_ms.is_some_and(|at| now >= at)
+            && self
+                .round
+                .ends_at_ms
+                .is_some_and(|at| now >= at + TOURNAMENT_BRIEFING_MS)
             && self
                 .participants
                 .iter()
@@ -985,15 +1010,7 @@ impl Room {
                 *self.cumulative_scores.entry(player).or_default() += score;
             }
             if self.round.index < 3 {
-                self.round.index += 1;
-                self.bracket = None;
-                self.status = Status::RoundStarted;
-                self.round.phase = "round-started".into();
-                self.round.started_at_ms = Some(now);
-                self.round.ends_at_ms = Some(now + self.round.duration_ms);
-                for p in &mut self.participants {
-                    p.ready = false;
-                }
+                self.round.ends_at_ms = Some(now + TOURNAMENT_RESULT_MS);
             } else {
                 self.status = Status::Completed;
                 self.terminal_at_ms = Some(now);
@@ -1029,11 +1046,8 @@ impl Room {
             .collect::<Vec<_>>();
         let starting = self.status == Status::RoundStarted
             && self.round.started_at_ms.is_none_or(|at| now < at);
-        let gathering = self.status == Status::Tournament
-            || self
-                .round
-                .ends_at_ms
-                .is_some_and(|at| now >= at.saturating_sub(5_000));
+        let gathering =
+            self.status == Status::Tournament || self.round.ends_at_ms.is_some_and(|at| now >= at);
         let jobs=self.participants.iter().filter(|p|p.ai&&p.connected).map(|p|{
             let id=p.player_id.clone();let difficulty=p.ai_difficulty;let party=self.parties.get(&id).map(|p|p.competitive_party.clone()).unwrap_or(Value::Null);
             let operation=json!({"kind":"ai-step","party":party,"adventure":self.adventures.get(&id),"nowMs":now,"roundIndex":self.round.index,"preparing":self.status==Status::RoundStarted&&!gathering&&!starting,"starting":starting,"gathering":gathering,"playerId":id,"playerIds":ids,"difficulty":difficulty,"startAtMs":self.round.started_at_ms,"roundDurationMs":self.round.duration_ms,"seed":format!("{}:{id}:{now}",self.room_instance_id)});
@@ -1147,7 +1161,7 @@ impl Room {
             let members=p.competitive_party["members"].as_array()?;let active=members.iter().find(|m|m["slotIndex"]==p.competitive_party["activeSlotIndex"])?;
             Some((id.clone(),json!({"playerId":id,"displayName":self.participants.iter().find(|p|&p.player_id==id).map(|p|p.display_name.as_str()).unwrap_or(id),"representativePokemon":{"speciesId":active["speciesId"],"level":active["level"],"currentHp":active["currentHp"],"maxHp":active["maxHp"]},"partySize":members.len(),"updatedAtMs":p.updated_at_ms})))
         }).collect::<BTreeMap<_,_>>();
-        let mut result = json!({"roomCode":self.room_code,"roomInstanceId":self.room_instance_id,"backend":"rust","visibility":if self.public{"public"}else{"private"},"status":self.status,"createdAtMs":self.created_at_ms,"updatedAtMs":self.updated_at_ms,"revision":self.revision,"expiresAtMs":if self.terminal(){self.retention_deadline()}else{self.hard_expires_at_ms},"hostPlayerId":self.host(),"participants":self.participants.iter().map(Participant::public).collect::<Vec<_>>(),"partySnapshots":parties,"round":self.round,"tournament":{"version":2,"bracket":self.bracket,"activeMatchId":ready.first().map(|m|m.match_id.as_str()),"activeMatchAuthority":if self.status==Status::Tournament{Some("server")}else{None},"cumulativeScores":self.cumulative_scores},"finalStandings":self.final_standings,"competitiveAssignments":assignments,"competitiveTransitions":terminal.iter().map(|m|json!({"terminalEventId":m.terminal_event_id,"terminalRoomRevision":m.terminal_room_revision,"projection":m.projection()})).collect::<Vec<_>>()});
+        let mut result = json!({"roomCode":self.room_code,"roomInstanceId":self.room_instance_id,"backend":"rust","visibility":if self.public{"public"}else{"private"},"status":self.status,"createdAtMs":self.created_at_ms,"updatedAtMs":self.updated_at_ms,"revision":self.revision,"expiresAtMs":if self.terminal(){self.retention_deadline()}else{self.hard_expires_at_ms},"hostPlayerId":self.host(),"participants":self.participants.iter().map(Participant::public).collect::<Vec<_>>(),"partySnapshots":parties,"round":self.round,"tournament":{"version":2,"bracket":self.bracket,"activeMatchId":ready.first().map(|m|m.match_id.as_str()),"activeMatchAuthority":if !ready.is_empty(){Some("server")}else{None},"cumulativeScores":self.cumulative_scores},"finalStandings":self.final_standings,"competitiveAssignments":assignments,"competitiveTransitions":terminal.iter().map(|m|json!({"terminalEventId":m.terminal_event_id,"terminalRoomRevision":m.terminal_room_revision,"projection":m.projection()})).collect::<Vec<_>>()});
         if let Some(projection) = assignments.first() {
             result["competitive"] = projection.clone();
         }
@@ -1159,11 +1173,8 @@ impl Room {
     pub fn position(&self, player: &str, now: u64) -> Option<Value> {
         let starting = self.status == Status::RoundStarted
             && self.round.started_at_ms.is_none_or(|at| now < at);
-        let gathering = self.status == Status::Tournament
-            || self
-                .round
-                .ends_at_ms
-                .is_some_and(|at| now >= at.saturating_sub(5_000));
+        let gathering =
+            self.status == Status::Tournament || self.round.ends_at_ms.is_some_and(|at| now >= at);
         if !starting && !gathering {
             return None;
         }

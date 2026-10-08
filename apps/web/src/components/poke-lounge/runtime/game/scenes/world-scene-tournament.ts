@@ -1,8 +1,6 @@
-import { TOURNAMENT_RESULT_DURATION_MS } from "@poke-lounge/battle/timing";
 import {
   createTournamentBriefingText,
   createVisibleTournamentStandings,
-  formatRemainingTime,
   getMatchParticipantIds,
 } from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
 import { findBattleReadyPartySlot } from "@poke-lounge/battle/adventure/player/battle-ready-party";
@@ -445,7 +443,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
   }
 
   private showServerTournamentMessage(projection: TournamentStateRoomPayload, nowMs: number): void {
-    if (isWaitingForStarterSelections(projection)) {
+    if (projection.roundIndex === 1 && isWaitingForStarterSelections(projection)) {
       this.setAnnouncement("모든 참가자가 포켓몬을 선택하면 함께 탐험을 시작합니다.", "14px");
       return;
     }
@@ -472,53 +470,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       return;
     }
 
-    if (this.showServerRoundResultIfNeeded(projection, nowMs)) {
-      return;
-    }
-
     this.clearPresentation();
-  }
-
-  private showServerRoundResultIfNeeded(
-    projection: TournamentStateRoomPayload,
-    nowMs: number,
-  ): boolean {
-    const state = this.dependencies.gameStateStore.getState();
-    const startedAtMs = projection.roomRound.startedAtMs;
-
-    if (
-      projection.roomStatus !== "round-started" ||
-      projection.roundIndex <= 1 ||
-      startedAtMs === null ||
-      nowMs >= startedAtMs + TOURNAMENT_RESULT_DURATION_MS ||
-      state.tournament.lastRoundScores.length === 0 ||
-      state.tournament.standings.length === 0
-    ) {
-      return false;
-    }
-
-    const panel = createTournamentResultPanelViewModel({
-      roundIndex: projection.roundIndex - 1,
-      totalRounds: state.round.totalRounds,
-      final: false,
-      standings: createVisibleTournamentStandings(state),
-      roundScores: state.tournament.lastRoundScores,
-      cumulativeScores: state.tournament.scoresByPlayerId,
-    });
-    this.setAnnouncement(
-      [
-        panel.title,
-        ...(panel.roundWinnerLabel ? [panel.roundWinnerLabel] : []),
-        ...panel.rows.map(formatTournamentResultRow),
-        panel.rankingLabel,
-        `다음 라운드 준비 중 · ${formatRemainingTime(
-          Math.max(0, (projection.roomRound.endsAtMs ?? nowMs) - nowMs),
-        )}`,
-      ].join("\n"),
-      "14px",
-      true,
-    );
-    return true;
   }
 
   private setAnnouncement(text: string, fontSize: "14px" | "16px", result = false): void {

@@ -33,20 +33,20 @@ export function RoundCountdown({
   const text =
     copy.locale === "ko-KR"
       ? {
-          countdown: "토너먼트까지",
+          countdown: "탐험 남은 시간",
           running: "토너먼트 진행 중",
           result: "라운드 결과",
           waiting: "라운드 대기",
         }
       : copy.locale === "ja-JP"
         ? {
-            countdown: "トーナメントまで",
+            countdown: "探索の残り時間",
             running: "トーナメント進行中",
             result: "ラウンド結果",
             waiting: "待機中",
           }
         : {
-            countdown: "Tournament in",
+            countdown: "Exploration remaining",
             running: "Tournament in progress",
             result: "Round results",
             waiting: "Waiting for round",

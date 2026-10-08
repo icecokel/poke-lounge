@@ -1103,7 +1103,7 @@ function resolveServerTournamentRoundPhase(
   input: TournamentStateRoomPayload,
 ): GameRoundState["phase"] {
   if (input.roomStatus === "tournament") {
-    return "tournament";
+    return input.tournament.bracket?.status === "completed" ? "round-result" : "tournament";
   }
 
   if (input.roomStatus === "completed") {

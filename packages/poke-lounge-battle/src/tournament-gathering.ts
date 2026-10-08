@@ -1,4 +1,3 @@
-import { TOURNAMENT_BRIEFING_DURATION_MS } from "./timing";
 import { FIELD_MAP } from "./adventure/world/field-map";
 
 /** Bracket announcement and gameplay cutoff share a single deadline. */
@@ -14,7 +13,7 @@ export function isTournamentGatheringDue(
     round.phase === "round-started" &&
     round.endsAtMs !== null &&
     Number.isFinite(round.endsAtMs) &&
-    nowMs >= round.endsAtMs - TOURNAMENT_BRIEFING_DURATION_MS
+    nowMs >= round.endsAtMs
   );
 }
 

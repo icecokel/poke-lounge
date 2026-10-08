@@ -13,10 +13,8 @@ import { BATTLE_BAG_PAGE_SIZE } from "./battle-bag-selection";
 import { LearnedMoveNotice, MoveLearningPanel } from "../ui/move-learning-panel";
 import { BattleMoveEffects } from "./battle-move-effects";
 
-import {
-  createTournamentBriefingText,
-  TOURNAMENT_BRIEFING_DURATION_MS,
-} from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
+import { createTournamentBriefingText } from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
+import { POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS } from "@poke-lounge/battle/timing";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import {
@@ -178,14 +176,11 @@ function BattleTournamentBriefing({
         return;
       }
 
-      const timer = window.setTimeout(
-        function handleTimeout() {
-          setNowMs(Date.now());
-        },
-        Math.max(0, endsAtMs - TOURNAMENT_BRIEFING_DURATION_MS - Date.now()),
-      );
+      const tick = () => setNowMs(Date.now());
+      tick();
+      const timer = window.setInterval(tick, POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS);
       return function cleanup() {
-        window.clearTimeout(timer);
+        window.clearInterval(timer);
       };
     },
     [projection?.roomRound.endsAtMs, projection?.roomStatus],

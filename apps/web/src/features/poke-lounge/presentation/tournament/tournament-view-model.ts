@@ -27,7 +27,10 @@ export function createServerTournamentAnnouncementText({
   if (isWaitingForStarterSelections(projection))
     return "모든 참가자가 포켓몬을 선택하면 함께 탐험을 시작합니다.";
   if (projection.roomStatus === "round-started") {
-    const remainingMs = Math.max(0, (projection.roomRound.endsAtMs ?? nowMs) - nowMs);
+    const remainingMs = Math.max(
+      0,
+      (projection.roomRound.endsAtMs ?? nowMs) + TOURNAMENT_BRIEFING_DURATION_MS - nowMs,
+    );
     const cumulativeStatus = createOwnCumulativeStatusLabel(projection);
 
     return [
@@ -99,17 +102,13 @@ export function createTournamentBriefingText(
   nowMs: number,
 ): string | null {
   const endsAtMs = projection.roomRound.endsAtMs;
-  if (
-    projection.roomStatus !== "round-started" ||
-    endsAtMs === null ||
-    endsAtMs - nowMs > TOURNAMENT_BRIEFING_DURATION_MS
-  ) {
+  if (projection.roomStatus !== "round-started" || endsAtMs === null || nowMs < endsAtMs) {
     return null;
   }
 
   return createServerTournamentAnnouncementText({
     projection,
-    nowMs: endsAtMs - TOURNAMENT_BRIEFING_DURATION_MS,
+    nowMs,
     casualBattleAvailable: null,
   });
 }
@@ -213,7 +212,10 @@ function createServerRoomStageLabel(projection: TournamentStateRoomPayload, nowM
   }
 
   if (projection.roomStatus === "round-started") {
-    const remainingMs = Math.max(0, (projection.roomRound.endsAtMs ?? nowMs) - nowMs);
+    const remainingMs = Math.max(
+      0,
+      (projection.roomRound.endsAtMs ?? nowMs) + TOURNAMENT_BRIEFING_DURATION_MS - nowMs,
+    );
 
     if (remainingMs === 0) {
       return `라운드 ${projection.roundIndex}/${ROUND_TOTAL_COUNT} · 다른 플레이어를 기다리는 중...`;
