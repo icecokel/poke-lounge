@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { MobileTaskScreen } from "../../../mobile/mobile-task-screen";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import type { PokeLoungeLocale } from "../../../poke-lounge-copy";
 import { localizeRuntimeText } from "../i18n/runtime-game-localization";
@@ -49,21 +50,37 @@ export function TournamentResultPanel({
 }) {
   const table = createTournamentResultTable(rawText, locale);
   const title = table?.title ?? localizedText.split("\n")[0];
+  const actions = (
+    <div className="grid grid-cols-2 gap-2 [&_button]:min-h-12 [&_button]:rounded-[7px] [&_button]:border-2 [&_button]:border-[#577781] [&_button]:bg-[linear-gradient(#fffdf0_50%,#dce7e2_50%)] [&_button]:font-bold [&_button]:text-[#304550] [&_button]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#304550]">
+      <Button type="button" variant="outline" onClick={onLobby}>
+        {copy.resultLobby}
+      </Button>
+      <Button type="button" variant="outline" onClick={onNewGame}>
+        {copy.resultNewGame}
+      </Button>
+    </div>
+  );
 
-  return (
+  const panel = (
     <section
-      className="pointer-events-auto absolute top-3 left-1/2 z-[900] box-border max-h-[calc(100%-24px)] w-[min(calc(100%-24px),720px)] -translate-x-1/2 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain rounded-[9px] border-[3px] border-[#4c6977] bg-[#fffdf0] p-3 text-left leading-[1.6] text-[#304550] shadow-[var(--hg-frame),0_3px_0_#304550] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[var(--pl-color-gold)] focus-visible:-outline-offset-5"
+      className={
+        final
+          ? "text-left leading-[1.6] text-[#304550] [overflow-wrap:anywhere]"
+          : "pointer-events-auto absolute top-3 left-1/2 z-[900] box-border max-h-[calc(100%-24px)] w-[min(calc(100%-24px),720px)] -translate-x-1/2 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain rounded-[9px] border-[3px] border-[#4c6977] bg-[#fffdf0] p-3 text-left leading-[1.6] text-[#304550] shadow-[var(--hg-frame),0_3px_0_#304550] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[var(--pl-color-gold)] focus-visible:-outline-offset-5"
+      }
       data-poke-lounge-tournament-result="true"
-      aria-label={title}
-      tabIndex={0}
+      aria-label={final ? undefined : title}
+      tabIndex={final ? undefined : 0}
       // Keep native keyboard scrolling without passing arrows/Space to the field.
       // Runtime key-up uses capture, so releasing a previously held key still works.
       onKeyDown={event => event.stopPropagation()}
     >
-      <header className="flex items-center gap-2.5 rounded-md border-2 border-[#78909b] border-b-[3px] border-b-[#b89a4b] bg-[linear-gradient(#dcebf0_50%,#edf3ed_50%)] px-3 py-2.5 text-base leading-[1.45] whitespace-normal text-[#304550] [&>span]:grid [&>span]:size-[30px] [&>span]:shrink-0 [&>span]:place-items-center [&>span]:rounded-full [&>span]:border-2 [&>span]:border-[#a3893e] [&>span]:bg-[#f8dc7d] [&>span]:text-[#775b22] [&>span]:before:content-['★']">
-        <span aria-hidden="true" />
-        <strong>{title}</strong>
-      </header>
+      {!final ? (
+        <header className="flex items-center gap-2.5 rounded-md border-2 border-[#78909b] border-b-[3px] border-b-[#b89a4b] bg-[linear-gradient(#dcebf0_50%,#edf3ed_50%)] px-3 py-2.5 text-base leading-[1.45] whitespace-normal text-[#304550] [&>span]:grid [&>span]:size-[30px] [&>span]:shrink-0 [&>span]:place-items-center [&>span]:rounded-full [&>span]:border-2 [&>span]:border-[#a3893e] [&>span]:bg-[#f8dc7d] [&>span]:text-[#775b22] [&>span]:before:content-['★']">
+          <span aria-hidden="true" />
+          <strong>{title}</strong>
+        </header>
+      ) : null}
       {table ? (
         <div className="mt-2 grid gap-2">
           {table.roundWinnerLabel ? (
@@ -150,17 +167,20 @@ export function TournamentResultPanel({
           {localizedText.split("\n").slice(1).join("\n")}
         </div>
       )}
-      {final ? (
-        <div className="sticky bottom-0 mt-3 grid grid-cols-2 gap-2 border-t border-[#b0bdab] bg-[#fffdf0] pt-2 [&_button]:min-h-12 [&_button]:rounded-[7px] [&_button]:border-2 [&_button]:border-[#577781] [&_button]:bg-[linear-gradient(#fffdf0_50%,#dce7e2_50%)] [&_button]:font-bold [&_button]:text-[#304550] [&_button]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#304550]">
-          <Button type="button" variant="outline" onClick={onLobby}>
-            {copy.resultLobby}
-          </Button>
-          <Button type="button" variant="outline" onClick={onNewGame}>
-            {copy.resultNewGame}
-          </Button>
-        </div>
-      ) : null}
     </section>
+  );
+
+  return final ? (
+    <MobileTaskScreen
+      title={title}
+      name="tournament-result"
+      backLabel={copy.resultLobby}
+      footer={actions}
+    >
+      {panel}
+    </MobileTaskScreen>
+  ) : (
+    panel
   );
 }
 

@@ -314,28 +314,18 @@ export function MobileBattleCommandDeck({ copy, onAction, state }: DeckProps) {
           <button
             key={command.id}
             type="button"
-            className="group/command relative flex min-h-16 min-w-0 touch-manipulation flex-col items-center justify-center gap-1 rounded-[13px] border-[3px] border-[#3c4038] bg-[linear-gradient(var(--command-light)_0_49%,var(--command-dark)_49%_100%)] px-1.5 py-2 text-[#fffdf0] shadow-[inset_0_0_0_2px_#fffbea,inset_0_-5px_0_#ffffff30,0_3px_0_#3c4038] [--command-light:#f13c3c] [--command-dark:#a83939] hover:brightness-105 focus-visible:outline-3 focus-visible:outline-[#18364d] focus-visible:outline-offset-3 active:translate-y-0.5 active:shadow-[inset_0_0_0_2px_#fffbea,inset_0_4px_0_#00000025,0_1px_0_#3c4038] data-[command=fight]:col-span-3 data-[command=fight]:mx-[7%] data-[command=fight]:min-h-24 data-[command=bag]:[--command-light:#e9a126] data-[command=bag]:[--command-dark:#987135] data-[command=run]:[--command-light:#2898c8] data-[command=run]:[--command-dark:#386c87] data-[command=pokemon]:[--command-light:#62ad27] data-[command=pokemon]:[--command-dark:#4f7740] disabled:cursor-not-allowed disabled:[--command-light:#b3bdac] disabled:[--command-dark:#7c8a75]"
+            className="group/command relative flex min-h-16 min-w-0 touch-manipulation flex-col items-center justify-center gap-1 rounded-[13px] border-[3px] border-[#3c4038] bg-[linear-gradient(var(--command-light)_0_49%,var(--command-dark)_49%_100%)] px-1.5 py-2 text-[#fffdf0] shadow-[inset_0_0_0_2px_#fffbea,inset_0_-5px_0_#ffffff30,0_3px_0_#3c4038] [--command-light:#f13c3c] [--command-dark:#a83939] hover:brightness-105 focus-visible:outline-3 focus-visible:outline-[#18364d] focus-visible:outline-offset-3 active:translate-y-0.5 active:shadow-[inset_0_0_0_2px_#fffbea,inset_0_4px_0_#00000025,0_1px_0_#3c4038] data-[command=fight]:col-span-3 data-[command=fight]:mx-[7%] data-[command=fight]:min-h-24 data-[command=bag]:[--command-light:#e9a126] data-[command=bag]:[--command-dark:#987135] data-[command=run]:[--command-light:#2898c8] data-[command=run]:[--command-dark:#386c87] data-[command=pokemon]:[--command-light:#62ad27] data-[command=pokemon]:[--command-dark:#4f7740] disabled:cursor-not-allowed disabled:grayscale disabled:opacity-60 disabled:[--command-light:#b3bdac] disabled:[--command-dark:#7c8a75]"
             data-command={command.id}
             data-selected={command.selected}
             disabled={!canChooseBattleCommand(state, command.id)}
             onClick={() => onAction({ type: "select-command", index: command.index })}
           >
-            <span className="flex w-full min-w-0 items-center justify-center gap-2 [&_strong]:font-[var(--pl-font-game)] [&_strong]:text-lg [&_strong]:leading-[1.3] [&_strong]:font-extrabold [&_strong]:[overflow-wrap:anywhere] [&_strong]:[word-break:keep-all] [&_strong]:[text-shadow:-1px_-1px_0_#343b36,1px_-1px_0_#343b36,-1px_1px_0_#343b36,2px_2px_0_#343b36] group-data-[command=fight]/command:[&_strong]:text-[1.625rem]">
+            <span className="flex w-full min-w-0 items-center justify-center gap-2 [&_strong]:font-[var(--pl-font-game)] [&_strong]:text-base [&_strong]:leading-[1.25] [&_strong]:font-extrabold [&_strong]:[overflow-wrap:anywhere] [&_strong]:[word-break:keep-all] [&_strong]:[text-shadow:-1px_-1px_0_#343b36,1px_-1px_0_#343b36,-1px_1px_0_#343b36,2px_2px_0_#343b36] group-data-[command=fight]/command:[&_strong]:text-[1.625rem]">
               {command.id === "fight" && activePokemon?.sprite ? (
                 <MobilePokemonThumbnail sprite={activePokemon.sprite} />
               ) : null}
               <strong>{labels[command.id]}</strong>
             </span>
-            {command.id === "bag" && state.canCapture ? (
-              <small className="block max-w-full text-xs font-semibold leading-[1.35] [overflow-wrap:anywhere]">
-                {text.captureHint}
-              </small>
-            ) : (state.isAuthoritative && command.id === "run") ||
-              (command.id === "bag" && !state.canCapture) ? (
-              <small className="block max-w-full text-xs font-semibold leading-[1.35] [overflow-wrap:anywhere]">
-                {text.competitiveUnavailable}
-              </small>
-            ) : null}
           </button>
         ))}
       </div>
