@@ -1,3 +1,5 @@
+import { routing } from "@/i18n/routing";
+
 export const ROOM_CODE_LENGTH = 6;
 export const TEMPORARY_PASSWORD_LENGTH = 6;
 export const ROOM_ROUND_DURATION_QUERY_PARAM = "roundMs";
@@ -117,6 +119,8 @@ export function createRoomShareUrl(currentUrl: URL, entry: RoomEntryIntent): str
   }
 
   const shareUrl = new URL(currentUrl.href);
+  const routeLocale = currentUrl.pathname.split("/")[1];
+  shareUrl.pathname = `/${routing.locales.find(locale => locale === routeLocale) ?? routing.defaultLocale}`;
   clearRoomEntrySearchParams(shareUrl);
   shareUrl.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
   shareUrl.searchParams.set("room", roomCode);

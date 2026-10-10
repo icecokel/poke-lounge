@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/constants";
+import { routing } from "@/i18n/routing";
 
 type ClientDiagnostic = {
   kind: "runtime" | "rejection" | "api" | "room";
@@ -116,7 +117,11 @@ export function reportClientDiagnostic(event: ClientDiagnostic): void {
         kind: event.kind,
         code,
         requestId: event.requestId,
-        page: window.location.pathname.includes("/game/poke-lounge") ? "poke-lounge" : "other",
+        page:
+          routing.locales.some(locale => window.location.pathname === `/${locale}`) ||
+          window.location.pathname.includes("/game/poke-lounge")
+            ? "poke-lounge"
+            : "other",
         line: event.line,
         column: event.column,
         script: event.script,

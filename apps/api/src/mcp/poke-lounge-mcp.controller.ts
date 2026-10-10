@@ -14,7 +14,7 @@ import * as z from 'zod/v4';
 import { toPokeLoungePublicRoomState } from '../poke-lounge/poke-lounge-room-conflict';
 import { PokeLoungeRoomService } from '../poke-lounge/poke-lounge-room.service';
 
-const PLAY_URL = 'https://poke-lounge.icecoke.kr';
+const PLAY_URL = 'https://poke-lounge.icecoke.kr/ko-KR';
 const REPOSITORY_URL = 'https://github.com/icecokel/poke-lounge';
 const READ_ONLY_ANNOTATIONS = {
   readOnlyHint: true,
@@ -157,7 +157,7 @@ export function createPokeLoungeMcpServer(
             endsAtMs: room.round.endsAtMs,
           },
           finalStandings: room.finalStandings,
-          playUrl: `${PLAY_URL}/?roomV=2&room=${room.roomCode}`,
+          playUrl: `${PLAY_URL}?roomV=2&room=${room.roomCode}`,
         };
 
         return {

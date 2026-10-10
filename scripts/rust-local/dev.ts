@@ -119,7 +119,7 @@ async function main(): Promise<void> {
     "api-rust",
     "battle-worker",
   ]);
-  console.log("Rust local game: http://127.0.0.1:3300/ko-KR/game/poke-lounge");
+  console.log("Rust local game: http://localhost:3300/ko-KR");
   console.log("Local Rust development uses isolated containers and does not touch production.");
   const nextEnvPath = resolve(root, "apps/web/next-env.d.ts");
   const originalNextEnv = readFileSync(nextEnvPath, "utf8");
@@ -133,7 +133,7 @@ async function main(): Promise<void> {
         "next",
         "dev",
         "--hostname",
-        "127.0.0.1",
+        "localhost",
         "--port",
         "3300",
       ],

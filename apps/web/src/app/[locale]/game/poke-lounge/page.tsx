@@ -17,7 +17,7 @@ const PokeLoungeLoadingScreen = () => {
       <div className="flex flex-col items-center gap-4 text-center">
         <p className="text-sm font-semibold tracking-wide">{t("pokeLoungeLoading")}</p>
         <Button asChild variant="outline">
-          <a href={`/${locale}/game`} data-testid="poke-lounge-loading-exit">
+          <a href={`/${locale}/intro`} data-testid="poke-lounge-loading-exit">
             {t("backToGame")}
           </a>
         </Button>

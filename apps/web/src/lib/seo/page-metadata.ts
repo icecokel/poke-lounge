@@ -4,7 +4,7 @@ import { routing, type Locale } from "../../i18n/routing";
 export const POKE_LOUNGE_SITE_ORIGIN = "https://poke-lounge.icecoke.kr";
 export const POKE_LOUNGE_SITE_NAME = "Poke Lounge";
 export type MetadataPage = "root" | "intro" | "game";
-const pagePaths = { intro: "/game", game: "/game/poke-lounge" } as const;
+const pagePaths = { intro: "/intro", game: "" } as const;
 const openGraphLocales = { "ko-KR": "ko_KR", "en-US": "en_US", "ja-JP": "ja_JP" } satisfies Record<
   Locale,
   string
@@ -24,25 +24,23 @@ export function createPokeLoungeMetadata({
   page: MetadataPage;
   description: string;
 }) {
-  const pathname = page === "root" ? "/" : `/${locale}${pagePaths[page]}`;
-  const alternates: { canonical: string; languages: Record<string, string> } | undefined =
-    page === "root"
-      ? undefined
-      : {
-          canonical: pathname,
-          languages: {
-            ...Object.fromEntries(
-              routing.locales.map(candidate => [candidate, `/${candidate}${pagePaths[page]}`]),
-            ),
-            "x-default": `/${routing.defaultLocale}${pagePaths[page]}`,
-          },
-        };
+  const localizedPath = (candidate: Locale) =>
+    `/${candidate}${page === "root" ? "" : pagePaths[page]}`;
+  const pathname = localizedPath(locale);
   // Each segment returns the full nested OG/Twitter objects; Next replaces, rather than deep-merges, them.
   return {
     metadataBase: new URL(POKE_LOUNGE_SITE_ORIGIN),
     title: POKE_LOUNGE_SITE_NAME,
     description,
-    alternates,
+    alternates: {
+      canonical: pathname,
+      languages: {
+        ...Object.fromEntries(
+          routing.locales.map(candidate => [candidate, localizedPath(candidate)]),
+        ),
+        "x-default": localizedPath(routing.defaultLocale),
+      },
+    },
     openGraph: {
       title: POKE_LOUNGE_SITE_NAME,
       description,

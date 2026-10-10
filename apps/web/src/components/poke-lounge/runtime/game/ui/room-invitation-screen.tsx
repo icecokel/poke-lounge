@@ -67,7 +67,7 @@ export function DirectMultiplayerEntryScreen({
           </span>
           <PageReloadButton locale={copy.locale} disabled={pending} />
           <a
-            href={`/${copy.locale}/game/poke-lounge`}
+            href={`/${copy.locale}`}
             className="inline-flex min-h-12 touch-manipulation items-center justify-center gap-[5px] text-sm text-[#50624c] no-underline focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3"
           >
             <ArrowLeft size={18} aria-hidden="true" />
