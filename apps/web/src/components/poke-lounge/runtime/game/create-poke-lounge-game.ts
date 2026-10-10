@@ -28,6 +28,7 @@ export interface PokeLoungeGameOptions {
   initialScene?: InitialGameScene;
   battleUiStore: BattleUiStore;
   competitiveRoundsEnabled?: boolean;
+  roundDurationMs?: number;
   gameStateStore?: GameStateStore;
   multiplayerRoom?: MultiplayerRoom;
   onGameResult?: (result: PokeLoungeGameResult) => void;
@@ -74,6 +75,7 @@ export function createPokeLoungeGame(
 
   const worldController = new WorldController(gameStateStore, multiplayerRoom, {
     competitiveRoundsEnabled: options.competitiveRoundsEnabled,
+    roundDurationMs: options.roundDurationMs,
     keyboard,
     onRoomLobbyStateChange: options.onRoomLobbyStateChange,
     onStarterSelectionRequested: options.onStarterSelectionRequested,

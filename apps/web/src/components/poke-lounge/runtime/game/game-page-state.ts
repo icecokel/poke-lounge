@@ -1,5 +1,6 @@
 import type { GameBootstrapData, StarterPokemon } from "../types";
 import type { PokeLoungeErrorCode } from "../../poke-lounge-error-codes";
+import type { RoomEntryIntent } from "./network/room-entry";
 import type { RoomEntrySelection } from "./network/room-entry-screen";
 import type { WebRtcRoom } from "./network/web-rtc-room";
 import type { RoomLobbyRuntimeState } from "./ui/room-lobby-screen";
@@ -23,6 +24,7 @@ interface PokeLoungeGameplayRuntimeControls {
     onLeave(): void;
   };
   world?: {
+    roomEntry: RoomEntryIntent;
     atlas: WorldPlayerAtlasModel;
     competitiveRoundsEnabled: boolean;
     onPreparationReady?: (roundIndex: number) => Promise<void>;
@@ -55,6 +57,7 @@ export type PokeLoungeRuntimeState =
   | {
       phase: "entry";
       screen: "direct-multiplayer";
+      roomCode: string;
       currentUrl: URL;
       initialDisplayName: string;
       onSubmit(displayName: string): void;

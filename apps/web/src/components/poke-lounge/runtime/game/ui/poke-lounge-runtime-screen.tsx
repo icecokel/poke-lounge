@@ -263,7 +263,6 @@ function RoomEntryScreen({
     state.onSelect({
       mode: "server-room",
       roomCode: room.roomCode,
-      inviteUrl: null,
       displayName: normalizedName,
       roomInstanceId: room.roomInstanceId,
       visibility: "public",
@@ -289,7 +288,6 @@ function RoomEntryScreen({
       state.onSelect({
         mode: "server-room",
         roomCode: null,
-        inviteUrl: null,
         displayName: normalizedName,
         createRoom: true,
         visibility: "public",
@@ -314,7 +312,6 @@ function RoomEntryScreen({
         mode: "server-room",
         roomCode,
         privateRoomAccessCode: normalizedCode,
-        inviteUrl: null,
         displayName: normalizedName,
         createRoom: true,
         visibility: "private",
@@ -353,7 +350,6 @@ function RoomEntryScreen({
         mode: "server-room",
         roomCode,
         privateRoomAccessCode: normalizedCode,
-        inviteUrl: null,
         displayName: normalizedName,
         visibility: "private",
       });

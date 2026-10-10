@@ -2655,6 +2655,11 @@
             "type": "number",
             "example": 1720001800000
           },
+          "serverNowMs": {
+            "type": "number",
+            "example": 1720000001000,
+            "minimum": 0
+          },
           "hostPlayerId": {
             "type": "string",
             "example": "player-a",

@@ -122,6 +122,7 @@ export type PokeLoungePublicRoomState = Omit<
   partySnapshots: Record<string, PokeLoungePublicPartySnapshot>;
   revision: number;
   expiresAtMs: number;
+  serverNowMs?: number;
   competitiveTransitions: CompetitiveTerminalTransition[];
   competitiveAssignments: CompetitiveActionProjection[];
   competitive?: CompetitiveActionProjection;

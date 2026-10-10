@@ -31,8 +31,7 @@ export function DirectMultiplayerEntryScreen({
   const submitted = useRef(false);
   const input = useRef<HTMLInputElement>(null);
   const id = useId();
-  const creating = state.currentUrl.searchParams.get("create") === "1";
-  const roomCode = state.currentUrl.searchParams.get("room");
+  const roomCode = state.roomCode;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (submitted.current) return;
@@ -82,11 +81,9 @@ export function DirectMultiplayerEntryScreen({
           >
             <Users size={28} />
           </span>
-          <h1 id={`${id}-title`}>{creating ? text.createTitle : text.joinTitle}</h1>
-          <p className="text-[0.9375rem] leading-[1.5] text-[#52634b]">
-            {creating ? text.createHint : text.joinHint}
-          </p>
-          {!creating && roomCode ? (
+          <h1 id={`${id}-title`}>{text.joinTitle}</h1>
+          <p className="text-[0.9375rem] leading-[1.5] text-[#52634b]">{text.joinHint}</p>
+          {roomCode ? (
             <p className="flex flex-wrap items-center gap-3 rounded-[10px] border border-dashed border-[#95aa83] bg-[#edf3dd] px-4 py-3 text-sm [&_strong]:font-mono [&_strong]:[overflow-wrap:anywhere]">
               <span>{text.room}</span>
               <strong>{roomCode}</strong>
@@ -139,9 +136,7 @@ export function DirectMultiplayerEntryScreen({
             disabled={pending}
             data-room-entry-direct-multiplayer-submit="true"
           >
-            <span role="status">
-              {pending ? text.pending : creating ? text.create : text.enter}
-            </span>
+            <span role="status">{pending ? text.pending : text.enter}</span>
             <ChevronRight size={20} aria-hidden="true" />
           </button>
           <p className="text-center text-xs text-[#66735d]">{copy.lobby.starterSelectionHint}</p>

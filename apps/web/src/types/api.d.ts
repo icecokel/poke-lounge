@@ -936,6 +936,8 @@ export interface components {
       revision: number;
       /** @example 1720001800000 */
       expiresAtMs: number;
+      /** @example 1720000001000 */
+      serverNowMs?: number;
       /** @example player-a */
       hostPlayerId: string | null;
       participants: components["schemas"]["PokeLoungeRoomParticipantDto"][];

@@ -15,7 +15,6 @@ import {
   type RoomMessage,
   type RoomUnsubscribe,
 } from "../network/local-preview-room";
-import { isSupportedRoomEntryQueryVersion } from "../network/room-entry";
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 import type {
   RoundScoreUpdatedRoomPayload,
@@ -69,8 +68,6 @@ import {
   type WorldTournamentBattleResult,
 } from "./world-scene-tournament";
 
-export const ROUND_DURATION_QUERY_PARAM = "roundMs";
-
 export interface WorldSpawnPosition {
   x: number;
   y: number;
@@ -86,6 +83,7 @@ export interface WorldSceneCreateData {
 
 export interface WorldSceneOptions {
   competitiveRoundsEnabled?: boolean;
+  roundDurationMs?: number;
   keyboard: RuntimeKeyboard;
   onRoomLobbyStateChange?: (state: RoomLobbyRuntimeState | null) => void;
   onStarterSelectionRequested?: (onComplete: () => void) => void;
@@ -104,20 +102,6 @@ export interface ResolvedWorldSpawn {
   x: number;
   y: number;
   facing?: PlayerFacing;
-}
-
-export function readRoundDurationOverride(url: URL): number | null {
-  if (!isSupportedRoomEntryQueryVersion(url.searchParams)) {
-    return null;
-  }
-  const rawDuration = url.searchParams.get(ROUND_DURATION_QUERY_PARAM);
-  const parsedDuration = rawDuration ? Number(rawDuration) : NaN;
-
-  if (!Number.isFinite(parsedDuration)) {
-    return null;
-  }
-
-  return Math.max(1_000, Math.trunc(parsedDuration));
 }
 
 interface SpawnObject {
@@ -311,7 +295,7 @@ export class WorldController {
     if (this.competitiveRoundsEnabled) {
       this.createRoundHud(
         Date.now(),
-        readRoundDurationOverride(new URL(window.location.href)) ?? DEFAULT_PREPARATION_DURATION_MS,
+        this.options.roundDurationMs ?? DEFAULT_PREPARATION_DURATION_MS,
       );
     }
     this.createPartyHud();

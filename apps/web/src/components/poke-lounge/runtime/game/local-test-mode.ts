@@ -1,21 +1,10 @@
-import { ROOM_ENTRY_QUERY_VERSION_PARAM } from "./network/room-entry";
+import { clearRoomEntrySearchParams } from "./network/room-entry";
 
 const LOCAL_TEST_MODE_ENDPOINT = "/api/local-test-mode";
 export const LOCAL_TEST_MODE_START_QUERY_PARAM = "localTest";
 
 const localTestWebHostnames = new Set(["localhost", "127.0.0.1"]);
-const multiplayerSearchParams = [
-  "create",
-  "quick",
-  "network",
-  "room",
-  "roundMs",
-  ROOM_ENTRY_QUERY_VERSION_PARAM,
-  "roomInstance",
-  "visibility",
-  "serverPlayerId",
-  "serverSessionId",
-] as const;
+const LOCAL_TEST_MODE_START_STORAGE_KEY = "poke-lounge:local-test-start";
 
 export interface LocalTestModeState {
   available: boolean;
@@ -120,15 +109,24 @@ export async function deactivateLocalTestMode(
 
 export function createLocalTestModeSoloUrl(currentUrl: URL): URL {
   const soloUrl = new URL(currentUrl.href);
-  multiplayerSearchParams.forEach(function visitItem(searchParam) {
-    return soloUrl.searchParams.delete(searchParam);
-  });
-  soloUrl.searchParams.delete(LOCAL_TEST_MODE_START_QUERY_PARAM);
+  clearRoomEntrySearchParams(soloUrl);
   return soloUrl;
 }
 
-export function createLocalTestModeStartUrl(currentUrl: URL): URL {
-  const startUrl = createLocalTestModeSoloUrl(currentUrl);
-  startUrl.searchParams.set(LOCAL_TEST_MODE_START_QUERY_PARAM, "1");
-  return startUrl;
+export function requestLocalTestModeStart(currentUrl: URL): void {
+  if (!isLocalTestModeUrl(currentUrl)) {
+    throw new Error("Local test mode is only available on a loopback URL");
+  }
+  window.sessionStorage.setItem(LOCAL_TEST_MODE_START_STORAGE_KEY, currentUrl.pathname);
+}
+
+export function consumeLocalTestModeStart(currentUrl: URL): boolean {
+  if (!isLocalTestModeUrl(currentUrl)) return false;
+  try {
+    const requestedPath = window.sessionStorage.getItem(LOCAL_TEST_MODE_START_STORAGE_KEY);
+    window.sessionStorage.removeItem(LOCAL_TEST_MODE_START_STORAGE_KEY);
+    return requestedPath === currentUrl.pathname;
+  } catch {
+    return false;
+  }
 }

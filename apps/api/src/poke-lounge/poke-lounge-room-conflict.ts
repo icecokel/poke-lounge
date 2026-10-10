@@ -80,6 +80,7 @@ export function toPokeLoungePublicRoomState(
 ): PokeLoungePublicRoomState {
   return {
     ...room,
+    serverNowMs: Date.now(),
     hostPlayerId: getPokeLoungeRoomHostPlayerId(room),
     tournament: {
       version: room.tournament.version,

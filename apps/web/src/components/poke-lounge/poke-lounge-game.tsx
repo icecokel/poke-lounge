@@ -34,10 +34,7 @@ import {
   PokeLoungeStartupErrorScreen,
   type PokeLoungeStateHydrationStatus,
 } from "./poke-lounge-game-overlays";
-import {
-  createPokeLoungeRoomEntryUrl,
-  isPokeLoungeMultiplayerResultUrl,
-} from "./poke-lounge-result-navigation";
+import { createPokeLoungeRoomEntryUrl } from "./poke-lounge-result-navigation";
 import {
   POKE_LOUNGE_VOLUME_STEPS,
   createDefaultPokeLoungeSettings,
@@ -48,16 +45,14 @@ import {
 } from "./poke-lounge-settings-storage";
 import { setPokeLoungeMasterVolume } from "./runtime/game/audio/poke-lounge-audio";
 import type { PokeLoungeRuntimeState } from "./runtime/game/game-page-state";
-import {
-  MOBILE_GAME_VIEWPORT_SIZE,
-  type GameViewportDisplaySize,
-} from "./runtime/game/game-viewport";
+import type { GamePageHandle } from "./runtime/game/game-page-startup";
+import { MOBILE_GAME_VIEWPORT_SIZE } from "./runtime/game/game-viewport";
 import {
   pressVirtualGamepadButton,
   releaseVirtualGamepadButton,
   resetVirtualGamepad,
 } from "./runtime/game/input/virtual-gamepad";
-import { createRoomShareUrl } from "./runtime/game/network/room-entry";
+import { createRoomShareUrl, type RoomEntryIntent } from "./runtime/game/network/room-entry";
 import {
   createAuthenticatedGameStateStorageScope,
   getDefaultGameStateStore,
@@ -100,12 +95,6 @@ const OPEN_MODAL_DIALOG_SELECTOR = [
   '[role="alertdialog"][data-state="open"]',
 ].join(",");
 
-type PokeLoungeGamePageHandle = {
-  destroy(): void;
-  leaveRoomForResult(openCreateRoom?: boolean): Promise<boolean>;
-  requestRoomLeave(): boolean;
-  setViewportSize(viewportSize: GameViewportDisplaySize): void;
-};
 type PokeLoungeRoomShareStatus = "idle" | "success" | "error";
 type PokeLoungeConnectionSummary = {
   connectionStatus: "offline" | "connecting" | "online";
@@ -133,12 +122,12 @@ function isShortcutGuideOpen(ownerDocument: Document): boolean {
   return ownerDocument.body.classList.contains("is-shortcut-guide-open");
 }
 
-function createPokeLoungeRoomShareUrlFromLocation(roomCode?: string | null): string | null {
+function createPokeLoungeRoomShareUrlFromLocation(roomEntry: RoomEntryIntent): string | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  return createRoomShareUrl(new URL(window.location.href), roomCode);
+  return createRoomShareUrl(new URL(window.location.href), roomEntry);
 }
 
 export function PokeLoungeGame() {
@@ -160,7 +149,7 @@ export function PokeLoungeGame() {
   const accessibleGameStatus = usePokeLoungeAccessibleStatus(locale, activeGameScene);
   const pageRef = useRef<HTMLElement>(null);
   const viewportUpdateRef = useRef<(() => void) | null>(null);
-  const gamePageHandleRef = useRef<PokeLoungeGamePageHandle | null>(null);
+  const gamePageHandleRef = useRef<GamePageHandle | null>(null);
   const gameStateStorageScopeRef = useRef(activeGameStateStorageScope);
   const accountTokensRef = useRef(new Map<string, string>());
   const latestAccountIdRef = useRef(accountId);
@@ -241,13 +230,12 @@ export function PokeLoungeGame() {
     connectionSummary.roomId && connectionSummary.roomId !== "local-preview"
       ? connectionSummary.roomId
       : null;
-  const roomShareUrl = createPokeLoungeRoomShareUrlFromLocation(
-    runtimeState.phase === "lobby" ? runtimeState.projection.roomCode : multiplayerRoomId,
-  );
-  const localRoomShare =
-    Boolean(roomShareUrl) &&
-    typeof window !== "undefined" &&
-    new URL(window.location.href).searchParams.get("network") === "local";
+  const activeRoomEntry = "world" in runtimeState ? runtimeState.world?.roomEntry : undefined;
+  const roomShareUrl =
+    activeRoomEntry && connectionSummary.connectionStatus === "online"
+      ? createPokeLoungeRoomShareUrlFromLocation(activeRoomEntry)
+      : null;
+  const localRoomShare = Boolean(roomShareUrl) && activeRoomEntry?.mode === "local-room";
   const connectionLabel =
     connectionSummary.connectionStatus === "online"
       ? copy.connectionConnected
@@ -282,9 +270,7 @@ export function PokeLoungeGame() {
       ? copy.hydrationRetrying
       : copy.hydrationRetry;
   const resultReturnsToRoomEntry =
-    Boolean(finalResult) &&
-    typeof window !== "undefined" &&
-    isPokeLoungeMultiplayerResultUrl(new URL(window.location.href));
+    Boolean(finalResult) && gamePageHandleRef.current?.isMultiplayer() === true;
 
   const handleMobileSettingsOpen = useCallback(function memoizedCallback() {
     resetVirtualGamepad();
@@ -1021,7 +1007,7 @@ export function PokeLoungeGame() {
 
   const handleResultRetry = useCallback(function memoizedCallback() {
     const currentUrl = new URL(window.location.href);
-    const returnsToRoomEntry = isPokeLoungeMultiplayerResultUrl(currentUrl);
+    const returnsToRoomEntry = gamePageHandleRef.current?.isMultiplayer() === true;
 
     if (returnsToRoomEntry) {
       const roomEntryUrl = createPokeLoungeRoomEntryUrl(currentUrl);

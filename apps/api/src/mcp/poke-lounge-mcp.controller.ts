@@ -157,7 +157,7 @@ export function createPokeLoungeMcpServer(
             endsAtMs: room.round.endsAtMs,
           },
           finalStandings: room.finalStandings,
-          playUrl: `${PLAY_URL}/?room=${room.roomCode}`,
+          playUrl: `${PLAY_URL}/?roomV=2&room=${room.roomCode}`,
         };
 
         return {

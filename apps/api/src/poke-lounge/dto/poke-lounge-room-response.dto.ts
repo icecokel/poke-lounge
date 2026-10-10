@@ -362,6 +362,9 @@ export class PokeLoungeRoomResponseDto implements PokeLoungePublicRoomState {
   @ApiProperty({ example: 1720001800000 })
   expiresAtMs!: number;
 
+  @ApiPropertyOptional({ example: 1720000001000, minimum: 0 })
+  serverNowMs?: number;
+
   @ApiProperty({ type: String, example: 'player-a', nullable: true })
   hostPlayerId!: string | null;
 

@@ -98,8 +98,7 @@ export function reportClientDiagnostic(event: ClientDiagnostic): void {
       ? event.resourcePath
       : undefined;
   const userCode = event.userCode && /^\d{5}$/.test(event.userCode) ? event.userCode : undefined;
-  const roomCodeCandidate =
-    event.roomCode ?? new URLSearchParams(window.location.search).get("room");
+  const roomCodeCandidate = event.roomCode;
   const roomCode =
     roomCodeCandidate && /^[A-Za-z0-9_-]{1,64}$/.test(roomCodeCandidate)
       ? roomCodeCandidate

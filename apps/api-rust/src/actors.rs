@@ -324,6 +324,11 @@ struct Actor {
     last_tick_ms: Arc<AtomicU64>,
 }
 impl Actor {
+    fn snapshot(&self, after: Option<u64>) -> Value {
+        let mut snapshot = self.room.snapshot(after);
+        snapshot["serverNowMs"] = json!(self.now);
+        snapshot
+    }
     async fn run(mut self, mut receiver: mpsc::Receiver<Envelope>) {
         let mut ticker = tokio::time::interval_at(
             tokio::time::Instant::now() + Duration::from_millis(250),
@@ -450,19 +455,19 @@ impl Actor {
         }
         self.reload().await?;
         match operation {
-            Operation::Snapshot { after } => Ok(self.room.snapshot(after)),
+            Operation::Snapshot { after } => Ok(self.snapshot(after)),
             Operation::ReadSnapshot { after, requester } => {
                 if !self.room.public {
                     let (player, session) = requester.ok_or(AppError::Forbidden)?;
                     self.room.authorize(&player, &session)?;
                 }
-                Ok(self.room.snapshot(after))
+                Ok(self.snapshot(after))
             }
             Operation::Resync { connection } => {
                 if !self.connections.contains_key(&connection) {
                     return Err(AppError::Forbidden);
                 }
-                Ok(json!({"room":self.room.snapshot(None),"world":self.world_snapshot()}))
+                Ok(json!({"room":self.snapshot(None),"world":self.world_snapshot()}))
             }
             Operation::Command {
                 player,
@@ -488,10 +493,10 @@ impl Actor {
                         }
                         return Err(AppError::Conflict(
                             "POKE_LOUNGE_IDEMPOTENCY_CONFLICT",
-                            Box::new(self.room.snapshot(None)),
+                            Box::new(self.snapshot(None)),
                         ));
                     }
-                    return Ok(receipt.response.unwrap_or_else(|| self.room.snapshot(None)));
+                    return Ok(receipt.response.unwrap_or_else(|| self.snapshot(None)));
                 }
                 if expected.is_some_and(|r| r != self.room.revision) {
                     if !can_read_snapshot {
@@ -499,7 +504,7 @@ impl Actor {
                     }
                     return Err(AppError::Conflict(
                         "POKE_LOUNGE_REVISION_CONFLICT",
-                        Box::new(self.room.snapshot(None)),
+                        Box::new(self.snapshot(None)),
                     ));
                 }
                 let mut next = self.room.clone();
@@ -527,7 +532,7 @@ impl Actor {
                     if stored.request_hash != hash {
                         return Err(AppError::CommandConflict);
                     }
-                    return Ok(stored.response.unwrap_or_else(|| self.room.snapshot(None)));
+                    return Ok(stored.response.unwrap_or_else(|| self.snapshot(None)));
                 }
                 let changed = self.room.revision != next.revision;
                 self.room = next;
@@ -535,7 +540,7 @@ impl Actor {
                     self.publish_room();
                 }
                 tracing::info!(event="room.command",room_instance_id=%self.room.room_instance_id,revision=self.room.revision);
-                Ok(response.unwrap_or_else(|| self.room.snapshot(None)))
+                Ok(response.unwrap_or_else(|| self.snapshot(None)))
             }
             Operation::Connect {
                 connection,
@@ -586,7 +591,7 @@ impl Actor {
                             .unwrap_or(json!({"map":"town","x":656,"y":446,"facing":"front"})),
                     )?;
                 }
-                Ok(json!({"room":self.room.snapshot(after),"world":self.world_snapshot()}))
+                Ok(json!({"room":self.snapshot(after),"world":self.world_snapshot()}))
             }
             Operation::Heartbeat { connection } => {
                 let player = self
@@ -639,7 +644,7 @@ impl Actor {
         let _ = self.events.send(json!({"event":event,"payload":payload}));
     }
     fn publish_room(&self) {
-        self.emit("room.snapshot", json!({"room":self.room.snapshot(None)}));
+        self.emit("room.snapshot", json!({"room":self.snapshot(None)}));
     }
     fn cursor(&self) -> Value {
         json!({"roomCode":self.room.room_code,"worldEpoch":self.world_epoch,"worldSeq":self.world_seq})

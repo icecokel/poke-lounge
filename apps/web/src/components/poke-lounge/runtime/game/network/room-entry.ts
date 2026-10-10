@@ -4,7 +4,7 @@ export const ROOM_ROUND_DURATION_QUERY_PARAM = "roundMs";
 export const ROOM_VISIBILITY_QUERY_PARAM = "visibility";
 export const ROOM_INSTANCE_QUERY_PARAM = "roomInstance";
 export const ROOM_ENTRY_QUERY_VERSION_PARAM = "roomV";
-export const ROOM_ENTRY_QUERY_VERSION = "1";
+export const ROOM_ENTRY_QUERY_VERSION = "2";
 export { ROUND_DURATION_OPTIONS_MS as ROOM_ROUND_DURATION_OPTIONS_MS } from "@poke-lounge/battle/round-settings";
 import { ROUND_DURATION_OPTIONS_MS as ROOM_ROUND_DURATION_OPTIONS_MS } from "@poke-lounge/battle/round-settings";
 
@@ -20,6 +20,7 @@ export interface RoomEntryIntent {
   quickPlay?: boolean;
   visibility?: "private" | "public";
   roomInstanceId?: string;
+  roundDurationMs?: RoomRoundDurationMs;
 }
 
 export function normalizeRoomCode(value: string): string | null {
@@ -88,56 +89,48 @@ export async function deriveTemporaryRoomCode(password: string): Promise<string>
   }).join("");
 }
 
-export function createInviteUrl(baseUrl: URL, roomCode: string, roundDurationMs?: number): URL {
-  const url = new URL(baseUrl.href);
-  url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
-  url.searchParams.set("network", "local");
-  url.searchParams.set("room", roomCode);
-  applyRoomRoundDurationSearchParam(url, roundDurationMs);
+const roomEntrySearchParams = [
+  ROOM_ENTRY_QUERY_VERSION_PARAM,
+  "network",
+  "room",
+  ROOM_INSTANCE_QUERY_PARAM,
+  "create",
+  "quick",
+  ROOM_VISIBILITY_QUERY_PARAM,
+  ROOM_ROUND_DURATION_QUERY_PARAM,
+  "localTest",
+  "serverPlayerId",
+  "serverSessionId",
+  "e2e",
+  "e2eBattle",
+  "scene",
+] as const;
 
-  return url;
+export function clearRoomEntrySearchParams(url: URL): void {
+  for (const param of roomEntrySearchParams) url.searchParams.delete(param);
 }
 
-export function createServerInviteUrl(
-  baseUrl: URL,
-  roomCode: string,
-  roundDurationMs?: number,
-): URL {
-  const url = new URL(baseUrl.href);
-  url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
-  url.searchParams.set("network", "server");
-  url.searchParams.set("room", roomCode);
-  applyRoomRoundDurationSearchParam(url, roundDurationMs);
-
-  return url;
-}
-
-export function createRoomShareUrl(currentUrl: URL, roomCode?: string | null): string | null {
-  if (!isSupportedRoomEntryQueryVersion(currentUrl.searchParams)) {
-    return null;
-  }
-  const network = currentUrl.searchParams.get("network");
-  const normalizedRoomCode = normalizeRoomCode(
-    roomCode ?? currentUrl.searchParams.get("room") ?? "",
-  );
-
-  if ((network !== "local" && network !== "server") || !normalizedRoomCode) {
+export function createRoomShareUrl(currentUrl: URL, entry: RoomEntryIntent): string | null {
+  const roomCode = normalizeRoomCode(entry.roomCode ?? "");
+  if ((entry.mode !== "local-room" && entry.mode !== "server-room") || !roomCode) {
     return null;
   }
 
   const shareUrl = new URL(currentUrl.href);
+  clearRoomEntrySearchParams(shareUrl);
   shareUrl.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
-  shareUrl.searchParams.set("network", network);
-  shareUrl.searchParams.set("room", normalizedRoomCode);
-  shareUrl.searchParams.delete("create");
-  shareUrl.searchParams.delete("quick");
-  shareUrl.searchParams.delete("e2e");
-  shareUrl.searchParams.delete("e2eBattle");
-  shareUrl.searchParams.delete("localTest");
-  shareUrl.searchParams.delete("scene");
-  shareUrl.searchParams.delete("serverPlayerId");
-  shareUrl.searchParams.delete("serverSessionId");
-
+  shareUrl.searchParams.set("room", roomCode);
+  if (entry.mode === "local-room") {
+    shareUrl.searchParams.set("network", "local");
+    // Local rooms have no authoritative server settings to read after reloading.
+    const duration = normalizeRoomRoundDurationMs(entry.roundDurationMs);
+    if (duration !== null)
+      shareUrl.searchParams.set(ROOM_ROUND_DURATION_QUERY_PARAM, String(duration));
+  }
+  const instanceId = normalizeRoomInstanceId(entry.roomInstanceId);
+  if (entry.mode === "server-room" && instanceId) {
+    shareUrl.searchParams.set(ROOM_INSTANCE_QUERY_PARAM, instanceId);
+  }
   return shareUrl.href;
 }
 
@@ -157,32 +150,11 @@ export function normalizeRoomRoundDurationMs(value: unknown): RoomRoundDurationM
   );
 }
 
-export function readRoomRoundDurationMs(
-  searchParams: Pick<URLSearchParams, "get">,
-): RoomRoundDurationMs | null {
-  if (!isSupportedRoomEntryQueryVersion(searchParams)) {
-    return null;
-  }
-  return normalizeRoomRoundDurationMs(searchParams.get(ROOM_ROUND_DURATION_QUERY_PARAM));
-}
-
 export function isSupportedRoomEntryQueryVersion(
   searchParams: Pick<URLSearchParams, "get">,
 ): boolean {
   const version = searchParams.get(ROOM_ENTRY_QUERY_VERSION_PARAM);
-  // Existing invite links have no version and still use the validated v1 fields.
-  return version === null || version === ROOM_ENTRY_QUERY_VERSION;
-}
-
-export function applyRoomRoundDurationSearchParam(url: URL, roundDurationMs?: number): void {
-  const normalizedDurationMs = normalizeRoomRoundDurationMs(roundDurationMs);
-
-  if (normalizedDurationMs === null) {
-    url.searchParams.delete(ROOM_ROUND_DURATION_QUERY_PARAM);
-    return;
-  }
-
-  url.searchParams.set(ROOM_ROUND_DURATION_QUERY_PARAM, String(normalizedDurationMs));
+  return version === null || version === "1" || version === ROOM_ENTRY_QUERY_VERSION;
 }
 
 export function readRoomEntryFromSearchParams(
@@ -191,12 +163,21 @@ export function readRoomEntryFromSearchParams(
   if (!isSupportedRoomEntryQueryVersion(searchParams)) {
     return { mode: "unset", roomCode: null };
   }
-  const network = searchParams.get("network");
+  // Version 2 invite links use the server by default. Preserve legacy local links.
+  const currentVersion =
+    searchParams.get(ROOM_ENTRY_QUERY_VERSION_PARAM) === ROOM_ENTRY_QUERY_VERSION;
+  const network = searchParams.get("network") ?? (currentVersion ? "server" : null);
+  const roundDurationMs =
+    currentVersion && network === "server"
+      ? undefined
+      : (normalizeRoomRoundDurationMs(searchParams.get(ROOM_ROUND_DURATION_QUERY_PARAM)) ??
+        undefined);
 
   if (network === "webrtc") {
     return {
       mode: "webrtc",
       roomCode: null,
+      roundDurationMs,
     };
   }
 
@@ -227,6 +208,7 @@ export function readRoomEntryFromSearchParams(
       mode: "server-room",
       roomCode: null,
       createRoom: true,
+      roundDurationMs,
       visibility: searchParams.get(ROOM_VISIBILITY_QUERY_PARAM) === "public" ? "public" : "private",
     };
   }
@@ -235,6 +217,7 @@ export function readRoomEntryFromSearchParams(
     return {
       mode: "local-room",
       roomCode,
+      roundDurationMs,
     };
   }
 

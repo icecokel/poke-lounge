@@ -1,14 +1,14 @@
 import { createLocalPreviewRoom, type MultiplayerRoom } from "./local-preview-room";
-import { readRoomEntryFromSearchParams, readRoomRoundDurationMs } from "./room-entry";
+import type { RoomEntryIntent } from "./room-entry";
 import { createServerRoom } from "./server-room";
 
 export interface MultiplayerRoomFactoryOptions {
-  searchParams: Pick<URLSearchParams, "get">;
+  roomEntry: RoomEntryIntent;
   accountId?: string;
   roomId?: string;
   roomRunId?: string;
-  persistRoomCodeInUrl?: boolean;
   resumeRoom?: boolean;
+  initialOpenCommandId?: string;
   sharedWorldOnly?: boolean;
   competitiveRoundsEnabled?: boolean;
   createWebRtcRoom?: () => MultiplayerRoom;
@@ -17,11 +17,11 @@ export interface MultiplayerRoomFactoryOptions {
 }
 
 export function createMultiplayerRoom(options: MultiplayerRoomFactoryOptions): MultiplayerRoom {
-  const roomEntry = readRoomEntryFromSearchParams(options.searchParams);
+  const { roomEntry } = options;
 
   if (roomEntry.mode === "webrtc") {
     if (!options.createWebRtcRoom) {
-      throw new Error("Missing createWebRtcRoom dependency for ?network=webrtc.");
+      throw new Error("Missing createWebRtcRoom dependency for WebRTC entry.");
     }
 
     return options.createWebRtcRoom();
@@ -36,11 +36,11 @@ export function createMultiplayerRoom(options: MultiplayerRoomFactoryOptions): M
       createRoom: roomEntry.createRoom === true,
       quickPlay: roomEntry.quickPlay === true,
       visibility: roomEntry.visibility,
-      roundDurationMs: readRoomRoundDurationMs(options.searchParams) ?? undefined,
+      roundDurationMs: roomEntry.roundDurationMs,
       idToken: options.idToken,
       getIdToken: options.getIdToken,
-      persistRoomCodeInUrl: options.persistRoomCodeInUrl,
       resumeRoom: options.resumeRoom,
+      initialOpenCommandId: options.initialOpenCommandId,
       sharedWorldOnly: options.sharedWorldOnly,
       competitiveRoundsEnabled: options.competitiveRoundsEnabled,
     });

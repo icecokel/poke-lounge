@@ -11,7 +11,6 @@ import type { PlayerPokemon } from "../state/game-state-store";
 import type { components } from "@/types/api";
 import type { TournamentStateRoomPayload } from "./tournament-projection";
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
-import { isSupportedRoomEntryQueryVersion } from "./room-entry";
 
 type GeneratedCompetitiveProjection = components["schemas"]["CompetitiveActionResponseDto"];
 
@@ -102,6 +101,7 @@ export type RoomUnsubscribe = () => void;
 
 export interface MultiplayerRoom {
   roomId: string;
+  roomInstanceId?: string;
   sessionId: string;
   connect(initialSnapshot?: PlayerSnapshot): void;
   setLobbyReady(ready: boolean): Promise<void>;
@@ -184,7 +184,7 @@ const TOURNAMENT_ROOM_MESSAGES = new Set<TournamentRoomMessageType>([
 ]);
 
 export function createLocalPreviewRoom(options: LocalPreviewRoomOptions = {}): MultiplayerRoom {
-  const roomId = options.roomId ?? readRoomIdFromLocation() ?? DEFAULT_LOCAL_ROOM_ID;
+  const roomId = options.roomId ?? DEFAULT_LOCAL_ROOM_ID;
   const channelName = `poke-lounge:${roomId}`;
   const sessionId = options.sessionId ?? `local-${Math.random().toString(16).slice(2, 6)}`;
   const handlers = new Map<RoomMessage, Set<Handler<RoomMessage>>>();
@@ -441,23 +441,6 @@ function createChannel(
   }
 
   return new InMemoryBroadcastChannel(name) as unknown as BroadcastChannel;
-}
-
-function readRoomIdFromLocation(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const url = new URL(window.location.href);
-    if (!isSupportedRoomEntryQueryVersion(url.searchParams)) {
-      return null;
-    }
-    const roomId = url.searchParams.get("room")?.trim();
-    return roomId || null;
-  } catch {
-    return null;
-  }
 }
 
 function normalizeLocalSnapshot(sessionId: string, snapshot?: PlayerSnapshot): PlayerSnapshot {

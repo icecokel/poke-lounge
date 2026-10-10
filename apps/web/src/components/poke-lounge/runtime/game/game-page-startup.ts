@@ -29,7 +29,8 @@ import {
   LOCAL_TEST_MODE_START_QUERY_PARAM,
   activateLocalTestMode,
   createLocalTestModeSoloUrl,
-  createLocalTestModeStartUrl,
+  consumeLocalTestModeStart,
+  requestLocalTestModeStart,
   deactivateLocalTestMode,
   loadLocalTestModeState,
   resolveLocalTestModeState,
@@ -38,12 +39,16 @@ import {
 import type { MultiplayerRoom } from "./network/local-preview-room";
 import { createMultiplayerRoom } from "./network/multiplayer-room-factory";
 import {
-  applyRoomRoundDurationSearchParam,
-  isSupportedRoomEntryQueryVersion,
+  clearPendingRoomEntry,
+  readPendingRoomEntry,
+  writePendingRoomEntry,
+  type PendingRoomEntry,
+} from "./network/room-entry-cookie";
+import {
+  clearRoomEntrySearchParams,
+  createRoomShareUrl,
   readRoomEntryFromLocation,
-  readRoomRoundDurationMs,
-  ROOM_ENTRY_QUERY_VERSION,
-  ROOM_ENTRY_QUERY_VERSION_PARAM,
+  type RoomEntryIntent,
   type RoomEntryMode,
 } from "./network/room-entry";
 import { shouldResetRoomEntrySession, type RoomEntrySelection } from "./network/room-entry-screen";
@@ -80,6 +85,7 @@ type PokeLoungeGameInstance = ReturnType<typeof createPokeLoungeGame>;
 
 export interface GamePageHandle {
   destroy(): void;
+  isMultiplayer(): boolean;
   leaveRoomForResult(openCreateRoom?: boolean): Promise<boolean>;
   requestRoomLeave(): boolean;
   setViewportSize(viewportSize: GameViewportDisplaySize): void;
@@ -167,6 +173,10 @@ export async function startGamePage(
   const gameStateStore = dependencies.gameStateStore ?? getDefaultGameStateStore();
   const initialScene = readInitialGameScene();
   const currentUrl = new URL(location.href);
+  const initialRoomEntry = readRoomEntryFromLocation(currentUrl);
+  const legacyLocalTestStartRequested =
+    currentUrl.searchParams.get(LOCAL_TEST_MODE_START_QUERY_PARAM) === "1";
+  let selectedRoomEntry: RoomEntryIntent = { mode: "unset", roomCode: null };
   const copy = getPokeLoungeCopyForUrl(currentUrl);
   const activateTestMode = dependencies.activateLocalTestMode ?? activateLocalTestMode;
   const deactivateTestMode = dependencies.deactivateLocalTestMode ?? deactivateLocalTestMode;
@@ -185,6 +195,7 @@ export async function startGamePage(
   let privateRoomAccess: { roomCode: string; code: string } | undefined;
   let activeRoomRunId: string | null = null;
   let resumingStoredRoom = false;
+  let initialOpenCommandId: string | undefined;
   let activeViewportSize = dependencies.viewportSize;
   let localTestModeState: LocalTestModeState = { available: false, active: false };
   let destroyed = false;
@@ -260,6 +271,9 @@ export async function startGamePage(
   };
 
   const handle: GamePageHandle = {
+    isMultiplayer() {
+      return isCompetitiveRoomEntryMode(selectedRoomEntry.mode);
+    },
     destroy() {
       if (destroyed) {
         return;
@@ -314,7 +328,7 @@ export async function startGamePage(
     },
   };
 
-  const startGame = async (gameUrl: URL) => {
+  const startGame = async (roomEntry: RoomEntryIntent) => {
     mount.dataset.pokeLoungeResourceStatus = "loading";
     emitRuntimeState({ phase: "loading", progress: { loaded: 0, total: 1, ratio: 0 } });
     const runtimeAssets = await loadRuntimeAssets();
@@ -322,7 +336,6 @@ export async function startGamePage(
       return;
     }
 
-    const roomEntry = readRoomEntryFromLocation(gameUrl);
     const multiplayerRoom = withStartupStep("room_creation", () =>
       (dependencies.createMultiplayerRoom ?? createMultiplayerRoom)({
         accountId: resumingStoredRoom || !temporaryRoomCode ? dependencies.accountId : undefined,
@@ -331,11 +344,11 @@ export async function startGamePage(
         getIdToken: resumingStoredRoom || !temporaryRoomCode ? dependencies.getIdToken : undefined,
         roomId: temporaryRoomCode,
         roomRunId: activeRoomRunId ?? undefined,
-        persistRoomCodeInUrl: temporaryRoomCode ? false : undefined,
         resumeRoom: resumingStoredRoom,
+        initialOpenCommandId,
         sharedWorldOnly: Boolean(temporaryRoomCode),
         competitiveRoundsEnabled: isCompetitiveRoomEntryMode(roomEntry.mode),
-        searchParams: gameUrl.searchParams,
+        roomEntry,
       }),
     );
     const competitiveRoundsEnabled = isCompetitiveRoomEntryMode(roomEntry.mode);
@@ -348,6 +361,7 @@ export async function startGamePage(
     const battleUiStore = createBattleUiStore();
     const battle = { uiStore: battleUiStore };
     const world = {
+      roomEntry,
       atlas: withStartupStep("player_atlas", () =>
         createWorldPlayerAtlasModel(runtimeAssets.playerAtlas.data),
       ),
@@ -371,7 +385,19 @@ export async function startGamePage(
     let starterState: PokeLoungeRuntimeState | null = null;
     function emitCurrentGameplayState(): void {
       if (!destroyed && activeMultiplayerRoom === multiplayerRoom) {
-        emitRuntimeState(starterState ?? gameplayState);
+        emitRuntimeState(
+          starterState ?? {
+            ...gameplayState,
+            world: {
+              ...world,
+              roomEntry: {
+                ...roomEntry,
+                roomCode: multiplayerRoom.roomId,
+                roomInstanceId: multiplayerRoom.roomInstanceId,
+              },
+            },
+          },
+        );
       }
     }
     function requestInGameStarterSelection(onComplete: () => void): void {
@@ -407,6 +433,7 @@ export async function startGamePage(
     const game = withStartupStep("game_construction", () =>
       (dependencies.createPokeLoungeGame ?? createPokeLoungeGame)(mount, {
         competitiveRoundsEnabled,
+        roundDurationMs: roomEntry.roundDurationMs,
         gameStateStore,
         initialScene,
         multiplayerRoom,
@@ -524,15 +551,14 @@ export async function startGamePage(
     };
     const handleServerRoomError = (event: Event) => {
       const detail = (event as CustomEvent<PokeLoungeServerRoomErrorDetail>).detail;
-      const activeRoomEntry = readRoomEntryFromLocation(gameUrl);
 
-      if (!detail || activeRoomEntry.mode !== "server-room") {
+      if (!detail || roomEntry.mode !== "server-room") {
         return;
       }
 
       const shouldReturnPublicDirectory =
-        activeRoomEntry.visibility === "public" &&
-        activeRoomEntry.createRoom !== true &&
+        roomEntry.visibility === "public" &&
+        roomEntry.createRoom !== true &&
         !detail.recoverable &&
         (detail.code === "ROOM_FULL" || detail.code === "ROOM_JOIN_FAILED");
 
@@ -685,17 +711,14 @@ export async function startGamePage(
       },
     });
   };
-  const startGameAfterStarterSelection = (gameUrl: URL) => {
+  const startGameAfterStarterSelection = (roomEntry: RoomEntryIntent) => {
     // Joining a server room never requires choosing a starter. The authoritative
     // room-start projection opens the selection on the existing connection.
-    if (
-      readRoomEntryFromLocation(gameUrl).mode === "server-room" ||
-      !gameStateStore.canChooseStarter()
-    ) {
-      void startGame(gameUrl).catch(function handleRejected(error) {
+    if (roomEntry.mode === "server-room" || !gameStateStore.canChooseStarter()) {
+      void startGame(roomEntry).catch(function handleRejected(error) {
         showStartupError(
           function callback() {
-            return startGameAfterStarterSelection(gameUrl);
+            return startGameAfterStarterSelection(roomEntry);
           },
           error,
           "GAME_START_FAILED",
@@ -705,10 +728,10 @@ export async function startGamePage(
     }
 
     void showStarterSelection(function callback() {
-      void startGame(gameUrl).catch(function handleRejected(error) {
+      void startGame(roomEntry).catch(function handleRejected(error) {
         showStartupError(
           function callback() {
-            return startGameAfterStarterSelection(gameUrl);
+            return startGameAfterStarterSelection(roomEntry);
           },
           error,
           "GAME_START_FAILED",
@@ -717,14 +740,14 @@ export async function startGamePage(
     }).catch(function handleRejected(error) {
       showStartupError(
         function callback() {
-          return startGameAfterStarterSelection(gameUrl);
+          return startGameAfterStarterSelection(roomEntry);
         },
         error,
         "STARTER_DATA_FAILED",
       );
     });
   };
-  const selectRoomEntry = (selection: RoomEntrySelection) => {
+  const selectRoomEntry = (selection: RoomEntrySelection, restored?: PendingRoomEntry) => {
     if (destroyed || roomEntrySelectionPending) {
       return;
     }
@@ -732,7 +755,7 @@ export async function startGamePage(
     roomEntrySelectionPending = true;
 
     if (isCompetitiveRoomEntryMode(selection.mode)) {
-      activateRoomRun(createRoomRunId());
+      activateRoomRun(restored?.runId ?? createRoomRunId());
     } else {
       restoreOwnerGameState(true);
     }
@@ -754,15 +777,34 @@ export async function startGamePage(
         ? { roomCode: selection.roomCode, code: selection.privateRoomAccessCode }
         : undefined;
     resumingStoredRoom = false;
+    initialOpenCommandId =
+      selection.mode === "server-room" ? (restored?.commandId ?? createRoomRunId()) : undefined;
+    if (selection.mode === "server-room" && !restored && activeRoomRunId && initialOpenCommandId) {
+      writePendingRoomEntry({
+        selection: {
+          ...selection,
+          displayName: gameStateStore.getCurrentLocalPlayer().displayName,
+        },
+        runId: activeRoomRunId,
+        commandId: initialOpenCommandId,
+        accountId: dependencies.accountId,
+      });
+    }
 
-    applyRoomEntrySelection(currentUrl, selection);
+    selectedRoomEntry = selection;
+    clearRoomEntrySearchParams(currentUrl);
+    // Local rooms have no stored server identity; retain their invite for reloads.
+    if (selection.mode === "local-room") {
+      const shareUrl = createRoomShareUrl(currentUrl, selection);
+      if (shareUrl) currentUrl.search = new URL(shareUrl).search;
+    }
     replaceBrowserUrl(currentUrl);
 
     if (shouldResetRoomEntrySession(selection)) {
       gameStateStore.reset();
     }
 
-    startGameAfterStarterSelection(currentUrl);
+    startGameAfterStarterSelection(selectedRoomEntry);
   };
   const showRoomEntry = () => {
     if (destroyed) {
@@ -770,6 +812,9 @@ export async function startGamePage(
     }
 
     roomEntrySelectionPending = false;
+    clearPendingRoomEntry();
+    initialOpenCommandId = undefined;
+    selectedRoomEntry = { mode: "unset", roomCode: null };
     const openCreateRoom = openCreateRoomOnEntry;
     openCreateRoomOnEntry = false;
     emitRuntimeState({
@@ -785,7 +830,6 @@ export async function startGamePage(
                 selectRoomEntry({
                   mode: "solo",
                   roomCode: null,
-                  inviteUrl: null,
                 });
                 return;
               }
@@ -801,7 +845,8 @@ export async function startGamePage(
                     return;
                   }
 
-                  window.location.assign(createLocalTestModeStartUrl(currentUrl).href);
+                  requestLocalTestModeStart(currentUrl);
+                  window.location.assign(createLocalTestModeSoloUrl(currentUrl).href);
                 })
                 .catch(function handleRejected() {
                   if (destroyed) {
@@ -829,7 +874,6 @@ export async function startGamePage(
 
                   const exitUrl = new URL(currentUrl.href);
                   clearRoomEntrySearchParams(exitUrl);
-                  exitUrl.searchParams.delete(LOCAL_TEST_MODE_START_QUERY_PARAM);
                   window.location.assign(exitUrl.href);
                 })
                 .catch(function handleRejected() {
@@ -851,24 +895,16 @@ export async function startGamePage(
     });
   };
   const continueToSelectedRoomOrEntry = () => {
-    const localTestModeStartRequested =
-      currentUrl.searchParams.get(LOCAL_TEST_MODE_START_QUERY_PARAM) === "1";
-    if (localTestModeStartRequested) {
-      const soloUrl = createLocalTestModeSoloUrl(currentUrl);
-      currentUrl.search = soloUrl.search;
-      replaceBrowserUrl(currentUrl);
-
+    const storedLocalTestStartRequested = consumeLocalTestModeStart(currentUrl);
+    clearRoomEntrySearchParams(currentUrl);
+    replaceBrowserUrl(currentUrl);
+    if (legacyLocalTestStartRequested || storedLocalTestStartRequested) {
       if (localTestModeState.active) {
-        startGameAfterStarterSelection(currentUrl);
+        selectRoomEntry({ mode: "solo", roomCode: null });
       } else {
         showRoomEntry();
       }
       return;
-    }
-
-    if (currentUrl.searchParams.has(LOCAL_TEST_MODE_START_QUERY_PARAM)) {
-      currentUrl.searchParams.delete(LOCAL_TEST_MODE_START_QUERY_PARAM);
-      replaceBrowserUrl(currentUrl);
     }
 
     if (consumeLegacyServerRoomIdentity(dependencies.accountId)) {
@@ -878,13 +914,21 @@ export async function startGamePage(
       });
     }
 
-    if (!isSupportedRoomEntryQueryVersion(currentUrl.searchParams)) {
-      clearRoomEntrySearchParams(currentUrl);
-      applyRoomRoundDurationSearchParam(currentUrl);
-      replaceBrowserUrl(currentUrl);
+    const roomEntry = initialRoomEntry;
+    const pending = readPendingRoomEntry(dependencies.accountId);
+    if (
+      pending &&
+      !localTestModeState.active &&
+      (roomEntry.mode === "unset" ||
+        (roomEntry.mode === "server-room" &&
+          roomEntry.roomCode === pending.selection.roomCode &&
+          (!roomEntry.roomInstanceId ||
+            roomEntry.roomInstanceId === pending.selection.roomInstanceId)))
+    ) {
+      selectRoomEntry(pending.selection, pending);
+      return;
     }
-
-    const roomEntry = readRoomEntryFromLocation(currentUrl);
+    clearPendingRoomEntry();
     const storedResume = readStoredServerRoomResume(dependencies.accountId);
     const canResumeStoredRoom =
       !localTestModeState.active &&
@@ -893,50 +937,48 @@ export async function startGamePage(
         (roomEntry.mode === "server-room" &&
           roomEntry.createRoom !== true &&
           roomEntry.quickPlay !== true &&
-          roomEntry.roomCode === storedResume.roomCode));
+          roomEntry.roomCode === storedResume.roomCode &&
+          (!roomEntry.roomInstanceId || roomEntry.roomInstanceId === storedResume.roomInstanceId)));
 
     if (canResumeStoredRoom && storedResume) {
       activateRoomRun(storedResume.runId);
       temporaryRoomCode = storedResume.roomCode;
       resumingStoredRoom = true;
-      currentUrl.searchParams.set("network", "server");
-      currentUrl.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
-      currentUrl.searchParams.delete("create");
-      currentUrl.searchParams.delete("quick");
-      currentUrl.searchParams.set("room", storedResume.roomCode);
-      if (storedResume.roomInstanceId) {
-        currentUrl.searchParams.set("roomInstance", storedResume.roomInstanceId);
-      } else {
-        currentUrl.searchParams.delete("roomInstance");
-      }
+      selectedRoomEntry = {
+        mode: "server-room",
+        roomCode: storedResume.roomCode,
+        roomInstanceId: storedResume.roomInstanceId,
+      };
       roomEntrySelectionPending = true;
-      startGameAfterStarterSelection(currentUrl);
+      startGameAfterStarterSelection(selectedRoomEntry);
       return;
     }
 
     if (localTestModeState.active && isCompetitiveRoomEntryMode(roomEntry.mode)) {
       clearRoomEntrySearchParams(currentUrl);
-      applyRoomRoundDurationSearchParam(currentUrl);
       replaceBrowserUrl(currentUrl);
       showRoomEntry();
       return;
     }
 
     if (roomEntry.mode === "server-room" && roomEntry.roomCode) {
+      // Keep the pending invite until submission so reloading the name form is safe.
+      const inviteUrl = createRoomShareUrl(currentUrl, roomEntry);
+      if (inviteUrl) currentUrl.search = new URL(inviteUrl).search;
+      replaceBrowserUrl(currentUrl);
       emitRuntimeState({
         phase: "entry",
         screen: "direct-multiplayer",
+        roomCode: roomEntry.roomCode,
         currentUrl: new URL(currentUrl.href),
         initialDisplayName: gameStateStore.getCurrentLocalPlayer().displayName,
         onSubmit: displayName =>
           selectRoomEntry({
             mode: "server-room",
             roomCode: roomEntry.roomCode,
-            inviteUrl: currentUrl.href,
             displayName,
             ...(roomEntry.roomInstanceId ? { roomInstanceId: roomEntry.roomInstanceId } : {}),
             ...(roomEntry.visibility ? { visibility: roomEntry.visibility } : {}),
-            roundDurationMs: readRoomRoundDurationMs(currentUrl.searchParams) ?? undefined,
           }),
       });
       return;
@@ -949,9 +991,8 @@ export async function startGamePage(
       return;
     }
 
-    if (isCompetitiveRoomEntryMode(roomEntry.mode)) {
-      activateRoomRun(createRoomRunId());
-      startGameAfterStarterSelection(currentUrl);
+    if (roomEntry.mode === "local-room" || roomEntry.mode === "webrtc") {
+      selectRoomEntry({ ...roomEntry, mode: roomEntry.mode });
       return;
     }
 
@@ -970,96 +1011,6 @@ export async function startGamePage(
 
 function isCompetitiveRoomEntryMode(mode: RoomEntryMode): boolean {
   return mode === "local-room" || mode === "server-room" || mode === "webrtc";
-}
-
-function applyRoomEntrySelection(url: URL, selection: RoomEntrySelection): void {
-  if (selection.mode === "solo") {
-    url.searchParams.delete(ROOM_ENTRY_QUERY_VERSION_PARAM);
-    url.searchParams.delete("create");
-    url.searchParams.delete("quick");
-    url.searchParams.delete("network");
-    url.searchParams.delete("room");
-    applyRoomRoundDurationSearchParam(url);
-    return;
-  }
-
-  if (selection.mode === "webrtc") {
-    url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
-    url.searchParams.delete("create");
-    url.searchParams.delete("quick");
-    url.searchParams.set("network", "webrtc");
-    url.searchParams.delete("room");
-    applyRoomRoundDurationSearchParam(url);
-    return;
-  }
-
-  if (selection.mode === "server-room") {
-    url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
-    url.searchParams.set("network", "server");
-    applyRoomRoundDurationSearchParam(url, selection.roundDurationMs);
-
-    if (selection.quickPlay) {
-      url.searchParams.set("quick", "1");
-      url.searchParams.delete("create");
-      url.searchParams.delete("room");
-      url.searchParams.delete("visibility");
-      url.searchParams.delete("roomInstance");
-      return;
-    }
-
-    url.searchParams.delete("quick");
-
-    if (selection.createRoom) {
-      url.searchParams.set("create", "1");
-      url.searchParams.delete("room");
-      url.searchParams.delete("roomInstance");
-      if (selection.visibility === "public") {
-        url.searchParams.set("visibility", "public");
-      } else {
-        url.searchParams.delete("visibility");
-      }
-      return;
-    }
-
-    url.searchParams.delete("create");
-    if (selection.visibility === "public") {
-      url.searchParams.set("visibility", "public");
-    } else {
-      url.searchParams.delete("visibility");
-    }
-
-    if (selection.roomCode) {
-      url.searchParams.set("room", selection.roomCode);
-      if (selection.roomInstanceId) {
-        url.searchParams.set("roomInstance", selection.roomInstanceId);
-      } else {
-        url.searchParams.delete("roomInstance");
-      }
-    }
-
-    return;
-  }
-
-  if (selection.roomCode) {
-    url.searchParams.set(ROOM_ENTRY_QUERY_VERSION_PARAM, ROOM_ENTRY_QUERY_VERSION);
-    url.searchParams.delete("create");
-    url.searchParams.delete("quick");
-    url.searchParams.set("network", "local");
-    url.searchParams.set("room", selection.roomCode);
-    applyRoomRoundDurationSearchParam(url, selection.roundDurationMs);
-  }
-}
-
-function clearRoomEntrySearchParams(url: URL): void {
-  url.searchParams.delete(ROOM_ENTRY_QUERY_VERSION_PARAM);
-  url.searchParams.delete("create");
-  url.searchParams.delete("quick");
-  url.searchParams.delete("visibility");
-  url.searchParams.delete("roomInstance");
-  url.searchParams.delete("network");
-  url.searchParams.delete("room");
-  url.searchParams.delete("serverPlayerId");
-  url.searchParams.delete("serverSessionId");
 }
 
 function replaceBrowserUrl(url: URL): void {
