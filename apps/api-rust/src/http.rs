@@ -229,6 +229,7 @@ async fn diagnostics(State(state): State<AppState>, request: Request, next: Next
         .uri()
         .path()
         .strip_prefix("/poke-lounge/rooms/")
+        .filter(|_| route.contains("{code}"))
         .and_then(|path| path.split('/').next())
         .and_then(|code| normalize_code(code).ok());
     let command_id = request
