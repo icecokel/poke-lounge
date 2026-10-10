@@ -1,3 +1,5 @@
+import { TrainerNameEntry } from "./trainer-name-entry";
+import { PixelButton } from "../../../ui/poke-lounge-ui-primitives";
 import { PageReloadButton } from "../../../ui/page-reload-button";
 import { RoomLobbyScreen } from "./room-lobby-view";
 import { DirectMultiplayerEntryScreen } from "./room-invitation-screen";
@@ -336,23 +338,27 @@ function RoomEntryScreen({
       data-room-entry-screen="true"
       data-local-test-mode-active={state.localTestMode?.active || undefined}
     >
-      <div className="grid w-full max-w-[820px] gap-4 overflow-auto rounded-xl border-[3px] border-[#17231c] bg-[#f8fbf0] p-4 shadow-[0_8px_0_#17231c] [&_button]:min-h-10 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:bg-[#fffdf0] [&_button]:px-3 [&_button]:font-black [&_button]:text-[#17201a] [&_button]:shadow-[0_3px_0_#17231c] [&_button:active]:translate-y-0.5 [&_button:active]:shadow-[0_1px_0_#17231c] [&_button:disabled]:cursor-default [&_button:disabled]:opacity-55 [&_input]:min-h-10 [&_input]:w-full [&_input]:rounded-md [&_input]:border-2 [&_input]:border-[#17231c] [&_input]:bg-[#fffef3] [&_input]:px-3 [&_input]:text-[#17201a] [&_input]:outline-none [&_input:focus-visible]:ring-2 [&_input:focus-visible]:ring-[#2f6b78]">
+      <div
+        className={
+          entryStep === "profile"
+            ? "grid w-full max-w-[480px] gap-4"
+            : "grid w-full max-w-[820px] gap-4 overflow-auto rounded-xl border-[3px] border-[#17231c] bg-[#f8fbf0] p-4 shadow-[0_8px_0_#17231c] [&_button]:min-h-10 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:bg-[#fffdf0] [&_button]:px-3 [&_button]:font-black [&_button]:text-[#17201a] [&_button]:shadow-[0_3px_0_#17231c] [&_button:active]:translate-y-0.5 [&_button:active]:shadow-[0_1px_0_#17231c] [&_button:disabled]:cursor-default [&_button:disabled]:opacity-55 [&_input]:min-h-10 [&_input]:w-full [&_input]:rounded-md [&_input]:border-2 [&_input]:border-[#17231c] [&_input]:bg-[#fffef3] [&_input]:px-3 [&_input]:text-[#17201a] [&_input]:outline-none [&_input:focus-visible]:ring-2 [&_input:focus-visible]:ring-[#2f6b78]"
+        }
+      >
         {entryStep === "profile" ? (
-          <header className="grid gap-4 border-b-2 border-[#8a958b] pb-4">
-            <div className="flex items-center gap-3 text-xs font-black tracking-[0.14em] text-[#b88b20]">
-              <span
-                className="relative size-10 rounded-full border-[3px] border-[#fffdf0] bg-[linear-gradient(to_bottom,#f4cf58_0_44%,#24313b_44%_56%,#fffdf0_56%_100%)] shadow-[0_3px_0_rgb(0_0_0_/_24%)] after:absolute after:top-1/2 after:left-1/2 after:size-3 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:border-2 after:border-[#fffdf0] after:bg-[#24313b] after:content-['']"
-                aria-hidden="true"
-              />
-              <span>POKE LOUNGE</span>
-            </div>
-            <div className="grid gap-2 [&_h1]:m-0 [&_h1]:text-3xl [&_h1]:font-black [&_h1]:tracking-[-0.05em] [&_p]:m-0 [&_p]:text-sm [&_p]:font-bold [&_p]:leading-relaxed [&_p]:text-[#52615e]">
-              <h1>{copy.roomEntry.title}</h1>
-              <p>{copy.roomEntry.multiplayerDescription}</p>
-            </div>
-            <PageReloadButton locale={copy.locale} disabled={pending} />
-            <FanNotice copy={copy} />
-          </header>
+          <TrainerNameEntry
+            copy={copy}
+            displayName={displayName}
+            initialDisplayName={state.initialDisplayName}
+            pending={pending}
+            message={message}
+            showForm={!state.localTestMode?.active}
+            onNameChange={name => {
+              setDisplayName(name);
+              setMessage("");
+            }}
+            onSubmit={handleContinueToRoomSelection}
+          />
         ) : (
           <header className="grid gap-3 border-b-2 border-[#8a958b] pb-4">
             <div className="flex items-center gap-3 text-xs font-black tracking-[0.14em] text-[#b88b20]">
@@ -391,7 +397,7 @@ function RoomEntryScreen({
               {copy.roomEntry.localTestDescription}
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button
+              <PixelButton
                 type="button"
                 disabled={pending}
                 onClick={function handleClick() {
@@ -405,9 +411,9 @@ function RoomEntryScreen({
                 {state.localTestMode.active
                   ? copy.roomEntry.localTestContinue
                   : copy.roomEntry.localTestStart}
-              </button>
+              </PixelButton>
               {state.localTestMode.active ? (
-                <button
+                <PixelButton
                   type="button"
                   disabled={pending}
                   onClick={function handleClick() {
@@ -419,60 +425,10 @@ function RoomEntryScreen({
                   data-room-entry-local-test-exit
                 >
                   {copy.roomEntry.localTestExit}
-                </button>
+                </PixelButton>
               ) : null}
             </div>
           </section>
-        ) : null}
-
-        {entryStep === "profile" && !state.localTestMode?.active ? (
-          <form
-            className="grid gap-4"
-            onSubmit={handleContinueToRoomSelection}
-            data-room-entry-profile-step
-          >
-            <LabeledField
-              id="poke-lounge-multiplayer-display-name"
-              label={copy.roomEntry.multiplayerNameLabel}
-              description={copy.roomEntry.multiplayerNameDescription}
-            >
-              <input
-                id="poke-lounge-multiplayer-display-name"
-                type="text"
-                autoComplete="off"
-                maxLength={12}
-                placeholder={copy.roomEntry.multiplayerNamePlaceholder}
-                value={displayName}
-                disabled={pending}
-                aria-invalid={!displayName.trim() || undefined}
-                onChange={function handleChange(event) {
-                  setDisplayName(event.currentTarget.value);
-                  setMessage("");
-                }}
-                data-room-entry-display-name
-              />
-            </LabeledField>
-
-            <button
-              type="submit"
-              className="flex min-h-[52px]! items-center justify-between bg-[#f4cf58]! px-4! text-left text-sm shadow-[inset_7px_0_#c9534c,0_4px_0_#17231c]!"
-              disabled={pending}
-              data-room-entry-profile-submit
-            >
-              <span>{copy.roomEntry.roomSetupStart}</span>
-              <ChevronRight className="size-4" aria-hidden="true" />
-            </button>
-
-            <p
-              className="m-0 min-h-[18px] text-sm font-black text-[#8d2f24]"
-              role="alert"
-              aria-live="assertive"
-              aria-atomic="true"
-              data-room-entry-message="true"
-            >
-              {message}
-            </p>
-          </form>
         ) : null}
 
         {entryStep === "rooms" && !state.localTestMode?.active ? (
@@ -1171,17 +1127,6 @@ function LabeledField({
       {children}
       <p className="m-0 text-xs font-bold leading-[1.45] text-[#4a5b4d]">{description}</p>
     </div>
-  );
-}
-
-function FanNotice({ copy }: { copy: PokeLoungeCopy }) {
-  return (
-    <p
-      className="m-0 rounded-md border-2 border-[#4f653f] bg-[#eef4df] p-2.5 text-xs font-bold leading-relaxed text-[#294123]"
-      data-poke-lounge-fan-notice="true"
-    >
-      {copy.roomEntry.fanNotice}
-    </p>
   );
 }
 

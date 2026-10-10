@@ -203,6 +203,10 @@ export interface PokeLoungeCopy {
     localTestContinue: string;
     localTestExit: string;
     localTestRequestFailed: string;
+    guideTitle: string;
+    guideGreeting: string;
+    guideNameQuestion: string;
+    customName: string;
     multiplayerNameLabel: string;
     multiplayerNameDescription: string;
     multiplayerNamePlaceholder: string;
@@ -490,6 +494,10 @@ const KOREAN_COPY: PokeLoungeCopy = {
     localTestExit: "테스트 모드 종료",
     localTestRequestFailed:
       "로컬 싱글 테스트 모드를 전환하지 못했습니다. 로컬 환경 설정을 확인한 뒤 다시 시도해 주세요.",
+    guideTitle: "라운지 안내원",
+    guideGreeting: "반가워! 포케 라운지에 온 걸 환영해.",
+    guideNameQuestion: "너를 뭐라고 부르면 될까?",
+    customName: "직접 입력",
     multiplayerNameLabel: "트레이너 닉네임",
     multiplayerNameDescription: "같은 월드의 친구에게 표시됩니다. 최대 12자",
     multiplayerNamePlaceholder: "닉네임 입력",
@@ -787,6 +795,10 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     localTestExit: "Exit test mode",
     localTestRequestFailed:
       "Could not switch local solo test mode. Check the local environment setup and try again.",
+    guideTitle: "Lounge guide",
+    guideGreeting: "Hi there! Welcome to Poke Lounge.",
+    guideNameQuestion: "What should I call you?",
+    customName: "Type my own",
     multiplayerNameLabel: "Trainer nickname",
     multiplayerNameDescription: "Shown to friends in the same world. Up to 12 characters.",
     multiplayerNamePlaceholder: "Enter a nickname",
@@ -1086,6 +1098,10 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     localTestExit: "テストモードを終了",
     localTestRequestFailed:
       "ローカルソロテストモードを切り替えられませんでした。ローカル環境の設定を確認して、もう一度お試しください。",
+    guideTitle: "ラウンジ案内人",
+    guideGreeting: "ようこそ！ポケラウンジへ。",
+    guideNameQuestion: "きみの名前を教えてくれる？",
+    customName: "自分で入力",
     multiplayerNameLabel: "トレーナーニックネーム",
     multiplayerNameDescription: "同じワールドの友達に表示されます。最大12文字です。",
     multiplayerNamePlaceholder: "ニックネームを入力",
