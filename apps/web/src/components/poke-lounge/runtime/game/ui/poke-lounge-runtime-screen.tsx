@@ -4,7 +4,7 @@ import { PageReloadButton } from "../../../ui/page-reload-button";
 import { RoomLobbyScreen } from "./room-lobby-view";
 import { DirectMultiplayerEntryScreen } from "./room-invitation-screen";
 export { RoomLobbyScreen } from "./room-lobby-view";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ChevronRight, Clock3, Globe2, LockKeyhole, Plus, RefreshCw, Users } from "lucide-react";
 import {
   DEFAULT_ROUND_DURATION_MS,
@@ -30,6 +30,9 @@ import {
 } from "../network/public-room-directory";
 import { getWebRtcSignalingCopy } from "../network/web-rtc-signaling-panel";
 import { StarterSelectionScreen } from "./starter-selection-screen";
+
+const FAN_NOTICE_SEEN_COOKIE = "poke_lounge_fan_notice_seen";
+const FAN_NOTICE_COOKIE_MAX_AGE = 14 * 24 * 60 * 60;
 
 export function PokeLoungeRuntimeScreen({
   roomShareAvailable,
@@ -102,6 +105,7 @@ function RoomEntryScreen({
     state.openCreateRoom ? "rooms" : "profile",
   );
   const [fanNoticeVisible, setFanNoticeVisible] = useState(!state.openCreateRoom);
+  const fanNoticeDuration = useRef<number | null>(null);
   const [entryPanel, setEntryPanel] = useState<"create" | "join">("create");
   const [roomVisibility, setRoomVisibility] = useState<"public" | "private">("public");
   const [privateRoomCode, setPrivateRoomCode] = useState("");
@@ -115,10 +119,30 @@ function RoomEntryScreen({
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
-  useEffect(function dismissFanNoticeAfterReading() {
-    const timeout = window.setTimeout(() => setFanNoticeVisible(false), 8_000);
-    return () => window.clearTimeout(timeout);
-  }, []);
+  useEffect(
+    function dismissFanNoticeAfterReading() {
+      if (!fanNoticeVisible) return;
+
+      try {
+        if (fanNoticeDuration.current === null) {
+          const hasSeenNotice = document.cookie
+            .split(";")
+            .some(cookie => cookie.trim() === `${FAN_NOTICE_SEEN_COOKIE}=1`);
+          fanNoticeDuration.current = hasSeenNotice ? 1_500 : 4_000;
+        }
+        document.cookie = `${FAN_NOTICE_SEEN_COOKIE}=1; Max-Age=${FAN_NOTICE_COOKIE_MAX_AGE}; Path=/; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`;
+      } catch {
+        // Cookie restrictions must not prevent the notice from closing.
+      }
+
+      const timeout = window.setTimeout(
+        () => setFanNoticeVisible(false),
+        fanNoticeDuration.current ?? 4_000,
+      );
+      return () => window.clearTimeout(timeout);
+    },
+    [fanNoticeVisible],
+  );
 
   useEffect(function initializePrivateRoomCode() {
     setPrivateRoomCode(function setInitialCode(currentCode) {
