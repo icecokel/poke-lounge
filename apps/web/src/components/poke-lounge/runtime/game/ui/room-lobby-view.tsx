@@ -29,7 +29,7 @@ import type {
   TournamentRoomParticipant,
   TournamentStateRoomPayload,
 } from "../network/tournament-projection";
-import { RoomControlsGuide } from "./room-controls-guide";
+import { RoomGameGuide } from "./room-game-guide";
 import { getRoomLobbyCopy } from "./room-lobby-copy";
 import { createRoomLobbyViewState } from "./room-lobby-screen";
 import { useRoomLobbyCommands } from "./use-room-lobby-commands";
@@ -217,101 +217,71 @@ export function RoomLobbyScreen({
           </button>
         </div>
         <div className="min-h-0 min-w-0 overflow-hidden px-3">
-          {showInfo ? (
-            <section
-              id={infoId}
-              className="h-full overflow-y-auto overscroll-contain px-[3px] pt-0.5 pb-3 [&>[data-room-controls-guide]]:overflow-visible"
-              aria-label={text.info}
+          <section
+            className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]"
+            aria-label={copy.participantListLabel}
+          >
+            <div className="flex items-center justify-between gap-2 pb-[7px] [&_h2]:text-sm [&_h2]:font-extrabold [&_p]:flex [&_p]:flex-wrap [&_p]:gap-2.5 [&_p]:text-xs [&_p]:text-[#596a52]">
+              <div>
+                <h2>{text.players}</h2>
+                <p>
+                  {copy.participantCount(view.participantCount)}{" "}
+                  <span className="font-bold text-[#315c3e]">
+                    {text.readyCount(readyCount, participants.length)}
+                  </span>
+                </p>
+              </div>
+              {view.isHost ? (
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-[7px] border-2 border-[#627f85] bg-[linear-gradient(#fffdf0_50%,#dfe9df_50%)] px-2.5 py-2 font-bold text-[#304e36] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#536b73] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]"
+                  disabled={view.participantCount >= 8 || mutation !== null || !own?.connected}
+                  onClick={() => void runMutation("ai-add", state.onAddAi)}
+                  data-room-lobby-ai-add="true"
+                >
+                  <Bot size={18} aria-hidden="true" />
+                  {copy.addAiAction}
+                </button>
+              ) : null}
+            </div>
+            <ul
+              className="m-0 grid min-h-0 min-w-0 list-none content-start gap-[7px] overflow-y-auto overscroll-contain px-[3px] pt-[3px] pb-2 [scroll-padding-block:4px]"
+              data-room-lobby-participants="true"
               tabIndex={0}
-            >
-              <div className="mb-4 rounded-lg border-2 border-[#839b9a] bg-[#fffdf0] p-4 shadow-[inset_0_0_0_2px_#dce7dc] [&_h2]:text-base [&_h2]:font-bold [&_p]:mt-2.5 [&_p]:text-sm [&_p]:text-[#56684d]">
-                <h2>{text.next}</h2>
-                <ol className="my-3 flex list-none flex-wrap gap-2.5 p-0 text-[0.8125rem] [&_li]:flex [&_li]:items-center [&_li]:gap-1.5 [&_b]:grid [&_b]:size-6 [&_b]:place-items-center [&_b]:rounded-full [&_b]:bg-[#e4ecd8] [&_[aria-current]_b]:bg-[#315c3e] [&_[aria-current]_b]:text-white">
-                  <li aria-current="step">
-                    <b>1</b>
-                    {text.stepLobby}
-                  </li>
-                  <li>
-                    <b>2</b>
-                    {text.stepPokemon}
-                  </li>
-                  <li>
-                    <b>3</b>
-                    {text.stepExplore}
-                  </li>
-                </ol>
-                <p>{copy.starterSelectionHint}</p>
-                <p data-room-lobby-auto-fill-notice="true">{copy.autoFillNotice}</p>
-              </div>
-              <RoomControlsGuide locale={fullCopy.locale} />
-            </section>
-          ) : (
-            <section
-              className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto]"
               aria-label={copy.participantListLabel}
+              onKeyDown={event => {
+                if (event.key !== "Home" && event.key !== "End") return;
+                event.preventDefault();
+                event.currentTarget.scrollTop =
+                  event.key === "Home" ? 0 : event.currentTarget.scrollHeight;
+              }}
             >
-              <div className="flex items-center justify-between gap-2 pb-[7px] [&_h2]:text-sm [&_h2]:font-extrabold [&_p]:flex [&_p]:flex-wrap [&_p]:gap-2.5 [&_p]:text-xs [&_p]:text-[#596a52]">
-                <div>
-                  <h2>{text.players}</h2>
-                  <p>
-                    {copy.participantCount(view.participantCount)}{" "}
-                    <span className="font-bold text-[#315c3e]">
-                      {text.readyCount(readyCount, participants.length)}
-                    </span>
-                  </p>
-                </div>
-                {view.isHost ? (
-                  <button
-                    type="button"
-                    className="inline-flex min-h-11 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-[7px] border-2 border-[#627f85] bg-[linear-gradient(#fffdf0_50%,#dfe9df_50%)] px-2.5 py-2 font-bold text-[#304e36] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#536b73] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]"
-                    disabled={view.participantCount >= 8 || mutation !== null || !own?.connected}
-                    onClick={() => void runMutation("ai-add", state.onAddAi)}
-                    data-room-lobby-ai-add="true"
-                  >
-                    <Bot size={18} aria-hidden="true" />
-                    {copy.addAiAction}
-                  </button>
-                ) : null}
-              </div>
-              <ul
-                className="m-0 grid min-h-0 min-w-0 list-none content-start gap-[7px] overflow-y-auto overscroll-contain px-[3px] pt-[3px] pb-2 [scroll-padding-block:4px]"
-                data-room-lobby-participants="true"
-                tabIndex={0}
-                aria-label={copy.participantListLabel}
-                onKeyDown={event => {
-                  if (event.key !== "Home" && event.key !== "End") return;
-                  event.preventDefault();
-                  event.currentTarget.scrollTop =
-                    event.key === "Home" ? 0 : event.currentTarget.scrollHeight;
-                }}
-              >
-                {state.projection.participants.map(participant => (
-                  <ParticipantRow
-                    key={participant.playerId}
-                    participant={participant}
-                    projection={state.projection}
-                    locale={fullCopy.locale}
-                    canEditAi={view.isHost && mutation === null && !!own?.connected}
-                    onChangeDifficulty={difficulty =>
-                      void runMutation("ai-difficulty", () =>
-                        state.onChangeAiDifficulty(participant.playerId, difficulty),
-                      )
-                    }
-                    onRemove={() =>
-                      void runMutation("ai-remove", () => state.onRemoveAi(participant.playerId))
-                    }
-                  />
-                ))}
-                {state.projection.participants.length === 0 ? (
-                  <li className="p-6 text-center text-[#617154]">{text.empty}</li>
-                ) : null}
-              </ul>
-              <p className="flex items-center gap-1.5 py-1.5 text-[0.6875rem] text-[#5a6b50]">
-                <Bot size={16} aria-hidden="true" />
-                {text.autoFill}
-              </p>
-            </section>
-          )}
+              {state.projection.participants.map(participant => (
+                <ParticipantRow
+                  key={participant.playerId}
+                  participant={participant}
+                  projection={state.projection}
+                  locale={fullCopy.locale}
+                  canEditAi={view.isHost && mutation === null && !!own?.connected}
+                  onChangeDifficulty={difficulty =>
+                    void runMutation("ai-difficulty", () =>
+                      state.onChangeAiDifficulty(participant.playerId, difficulty),
+                    )
+                  }
+                  onRemove={() =>
+                    void runMutation("ai-remove", () => state.onRemoveAi(participant.playerId))
+                  }
+                />
+              ))}
+              {state.projection.participants.length === 0 ? (
+                <li className="p-6 text-center text-[#617154]">{text.empty}</li>
+              ) : null}
+            </ul>
+            <p className="flex items-center gap-1.5 py-1.5 text-[0.6875rem] text-[#5a6b50]">
+              <Bot size={16} aria-hidden="true" />
+              {text.autoFill}
+            </p>
+          </section>
         </div>
         <footer
           className="grid gap-1.5 border-t-[3px] border-[#526e7a] bg-[#fffdf0] px-3 pt-2 pb-[9px] shadow-[inset_0_3px_0_#e9d689]"
@@ -380,6 +350,7 @@ export function RoomLobbyScreen({
           </p>
         </footer>
       </div>
+      {showInfo ? <RoomGameGuide locale={fullCopy.locale} id={infoId} onClose={closeInfo} /> : null}
     </section>
   );
 }
