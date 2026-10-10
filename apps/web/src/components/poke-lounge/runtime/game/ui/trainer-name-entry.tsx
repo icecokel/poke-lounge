@@ -1,9 +1,10 @@
 import Image from "next/image";
 import { ChevronRight } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import { PageReloadButton } from "../../../ui/page-reload-button";
-import { PixelButton } from "../../../ui/poke-lounge-ui-primitives";
+import { PixelButton, PixelPanel } from "../../../ui/poke-lounge-ui-primitives";
 import styles from "./trainer-name-entry.module.css";
 
 export function TrainerNameEntry({
@@ -155,9 +156,23 @@ export function TrainerNameEntry({
           )}
         </form>
       ) : null}
-      <p className={styles.notice} data-poke-lounge-fan-notice="true">
-        {text.fanNotice}
-      </p>
     </div>
+  );
+}
+
+export function FanNoticeToast({ text }: { text: string }) {
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <PixelPanel
+      className={styles.noticeToast}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      data-poke-lounge-fan-notice="true"
+    >
+      <p>{text}</p>
+    </PixelPanel>,
+    document.body,
   );
 }

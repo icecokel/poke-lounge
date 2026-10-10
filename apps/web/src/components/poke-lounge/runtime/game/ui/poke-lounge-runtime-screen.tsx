@@ -1,4 +1,4 @@
-import { TrainerNameEntry } from "./trainer-name-entry";
+import { FanNoticeToast, TrainerNameEntry } from "./trainer-name-entry";
 import { PixelButton } from "../../../ui/poke-lounge-ui-primitives";
 import { PageReloadButton } from "../../../ui/page-reload-button";
 import { RoomLobbyScreen } from "./room-lobby-view";
@@ -101,6 +101,7 @@ function RoomEntryScreen({
   const [entryStep, setEntryStep] = useState<"profile" | "rooms">(
     state.openCreateRoom ? "rooms" : "profile",
   );
+  const [fanNoticeVisible, setFanNoticeVisible] = useState(!state.openCreateRoom);
   const [entryPanel, setEntryPanel] = useState<"create" | "join">("create");
   const [roomVisibility, setRoomVisibility] = useState<"public" | "private">("public");
   const [privateRoomCode, setPrivateRoomCode] = useState("");
@@ -113,6 +114,11 @@ function RoomEntryScreen({
   const [publicRoomsError, setPublicRoomsError] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
+
+  useEffect(function dismissFanNoticeAfterReading() {
+    const timeout = window.setTimeout(() => setFanNoticeVisible(false), 8_000);
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   useEffect(function initializePrivateRoomCode() {
     setPrivateRoomCode(function setInitialCode(currentCode) {
@@ -176,6 +182,7 @@ function RoomEntryScreen({
 
     playConfirmSound();
     setMessage("");
+    setFanNoticeVisible(false);
     setEntryStep("rooms");
   };
 
@@ -338,6 +345,9 @@ function RoomEntryScreen({
       data-room-entry-screen="true"
       data-local-test-mode-active={state.localTestMode?.active || undefined}
     >
+      {entryStep === "profile" && fanNoticeVisible ? (
+        <FanNoticeToast text={copy.roomEntry.fanNotice} />
+      ) : null}
       <div
         className={
           entryStep === "profile"

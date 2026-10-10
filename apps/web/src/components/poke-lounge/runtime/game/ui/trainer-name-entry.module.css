@@ -168,12 +168,23 @@
   font-weight: 800;
 }
 
-.notice {
+.noticeToast {
+  position: fixed;
+  z-index: 900;
+  top: 50%;
+  left: 50%;
+  width: min(360px, calc(100vw - 32px));
+  padding: 16px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  font-family: var(--pl-font-game);
+}
+
+.noticeToast p {
   margin: 0;
-  padding: 0 16px 16px;
-  color: var(--pl-color-ink-muted);
-  font-size: 10px;
-  line-height: 1.65;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.7;
 }
 
 @keyframes arrive {
