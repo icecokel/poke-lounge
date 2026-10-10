@@ -63,13 +63,18 @@ export class RuntimeKeyboard {
     )
       return;
     const inside = this.target.contains(element);
+    // Mobile battle commands are siblings of #game-root. Closing a task
+    // restores focus to one of these buttons, which must still accept game keys.
+    const onBattleCommand = Boolean(
+      element.closest('[data-poke-lounge-mobile-deck="battle-command"] button[data-command]'),
+    );
     // React removes the currently focused command at phase changes. Resume from body without a mouse click.
     const lostFocus =
       element === document.body &&
       Boolean(
         this.target.querySelector("[data-poke-lounge-battle-screen], [data-poke-lounge-world-ui]"),
       );
-    if (!inside && !lostFocus) return;
+    if (!inside && !lostFocus && !onBattleCommand) return;
     // Native buttons/links keep Enter/Space and Tab semantics; never confirm a second game action.
     if (
       element.closest('button, a[href], [role="button"]') &&
