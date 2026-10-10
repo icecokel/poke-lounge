@@ -131,6 +131,22 @@ pub enum GameCommand {
         action: Value,
     },
 }
+impl GameCommand {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Join { .. } => "join",
+            Self::Ready { .. } => "ready",
+            Self::RoundReady { .. } => "round-ready",
+            Self::Start => "start",
+            Self::AddAi => "add-ai",
+            Self::SetAiDifficulty { .. } => "set-ai-difficulty",
+            Self::RemoveAi { .. } => "remove-ai",
+            Self::Party { .. } => "party",
+            Self::Leave => "leave",
+            Self::Action { .. } => "action",
+        }
+    }
+}
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Participant {

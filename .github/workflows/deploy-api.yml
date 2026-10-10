@@ -43,6 +43,9 @@ jobs:
           test -n "$BATTLE_WORKER_TOKEN"
           command -v docker
           docker compose version
+          docker volume create poke-lounge-runtime-logs >/dev/null
+          docker run --rm -v poke-lounge-runtime-logs:/logs alpine:3.20 \
+            sh -c 'chown 10001:10001 /logs && chmod 0700 /logs'
 
       - name: Archive logs from the current containers
         run: bash scripts/deploy/archive-poke-lounge-logs.sh
@@ -56,3 +59,5 @@ jobs:
           curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/health/ready" >/dev/null
           curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/poke-lounge/rooms/public" >/dev/null
           curl --fail --silent --show-error "http://127.0.0.1:${WEB_PORT}/ko-KR" >/dev/null
+          docker compose exec -T api sh -c \
+            'test -s "$RUST_API_LOG_DIR/api.jsonl" && test "$(stat -c %a "$RUST_API_LOG_DIR/api.jsonl")" = 600 && grep -Fq "$RELEASE_SHA" "$RUST_API_LOG_DIR/api.jsonl"'

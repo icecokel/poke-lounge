@@ -115,6 +115,7 @@ services:
       DB_DATABASE: ${DB_DATABASE:-poke_lounge}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       RUST_LOG: info
+      RUST_API_LOG_DIR: /var/log/poke-lounge
       RELEASE_SHA: ${RELEASE_SHA:-local}
     depends_on:
       migrate:
@@ -125,6 +126,8 @@ services:
         condition: service_healthy
       battle-worker:
         condition: service_healthy
+    volumes:
+      - runtime-logs:/var/log/poke-lounge
     healthcheck:
       test:
         [
@@ -173,7 +176,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3000/ko-KR/game').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+          "fetch('http://127.0.0.1:3000/ko-KR').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
       interval: 5s
       timeout: 5s
@@ -184,3 +187,6 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  runtime-logs:
+    external: true
+    name: poke-lounge-runtime-logs

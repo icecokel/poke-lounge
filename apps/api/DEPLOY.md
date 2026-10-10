@@ -38,6 +38,27 @@ docker compose up --build --detach --wait --wait-timeout 180
 
 배포 workflow는 같은 명령에 `--remove-orphans`를 추가한다. PostgreSQL·Redis named volume을 유지한다. `docker compose down -v`는 데이터 삭제이므로 일반 재시작/복구 절차에 사용하지 않는다.
 
+## 운영 로그 보관
+
+Rust API는 콘솔과 `poke-lounge-runtime-logs` 외부 볼륨의 `/var/log/poke-lounge/api.jsonl`에 같은 JSON 로그를 기록한다. 외부 볼륨이므로 컨테이너 재생성이나 Compose 볼륨 삭제 대상에 포함되지 않는다. 파일은 20MiB를 넘긴 완전한 JSON 행 단위로 순환하며 이전 파일 24개를 유지한다. 최신 두 순환 파일은 원문, 나머지는 gzip이며 전체 원문 기준 보관량은 약 500MiB다. 보관 기간은 발생량에 따라 달라진다.
+
+배포 workflow가 외부 볼륨 생성과 UID 10001 쓰기 권한을 준비한다. 로컬에서 위 Compose 명령을 직접 실행할 때는 다음 준비를 먼저 수행한다.
+
+```bash
+docker volume create poke-lounge-runtime-logs
+docker run --rm -v poke-lounge-runtime-logs:/logs alpine:3.20 \
+  sh -c 'chown 10001:10001 /logs && chmod 0700 /logs'
+```
+
+기존 컨테이너 로그의 배포 전 gzip 보관·30일 정리는 유지한다. 새 파일 로그는 재시작 후에도 이어 쓰며, 종료 시 큐를 비운다. 정상 health 요청은 debug, 4xx 또는 1초 이상 걸린 요청은 warn, 5xx는 error로 기록한다. 명령 ID·방 생성 회차·배포 SHA·요청 ID로 브라우저 오류와 서버 처리를 연결할 수 있다. 요청 본문·인증 토큰·원본 세션 ID는 수집하지 않는다.
+
+최신 API 파일 로그를 읽을 때는 읽기 전용 마운트를 사용한다.
+
+```bash
+docker run --rm -v poke-lounge-runtime-logs:/logs:ro alpine:3.20 \
+  tail -n 100 /logs/api.jsonl
+```
+
 ## DB 마이그레이션의 실제 변경 범위
 
 **기존 스키마가 모두 보존되는 구현이 아니다.** `DropLegacyPokeLoungePostgresState1795132800000`은 다음 레거시 테이블을 잠그고 비어 있는지 확인한 뒤 제거한다.

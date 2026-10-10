@@ -37,6 +37,7 @@ use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AppState {
+    pub release: String,
     pub repository: Repository,
     pub rooms: Rooms,
     pub compute: Compute,
@@ -136,12 +137,11 @@ pub fn router(state: AppState, config: &Config) -> Router {
                     "x-room-instance".parse().expect("static header"),
                     "x-player-id".parse().expect("static header"),
                     "x-session-id".parse().expect("static header"),
-                    "mcp-protocol-version".parse().expect("static header"),
                     "x-request-id".parse().expect("static header"),
                 ])
                 .expose_headers(["x-request-id".parse().expect("static header")]),
         )
-        .layer(middleware::from_fn(diagnostics))
+        .layer(middleware::from_fn_with_state(state.clone(), diagnostics))
         .with_state(state)
 }
 pub fn success(data: Value) -> Json<Value> {
@@ -209,7 +209,7 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
         Err(_) => AppError::Timeout.into_response(),
     }
 }
-async fn diagnostics(request: Request, next: Next) -> Response {
+async fn diagnostics(State(state): State<AppState>, request: Request, next: Next) -> Response {
     let id = request
         .headers()
         .get("x-request-id")
@@ -225,13 +225,25 @@ async fn diagnostics(request: Request, next: Next) -> Response {
         .unwrap_or("unmatched")
         .to_owned();
     let method = request.method().clone();
+    let room_code = request
+        .uri()
+        .path()
+        .strip_prefix("/poke-lounge/rooms/")
+        .and_then(|path| path.split('/').next())
+        .and_then(|code| normalize_code(code).ok());
+    let command_id = request
+        .headers()
+        .get("x-idempotency-key")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| Uuid::parse_str(value).ok())
+        .filter(|value| value.get_version_num() == 4);
     let room_instance_id = request
         .headers()
         .get("x-room-instance")
         .and_then(|value| value.to_str().ok())
         .and_then(|value| Uuid::parse_str(value).ok());
     let start = Instant::now();
-    let span = tracing::info_span!("http.request", request_id = %id, route = %route, method = %method, room_instance_id = ?room_instance_id);
+    let span = tracing::info_span!("http.request", request_id = %id, route = %route, method = %method, room_instance_id = ?room_instance_id, room_code = ?room_code, command_id = ?command_id, release = %state.release);
     let mut response = next.run(request).instrument(span).await;
     response.headers_mut().insert(
         "x-request-id",
@@ -241,10 +253,15 @@ async fn diagnostics(request: Request, next: Next) -> Response {
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     let status = response.status().as_u16();
+    let duration_ms = start.elapsed().as_millis() as u64;
     if status >= 500 {
-        tracing::error!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,status,duration_ms=start.elapsed().as_millis() as u64);
+        tracing::error!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,room_code=?room_code,command_id=?command_id,release=%state.release,status,duration_ms);
+    } else if status >= 400 || duration_ms >= 1_000 {
+        tracing::warn!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,room_code=?room_code,command_id=?command_id,release=%state.release,status,duration_ms);
+    } else if method == Method::GET && route.starts_with("/health") {
+        tracing::debug!(event="api.request",request_id=%id,%route,%method,release=%state.release,status,duration_ms);
     } else {
-        tracing::info!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,status,duration_ms=start.elapsed().as_millis() as u64);
+        tracing::info!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,room_code=?room_code,command_id=?command_id,release=%state.release,status,duration_ms);
     }
     response
 }
@@ -350,7 +367,7 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
         script = %payload.script.as_deref().unwrap_or("none"),
         room_instance_id = %payload.room_instance_id.map(|id| id.to_string()).unwrap_or_else(|| "none".to_string()),
         room_code = %payload.room_code.as_deref().unwrap_or("none"),
-        session_id = %payload.session_id.as_deref().unwrap_or("none"),
+        session_fingerprint = ?payload.session_id.as_deref().map(|id| crate::repository::hash_bytes(id.as_bytes())),
         error_name = %payload.error_name.as_deref().unwrap_or("none"),
         error_text = %payload.error_text.as_deref().unwrap_or("none"),
         startup_step = %payload.startup_step.as_deref().unwrap_or("none"),

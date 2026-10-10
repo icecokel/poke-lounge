@@ -104,8 +104,6 @@ export function reportClientDiagnostic(event: ClientDiagnostic): void {
     roomCodeCandidate && /^[A-Za-z0-9_-]{1,64}$/.test(roomCodeCandidate)
       ? roomCodeCandidate
       : undefined;
-  const sessionId =
-    event.sessionId && /^[A-Za-z0-9_-]{1,80}$/.test(event.sessionId) ? event.sessionId : undefined;
   try {
     void fetch(`${getApiBaseUrl()}/diagnostics/client-errors`, {
       method: "POST",
@@ -127,7 +125,6 @@ export function reportClientDiagnostic(event: ClientDiagnostic): void {
         script: event.script,
         roomInstanceId: event.roomInstanceId,
         roomCode,
-        sessionId,
         errorName,
         errorText,
         startupStep,

@@ -299,6 +299,7 @@ impl Rooms {
             }
         }
         let (room, _, _) = self.repository.create(input, public, &session, &id).await?;
+        tracing::info!(event="room.created",room_instance_id=%room.room_instance_id,room_code=%room.room_code,command_id=%id,public,revision=room.revision);
         self.request(room.room_instance_id, Operation::Snapshot { after: None })
             .await
     }
@@ -477,6 +478,7 @@ impl Actor {
                 command,
                 request_hash,
             } => {
+                let command_label = command.label();
                 let can_read_snapshot =
                     self.room.public || self.room.authorize(&player, &session).is_ok();
                 let hash = request_hash.unwrap_or(fingerprint(&(
@@ -496,6 +498,7 @@ impl Actor {
                             Box::new(self.snapshot(None)),
                         ));
                     }
+                    tracing::info!(event="room.command_replayed",room_instance_id=%self.room.room_instance_id,command_id=%id,command=command_label,player_id=%player,revision=self.room.revision);
                     return Ok(receipt.response.unwrap_or_else(|| self.snapshot(None)));
                 }
                 if expected.is_some_and(|r| r != self.room.revision) {
@@ -539,7 +542,11 @@ impl Actor {
                 if changed {
                     self.publish_room();
                 }
-                tracing::info!(event="room.command",room_instance_id=%self.room.room_instance_id,revision=self.room.revision);
+                if command_label == "party" {
+                    tracing::debug!(event="room.command",room_instance_id=%self.room.room_instance_id,command_id=%id,command=command_label,player_id=%player,expected_revision=?expected,revision=self.room.revision);
+                } else {
+                    tracing::info!(event="room.command",room_instance_id=%self.room.room_instance_id,command_id=%id,command=command_label,player_id=%player,expected_revision=?expected,revision=self.room.revision);
+                }
                 Ok(response.unwrap_or_else(|| self.snapshot(None)))
             }
             Operation::Connect {

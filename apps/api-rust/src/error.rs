@@ -94,6 +94,8 @@ impl IntoResponse for AppError {
                 _ => "other",
             };
             tracing::error!(event = "api.error", code, source);
+        } else if status.is_client_error() {
+            tracing::warn!(event = "api.rejected", code);
         }
         let message = if matches!(self, Self::Corrupt(_) | Self::Configuration(_)) {
             "Internal server error".into()

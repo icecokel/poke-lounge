@@ -112,6 +112,7 @@ async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaph
         return;
     };
     let mut events = handle.subscribe();
+    let connected_at = std::time::Instant::now();
     let initial = handle
         .request(Operation::Connect {
             connection: id,
@@ -121,7 +122,7 @@ async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaph
         })
         .await;
     if let Ok(value) = initial {
-        tracing::info!(event="socket.connected",connection_id=%id,room_instance_id=%room_id);
+        tracing::info!(event="socket.connected",connection_id=%id,room_instance_id=%room_id,player_id=%subscription.player_id,release=%state.release);
         if publish_state(&mut socket, value).await.is_ok() {
             if let Err(error) =
                 serve(&mut socket, &state, &handle, &mut events, id, &subscription).await
@@ -140,6 +141,7 @@ async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaph
         )
         .await;
     }
+    tracing::info!(event="socket.closed",connection_id=%id,room_instance_id=%room_id,player_id=%subscription.player_id,duration_ms=connected_at.elapsed().as_millis() as u64,release=%state.release);
     // Connect may have committed even when its response timed out. Always enqueue matching cleanup.
     let _ = handle
         .request(Operation::Disconnect { connection: id })

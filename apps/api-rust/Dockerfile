@@ -9,7 +9,8 @@ FROM debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --no-create-home rust-api
+    && useradd --system --uid 10001 --no-create-home rust-api \
+    && install -d -m 0700 -o rust-api -g rust-api /var/log/poke-lounge
 COPY --from=builder /app/target/release/poke-lounge-api-rust /usr/local/bin/poke-lounge-api-rust
 USER 10001
 EXPOSE 3011

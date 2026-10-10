@@ -5,6 +5,7 @@ mod data;
 mod domain;
 mod error;
 mod http;
+mod logging;
 mod repository;
 mod socket;
 mod tournament;
@@ -18,7 +19,6 @@ use std::{
 use std::collections::HashMap;
 use tokio::sync::{Mutex, Semaphore};
 use tokio_util::sync::CancellationToken;
-use tracing_subscriber::EnvFilter;
 
 use crate::{
     actors::Rooms,
@@ -30,12 +30,13 @@ use crate::{
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    tracing_subscriber::fmt()
-        .json()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .init();
+    let _log_guard = match logging::init() {
+        Ok(guard) => guard,
+        Err(error) => {
+            eprintln!("Persistent log initialization failed: {:?}", error.kind());
+            return ExitCode::FAILURE;
+        }
+    };
     match run().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
@@ -129,9 +130,10 @@ async fn run() -> AppResult<()> {
         origins: Arc::new(config.allowed_origins.clone()),
         budgets: Arc::new(Mutex::new(HashMap::new())),
         requests: Arc::new(Semaphore::new(64)),
+        release: logging::release(),
     };
     let router = http::router(state, &config);
-    tracing::info!(event = "backend.started", bind = %config.bind, protocol = "rust-game-v2", release = %std::env::var("RELEASE_SHA").unwrap_or_else(|_| "local".into()));
+    tracing::info!(event = "backend.started", bind = %config.bind, protocol = "rust-game-v2", release = %logging::release());
     let server = axum::serve(
         listener,
         router.into_make_service_with_connect_info::<std::net::SocketAddr>(),
