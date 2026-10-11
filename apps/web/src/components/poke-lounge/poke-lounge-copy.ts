@@ -168,6 +168,8 @@ export interface PokeLoungeCopy {
     errorCodeLabel: string;
     retry: string;
     retrying: string;
+    reconnect: string;
+    reconnecting: string;
     lobby: string;
   };
   lobby: {
@@ -450,6 +452,8 @@ const KOREAN_COPY: PokeLoungeCopy = {
     errorCodeLabel: "오류 코드",
     retry: "다시 시도",
     retrying: "다시 불러오는 중...",
+    reconnect: "같은 방 재접속",
+    reconnecting: "같은 방에 연결하는 중…",
     lobby: "입장 화면으로 돌아가기",
   },
   lobby: {
@@ -751,6 +755,8 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     errorCodeLabel: "Error code",
     retry: "Try again",
     retrying: "Loading again...",
+    reconnect: "Reconnect to room",
+    reconnecting: "Reconnecting to room…",
     lobby: "Back to play selection",
   },
   lobby: {
@@ -1054,6 +1060,8 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     errorCodeLabel: "エラーコード",
     retry: "再試行",
     retrying: "再読み込み中...",
+    reconnect: "同じルームに再接続",
+    reconnecting: "ルームに再接続中…",
     lobby: "プレイ選択に戻る",
   },
   lobby: {

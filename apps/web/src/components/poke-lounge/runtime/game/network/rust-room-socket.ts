@@ -8,6 +8,7 @@ interface SocketAdapter {
   on(event: string, listener: Listener): SocketAdapter;
   off(event: string, listener: Listener): SocketAdapter;
   emit(event: string, payload: unknown): SocketAdapter;
+  connect(): SocketAdapter;
   disconnect(): SocketAdapter;
 }
 
@@ -127,6 +128,10 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
       } catch {
         current.close();
       }
+      return adapter;
+    },
+    connect() {
+      onOnline();
       return adapter;
     },
     disconnect() {

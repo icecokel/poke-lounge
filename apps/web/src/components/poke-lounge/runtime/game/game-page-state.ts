@@ -75,8 +75,10 @@ export type PokeLoungeRuntimeState =
   | { phase: "result" }
   | {
       phase: "error";
+      title?: string;
       description: string;
       errorCode: PokeLoungeErrorCode;
-      onRetry?: () => void;
+      retryKind?: "reconnect";
+      onRetry?: () => void | Promise<boolean>;
       onReturnToEntry(): void;
     };

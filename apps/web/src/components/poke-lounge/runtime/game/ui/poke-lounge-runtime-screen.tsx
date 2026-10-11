@@ -973,7 +973,7 @@ function RuntimeErrorScreen({
       data-testid="poke-lounge-startup-error"
     >
       <div className="grid w-full max-w-[440px] gap-3 rounded-lg border-[3px] border-[#17231c] bg-[#f8fbf0] p-5 shadow-[0_8px_0_#17231c] [&_progress]:w-full">
-        <h1>{copy.startup.title}</h1>
+        <h1>{state.title ?? copy.startup.title}</h1>
         <p className="m-0 text-xs font-bold leading-[1.45] text-[#4a5b4d]">
           {state.description || copy.startup.description}
         </p>
@@ -984,25 +984,38 @@ function RuntimeErrorScreen({
           {copy.startup.errorCodeLabel}: {state.errorCode}
         </p>
         <div
-          className="grid grid-cols-2 gap-2 [&_button]:min-h-10 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:font-black"
+          className={
+            "grid gap-2 [&_button]:min-h-12 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:font-black " +
+            (state.onRetry ? "min-[360px]:grid-cols-2" : "")
+          }
           data-game-startup-error-actions="true"
         >
           {state.onRetry ? (
             <button
               type="button"
               disabled={retrying}
-              onClick={function handleClick() {
+              onClick={async function handleClick() {
                 setRetrying(true);
-                state.onRetry?.();
+                try {
+                  await state.onRetry?.();
+                } finally {
+                  setRetrying(false);
+                }
               }}
               data-game-startup-retry
             >
-              {retrying ? copy.startup.retrying : copy.startup.retry}
+              {state.retryKind === "reconnect"
+                ? retrying
+                  ? copy.startup.reconnecting
+                  : copy.startup.reconnect
+                : retrying
+                  ? copy.startup.retrying
+                  : copy.startup.retry}
             </button>
           ) : null}
           <button
             type="button"
-            disabled={retrying}
+            disabled={retrying && state.retryKind !== "reconnect"}
             onClick={state.onReturnToEntry}
             data-game-startup-return
           >

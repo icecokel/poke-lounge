@@ -135,12 +135,15 @@ export interface PokeLoungeServerRoomErrorDetail {
     | "CURSOR_REGRESSION";
   message: string;
   recoverable: boolean;
-  retry?: () => void;
+  disconnected?: boolean;
+  retryKind?: "reconnect";
+  retry?: () => void | Promise<boolean>;
   cancel: () => void;
 }
 
 interface ServerRoomSocket {
   readonly connected: boolean;
+  connect?(): unknown;
   readonly io?: {
     readonly engine?: {
       readonly transport?: { readonly name?: unknown };
@@ -403,6 +406,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   };
   let leaveSent = false;
   let leavePromise: Promise<void> | null = null;
+  let reconnectAttempt: Promise<boolean> | null = null;
+  let finishReconnect: ((success: boolean) => void) | null = null;
 
   const emit = <T extends RoomMessage>(type: T, payload: RoomEvent[T]) => {
     for (const handler of handlers.get(type) ?? []) {
@@ -459,14 +464,92 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       console.error(error);
     }
 
+    const invalidParticipant =
+      error instanceof ServerRoomRequestError && (error.status === 401 || error.status === 403);
+    const recoverable =
+      !invalidParticipant &&
+      isRecoverableInitialWorkflowError(error) &&
+      !leaveSent &&
+      !cursorRegression &&
+      latestState !== null &&
+      !isTerminalState() &&
+      latestState.participants.some(p => p.playerId === serverPlayerId && p.connected);
     dispatchServerRoomError(
       {
-        code: "ROOM_TRANSPORT_FAILED",
+        code: invalidParticipant ? "CURSOR_REGRESSION" : "ROOM_TRANSPORT_FAILED",
         message: error.message,
-        recoverable: true,
+        disconnected: !socketConnected,
+        recoverable,
+        ...(recoverable ? { retry: reconnectToRoom, retryKind: "reconnect" as const } : {}),
       },
       error,
     );
+  };
+
+  const reconnectToRoom = (): Promise<boolean> => {
+    if (reconnectAttempt) return reconnectAttempt;
+    if (disposed || leaveSent || cursorRegression || !latestState || isTerminalState())
+      return Promise.resolve(false);
+    reconnectAttempt = (async () => {
+      emitConnectionStatus("connecting");
+      try {
+        const room = await requestRoom(
+          `/poke-lounge/rooms/${activeRoomId}?afterRevision=${Math.max(0, lastAppliedTerminalRevision)}`,
+        );
+        if (disposed || leaveSent || cursorRegression) return false;
+        if (room.status === "closed") {
+          handleMissingRoom();
+          return false;
+        }
+        const own = room.participants.find(p => p.playerId === serverPlayerId);
+        if (!own?.connected && room.status !== "completed") {
+          dispatchServerRoomError({
+            code: "CURSOR_REGRESSION",
+            message: "The room participant is no longer connected",
+            recoverable: false,
+          });
+          return false;
+        }
+        if (!applySnapshot(room))
+          throw new ServerRoomTransportError(
+            new Error("Room snapshot changed during reconnection"),
+          );
+        if (room.status === "completed") return true;
+
+        // Confirm the existing socket subscription; never recreate a room or replay a battle action.
+        const confirmation = new Promise<boolean>(resolve => {
+          const timeout = window.setTimeout(() => finish(false), SERVER_ROOM_REQUEST_TIMEOUT_MS);
+          const finish = (success: boolean) => {
+            window.clearTimeout(timeout);
+            finishReconnect = null;
+            resolve(success);
+          };
+          finishReconnect = finish;
+        });
+        subscriptionFailed = true;
+        subscriptionRetryRequired = true;
+        const existingSocket = roomSocket;
+        ensureSocket();
+        existingSocket?.connect?.();
+        if (socketConnected) emitRoomSubscription();
+        const confirmed = await confirmation;
+        if (disposed || leaveSent || cursorRegression) return false;
+        if (!confirmed) throw new ServerRoomTransportError(new Error("Room reconnection failed"));
+        if (pendingPartyPublication) pendingPartyPublication.recoveryAttempts = 0;
+        resumePendingPartyPublication();
+        return true;
+      } catch (error) {
+        if (!disposed && !leaveSent) {
+          reportTransportError(
+            error instanceof Error ? error : new ServerRoomTransportError(error),
+          );
+        }
+        return false;
+      }
+    })().finally(() => {
+      reconnectAttempt = null;
+    });
+    return reconnectAttempt;
   };
 
   const handleMissingRoom = () => {
@@ -1175,9 +1258,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
 
     socketConnected = true;
-    emitConnectionStatus("online");
-    subscriptionFailed = false;
-    subscriptionRetryRequired = false;
+    emitConnectionStatus("connecting");
+    subscriptionFailed = true;
+    subscriptionRetryRequired = true;
     clearRecoveryTimer();
     emitRoomSubscription();
     void runRecovery();
@@ -1185,6 +1268,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   };
 
   const handleSocketDisconnect = () => {
+    finishReconnect?.(false);
     socketConnected = false;
     subscriptionRetryRequired = false;
     worldResyncRequested = false;
@@ -1332,10 +1416,17 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       room.roomCode === activeRoomId &&
       (applied || lastAppliedTerminalRevision > terminalRevisionBeforeSnapshot)
     ) {
-      subscriptionFailed = false;
-      subscriptionRetryRequired = false;
-      emitConnectionStatus("online");
-      clearRecoveryTimer();
+      const canResume =
+        room.status === "completed" ||
+        (room.status !== "closed" &&
+          room.participants.some(p => p.playerId === serverPlayerId && p.connected));
+      finishReconnect?.(canResume);
+      if (canResume) {
+        subscriptionFailed = false;
+        subscriptionRetryRequired = false;
+        emitConnectionStatus("online");
+        clearRecoveryTimer();
+      }
     }
 
     if (options.sharedWorldOnly && room.roomCode === activeRoomId) {
@@ -1398,6 +1489,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
 
     cursorRegression = true;
+    finishReconnect?.(false);
     subscriptionFailed = false;
     clearRecoveryTimer();
     clearOnlineStaleRecovery();
@@ -2339,6 +2431,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
 
     disposed = true;
+    finishReconnect?.(false);
     clearPartyRetryTimer();
     pendingPartyPublication = null;
     emitConnectionStatus("offline");
@@ -2545,7 +2638,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
       clearPendingRoomEntry(initialOpenIdempotencyKey);
       clearInitialWorkflowTimer();
-      if (socketConnected) {
+      if (socketConnected && !subscriptionFailed) {
         emitConnectionStatus("online");
       }
     } catch (error) {

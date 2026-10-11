@@ -63,7 +63,7 @@ import {
 } from "./network/server-room";
 import { createWebRtcRoom, isWebRtcRoom } from "./network/web-rtc-room";
 import { createRoomRunId } from "./room-run-id";
-import { getServerRoomErrorMessage } from "./server-room-error-copy";
+import { getServerRoomErrorMessage, getServerRoomErrorTitle } from "./server-room-error-copy";
 import {
   getDefaultGameStateStore,
   setDefaultGameStateRoomRunId,
@@ -575,13 +575,16 @@ export async function startGamePage(
 
       emitRuntimeState({
         phase: "error",
+        title: getServerRoomErrorTitle(copy.locale, detail.code, detail.disconnected),
         description: getServerRoomErrorMessage(copy.locale, detail.code),
         errorCode: ROOM_ERROR_CODES[detail.code],
         ...(detail.recoverable && detail.retry
           ? {
-              onRetry: () => {
-                emitCurrentGameplayState();
-                detail.retry?.();
+              retryKind: detail.retryKind,
+              onRetry: async () => {
+                const recovered = await detail.retry?.();
+                if (recovered !== false) emitCurrentGameplayState();
+                return recovered !== false;
               },
             }
           : {}),
