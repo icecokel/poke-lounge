@@ -45,9 +45,11 @@ export function getBattleMoveDetails(
     move.effectChance > 0 && (move.effectCode === 4 || move.effectCode === 6)
       ? ` ${move.effectChance}%`
       : "";
+  // HGSS uses power 1 as a sentinel for fixed damage and other special calculations.
+  const power = move.power > 1 ? move.power : "—";
 
   return {
-    stats: `${labels.power[language]} ${move.power > 0 ? move.power : "—"} · ${labels.accuracy[language]} ${move.accuracy > 0 ? `${move.accuracy}%` : "—"}`,
+    stats: `${labels.power[language]} ${power} · ${labels.accuracy[language]} ${move.accuracy > 0 ? `${move.accuracy}%` : "—"}`,
     effect: `${labels.effect[language]}: ${language === 1 ? catalogEffect || knownEffect || fallback : (knownEffect ?? localizedCatalogEffect ?? fallback)}${knownEffect && language !== 1 ? chance : ""}`,
   };
 }
