@@ -9,6 +9,7 @@ import { type GameState } from "@/features/poke-lounge/contracts/game-state";
 import {
   type TournamentBracketState,
   type TournamentMatch,
+  type TournamentParticipant,
   type TournamentStanding,
 } from "@poke-lounge/battle/tournament-bracket";
 import { TOURNAMENT_BRIEFING_DURATION_MS } from "@poke-lounge/battle/tournament-gathering";
@@ -119,6 +120,10 @@ export interface TournamentBracketPreview {
   futureRounds: Array<{ label: "4강" | "결승"; matchCount: number }>;
   openingLabel: "8강" | "4강" | "결승";
   ownPositionLabel: string | null;
+  ownMatch: TournamentMatch | null;
+  ownBye: boolean;
+  ownCanCompete: boolean;
+  nextOpponentCandidates: TournamentParticipant[];
 }
 
 export function createTournamentBracketPreview(
@@ -143,8 +148,39 @@ export function createTournamentBracketPreview(
     return bye.entrant.playerId === projection.ownPlayerId;
   });
 
+  const ownSlotIndex = openingRound.slots.findIndex(slot =>
+    slot.kind === "match"
+      ? slot.matchId === ownMatch?.matchId
+      : openingRound.byes.some(
+          bye => bye.byeId === slot.byeId && bye.entrant.playerId === projection.ownPlayerId,
+        ),
+  );
+  const nextSlot = ownSlotIndex < 0 ? undefined : openingRound.slots[ownSlotIndex ^ 1];
+  const nextMatch =
+    nextSlot?.kind === "match"
+      ? openingRound.matches.find(match => match.matchId === nextSlot.matchId)
+      : null;
+  const nextBye =
+    nextSlot?.kind === "bye" ? openingRound.byes.find(bye => bye.byeId === nextSlot.byeId) : null;
+  const nextOpponentCandidates = nextMatch
+    ? [nextMatch.participantA, nextMatch.participantB].filter(
+        participant =>
+          !nextMatch.winnerPlayerId || participant.playerId === nextMatch.winnerPlayerId,
+      )
+    : nextBye
+      ? [nextBye.entrant]
+      : [];
+
   return {
     bracket,
+    ownMatch: ownMatch ?? null,
+    ownBye: Boolean(ownBye),
+    ownCanCompete:
+      projection.participants.some(
+        participant =>
+          participant.playerId === projection.ownPlayerId && participant.role === "participant",
+      ) && !bracket.eliminations.some(entry => entry.playerId === projection.ownPlayerId),
+    nextOpponentCandidates,
     cumulativeStatusLabel: createOwnCumulativeStatusLabel(projection),
     futureRounds:
       entrantCount <= 2
@@ -175,7 +211,7 @@ function createTournamentBracketPreviewLines(projection: TournamentStateRoomPayl
     return ["대진 확정 대기"];
   }
 
-  const openingRound = preview.bracket.currentRound!;
+  const openingRound = preview.bracket.currentRound ?? preview.bracket.completedRounds.at(-1)!;
   const lines = [
     `${preview.openingLabel} · ${openingRound.matches.map(formatMatchParticipants).join(" / ")}`,
   ];

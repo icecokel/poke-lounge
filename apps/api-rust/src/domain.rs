@@ -764,10 +764,8 @@ impl Room {
             self.touch(now);
         }
         if self.status == Status::RoundStarted
-            && self
-                .round
-                .ends_at_ms
-                .is_some_and(|at| now >= at + TOURNAMENT_BRIEFING_MS)
+            && self.bracket.is_none()
+            && self.round.ends_at_ms.is_some_and(|at| now >= at)
             && self
                 .participants
                 .iter()
@@ -797,6 +795,24 @@ impl Room {
                 self.close(now, "not-enough-participants");
                 return Ok(());
             }
+            self.bracket = Some(Bracket::new(participants, self.round.index)?);
+            // Start the full briefing only once the actual entrants are committed.
+            self.round.ends_at_ms = Some(now);
+            self.touch(now);
+        }
+        if self.status == Status::RoundStarted
+            && self.bracket.is_some()
+            && self
+                .round
+                .ends_at_ms
+                .is_some_and(|at| now >= at + TOURNAMENT_BRIEFING_MS)
+            && self
+                .participants
+                .iter()
+                .filter(|p| p.connected)
+                .all(|p| p.ai || p.ready)
+        {
+            let participants = self.bracket.as_ref().unwrap().participants.clone();
             for p in &participants {
                 let party = self
                     .parties
@@ -811,7 +827,6 @@ impl Room {
                     },
                 );
             }
-            self.bracket = Some(Bracket::new(participants, self.round.index)?);
             self.status = Status::Tournament;
             self.round.phase = "tournament".into();
             self.touch(now);

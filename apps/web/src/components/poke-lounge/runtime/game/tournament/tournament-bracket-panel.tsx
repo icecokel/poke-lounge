@@ -71,7 +71,7 @@ export function TournamentBracketPanel({
   if (!preview?.bracket.currentRound) {
     return (
       <section
-        className="pointer-events-none absolute top-2 left-1/2 z-[900] box-border w-[min(calc(100%-16px),720px)] -translate-x-1/2 rounded-[9px] border-[3px] border-[#506d7b] bg-[#293d48] px-3 py-2.5 text-center text-sm leading-[1.45] font-black whitespace-pre-line text-[var(--pl-color-surface-raised)] shadow-[inset_0_0_0_2px_#b0c1b3,0_4px_0_#20333c] min-[769px]:w-[min(calc(100%-40px),860px)]"
+        className="group/opening pointer-events-none absolute top-2 left-1/2 z-[900] box-border w-[min(calc(100%-16px),720px)] -translate-x-1/2 rounded-[9px] border-[3px] border-[#506d7b] bg-[#293d48] px-3 py-2.5 text-center text-sm leading-[1.45] font-black whitespace-pre-line text-[var(--pl-color-surface-raised)] shadow-[inset_0_0_0_2px_#b0c1b3,0_4px_0_#20333c] min-[769px]:w-[min(calc(100%-40px),860px)]"
         data-poke-lounge-tournament-announcement="true"
         role="status"
       >
@@ -84,6 +84,61 @@ export function TournamentBracketPanel({
   const remainingMs = Math.max(
     0,
     (projection.roomRound.endsAtMs ?? now) + TOURNAMENT_BRIEFING_DURATION_MS - now,
+  );
+  const focused = projection.roomStatus !== "round-started" || remainingMs <= 3_800;
+  const labels =
+    copy.locale === "ko-KR"
+      ? {
+          reveal: "전체 대진 공개",
+          match: "내 첫 상대",
+          spectator: "관전 경기",
+          eliminated: "탈락 · 관전 중",
+          route: "우승까지",
+          next: "다음 상대 후보",
+          automatic: "잠시 후 자동으로 전투가 시작됩니다",
+          opponent: "상대",
+          waiting: "다음 경기를 기다립니다",
+        }
+      : copy.locale === "ja-JP"
+        ? {
+            reveal: "組み合わせ発表",
+            match: "最初の対戦相手",
+            spectator: "観戦試合",
+            eliminated: "敗退 · 観戦中",
+            route: "優勝への道",
+            next: "次の相手候補",
+            automatic: "まもなく自動でバトルが始まります",
+            opponent: "相手",
+            waiting: "次の試合を待っています",
+          }
+        : {
+            reveal: "Bracket revealed",
+            match: "Your first opponent",
+            spectator: "Spectator match",
+            eliminated: "Eliminated · spectating",
+            route: "Road to the trophy",
+            next: "Next opponent candidates",
+            automatic: "The battle starts automatically",
+            opponent: "Opponent",
+            waiting: "Waiting for the next match",
+          };
+  const displayMatch = preview.ownCanCompete
+    ? preview.ownMatch
+    : (preview.bracket.currentRound.matches.find(match => match.status === "ready") ?? null);
+  const firstParticipant =
+    displayMatch &&
+    (displayMatch.participantA.playerId === projection.ownPlayerId
+      ? displayMatch.participantA
+      : displayMatch.participantB.playerId === projection.ownPlayerId
+        ? displayMatch.participantB
+        : displayMatch.participantA);
+  const secondParticipant =
+    displayMatch &&
+    (firstParticipant === displayMatch.participantA
+      ? displayMatch.participantB
+      : displayMatch.participantA);
+  const eliminated = preview.bracket.eliminations.some(
+    entry => entry.playerId === projection.ownPlayerId,
   );
   const pairs = preview.bracket.currentRound.slots.map(function mapSlot(slot) {
     return createOpeningPair(preview.bracket, slot);
@@ -99,14 +154,15 @@ export function TournamentBracketPanel({
 
   return (
     <section
-      className="pointer-events-none absolute top-2 left-1/2 z-[900] box-border w-[min(calc(100%-16px),720px)] -translate-x-1/2 rounded-[9px] border-[3px] border-[#506d7b] bg-[#293d48] px-3 py-2.5 text-center text-sm leading-[1.45] font-black whitespace-pre-line text-[var(--pl-color-surface-raised)] shadow-[inset_0_0_0_2px_#b0c1b3,0_4px_0_#20333c] min-[769px]:w-[min(calc(100%-40px),860px)]"
+      className="group/opening pointer-events-none absolute top-2 left-1/2 z-[900] box-border w-[min(calc(100%-16px),720px)] -translate-x-1/2 rounded-[9px] border-[3px] border-[#506d7b] bg-[#293d48] px-3 py-2.5 text-center text-sm leading-[1.45] font-black whitespace-pre-line text-[var(--pl-color-surface-raised)] shadow-[inset_0_0_0_2px_#b0c1b3,0_4px_0_#20333c] min-[769px]:w-[min(calc(100%-40px),860px)]"
       data-poke-lounge-tournament-announcement="true"
       data-poke-lounge-tournament-bracket="true"
       data-bracket-flow="outside-in"
+      data-opening-focus={(focused && preview.ownCanCompete) || undefined}
       role="status"
     >
       <span className="sr-only">{localizeRuntimeText(text, copy.locale)}</span>
-      <div className="grid gap-2 whitespace-normal min-[769px]:gap-3">
+      <div className="grid gap-2 whitespace-normal min-[769px]:gap-2">
         <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2.5 border-b-2 border-[#f1cc62] pb-[7px] text-left text-[9px] min-[769px]:text-xs [&_strong]:text-center [&_strong]:text-[15px] [&_strong]:text-[var(--pl-color-gold)] min-[769px]:[&_strong]:text-xl [&_span:last-child]:text-right">
           <span>
             ROUND {projection.roundIndex} / {ROUND_TOTAL_COUNT}
@@ -118,11 +174,10 @@ export function TournamentBracketPanel({
               : localizeRuntimeText(preview.openingLabel, copy.locale)}
           </span>
         </header>
-        {ownPosition}
-        <div className="grid min-h-[174px] grid-cols-[minmax(0,1fr)_72px_minmax(0,1fr)] items-stretch py-1 min-[769px]:min-h-[210px] min-[769px]:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)]">
+        <div className="grid min-h-[100px] grid-cols-[minmax(0,1fr)_72px_minmax(0,1fr)] items-stretch py-1 min-[769px]:min-h-[104px] min-[769px]:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)]">
           <TournamentBracketSide
             copy={copy}
-            ownPlayerId={projection.ownPlayerId}
+            ownPlayerId={preview.ownCanCompete ? projection.ownPlayerId : ""}
             pairs={leftPairs}
             side="left"
             single={finalOnly}
@@ -136,22 +191,76 @@ export function TournamentBracketPanel({
           </div>
           <TournamentBracketSide
             copy={copy}
-            ownPlayerId={projection.ownPlayerId}
+            ownPlayerId={preview.ownCanCompete ? projection.ownPlayerId : ""}
             pairs={rightPairs}
             side="right"
             single={finalOnly}
           />
         </div>
-        {preview.ownPositionLabel || preview.cumulativeStatusLabel ? (
-          <footer className="flex min-w-0 items-center justify-center gap-x-3.5 gap-y-2 border-t-2 border-[var(--pl-color-gold)] pt-[7px] text-[8px] min-[769px]:flex-wrap min-[769px]:text-xs [&_strong]:text-[var(--pl-color-gold)]">
-            {preview.ownPositionLabel ? (
-              <strong>{localizeRuntimeText(preview.ownPositionLabel, copy.locale)}</strong>
-            ) : null}
-            {preview.cumulativeStatusLabel ? (
-              <span>{localizeRuntimeText(preview.cumulativeStatusLabel, copy.locale)}</span>
-            ) : null}
-          </footer>
-        ) : null}
+        <div
+          className="rounded-[5px] border-2 border-[#9ae8ff] bg-[#153e56] px-3 py-1.5 text-white transition-[box-shadow,transform] duration-300 group-data-[opening-focus=true]/opening:-translate-y-0.5 group-data-[opening-focus=true]/opening:shadow-[0_0_0_2px_#9ae8ff40] motion-reduce:transform-none motion-reduce:transition-none"
+          data-poke-lounge-opening-match
+        >
+          <p className="mb-1 text-[10px] text-[#9ae8ff] min-[769px]:text-xs">
+            {!focused
+              ? labels.reveal
+              : preview.ownCanCompete
+                ? preview.ownBye
+                  ? copy.game.bye
+                  : labels.match
+                : eliminated
+                  ? labels.eliminated
+                  : labels.spectator}
+          </p>
+          {firstParticipant && secondParticipant ? (
+            <div className="grid grid-cols-[minmax(0,1fr)_32px_minmax(0,1fr)] items-center gap-2">
+              {[firstParticipant, secondParticipant].map((participant, index) => (
+                <div key={participant.playerId} className="contents">
+                  {index === 1 ? <b className="text-lg text-[var(--pl-color-gold)]">VS</b> : null}
+                  <div className="grid min-w-0 gap-1 [overflow-wrap:anywhere]">
+                    <span className="text-[9px] text-[#9ae8ff] min-[769px]:text-xs">
+                      {participant.playerId === projection.ownPlayerId ? me : labels.opponent} · #
+                      {participant.seed}
+                    </span>
+                    <strong className="text-base leading-tight min-[769px]:text-lg">
+                      {localizeTrainerName(participant.displayName, copy.locale)}
+                    </strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <strong>
+              {preview.ownBye ? localizeTrainerName(ownName ?? me, copy.locale) : labels.waiting}
+            </strong>
+          )}
+          {preview.ownCanCompete && preview.nextOpponentCandidates.length > 0 ? (
+            <p className="mt-1 text-[9px] min-[769px]:text-xs">
+              {labels.next} ·{" "}
+              {preview.nextOpponentCandidates
+                .map(participant => localizeTrainerName(participant.displayName, copy.locale))
+                .join(" / ")}
+            </p>
+          ) : null}
+        </div>
+        <footer className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1 border-t-2 border-[var(--pl-color-gold)] pt-[7px] text-[9px] min-[769px]:text-xs">
+          {preview.ownCanCompete ? (
+            <strong className="text-[var(--pl-color-gold)]">
+              {labels.route} ·{" "}
+              {[preview.openingLabel, ...preview.futureRounds.map(round => round.label)]
+                .map(label => localizeRuntimeText(label, copy.locale))
+                .join(" → ")}
+            </strong>
+          ) : null}
+          {preview.cumulativeStatusLabel ? (
+            <span>{localizeRuntimeText(preview.cumulativeStatusLabel, copy.locale)}</span>
+          ) : null}
+          <span>
+            {projection.roomStatus === "round-started"
+              ? labels.automatic
+              : localizeRuntimeText(preview.ownPositionLabel ?? preview.openingLabel, copy.locale)}
+          </span>
+        </footer>
       </div>
     </section>
   );
@@ -170,6 +279,13 @@ function TournamentBracketSide({
   side: "left" | "right";
   single: boolean;
 }) {
+  const ownPairIndex = pairs.findIndex(pair =>
+    pair.participants.some(participant => participant.playerId === ownPlayerId),
+  );
+  const ownEntryIndex =
+    pairs[ownPairIndex]?.participants.findIndex(
+      participant => participant.playerId === ownPlayerId,
+    ) ?? -1;
   return (
     <section
       className="grid min-w-0 grid-cols-[minmax(0,58%)_minmax(0,42%)] min-[769px]:grid-cols-[minmax(0,80%)_minmax(0,20%)] data-[bracket-side=right]:grid-cols-[minmax(0,42%)_minmax(0,58%)] data-[bracket-side=right]:[&>ol]:col-start-2 data-[bracket-side=right]:[&>ol]:row-start-1 data-[bracket-side=right]:[&>svg]:col-start-1 data-[bracket-side=right]:[&>svg]:row-start-1 min-[769px]:data-[bracket-side=right]:grid-cols-[minmax(0,20%)_minmax(0,80%)]"
@@ -183,15 +299,15 @@ function TournamentBracketSide({
           });
           return (
             <li
-              className="group/pair grid min-w-0 content-around gap-0.5"
+              className="group/pair grid min-w-0 content-around gap-0.5 transition-opacity duration-300 group-data-[opening-focus=true]/opening:data-[own-match=false]:opacity-45 motion-reduce:transition-none"
               key={`${side}-${pair.id}`}
-              data-own-match={ownMatch || undefined}
+              data-own-match={ownMatch}
             >
               {pair.participants.map(function mapParticipant(participant) {
                 return (
                   <span
                     key={participant.playerId}
-                    className="grid min-h-[22px] min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1 overflow-hidden rounded-[5px] border-2 border-[var(--pl-color-shadow)] bg-[var(--pl-color-surface-raised)] px-[5px] py-[3px] text-left text-[8px] leading-[1.1] text-[var(--pl-color-ink)] shadow-[inset_0_0_0_1px_#ffffff40] group-data-[own-match=true]/pair:animate-[tournament-own-match_650ms_steps(2,end)_2] group-data-[own-match=true]/pair:bg-[var(--pl-color-gold-soft)] group-data-[own-match=true]/pair:shadow-[inset_3px_0_var(--pl-color-johto-deep)] motion-reduce:group-data-[own-match=true]/pair:animate-none data-[own-player=true]:border-[#065b79] data-[own-player=true]:bg-[#b6edff] data-[own-player=true]:font-black data-[own-player=true]:text-[#082733] data-[own-player=true]:shadow-[0_0_0_2px_#9ae8ff] data-[winner=true]:after:font-black data-[winner=true]:after:text-[#176b3b] data-[winner=true]:after:content-['✓'] min-[769px]:min-h-[38px] min-[769px]:grid-cols-[auto_minmax(0,1fr)_auto] min-[769px]:px-2 min-[769px]:py-1.5 min-[769px]:text-[13px] min-[769px]:leading-[1.3] [&>b]:text-[var(--pl-color-johto-deep)] data-[own-player=true]:[&>b]:bg-[#065b79] data-[own-player=true]:[&>b]:p-[3px] data-[own-player=true]:[&>b]:text-white [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis [&>span]:whitespace-nowrap data-[own-player=true]:[&>span]:underline data-[own-player=true]:[&>span]:decoration-2 data-[own-player=true]:[&>span]:underline-offset-2 data-[eliminated=true]:[&>span]:line-through min-[769px]:[&>span]:whitespace-normal min-[769px]:[&>span]:[overflow-wrap:anywhere]"
+                    className="grid min-h-[22px] min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1 overflow-hidden rounded-[5px] border-2 border-[var(--pl-color-shadow)] bg-[var(--pl-color-surface-raised)] px-[5px] py-[3px] text-left text-[8px] leading-[1.1] text-[var(--pl-color-ink)] shadow-[inset_0_0_0_1px_#ffffff40] group-data-[own-match=true]/pair:animate-[tournament-own-match_650ms_steps(2,end)_2] group-data-[own-match=true]/pair:bg-[var(--pl-color-gold-soft)] group-data-[own-match=true]/pair:shadow-[inset_3px_0_var(--pl-color-johto-deep)] motion-reduce:group-data-[own-match=true]/pair:animate-none data-[own-player=true]:border-[#065b79] data-[own-player=true]:bg-[#b6edff] data-[own-player=true]:font-black data-[own-player=true]:text-[#082733] data-[own-player=true]:shadow-[0_0_0_2px_#9ae8ff] data-[winner=true]:after:font-black data-[winner=true]:after:text-[#176b3b] data-[winner=true]:after:content-['✓'] min-[769px]:min-h-[24px] min-[769px]:grid-cols-[auto_minmax(0,1fr)_auto] min-[769px]:px-2 min-[769px]:py-0.5 min-[769px]:text-[11px] min-[769px]:leading-[1.3] [&>b]:text-[var(--pl-color-johto-deep)] data-[own-player=true]:[&>b]:bg-[#065b79] data-[own-player=true]:[&>b]:p-[3px] data-[own-player=true]:[&>b]:text-white [&>span]:min-w-0 [&>span]:overflow-hidden [&>span]:text-ellipsis [&>span]:whitespace-nowrap data-[own-player=true]:[&>span]:underline data-[own-player=true]:[&>span]:decoration-2 data-[own-player=true]:[&>span]:underline-offset-2 data-[eliminated=true]:[&>span]:line-through min-[769px]:[&>span]:whitespace-normal min-[769px]:[&>span]:[overflow-wrap:anywhere]"
                     data-own-player={participant.playerId === ownPlayerId || undefined}
                     data-winner={pair.winnerPlayerId === participant.playerId || undefined}
                     data-eliminated={
@@ -223,17 +339,27 @@ function TournamentBracketSide({
           );
         })}
       </ol>
-      <BracketConnectors pairCount={pairs.length} side={side} single={single} />
+      <BracketConnectors
+        pairCount={pairs.length}
+        ownPairIndex={ownPairIndex}
+        ownEntryIndex={ownEntryIndex}
+        side={side}
+        single={single}
+      />
     </section>
   );
 }
 
 function BracketConnectors({
   pairCount,
+  ownPairIndex,
+  ownEntryIndex,
   side,
   single,
 }: {
   pairCount: number;
+  ownPairIndex: number;
+  ownEntryIndex: number;
   side: "left" | "right";
   single: boolean;
 }) {
@@ -264,6 +390,20 @@ function BracketConnectors({
             <rect x="61" y="47" width="6" height="6" />
           </>
         )}
+        {ownPairIndex >= 0 ? (
+          <path
+            className="!stroke-[#9ae8ff] ![stroke-width:3px]"
+            d={
+              single
+                ? "M 0 50 H 100"
+                : pairCount === 1
+                  ? `M 0 ${ownEntryIndex === 0 ? 25 : 75} H 32 V 50 H 100`
+                  : ownPairIndex === 0
+                    ? `M 0 ${ownEntryIndex === 0 ? 12.5 : 37.5} H 24 V 25 H 64 V 50 H 100`
+                    : `M 0 ${ownEntryIndex === 0 ? 62.5 : 87.5} H 24 V 75 H 64 V 50 H 100`
+            }
+          />
+        ) : null}
         <rect x="97" y="47" width="6" height="6" />
       </g>
     </svg>
