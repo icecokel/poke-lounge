@@ -87,6 +87,7 @@ export interface BattleControls {
   moveReplacement: {
     confirmationIndex?: number | null;
     pokemonName: string;
+    newMoveId?: number;
     newMoveName: string;
     newMovePp: number;
     newMoveMaxPp: number;

@@ -7,9 +7,10 @@ const COPY = {
     confirm: "교체 승인",
     cancel: "다시 선택",
     next: "확인",
-    oldMove: "잊을 기술",
+    oldMove: "교체 대상 기술",
     newMove: "배울 기술",
-    hint: "선택만으로는 바뀌지 않습니다. 다음 화면에서 승인해야 교체됩니다.",
+    currentMoves: "전체 기술",
+    hint: "교체할 기술을 선택한 뒤 승인해 주세요. 선택만으로는 바뀌지 않습니다.",
     confirmHint: "승인하면 선택한 기존 기술을 잊습니다. 다시 선택하면 변경되지 않습니다.",
     question: function question(pokemon: string, oldMove: string, newMove: string) {
       return `${pokemon}의 「${oldMove}」 기술을 잊고 「${newMove}」 기술을 배울까요?`;
@@ -22,9 +23,10 @@ const COPY = {
     confirm: "Approve replacement",
     cancel: "Choose again",
     next: "Continue",
-    oldMove: "Move to forget",
+    oldMove: "Move to replace",
     newMove: "Move to learn",
-    hint: "Selecting a move does not replace it. Approve the change on the next screen.",
+    currentMoves: "All moves",
+    hint: "Select a move, then approve the replacement. Selecting alone does not change it.",
     confirmHint: "Approving forgets the selected move. Choose again to keep your moves unchanged.",
     question: function question(pokemon: string, oldMove: string, newMove: string) {
       return `Should ${pokemon} forget ${oldMove} and learn ${newMove}?`;
@@ -37,9 +39,10 @@ const COPY = {
     confirm: "入れ替えを承認",
     cancel: "選び直す",
     next: "確認",
-    oldMove: "忘れる技",
+    oldMove: "入れ替える技",
     newMove: "覚える技",
-    hint: "選択だけでは変更されません。次の画面で承認すると入れ替わります。",
+    currentMoves: "すべての技",
+    hint: "入れ替える技を選び、承認してください。選択だけでは変更されません。",
     confirmHint: "承認すると選んだ技を忘れます。選び直す場合は変更されません。",
     question: function question(pokemon: string, oldMove: string, newMove: string) {
       return `${pokemon}は「${oldMove}」を忘れて「${newMove}」を覚えますか？`;

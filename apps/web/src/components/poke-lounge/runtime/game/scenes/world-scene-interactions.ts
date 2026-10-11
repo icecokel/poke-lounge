@@ -30,6 +30,7 @@ import {
   createPokeLoungePartySlotSummaries,
   type MobileWorldUiAction,
   type MobileWorldUiScreen,
+  type MobileWorldMoveOption,
 } from "../ui/mobile-world-ui";
 import {
   createMoveReplacementConfirmation,
@@ -477,11 +478,13 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
                 this: DefaultWorldSceneInteractions,
                 move: PlayerPokemonMove,
                 index: number,
-              ): { id: number; index: number; name: string; selected: boolean } {
+              ): MobileWorldMoveOption {
                 return {
                   id: move.id,
                   index,
                   name: move.name,
+                  pp: move.pp,
+                  maxPp: move.maxPp,
                   selected: index === this.inventoryMoveReplaceIndex,
                 };
               }.bind(this),
@@ -489,6 +492,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
             confirmationIndex: this.inventoryMoveConfirmation?.index ?? null,
             newMovePp: pendingMoveReplacement.pp,
             newMoveMaxPp: pendingMoveReplacement.maxPp,
+            newMoveId: pendingMoveReplacement.id,
             newMoveName: pendingMoveReplacement.name,
             pokemonName: moveReplacementPokemon.name,
           }

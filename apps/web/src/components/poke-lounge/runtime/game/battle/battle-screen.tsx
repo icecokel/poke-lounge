@@ -695,7 +695,7 @@ export function BattleMoveReplacementPanel({
   if (!controls.moveReplacement) return null;
   return (
     <div
-      className="absolute inset-0 z-35 flex items-center justify-center overflow-auto bg-[rgb(14_28_19_/_88%)] p-[clamp(10px,2.5cqw,22px)] [&>section]:max-w-[650px] [&>section]:shrink-0"
+      className="absolute inset-0 z-35 flex items-start justify-center overflow-auto bg-[rgb(14_28_19_/_88%)] p-[clamp(10px,2.5cqw,22px)] [&>section]:my-auto [&>section]:max-w-[650px] [&>section]:shrink-0"
       data-poke-lounge-battle-surface="move-replacement"
     >
       <MoveLearningPanel

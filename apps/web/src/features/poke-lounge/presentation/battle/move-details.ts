@@ -22,9 +22,12 @@ const EFFECTS: Record<number, readonly [string, string, string]> = {
 };
 
 export function getBattleMoveDetails(
-  move: MobileBattleMoveOption,
+  move: Pick<
+    MobileBattleMoveOption,
+    "id" | "power" | "accuracy" | "category" | "effectCode" | "effectChance"
+  >,
   locale: PokeLoungeLocale,
-): { stats: string; effect: string } {
+): { category: string; stats: string; effect: string; description: string } {
   const language = locale === "en-US" ? 1 : locale === "ja-JP" ? 2 : 0;
   const labels = {
     power: ["위력", "Power", "威力"],
@@ -49,6 +52,8 @@ export function getBattleMoveDetails(
   const power = move.power > 1 ? move.power : "—";
 
   return {
+    category: labels[move.category][language],
+    description: localizedCatalogEffect ?? knownEffect ?? fallback,
     stats: `${labels.power[language]} ${power} · ${labels.accuracy[language]} ${move.accuracy > 0 ? `${move.accuracy}%` : "—"}`,
     effect: `${labels.effect[language]}: ${language === 1 ? catalogEffect || knownEffect || fallback : (knownEffect ?? localizedCatalogEffect ?? fallback)}${knownEffect && language !== 1 ? chance : ""}`,
   };

@@ -6,6 +6,7 @@ export interface MoveReplacementConfirmation {
 
 export interface MoveLearningSummary {
   pokemonName: string;
+  newMoveId?: number;
   newMoveName: string;
   newMovePp?: number;
   newMoveMaxPp?: number;
@@ -14,6 +15,7 @@ export interface MoveLearningSummary {
 }
 
 export interface MoveLearningChoice {
+  id: number;
   index: number;
   name: string;
   pp?: number;

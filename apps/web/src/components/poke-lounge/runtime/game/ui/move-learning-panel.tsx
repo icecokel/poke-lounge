@@ -1,9 +1,12 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { getBattleMoveDetails } from "@/features/poke-lounge/presentation/battle/move-details";
 import { cn } from "@/lib/utils";
+import { getRuntimePokemonMoveDetails } from "@poke-lounge/battle/adventure/data/game-data-json";
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
+import { localizeTypeName } from "../i18n/runtime-game-localization";
 import { getMoveLearningCopy } from "./move-learning-copy";
 import type { MoveLearningChoice, MoveLearningSummary } from "./move-learning-model";
 
@@ -15,6 +18,46 @@ const MOVE_CARD_CLASS =
 
 const ACTION_CLASS =
   "min-h-11 flex-1 rounded-[7px] border-2 border-[#28583c] bg-white px-3.5 py-[9px] font-bold text-[#17251c] shadow-none hover:bg-[#edf4e8] hover:text-[#17251c] focus-visible:border-[#28583c] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-[#bb7414] focus-visible:outline-offset-3 disabled:cursor-default disabled:opacity-55";
+
+function MoveLearningDetails({
+  copy,
+  move,
+  id,
+  summaryOnly = false,
+}: {
+  copy: PokeLoungeCopy;
+  move: { id?: number; pp?: number; maxPp?: number; type?: string };
+  id?: string;
+  summaryOnly?: boolean;
+}) {
+  const data = move.id == null ? null : getRuntimePokemonMoveDetails(move.id);
+  const details = data ? getBattleMoveDetails(data, copy.locale) : null;
+  const maxPp = move.maxPp ?? data?.pp;
+  const type = move.type ?? (data ? localizeTypeName(data.typeName, copy.locale) : null);
+
+  return (
+    <span
+      id={id}
+      className="grid min-w-0 gap-1 text-[0.85em] leading-6 font-normal whitespace-normal text-[#43553f]"
+    >
+      <span>
+        {[
+          type,
+          summaryOnly ? null : details?.category,
+          maxPp == null ? null : `PP ${move.pp ?? maxPp}/${maxPp}`,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </span>
+      {details && !summaryOnly && (
+        <>
+          <span>{details.stats}</span>
+          <span>{details.description}</span>
+        </>
+      )}
+    </span>
+  );
+}
 
 function stopButtonKeyPropagation(event: KeyboardEvent<HTMLElement>): void {
   if (
@@ -55,6 +98,7 @@ export function MoveLearningPanel({
           return move.index === pending.confirmationIndex;
         });
   const confirming = Boolean(selected);
+  const target = selected ?? moves.find(move => move.selected) ?? moves[0];
 
   useEffect(
     function focusConfirmation() {
@@ -79,22 +123,74 @@ export function MoveLearningPanel({
           {confirming ? text.confirmTitle : pending.pokemonName}
         </h2>
       </header>
+      <div className="grid grid-cols-2 items-start gap-2">
+        <div className={MOVE_CARD_CLASS} data-poke-lounge-mobile-move-replacement="true">
+          <small>{text.newMove}</small>
+          <strong className="text-[1.1em]">{pending.newMoveName}</strong>
+          <MoveLearningDetails
+            copy={copy}
+            move={{
+              id: pending.newMoveId,
+              pp: pending.newMovePp,
+              maxPp: pending.newMoveMaxPp,
+              type: pending.newMoveType,
+            }}
+          />
+        </div>
+        {target && (
+          <div className={cn(MOVE_CARD_CLASS, "border-[#a4b0a1] bg-[#edf0e8]")}>
+            <small>{text.oldMove}</small>
+            <strong className="text-[1.1em]">{target.name}</strong>
+            <MoveLearningDetails copy={copy} move={target} />
+          </div>
+        )}
+      </div>
+      {selected && (
+        <p className="m-0 text-[1.05em] font-bold whitespace-pre-line" role="status">
+          {text.question(pending.pokemonName, selected.name, pending.newMoveName)}
+        </p>
+      )}
+      <div className="grid gap-2">
+        <strong>
+          {text.currentMoves} ({moves.length})
+        </strong>
+        <div className="grid grid-cols-2 gap-2">
+          {moves.map(function renderMove(move) {
+            const isTarget = target?.index === move.index;
+            return (
+              <Button
+                key={move.index}
+                type="button"
+                variant="outline"
+                className={cn(
+                  "grid h-auto min-h-[58px] min-w-0 content-start justify-items-start gap-1 rounded-[7px] border-2 border-[#80957e] bg-white px-3 py-[9px] text-left whitespace-normal text-[#17251c] shadow-none hover:bg-[#edf4e8] hover:text-[#17251c] focus-visible:border-[#28583c] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-[#bb7414] focus-visible:outline-offset-3 disabled:cursor-default disabled:opacity-55",
+                  isTarget && "border-[#28583c] shadow-[inset_4px_0_#28583c]",
+                )}
+                disabled={disabled}
+                data-selected={isTarget}
+                data-poke-lounge-move-choice={move.index}
+                aria-pressed={isTarget}
+                aria-label={`${move.name} · ${copy.mobile.forgetMove} → ${pending.newMoveName}`}
+                aria-describedby={`${titleId}-move-${move.index}`}
+                onClick={function chooseMove() {
+                  if (confirming) onCancel();
+                  onSelect(move.index);
+                }}
+              >
+                <strong>{move.name}</strong>
+                <MoveLearningDetails
+                  id={`${titleId}-move-${move.index}`}
+                  copy={copy}
+                  move={move}
+                  summaryOnly
+                />
+              </Button>
+            );
+          })}
+        </div>
+      </div>
       {selected ? (
         <>
-          <p className="m-0 text-[1.05em] font-bold whitespace-pre-line" role="status">
-            {text.question(pending.pokemonName, selected.name, pending.newMoveName)}
-          </p>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-            <div className={cn(MOVE_CARD_CLASS, "border-[#a4b0a1] bg-[#edf0e8]")}>
-              <small>{text.oldMove}</small>
-              <strong className="text-[1.1em]">{selected.name}</strong>
-            </div>
-            <span aria-hidden="true">→</span>
-            <div className={MOVE_CARD_CLASS}>
-              <small>{text.newMove}</small>
-              <strong className="text-[1.4em]">{pending.newMoveName}</strong>
-            </div>
-          </div>
           <p className="m-0 text-[0.85em] text-[#43553f]">{text.confirmHint}</p>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -123,51 +219,6 @@ export function MoveLearningPanel({
         </>
       ) : (
         <>
-          <div className={MOVE_CARD_CLASS} data-poke-lounge-mobile-move-replacement="true">
-            <strong className="text-[1.4em]">{pending.newMoveName}</strong>
-            <small>
-              {[
-                pending.newMoveType,
-                pending.newMoveMaxPp == null
-                  ? null
-                  : `PP ${pending.newMovePp ?? pending.newMoveMaxPp}/${pending.newMoveMaxPp}`,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </small>
-            <p className="mt-0.5 mb-0 text-[0.9em]">
-              {copy.mobile.moveReplacementPrompt(pending.pokemonName, pending.newMoveName)}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {moves.map(function renderMove(move) {
-              return (
-                <Button
-                  key={move.index}
-                  type="button"
-                  variant="outline"
-                  className={cn(
-                    "grid h-auto min-h-[58px] min-w-0 justify-items-start gap-1 rounded-[7px] border-2 border-[#80957e] bg-white px-3 py-[9px] text-left text-[#17251c] shadow-none hover:bg-[#edf4e8] hover:text-[#17251c] focus-visible:border-[#28583c] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-[#bb7414] focus-visible:outline-offset-3 disabled:cursor-default disabled:opacity-55",
-                    move.selected && "border-[#28583c] shadow-[inset_4px_0_#28583c]",
-                  )}
-                  disabled={disabled}
-                  data-selected={move.selected}
-                  data-poke-lounge-move-choice={move.index}
-                  aria-label={`${move.name} · ${copy.mobile.forgetMove} → ${pending.newMoveName}`}
-                  onClick={function chooseMove() {
-                    onSelect(move.index);
-                  }}
-                >
-                  <strong>{move.name}</strong>
-                  <small className="text-[0.8em] text-[#42573e]">
-                    {[move.type, move.maxPp == null ? null : `PP ${move.pp}/${move.maxPp}`]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </small>
-                </Button>
-              );
-            })}
-          </div>
           <p className="m-0 text-[0.85em] text-[#43553f]">{text.hint}</p>
           <Button
             type="button"

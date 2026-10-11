@@ -1014,6 +1014,7 @@ export class BattleController {
       moveReplacement: pendingMoveLearning
         ? {
             pokemonName: pendingMoveLearning.pokemonName,
+            newMoveId: pendingMoveLearning.newMove.id,
             newMoveName: pendingMoveLearning.newMove.name,
             confirmationIndex: this.moveReplacementConfirmation?.index ?? null,
             newMovePp: pendingMoveLearning.newMove.pp,
@@ -2772,6 +2773,7 @@ export class BattleController {
   }): MoveLearningSummary {
     return {
       pokemonName: learning.pokemonName,
+      newMoveId: learning.newMove.id,
       newMoveName: learning.newMove.name,
       newMovePp: learning.newMove.pp,
       newMoveMaxPp: learning.newMove.maxPp,

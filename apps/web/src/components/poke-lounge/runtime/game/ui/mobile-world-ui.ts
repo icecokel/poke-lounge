@@ -3,6 +3,7 @@ import type { PlayerPokemon } from "../state/game-state-store";
 import { getBattlePokemonAssets } from "../battle/battle-pokemon-assets";
 import type { BattleSpriteRef } from "../battle/battle-types";
 import type { ShortcutGuideInputMode } from "./shortcut-guide";
+import type { MoveLearningChoice, MoveLearningSummary } from "./move-learning-model";
 
 export type MobileWorldUiScreen =
   | "explore"
@@ -38,20 +39,12 @@ export interface PokeLoungePartySlotSummary {
 
 export type MobileWorldPartyOption = PokeLoungePartySlotSummary;
 
-export interface MobileWorldMoveOption {
-  id: number;
-  index: number;
-  name: string;
+export interface MobileWorldMoveOption extends MoveLearningChoice {
   selected: boolean;
 }
 
-export interface MobileWorldMoveReplacementState {
-  confirmationIndex?: number | null;
-  newMovePp?: number;
-  newMoveMaxPp?: number;
+export interface MobileWorldMoveReplacementState extends MoveLearningSummary {
   moves: MobileWorldMoveOption[];
-  newMoveName: string;
-  pokemonName: string;
 }
 
 export interface MobileWorldBoxOption {
