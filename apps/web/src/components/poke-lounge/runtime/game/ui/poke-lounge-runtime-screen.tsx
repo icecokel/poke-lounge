@@ -22,6 +22,7 @@ import {
 import {
   normalizeMultiplayerDisplayName,
   resolveInitialMultiplayerDisplayName,
+  saveMultiplayerDisplayName,
 } from "../network/room-entry-screen";
 import {
   fetchPublicRooms,
@@ -190,6 +191,7 @@ function RoomEntryScreen({
       setMessage(copy.roomEntry.multiplayerNameRequired);
       return null;
     }
+    saveMultiplayerDisplayName(normalizedName);
     return normalizedName;
   };
 

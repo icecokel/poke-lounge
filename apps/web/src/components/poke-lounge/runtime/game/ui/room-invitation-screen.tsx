@@ -8,6 +8,7 @@ import type { PokeLoungeRuntimeState } from "../game-page-state";
 import {
   normalizeMultiplayerDisplayName,
   resolveInitialMultiplayerDisplayName,
+  saveMultiplayerDisplayName,
 } from "../network/room-entry-screen";
 import { primePokeLoungeAudio, playPokeLoungeSfx } from "../audio/poke-lounge-audio";
 import { getRoomLobbyCopy } from "./room-lobby-copy";
@@ -42,6 +43,7 @@ export function DirectMultiplayerEntryScreen({
       input.current?.focus();
       return;
     }
+    saveMultiplayerDisplayName(name);
     submitted.current = true;
     setError("");
     setPending(true);
