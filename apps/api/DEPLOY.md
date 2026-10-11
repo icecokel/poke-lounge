@@ -1,6 +1,6 @@
 # Web·Rust API·계산 워커 배포와 환경
 
-구현 대조: `9e9b422` · 2026-10-06 KST. 이 문서는 Git에서 제외된 내부 `docs/` 없이도 배포 조건을 확인할 수 있는 안내다. 운영 값·비밀번호·실제 방 ID는 기록하지 않는다.
+구현 대조: `13f230f`와 현재 작업 트리 · 2026-10-11 KST. 이 문서는 Git에서 제외된 내부 `docs/` 없이도 배포 조건을 확인할 수 있는 안내다. 운영 값·비밀번호·실제 방 ID는 기록하지 않는다.
 
 ## 배포 경로
 
@@ -75,7 +75,7 @@ ROM import는 `poke_lounge_rom_document` 테이블에 검증한 문서를 upsert
 
 실행 전에는 백업, 마이그레이션 이력, 디스크·볼륨, API 주소·CORS·접근 범위를 확인한다. 설정 전체를 출력하면 secret이 포함될 수 있으므로 마스킹 없이 공유하지 않는다.
 
-배포 workflow는 API `/health`, `/health/ready`, `/poke-lounge/rooms/public`과 Web `/ko-KR/game`을 확인한다. 이 응답만으로 ROM 데이터·AI·다인 전투가 정상이라고 판단하지 않는다. 직접 플레이의 기대 동작은 [현재 게임 흐름](../../README.md)을 기준으로 확인한다.
+배포 workflow는 API `/health`, `/health/ready`, `/poke-lounge/rooms/public`과 Web `/ko-KR`을 확인한다. 게임 주소는 `/{locale}`, 소개 주소는 `/{locale}/intro`이며 기존 긴 경로는 현재 주소로 리디렉션한다. 이 응답만으로 ROM 데이터·AI·다인 전투가 정상이라고 판단하지 않는다. 직접 플레이의 기대 동작은 [현재 게임 흐름](../../README.md)을 기준으로 확인한다.
 
 CI는 정적 검사와 프로덕션 빌드만 수행한다. 자동 테스트와 Storybook은 제거했다. 플레이어 테스트는 [직접 조작 지침](../../PLAYER_TESTING.md)에 따라 실제 브라우저에서 별도로 수행하며 CI 성공을 플레이 PASS로 해석하지 않는다.
 

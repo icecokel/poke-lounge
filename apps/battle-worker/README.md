@@ -1,8 +1,10 @@
 # Poke Lounge 계산 전용 워커
 
+구현 대조: `13f230f`와 현재 작업 트리 · 2026-10-11 KST.
+
 기존 `@poke-lounge/battle`과 `@pkmn/sim@0.10.11` 실행기를 별도 Node.js 프로세스와 worker thread 풀로 분리했다. 게임의 최종 상태 관리자는 될 수 없다. 방·참가자·점수·라운드·명령 처리 기록을 저장하거나 변경하는 기능과 DB 연결이 없다.
 
-현재 `apps/api-rust/src/compute.rs`를 통해 Rust 로컬 게임 서버에 연결돼 있다. `pnpm dev:rust`가 별도 내부 서비스로 실행하며 기존 NestJS API나 BullMQ를 게임 런타임으로 사용하지 않는다. 운영 배포에는 아직 연결하지 않았다.
+현재 `apps/api-rust/src/compute.rs`를 통해 Rust 게임 서버에 연결돼 있다. 로컬에서는 `pnpm dev:rust`, 운영에서는 `compose.yaml`이 별도 내부 서비스로 실행한다. 기존 NestJS API나 BullMQ를 게임 런타임으로 사용하지 않는다.
 
 ## 구현
 
@@ -25,7 +27,7 @@ pnpm --filter @poke-lounge/battle-worker build
 
 실행은 별도 환경변수를 준비한 후 `pnpm --filter @poke-lounge/battle-worker start`를 사용한다. `BATTLE_WEB_ROOT` 기본값은 worker 패키지 기준 `../web`이며 커밋된 추출 게임 데이터와 맵을 읽는다. 잘못된 메타데이터나 누락된 자료가 있으면 준비된 worker로 취급하지 않는다.
 
-`BATTLE_WORKER_HOST`와 `BATTLE_WORKER_PORT`로 수신 주소를 지정할 수 있지만 운영 공개 포트로 노출하면 안 된다. 실제 배포용 내부 네트워크·토큰 배포·Rust 준비 상태 점검 연결은 아직 반영되지 않았다.
+`BATTLE_WORKER_HOST`와 `BATTLE_WORKER_PORT`로 수신 주소를 지정할 수 있지만 운영 공개 포트로 노출하면 안 된다. 운영 Compose는 내부 `0.0.0.0:3021`에서 실행하며 Rust API에 `http://battle-worker:3021`과 같은 `BATTLE_WORKER_TOKEN`을 전달한다. 호스트 포트는 공개하지 않는다. 워커의 인증된 `/health`에서 준비된 thread가 있는지 확인하고, Rust API는 워커 healthy 이후 시작하며 `/health/ready`에서 계산 연결도 확인한다. 배포 환경과 순서는 [배포 가이드](../api/DEPLOY.md)를 따른다.
 
 ## 검증 범위
 
