@@ -83,6 +83,7 @@ export async function loadPokeLoungeRuntimeAssets({
     fetcher,
     POKE_LOUNGE_AUDIO_MANIFEST_PATH,
     signal,
+    "no-cache",
   );
   const audioManifest = parsePokeLoungeAudioManifest(audioManifestValue);
   if (!audioManifest) {
@@ -218,7 +219,7 @@ async function fetchRequiredArrayBuffer(
 ): Promise<ArrayBuffer> {
   let response: Response;
   try {
-    response = await fetcher(path, { cache: "force-cache", signal });
+    response = await fetcher(path, { cache: "no-cache", signal });
   } catch (error) {
     if (signal?.aborted) throw error;
     throw new RequiredGameAssetError(path, "NETWORK");

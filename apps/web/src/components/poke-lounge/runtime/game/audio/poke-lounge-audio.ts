@@ -708,7 +708,7 @@ async function getManifestBgmItem(id: PokeLoungeBgmId): Promise<PokeLoungeBgmMan
 }
 
 function loadAudioManifest(): Promise<PokeLoungeAudioManifest> {
-  manifestPromise ??= fetch(POKE_LOUNGE_AUDIO_MANIFEST_PATH, { cache: "force-cache" }).then(
+  manifestPromise ??= fetch(POKE_LOUNGE_AUDIO_MANIFEST_PATH, { cache: "no-cache" }).then(
     async function handleResolved(response) {
       if (!response.ok) {
         throw new Error(`Failed to load Poke Lounge audio manifest: ${response.status}`);
@@ -774,7 +774,7 @@ function loadAudioBuffer(item: PokeLoungeAudioManifestItem): Promise<AudioBuffer
     ? decodeAudioData(preloadedBytes.slice(0)).catch(function handleRejected() {
         return null;
       })
-    : fetch(item.src, { cache: "force-cache" })
+    : fetch(item.src, { cache: "no-cache" })
         .then(async function handleResolved(response) {
           if (!response.ok) {
             throw new Error(`Failed to load Poke Lounge audio asset: ${item.src}`);

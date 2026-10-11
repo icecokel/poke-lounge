@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from bisect import bisect_right
 import json
 import math
 import random
@@ -302,6 +303,18 @@ def render_cue(sdat, cue, stereo=False):
     output = ([0.0] * output_len, [0.0] * output_len)
     default_tempo = find_default_tempo(sequence.events)
     track_start_indices, event_indices = get_sequence_track_start_indices(sequence.events)
+    max_tempo = max(
+        [default_tempo]
+        + [
+            max(1, event.value)
+            for event in sequence.events
+            if event.__class__.__name__ == "TempoSequenceEvent"
+        ]
+    )
+    max_ticks = math.ceil(duration_seconds * max_tempo * SSEQ_TICKS_PER_BEAT / 60) + 1
+    tempo_map = build_tempo_map(
+        sequence.events, track_start_indices, event_indices, default_tempo, max_ticks
+    )
 
     for track_start_index in track_start_indices:
         render_track(
@@ -313,7 +326,8 @@ def render_cue(sdat, cue, stereo=False):
             bank=bank,
             sequence_volume=sequence.volume / 127,
             cue_gain=float(cue.get("gain", 1.0)),
-            default_tempo=default_tempo,
+            tempo_map=tempo_map,
+            max_ticks=max_ticks,
         )
 
     normalize_peak(output, target_peak=0.9, stereo=stereo)
@@ -364,6 +378,73 @@ def get_sequence_track_start_indices(events):
     return unique_track_start_indices, event_indices
 
 
+def iter_track_events(events, start_event_index, event_indices, max_ticks):
+    ticks = 0
+    note_wait = False
+    event_index = start_event_index
+    call_return_indices = []
+    max_event_steps = max(1_000, len(events) * 256)
+
+    for _ in range(max_event_steps):
+        if ticks >= max_ticks or not 0 <= event_index < len(events):
+            return
+        event = events[event_index]
+        class_name = event.__class__.__name__
+        yield ticks, event
+
+        if class_name == "MonoPolySequenceEvent":
+            note_wait = bool(event.value)
+        elif class_name == "RestSequenceEvent" or (class_name == "NoteSequenceEvent" and note_wait):
+            ticks += event.duration
+        elif class_name == "JumpSequenceEvent":
+            destination_index = event_indices.get(id(event.destination))
+            if destination_index is None:
+                return
+            event_index = destination_index
+            continue
+        elif class_name == "CallSequenceEvent":
+            destination_index = event_indices.get(id(event.destination))
+            if destination_index is None:
+                return
+            call_return_indices.append(event_index + 1)
+            event_index = destination_index
+            continue
+        elif class_name == "ReturnSequenceEvent":
+            if not call_return_indices:
+                return
+            event_index = call_return_indices.pop()
+            continue
+        elif class_name == "EndTrackSequenceEvent":
+            return
+        event_index += 1
+
+
+def build_tempo_map(events, track_start_indices, event_indices, default_tempo, max_ticks):
+    # SSEQ tempo changes affect the whole song, including tracks without tempo commands.
+    changes = [
+        (ticks, max(1, event.value))
+        for start in track_start_indices
+        for ticks, event in iter_track_events(events, start, event_indices, max_ticks)
+        if event.__class__.__name__ == "TempoSequenceEvent"
+    ]
+    changes.sort(key=lambda change: change[0])
+    tempo_map = [(0, 0.0, default_tempo)]
+    for ticks, tempo in changes:
+        previous_ticks, previous_seconds, previous_tempo = tempo_map[-1]
+        seconds = previous_seconds + ticks_to_seconds(ticks - previous_ticks, previous_tempo)
+        if ticks == previous_ticks:
+            tempo_map[-1] = (ticks, seconds, tempo)
+        elif tempo != previous_tempo:
+            tempo_map.append((ticks, seconds, tempo))
+    return tempo_map
+
+
+def sequence_seconds(ticks, tempo_map):
+    index = bisect_right(tempo_map, (ticks, math.inf, math.inf)) - 1
+    change_ticks, seconds, tempo = tempo_map[index]
+    return seconds + ticks_to_seconds(ticks - change_ticks, tempo)
+
+
 def render_track(
     output,
     events,
@@ -373,30 +454,20 @@ def render_track(
     bank,
     sequence_volume,
     cue_gain,
-    default_tempo,
+    tempo_map,
+    max_ticks,
 ):
-    seconds = 0.0
-    tempo = default_tempo
     instrument_id = 0
     track_volume = 1.0
     expression = 1.0
     pan = 64
-    event_index = start_event_index
-    call_return_indices = []
-    max_event_steps = max(1_000, len(events) * 256)
-    event_steps = 0
 
-    while seconds < len(output[0]) / OUTPUT_SAMPLE_RATE and event_steps < max_event_steps:
-        if not 0 <= event_index < len(events):
+    for ticks, event in iter_track_events(events, start_event_index, event_indices, max_ticks):
+        seconds = sequence_seconds(ticks, tempo_map)
+        if seconds >= len(output[0]) / OUTPUT_SAMPLE_RATE:
             break
-
-        event = events[event_index]
         class_name = event.__class__.__name__
-        event_steps += 1
-
-        if class_name == "TempoSequenceEvent":
-            tempo = max(1, event.value)
-        elif class_name == "InstrumentSwitchSequenceEvent":
+        if class_name == "InstrumentSwitchSequenceEvent":
             instrument_id = event.instrumentID
         elif class_name == "TrackVolumeSequenceEvent":
             track_volume = event.value / 127
@@ -404,34 +475,10 @@ def render_track(
             expression = event.value / 127
         elif class_name == "PanSequenceEvent":
             pan = event.value
-        elif class_name == "RestSequenceEvent":
-            seconds += ticks_to_seconds(event.duration, tempo)
         elif class_name == "NoteSequenceEvent":
-            note_seconds = ticks_to_seconds(event.duration, tempo)
+            note_seconds = sequence_seconds(ticks + event.duration, tempo_map) - seconds
             gain = sequence_volume * track_volume * expression * (event.velocity / 127) * cue_gain
             mix_note(output, seconds, note_seconds, sdat, bank, instrument_id, event.type, gain, pan)
-        elif class_name == "JumpSequenceEvent":
-            destination_index = event_indices.get(id(event.destination))
-            if destination_index is None:
-                break
-            event_index = destination_index
-            continue
-        elif class_name == "CallSequenceEvent":
-            destination_index = event_indices.get(id(event.destination))
-            if destination_index is None:
-                break
-            call_return_indices.append(event_index + 1)
-            event_index = destination_index
-            continue
-        elif class_name == "ReturnSequenceEvent":
-            if not call_return_indices:
-                break
-            event_index = call_return_indices.pop()
-            continue
-        elif class_name == "EndTrackSequenceEvent":
-            break
-
-        event_index += 1
 
 
 def ticks_to_seconds(ticks, tempo):
