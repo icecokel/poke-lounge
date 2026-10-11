@@ -1,5 +1,10 @@
 import { createStarterPlayerPokemon } from "@/features/poke-lounge/domain/player/create-starter-pokemon";
-import { reportClientDiagnostic } from "@/lib/client-diagnostics";
+import {
+  captureClientDiagnosticSnapshot,
+  reportClientDiagnostic,
+  resetClientDiagnosticContext,
+  setClientDiagnosticScene,
+} from "@/lib/client-diagnostics";
 import { getPokeLoungeCopyForUrl } from "../../poke-lounge-copy";
 import {
   ASSET_ERROR_CODES,
@@ -134,6 +139,7 @@ function reportGameStartupFailure(
     roomCode: room?.roomId,
     sessionId: room?.sessionId,
     userCode,
+    snapshot: captureClientDiagnosticSnapshot(),
   });
   return userCode;
 }
@@ -169,6 +175,8 @@ export async function startGamePage(
   location: GamePageLocation,
   dependencies: StartGamePageDependencies = {},
 ): Promise<GamePageHandle> {
+  resetClientDiagnosticContext();
+  setClientDiagnosticScene("hydrating");
   const usesDefaultGameStateStore = dependencies.gameStateStore === undefined;
   const gameStateStore = dependencies.gameStateStore ?? getDefaultGameStateStore();
   const initialScene = readInitialGameScene();
@@ -181,7 +189,14 @@ export async function startGamePage(
   const activateTestMode = dependencies.activateLocalTestMode ?? activateLocalTestMode;
   const deactivateTestMode = dependencies.deactivateLocalTestMode ?? deactivateLocalTestMode;
   const loadTestModeState = dependencies.loadLocalTestModeState ?? loadLocalTestModeState;
-  const emitRuntimeState = dependencies.onRuntimeStateChange ?? function callback() {};
+  const emitRuntimeState = (state: PokeLoungeRuntimeState) => {
+    setClientDiagnosticScene(
+      state.phase === "world" && mount.dataset.pokeLoungeActiveScene === "battle"
+        ? "battle"
+        : state.phase,
+    );
+    dependencies.onRuntimeStateChange?.(state);
+  };
   let runtimeGameDataPromise: Promise<RuntimeGameDataJson> | null = null;
   let runtimeAssetsPromise: Promise<PokeLoungeRuntimeAssets> | null = null;
   let runtimeAssetsAbortController: AbortController | null = null;
@@ -298,6 +313,7 @@ export async function startGamePage(
       }
       activeGame = null;
       activeMultiplayerRoom = null;
+      resetClientDiagnosticContext();
       requestRoomLeaveAction = null;
       leaveRoomForResultAction = null;
       gameStateStore.setSession({
@@ -506,6 +522,7 @@ export async function startGamePage(
       }
       if (activeMultiplayerRoom === multiplayerRoom) {
         activeMultiplayerRoom = null;
+        resetClientDiagnosticContext();
       }
       requestRoomLeaveAction = null;
       leaveRoomForResultAction = null;
@@ -665,6 +682,7 @@ export async function startGamePage(
     }
     activeGame = null;
     activeMultiplayerRoom = null;
+    resetClientDiagnosticContext();
     mount.dataset.pokeLoungeResourceStatus = "error";
     gameStateStore.setSession({
       sessionId: null,

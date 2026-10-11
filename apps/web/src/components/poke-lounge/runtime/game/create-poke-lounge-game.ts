@@ -1,3 +1,4 @@
+import { setClientDiagnosticScene } from "@/lib/client-diagnostics";
 import type { PokeLoungeRuntimeAssets } from "./assets/poke-lounge-runtime-assets";
 import {
   registerPreloadedPokeLoungeAudio,
@@ -64,12 +65,14 @@ export function createPokeLoungeGame(
     if (destroyed) return;
     battleController.stop();
     activeScene = "world";
+    setClientDiagnosticScene("world");
     worldController.start(toWorldSceneCreateData(data));
   }
   function startBattle(data: unknown = {}) {
     if (destroyed) return;
     worldController.shutdown();
     activeScene = "battle";
+    setClientDiagnosticScene("battle");
     battleController.start(data);
   }
 

@@ -1,6 +1,16 @@
 import { acknowledgePreparation } from "@/features/poke-lounge/application/round/acknowledge-preparation";
 import { getApiBaseUrl } from "@/lib/constants";
-import { createDiagnosticRequestId, reportClientDiagnostic } from "@/lib/client-diagnostics";
+import {
+  captureClientDiagnosticFailure,
+  captureClientDiagnosticSnapshot,
+  clientDiagnosticOperation,
+  createDiagnosticRequestId,
+  recordClientBreadcrumb,
+  reportClientDiagnostic,
+  resetClientDiagnosticContext,
+  updateClientDiagnosticContext,
+  type DiagnosticSnapshot,
+} from "@/lib/client-diagnostics";
 import { ROOM_ERROR_CODES } from "../../../poke-lounge-error-codes";
 import type { components } from "@/types/api";
 import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
@@ -247,6 +257,7 @@ class ServerRoomSchemaError extends Error {
 }
 
 export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
+  resetClientDiagnosticContext();
   const identity = resolveServerIdentity(options);
   const sessionId = identity.sessionId;
   const serverPlayerId = identity.playerId;
@@ -258,17 +269,34 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     (options.resumeRoom
       ? readStoredIdentity(options.accountId)?.activeRoom?.roomInstanceId
       : undefined);
+  updateClientDiagnosticContext({ roomInstanceId });
   const fetchImpl = options.fetch ?? fetch;
   const requestTimeoutMs = options.requestTimeoutMs ?? SERVER_ROOM_REQUEST_TIMEOUT_MS;
+  type RoomHttpResponse = {
+    response: Response;
+    responseText: string;
+    trace: NonNullable<DiagnosticSnapshot["request"]>;
+  };
   const fetchResponseWithTimeout = async (
     url: string,
     init?: RequestInit,
-  ): Promise<{ response: Response; responseText: string }> => {
-    const requestId = createDiagnosticRequestId();
+    commandId?: string,
+  ): Promise<RoomHttpResponse> => {
+    const headers = new Headers(init?.headers);
+    const trace: NonNullable<DiagnosticSnapshot["request"]> = {
+      requestId: createDiagnosticRequestId(),
+      commandId: commandId ?? headers.get("X-Idempotency-Key") ?? undefined,
+      operation: clientDiagnosticOperation(new URL(url).pathname, init?.method),
+      stage: "fetch",
+    };
+    const meaningful = init?.method && init.method !== "GET";
+    if (meaningful && !disposed) recordClientBreadcrumb("command.sent", trace);
     const controller = new AbortController();
+    let timedOut = false;
     let timeoutHandle: number | null = null;
     const timeout = new Promise<never>(function resolvePromise(_resolve, reject) {
       timeoutHandle = window.setTimeout(function handleTimeout() {
+        timedOut = true;
         controller.abort();
         reject(new Error("Poke Lounge server room request timed out"));
       }, requestTimeoutMs);
@@ -276,8 +304,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
     try {
       const request = (async function callback() {
-        const headers = new Headers(init?.headers);
-        headers.set("X-Request-Id", requestId);
+        headers.set("X-Request-Id", trace.requestId!);
         if (
           RUST_BACKEND_ENABLED &&
           roomInstanceId &&
@@ -285,38 +312,73 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         )
           headers.set("X-Room-Instance", roomInstanceId);
         const response = await fetchImpl(url, { ...init, headers, signal: controller.signal });
-        if (response.status >= 500) {
-          reportClientDiagnostic({
-            kind: "api",
-            code: `HTTP_${response.status}`,
-            requestId,
-            roomCode: activeRoomId === PENDING_ROOM_ID ? undefined : activeRoomId,
-            sessionId,
-          });
-        }
+        trace.status = response.status;
+        trace.stage = "body";
         const responseText = await readResponseBody(response);
-
-        return { response, responseText };
+        return { response, responseText, trace: { ...trace } };
       })();
-
       return await Promise.race([request, timeout]);
     } catch (error) {
-      reportClientDiagnostic({
-        kind: "api",
-        code:
-          error instanceof Error && error.message.includes("timed out")
-            ? "TIMEOUT"
-            : "NETWORK_ERROR",
-        requestId,
-        error,
-        roomCode: activeRoomId === PENDING_ROOM_ID ? undefined : activeRoomId,
-        sessionId,
-      });
-      throw error;
-    } finally {
-      if (timeoutHandle !== null) {
-        window.clearTimeout(timeoutHandle);
+      const thrown =
+        error !== null && typeof error === "object" ? error : new ServerRoomTransportError(error);
+      const failure = {
+        ...trace,
+        causeType: timedOut
+          ? ("timeout" as const)
+          : trace.stage === "body"
+            ? ("body_read" as const)
+            : ("fetch_failure" as const),
+      };
+      if (!disposed) {
+        recordClientBreadcrumb("request.failed", failure);
+        const snapshot = captureClientDiagnosticFailure(thrown, failure);
+        reportClientDiagnostic({
+          kind: "api",
+          code: timedOut ? "TIMEOUT" : "REQUEST_FAILED",
+          error: thrown,
+          snapshot,
+        });
       }
+      throw thrown;
+    } finally {
+      if (timeoutHandle !== null) window.clearTimeout(timeoutHandle);
+    }
+  };
+
+  const decodeRoomResponse = <T>(http: RoomHttpResponse, parse: (body: unknown) => T): T => {
+    let stage: NonNullable<DiagnosticSnapshot["request"]>["stage"] = "json";
+    try {
+      const body = unwrapApiResponse<unknown>(parseResponseJson(http.responseText));
+      stage = "http";
+      if (!http.response.ok) throw new ServerRoomRequestError(http.response.status, body);
+      stage = "schema";
+      const result = parse(body);
+      if (!disposed && http.trace.operation?.startsWith("POST"))
+        recordClientBreadcrumb("command.response", http.trace);
+      return result;
+    } catch (error) {
+      const trace = {
+        ...http.trace,
+        stage,
+        causeType:
+          stage === "json"
+            ? ("json_parse" as const)
+            : stage === "http"
+              ? ("http" as const)
+              : ("schema" as const),
+      };
+      if (!disposed) {
+        recordClientBreadcrumb("request.failed", trace);
+        const snapshot = captureClientDiagnosticFailure(error, trace);
+        reportClientDiagnostic({
+          kind: "api",
+          code: stage === "http" ? `HTTP_${http.response.status}` : "INVALID_RESPONSE",
+          error,
+          snapshot,
+          priority: http.response.status === 409 ? "background" : "error",
+        });
+      }
+      throw error;
     }
   };
   const socketFactory = options.socketFactory ?? resolveServerRoomSocketFactory();
@@ -420,6 +482,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return;
     }
 
+    recordClientBreadcrumb("connection." + nextStatus);
     connectionStatus = nextStatus;
     connectionStatusAnnounced = true;
     emit("CONNECTION_STATUS", { connectionStatus });
@@ -431,6 +494,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
 
     clearStoredServerRoomSession(options.accountId);
+    resetClientDiagnosticContext();
     dispatchWindowEvent(POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT, {
       roomCode: activeRoomId === PENDING_ROOM_ID ? null : activeRoomId,
     });
@@ -439,6 +503,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const dispatchServerRoomError = (
     detail: Omit<PokeLoungeServerRoomErrorDetail, "cancel">,
     error?: unknown,
+    snapshot = captureClientDiagnosticSnapshot(),
   ) => {
     if (disposed) return;
     reportClientDiagnostic({
@@ -449,6 +514,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       sessionId,
       userCode: ROOM_ERROR_CODES[detail.code],
       error,
+      snapshot,
     });
     dispatchWindowEvent<PokeLoungeServerRoomErrorDetail>(POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT, {
       ...detail,
@@ -458,6 +524,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   const reportTransportError = (error: Error) => {
     if (disposed) return;
+    const snapshot = captureClientDiagnosticSnapshot();
     if (options.onTransportError) {
       options.onTransportError(error);
     } else {
@@ -483,6 +550,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         ...(recoverable ? { retry: reconnectToRoom, retryKind: "reconnect" as const } : {}),
       },
       error,
+      snapshot,
     );
   };
 
@@ -565,7 +633,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   };
 
   const requestRoom = async (path: string, init?: RequestInit): Promise<ServerRoomState> => {
-    let httpResponse: { response: Response; responseText: string };
+    let httpResponse: RoomHttpResponse;
 
     try {
       httpResponse = await fetchResponseWithTimeout(`${getApiBaseUrl()}${path}`, {
@@ -582,16 +650,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     } catch (error) {
       throw new ServerRoomFetchError(error);
     }
-    const responseBody = parseResponseJson(httpResponse.responseText);
-    const unwrapped = unwrapApiResponse<unknown>(responseBody);
-
-    if (!httpResponse.response.ok) {
-      const error = new ServerRoomRequestError(httpResponse.response.status, unwrapped);
+    try {
+      return decodeRoomResponse(httpResponse, parseServerRoomState);
+    } catch (error) {
       if (isRoomNotFoundRequestError(error)) handleMissingRoom();
       throw error;
     }
-
-    return parseServerRoomState(unwrapped);
   };
 
   const requestCompetitiveSeat = async (): Promise<CompetitiveProjection | null> => {
@@ -600,7 +664,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return null;
     }
 
-    let httpResponse: { response: Response; responseText: string };
+    let httpResponse: RoomHttpResponse;
     try {
       httpResponse = await fetchResponseWithTimeout(
         `${getApiBaseUrl()}/poke-lounge/rooms/${activeRoomId}/competitive-seat`,
@@ -617,15 +681,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       throw new ServerRoomFetchError(error);
     }
 
-    const responseBody = unwrapApiResponse<unknown>(parseResponseJson(httpResponse.responseText));
-    if (!httpResponse.response.ok) {
-      throw new ServerRoomRequestError(httpResponse.response.status, responseBody);
-    }
-    if (responseBody === null) {
-      return null;
-    }
-
-    return parseCompetitiveProjection(responseBody);
+    return decodeRoomResponse(httpResponse, body =>
+      body === null ? null : parseCompetitiveProjection(body),
+    );
   };
 
   const enqueueMutation = <T>(operation: () => Promise<T>): Promise<T> => {
@@ -1402,7 +1460,13 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
     try {
       room = parseSocketRoomEvent(event);
-    } catch {
+    } catch (error) {
+      recordClientBreadcrumb("socket.snapshot_failed", { stage: "socket", causeType: "schema" });
+      const snapshot = captureClientDiagnosticFailure(error, {
+        stage: "socket",
+        causeType: "schema",
+      });
+      reportClientDiagnostic({ kind: "room", code: "WS_SNAPSHOT_SCHEMA_FAILED", error, snapshot });
       subscriptionFailed = true;
       scheduleRecovery();
       return;
@@ -1593,6 +1657,18 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     latestState = state;
     lastAppliedRoomRevision = state.revision;
     activeRoomId = state.roomCode;
+    updateClientDiagnosticContext({
+      roomInstanceId: state.roomInstanceId ?? roomInstanceId,
+      round: state.round.index,
+      phase: state.round.phase,
+      revision: state.revision,
+    });
+    if (
+      previousState?.round.index !== state.round.index ||
+      previousState?.round.phase !== state.round.phase
+    ) {
+      recordClientBreadcrumb("round.changed");
+    }
     latestCompetitionKind = resolveCompetitionKind(state, latestCompetitionKind);
 
     if (state.status === "closed") {
@@ -2092,6 +2168,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return;
     }
 
+    let actionTrace: DiagnosticSnapshot["request"];
     const send = async () => {
       const idToken = readIdToken();
       const actionPath = idToken ? "actions" : "session-actions";
@@ -2103,7 +2180,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         ...(!idToken ? { sessionId } : {}),
       });
 
-      let httpResponse: { response: Response; responseText: string };
+      let httpResponse: RoomHttpResponse;
       try {
         httpResponse = await fetchResponseWithTimeout(
           `${getApiBaseUrl()}/poke-lounge/rooms/${activeRoomId}/matches/${command.matchId}/${actionPath}`,
@@ -2115,16 +2192,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             },
             body,
           },
+          command.clientCommandId,
         );
       } catch (error) {
         throw new ServerRoomFetchError(error);
       }
 
-      const responseBody = unwrapApiResponse<unknown>(parseResponseJson(httpResponse.responseText));
-      if (!httpResponse.response.ok) {
-        throw new ServerRoomRequestError(httpResponse.response.status, responseBody);
-      }
-      return parseCompetitiveProjectionContract(responseBody);
+      actionTrace = { ...httpResponse.trace, stage: "apply", causeType: "client" };
+      return decodeRoomResponse(httpResponse, parseCompetitiveProjectionContract);
     };
 
     try {
@@ -2170,6 +2245,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       clearOnlineStaleRecovery();
       scheduleOnlineStaleRecovery(ONLINE_STALE_RECOVERY_DELAY_MS, true, true);
     } catch (error) {
+      const snapshot = captureClientDiagnosticSnapshot(actionTrace);
+      reportClientDiagnostic({ kind: "room", code: "COMPETITIVE_ACTION_FAILED", error, snapshot });
       emit("COMPETITIVE_ACTION_FAILED", {
         matchId: command.matchId,
         status: error instanceof ServerRoomRequestError ? error.status : null,
@@ -2456,6 +2533,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       roomSocket = null;
     }
     handlers.clear();
+    resetClientDiagnosticContext();
   }
 
   async function openServerRoom(snapshot: PlayerSnapshot): Promise<ServerRoomState> {

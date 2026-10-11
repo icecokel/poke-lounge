@@ -1,3 +1,9 @@
+import {
+  captureClientDiagnosticFailure,
+  recordClientBreadcrumb,
+  reportClientDiagnostic,
+} from "@/lib/client-diagnostics";
+
 /** Opt-in transport for the Rust authority. No gameplay decisions live in this adapter. */
 export const RUST_BACKEND_ENABLED = process.env.NEXT_PUBLIC_POKE_BACKEND === "rust";
 
@@ -42,14 +48,23 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
     let current: WebSocket;
     try {
       current = new WebSocket(url);
-    } catch {
+    } catch (error) {
+      recordClientBreadcrumb("socket.constructor_failed", { stage: "socket", causeType: "socket" });
+      const snapshot = captureClientDiagnosticFailure(error, {
+        stage: "socket",
+        causeType: "socket",
+      });
+      reportClientDiagnostic({ kind: "room", code: "WS_CONSTRUCTOR_FAILED", error, snapshot });
       notify("connect_error");
       schedule();
       return;
     }
     socket = current;
     openTimer = setTimeout(() => {
-      if (socket === current && current.readyState === WebSocket.CONNECTING) current.close();
+      if (socket === current && current.readyState === WebSocket.CONNECTING) {
+        recordClientBreadcrumb("socket.open_timeout", { stage: "socket", causeType: "timeout" });
+        current.close();
+      }
     }, 10_000);
     current.onopen = () => {
       if (disposed || socket !== current) return;
@@ -67,7 +82,16 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
       let frame: unknown;
       try {
         frame = JSON.parse(event.data) as unknown;
-      } catch {
+      } catch (error) {
+        recordClientBreadcrumb("socket.frame_parse_failed", {
+          stage: "socket",
+          causeType: "json_parse",
+        });
+        const snapshot = captureClientDiagnosticFailure(error, {
+          stage: "socket",
+          causeType: "json_parse",
+        });
+        reportClientDiagnostic({ kind: "room", code: "WS_FRAME_PARSE_FAILED", error, snapshot });
         current.close(1002);
         return;
       }
@@ -78,6 +102,11 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
         typeof frame.event !== "string" ||
         !("payload" in frame)
       ) {
+        recordClientBreadcrumb("socket.frame_schema_failed", {
+          stage: "socket",
+          causeType: "schema",
+        });
+        reportClientDiagnostic({ kind: "room", code: "WS_FRAME_SCHEMA_FAILED" });
         current.close(1002);
         return;
       }
@@ -89,13 +118,18 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
       notify(frame.event, frame.payload);
     };
     current.onerror = () => {
-      if (!disposed && socket === current) notify("connect_error");
+      if (!disposed && socket === current) {
+        // WebSocket exposes no HTTP status or underlying network cause here.
+        recordClientBreadcrumb("socket.error", { stage: "socket", causeType: "socket" });
+        notify("connect_error");
+      }
     };
-    current.onclose = () => {
+    current.onclose = event => {
       if (socket !== current) return;
       clearOpenTimer();
       socket = null;
       if (disposed) return;
+      recordClientBreadcrumb("socket.closed." + event.code);
       notify("disconnect");
       schedule();
     };

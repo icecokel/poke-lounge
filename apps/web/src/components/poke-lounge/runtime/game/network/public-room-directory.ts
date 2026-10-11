@@ -1,5 +1,10 @@
 import { getApiBaseUrl } from "@/lib/constants";
-import { createDiagnosticRequestId, reportClientDiagnostic } from "@/lib/client-diagnostics";
+import {
+  captureClientDiagnosticFailure,
+  createDiagnosticRequestId,
+  recordClientBreadcrumb,
+  reportClientDiagnostic,
+} from "@/lib/client-diagnostics";
 import {
   normalizeRoomCode,
   normalizeRoomInstanceId,
@@ -41,6 +46,7 @@ const PUBLIC_ROOM_STATUSES = new Set<PublicRoomStatus>([
 
 export async function fetchPublicRooms(signal?: AbortSignal): Promise<PublicRoomSummary[]> {
   const requestId = createDiagnosticRequestId();
+  const trace = { requestId, operation: "GET /poke-lounge/rooms/public" };
   let response: Response;
   try {
     response = await fetch(`${getApiBaseUrl()}/poke-lounge/rooms/public`, {
@@ -51,23 +57,46 @@ export async function fetchPublicRooms(signal?: AbortSignal): Promise<PublicRoom
     });
   } catch (error) {
     if (!signal?.aborted) {
-      reportClientDiagnostic({ kind: "api", code: "NETWORK_ERROR", requestId, error });
+      recordClientBreadcrumb("request.failed", trace);
+      const snapshot = captureClientDiagnosticFailure(error, {
+        ...trace,
+        stage: "fetch",
+        causeType: "fetch_failure",
+      });
+      reportClientDiagnostic({ kind: "api", code: "NETWORK_ERROR", error, snapshot });
     }
     throw error;
   }
 
   if (!response.ok) {
-    if (response.status >= 500) {
-      reportClientDiagnostic({ kind: "api", code: `HTTP_${response.status}`, requestId });
-    }
-    throw new Error(`공개방 목록 요청 실패 (${response.status})`);
+    const error = new Error(`공개방 목록 요청 실패 (${response.status})`);
+    recordClientBreadcrumb("request.failed", { ...trace, status: response.status });
+    const snapshot = captureClientDiagnosticFailure(error, {
+      ...trace,
+      stage: "http",
+      causeType: "http",
+      status: response.status,
+    });
+    reportClientDiagnostic({ kind: "api", code: `HTTP_${response.status}`, error, snapshot });
+    throw error;
   }
 
+  let stage: "body" | "json" | "schema" = "body";
   try {
-    const payload: unknown = await response.json();
+    const responseText = await response.text();
+    stage = "json";
+    const payload: unknown = JSON.parse(responseText);
+    stage = "schema";
     return parsePublicRoomListEnvelope(payload).data.rooms;
   } catch (error) {
-    reportClientDiagnostic({ kind: "api", code: "INVALID_RESPONSE", requestId, error });
+    recordClientBreadcrumb("request.failed", { ...trace, status: response.status });
+    const snapshot = captureClientDiagnosticFailure(error, {
+      ...trace,
+      stage,
+      causeType: stage === "json" ? "json_parse" : stage === "body" ? "body_read" : "schema",
+      status: response.status,
+    });
+    reportClientDiagnostic({ kind: "api", code: "INVALID_RESPONSE", error, snapshot });
     throw error;
   }
 }

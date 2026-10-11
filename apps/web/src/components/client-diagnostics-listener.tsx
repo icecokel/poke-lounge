@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { reportClientDiagnostic } from "@/lib/client-diagnostics";
+import { clientDiagnosticErrorName, reportClientDiagnostic } from "@/lib/client-diagnostics";
 
 export function ClientDiagnosticsListener() {
   useEffect(() => {
@@ -15,7 +15,7 @@ export function ClientDiagnosticsListener() {
       } catch {}
       reportClientDiagnostic({
         kind: "runtime",
-        code: event.error instanceof Error ? event.error.name : "WindowError",
+        code: clientDiagnosticErrorName(event.error) ?? "WindowError",
         error: event.error ?? event.message,
         line: event.lineno || undefined,
         column: event.colno || undefined,
@@ -25,7 +25,7 @@ export function ClientDiagnosticsListener() {
     const onRejection = (event: PromiseRejectionEvent) => {
       reportClientDiagnostic({
         kind: "rejection",
-        code: event.reason instanceof Error ? event.reason.name : "UnhandledRejection",
+        code: clientDiagnosticErrorName(event.reason) ?? "UnhandledRejection",
         error: event.reason,
       });
     };

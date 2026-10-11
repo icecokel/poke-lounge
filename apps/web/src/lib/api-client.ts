@@ -1,5 +1,11 @@
 import { getApiBaseUrl } from "@/lib/constants";
-import { createDiagnosticRequestId, reportClientDiagnostic } from "@/lib/client-diagnostics";
+import {
+  captureClientDiagnosticFailure,
+  clientDiagnosticOperation,
+  createDiagnosticRequestId,
+  recordClientBreadcrumb,
+  reportClientDiagnostic,
+} from "@/lib/client-diagnostics";
 
 /**
  * API 에러 클래스
@@ -79,40 +85,112 @@ export const apiClient = {
       headers.set("Authorization", `Bearer ${token}`);
     }
 
+    const trace = { requestId, operation: clientDiagnosticOperation(endpoint, options.method) };
+    const meaningful = options.method && options.method !== "GET";
     let response: Response;
+    let requestStage: "prepare" | "fetch" = "prepare";
     try {
-      response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+      const url = `${getApiBaseUrl()}${endpoint}`;
+      const requestBody = body ? JSON.stringify(body) : undefined;
+      requestStage = "fetch";
+      if (meaningful) recordClientBreadcrumb("command.sent", trace);
+      response = await fetch(url, {
         ...fetchOptions,
         headers,
-        body: body ? JSON.stringify(body) : undefined,
+        body: requestBody,
       });
     } catch (error) {
-      reportClientDiagnostic({ kind: "api", code: "NETWORK_ERROR", requestId, error });
+      const failure = {
+        ...trace,
+        stage: requestStage,
+        causeType:
+          requestStage === "prepare"
+            ? "client"
+            : options.signal?.aborted
+              ? "aborted"
+              : "fetch_failure",
+      } as const;
+      recordClientBreadcrumb("request.failed", failure);
+      const snapshot = captureClientDiagnosticFailure(error, failure);
+      reportClientDiagnostic({
+        kind: "api",
+        code: requestStage === "prepare" ? "REQUEST_PREPARATION_FAILED" : "NETWORK_ERROR",
+        error,
+        snapshot,
+      });
       throw error;
     }
 
     if (!response.ok) {
-      if (response.status >= 500) {
-        reportClientDiagnostic({ kind: "api", code: `HTTP_${response.status}`, requestId });
-      }
-      const errorData = await response.json().catch(function handleRejected() {
+      let parseCause: unknown;
+      const errorData = await response.json().catch(function handleRejected(error: unknown) {
+        parseCause = error;
         return null;
       });
-      throw new ApiError(
+      const error = new ApiError(
         response.status,
         errorData?.message || `API 요청 실패 (${response.status})`,
         errorData,
         response.headers,
       );
+      if (parseCause !== undefined) error.cause = parseCause;
+      const failure = {
+        ...trace,
+        stage: "http",
+        causeType: "http",
+        status: response.status,
+      } as const;
+      recordClientBreadcrumb("request.failed", failure);
+      const snapshot = captureClientDiagnosticFailure(error, failure);
+      reportClientDiagnostic({
+        kind: "api",
+        code: `HTTP_${response.status}`,
+        error,
+        snapshot,
+        priority: response.status === 409 ? "background" : "error",
+      });
+      throw error;
     }
 
-    const json: ApiResponse<T> = await response.json();
+    let json: ApiResponse<T>;
+    let stage: "body" | "json" = "body";
+    try {
+      const responseText = await response.text();
+      stage = "json";
+      json = JSON.parse(responseText) as ApiResponse<T>;
+    } catch (error) {
+      const failure = {
+        ...trace,
+        stage,
+        causeType: stage === "json" ? "json_parse" : "body_read",
+        status: response.status,
+      } as const;
+      recordClientBreadcrumb("request.failed", failure);
+      const snapshot = captureClientDiagnosticFailure(error, failure);
+      reportClientDiagnostic({ kind: "api", code: "INVALID_RESPONSE", error, snapshot });
+      throw error;
+    }
+    if (meaningful)
+      recordClientBreadcrumb("command.response", { ...trace, status: response.status });
 
     // API가 { success, data } 형태로 래핑된 경우 data 반환
-    return {
-      data: json.data !== undefined ? json.data : (json as unknown as T),
-      headers: response.headers,
-    };
+    try {
+      return {
+        data: json.data !== undefined ? json.data : (json as unknown as T),
+        headers: response.headers,
+      };
+    } catch (error) {
+      const failure = {
+        ...trace,
+        stage: "schema",
+        causeType: "schema",
+        status: response.status,
+      } as const;
+      recordClientBreadcrumb("request.failed", failure);
+      const snapshot = captureClientDiagnosticFailure(error, failure);
+      reportClientDiagnostic({ kind: "api", code: "INVALID_RESPONSE", error, snapshot });
+      throw error;
+    }
   },
 
   /**
