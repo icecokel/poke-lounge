@@ -361,6 +361,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     idempotencyKey: string;
   } | null = null;
   let latestState: ServerRoomState | null = null;
+  let serverClockOffsetMs: number | null = null;
+  const getServerNowMs = () => Date.now() + (serverClockOffsetMs ?? 0);
   let currentAssignmentProjection: CompetitiveProjection | null = null;
   let recentTerminalProjections: CompetitiveTerminalTransition[] = [];
   const terminalEventIds = new Set<string>();
@@ -786,7 +788,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         return participant.playerId === serverPlayerId;
       });
       if (
-        isRoundReadinessDue(room.status, room.round, Date.now()) &&
+        isRoundReadinessDue(room.status, room.round, getServerNowMs()) &&
         ownParticipant?.role === "participant" &&
         ownParticipant.connected &&
         !ownParticipant.ready
@@ -836,7 +838,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return;
     }
 
-    const deadlineDelayMs = Math.max(0, roomClockTarget.endsAtMs - Date.now());
+    const deadlineDelayMs = Math.max(0, roomClockTarget.endsAtMs - getServerNowMs());
     const retryDelayMs =
       roomClockAttempt === 0
         ? 0
@@ -872,7 +874,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       ? 0
       : Math.min(
           SERVER_ROOM_LIVENESS_INTERVAL_MS,
-          Math.max(RECOVERY_MAX_DELAY_MS, latestState.expiresAtMs - Date.now()),
+          Math.max(RECOVERY_MAX_DELAY_MS, latestState.expiresAtMs - getServerNowMs()),
         );
     roomLivenessTimer = window.setTimeout(function handleTimeout() {
       roomLivenessTimer = null;
@@ -1127,7 +1129,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     if (allPlayersSubmitted && !onlineStaleRecoveryRepeats) {
       clearOnlineStaleRecovery();
     }
-    const deadlineRecoveryDelayMs = Math.max(0, projection.turnEndsAtMs - Date.now());
+    const deadlineRecoveryDelayMs = Math.max(0, projection.turnEndsAtMs - getServerNowMs());
     scheduleOnlineStaleRecovery(
       allPlayersSubmitted
         ? ONLINE_STALE_RECOVERY_DELAY_MS
@@ -1464,6 +1466,11 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return false;
     }
 
+    // Keep one offset per room so network jitter cannot move an unchanged revision's deadlines.
+    if (serverClockOffsetMs === null && state.serverNowMs !== undefined) {
+      serverClockOffsetMs = state.serverNowMs - Date.now();
+    }
+
     if (
       latestState &&
       state.revision === lastAppliedRoomRevision &&
@@ -1729,7 +1736,15 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       hostPlayerId: state.hostPlayerId ? mapServerPlayerIdForLocalStore(state.hostPlayerId) : null,
       roundIndex: state.round.index,
       roomStatus: state.status,
-      roomRound: { ...state.round },
+      roomRound: {
+        ...state.round,
+        startedAtMs:
+          state.round.startedAtMs === null
+            ? null
+            : state.round.startedAtMs - (serverClockOffsetMs ?? 0),
+        endsAtMs:
+          state.round.endsAtMs === null ? null : state.round.endsAtMs - (serverClockOffsetMs ?? 0),
+      },
       // Seed order must use server IDs, not the local-save alias assigned below.
       participants: sortTournamentParticipantsByJoinOrder(state.participants).map(
         function mapItem(participant) {
@@ -1779,7 +1794,10 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   ): RoomEvent["COMPETITIVE_STATE"] => {
     const spectating = !projection.playerIds.includes(serverPlayerId);
     return {
-      projection,
+      projection: {
+        ...projection,
+        turnEndsAtMs: projection.turnEndsAtMs - (serverClockOffsetMs ?? 0),
+      },
       ownPlayerId: serverPlayerId,
       viewPlayerId: selectCompetitiveViewPlayerId(projection, serverPlayerId),
       spectating,
@@ -1921,22 +1939,24 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         }
       }
     } catch (error) {
-      const retryable =
-        error instanceof ServerRoomTransportError ||
-        getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE;
+      const revisionConflict = getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE;
+      const retryable = error instanceof ServerRoomTransportError || revisionConflict;
+      if (retryable && pendingPartyPublication !== entry) return;
       if (
         retryable &&
         pendingPartyPublication === entry &&
         !disposed &&
         !leaveSent &&
-        entry.recoveryAttempts < 2
+        (revisionConflict || entry.recoveryAttempts < 2)
       ) {
         clearPartyRetryTimer();
-        entry.recoveryAttempts += 1;
+        entry.recoveryAttempts = Math.min(2, entry.recoveryAttempts + 1);
         partyRetryTimer = window.setTimeout(() => {
           partyRetryTimer = null;
           resumePendingPartyPublication();
         }, entry.recoveryAttempts * PARTY_PUBLICATION_RETRY_DELAY_MS);
+        // A live room's revision contention must not replace gameplay while recovery is pending.
+        return;
       }
       throw error;
     } finally {
@@ -1969,7 +1989,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       projection?.matchId === command.matchId &&
       projection.assignmentRevision === command.assignmentRevision &&
       projection.currentTurn === command.turn &&
-      Date.now() >= projection.turnEndsAtMs
+      getServerNowMs() >= projection.turnEndsAtMs
     ) {
       emit("COMPETITIVE_ACTION_FAILED", {
         matchId: command.matchId,
