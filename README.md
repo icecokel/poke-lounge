@@ -87,6 +87,89 @@ Rust 게임 서버와 TypeScript 계산 워커를 실제 프런트에 연결했�
 
 로컬 개발은 `pnpm dev:rust`로 운영과 분리된 DB·Redis, Rust API, 계산 워커, 웹을 실행한다. 주소는 `http://localhost:3300/ko-KR`다. 중지는 웹에서 Ctrl+C 후 `pnpm dev:rust:stop`을 사용하며 로컬 볼륨은 유지한다. 실행 구현은 `apps/api-rust/src`, `migration-draft`는 이전 코드 보관용이다. 자세한 범위와 실행법은 [Rust 백엔드 문서](apps/api-rust/README.md)에 있다.
 
+## 브랜치 운영
+
+### 브랜치 역할과 병합 흐름
+
+| 브랜치      | 역할                         | 작업 시작 기준 | PR 대상        |
+| ----------- | ---------------------------- | -------------- | -------------- |
+| `main`      | 운영 배포 기준               | `dev` 배포 PR  | `dev`로 동기화 |
+| `dev`       | 기능을 모으는 개발 통합 기준 | `main`         | `main`         |
+| `feature/*` | 개별 기능·수정·문서 작업     | 최신 `dev`     | `dev`          |
+
+```text
+dev에서 feature/<작업명> 생성 → 기능 PR: feature/* → dev
+→ 배포 PR: dev → main → main을 dev에 병합해 동기화
+```
+
+`main`과 `dev`에 직접 커밋하지 않는다. 브랜치 이름은 소문자 영문과 하이픈으로 작성한다. 예: `feature/tournament-experience`, `feature/fix-room-reconnect`, `feature/git-flow-docs`. 기능·버그 수정·문서 작업 모두 같은 흐름을 사용한다.
+
+원격 이름은 `upstream`이다. 아래 커밋·푸시·PR 생성·병합 명령과 절차는 사용자가 해당 작업을 요청한 범위에서 실행한다.
+
+### 초기 설정 상태와 원격 등록
+
+2026-10-12 최초 로컬 설정 시점에는 `main`과 같은 커밋 `2417fdd`에서 `dev`와 `feature/tournament-experience`를 생성했다. 작업 브랜치를 `feature/tournament-experience`로 전환하고 기존 미커밋 변경을 보존했다. 당시 원격에는 `main`만 있었으며 초기 설정은 커밋·푸시 없이 진행했다. 이후 원격 반영 여부는 `git log`와 `git ls-remote --heads upstream`으로 확인한다.
+
+원격 `dev` 최초 등록은 푸시 요청을 받은 뒤 한 번 실행한다. 이 명령은 `dev`의 커밋만 보내며 현재 feature 브랜치의 미커밋 변경을 포함하지 않는다.
+
+```bash
+git push -u upstream dev
+```
+
+아래 CI 운영 범위는 브랜치 설정 변경이 원격에 반영된 뒤 적용된다. 그 전에는 기존 `main` 중심 CI 설정이 적용된다.
+
+### 새 작업 시작
+
+먼저 `git status`로 현재 브랜치와 변경을 확인한다. 진행 중인 작업이 있으면 해당 feature 브랜치에서 마무리한다. 작업 트리가 깨끗하고 원격 `dev`가 등록된 상태에서 새 브랜치를 만든다.
+
+```bash
+git status --short --branch
+git fetch upstream
+git switch dev
+git pull --ff-only upstream dev
+git switch -c feature/room-reconnect
+```
+
+`--ff-only`가 실패하면 로컬과 원격의 차이를 확인하고 해결한다. 강제 푸시나 작업 삭제로 맞추지 않는다.
+
+### 기능 작업과 PR
+
+1. feature 브랜치에서 작업하고 변경 범위에 맞는 개발 확인을 수행한다. 플레이 확인이 필요하면 [플레이어 테스트 지침](PLAYER_TESTING.md)을 따른다.
+2. 관련 파일만 스테이징하고 목적별로 커밋한다. 커밋 제목은 `feat: 토너먼트 경험치 지급 추가`, `fix: 방 재접속 처리 수정`, `docs: 브랜치 운영 절차 정리`처럼 작성한다.
+3. 요청받은 feature 브랜치를 원격에 등록한다. 현재 브랜치를 보내는 명령은 다음과 같다.
+
+   ```bash
+   git push -u upstream HEAD
+   ```
+
+4. GitHub에서 base를 `dev`, compare를 해당 `feature/*`로 지정해 PR을 만든다. PR에는 변경 목적, 확인한 항목, 미확인 항목을 적는다.
+5. CI 정적 검사와 필요한 플레이 확인을 검토한 뒤 `dev`에 병합한다. feature PR은 squash merge 또는 merge commit을 사용할 수 있다. 병합이 끝나고 필요한 커밋이 보존된 feature 브랜치만 정리한다.
+
+기능 PR을 `main`으로 바로 보내지 않는다. 다른 작업의 미커밋 변경을 함께 스테이징하거나 커밋하지 않는다.
+
+### 배포 PR과 개발 브랜치 동기화
+
+배포할 기능을 `dev`에 모은 뒤 base `main`, compare `dev`로 배포 PR을 만든다. 포함 기능과 개발 확인·플레이 확인 결과를 검토한 뒤 **merge commit**으로 병합한다. 장기 운영 브랜치인 `dev → main`은 squash/rebase merge를 사용하지 않아 두 브랜치의 공통 이력을 유지한다.
+
+`main`에 병합되면 CI의 `verify` 성공 후 운영 배포가 실행된다. `main`에서 CI를 수동 실행한 경우에도 배포 조건을 만족한다. 배포 조건과 실행 절차는 [API 배포 가이드](apps/api/DEPLOY.md)를 따른다.
+
+배포 후에는 base `dev`, compare `main`으로 동기화 PR을 만들고 **merge commit**으로 병합한다. 이후 로컬 `dev`를 갱신하고 다음 feature 작업을 시작한다.
+
+```bash
+git fetch upstream
+git switch dev
+git pull --ff-only upstream dev
+```
+
+PR 충돌은 해당 feature 브랜치 또는 별도의 feature 브랜치에서 해결하고 대상 브랜치로 PR을 보낸다. 충돌 해결을 위해 `main`이나 `dev`에서 직접 커밋하지 않는다.
+
+### CI와 운영 배포 범위
+
+- [CI](.github/workflows/ci.yml)와 [Rust 정적 검사](.github/workflows/rust.yml)는 `main`, `dev`, `feature/*` push와 `main`, `dev` 대상 PR에서 실행한다.
+- `dev`와 `feature/*`에서는 운영 배포를 실행하지 않는다. 운영 배포 조건은 `main`의 push 또는 `main`에서 CI 수동 실행이다.
+- CI 성공은 정적 검사·빌드 결과다. 실제 플레이 확인과 모든 버튼 확인의 완료 근거로 사용하지 않는다.
+- 위 내용은 저장소의 운영 규칙이다. GitHub 브랜치 보호로 직접 push나 병합 방식을 강제하는 설정은 아직 적용하지 않았다.
+
 ## 로컬 실행
 
 Docker Desktop, Node.js 22와 pnpm 9.12.0을 준비한 뒤 저장소 루트에서 실행한다.

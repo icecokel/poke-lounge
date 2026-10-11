@@ -1,9 +1,9 @@
 name: Rust backend static checks
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   push:
-    branches: ["feat/rust-backend-migration"]
+    branches: [main, dev, "feature/**"]
   workflow_dispatch:
 permissions:
   contents: read
