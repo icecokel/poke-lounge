@@ -143,7 +143,7 @@ git switch -c feature/room-reconnect
    ```
 
 4. GitHub에서 base를 `dev`, compare를 해당 `feature/*`로 지정해 PR을 만든다. PR에는 변경 목적, 확인한 항목, 미확인 항목을 적는다.
-5. CI 정적 검사와 필요한 플레이 확인을 검토한 뒤 `dev`에 병합한다. feature PR은 squash merge 또는 merge commit을 사용할 수 있다. 병합이 끝나고 필요한 커밋이 보존된 feature 브랜치만 정리한다.
+5. CI 정적 검사와 필요한 플레이 확인을 검토한 뒤 merge commit으로 `dev`에 병합한다. 병합된 feature 브랜치는 GitHub에서 자동 삭제하며 `main`·`dev`는 삭제 보호로 유지한다. 로컬 feature 브랜치는 필요한 커밋이 보존된 것을 확인한 뒤 정리한다.
 
 기능 PR을 `main`으로 바로 보내지 않는다. 다른 작업의 미커밋 변경을 함께 스테이징하거나 커밋하지 않는다.
 
@@ -161,14 +161,23 @@ git switch dev
 git pull --ff-only upstream dev
 ```
 
-PR 충돌은 해당 feature 브랜치 또는 별도의 feature 브랜치에서 해결하고 대상 브랜치로 PR을 보낸다. 충돌 해결을 위해 `main`이나 `dev`에서 직접 커밋하지 않는다.
+PR 충돌은 feature 브랜치에서 해결해 `dev`에 반영한 뒤 배포·동기화 PR을 갱신한다. 충돌 해결을 위해 `main`이나 `dev`에서 직접 커밋하지 않는다.
+
+### GitHub 저장소 설정
+
+- 기본 브랜치는 `dev`이며 일반 기능 PR의 base도 `dev`다.
+- 모든 PR은 merge commit으로 병합한다. squash/rebase merge와 auto-merge는 비활성화한다. merge commit을 유지하므로 linear history를 요구하지 않는다.
+- `main`·`dev`에는 각각 활성 Ruleset을 적용한다. PR, `verify`·`rust`·`pr-flow` 성공, 리뷰 대화 해결을 요구한다. 승인 인원은 0명이며 관리자 우회도 허용하지 않는다. 강제 push와 브랜치 삭제는 금지한다.
+- `feature/*`는 직접 push할 수 있다. 병합된 브랜치 자동 삭제를 사용하며 삭제 보호된 `main`·`dev`는 유지한다.
+- [PR 경로 검사](.github/workflows/pr-flow.yml)는 `feature/* → dev`, 같은 저장소의 `dev → main`, 같은 저장소의 `main → dev`만 허용한다. PR 대상이 변경되어도 다시 검사한다.
+- [PR 템플릿](.github/PULL_REQUEST_TEMPLATE.md)에 작업 목적, 변경사항, 정적 확인, 플레이 확인·미확인 항목을 기록한다.
 
 ### CI와 운영 배포 범위
 
 - [CI](.github/workflows/ci.yml)와 [Rust 정적 검사](.github/workflows/rust.yml)는 `main`, `dev`, `feature/*` push와 `main`, `dev` 대상 PR에서 실행한다.
 - `dev`와 `feature/*`에서는 운영 배포를 실행하지 않는다. 운영 배포 조건은 `main`의 push 또는 `main`에서 CI 수동 실행이다.
 - CI 성공은 정적 검사·빌드 결과다. 실제 플레이 확인과 모든 버튼 확인의 완료 근거로 사용하지 않는다.
-- 위 내용은 저장소의 운영 규칙이다. GitHub 브랜치 보호로 직접 push나 병합 방식을 강제하는 설정은 아직 적용하지 않았다.
+- `pr-flow`는 PR 경로만 확인한다. 운영 배포는 `main`의 CI `verify` 성공 후에만 실행한다.
 
 ## 로컬 실행
 

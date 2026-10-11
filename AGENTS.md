@@ -7,7 +7,9 @@
 - `main`은 운영 배포 브랜치, `dev`는 개발 통합 브랜치다.
 - 기능 작업은 최신 `dev`에서 `feature/<작업명>` 브랜치를 만들어 진행한다. `main`과 `dev`에서 직접 작업·커밋하지 않는다.
 - 기능 PR은 `feature/* → dev`, 배포 PR은 `dev → main`으로 진행한다. `main` 반영 후에는 `main → dev`를 병합해 동기화한다.
-- `dev → main`과 `main → dev` PR은 merge commit으로 병합해 공통 이력을 유지한다.
+- 모든 PR은 merge commit으로 병합해 공통 이력을 유지한다. squash/rebase merge는 사용하지 않는다.
+- GitHub 기본 브랜치는 `dev`다. `main`·`dev`는 PR과 `verify`, `rust`, `pr-flow` 성공을 요구하며 강제 push·삭제를 금지한다. 리뷰 승인은 0명, 리뷰 대화 해결은 필수다.
+- `main` 대상 PR은 같은 저장소의 `dev`에서만 보낸다. `dev` 대상 PR은 `feature/*` 또는 같은 저장소의 동기화용 `main`에서 보낸다.
 - CI는 `main`, `dev`, `feature/*` push와 `main`, `dev` 대상 PR에서 정적 검사를 수행한다. 운영 배포는 `main`에서만 실행한다.
 - 커밋·푸시·PR 생성·병합은 사용자가 요청한 범위에서만 수행한다.
 
