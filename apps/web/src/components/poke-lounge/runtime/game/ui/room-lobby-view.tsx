@@ -487,10 +487,10 @@ function ParticipantRow({
 
 function getAiDifficultyLabel(locale: string, difficulty: AiDifficulty): string {
   if (locale.toLowerCase().startsWith("ko")) {
-    return { easy: "쉬움", normal: "보통", hard: "어려움" }[difficulty];
+    return { normal: "보통", hard: "어려움" }[difficulty];
   }
   if (locale.toLowerCase().startsWith("ja")) {
-    return { easy: "かんたん", normal: "ふつう", hard: "むずかしい" }[difficulty];
+    return { normal: "ふつう", hard: "むずかしい" }[difficulty];
   }
-  return { easy: "Easy", normal: "Normal", hard: "Hard" }[difficulty];
+  return { normal: "Normal", hard: "Hard" }[difficulty];
 }

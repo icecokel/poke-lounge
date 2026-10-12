@@ -21,7 +21,11 @@ import { normalizePokemonEvolutionTable } from "./battle/pokemon-evolution";
 import { getRuntimePokemonSpeciesSummary } from "./data/game-data-json";
 import type { BattlePokemon, BattleScreenState } from "./battle/battle-types";
 import { healPokemon } from "./player/heal-pokemon";
-import type { PlayerFacing, PlayerPokemonSlot } from "./player/player-types";
+import {
+  PLAYER_PARTY_SLOT_COUNT,
+  type PlayerFacing,
+  type PlayerPokemonSlot,
+} from "./player/player-types";
 import {
   FIELD_MAP,
   NURSE_HEAL_DURATION_MS,
@@ -270,6 +274,7 @@ function advanceWildBattle(
   while (battle.messageQueue.length) battle = popBattleMessage(battle);
   state.party = battle.player.party;
   state.activeSlotIndex = battle.player.activePartySlotIndex;
+  const partyFull = state.party.filter(slot => slot.pokemon).length >= PLAYER_PARTY_SLOT_COUNT;
   if (battle.result) {
     state.party = state.party.map(slot => {
       if (!slot.pokemon) return slot;
@@ -290,7 +295,7 @@ function advanceWildBattle(
     const caught = battle.result.capturedPokemon;
     if (battle.result.winnerPlayerId === battle.player.playerId)
       if (caught) {
-        const slotIndex = Array.from({ length: 6 }, (_, i) => i).find(
+        const slotIndex = Array.from({ length: PLAYER_PARTY_SLOT_COUNT }, (_, i) => i).find(
           i => !state.party.some(slot => slot.slotIndex === i && slot.pokemon),
         );
         if (slotIndex === undefined) state.box.push(caught);
@@ -316,8 +321,7 @@ function advanceWildBattle(
     if (replacement) battle = choosePartySlot(battle, replacement.slotIndex);
   } else if (
     battle.opponent.pokemon.currentHp <= battle.opponent.pokemon.maxHp * 0.5 &&
-    (state.roundIndex !== 1 ||
-      state.party.filter(slot => slot.pokemon).length < profile.roundOnePartyLimit)
+    !partyFull
   ) {
     battle = chooseBattleBagItem({ ...battle, phase: "bag-select" }, "pokeball", {
       captureRandom16: () => Math.floor(random() * 65536),
@@ -335,8 +339,9 @@ function advanceWildBattle(
               requested => requested.moveId === move.id && requested.pp > 0 && !requested.disabled,
             )),
       );
+    // A full party trains by finishing wild battles quickly instead of collecting more Pokemon.
     const move =
-      profile.wildMoveSelection === "random"
+      profile.wildMoveSelection === "random" && !partyFull
         ? randomItem(candidates, random)
         : candidates.sort(
             (a, b) =>

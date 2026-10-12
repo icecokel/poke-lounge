@@ -1,4 +1,7 @@
-import type { AiDifficulty } from '@poke-lounge/battle/ai-difficulty';
+import {
+  AI_DIFFICULTIES,
+  type AiDifficulty,
+} from '@poke-lounge/battle/ai-difficulty';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsNotEmpty, IsString } from 'class-validator';
 import type { SetPokeLoungeAiDifficultyInput } from '../poke-lounge-room.types';
@@ -17,7 +20,7 @@ export class SetPokeLoungeAiDifficultyDto implements Omit<
   @IsNotEmpty()
   sessionId!: string;
 
-  @ApiProperty({ enum: ['easy', 'normal', 'hard'], example: 'easy' })
-  @IsIn(['easy', 'normal', 'hard'])
+  @ApiProperty({ enum: AI_DIFFICULTIES, example: 'normal' })
+  @IsIn(AI_DIFFICULTIES)
   difficulty!: AiDifficulty;
 }

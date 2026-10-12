@@ -4,6 +4,7 @@ import {
 } from '@poke-lounge/battle/timing';
 import { sortTournamentParticipantsByJoinOrder } from '@poke-lounge/battle/tournament-seeding';
 import { ROUND_START_COUNTDOWN_MS } from '@poke-lounge/battle/round-start';
+import { DEFAULT_AI_DIFFICULTY } from '@poke-lounge/battle/ai-difficulty';
 import {
   accumulateTournamentScores,
   rankCumulativeTournamentScores,
@@ -340,10 +341,17 @@ export function normalizeLegacyPokeLoungeRoomSnapshot(
       );
     },
   );
+  const normalizesAiDifficulties = room.participants.some(
+    (participant) =>
+      participant.controller === 'ai' &&
+      participant.aiDifficulty !== 'normal' &&
+      participant.aiDifficulty !== 'hard',
+  );
   if (
     !normalizesTournament &&
     !normalizesVisibility &&
-    !normalizesParticipantControllers
+    !normalizesParticipantControllers &&
+    !normalizesAiDifficulties
   ) {
     return null;
   }
@@ -352,6 +360,11 @@ export function normalizeLegacyPokeLoungeRoomSnapshot(
   normalized.visibility = normalizesVisibility ? 'private' : room.visibility;
   for (const participant of normalized.participants) {
     if (participant.controller !== 'ai') participant.controller = 'human';
+    else if (
+      participant.aiDifficulty !== 'normal' &&
+      participant.aiDifficulty !== 'hard'
+    )
+      participant.aiDifficulty = DEFAULT_AI_DIFFICULTY;
   }
   normalized.revision = room.revision + 1;
   normalized.updatedAtMs = nowMs;
