@@ -12,6 +12,7 @@ import {
   type DiagnosticSnapshot,
 } from "@/lib/client-diagnostics";
 import { ROOM_ERROR_CODES } from "../../../poke-lounge-error-codes";
+import { getServerRoomErrorMessage } from "../server-room-error-copy";
 import type { components } from "@/types/api";
 import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
@@ -148,9 +149,23 @@ export interface PokeLoungeServerRoomErrorDetail {
     | "ROOM_TRANSPORT_FAILED"
     | "ROOM_FULL"
     | "ROOM_EXPIRED"
+    | "ROOM_ALREADY_STARTED"
+    | "ROOM_NOT_FOUND"
+    | "ROOM_SESSION_INVALID"
+    | "ROOM_ACCESS_DENIED"
+    | "ROOM_IDENTITY_MISMATCH"
+    | "ROOM_REJOIN_BLOCKED"
+    | "ROOM_REQUEST_INVALID"
+    | "ROOM_REQUEST_CONFLICT"
+    | "ROOM_SERVER_BUSY"
+    | "ROOM_SERVER_UNAVAILABLE"
+    | "ROOM_REQUEST_TIMEOUT"
+    | "ROOM_NETWORK_FAILED"
+    | "ROOM_RESPONSE_INVALID"
     | "CURSOR_REGRESSION";
   message: string;
   recoverable: boolean;
+  entryOperation?: "join";
   disconnected?: boolean;
   retryKind?: "reconnect";
   retry?: () => void | Promise<boolean>;
@@ -230,11 +245,28 @@ export interface StoredServerRoomResume {
 type InitialWorkflowStage = "open" | "competitive-seat" | "party" | "complete";
 
 class ServerRoomRequestError extends Error {
+  readonly serverCode: string | null;
+
   constructor(
     readonly status: number,
     readonly responseBody: unknown,
   ) {
-    super(`Poke Lounge server room request failed: ${status}`);
+    const code =
+      responseBody !== null && typeof responseBody === "object" && "code" in responseBody
+        ? responseBody.code
+        : null;
+    const serverCode =
+      typeof code === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(code) ? code : null;
+    super(
+      `Poke Lounge server room request failed: ${status}${serverCode ? ` (${serverCode})` : ""}`,
+    );
+    this.serverCode = serverCode;
+  }
+}
+
+class ServerRoomTimeoutError extends Error {
+  constructor() {
+    super("Poke Lounge server room request timed out");
   }
 }
 
@@ -304,7 +336,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       timeoutHandle = window.setTimeout(function handleTimeout() {
         timedOut = true;
         controller.abort();
-        reject(new Error("Poke Lounge server room request timed out"));
+        reject(new ServerRoomTimeoutError());
       }, requestTimeoutMs);
     });
 
@@ -826,16 +858,19 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         getServerRoomConflict(error)?.code === IDEMPOTENCY_CONFLICT_CODE
       ) && isRecoverableInitialWorkflowError(error);
     if (!recoverable) clearPendingRoomEntry(initialOpenIdempotencyKey);
+    const creatingRoom =
+      (options.createRoom === true || options.quickPlay === true) && options.resumeRoom !== true;
     const detail = createInitialWorkflowErrorDetail(
       initialWorkflowStage,
       error,
       recoverable,
-      (options.createRoom === true || options.quickPlay === true) && options.resumeRoom !== true,
+      creatingRoom,
     );
     emitConnectionStatus("offline");
     dispatchServerRoomError(
       {
         ...detail,
+        ...(initialWorkflowStage === "open" && !creatingRoom ? { entryOperation: "join" } : {}),
         ...(recoverable ? { retry: retryInitialWorkflow } : {}),
       },
       error,
@@ -2948,6 +2983,11 @@ function createInitialWorkflowErrorDetail(
     };
   }
 
+  if (stage === "open" && !creatingRoom) {
+    const code = getRoomJoinFailureCode(error);
+    if (code) return { code, message: getServerRoomErrorMessage("ko-KR", code), recoverable };
+  }
+
   switch (stage) {
     case "open":
       return {
@@ -2975,6 +3015,45 @@ function createInitialWorkflowErrorDetail(
         message: `서버 방 연결을 복구하지 못했습니다${statusMessage}. 다시 시도해 주세요.`,
         recoverable,
       };
+  }
+}
+
+function getRoomJoinFailureCode(error: unknown): PokeLoungeServerRoomErrorDetail["code"] | null {
+  if (error instanceof ServerRoomTimeoutError) return "ROOM_REQUEST_TIMEOUT";
+  if (error instanceof ServerRoomTransportError) return "ROOM_NETWORK_FAILED";
+  if (
+    error instanceof ServerRoomJsonParseError ||
+    error instanceof ServerRoomSchemaError ||
+    error instanceof CompetitiveProjectionSchemaError
+  )
+    return "ROOM_RESPONSE_INVALID";
+  if (!(error instanceof ServerRoomRequestError)) return null;
+  switch (error.status) {
+    case 400:
+      return error.serverCode === "POKE_LOUNGE_ROOM_ALREADY_STARTED"
+        ? "ROOM_ALREADY_STARTED"
+        : "ROOM_REQUEST_INVALID";
+    case 401:
+      return "ROOM_SESSION_INVALID";
+    case 403:
+      return error.serverCode === "POKE_LOUNGE_ROOM_IDENTITY_MISMATCH"
+        ? "ROOM_IDENTITY_MISMATCH"
+        : "ROOM_ACCESS_DENIED";
+    case 404:
+      return error.serverCode === "ROOM_NOT_FOUND" ? "ROOM_NOT_FOUND" : "ROOM_RESPONSE_INVALID";
+    case 410:
+      return error.serverCode === "POKE_LOUNGE_ROOM_REJOIN_BLOCKED"
+        ? "ROOM_REJOIN_BLOCKED"
+        : "ROOM_EXPIRED";
+    case 408:
+    case 504:
+      return "ROOM_REQUEST_TIMEOUT";
+    case 409:
+      return "ROOM_REQUEST_CONFLICT";
+    case 429:
+      return "ROOM_SERVER_BUSY";
+    default:
+      return error.status >= 500 ? "ROOM_SERVER_UNAVAILABLE" : null;
   }
 }
 

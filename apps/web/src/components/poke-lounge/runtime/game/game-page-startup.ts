@@ -577,7 +577,9 @@ export async function startGamePage(
         roomEntry.visibility === "public" &&
         roomEntry.createRoom !== true &&
         !detail.recoverable &&
-        (detail.code === "ROOM_FULL" || detail.code === "ROOM_JOIN_FAILED");
+        (detail.entryOperation === "join" ||
+          detail.code === "ROOM_FULL" ||
+          detail.code === "ROOM_JOIN_FAILED");
 
       if (shouldReturnPublicDirectory) {
         dispatchPokeLoungeNotice(mount.ownerDocument, {
