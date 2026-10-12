@@ -479,16 +479,16 @@ impl Room {
                 .find(|p| p.player_id == player || p.session_hash == session)
             {
                 if p.player_id != player || p.session_hash != session || p.ai {
-                    return Err(AppError::Forbidden);
+                    return Err(AppError::RoomIdentityMismatch);
                 }
                 if !p.connected && self.status != Status::Waiting {
-                    return Err(AppError::Closed);
+                    return Err(AppError::RoomRejoinBlocked);
                 }
                 p.connected = true;
                 p.presence_until_ms = now + PRESENCE_LEASE_MS;
             } else {
                 if self.status != Status::Waiting {
-                    return Err(AppError::Invalid("Room is not joinable"));
+                    return Err(AppError::RoomAlreadyStarted);
                 }
                 if self.participants.len() >= MAX_PARTICIPANTS {
                     return Err(AppError::RoomFull);
