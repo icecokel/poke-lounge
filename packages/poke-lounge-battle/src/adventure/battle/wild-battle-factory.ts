@@ -51,8 +51,8 @@ export interface RomRefinedMoveCollection {
 
 export interface CreateWildBattleStateInput {
   sharePartyExperience?: boolean;
-  partyExperienceRatio?: 0 | 0.5 | 1;
-  experienceMultiplier?: 1 | 1.5;
+  partyExperienceRatio?: 0 | 0.75 | 0.8 | 1;
+  experienceMultiplier?: 1 | 1.25 | 2 | 2.5;
   encounter: WildEncounterCandidate;
   personalRecords: RomPersonalRecordCollection;
   moveRecords: RomRefinedMoveCollection;

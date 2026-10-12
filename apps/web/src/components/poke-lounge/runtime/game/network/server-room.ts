@@ -3329,7 +3329,7 @@ function parseServerRoomParticipants(value: unknown[]): ServerParticipant[] {
 }
 
 function isAiDifficulty(value: unknown): value is AiDifficulty {
-  return value === "easy" || value === "normal" || value === "hard";
+  return value === "normal" || value === "hard";
 }
 
 function parseServerRoomRound(value: unknown): ServerRoomState["round"] {

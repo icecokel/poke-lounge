@@ -540,14 +540,21 @@ export function MobileWorldScreen({
     const confirmLabel = state.pcFocus === "party" ? copy.mobile.deposit : copy.mobile.withdraw;
     content = <MobilePcPanel copy={copy} onAction={onAction} state={state} />;
     footer = (
-      <MobileWorldSceneFooter
-        copy={copy}
-        onBack={back}
-        onConfirm={function handleConfirm() {
-          return onAction({ type: "confirm-pc-selection" });
-        }}
-        confirmLabel={confirmLabel}
-      />
+      <div>
+        {state.message ? (
+          <div className="px-[max(16px,env(safe-area-inset-left))] pb-2.5">
+            <MobileWorldMessage message={state.message} />
+          </div>
+        ) : null}
+        <MobileWorldSceneFooter
+          copy={copy}
+          onBack={back}
+          onConfirm={function handleConfirm() {
+            return onAction({ type: "confirm-pc-selection" });
+          }}
+          confirmLabel={confirmLabel}
+        />
+      </div>
     );
   } else {
     content = <MobilePartyPanel copy={copy} onAction={onAction} state={state} />;
@@ -834,7 +841,6 @@ export function MobilePcPanel({
           <p className="col-span-full p-5 text-center text-[#49665e]">{copy.game.empty}</p>
         )}
       </div>
-      <MobileWorldMessage message={state.message} />
     </div>
   );
 }
@@ -1300,6 +1306,7 @@ function MobileWorldTask({
       footer={
         confirm ? (
           <>
+            {state.screen === "pc" ? <MobileWorldMessage message={state.message} /> : null}
             <button
               type="button"
               className="min-h-14 w-full touch-manipulation rounded-lg border-2 border-[#304550] bg-[linear-gradient(#5c9268_50%,#3a694c_50%)] px-3 py-2 font-bold text-white shadow-[var(--hg-button)] focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3 disabled:cursor-default disabled:border-[#8d9c98] disabled:bg-[#d8e0d6] disabled:text-[#536164] disabled:shadow-[inset_0_0_0_2px_#eef0e8]"

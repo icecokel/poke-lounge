@@ -55,7 +55,18 @@ export function TrainerNameEntry({
     <div className={styles.introduction}>
       <header className={styles.brand}>
         <span>POKE LOUNGE</span>
-        <PageReloadButton locale={copy.locale} disabled={pending} iconOnly />
+        <div className="flex items-center gap-2">
+          {showForm ? (
+            <EntryLanguageSelector
+              copy={copy}
+              displayName={displayName}
+              disabled={pending}
+              profile={{ mode, customName }}
+              onLanguageSwitch={onLanguageSwitch}
+            />
+          ) : null}
+          <PageReloadButton locale={copy.locale} disabled={pending} iconOnly />
+        </div>
       </header>
       <div className={styles.scene}>
         <div className={styles.horizon} aria-hidden="true" />
@@ -80,13 +91,6 @@ export function TrainerNameEntry({
 
       {showForm ? (
         <form className={styles.form} onSubmit={onSubmit} data-room-entry-profile-step>
-          <EntryLanguageSelector
-            copy={copy}
-            displayName={displayName}
-            disabled={pending}
-            profile={{ mode, customName }}
-            onLanguageSwitch={onLanguageSwitch}
-          />
           <div className={styles.nameArea}>
             <div className={styles.names} role="group" aria-label={text.multiplayerNameLabel}>
               {names.map(name => (

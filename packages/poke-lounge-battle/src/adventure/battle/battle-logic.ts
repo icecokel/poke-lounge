@@ -1968,9 +1968,18 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
                   ).pokemon,
         }))
       : undefined;
+  const sharedExperienceGained = wildVictoryExperience
+    ? Math.floor(
+        calculateWildBattleExpGain({
+          baseExpYield: input.opponentPokemon.baseExpYield,
+          defeatedLevel: input.opponentPokemon.level,
+        }) *
+          (partyExperienceRatio * experienceMultiplier),
+      )
+    : 0;
   const wildVictoryRewardMessage = wildVictoryExperience
     ? partyExperience
-      ? `${partyExperienceRatio === 1 ? `팀 전원이 각각 ${wildVictoryExperience.experienceGained} 경험치를 얻었다!` : `${resolvedPlayerPokemon.name}: ${wildVictoryExperience.experienceGained} 경험치 · 나머지 팀원: 각각 ${Math.floor(wildVictoryExperience.experienceGained * partyExperienceRatio)} 경험치를 얻었다!`}`
+      ? `${partyExperienceRatio === 1 ? `팀 전원이 각각 ${wildVictoryExperience.experienceGained} 경험치를 얻었다!` : `${resolvedPlayerPokemon.name}: ${wildVictoryExperience.experienceGained} 경험치 · 나머지 팀원: 각각 ${sharedExperienceGained} 경험치를 얻었다!`}`
       : formatWildVictoryRewardMessage(
           resolvedPlayerPokemon.name,
           wildVictoryExperience.experienceGained,

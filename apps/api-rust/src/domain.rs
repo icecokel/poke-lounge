@@ -58,7 +58,8 @@ pub enum Status {
 #[serde(rename_all = "kebab-case")]
 pub enum AiDifficulty {
     #[default]
-    Easy,
+    // Existing room snapshots may still contain the removed difficulty.
+    #[serde(alias = "easy")]
     Normal,
     Hard,
 }
@@ -177,7 +178,7 @@ impl Participant {
                 .unwrap_or_else(|| "플레이어".into()),
             session_hash: session_hash(&input.session_id)?,
             ai: false,
-            ai_difficulty: AiDifficulty::Easy,
+            ai_difficulty: AiDifficulty::Normal,
             ready: true,
             connected: true,
             admitted: false,
@@ -498,7 +499,7 @@ impl Room {
                     session_hash: session.into(),
                     display_name: normalize_name(display_name)?,
                     ai: false,
-                    ai_difficulty: AiDifficulty::Easy,
+                    ai_difficulty: AiDifficulty::Normal,
                     ready: false,
                     connected: true,
                     admitted: false,
@@ -794,7 +795,7 @@ impl Room {
             display_name: display_name.to_owned(),
             session_hash: hash_bytes(Uuid::new_v4().as_bytes()),
             ai: true,
-            ai_difficulty: AiDifficulty::Easy,
+            ai_difficulty: AiDifficulty::Normal,
             ready: true,
             connected: true,
             admitted: true,

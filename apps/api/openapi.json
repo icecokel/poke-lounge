@@ -2256,8 +2256,8 @@
           },
           "aiDifficulty": {
             "type": "string",
-            "enum": ["easy", "normal", "hard"],
-            "example": "easy"
+            "enum": ["normal", "hard"],
+            "example": "normal"
           },
           "role": {
             "type": "string",
@@ -3137,8 +3137,8 @@
           },
           "difficulty": {
             "type": "string",
-            "enum": ["easy", "normal", "hard"],
-            "example": "easy"
+            "enum": ["normal", "hard"],
+            "example": "normal"
           }
         },
         "required": ["playerId", "sessionId", "difficulty"]

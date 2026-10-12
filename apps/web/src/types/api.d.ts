@@ -754,10 +754,10 @@ export interface components {
        */
       controller: "human" | "ai";
       /**
-       * @example easy
+       * @example normal
        * @enum {string}
        */
-      aiDifficulty?: "easy" | "normal" | "hard";
+      aiDifficulty?: "normal" | "hard";
       /**
        * @example participant
        * @enum {string}
@@ -1100,10 +1100,10 @@ export interface components {
       /** @example session-a */
       sessionId: string;
       /**
-       * @example easy
+       * @example normal
        * @enum {string}
        */
-      difficulty: "easy" | "normal" | "hard";
+      difficulty: "normal" | "hard";
     };
     CompetitiveEffortValuesDto: {
       hp: number;
