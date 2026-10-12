@@ -72,7 +72,15 @@ export function DirectMultiplayerEntryScreen({
           <span className="text-[0.6875rem] font-extrabold tracking-[0.13em] text-[#54705b]">
             POKE LOUNGE
           </span>
-          <PageReloadButton locale={copy.locale} disabled={pending} />
+          <div className="flex items-center gap-2">
+            <EntryLanguageSelector
+              copy={copy}
+              displayName={displayName}
+              disabled={pending}
+              onLanguageSwitch={() => setPending(true)}
+            />
+            <PageReloadButton locale={copy.locale} disabled={pending} iconOnly />
+          </div>
           <a
             href={`/${copy.locale}`}
             className="inline-flex min-h-12 touch-manipulation items-center justify-center gap-[5px] text-sm text-[#50624c] no-underline focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3"
@@ -96,12 +104,6 @@ export function DirectMultiplayerEntryScreen({
               <strong>{roomCode}</strong>
             </p>
           ) : null}
-          <EntryLanguageSelector
-            copy={copy}
-            displayName={displayName}
-            disabled={pending}
-            onLanguageSwitch={() => setPending(true)}
-          />
           <label
             className="grid gap-2 font-semibold [&_input]:min-h-14 [&_input]:w-full [&_input]:rounded-xl [&_input]:border-2 [&_input]:border-[#8ea17e] [&_input]:bg-white [&_input]:p-3 [&_input]:text-base [&_input]:font-medium [&_input]:text-[#203329] [&_input]:focus-visible:outline-3 [&_input]:focus-visible:outline-[#985512] [&_input]:focus-visible:outline-offset-3 [&_input[aria-invalid=true]]:border-[#a94130] [&_small]:text-[0.8125rem] [&_small]:font-normal [&_small]:text-[#65745b]"
             htmlFor={`${id}-name`}
