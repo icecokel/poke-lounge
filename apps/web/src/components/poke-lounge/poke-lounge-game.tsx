@@ -163,6 +163,8 @@ export function PokeLoungeGame() {
   const tokenLifecycle = getPokeLoungeTokenLifecycle();
   const [finalResult, setFinalResult] = useState<FinalResultState | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsOpenRef = useRef(settingsOpen);
+  const syncSettingsHistoryRef = useRef<(() => void) | null>(null);
   const [exitConfirmationOpen, setExitConfirmationOpen] = useState(false);
   useEffect(() => {
     const closeOverlays = () => {
@@ -281,6 +283,51 @@ export function PokeLoungeGame() {
     resetVirtualGamepad();
     setSettingsOpen(false);
   }, []);
+
+  useLayoutEffect(() => {
+    settingsOpenRef.current = settingsOpen;
+    syncSettingsHistoryRef.current?.();
+  }, [settingsOpen]);
+
+  useEffect(() => {
+    const historyKey = "pokeLoungeSettings";
+    const entryId = crypto.randomUUID();
+    const pagePath = window.location.pathname;
+    let pendingBack = false;
+    const ownsEntry = () =>
+      window.location.pathname === pagePath && window.history.state?.[historyKey] === entryId;
+    const syncHistory = () => {
+      if (window.location.pathname !== pagePath || pendingBack) return;
+      if (settingsOpenRef.current) {
+        if (!ownsEntry()) {
+          // Keep Next's router state so Back restores this game without reloading it.
+          window.history.pushState({ ...window.history.state, [historyKey]: entryId }, "");
+        }
+      } else if (ownsEntry()) {
+        pendingBack = true;
+        window.history.back();
+      }
+    };
+    const handlePopState = () => {
+      if (window.location.pathname !== pagePath) return;
+      if (pendingBack) {
+        pendingBack = false;
+        // A quick reopen waits for the previous close to finish consuming its entry.
+        syncHistory();
+        return;
+      }
+      if (ownsEntry()) handleMobileSettingsOpen();
+      else handleMobileSettingsClose();
+    };
+    syncSettingsHistoryRef.current = syncHistory;
+    window.addEventListener("popstate", handlePopState);
+    syncHistory();
+    return () => {
+      syncSettingsHistoryRef.current = null;
+      window.removeEventListener("popstate", handlePopState);
+      if (ownsEntry() && !pendingBack) window.history.back();
+    };
+  }, [handleMobileSettingsClose, handleMobileSettingsOpen]);
 
   const handleGameExitRequest = useCallback(function memoizedCallback() {
     resetVirtualGamepad();
