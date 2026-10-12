@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import { PageReloadButton } from "../../../ui/page-reload-button";
 import { PixelButton, PixelPanel } from "../../../ui/poke-lounge-ui-primitives";
+import { EntryLanguageSelector } from "./entry-language-selector";
 import styles from "./trainer-name-entry.module.css";
 
 export function TrainerNameEntry({
@@ -69,6 +70,7 @@ export function TrainerNameEntry({
 
       {showForm ? (
         <form className={styles.form} onSubmit={onSubmit} data-room-entry-profile-step>
+          <EntryLanguageSelector copy={copy} displayName={displayName} disabled={pending} />
           <div className={styles.nameArea}>
             <div className={styles.names} role="group" aria-label={text.multiplayerNameLabel}>
               {names.map(name => (
