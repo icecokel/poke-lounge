@@ -30,6 +30,7 @@ import type {
   TournamentStateRoomPayload,
 } from "../network/tournament-projection";
 import { RoomGameGuide } from "./room-game-guide";
+import { RoomCodeCopyButton } from "./room-code-copy-button";
 import { getRoomLobbyCopy } from "./room-lobby-copy";
 import { createRoomLobbyViewState } from "./room-lobby-screen";
 import { useRoomLobbyCommands } from "./use-room-lobby-commands";
@@ -166,12 +167,19 @@ export function RoomLobbyScreen({
           ) : null}
         </header>
         <div className="flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1 border-b-[3px] border-[#526e7a] bg-[#e2edf0] px-3 pb-2 text-[0.8125rem] text-[#50624c]">
-          <span className="flex min-w-0 items-baseline gap-2 [&_strong]:rounded [&_strong]:border [&_strong]:border-[#8299a0] [&_strong]:bg-[#fffdf0] [&_strong]:px-1.5 [&_strong]:py-px [&_strong]:font-mono [&_strong]:text-[0.9375rem] [&_strong]:text-[#273a2d] [&_strong]:[overflow-wrap:anywhere]">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 [&_strong]:rounded [&_strong]:border [&_strong]:border-[#8299a0] [&_strong]:bg-[#fffdf0] [&_strong]:px-1.5 [&_strong]:py-px [&_strong]:font-mono [&_strong]:text-[0.9375rem] [&_strong]:text-[#273a2d] [&_strong]:[overflow-wrap:anywhere]">
             <span>{state.privateRoomAccessCode ? text.privateCode : text.room}</span>
             <strong data-room-lobby-code>
               {state.privateRoomAccessCode ?? state.projection.roomCode}
             </strong>
-          </span>
+            {state.privateRoomAccessCode ? (
+              <RoomCodeCopyButton
+                code={state.privateRoomAccessCode}
+                copy={fullCopy.roomEntry}
+                className={SECONDARY_BUTTON}
+              />
+            ) : null}
+          </div>
           <span
             className="flex items-center gap-[5px] [&_b]:whitespace-nowrap [&_b]:text-[#273a2d] [&_b]:tabular-nums"
             data-room-lobby-duration
