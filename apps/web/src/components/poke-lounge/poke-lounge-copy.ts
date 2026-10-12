@@ -198,6 +198,7 @@ export interface PokeLoungeCopy {
   };
   roomEntry: {
     title: string;
+    languageLabel: string;
     fanNotice: string;
     localTestTitle: string;
     localTestDescription: string;
@@ -488,6 +489,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
   },
   roomEntry: {
     title: "멀티플레이",
+    languageLabel: "언어",
     fanNotice:
       "Poke Lounge는 Pokémon에 대한 애정과 존중을 담아 만든 비공식 팬 게임입니다. 원작과 Pokémon 관련 권리는 각 권리자에게 있습니다.",
     localTestTitle: "로컬 싱글 테스트",
@@ -791,6 +793,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   },
   roomEntry: {
     title: "Multiplayer",
+    languageLabel: "Language",
     fanNotice:
       "Poke Lounge is an unofficial fan game made for playing with friends. Pokémon rights belong to their respective owners.",
     localTestTitle: "Local solo test",
@@ -1096,6 +1099,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   },
   roomEntry: {
     title: "マルチプレイ",
+    languageLabel: "言語",
     fanNotice:
       "ポケラウンジは友達と楽しむための非公式ファンゲームです。Pokémonに関する権利は各権利者に帰属します。",
     localTestTitle: "ローカルソロテスト",
