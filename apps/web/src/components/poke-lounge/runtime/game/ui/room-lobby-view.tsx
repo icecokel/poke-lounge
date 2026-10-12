@@ -9,6 +9,7 @@ import {
   Crown,
   Link2,
   Menu,
+  Plus,
   UserRound,
   Users,
   WifiOff,
@@ -239,18 +240,6 @@ export function RoomLobbyScreen({
                   </span>
                 </p>
               </div>
-              {view.isHost ? (
-                <button
-                  type="button"
-                  className="inline-flex min-h-11 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-[7px] border-2 border-[#627f85] bg-[linear-gradient(#fffdf0_50%,#dfe9df_50%)] px-2.5 py-2 font-bold text-[#304e36] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#536b73] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]"
-                  disabled={view.participantCount >= 8 || mutation !== null || !own?.connected}
-                  onClick={() => void runMutation("ai-add", state.onAddAi)}
-                  data-room-lobby-ai-add="true"
-                >
-                  <Bot size={18} aria-hidden="true" />
-                  {copy.addAiAction}
-                </button>
-              ) : null}
             </div>
             <ul
               className="m-0 grid min-h-0 min-w-0 list-none content-start gap-[7px] overflow-y-auto overscroll-contain px-[3px] pt-[3px] pb-2 [scroll-padding-block:4px]"
@@ -281,6 +270,29 @@ export function RoomLobbyScreen({
                   }
                 />
               ))}
+              {view.isHost && view.participantCount < 8 ? (
+                <li>
+                  <button
+                    type="button"
+                    className={cn(
+                      SECONDARY_BUTTON,
+                      "min-h-[68px] w-full justify-start gap-2 border-dashed border-[#7c969a] bg-[#f4f7ec] p-[9px] text-[#49613f] shadow-none",
+                    )}
+                    disabled={mutation !== null || !own?.connected}
+                    onClick={() => void runMutation("ai-add", state.onAddAi)}
+                    data-room-lobby-ai-add="true"
+                  >
+                    <span
+                      className="grid h-9 w-8 shrink-0 place-items-center rounded-md border-2 border-[#6c8c91] bg-[linear-gradient(#bdd8df_50%,#eaf1e8_50%)] text-[#3e6678]"
+                      aria-hidden="true"
+                    >
+                      <Bot size={24} />
+                    </span>
+                    {copy.addAiAction}
+                    <Plus size={20} className="ml-auto shrink-0" aria-hidden="true" />
+                  </button>
+                </li>
+              ) : null}
               {state.projection.participants.length === 0 ? (
                 <li className="p-6 text-center text-[#617154]">{text.empty}</li>
               ) : null}
