@@ -2,7 +2,7 @@ name: PR branch flow
 
 on:
   pull_request:
-    branches: [main, dev]
+    branches: [main]
     types: [opened, reopened, synchronize, edited, ready_for_review]
 
 permissions:
@@ -21,17 +21,11 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
           HEAD_REF: ${{ github.head_ref }}
-          BASE_REPO: ${{ github.repository }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
         shell: bash
         run: |
-          if [[ "$BASE_REF" == "main" && "$HEAD_REF" == "dev" && "$HEAD_REPO" == "$BASE_REPO" ]]; then
-            echo "Allowed: dev -> main"
-          elif [[ "$BASE_REF" == "dev" && "$HEAD_REF" == feature/?* ]]; then
-            echo "Allowed: feature/* -> dev"
-          elif [[ "$BASE_REF" == "dev" && "$HEAD_REF" == "main" && "$HEAD_REPO" == "$BASE_REPO" ]]; then
-            echo "Allowed: main -> dev"
+          if [[ "$BASE_REF" == "main" && "$HEAD_REF" == feature/?* ]]; then
+            echo "Allowed: feature/* -> main"
           else
-            echo "::error::Allowed PR routes: feature/* -> dev, dev -> main, main -> dev."
+            echo "::error::Allowed PR route: feature/* -> main."
             exit 1
           fi
