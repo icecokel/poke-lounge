@@ -385,6 +385,15 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const readIdToken = () => options.getIdToken?.() ?? options.idToken;
   const handlers = new Map<RoomMessage, Set<Handler<RoomMessage>>>();
   let disposed = false;
+  const reportedStateApplyFailures = new Set<string>();
+  const reportStateApplyFailure = (code: string, error: unknown) => {
+    if (disposed || leaveSent || reportedStateApplyFailures.has(code)) return;
+    // Recovery can repeat indefinitely; keep only the first exception per code in this room.
+    reportedStateApplyFailures.add(code);
+    recordClientBreadcrumb("room.apply_failed", { stage: "apply", causeType: "client" });
+    const snapshot = captureClientDiagnosticFailure(error, { stage: "apply", causeType: "client" });
+    reportClientDiagnostic({ kind: "room", code, error, snapshot, priority: "background" });
+  };
   let recoveryTimer: number | null = null;
   let roomLivenessTimer: number | null = null;
   let recoveryAttempt = 0;
@@ -1078,13 +1087,16 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     let recoverySucceeded = false;
     let onlineProbeFailed = false;
     let retryOnlineExpectation = false;
+    let applyingSnapshot = false;
     recoveryInFlight = true;
     try {
       const terminalRevisionBeforeRecovery = lastAppliedTerminalRevision;
       const room = await requestRoom(
         `/poke-lounge/rooms/${activeRoomId}?afterRevision=${Math.max(0, lastAppliedTerminalRevision)}`,
       );
+      applyingSnapshot = true;
       const applied = applySnapshot(room);
+      applyingSnapshot = false;
       recoverySucceeded = true;
       const terminalCursorAdvanced = lastAppliedTerminalRevision > terminalRevisionBeforeRecovery;
       retryOnlineExpectation =
@@ -1108,7 +1120,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       ) {
         recoveryDrainQueued = true;
       }
-    } catch {
+    } catch (error) {
+      if (applyingSnapshot) reportStateApplyFailure("RECOVERY_SNAPSHOT_APPLY_FAILED", error);
       if (origin === "online-probe") {
         onlineProbeFailed = true;
       } else {
@@ -1643,7 +1656,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
     try {
       applyTerminalTransitions(state.competitiveTransitions);
-    } catch {
+    } catch (error) {
+      reportStateApplyFailure("TERMINAL_TRANSITIONS_APPLY_FAILED", error);
       requestTerminalRecovery();
       return false;
     }
@@ -2204,6 +2218,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
     try {
       const parsed = await retryOneNetworkFailure(send);
+      if (disposed || leaveSent) return;
       const projection = parsed.projection;
 
       if (
@@ -2245,6 +2260,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       clearOnlineStaleRecovery();
       scheduleOnlineStaleRecovery(ONLINE_STALE_RECOVERY_DELAY_MS, true, true);
     } catch (error) {
+      if (disposed || leaveSent) return;
       const snapshot = captureClientDiagnosticSnapshot(actionTrace);
       reportClientDiagnostic({ kind: "room", code: "COMPETITIVE_ACTION_FAILED", error, snapshot });
       emit("COMPETITIVE_ACTION_FAILED", {

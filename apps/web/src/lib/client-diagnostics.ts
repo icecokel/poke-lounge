@@ -185,10 +185,25 @@ export function clientDiagnosticOperation(path: string, method = "GET"): string 
   return `${["GET", "POST", "PUT", "DELETE", "PATCH"].includes(method) ? method : "GET"} ${route}`;
 }
 
-function redact(value: string, max: number): string {
+function redact(value: string, max: number, stack = false): string {
   // Redact before truncating so a cut-off secret is not left behind.
   const safe = value
     .slice(0, 16_384)
+    .replace(/(?:https?|wss?):\/\/[^\s)"'<>]+|\/?[A-Za-z0-9_./:-]+[?#][^\s)"'<>]+/g, url => {
+      try {
+        const location = url.match(/:\d+(?::\d+)?$/)?.[0] ?? "";
+        const path = new URL(
+          location ? url.slice(0, -location.length) : url,
+          "https://diagnostic.invalid",
+        ).pathname;
+        const script =
+          /^\/_next\/static\/[A-Za-z0-9_./-]{1,180}$/.test(path) ||
+          (stack && /^\/[A-Za-z0-9_./-]{1,180}\.(?:[cm]?js|tsx?)$/.test(path));
+        return script ? `${path}${stack ? location : ""}` : "[url]";
+      } catch {
+        return "[url]";
+      }
+    })
     .replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [redacted]")
     .replace(/\b(cookie|set-cookie|authorization)\s*[:=][^\n]*/gi, "$1=[redacted]")
     .replace(
@@ -198,15 +213,6 @@ function redact(value: string, max: number): string {
     .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted]")
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[email]")
     .replace(/\b(?:\+?\d[\d ()-]{8,}\d)\b/g, "[number]")
-    .replace(/(?:https?|wss?):\/\/[^\s)"'<>]+/g, url => {
-      try {
-        const path = new URL(url).pathname;
-        return /^\/_next\/static\/[A-Za-z0-9_./-]{1,180}$/.test(path) ? path : "[url]";
-      } catch {
-        return "[url]";
-      }
-    })
-    .replace(/\/[A-Za-z0-9_./:-]+[?#][^\s)"'<>]+/g, "[url]")
     .replace(/\{[^\n]*\}|\[[^\n]*\]/g, "[data]")
     .replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, "");
   return Array.from(safe).slice(0, max).join("");
@@ -243,7 +249,7 @@ function errorCauses(error: unknown): ErrorCause[] {
         // Exclude the stack header: it repeats the message and can contain body previews.
         stack:
           typeof stack === "string"
-            ? redact(stack.slice(0, 16_384).split("\n").slice(1, 5).join("\n"), 360)
+            ? redact(stack.slice(0, 16_384).split("\n").slice(1, 5).join("\n"), 360, true)
             : undefined,
         status: integer(read(value, "status"), 599),
       });

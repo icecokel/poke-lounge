@@ -25,6 +25,7 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
   const listeners = new Map<string, Set<Listener>>();
   let socket: WebSocket | null = null;
   let disposed = false;
+  let sendFailureReported = false;
   let attempt = 0;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let openTimer: ReturnType<typeof setTimeout> | null = null;
@@ -159,7 +160,23 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
       }
       try {
         current.send(JSON.stringify({ event, payload }));
-      } catch {
+      } catch (error) {
+        // A socket adapter reports only its first send exception, including across reconnects.
+        if (!sendFailureReported) {
+          sendFailureReported = true;
+          recordClientBreadcrumb("socket.send_failed", { stage: "socket", causeType: "socket" });
+          const snapshot = captureClientDiagnosticFailure(error, {
+            stage: "socket",
+            causeType: "socket",
+          });
+          reportClientDiagnostic({
+            kind: "room",
+            code: "WS_SEND_FAILED",
+            error,
+            snapshot,
+            priority: "background",
+          });
+        }
         current.close();
       }
       return adapter;
