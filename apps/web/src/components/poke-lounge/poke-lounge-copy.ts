@@ -252,6 +252,9 @@ export interface PokeLoungeCopy {
     temporaryPasswordDescription: string;
     temporaryPasswordPlaceholder: string;
     temporaryPasswordGenerate: string;
+    temporaryPasswordCopy: string;
+    temporaryPasswordCopied: string;
+    temporaryPasswordCopyFailed: string;
     temporaryPasswordRequired: string;
     privateRoomJoinDescription: string;
     privateRoomJoin: string;
@@ -550,9 +553,12 @@ const KOREAN_COPY: PokeLoungeCopy = {
     publicRoomStatusTournament: "토너먼트 중",
     temporaryPasswordLabel: "비공개방 코드",
     temporaryPasswordDescription:
-      "친구에게 공유할 영문·숫자 6자리 코드입니다. 원문은 서버에 저장하거나 전송하지 않습니다.",
+      "친구에게 공유할 영문·숫자 6자리 코드입니다. 방을 만든 뒤 친구에게 공유하세요.",
     temporaryPasswordPlaceholder: "영문·숫자 6자리 입력",
     temporaryPasswordGenerate: "랜덤 생성",
+    temporaryPasswordCopy: "복사",
+    temporaryPasswordCopied: "복사됨",
+    temporaryPasswordCopyFailed: "복사 실패",
     temporaryPasswordRequired: "영문·숫자 6자리 비공개방 코드를 입력해 주세요.",
     privateRoomJoinDescription: "친구에게 받은 6자리 비공개방 코드를 입력하세요.",
     privateRoomJoin: "비공개방 들어가기",
@@ -853,9 +859,12 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     publicRoomStatusTournament: "Tournament",
     temporaryPasswordLabel: "Private room code",
     temporaryPasswordDescription:
-      "Share this 6-character letter and number code with friends. The original is never stored or sent to the server.",
+      "A 6-character letter and number code. Create the room before sharing it with friends.",
     temporaryPasswordPlaceholder: "Enter 6 letters or numbers",
     temporaryPasswordGenerate: "Generate",
+    temporaryPasswordCopy: "Copy",
+    temporaryPasswordCopied: "Copied",
+    temporaryPasswordCopyFailed: "Copy failed",
     temporaryPasswordRequired: "Enter a 6-character private room code.",
     privateRoomJoinDescription: "Enter the 6-character private room code you received.",
     privateRoomJoin: "Join private room",
@@ -1157,9 +1166,12 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     publicRoomStatusTournament: "トーナメント中",
     temporaryPasswordLabel: "非公開ルームコード",
     temporaryPasswordDescription:
-      "友達に共有する半角英数字6文字のコードです。元のコードはサーバーに保存・送信しません。",
+      "友達に共有する半角英数字6文字のコードです。ルームを作成してから友達に共有してください。",
     temporaryPasswordPlaceholder: "半角英数字6文字を入力",
     temporaryPasswordGenerate: "ランダム生成",
+    temporaryPasswordCopy: "コピー",
+    temporaryPasswordCopied: "コピー済み",
+    temporaryPasswordCopyFailed: "コピー失敗",
     temporaryPasswordRequired: "半角英数字6文字の非公開ルームコードを入力してください。",
     privateRoomJoinDescription: "友達から受け取った6文字の非公開ルームコードを入力してください。",
     privateRoomJoin: "非公開ルームに参加",

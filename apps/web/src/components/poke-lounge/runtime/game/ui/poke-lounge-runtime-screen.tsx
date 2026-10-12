@@ -2,6 +2,7 @@ import { FanNoticeToast, TrainerNameEntry } from "./trainer-name-entry";
 import { PixelButton } from "../../../ui/poke-lounge-ui-primitives";
 import { PageReloadButton } from "../../../ui/page-reload-button";
 import { RoomLobbyScreen } from "./room-lobby-view";
+import { RoomCodeCopyButton } from "./room-code-copy-button";
 import { DirectMultiplayerEntryScreen } from "./room-invitation-screen";
 export { RoomLobbyScreen } from "./room-lobby-view";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -648,8 +649,16 @@ function RoomEntryScreen({
                         }}
                         data-room-entry-temporary-password
                       />
+                      <RoomCodeCopyButton
+                        code={privateRoomCode}
+                        copy={copy.roomEntry}
+                        disabled={pending}
+                      />
+                    </div>
+                    <div className="flex justify-end">
                       <button
                         type="button"
+                        className="min-h-9! border-0! bg-transparent! px-1! text-xs underline underline-offset-4 shadow-none!"
                         disabled={pending}
                         onClick={function handleClick() {
                           setPrivateRoomCode(createTemporaryPassword());
