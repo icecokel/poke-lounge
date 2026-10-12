@@ -13,6 +13,7 @@ import {
 import { primePokeLoungeAudio, playPokeLoungeSfx } from "../audio/poke-lounge-audio";
 import { getRoomLobbyCopy } from "./room-lobby-copy";
 import { EntryLanguageSelector } from "./entry-language-selector";
+import { useEntryLanguageDraft } from "./entry-language-state";
 
 export function DirectMultiplayerEntryScreen({
   state,
@@ -21,12 +22,15 @@ export function DirectMultiplayerEntryScreen({
 }) {
   const copy = getPokeLoungeCopyForUrl(state.currentUrl);
   const text = getRoomLobbyCopy(copy.locale);
-  const [displayName, setDisplayName] = useState(() =>
-    resolveInitialMultiplayerDisplayName(
-      state.initialDisplayName,
-      copy.roomEntry.multiplayerNameModifiers,
-      copy.roomEntry.multiplayerNameNouns,
-    ),
+  const languageDraft = useEntryLanguageDraft();
+  const [displayName, setDisplayName] = useState(
+    () =>
+      languageDraft?.displayName ??
+      resolveInitialMultiplayerDisplayName(
+        state.initialDisplayName,
+        copy.roomEntry.multiplayerNameModifiers,
+        copy.roomEntry.multiplayerNameNouns,
+      ),
   );
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -36,7 +40,7 @@ export function DirectMultiplayerEntryScreen({
   const roomCode = state.roomCode;
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (submitted.current) return;
+    if (pending || submitted.current) return;
     const name = normalizeMultiplayerDisplayName(displayName);
     setDisplayName(name);
     if (!name) {
@@ -92,7 +96,12 @@ export function DirectMultiplayerEntryScreen({
               <strong>{roomCode}</strong>
             </p>
           ) : null}
-          <EntryLanguageSelector copy={copy} displayName={displayName} disabled={pending} />
+          <EntryLanguageSelector
+            copy={copy}
+            displayName={displayName}
+            disabled={pending}
+            onLanguageSwitch={() => setPending(true)}
+          />
           <label
             className="grid gap-2 font-semibold [&_input]:min-h-14 [&_input]:w-full [&_input]:rounded-xl [&_input]:border-2 [&_input]:border-[#8ea17e] [&_input]:bg-white [&_input]:p-3 [&_input]:text-base [&_input]:font-medium [&_input]:text-[#203329] [&_input]:focus-visible:outline-3 [&_input]:focus-visible:outline-[#985512] [&_input]:focus-visible:outline-offset-3 [&_input[aria-invalid=true]]:border-[#a94130] [&_small]:text-[0.8125rem] [&_small]:font-normal [&_small]:text-[#65745b]"
             htmlFor={`${id}-name`}

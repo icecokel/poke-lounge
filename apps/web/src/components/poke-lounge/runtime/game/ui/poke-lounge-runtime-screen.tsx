@@ -4,6 +4,7 @@ import { PageReloadButton } from "../../../ui/page-reload-button";
 import { RoomLobbyScreen } from "./room-lobby-view";
 import { RoomCodeCopyButton } from "./room-code-copy-button";
 import { DirectMultiplayerEntryScreen } from "./room-invitation-screen";
+import { useEntryLanguageDraft } from "./entry-language-state";
 export { RoomLobbyScreen } from "./room-lobby-view";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ChevronRight, Clock3, Globe2, LockKeyhole, Plus, RefreshCw, Users } from "lucide-react";
@@ -96,17 +97,22 @@ function RoomEntryScreen({
   state: Extract<PokeLoungeRuntimeState, { phase: "entry"; screen: "room" }>;
 }) {
   const copy = getPokeLoungeCopyForUrl(state.currentUrl);
+  const languageDraft = useEntryLanguageDraft();
+  const [restoredProfile, setRestoredProfile] = useState(languageDraft?.profile);
   const [displayName, setDisplayName] = useState(function callback() {
-    return resolveInitialMultiplayerDisplayName(
-      state.initialDisplayName,
-      copy.roomEntry.multiplayerNameModifiers,
-      copy.roomEntry.multiplayerNameNouns,
+    return (
+      languageDraft?.displayName ??
+      resolveInitialMultiplayerDisplayName(
+        state.initialDisplayName,
+        copy.roomEntry.multiplayerNameModifiers,
+        copy.roomEntry.multiplayerNameNouns,
+      )
     );
   });
   const [entryStep, setEntryStep] = useState<"profile" | "rooms">(
-    state.openCreateRoom ? "rooms" : "profile",
+    state.openCreateRoom && !languageDraft ? "rooms" : "profile",
   );
-  const [fanNoticeVisible, setFanNoticeVisible] = useState(!state.openCreateRoom);
+  const [fanNoticeVisible, setFanNoticeVisible] = useState(!state.openCreateRoom && !languageDraft);
   const fanNoticeDuration = useRef<number | null>(null);
   const [entryPanel, setEntryPanel] = useState<"create" | "join">("create");
   const [roomVisibility, setRoomVisibility] = useState<"public" | "private">("public");
@@ -210,6 +216,7 @@ function RoomEntryScreen({
     playConfirmSound();
     setMessage("");
     setFanNoticeVisible(false);
+    setRestoredProfile(undefined);
     setEntryStep("rooms");
   };
 
@@ -383,6 +390,7 @@ function RoomEntryScreen({
             copy={copy}
             displayName={displayName}
             initialDisplayName={state.initialDisplayName}
+            initialProfile={restoredProfile}
             pending={pending}
             message={message}
             showForm={!state.localTestMode?.active}
@@ -390,6 +398,7 @@ function RoomEntryScreen({
               setDisplayName(name);
               setMessage("");
             }}
+            onLanguageSwitch={() => setPending(true)}
             onSubmit={handleContinueToRoomSelection}
           />
         ) : (

@@ -6,25 +6,30 @@ import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import { PageReloadButton } from "../../../ui/page-reload-button";
 import { PixelButton, PixelPanel } from "../../../ui/poke-lounge-ui-primitives";
 import { EntryLanguageSelector } from "./entry-language-selector";
+import type { EntryLanguageProfile } from "./entry-language-state";
 import styles from "./trainer-name-entry.module.css";
 
 export function TrainerNameEntry({
   copy,
   displayName,
   initialDisplayName,
+  initialProfile,
   pending,
   message,
   showForm,
   onNameChange,
+  onLanguageSwitch,
   onSubmit,
 }: {
   copy: PokeLoungeCopy;
   displayName: string;
   initialDisplayName?: string;
+  initialProfile?: EntryLanguageProfile;
   pending: boolean;
   message: string;
   showForm: boolean;
   onNameChange(name: string): void;
+  onLanguageSwitch(): void;
   onSubmit(event: FormEvent): void;
 }) {
   const text = copy.roomEntry;
@@ -36,10 +41,15 @@ export function TrainerNameEntry({
           (word, index) => `${word} ${text.multiplayerNameNouns[index]}`,
         ),
       ]),
-    ).slice(0, 2),
+    )
+      .filter(name => name.trim())
+      .slice(0, 2),
   );
-  const [mode, setMode] = useState<"recommended" | "custom">("recommended");
-  const [customName, setCustomName] = useState(initialDisplayName ? displayName : "");
+  const [mode, setMode] = useState<"recommended" | "custom">(initialProfile?.mode ?? "recommended");
+  const [customName, setCustomName] = useState(
+    initialProfile?.customName ?? (initialDisplayName ? displayName : ""),
+  );
+  const [focusNameOnOpen, setFocusNameOnOpen] = useState(!initialProfile);
 
   return (
     <div className={styles.introduction}>
@@ -70,7 +80,13 @@ export function TrainerNameEntry({
 
       {showForm ? (
         <form className={styles.form} onSubmit={onSubmit} data-room-entry-profile-step>
-          <EntryLanguageSelector copy={copy} displayName={displayName} disabled={pending} />
+          <EntryLanguageSelector
+            copy={copy}
+            displayName={displayName}
+            disabled={pending}
+            profile={{ mode, customName }}
+            onLanguageSwitch={onLanguageSwitch}
+          />
           <div className={styles.nameArea}>
             <div className={styles.names} role="group" aria-label={text.multiplayerNameLabel}>
               {names.map(name => (
@@ -97,6 +113,7 @@ export function TrainerNameEntry({
                 aria-expanded={mode === "custom"}
                 disabled={pending}
                 onClick={() => {
+                  setFocusNameOnOpen(true);
                   setMode("custom");
                   onNameChange(customName);
                 }}
@@ -115,7 +132,7 @@ export function TrainerNameEntry({
                 <input
                   id="poke-lounge-multiplayer-display-name"
                   type="text"
-                  autoFocus
+                  autoFocus={focusNameOnOpen}
                   autoComplete="nickname"
                   maxLength={12}
                   placeholder={text.multiplayerNamePlaceholder}
