@@ -19,6 +19,12 @@ pub enum AppError {
     Closed,
     #[error("Poke Lounge room is full")]
     RoomFull,
+    #[error("Room has already started")]
+    RoomAlreadyStarted,
+    #[error("Room participant identity does not match")]
+    RoomIdentityMismatch,
+    #[error("Disconnected participant cannot rejoin a started room")]
+    RoomRejoinBlocked,
     #[error("Room capacity reached")]
     Capacity,
     #[error("Room revision conflict")]
@@ -61,6 +67,13 @@ impl IntoResponse for AppError {
             Self::NotFound => (StatusCode::NOT_FOUND, "ROOM_NOT_FOUND"),
             Self::Closed => (StatusCode::GONE, "ROOM_CLOSED"),
             Self::RoomFull => (StatusCode::CONFLICT, "POKE_LOUNGE_ROOM_FULL"),
+            Self::RoomAlreadyStarted => {
+                (StatusCode::BAD_REQUEST, "POKE_LOUNGE_ROOM_ALREADY_STARTED")
+            }
+            Self::RoomIdentityMismatch => {
+                (StatusCode::FORBIDDEN, "POKE_LOUNGE_ROOM_IDENTITY_MISMATCH")
+            }
+            Self::RoomRejoinBlocked => (StatusCode::GONE, "POKE_LOUNGE_ROOM_REJOIN_BLOCKED"),
             Self::RevisionConflict => (StatusCode::CONFLICT, "POKE_LOUNGE_REVISION_CONFLICT"),
             Self::CommandConflict => (StatusCode::CONFLICT, "POKE_LOUNGE_IDEMPOTENCY_CONFLICT"),
             Self::Conflict(code, _) => (StatusCode::CONFLICT, *code),
@@ -95,7 +108,7 @@ impl IntoResponse for AppError {
             };
             tracing::error!(event = "api.error", code, source);
         } else if status.is_client_error() {
-            tracing::warn!(event = "api.rejected", code);
+            tracing::warn!(event = "api.rejected", code, reason = %self);
         }
         let message = if matches!(self, Self::Corrupt(_) | Self::Configuration(_)) {
             "Internal server error".into()
