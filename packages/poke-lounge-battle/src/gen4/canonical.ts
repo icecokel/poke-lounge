@@ -87,7 +87,13 @@ export function resolveGen4CompetitiveTurn(input: {
     return action;
   }) as [Gen4Action | undefined, Gen4Action | undefined];
   let after = advanceGen4Battle(before.session, actions);
+  let rewardState = input.state;
   if (after.ended && after.winner === null) {
+    // A draw restores HP for the rematch; keep knockouts from the finished turn first.
+    rewardState = {
+      ...input.state,
+      tournamentRewards: recordTournamentKnockouts(input.state, after),
+    };
     const rematch = parties(input.state).map(p => ({
       ...p,
       members: p.members.map(m => ({
@@ -101,7 +107,7 @@ export function resolveGen4CompetitiveTurn(input: {
     })) as [Gen4Party, Gen4Party];
     after = createGen4Battle(rematch, () => input.random.next());
   }
-  const state = applyFrame(input.state, after, input.state.turn + 1);
+  const state = applyFrame(rewardState, after, input.state.turn + 1);
   return {
     turn: input.state.turn,
     state,
@@ -189,6 +195,7 @@ function applyFrame(
     });
   return {
     ...previous,
+    tournamentRewards: recordTournamentKnockouts(previous, frame),
     rulesetVersion: 3,
     playersById: players,
     turn: revision,
@@ -197,4 +204,33 @@ function applyFrame(
     terminal,
     ...(revision > 0 ? { lastTurnPresentation: { turn: revision - 1, events } } : {}),
   };
+}
+
+function recordTournamentKnockouts(previous: CanonicalBattleState, frame: Gen4Frame) {
+  const rewards: NonNullable<CanonicalBattleState["tournamentRewards"]> = Object.assign(
+    Object.create(null),
+    structuredClone(previous.tournamentRewards ?? {}),
+  );
+  previous.participantIds.forEach((id, side) => {
+    const entry = (rewards[id] ??= { defeatedSlots: [], participatedSlots: [] });
+    const own = previous.playersById[id]!;
+    entry.participatedSlots = [
+      ...new Set([
+        ...entry.participatedSlots,
+        own.activeSlotIndex,
+        frame.parties[side]!.activeSlotIndex,
+        ...frame.steps.map(step => (side === 0 ? step.playerSlotIndex : step.opponentSlotIndex)),
+      ]),
+    ];
+    const enemy = previous.playersById[previous.participantIds[side === 0 ? 1 : 0]]!;
+    for (const member of frame.parties[side === 0 ? 1 : 0].members) {
+      if (
+        member.currentHp === 0 &&
+        enemy.team.some(old => old.slotIndex === member.slotIndex && old.currentHp > 0) &&
+        !entry.defeatedSlots.includes(member.slotIndex)
+      )
+        entry.defeatedSlots.push(member.slotIndex);
+    }
+  });
+  return rewards;
 }

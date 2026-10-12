@@ -17,6 +17,7 @@ pub const ADMISSION_MS: u64 = 15_000;
 pub const COMPLETED_RETENTION_MS: u64 = 15 * 60_000;
 pub const CLOSED_RETENTION_MS: u64 = 60_000;
 pub const TURN_MS: u64 = 30_000;
+pub const TOURNAMENT_PROGRESSION_MS: u64 = 25_000;
 pub const AI_ONLY_TURN_READY_MS: u64 = 500;
 pub const TOURNAMENT_BRIEFING_MS: u64 = 5_000;
 pub const TOURNAMENT_RESULT_MS: u64 = 5_000;
@@ -122,6 +123,8 @@ pub enum GameCommand {
     },
     Party {
         party: Value,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        progression_match_id: Option<Uuid>,
     },
     Leave,
     Action {
@@ -212,6 +215,13 @@ pub struct Party {
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PendingProgression {
+    pub match_id: Uuid,
+    pub previous_levels: BTreeMap<String, u64>,
+    pub expires_at_ms: u64,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Match {
     pub match_id: Uuid,
     pub bracket_match_id: String,
@@ -223,6 +233,8 @@ pub struct Match {
     pub actions: BTreeMap<String, Value>,
     pub terminal_event_id: Option<Uuid>,
     pub terminal_room_revision: Option<u64>,
+    #[serde(default)]
+    pub progression_ends_at_ms: Option<u64>,
 }
 impl Match {
     pub fn completed(&self) -> bool {
@@ -235,7 +247,7 @@ impl Match {
         json!({"matchId":self.match_id,"bracketMatchId":self.bracket_match_id,"kind":"tournament-unranked","assignmentRevision":self.assignment_revision,
             "rulesetVersion":3,"rulesetHash":ENGINE_VERSION.trim().rsplit(':').next().unwrap_or(""),"currentTurn":self.turn(),"turnEndsAtMs":self.turn_started_at_ms+TURN_MS,
             "status":if self.completed(){"completed"}else if self.actions.is_empty()&&self.turn()==0{"pending"}else{"active"},
-            "terminalEventId":self.terminal_event_id,"terminalRoomRevision":self.terminal_room_revision,"playerIds":self.pack.state["participantIds"],
+            "terminalEventId":self.terminal_event_id,"terminalRoomRevision":self.terminal_room_revision,"progressionEndsAtMs":self.progression_ends_at_ms,"playerIds":self.pack.state["participantIds"],
             "currentState":self.pack.public_state,"stateHash":self.pack.state_hash,"submittedPlayerIds":self.actions.keys().collect::<Vec<_>>(),"terminal":self.pack.state["terminal"]})
     }
 }
@@ -263,6 +275,8 @@ pub struct Room {
     pub cumulative_scores: BTreeMap<String, u64>,
     pub final_standings: Vec<Value>,
     pub matches: BTreeMap<Uuid, Match>,
+    #[serde(default)]
+    pub pending_progressions: BTreeMap<String, PendingProgression>,
     pub adventures: BTreeMap<String, Value>,
     pub last_ai_step_ms: u64,
 }
@@ -303,6 +317,7 @@ impl Room {
             cumulative_scores: BTreeMap::new(),
             final_standings: vec![],
             matches: BTreeMap::new(),
+            pending_progressions: BTreeMap::new(),
             adventures: BTreeMap::new(),
             last_ai_step_ms: 0,
         })
@@ -313,6 +328,7 @@ impl Room {
             || normalize_code(&self.room_code).ok().as_deref() != Some(&self.room_code)
             || self.participants.len() > MAX_PARTICIPANTS
             || self.matches.len() > 21
+            || self.pending_progressions.len() > MAX_PARTICIPANTS
             || self.accepted_commands > MAX_COMMANDS
             || self.created_at_ms.checked_add(SESSION_MAX_MS) != Some(self.hard_expires_at_ms)
             || !(1..=3).contains(&self.round.index)
@@ -496,7 +512,16 @@ impl Room {
             return Ok(None);
         }
         let index = self.authorize(player, session)?;
-        if self.terminal() && !matches!(command, GameCommand::Leave) {
+        if self.terminal()
+            && !matches!(
+                command,
+                GameCommand::Leave
+                    | GameCommand::Party {
+                        progression_match_id: Some(_),
+                        ..
+                    }
+            )
+        {
             return Err(AppError::Closed);
         }
         if !self.participants[index].connected && !matches!(command, GameCommand::Leave) {
@@ -601,8 +626,77 @@ impl Room {
                 self.adventures.remove(&player_id);
                 self.touch(now);
             }
-            GameCommand::Party { party } => {
-                if self.status == Status::Tournament {
+            GameCommand::Party {
+                party,
+                progression_match_id,
+            } => {
+                if let Some(match_id) = progression_match_id {
+                    if !self.matches.get(&match_id).is_some_and(|m| {
+                        m.players.iter().any(|id| id == player) && m.terminal_event_id.is_some()
+                    }) {
+                        return Err(AppError::PartyLocked);
+                    }
+                    if party.is_null() {
+                        return self.progression_snapshot(player, now);
+                    }
+                    let completed = self.matches.get(&match_id).ok_or(AppError::PartyLocked)?;
+                    if completed.progression_ends_at_ms.is_some_and(|at| now >= at) {
+                        return self.progression_snapshot(player, now);
+                    }
+                    // Releasing the scheduling wait must not discard a legal choice while no later match exists.
+                    if self.matches.values().any(|m| {
+                        m.assignment_revision > completed.assignment_revision
+                            && m.players.iter().any(|id| id == player)
+                    }) {
+                        return self.progression_snapshot(player, now);
+                    }
+                    let previous_levels = if let Some(pending) = self
+                        .pending_progressions
+                        .get(player)
+                        .filter(|pending| pending.match_id == match_id)
+                    {
+                        pending.previous_levels.clone()
+                    } else {
+                        completed.pack.state["playersById"][player]["team"]
+                            .as_array()
+                            .ok_or(AppError::ComputeUnavailable)?
+                            .iter()
+                            .map(|member| {
+                                Ok((
+                                    member["slotIndex"]
+                                        .as_u64()
+                                        .ok_or(AppError::ComputeUnavailable)?
+                                        .to_string(),
+                                    member["previousLevel"]
+                                        .as_u64()
+                                        .ok_or(AppError::ComputeUnavailable)?,
+                                ))
+                            })
+                            .collect::<AppResult<BTreeMap<_, _>>>()?
+                    };
+                    let current = self.parties.get(player).ok_or(AppError::PartyLocked)?;
+                    let value = compute.run(self.room_instance_id, self.storage_version,
+                        json!({"kind":"complete-progression","party":current.competitive_party,"proposed":party,"previousLevels":previous_levels})).await?;
+                    self.parties.insert(
+                        player.into(),
+                        Party {
+                            competitive_party: value,
+                            updated_at_ms: now,
+                        },
+                    );
+                    self.pending_progressions.remove(player);
+                    self.touch(now);
+                    return self.progression_snapshot(player, now);
+                }
+                if self.status == Status::Tournament
+                    || (self.status == Status::RoundStarted && self.bracket.is_some())
+                    || (self.status == Status::RoundStarted
+                        && self.round.started_at_ms.is_some()
+                        && self
+                            .round
+                            .ends_at_ms
+                            .is_some_and(|at| now >= at + TOURNAMENT_PROGRESSION_MS))
+                {
                     return Err(AppError::PartyLocked);
                 }
                 let value = compute
@@ -720,9 +814,40 @@ impl Room {
         Ok(())
     }
     pub async fn advance_game(&mut self, now: u64, compute: &Compute) -> AppResult<()> {
+        let expired = self
+            .pending_progressions
+            .iter()
+            .filter(|(id, pending)| {
+                now >= pending.expires_at_ms
+                    || !self
+                        .participants
+                        .iter()
+                        .any(|p| p.player_id == **id && p.connected)
+            })
+            .map(|(id, _)| id.clone())
+            .collect::<Vec<_>>();
+        for id in expired {
+            self.pending_progressions.remove(&id);
+            self.touch(now);
+        }
         self.prepare_clock(now);
         if self.terminal() {
             return Ok(());
+        }
+        // A missing client must not keep everyone at the field-to-tournament barrier indefinitely.
+        if self.status == Status::RoundStarted
+            && self.bracket.is_none()
+            && self
+                .round
+                .ends_at_ms
+                .is_some_and(|at| now >= at + TOURNAMENT_PROGRESSION_MS)
+        {
+            for p in &mut self.participants {
+                if p.connected && !p.ready && self.parties.contains_key(&p.player_id) {
+                    p.ready = true;
+                }
+            }
+            self.touch(now);
         }
         if self.status == Status::Tournament
             && self
@@ -730,7 +855,9 @@ impl Room {
                 .as_ref()
                 .is_some_and(|b| b.status == "completed")
         {
-            if self.round.ends_at_ms.is_some_and(|at| now >= at) {
+            if self.round.ends_at_ms.is_some_and(|at| now >= at)
+                && self.pending_progressions.is_empty()
+            {
                 self.round.index += 1;
                 self.bracket = None;
                 self.status = Status::RoundStarted;
@@ -861,7 +988,7 @@ impl Room {
                     .get_mut(&id)
                     .ok_or(AppError::ActionConflict)?
                     .pack = pack;
-                self.finish_match(id, now)?;
+                self.finish_match(id, now, compute).await?;
             } else {
                 let m = &self.matches[&id];
                 let ready_ms = if is_ai_only_match(&self.participants, m) {
@@ -923,6 +1050,13 @@ impl Room {
             .map(Bracket::ready)
             .unwrap_or_default();
         for bracket in ready {
+            if bracket
+                .participant_ids
+                .iter()
+                .any(|id| self.pending_progressions.contains_key(id))
+            {
+                continue;
+            }
             if self
                 .matches
                 .values()
@@ -965,6 +1099,7 @@ impl Room {
                     actions: BTreeMap::new(),
                     terminal_event_id: None,
                     terminal_room_revision: None,
+                    progression_ends_at_ms: None,
                 },
             );
         }
@@ -1002,18 +1137,102 @@ impl Room {
         m.turn_started_at_ms = now;
         self.touch(now);
         if self.matches[&id].completed() {
-            self.finish_match(id, now)?;
+            self.finish_match(id, now, compute).await?;
         }
         Ok(())
     }
-    fn finish_match(&mut self, id: Uuid, now: u64) -> AppResult<()> {
+    async fn finish_match(&mut self, id: Uuid, now: u64, compute: &Compute) -> AppResult<()> {
         if self.status != Status::Tournament {
             return Err(AppError::Closed);
         }
-        let m = self.matches.get_mut(&id).ok_or(AppError::ActionConflict)?;
+        let m = self.matches.get(&id).ok_or(AppError::ActionConflict)?;
         if m.terminal_event_id.is_some() {
             return Ok(());
         }
+        let ai_players = m
+            .players
+            .iter()
+            .filter(|id| {
+                self.participants
+                    .iter()
+                    .any(|p| p.player_id == **id && p.ai)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let pack = compute
+            .battle(
+                self.room_instance_id,
+                self.storage_version,
+                json!({"kind":"settle-tournament","state":m.pack.state,"aiPlayerIds":ai_players}),
+                &m.players,
+            )
+            .await?;
+        for player in &m.players {
+            let mut party = pack.state["tournamentRewardParties"][player].clone();
+            if party.is_null() {
+                return Err(AppError::ComputeUnavailable);
+            }
+            let original = &self
+                .parties
+                .get(player)
+                .ok_or(AppError::ComputeUnavailable)?
+                .competitive_party;
+            party["activeSlotIndex"] = original["activeSlotIndex"].clone();
+            for member in party["members"]
+                .as_array_mut()
+                .ok_or(AppError::ComputeUnavailable)?
+            {
+                let old = original["members"]
+                    .as_array()
+                    .ok_or(AppError::ComputeUnavailable)?
+                    .iter()
+                    .find(|old| old["slotIndex"] == member["slotIndex"])
+                    .ok_or(AppError::ComputeUnavailable)?;
+                // Tournament matches already restore parties; experience must not consume persistent held items.
+                member["heldItemId"] = old["heldItemId"].clone();
+            }
+            self.parties.insert(
+                player.clone(),
+                Party {
+                    competitive_party: party,
+                    updated_at_ms: now,
+                },
+            );
+            self.adventures.remove(player);
+            let team = pack.state["playersById"][player]["team"]
+                .as_array()
+                .ok_or(AppError::ComputeUnavailable)?;
+            if !ai_players.contains(player)
+                && team
+                    .iter()
+                    .any(|member| member["experienceGained"].as_u64().unwrap_or(0) > 0)
+            {
+                let previous_levels = team
+                    .iter()
+                    .map(|member| {
+                        Ok((
+                            member["slotIndex"]
+                                .as_u64()
+                                .ok_or(AppError::ComputeUnavailable)?
+                                .to_string(),
+                            member["previousLevel"]
+                                .as_u64()
+                                .ok_or(AppError::ComputeUnavailable)?,
+                        ))
+                    })
+                    .collect::<AppResult<BTreeMap<_, _>>>()?;
+                self.pending_progressions.insert(
+                    player.clone(),
+                    PendingProgression {
+                        match_id: id,
+                        previous_levels,
+                        expires_at_ms: now + TOURNAMENT_PROGRESSION_MS,
+                    },
+                );
+            }
+        }
+        let m = self.matches.get_mut(&id).ok_or(AppError::ActionConflict)?;
+        m.pack = pack;
         let winner = m.pack.state["terminal"]["winnerPlayerId"]
             .as_str()
             .ok_or(AppError::ComputeUnavailable)?
@@ -1031,6 +1250,7 @@ impl Room {
         self.updated_at_ms = now;
         m.terminal_event_id = Some(Uuid::new_v4());
         m.terminal_room_revision = Some(self.revision);
+        m.progression_ends_at_ms = Some(now + TOURNAMENT_PROGRESSION_MS);
         let bracket = self
             .bracket
             .as_mut()
@@ -1151,6 +1371,17 @@ impl Room {
             .filter(|m| !m.completed() && ids.contains(&m.bracket_match_id))
             .map(|m| m.match_id)
             .collect()
+    }
+    fn progression_snapshot(&self, player: &str, now: u64) -> AppResult<Option<Value>> {
+        let mut snapshot = self.snapshot(None);
+        snapshot["serverNowMs"] = json!(now);
+        snapshot["progressionParty"] = self
+            .parties
+            .get(player)
+            .ok_or(AppError::PartyLocked)?
+            .competitive_party
+            .clone();
+        Ok(Some(snapshot))
     }
     pub fn snapshot(&self, after: Option<u64>) -> Value {
         let mut terminal = self

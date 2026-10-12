@@ -1,5 +1,20 @@
 # Poke Lounge 작업 지침
 
+## 브랜치 운영
+
+브랜치 생성·PR·배포·동기화 절차는 [README 브랜치 운영](README.md#브랜치-운영)을 따른다.
+
+- `main`은 운영 배포 브랜치, `dev`는 개발 통합 브랜치다.
+- 기능 작업은 최신 `dev`에서 `feature/<작업명>` 브랜치를 만들어 진행한다. `main`과 `dev`에서 직접 작업·커밋하지 않는다.
+- 기능 PR은 `feature/* → dev`, 배포 PR은 `dev → main`으로 진행한다. `main` 반영 후에는 `main → dev`를 병합해 동기화한다.
+- 모든 PR은 merge commit으로 병합해 공통 이력을 유지한다. squash/rebase merge는 사용하지 않는다.
+- GitHub 기본 브랜치는 `dev`다. `main`·`dev`는 PR과 `verify`, `rust`, `pr-flow` 성공을 요구하며 강제 push·삭제를 금지한다. 리뷰 승인은 0명, 리뷰 대화 해결은 필수다.
+- `main` 대상 PR은 같은 저장소의 `dev`에서만 보낸다. `dev` 대상 PR은 `feature/*` 또는 같은 저장소의 동기화용 `main`에서 보낸다.
+- CI는 `main`, `dev`, `feature/*` push와 `main`, `dev` 대상 PR에서 정적 검사를 수행한다. 운영 배포는 `main`에서만 실행한다.
+- 커밋·푸시·PR 생성·병합은 사용자가 요청한 범위에서만 수행한다.
+
+## 플레이어 테스트
+
 테스트 작업 전 [PLAYER_TESTING.md](PLAYER_TESTING.md)를 읽고 따른다.
 
 이 프로젝트에서 허용하는 테스트는 실제 플레이어처럼 브라우저 화면을 확인하고 클릭·탭·키보드·드래그·스크롤로 한 동작씩 직접 조작하는 방식뿐이다. 자동 E2E·단위·API·통합 테스트, Storybook, mock/fixture/게임 상태 주입, 자동 플레이 루프 및 임시 테스트 어댑터를 추가하거나 실행하지 않는다.

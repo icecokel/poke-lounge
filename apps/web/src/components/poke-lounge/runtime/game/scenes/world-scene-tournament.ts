@@ -5,6 +5,7 @@ import {
 } from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
 import { findBattleReadyPartySlot } from "@poke-lounge/battle/adventure/player/battle-ready-party";
 import { type TournamentMatch } from "@poke-lounge/battle/tournament-bracket";
+import { TOURNAMENT_PROGRESSION_DEADLINE_MS } from "@poke-lounge/battle/timing";
 import type { BattleResultReason } from "../battle/battle-types";
 import type { PlayerSnapshot } from "../network/local-preview-room";
 import {
@@ -443,6 +444,27 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
   }
 
   private showServerTournamentMessage(projection: TournamentStateRoomPayload, nowMs: number): void {
+    const waiting = projection.participants.filter(
+      p => p.connected && p.controller !== "ai" && !p.ready,
+    );
+    if (
+      projection.roomStatus === "round-started" &&
+      projection.roomRound.endsAtMs != null &&
+      nowMs >= projection.roomRound.endsAtMs &&
+      waiting.length > 0
+    ) {
+      const seconds = Math.max(
+        0,
+        Math.ceil(
+          (projection.roomRound.endsAtMs + TOURNAMENT_PROGRESSION_DEADLINE_MS - nowMs) / 1000,
+        ),
+      );
+      this.setAnnouncement(
+        `다른 플레이어의 기술 선택·준비를 기다리는 중\n${waiting.map(p => p.displayName).join(", ")} · 최대 ${seconds}초`,
+        "14px",
+      );
+      return;
+    }
     if (projection.roundIndex === 1 && isWaitingForStarterSelections(projection)) {
       this.setAnnouncement("모든 참가자가 포켓몬을 선택하면 함께 탐험을 시작합니다.", "14px");
       return;

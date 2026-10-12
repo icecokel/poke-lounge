@@ -27,6 +27,9 @@ export interface CanonicalMoveState {
 }
 
 export interface CanonicalCombatantState extends Gen4Traits {
+  experience?: number;
+  experienceGained?: number;
+  previousLevel?: number;
   individualValues?: import("./gen4/types").Gen4StatValues;
   slotIndex: number;
   speciesId: number;
@@ -59,6 +62,13 @@ export interface CanonicalTerminalResult {
 }
 
 export interface CanonicalBattleState {
+  /** Earned knockouts are recorded during the match; growth is settled after it ends. */
+  tournamentRewards?: Record<string, { defeatedSlots: number[]; participatedSlots: number[] }>;
+  tournamentRewardsSettled?: boolean;
+  tournamentRewardParties?: Record<
+    string,
+    import("./competitive-party").NormalizedCompetitiveParty
+  >;
   /** Resolved visual telemetry, deliberately excluded from gameplay hashing. */
   lastTurnPresentation?: ResolvedTurnPresentation;
   rulesetVersion: 2 | 3;

@@ -140,6 +140,7 @@ async function main(): Promise<void> {
       {
         NEXT_PUBLIC_API_URL: "http://127.0.0.1:3011",
         NEXT_PUBLIC_POKE_BACKEND: "rust",
+        LOCAL_TEST_AUTH_TOKEN: randomBytes(32).toString("hex"),
         NEXT_DIST_DIR: ".next-rust-local",
         NEXT_TYPESCRIPT_CONFIG_PATH: "tsconfig.rust-local.json",
         NEXT_TELEMETRY_DISABLED: "1",

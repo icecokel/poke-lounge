@@ -51,6 +51,15 @@ class CompetitiveCombatantStateDto {
   @ApiProperty({ minimum: 1, maximum: 100 })
   level!: number;
 
+  @ApiPropertyOptional({ minimum: 0 })
+  experience?: number;
+
+  @ApiPropertyOptional({ minimum: 0 })
+  experienceGained?: number;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100 })
+  previousLevel?: number;
+
   @ApiProperty({ minimum: 1 })
   maxHp!: number;
 
@@ -243,6 +252,9 @@ export class CompetitiveActionResponseDto implements CompetitiveActionProjection
 
   @ApiProperty({ minimum: 0 })
   turnEndsAtMs!: number;
+
+  @ApiPropertyOptional({ type: Number, minimum: 0, nullable: true })
+  progressionEndsAtMs?: number | null;
 
   @ApiProperty({ enum: ['pending', 'active', 'completed'] })
   status!: CompetitiveMatchStatus;

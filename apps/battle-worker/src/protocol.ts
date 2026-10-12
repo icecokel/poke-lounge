@@ -52,6 +52,17 @@ export const requestSchema = z.strictObject({
     }),
     z.strictObject({ kind: z.literal("forfeit"), state: z.unknown(), loserPlayerId: boundedId }),
     z.strictObject({
+      kind: z.literal("settle-tournament"),
+      state: z.unknown(),
+      aiPlayerIds: z.array(boundedId).max(2),
+    }),
+    z.strictObject({
+      kind: z.literal("complete-progression"),
+      party: z.unknown(),
+      proposed: z.unknown(),
+      previousLevels: z.record(z.string(), integer.min(1).max(100)),
+    }),
+    z.strictObject({
       kind: z.literal("ai-step"),
       party: z.unknown(),
       adventure: z.unknown().nullable(),
@@ -104,6 +115,7 @@ export const partySchema = z.object({
         slotIndex: integer.max(5),
         speciesId: integer.min(1).max(493),
         level: integer.min(1).max(100),
+        experience: integer.optional(),
         currentHp: integer.max(10_000),
         status: z.enum([
           "normal",
