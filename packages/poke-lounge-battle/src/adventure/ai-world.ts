@@ -378,6 +378,7 @@ export function aiCompetitiveParty(state: AiAdventureState): NormalizedCompetiti
               slotIndex: slot.slotIndex,
               speciesId: slot.pokemon.speciesId,
               level: slot.pokemon.level,
+              experience: slot.pokemon.experience,
               currentHp: slot.pokemon.currentHp,
               status: slot.pokemon.status,
               ...normalizeGen4Traits(slot.pokemon.speciesId, slot.pokemon),

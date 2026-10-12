@@ -10,6 +10,8 @@ import {
   isCompetitiveMoveEffectSelectable,
 } from "./competitive-ruleset-config";
 import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
+import { getExperienceForLevel } from "./adventure/battle/experience";
+import { getRuntimePokemonSpeciesGrowthRate } from "./adventure/data/game-data-json";
 
 export const COMPETITIVE_PARTY_SNAPSHOT_VERSION = 2;
 export const COMPETITIVE_PARTY_SLOT_COUNT = 6;
@@ -35,6 +37,7 @@ export interface CompetitivePartyMemberInput extends Gen4Traits {
   slotIndex: number;
   speciesId: number;
   level: number;
+  experience?: number;
   currentHp: number;
   status: CompetitivePersistentStatus;
   individualValues: CompetitiveIndividualValues;
@@ -54,6 +57,7 @@ export interface NormalizedCompetitivePartyMember extends Gen4Traits {
   slotIndex: number;
   speciesId: number;
   level: number;
+  experience?: number;
   currentHp: number;
   maxHp: number;
   attack: number;
@@ -205,6 +209,9 @@ export function normalizeCompetitiveParty(
       slotIndex: member.slotIndex,
       speciesId: member.speciesId,
       level: member.level,
+      ...(member.experience !== undefined
+        ? { experience: normalizeExperience(member.speciesId, member.level, member.experience) }
+        : {}),
       currentHp: member.currentHp,
       ...stats,
       typeIds: species.typeIds,
@@ -238,6 +245,19 @@ export function normalizeCompetitiveParty(
       return left.slotIndex - right.slotIndex;
     }),
   };
+}
+
+function normalizeExperience(speciesId: number, level: number, experience: number): number {
+  const growth = getRuntimePokemonSpeciesGrowthRate(speciesId);
+  if (
+    growth === null ||
+    !Number.isSafeInteger(experience) ||
+    experience < getExperienceForLevel(level, growth) ||
+    (level < 100 && experience >= getExperienceForLevel(level + 1, growth))
+  ) {
+    throw new CompetitivePartyValidationError("level-out-of-range");
+  }
+  return Math.min(experience, getExperienceForLevel(100, growth));
 }
 
 export function restoreCompetitiveParty(

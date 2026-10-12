@@ -7,6 +7,8 @@ import type {
 } from "@poke-lounge/battle/adventure/battle/battle-types";
 import { restoreGen4FieldPokemon } from "@poke-lounge/battle/gen4/adventure";
 import { isBattleParticipantDefeated } from "../../domain/battle/party-defeat";
+import { getRuntimePokemonMoveDetails } from "@poke-lounge/battle/adventure/data/game-data-json";
+import type { NormalizedCompetitiveParty } from "@poke-lounge/battle/competitive-party";
 import {
   persistBattlePartyToWorld,
   persistCapturedPokemonToWorld,
@@ -67,11 +69,18 @@ export function settleBattleToWorld({
   const localPlayer = store.getCurrentLocalPlayer();
   const previousCurrentPlayerId = store.getState().currentPlayerId;
 
-  if (!completedCompetitiveBattle && state.battleKind === "trainer" && !authoritative) {
+  // Competitive display stats hide actual IVs; growth is persisted from the server reward party.
+  const tournamentReward = state.tournamentMatchId && (state.result?.experienceGained ?? 0) > 0;
+  if (
+    !tournamentReward &&
+    !completedCompetitiveBattle &&
+    state.battleKind === "trainer" &&
+    !authoritative
+  ) {
     upsertTrainerBattleParticipant(store, state.player);
     upsertTrainerBattleParticipant(store, state.opponent);
     store.setCurrentPlayer(previousCurrentPlayerId);
-  } else {
+  } else if (!tournamentReward) {
     persistBattlePartyToWorld({
       completedCompetitiveBattle: Boolean(completedCompetitiveBattle),
       gameStateStore: store,
@@ -115,6 +124,31 @@ export function settleBattleToWorld({
     destination: { mapKey, x, y, facing },
     boxedPokemon: placement?.destination === "box" ? capturedPokemon : null,
   };
+}
+
+export function persistTournamentRewardParty(
+  store: Pick<
+    GameStateStore,
+    "getCurrentLocalPlayer" | "updatePokemonInPartySlot" | "setActivePartySlot"
+  >,
+  party: NormalizedCompetitiveParty,
+): void {
+  const player = store.getCurrentLocalPlayer();
+  for (const member of party.members) {
+    const old = player.party.find(slot => slot.slotIndex === member.slotIndex)?.pokemon;
+    if (!old || old.speciesId !== member.speciesId)
+      throw new Error("Tournament reward party differs from local party");
+    store.updatePokemonInPartySlot(member.slotIndex, {
+      ...old,
+      ...member,
+      moves: member.moves.map(move => {
+        const detail = getRuntimePokemonMoveDetails(move.moveId);
+        if (!detail) throw new Error("Tournament learned move is missing");
+        return { id: move.moveId, name: detail.name, pp: move.pp, maxPp: detail.pp };
+      }),
+    });
+  }
+  store.setActivePartySlot(party.activeSlotIndex);
 }
 function upsertTrainerBattleParticipant(
   store: BattleSettlementPort,

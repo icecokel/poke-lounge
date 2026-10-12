@@ -37,6 +37,12 @@ import {
   type ComputeResponse,
 } from "./protocol";
 import { getContext } from "./runtime-data";
+import {
+  settleTournamentExperience,
+  completeTournamentProgression,
+  getTournamentRewardParty,
+  learnAvailableTournamentMoves,
+} from "@poke-lounge/battle/tournament-experience";
 
 function state(value: unknown): CanonicalBattleState {
   const parsed = z
@@ -75,6 +81,10 @@ function project(value: CanonicalBattleState) {
               currentHp: member.currentHp,
               status: member.status,
               statStages: member.statStages,
+              ...(member.experience !== undefined ? { experience: member.experience } : {}),
+              ...(member.experienceGained !== undefined
+                ? { experienceGained: member.experienceGained, previousLevel: member.previousLevel }
+                : {}),
               moves: member.moves.map(({ moveId, pp }) => ({ moveId, pp })),
             })),
           },
@@ -100,6 +110,34 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
       const party = normalizeCompetitiveParty(partySchema.parse(op.party));
       return op.restore ? restoreCompetitiveParty(party) : party;
     }
+    case "settle-tournament": {
+      const next = settleTournamentExperience(state(op.state));
+      next.tournamentRewardParties = Object.fromEntries(
+        next.participantIds.map(id => {
+          const previousLevels = Object.fromEntries(
+            next.playersById[id]!.team.map(member => [
+              member.slotIndex,
+              member.previousLevel ?? member.level,
+            ]),
+          );
+          return [
+            id,
+            learnAvailableTournamentMoves(
+              getTournamentRewardParty(next, id),
+              previousLevels,
+              op.aiPlayerIds.includes(id),
+            ),
+          ];
+        }),
+      );
+      return pack(next);
+    }
+    case "complete-progression":
+      return completeTournamentProgression(
+        normalizeCompetitiveParty(partySchema.parse(op.party)),
+        partySchema.parse(op.proposed),
+        op.previousLevels,
+      );
     case "initial-party": {
       const random = createSeededRandom(op.seed);
       return createAiStarterParty(() => random.next());
@@ -221,6 +259,7 @@ async function run(raw: unknown): Promise<ComputeResponse> {
     const invalid =
       error instanceof z.ZodError ||
       input.operation.kind === "validate" ||
+      input.operation.kind === "complete-progression" ||
       input.operation.kind === "normalize-party";
     return { ...identity, ok: false, code: invalid ? "INVALID_INPUT" : "COMPUTE_FAILED" };
   }

@@ -50,10 +50,10 @@ export function planPostBattleProgression({
   const pendingMoveLearnings: PendingMoveLearning[] = [],
     learnedMoves: LearnedBattleMove[] = [];
   if (
-    state.battleKind !== "wild" ||
-    state.result?.reason !== "faint" ||
+    (state.battleKind !== "wild" && !state.tournamentMatchId) ||
+    !state.result ||
     (state.result.experienceGained ?? 0) <= 0 ||
-    state.result.winnerPlayerId !== localPlayer.playerId
+    (state.battleKind === "wild" && state.result.winnerPlayerId !== localPlayer.playerId)
   )
     return { state, pendingMoveLearnings, learnedMoves, evolutionTransitions: [] };
   const previousPokemonBySlotIndex = new Map(

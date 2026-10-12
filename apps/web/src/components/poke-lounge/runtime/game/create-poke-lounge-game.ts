@@ -1,4 +1,5 @@
 import { setClientDiagnosticScene } from "@/lib/client-diagnostics";
+import { persistTournamentRewardParty } from "@/features/poke-lounge/application/battle/settle-battle";
 import type { PokeLoungeRuntimeAssets } from "./assets/poke-lounge-runtime-assets";
 import {
   registerPreloadedPokeLoungeAudio,
@@ -108,6 +109,22 @@ export function createPokeLoungeGame(
     options.runtimeAssets.audioBuffers,
   );
   const unsubscribeGameResult = subscribeToFinalGameResult(gameStateStore, options.onGameResult);
+  const unsubscribeTournamentReward = multiplayerRoom.on("TOURNAMENT_REWARD", ({ party }) => {
+    const local = gameStateStore.getCurrentLocalPlayer();
+    if (
+      party.members.some(member => {
+        const old = local.party.find(slot => slot.slotIndex === member.slotIndex)?.pokemon;
+        return (
+          old?.speciesId === member.speciesId && (member.experience ?? 0) > (old.experience ?? 0)
+        );
+      }) &&
+      !party.members.some(member => {
+        const old = local.party.find(slot => slot.slotIndex === member.slotIndex)?.pokemon;
+        return old && (old.experience ?? 0) > (member.experience ?? 0);
+      })
+    )
+      persistTournamentRewardParty(gameStateStore, party);
+  });
   parent.dataset.pokeLoungeResourceStatus = "ready";
 
   if (activeScene === "battle") {
@@ -136,6 +153,7 @@ export function createPokeLoungeGame(
       keyboard.destroy();
       stopAllPokeLoungeAudio();
       unsubscribeGameResult();
+      unsubscribeTournamentReward();
       multiplayerRoom.dispose();
       delete parent.dataset.pokeLoungeResourceStatus;
     },

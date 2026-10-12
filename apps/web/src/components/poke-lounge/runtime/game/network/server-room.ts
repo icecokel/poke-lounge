@@ -26,6 +26,7 @@ import {
   ROOM_CLOCK_RETRY_MAX_DELAY_MS,
   SERVER_ROOM_REQUEST_TIMEOUT_MS,
   SERVER_ROOM_LIVENESS_INTERVAL_MS,
+  TOURNAMENT_PROGRESSION_DEADLINE_MS,
 } from "@poke-lounge/battle/timing";
 import { sortTournamentParticipantsByJoinOrder } from "@poke-lounge/battle/tournament-seeding";
 import { io } from "socket.io-client";
@@ -38,6 +39,10 @@ import {
   writeRoomResumeCookie,
 } from "./room-entry-cookie";
 import { createCompetitivePartySnapshot } from "./competitive-party-snapshot";
+import {
+  normalizeCompetitiveParty,
+  type CompetitivePartyInput,
+} from "@poke-lounge/battle/competitive-party";
 import {
   CompetitiveProjectionSchemaError,
   parseCompetitiveProjection,
@@ -85,6 +90,7 @@ type ServerParticipant = ApiServerRoom["participants"][number] & {
 type ServerPartySnapshot = components["schemas"]["PokeLoungePartySnapshotDto"];
 
 interface ServerRoomState {
+  progressionParty?: import("@poke-lounge/battle/competitive-party").NormalizedCompetitiveParty;
   roomCode: string;
   roomInstanceId?: string;
   visibility: ApiServerRoom["visibility"];
@@ -424,6 +430,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let roomClockTimer: number | null = null;
   let roomClockAttempt = 0;
   let roomClockInFlight = false;
+  let moveLearningPending = false;
   let roomClockTarget: {
     roomCode: string;
     revision: number;
@@ -440,6 +447,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let currentAssignmentProjection: CompetitiveProjection | null = null;
   let recentTerminalProjections: CompetitiveTerminalTransition[] = [];
   const terminalEventIds = new Set<string>();
+  const hydratedTournamentRewards = new Set<string>();
   const terminalMatchIds = new Set<string>();
   const completedBracketRecoveryMatchIds = new Set<string>();
   let lastAppliedRoomRevision = -1;
@@ -900,6 +908,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   };
 
   const updateRoundReady = async (roundIndex: number) => {
+    if (moveLearningPending || pendingPartyPublication) return;
     if (
       !roundReadyCommand ||
       roundReadyCommand.roomCode !== activeRoomId ||
@@ -941,7 +950,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         isRoundReadinessDue(room.status, room.round, getServerNowMs()) &&
         ownParticipant?.role === "participant" &&
         ownParticipant.connected &&
-        !ownParticipant.ready
+        !ownParticipant.ready &&
+        !moveLearningPending &&
+        !pendingPartyPublication
       ) {
         await updateRoundReady(room.round.index);
       }
@@ -1669,6 +1680,26 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     const previousState = latestState;
     const previousAssignment = currentAssignmentProjection;
     latestState = state;
+    const reward = [...state.competitiveTransitions]
+      .reverse()
+      .find(
+        transition =>
+          transition.projection.playerIds.includes(serverPlayerId) &&
+          transition.projection.currentState.playersById[serverPlayerId]?.team.some(
+            member => (member.experienceGained ?? 0) > 0,
+          ),
+      );
+    if (reward && !hydratedTournamentRewards.has(reward.terminalEventId)) {
+      hydratedTournamentRewards.add(reward.terminalEventId);
+      void room.completeTournamentProgression!(reward.projection.matchId)
+        .then(party => {
+          if (!disposed) emit("TOURNAMENT_REWARD", { party });
+        })
+        .catch(error => {
+          hydratedTournamentRewards.delete(reward.terminalEventId);
+          reportPartyPublicationFailure(error);
+        });
+    }
     lastAppliedRoomRevision = state.revision;
     activeRoomId = state.roomCode;
     updateClientDiagnosticContext({
@@ -2029,6 +2060,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   function isPartySnapshotLocked(): boolean {
     return (
       latestState?.status === "tournament" ||
+      (latestState?.status === "round-started" && latestState.tournament.bracket != null) ||
       latestState?.status === "completed" ||
       latestState?.status === "closed"
     );
@@ -2364,7 +2396,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
   };
 
-  return {
+  const room: MultiplayerRoom = {
     get roomId() {
       return activeRoomId;
     },
@@ -2424,6 +2456,50 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         getLatestRevision,
       );
       applyExpectedTransitionSnapshot(state);
+    },
+    getServerNowMs,
+    setMoveLearningPending(pending) {
+      moveLearningPending = pending;
+      if (!pending) scheduleRoomClockRefresh();
+    },
+    async synchronizePartyForTournament(snapshot) {
+      if (
+        isPartySnapshotLocked() ||
+        (latestState?.status === "round-started" &&
+          latestState.round.endsAtMs != null &&
+          getServerNowMs() >= latestState.round.endsAtMs + TOURNAMENT_PROGRESSION_DEADLINE_MS)
+      )
+        return;
+      await submitPartySnapshot(snapshot);
+      if (pendingPartyPublication && !isPartySnapshotLocked())
+        throw new Error("Party synchronization is pending");
+    },
+    async completeTournamentProgression(matchId, party) {
+      const commandId = crypto.randomUUID();
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const next = await mutateRoom(
+            `/poke-lounge/rooms/${activeRoomId}/party-snapshot`,
+            {
+              playerId: serverPlayerId,
+              sessionId,
+              competitiveParty: party ?? null,
+              progressionMatchId: matchId,
+            },
+            getLatestRevision,
+            commandId,
+          );
+          applyExpectedTransitionSnapshot(next);
+          const value = next.progressionParty;
+          if (!value) throw new Error("Missing authoritative tournament reward party");
+          return value;
+        } catch (error) {
+          if (getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE && attempt < 2)
+            continue;
+          throw error;
+        }
+      }
+      throw new Error("Tournament progression could not be saved");
     },
     connect(initialSnapshot) {
       if (disposed) {
@@ -2664,6 +2740,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
     return true;
   }
+
+  return room;
 
   async function runInitialWorkflow(): Promise<void> {
     if (disposed || initialWorkflowStage === "complete" || !initialWorkflowSnapshot) {
@@ -3099,6 +3177,13 @@ function parseServerRoomState(value: unknown): ServerRoomState {
     tournament,
     competitiveTransitions: competitiveContract.competitiveTransitions,
     competitiveAssignments: competitiveContract.competitiveAssignments,
+    ...(room.progressionParty
+      ? {
+          progressionParty: normalizeCompetitiveParty(
+            room.progressionParty as CompetitivePartyInput,
+          ),
+        }
+      : {}),
   };
 
   if (competitiveContract.competitive) {

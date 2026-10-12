@@ -31,6 +31,7 @@ const COMPETITIVE_PROJECTION_KEYS = [
   "currentState",
   "currentTurn",
   "turnEndsAtMs",
+  "progressionEndsAtMs",
   "kind",
   "matchId",
   "playerIds",
@@ -65,6 +66,10 @@ export function parseCompetitiveProjectionContract(
   const assignmentRevision = requireNonnegativeSafeInteger(projection.assignmentRevision);
   const currentTurn = requireNonnegativeSafeInteger(projection.currentTurn);
   const turnEndsAtMs = requireNonnegativeSafeInteger(projection.turnEndsAtMs);
+  const progressionEndsAtMs =
+    projection.progressionEndsAtMs == null
+      ? null
+      : requireNonnegativeSafeInteger(projection.progressionEndsAtMs);
   const rulesetVersion = projection.rulesetVersion;
   const rulesetHash = requireString(projection.rulesetHash);
   const stateHash = requireHash(projection.stateHash);
@@ -110,6 +115,7 @@ export function parseCompetitiveProjectionContract(
       rulesetHash,
       currentTurn,
       turnEndsAtMs,
+      progressionEndsAtMs,
       status,
       playerIds,
       stateHash,
@@ -458,7 +464,21 @@ function parsePokemon(
 ): CompetitiveProjection["currentState"]["playersById"][string]["team"][number] {
   const pokemon = requireRecord(
     value,
-    ["currentHp", "level", "maxHp", "moves", "slotIndex", "speciesId", "statStages", "status"],
+    [
+      "currentHp",
+      "level",
+      "maxHp",
+      "moves",
+      "slotIndex",
+      "speciesId",
+      "statStages",
+      "status",
+      ...(value && typeof value === "object"
+        ? ["experience", "experienceGained", "previousLevel"].filter(key =>
+            Object.hasOwn(value, key),
+          )
+        : []),
+    ],
     4,
   );
   const speciesId = requireNonnegativeSafeInteger(pokemon.speciesId);
@@ -467,6 +487,24 @@ function parsePokemon(
   const maxHp = requireNonnegativeSafeInteger(pokemon.maxHp);
   const currentHp = requireNonnegativeSafeInteger(pokemon.currentHp);
   const statStages = parseStatStages(pokemon.statStages);
+  const experience =
+    pokemon.experience === undefined
+      ? undefined
+      : requireNonnegativeSafeInteger(pokemon.experience);
+  const experienceGained =
+    pokemon.experienceGained === undefined
+      ? undefined
+      : requireNonnegativeSafeInteger(pokemon.experienceGained);
+  const previousLevel =
+    pokemon.previousLevel === undefined
+      ? undefined
+      : requireNonnegativeSafeInteger(pokemon.previousLevel);
+  if (
+    (experienceGained !== undefined &&
+      (experience === undefined || experienceGained > experience || previousLevel === undefined)) ||
+    (previousLevel !== undefined && (previousLevel < 1 || previousLevel > level))
+  )
+    throw schemaError();
   if (
     speciesId < 1 ||
     slotIndex > 5 ||
@@ -486,6 +524,9 @@ function parsePokemon(
     speciesId,
     slotIndex,
     level,
+    ...(experience === undefined ? {} : { experience }),
+    ...(experienceGained === undefined ? {} : { experienceGained }),
+    ...(previousLevel === undefined ? {} : { previousLevel }),
     maxHp,
     currentHp,
     status: pokemon.status,
@@ -617,13 +658,19 @@ function parseTerminal(
 }
 
 function requireCompetitiveProjectionRecord(value: unknown): Record<string, unknown> {
-  const projection = requireOpenRecord(value, MAX_COMPETITIVE_RECORD_KEYS);
+  const projection = requireOpenRecord(
+    value,
+    COMPETITIVE_PROJECTION_KEYS.length + COMPETITIVE_TERMINAL_METADATA_KEYS.length,
+  );
   const hasTerminalMetadata = COMPETITIVE_TERMINAL_METADATA_KEYS.some(function testItem(key) {
     return hasOwn(projection, key);
   });
+  const baseKeys = COMPETITIVE_PROJECTION_KEYS.filter(
+    key => key !== "progressionEndsAtMs" || hasOwn(projection, key),
+  );
   const exactKeys = hasTerminalMetadata
-    ? [...COMPETITIVE_PROJECTION_KEYS, ...COMPETITIVE_TERMINAL_METADATA_KEYS]
-    : COMPETITIVE_PROJECTION_KEYS;
+    ? [...baseKeys, ...COMPETITIVE_TERMINAL_METADATA_KEYS]
+    : baseKeys;
   const keys = Object.keys(projection).sort();
   const sortedExpectedKeys = [...exactKeys].sort();
 

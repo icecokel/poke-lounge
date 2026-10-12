@@ -11,6 +11,10 @@ import type { PlayerPokemon } from "../state/game-state-store";
 import type { components } from "@/types/api";
 import type { TournamentStateRoomPayload } from "./tournament-projection";
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
+import type {
+  CompetitivePartyInput,
+  NormalizedCompetitiveParty,
+} from "@poke-lounge/battle/competitive-party";
 
 type GeneratedCompetitiveProjection = components["schemas"]["CompetitiveActionResponseDto"];
 
@@ -76,6 +80,7 @@ export interface PlayerSnapshot {
 }
 
 export interface RoomEvent {
+  TOURNAMENT_REWARD: { party: NormalizedCompetitiveParty };
   CONNECTION_STATUS: {
     connectionStatus: "offline" | "connecting" | "online";
   };
@@ -100,6 +105,13 @@ export type RoomMessage = keyof RoomEvent;
 export type RoomUnsubscribe = () => void;
 
 export interface MultiplayerRoom {
+  getServerNowMs?(): number;
+  setMoveLearningPending?(pending: boolean): void;
+  synchronizePartyForTournament?(snapshot: PlayerSnapshot): Promise<void>;
+  completeTournamentProgression?(
+    matchId: string,
+    party?: CompetitivePartyInput,
+  ): Promise<NormalizedCompetitiveParty>;
   roomId: string;
   roomInstanceId?: string;
   sessionId: string;

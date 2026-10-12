@@ -30,6 +30,7 @@ export function createCompetitivePartySnapshot(snapshot: PlayerSnapshot): Compet
           slotIndex: slot.slotIndex,
           speciesId: pokemon.speciesId,
           level: pokemon.level,
+          ...(pokemon.experience !== undefined ? { experience: pokemon.experience } : {}),
           currentHp: pokemon.currentHp,
           status: pokemon.status,
           individualValues: { ...pokemon.individualValues },

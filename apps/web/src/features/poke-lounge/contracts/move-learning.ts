@@ -5,6 +5,7 @@ export interface MoveReplacementConfirmation {
 }
 
 export interface MoveLearningSummary {
+  remainingSeconds?: number;
   pokemonName: string;
   newMoveId?: number;
   newMoveName: string;

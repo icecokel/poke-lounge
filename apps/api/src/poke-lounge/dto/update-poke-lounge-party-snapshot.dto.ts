@@ -195,6 +195,13 @@ class CompetitivePartyMemberDto implements CompetitivePartyMemberInput {
   @Max(100)
   level!: number;
 
+  @ApiPropertyOptional({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(Number.MAX_SAFE_INTEGER)
+  experience?: number;
+
   @ApiProperty({ example: 30, minimum: 0 })
   @IsInt()
   @Min(0)
