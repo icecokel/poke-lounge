@@ -85,6 +85,7 @@ export interface BattleControls {
   items: MobileBattleItemOption[];
   learnedMove?: MoveLearningSummary | null;
   moveReplacement: {
+    remainingSeconds?: number;
     confirmationIndex?: number | null;
     pokemonName: string;
     newMoveId?: number;

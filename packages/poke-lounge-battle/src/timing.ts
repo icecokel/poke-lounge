@@ -13,6 +13,7 @@ export const COMPETITIVE_TURN_DEADLINE_MS = 30_000;
 export const ROUND_START_COUNTDOWN_MS = 3_000;
 export const TOURNAMENT_BRIEFING_DURATION_MS = 5_000;
 export const TOURNAMENT_RESULT_DURATION_MS = 5_000;
+export const TOURNAMENT_PROGRESSION_DEADLINE_MS = 25_000;
 
 // 라운드 시간 입력 범위 (비표준 시간은 기존 NODE_ENV=test에서만 허용)
 export const MIN_ROUND_DURATION_MS = 1;

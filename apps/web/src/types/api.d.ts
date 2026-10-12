@@ -667,6 +667,9 @@ export interface components {
       speciesId: number;
       slotIndex: number;
       level: number;
+      experience?: number;
+      experienceGained?: number;
+      previousLevel?: number;
       maxHp: number;
       currentHp: number;
       /** @enum {string} */
@@ -722,6 +725,7 @@ export interface components {
       rulesetHash: string;
       currentTurn: number;
       turnEndsAtMs: number;
+      progressionEndsAtMs?: number | null;
       /** @enum {string} */
       status: "pending" | "active" | "completed";
       /** Format: uuid */
@@ -1017,6 +1021,7 @@ export interface components {
       rulesetHash: string;
       currentTurn: number;
       turnEndsAtMs: number;
+      progressionEndsAtMs?: number | null;
       /** @enum {string} */
       status: "pending" | "active" | "completed";
       /** Format: uuid */
@@ -1143,6 +1148,7 @@ export interface components {
       speciesId: number;
       /** @example 11 */
       level: number;
+      experience?: number;
       /** @example 30 */
       currentHp: number;
       /**

@@ -725,6 +725,7 @@ struct PartyBody {
     session_id: String,
     display_name: Option<String>,
     competitive_party: Value,
+    progression_match_id: Option<Uuid>,
 }
 async fn party(
     State(state): State<AppState>,
@@ -747,6 +748,7 @@ async fn party(
         },
         GameCommand::Party {
             party: b.competitive_party,
+            progression_match_id: b.progression_match_id,
         },
         Some(expected),
     )

@@ -134,6 +134,10 @@ export function toAuthoritativeBattleState(
         winnerPlayerId: terminal.winnerPlayerId,
         loserPlayerId: terminal.loserPlayerId,
         reason: terminal.reason,
+        experienceGained: ownPlayer.team.reduce(
+          (sum, member) => sum + (member.experienceGained ?? 0),
+          0,
+        ),
       }
     : null;
   const preservedSelectionPhase =
@@ -165,7 +169,15 @@ export function toAuthoritativeBattleState(
     player: toBattleParticipant(ownPlayer, "Player", projection.rulesetVersion),
     opponent: toBattleParticipant(opponent, "Opponent", projection.rulesetVersion),
     messageQueue: result
-      ? [result.winnerPlayerId === ownPlayerId ? "승리했습니다." : "패배했습니다."]
+      ? [
+          result.winnerPlayerId === ownPlayerId ? "승리했습니다." : "패배했습니다.",
+          ...ownPlayer.team
+            .filter(member => (member.experienceGained ?? 0) > 0)
+            .map(member => {
+              const name = getRuntimePokemonSpeciesSummary(member.speciesId)!.name;
+              return `${name}: ${member.experienceGained} 경험치를 얻었다!${member.previousLevel !== undefined && member.level > member.previousLevel ? ` 레벨 ${member.previousLevel} → ${member.level}!` : ""}`;
+            }),
+        ]
       : waiting
         ? [waitingForReplacement ? replacementMessage : waitingMessage]
         : [],
@@ -239,7 +251,7 @@ function toBattlePokemon(pokemon: CompetitivePokemon, version: number): BattlePo
     catchRate: species.catchRate,
     baseExpYield: species.baseExpYield,
     growthRate: species.growthRate,
-    experience: getExperienceForLevel(pokemon.level, species.growthRate),
+    experience: pokemon.experience ?? getExperienceForLevel(pokemon.level, species.growthRate),
     baseStats: {
       hp: species.baseStats.hp,
       attack: species.baseStats.attack,

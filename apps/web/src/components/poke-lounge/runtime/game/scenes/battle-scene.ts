@@ -1,6 +1,10 @@
 import { executeBattleChoice } from "@/features/poke-lounge/application/battle/execute-battle-choice";
 import { planPostBattleProgression } from "@/features/poke-lounge/application/battle/plan-battle-progression";
-import { settleBattleToWorld } from "@/features/poke-lounge/application/battle/settle-battle";
+import {
+  settleBattleToWorld,
+  persistTournamentRewardParty,
+} from "@/features/poke-lounge/application/battle/settle-battle";
+import { createCompetitivePartySnapshot } from "../network/competitive-party-snapshot";
 import { materializeResolvedWildBattleReward } from "@/features/poke-lounge/application/battle/settle-interrupted-battle";
 import { createOpponentPartySummary } from "@/features/poke-lounge/presentation/battle/opponent-party";
 import { formatBattleResultMessage } from "@/features/poke-lounge/presentation/battle/result-message";
@@ -17,6 +21,7 @@ import {
   BATTLE_ENTRANCE_TWEEN_MS,
   BATTLE_HIT_TWEEN_MS,
   BATTLE_HP_DECREASE_TWEEN_MS,
+  TOURNAMENT_PROGRESSION_DEADLINE_MS,
 } from "@poke-lounge/battle/timing";
 import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
 import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
@@ -436,9 +441,13 @@ export class BattleController {
   private fullRenderCount = 0;
   private animationFrameUpdateCount = 0;
   private pendingMoveLearnings: PendingMoveLearning[] = [];
+  private moveLearningEndsAtMs: number | null = null;
+  private moveLearningRemainingSeconds: number | null = null;
   private moveReplacementConfirmation: MoveReplacementConfirmation | null = null;
   private learnedMovesByMessage = new Map<string, MoveLearningSummary>();
   private levelUpMoveLearningApplied = false;
+  private tournamentPreviousLevels = new Map<number, number>();
+  private pendingTournamentReturnKey: CompetitiveBattleLaunchKey | undefined;
   private persistWorldPositionOnReturn = true;
   private authoritativeProjection: CompetitiveProjection | null = null;
   private authoritativeOwnPlayerId: string | null = null;
@@ -542,6 +551,8 @@ export class BattleController {
     this.moveReplacementConfirmation = null;
     this.learnedMovesByMessage.clear();
     this.levelUpMoveLearningApplied = false;
+    this.tournamentPreviousLevels.clear();
+    this.pendingTournamentReturnKey = undefined;
     this.lastAccessibleStatus = "";
     this.cancelHpTweens();
     this.cancelStatusCommitTweens();
@@ -566,6 +577,7 @@ export class BattleController {
   }
 
   update(): void {
+    if (this.updateMoveLearningDeadline()) return;
     if (this.preemptLocalBattleForTournament(Date.now())) return;
     if (
       usesPokeLoungeMobileShell(this.ownerDocument) &&
@@ -1013,6 +1025,7 @@ export class BattleController {
       ),
       moveReplacement: pendingMoveLearning
         ? {
+            remainingSeconds: this.moveLearningRemainingSeconds ?? undefined,
             pokemonName: pendingMoveLearning.pokemonName,
             newMoveId: pendingMoveLearning.newMove.id,
             newMoveName: pendingMoveLearning.newMove.name,
@@ -1334,6 +1347,14 @@ export class BattleController {
       previousState,
       this.getBattleStatusCopy().waitingForReplacement,
     );
+    if (!spectating && state.result && (state.result.experienceGained ?? 0) > 0) {
+      this.tournamentPreviousLevels = new Map(
+        projection.currentState.playersById[viewPlayerId]!.team.map(member => [
+          member.slotIndex,
+          member.previousLevel ?? member.level,
+        ]),
+      );
+    }
     if (!spectating) {
       return state;
     }
@@ -1362,6 +1383,10 @@ export class BattleController {
       this.authoritativeTerminalTransition?.status === "visible"
     ) {
       const completedCompetitiveBattle = this.authoritativeTerminalTransition.key;
+      if (this.state.messageQueue.length > 1) {
+        this.advanceBattleMessage();
+        return;
+      }
       this.authoritativeTerminalTransition.status = "acknowledged";
       this.clearAuthoritativeSubscriptions();
       this.authoritativeInputPending = false;
@@ -1798,9 +1823,23 @@ export class BattleController {
     if (this.competitivePreemptionQueued) return true;
     const gathering = getTournamentGatheringContext(this.gameStateStore.getState(), nowMs);
     if (!gathering) return false;
-    this.competitivePreemptionQueued = true;
     // Keep an already-decided capture; do not resolve new actions after the cutoff.
     this.settleResolvedWildBattleBeforePreemption();
+    if (this.moveLearningEndsAtMs !== null) {
+      const endsAt = this.gameStateStore.getState().tournament.serverProjection?.roomRound.endsAtMs;
+      if (endsAt != null)
+        this.moveLearningEndsAtMs = Math.min(
+          this.moveLearningEndsAtMs,
+          endsAt + TOURNAMENT_PROGRESSION_DEADLINE_MS,
+        );
+      if (this.pendingMoveLearnings.length > 0 && this.state.messageQueue.length > 0) {
+        this.cancelBattleEffects();
+        this.pendingEvolutionTransitions = [];
+        this.setBattleState({ ...this.state, phase: "move-replace-select", messageQueue: [] });
+      }
+      return false;
+    }
+    this.competitivePreemptionQueued = true;
     this.messageAutoAdvanceTimer?.stop();
     this.messageAutoAdvanceTimer = null;
     this.gameStateStore.healCurrentParty();
@@ -1881,6 +1920,9 @@ export class BattleController {
   }
 
   private cleanupSceneLifecycle(): void {
+    this.moveLearningEndsAtMs = null;
+    this.moveLearningRemainingSeconds = null;
+    this.multiplayerRoom?.setMoveLearningPending?.(false);
     this.sceneLifecycleActive = false;
     this.cancelBattleEffects();
     this.clearAuthoritativeSubscriptions();
@@ -2511,6 +2553,8 @@ export class BattleController {
   }
 
   private returnToWorld(completedCompetitiveBattle?: CompetitiveBattleLaunchKey): void {
+    completedCompetitiveBattle ??= this.pendingTournamentReturnKey;
+    if (completedCompetitiveBattle) this.pendingTournamentReturnKey = completedCompetitiveBattle;
     if (!this.state.returnToWorld || this.returningToWorld || this.competitivePreemptionQueued) {
       return;
     }
@@ -2571,27 +2615,125 @@ export class BattleController {
         message: `포획한 ${settlement.boxedPokemon.name}, 파티가 가득 차 PC 박스로 전송했습니다.`,
         tone: "info",
       });
-    this.options.onReturnToWorld({
-      spawnPosition: {
-        x,
-        y,
-        facing,
-      },
-      ...(!this.soloChallenge &&
-      this.state.battleKind === "trainer" &&
-      this.state.tournamentMatchId &&
-      this.state.result
-        ? {
-            tournamentResult: {
-              matchId: this.state.tournamentMatchId,
-              winnerPlayerId: this.state.result.winnerPlayerId,
-              loserPlayerId: this.state.result.loserPlayerId,
-              reason: this.state.result.reason,
-            },
+    const finish = () =>
+      this.options.onReturnToWorld({
+        spawnPosition: {
+          x,
+          y,
+          facing,
+        },
+        ...(!this.soloChallenge &&
+        this.state.battleKind === "trainer" &&
+        this.state.tournamentMatchId &&
+        this.state.result
+          ? {
+              tournamentResult: {
+                matchId: this.state.tournamentMatchId,
+                winnerPlayerId: this.state.result.winnerPlayerId,
+                loserPlayerId: this.state.result.loserPlayerId,
+                reason: this.state.result.reason,
+              },
+            }
+          : {}),
+        ...(completedCompetitiveBattle ? { completedCompetitiveBattle } : {}),
+      });
+    if (completedCompetitiveBattle && (this.state.result?.experienceGained ?? 0) > 0) {
+      const room = this.multiplayerRoom;
+      if (!room?.completeTournamentProgression)
+        throw new Error("Tournament progression transport is missing");
+      const player = this.gameStateStore.getCurrentLocalPlayer();
+      const party = createCompetitivePartySnapshot({
+        sessionId: room.sessionId,
+        playerId: player.playerId,
+        map: player.position.mapKey,
+        ...player.position,
+        activePartySlotIndex: player.activePartySlotIndex,
+        party: player.party,
+      });
+      party.members = party.members.map(member => {
+        const pokemon = this.state.player.party.find(
+          slot => slot.slotIndex === member.slotIndex,
+        )?.pokemon;
+        if (!pokemon) throw new Error("Tournament reward slot is missing");
+        return {
+          ...member,
+          level: pokemon.level,
+          experience: pokemon.experience,
+          moves: pokemon.moves.map(move => ({ moveId: move.id, pp: move.maxPp })),
+        };
+      });
+      const generation = this.sceneGeneration;
+      void room
+        .completeTournamentProgression(completedCompetitiveBattle.matchId, party)
+        .then(saved => {
+          if (!this.isSceneLifecycleCurrent(generation)) return;
+          if (
+            party.members.some(
+              member =>
+                saved.members
+                  .find(slot => slot.slotIndex === member.slotIndex)
+                  ?.moves.map(move => move.moveId)
+                  .join(",") !== member.moves.map(move => move.moveId).join(","),
+            )
+          ) {
+            dispatchPokeLoungeNotice(this.ownerDocument, {
+              message: "다음 경기가 배정되어 선택한 기술을 반영하지 못했습니다.",
+              tone: "info",
+            });
           }
-        : {}),
-      ...(completedCompetitiveBattle ? { completedCompetitiveBattle } : {}),
-    });
+          persistTournamentRewardParty(this.gameStateStore, saved);
+          finish();
+        })
+        .catch(() => {
+          if (!this.isSceneLifecycleCurrent(generation)) return;
+          this.returningToWorld = false;
+          this.setBattleState({
+            ...this.state,
+            messageQueue: [
+              "성장 결과를 저장하지 못했습니다. 다시 확인해 주세요.",
+              BATTLE_END_CONFIRM_MESSAGE,
+            ],
+          });
+        });
+      return;
+    }
+    if (
+      !completedCompetitiveBattle &&
+      this.moveLearningRemainingSeconds !== null &&
+      this.multiplayerRoom?.synchronizePartyForTournament
+    ) {
+      const player = this.gameStateStore.getCurrentLocalPlayer();
+      const generation = this.sceneGeneration;
+      void this.multiplayerRoom
+        .synchronizePartyForTournament({
+          sessionId: this.multiplayerRoom.sessionId,
+          playerId: player.playerId,
+          displayName: player.displayName,
+          map: player.position.mapKey,
+          ...player.position,
+          activePartySlotIndex: player.activePartySlotIndex,
+          party: player.party,
+        })
+        .then(() => {
+          if (!this.isSceneLifecycleCurrent(generation)) return;
+          this.moveLearningEndsAtMs = null;
+          this.multiplayerRoom?.setMoveLearningPending?.(false);
+          finish();
+        })
+        .catch(() => {
+          if (!this.isSceneLifecycleCurrent(generation)) return;
+          this.returningToWorld = false;
+          this.setBattleState({
+            ...this.state,
+            messageQueue: [
+              "파티를 저장하지 못했습니다. 다시 확인해 주세요.",
+              BATTLE_END_CONFIRM_MESSAGE,
+            ],
+          });
+        });
+      return;
+    }
+    finish();
   }
 
   private settleResolvedWildBattleBeforePreemption(): void {
@@ -2618,6 +2760,7 @@ export class BattleController {
       nowMs: Date.now(),
     });
     this.state = settlement.state;
+    if (this.moveLearningEndsAtMs !== null) this.synchronizeWildMoveChoices();
     if (settlement.boxedPokemon)
       dispatchPokeLoungeNotice(this.ownerDocument, {
         message: `포획한 ${settlement.boxedPokemon.name}, 파티가 가득 차 PC 박스로 전송했습니다.`,
@@ -2626,21 +2769,26 @@ export class BattleController {
   }
 
   private applyLevelUpMoveLearning(state: BattleScreenState): BattleScreenState {
-    if (this.levelUpMoveLearningApplied || this.pendingMoveLearnings.length > 0) {
+    if (
+      this.authoritativeSpectating ||
+      this.levelUpMoveLearningApplied ||
+      this.pendingMoveLearnings.length > 0
+    ) {
       return state;
     }
 
+    const tournamentReward = Boolean(state.tournamentMatchId && state.battleKind === "trainer");
     if (
-      state.battleKind !== "wild" ||
-      state.result?.reason !== "faint" ||
-      (state.result.experienceGained ?? 0) <= 0
+      (!tournamentReward && state.battleKind !== "wild") ||
+      (!tournamentReward && state.result?.reason !== "faint") ||
+      (state.result?.experienceGained ?? 0) <= 0
     ) {
       return state;
     }
 
     const localPlayer = this.gameStateStore.getCurrentLocalPlayer();
 
-    if (state.result.winnerPlayerId !== localPlayer.playerId) {
+    if (!tournamentReward && state.result!.winnerPlayerId !== localPlayer.playerId) {
       return state;
     }
 
@@ -2660,12 +2808,37 @@ export class BattleController {
     this.levelUpMoveLearningApplied = true;
     const result = planPostBattleProgression({
       state,
-      localPlayer,
+      localPlayer: tournamentReward
+        ? {
+            ...localPlayer,
+            party: localPlayer.party.map(slot => ({
+              ...slot,
+              pokemon: slot.pokemon
+                ? {
+                    ...slot.pokemon,
+                    level: this.tournamentPreviousLevels.get(slot.slotIndex) ?? slot.pokemon.level,
+                  }
+                : null,
+            })),
+          }
+        : localPlayer,
       moveRecords,
       personalRecords,
-      evolutionTable,
+      evolutionTable: tournamentReward ? {} : evolutionTable,
     });
     this.pendingMoveLearnings.push(...result.pendingMoveLearnings);
+    if (result.pendingMoveLearnings.length > 0) {
+      const now = this.multiplayerRoom?.getServerNowMs?.() ?? Date.now();
+      this.moveLearningEndsAtMs = tournamentReward
+        ? (this.authoritativeProjection?.progressionEndsAtMs ??
+          now + TOURNAMENT_PROGRESSION_DEADLINE_MS)
+        : now + TOURNAMENT_PROGRESSION_DEADLINE_MS;
+      this.moveLearningRemainingSeconds = Math.max(
+        0,
+        Math.ceil((this.moveLearningEndsAtMs - now) / 1000),
+      );
+      this.multiplayerRoom?.setMoveLearningPending?.(true);
+    }
     this.pendingEvolutionTransitions.push(...result.evolutionTransitions);
     for (const learned of result.learnedMoves)
       this.learnedMovesByMessage.set(learned.message, this.toMoveLearningSummary(learned));
@@ -2674,6 +2847,7 @@ export class BattleController {
   }
 
   private confirmMoveReplacement(): void {
+    if (this.updateMoveLearningDeadline()) return;
     const pending = this.getCurrentPendingMoveLearning();
 
     if (!pending) {
@@ -2746,6 +2920,7 @@ export class BattleController {
       messageQueue:
         this.pendingMoveLearnings.length > 0 ? [message] : appendBattleEndConfirmMessage([message]),
     });
+    this.synchronizeWildMoveChoices();
   }
 
   private skipMoveReplacement(pending = this.pendingMoveLearnings.shift()): void {
@@ -2796,6 +2971,63 @@ export class BattleController {
   }
   private getCurrentPendingMoveLearning(): PendingMoveLearning | null {
     return this.pendingMoveLearnings[0] ?? null;
+  }
+
+  private synchronizeWildMoveChoices(): void {
+    if (
+      this.state.battleKind !== "wild" ||
+      !this.state.returnToWorld ||
+      !this.multiplayerRoom?.synchronizePartyForTournament
+    )
+      return;
+    this.state = settleBattleToWorld({
+      state: this.state,
+      store: this.gameStateStore,
+      completedCompetitiveBattle: false,
+      authoritative: false,
+      persistPosition: false,
+      soloChallenge: false,
+      recoveryPosition: this.state.returnToWorld,
+      nowMs: Date.now(),
+    }).state;
+    const player = this.gameStateStore.getCurrentLocalPlayer();
+    void this.multiplayerRoom
+      .synchronizePartyForTournament({
+        sessionId: this.multiplayerRoom.sessionId,
+        playerId: player.playerId,
+        displayName: player.displayName,
+        map: player.position.mapKey,
+        ...player.position,
+        activePartySlotIndex: player.activePartySlotIndex,
+        party: player.party,
+      })
+      .catch(() => {
+        /* The room retains and retries the latest publication. */
+      });
+  }
+
+  private updateMoveLearningDeadline(): boolean {
+    if (this.moveLearningEndsAtMs === null || this.returningToWorld) return false;
+    const now = this.multiplayerRoom?.getServerNowMs?.() ?? Date.now();
+    const seconds = Math.max(0, Math.ceil((this.moveLearningEndsAtMs - now) / 1000));
+    if (seconds === 0) {
+      this.pendingMoveLearnings = [];
+      this.pendingEvolutionTransitions = [];
+      this.moveReplacementConfirmation = null;
+      this.moveLearningEndsAtMs = null;
+      this.setBattleState({ ...this.state, phase: "ended", messageQueue: [] });
+      dispatchPokeLoungeNotice(this.ownerDocument, {
+        message: "기술 선택 시간이 끝났습니다. 선택하지 않은 기술은 배우지 않습니다.",
+        tone: "info",
+      });
+      this.returnToWorld();
+      return true;
+    }
+    if (seconds !== this.moveLearningRemainingSeconds) {
+      this.moveLearningRemainingSeconds = seconds;
+      this.render();
+    }
+    return false;
   }
 
   private goBack(): void {
