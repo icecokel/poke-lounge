@@ -521,9 +521,9 @@ const KOREAN_COPY: PokeLoungeCopy = {
     roundDurationLabel: "라운드 간 준비 시간",
     roundDurationOptions: ["90초", "3분", "5분"],
     roundDurationDescriptions: [
-      "전원 경험치 150%",
-      "선두 100%, 나머지 각각 50%",
-      "경험치 공유 없음",
+      "전원 경험치 250%",
+      "선두 200%, 나머지 각각 150%",
+      "선두 125%, 나머지 각각 100%",
     ],
     multiplayerDescription:
       "새 방을 만들거나, 비공개방 코드와 공개방 목록에서 원하는 방에 참여할 수 있습니다.",
@@ -828,9 +828,9 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     roundDurationLabel: "Preparation between rounds",
     roundDurationOptions: ["90 sec", "3 min", "5 min"],
     roundDurationDescriptions: [
-      "Everyone receives 150% experience",
-      "Lead 100%, teammates 50% each",
-      "No experience sharing",
+      "Everyone receives 250% experience",
+      "Lead 200%, teammates 150% each",
+      "Lead 125%, teammates 100% each",
     ],
     multiplayerDescription:
       "Create a new room, enter a private room code, or choose a public room to join.",
@@ -1137,9 +1137,9 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     roundDurationLabel: "ラウンド間の準備時間",
     roundDurationOptions: ["90秒", "3分", "5分"],
     roundDurationDescriptions: [
-      "全員が経験値150%",
-      "先頭100%、控えはそれぞれ50%",
-      "経験値共有なし",
+      "全員が経験値250%",
+      "先頭200%、控えはそれぞれ150%",
+      "先頭125%、控えはそれぞれ100%",
     ],
     multiplayerDescription:
       "新しいルームを作成するか、非公開ルームのコードや公開ルーム一覧から参加できます。",
