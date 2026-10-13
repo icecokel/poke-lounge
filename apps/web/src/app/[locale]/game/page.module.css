@@ -268,6 +268,53 @@
   padding: 88px 48px 120px;
   scroll-margin-top: 0;
 }
+
+.film {
+  display: grid;
+  max-width: 1224px;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 100px;
+  margin: auto;
+  padding: 88px 48px;
+  border-bottom: 1px solid var(--pl-color-shadow);
+}
+.filmCopy h2 {
+  margin: 0;
+  font-size: clamp(30px, 3.7vw, 48px);
+  font-weight: 750;
+  letter-spacing: -0.065em;
+  line-height: 1.3;
+  word-break: keep-all;
+  text-wrap: balance;
+}
+.filmCopy .primaryCta {
+  margin-top: 32px;
+}
+.filmFrame {
+  width: min(100%, 350px);
+  margin: 0;
+  justify-self: center;
+}
+.filmVideo {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 480 / 824;
+  background: var(--pl-color-ink);
+  border: 1px solid var(--pl-color-ink);
+  border-radius: 8px;
+}
+.filmVideo:focus-visible {
+  outline: 3px solid var(--pl-color-focus);
+  outline-offset: 5px;
+}
+.filmFrame figcaption {
+  margin-top: 18px;
+  color: var(--pl-color-ink-muted);
+  font-size: 10px;
+  text-align: center;
+}
 .sectionHeading {
   max-width: 680px;
   margin-bottom: 40px;
@@ -388,6 +435,9 @@
   }
 }
 @media (max-width: 1000px) and (min-width: 701px) {
+  .film {
+    gap: 40px;
+  }
   .title {
     font-size: 100px;
   }
@@ -406,6 +456,14 @@
   }
 }
 @media (max-width: 700px) {
+  .film {
+    grid-template-columns: 1fr;
+    gap: 30px;
+    padding: 72px 28px;
+  }
+  .filmCopy .primaryCta {
+    margin-top: 24px;
+  }
   .hero {
     min-height: auto;
   }

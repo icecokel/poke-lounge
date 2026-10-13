@@ -48,6 +48,12 @@
     "introTotodileDescription": "물 타입 파트너와 신나는 모험을 준비해 보세요.",
     "introPreviewHint": "단계를 눌러 실제 게임 화면을 살펴보세요.",
     "introPreviousScene": "이전 게임 화면",
-    "introNextScene": "다음 게임 화면"
+    "introNextScene": "다음 게임 화면",
+    "introVideoEyebrow": "30초 플레이 영상",
+    "introVideoTitle": "모험이 어떻게 펼쳐지는지 먼저 만나보세요.",
+    "introVideoDescription": "파트너 선택부터 풀숲 탐험, 토너먼트까지. 실제 게임의 순간들을 영상으로 담았어요.",
+    "introVideoLabel": "파트너 선택, 탐험, 토너먼트를 담은 Poke Lounge 실제 플레이 영상",
+    "introVideoCaption": "실제 게임 화면 · 30초 · 소리 없이 재생",
+    "introVideoFallback": "플레이 영상 파일 열기"
   }
 }

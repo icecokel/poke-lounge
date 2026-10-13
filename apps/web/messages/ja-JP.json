@@ -48,6 +48,12 @@
     "introTotodileDescription": "みずタイプのパートナーと、楽しい冒険の準備をしよう。",
     "introPreviewHint": "ステップを押して、実際のゲーム画面を見てみよう。",
     "introPreviousScene": "前のゲーム画面",
-    "introNextScene": "次のゲーム画面"
+    "introNextScene": "次のゲーム画面",
+    "introVideoEyebrow": "30秒のプレイ映像",
+    "introVideoTitle": "冒険の様子を先に見てみよう。",
+    "introVideoDescription": "パートナー選びから草むらの探索、トーナメントまで。実際のゲームの瞬間を映像にしました。",
+    "introVideoLabel": "パートナー選び、探索、トーナメントを紹介するPoke Loungeの実際のプレイ映像",
+    "introVideoCaption": "実際のゲーム画面 · 30秒 · 音声なし",
+    "introVideoFallback": "プレイ映像を開く"
   }
 }
