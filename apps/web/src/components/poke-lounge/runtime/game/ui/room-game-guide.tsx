@@ -18,7 +18,7 @@ import { getRoomGameGuideCopy } from "./room-game-guide-copy";
 // Percentages keep the spotlight aligned when the preview scales.
 const SCENES = [
   { image: "lobby", width: 464, height: 713, area: [3, 88, 94, 7] },
-  { image: "starter", width: 280, height: 455, area: [3, 14, 94, 65] },
+  { image: "starter-selection", width: 480, height: 824, area: [3, 14, 94, 65] },
   { image: "world", width: 480, height: 823, area: [7, 58, 34, 20] },
   { image: "world", width: 480, height: 823, area: [40, 58, 53, 20] },
   { image: "battle", width: 480, height: 823, area: [10, 58, 80, 25] },
