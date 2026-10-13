@@ -1,3 +1,4 @@
+import { localizeRuntimeText } from "./runtime/game/i18n/runtime-game-localization";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -112,7 +113,7 @@ export function PokeLoungeNoticeBanner({
       role={tone === "error" ? "alert" : "status"}
       data-poke-lounge-notice="true"
     >
-      <p>{message}</p>
+      <p>{localizeRuntimeText(message, copy.locale)}</p>
       <Button type="button" variant="outline" onClick={onClose}>
         {copy.noticeConfirm}
       </Button>

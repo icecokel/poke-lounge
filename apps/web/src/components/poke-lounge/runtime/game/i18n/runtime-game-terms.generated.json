@@ -1,4 +1,1970 @@
 {
+  "battleItems": {
+    "???": {
+      "en-US": "Explorer Kit",
+      "ja-JP": "たんけんセット"
+    },
+    "GB플레이어": {
+      "en-US": "GB Sounds",
+      "ja-JP": "ＧＢプレイヤー"
+    },
+    "PP맥스": {
+      "en-US": "Max Elixir",
+      "ja-JP": "ピーピーマックス"
+    },
+    "PP에이더": {
+      "en-US": "Elixir",
+      "ja-JP": "ピーピーエイダー"
+    },
+    "PP에이드": {
+      "en-US": "Ether",
+      "ja-JP": "ピーピーエイド"
+    },
+    "PP회복": {
+      "en-US": "Max Ether",
+      "ja-JP": "ピーピーリカバー"
+    },
+    "각성의돌": {
+      "en-US": "Dawn Stone",
+      "ja-JP": "めざめいし"
+    },
+    "강철플레이트": {
+      "en-US": "Iron Plate",
+      "ja-JP": "こうてつプレート"
+    },
+    "갤럭시단의열쇠": {
+      "en-US": "Galactic Key",
+      "ja-JP": "ギンガだんのカギ"
+    },
+    "검은규토리": {
+      "en-US": "Black Apricorn",
+      "ja-JP": "くろぼんぐり"
+    },
+    "검은띠": {
+      "en-US": "Black Belt",
+      "ja-JP": "くろおび"
+    },
+    "검은안경": {
+      "en-US": "Black Glasses",
+      "ja-JP": "くろいメガネ"
+    },
+    "검은진흙": {
+      "en-US": "Black Sludge",
+      "ja-JP": "くろいヘドロ"
+    },
+    "검은철구": {
+      "en-US": "Iron Ball",
+      "ja-JP": "くろいてっきゅう"
+    },
+    "검정비드로": {
+      "en-US": "Black Flute",
+      "ja-JP": "くろいビードロ"
+    },
+    "고급상처약": {
+      "en-US": "Hyper Potion",
+      "ja-JP": "すごいキズぐすり"
+    },
+    "고대의부적": {
+      "en-US": "Old Charm",
+      "ja-JP": "こだいのおまもり"
+    },
+    "고드름플레이트": {
+      "en-US": "Icicle Plate",
+      "ja-JP": "つららのプレート"
+    },
+    "고라파덕물뿌리개": {
+      "en-US": "Sprayduck",
+      "ja-JP": "コダックじょうろ"
+    },
+    "고스티열매": {
+      "en-US": "Magost Berry",
+      "ja-JP": "ゴスのみ"
+    },
+    "골드스프레이": {
+      "en-US": "Max Repel",
+      "ja-JP": "ゴールドスプレー"
+    },
+    "공포플레이트": {
+      "en-US": "Dread Plate",
+      "ja-JP": "こわもてプレート"
+    },
+    "과사열매": {
+      "en-US": "Leppa Berry",
+      "ja-JP": "ヒメリのみ"
+    },
+    "광각렌즈": {
+      "en-US": "Wide Lens",
+      "ja-JP": "こうかくレンズ"
+    },
+    "괴상한패치": {
+      "en-US": "Dubious Disc",
+      "ja-JP": "あやしいパッチ"
+    },
+    "괴상한향로": {
+      "en-US": "Odd Incense",
+      "ja-JP": "あやしいおこう"
+    },
+    "교정깁스": {
+      "en-US": "Macho Brace",
+      "ja-JP": "きょうせいギプス"
+    },
+    "교환권1": {
+      "en-US": "Coupon 1",
+      "ja-JP": "ひきかえけん１"
+    },
+    "교환권2": {
+      "en-US": "Coupon 2",
+      "ja-JP": "ひきかえけん２"
+    },
+    "교환권3": {
+      "en-US": "Coupon 3",
+      "ja-JP": "ひきかえけん３"
+    },
+    "구애머리띠": {
+      "en-US": "Choice Band",
+      "ja-JP": "こだわりハチマキ"
+    },
+    "구애스카프": {
+      "en-US": "Choice Scarf",
+      "ja-JP": "こだわりスカーフ"
+    },
+    "구애안경": {
+      "en-US": "Choice Specs",
+      "ja-JP": "こだわりメガネ"
+    },
+    "굵은뼈": {
+      "en-US": "Thick Club",
+      "ja-JP": "ふといホネ"
+    },
+    "귀중한뼈": {
+      "en-US": "Rare Bone",
+      "ja-JP": "きちょうなホネ"
+    },
+    "규살열매": {
+      "en-US": "Apicot Berry",
+      "ja-JP": "ズアのみ"
+    },
+    "규토리케이스": {
+      "en-US": "Apricorn Box",
+      "ja-JP": "ぼんぐりケース"
+    },
+    "그라시데아꽃": {
+      "en-US": "Gracidea",
+      "ja-JP": "グラシデアのはな"
+    },
+    "금강옥": {
+      "en-US": "Adamant Orb",
+      "ja-JP": "こんごうだま"
+    },
+    "금구슬": {
+      "en-US": "Nugget",
+      "ja-JP": "きんのたま"
+    },
+    "금속코트": {
+      "en-US": "Metal Coat",
+      "ja-JP": "メタルコート"
+    },
+    "금속파우더": {
+      "en-US": "Metal Powder",
+      "ja-JP": "メタルパウダー"
+    },
+    "기계부품": {
+      "en-US": "Machine Part",
+      "ja-JP": "きかいのぶひん"
+    },
+    "기력의덩어리": {
+      "en-US": "Max Revive",
+      "ja-JP": "げんきのかたまり"
+    },
+    "기력의조각": {
+      "en-US": "Revive",
+      "ja-JP": "げんきのかけら"
+    },
+    "기술머신01": {
+      "en-US": "TM01",
+      "ja-JP": "わざマシン０１"
+    },
+    "기술머신02": {
+      "en-US": "TM02",
+      "ja-JP": "わざマシン０２"
+    },
+    "기술머신03": {
+      "en-US": "TM03",
+      "ja-JP": "わざマシン０３"
+    },
+    "기술머신04": {
+      "en-US": "TM04",
+      "ja-JP": "わざマシン０４"
+    },
+    "기술머신05": {
+      "en-US": "TM05",
+      "ja-JP": "わざマシン０５"
+    },
+    "기술머신06": {
+      "en-US": "TM06",
+      "ja-JP": "わざマシン０６"
+    },
+    "기술머신07": {
+      "en-US": "TM07",
+      "ja-JP": "わざマシン０７"
+    },
+    "기술머신08": {
+      "en-US": "TM08",
+      "ja-JP": "わざマシン０８"
+    },
+    "기술머신09": {
+      "en-US": "TM09",
+      "ja-JP": "わざマシン０９"
+    },
+    "기술머신10": {
+      "en-US": "TM10",
+      "ja-JP": "わざマシン１０"
+    },
+    "기술머신11": {
+      "en-US": "TM11",
+      "ja-JP": "わざマシン１１"
+    },
+    "기술머신12": {
+      "en-US": "TM12",
+      "ja-JP": "わざマシン１２"
+    },
+    "기술머신13": {
+      "en-US": "TM13",
+      "ja-JP": "わざマシン１３"
+    },
+    "기술머신14": {
+      "en-US": "TM14",
+      "ja-JP": "わざマシン１４"
+    },
+    "기술머신15": {
+      "en-US": "TM15",
+      "ja-JP": "わざマシン１５"
+    },
+    "기술머신16": {
+      "en-US": "TM16",
+      "ja-JP": "わざマシン１６"
+    },
+    "기술머신17": {
+      "en-US": "TM17",
+      "ja-JP": "わざマシン１７"
+    },
+    "기술머신18": {
+      "en-US": "TM18",
+      "ja-JP": "わざマシン１８"
+    },
+    "기술머신19": {
+      "en-US": "TM19",
+      "ja-JP": "わざマシン１９"
+    },
+    "기술머신20": {
+      "en-US": "TM20",
+      "ja-JP": "わざマシン２０"
+    },
+    "기술머신21": {
+      "en-US": "TM21",
+      "ja-JP": "わざマシン２１"
+    },
+    "기술머신22": {
+      "en-US": "TM22",
+      "ja-JP": "わざマシン２２"
+    },
+    "기술머신23": {
+      "en-US": "TM23",
+      "ja-JP": "わざマシン２３"
+    },
+    "기술머신24": {
+      "en-US": "TM24",
+      "ja-JP": "わざマシン２４"
+    },
+    "기술머신25": {
+      "en-US": "TM25",
+      "ja-JP": "わざマシン２５"
+    },
+    "기술머신26": {
+      "en-US": "TM26",
+      "ja-JP": "わざマシン２６"
+    },
+    "기술머신27": {
+      "en-US": "TM27",
+      "ja-JP": "わざマシン２７"
+    },
+    "기술머신28": {
+      "en-US": "TM28",
+      "ja-JP": "わざマシン２８"
+    },
+    "기술머신29": {
+      "en-US": "TM29",
+      "ja-JP": "わざマシン２９"
+    },
+    "기술머신30": {
+      "en-US": "TM30",
+      "ja-JP": "わざマシン３０"
+    },
+    "기술머신31": {
+      "en-US": "TM31",
+      "ja-JP": "わざマシン３１"
+    },
+    "기술머신32": {
+      "en-US": "TM32",
+      "ja-JP": "わざマシン３２"
+    },
+    "기술머신33": {
+      "en-US": "TM33",
+      "ja-JP": "わざマシン３３"
+    },
+    "기술머신34": {
+      "en-US": "TM34",
+      "ja-JP": "わざマシン３４"
+    },
+    "기술머신35": {
+      "en-US": "TM35",
+      "ja-JP": "わざマシン３５"
+    },
+    "기술머신36": {
+      "en-US": "TM36",
+      "ja-JP": "わざマシン３６"
+    },
+    "기술머신37": {
+      "en-US": "TM37",
+      "ja-JP": "わざマシン３７"
+    },
+    "기술머신38": {
+      "en-US": "TM38",
+      "ja-JP": "わざマシン３８"
+    },
+    "기술머신39": {
+      "en-US": "TM39",
+      "ja-JP": "わざマシン３９"
+    },
+    "기술머신40": {
+      "en-US": "TM40",
+      "ja-JP": "わざマシン４０"
+    },
+    "기술머신41": {
+      "en-US": "TM41",
+      "ja-JP": "わざマシン４１"
+    },
+    "기술머신42": {
+      "en-US": "TM42",
+      "ja-JP": "わざマシン４２"
+    },
+    "기술머신43": {
+      "en-US": "TM43",
+      "ja-JP": "わざマシン４３"
+    },
+    "기술머신44": {
+      "en-US": "TM44",
+      "ja-JP": "わざマシン４４"
+    },
+    "기술머신45": {
+      "en-US": "TM45",
+      "ja-JP": "わざマシン４５"
+    },
+    "기술머신46": {
+      "en-US": "TM46",
+      "ja-JP": "わざマシン４６"
+    },
+    "기술머신47": {
+      "en-US": "TM47",
+      "ja-JP": "わざマシン４７"
+    },
+    "기술머신48": {
+      "en-US": "TM48",
+      "ja-JP": "わざマシン４８"
+    },
+    "기술머신49": {
+      "en-US": "TM49",
+      "ja-JP": "わざマシン４９"
+    },
+    "기술머신50": {
+      "en-US": "TM50",
+      "ja-JP": "わざマシン５０"
+    },
+    "기술머신51": {
+      "en-US": "TM51",
+      "ja-JP": "わざマシン５１"
+    },
+    "기술머신52": {
+      "en-US": "TM52",
+      "ja-JP": "わざマシン５２"
+    },
+    "기술머신53": {
+      "en-US": "TM53",
+      "ja-JP": "わざマシン５３"
+    },
+    "기술머신54": {
+      "en-US": "TM54",
+      "ja-JP": "わざマシン５４"
+    },
+    "기술머신55": {
+      "en-US": "TM55",
+      "ja-JP": "わざマシン５５"
+    },
+    "기술머신56": {
+      "en-US": "TM56",
+      "ja-JP": "わざマシン５６"
+    },
+    "기술머신57": {
+      "en-US": "TM57",
+      "ja-JP": "わざマシン５７"
+    },
+    "기술머신58": {
+      "en-US": "TM58",
+      "ja-JP": "わざマシン５８"
+    },
+    "기술머신59": {
+      "en-US": "TM59",
+      "ja-JP": "わざマシン５９"
+    },
+    "기술머신60": {
+      "en-US": "TM60",
+      "ja-JP": "わざマシン６０"
+    },
+    "기술머신61": {
+      "en-US": "TM61",
+      "ja-JP": "わざマシン６１"
+    },
+    "기술머신62": {
+      "en-US": "TM62",
+      "ja-JP": "わざマシン６２"
+    },
+    "기술머신63": {
+      "en-US": "TM63",
+      "ja-JP": "わざマシン６３"
+    },
+    "기술머신64": {
+      "en-US": "TM64",
+      "ja-JP": "わざマシン６４"
+    },
+    "기술머신65": {
+      "en-US": "TM65",
+      "ja-JP": "わざマシン６５"
+    },
+    "기술머신66": {
+      "en-US": "TM66",
+      "ja-JP": "わざマシン６６"
+    },
+    "기술머신67": {
+      "en-US": "TM67",
+      "ja-JP": "わざマシン６７"
+    },
+    "기술머신68": {
+      "en-US": "TM68",
+      "ja-JP": "わざマシン６８"
+    },
+    "기술머신69": {
+      "en-US": "TM69",
+      "ja-JP": "わざマシン６９"
+    },
+    "기술머신70": {
+      "en-US": "TM70",
+      "ja-JP": "わざマシン７０"
+    },
+    "기술머신71": {
+      "en-US": "TM71",
+      "ja-JP": "わざマシン７１"
+    },
+    "기술머신72": {
+      "en-US": "TM72",
+      "ja-JP": "わざマシン７２"
+    },
+    "기술머신73": {
+      "en-US": "TM73",
+      "ja-JP": "わざマシン７３"
+    },
+    "기술머신74": {
+      "en-US": "TM74",
+      "ja-JP": "わざマシン７４"
+    },
+    "기술머신75": {
+      "en-US": "TM75",
+      "ja-JP": "わざマシン７５"
+    },
+    "기술머신76": {
+      "en-US": "TM76",
+      "ja-JP": "わざマシン７６"
+    },
+    "기술머신77": {
+      "en-US": "TM77",
+      "ja-JP": "わざマシン７７"
+    },
+    "기술머신78": {
+      "en-US": "TM78",
+      "ja-JP": "わざマシン７８"
+    },
+    "기술머신79": {
+      "en-US": "TM79",
+      "ja-JP": "わざマシン７９"
+    },
+    "기술머신80": {
+      "en-US": "TM80",
+      "ja-JP": "わざマシン８０"
+    },
+    "기술머신81": {
+      "en-US": "TM81",
+      "ja-JP": "わざマシン８１"
+    },
+    "기술머신82": {
+      "en-US": "TM82",
+      "ja-JP": "わざマシン８２"
+    },
+    "기술머신83": {
+      "en-US": "TM83",
+      "ja-JP": "わざマシン８３"
+    },
+    "기술머신84": {
+      "en-US": "TM84",
+      "ja-JP": "わざマシン８４"
+    },
+    "기술머신85": {
+      "en-US": "TM85",
+      "ja-JP": "わざマシン８５"
+    },
+    "기술머신86": {
+      "en-US": "TM86",
+      "ja-JP": "わざマシン８６"
+    },
+    "기술머신87": {
+      "en-US": "TM87",
+      "ja-JP": "わざマシン８７"
+    },
+    "기술머신88": {
+      "en-US": "TM88",
+      "ja-JP": "わざマシン８８"
+    },
+    "기술머신89": {
+      "en-US": "TM89",
+      "ja-JP": "わざマシン８９"
+    },
+    "기술머신90": {
+      "en-US": "TM90",
+      "ja-JP": "わざマシン９０"
+    },
+    "기술머신91": {
+      "en-US": "TM91",
+      "ja-JP": "わざマシン９１"
+    },
+    "기술머신92": {
+      "en-US": "TM92",
+      "ja-JP": "わざマシン９２"
+    },
+    "기적의씨": {
+      "en-US": "Miracle Seed",
+      "ja-JP": "きせきのタネ"
+    },
+    "기합의띠": {
+      "en-US": "Focus Sash",
+      "ja-JP": "きあいのタスキ"
+    },
+    "기합의머리띠": {
+      "en-US": "Focus Band",
+      "ja-JP": "きあいのハチマキ"
+    },
+    "껍질화석": {
+      "en-US": "Dome Fossil",
+      "ja-JP": "こうらのカセキ"
+    },
+    "꼬부기물뿌리개": {
+      "en-US": "Squirt Bottle",
+      "ja-JP": "ゼニガメじょうろ"
+    },
+    "꼬시개열매": {
+      "en-US": "Passho Berry",
+      "ja-JP": "イトケのみ"
+    },
+    "꽃향로": {
+      "en-US": "Rose Incense",
+      "ja-JP": "おはなのおこう"
+    },
+    "끈기갈고리손톱": {
+      "en-US": "Grip Claw",
+      "ja-JP": "ねばりのかぎづめ"
+    },
+    "끈적끈적바늘": {
+      "en-US": "Sticky Barb",
+      "ja-JP": "くっつきバリ"
+    },
+    "끈적끈적비료": {
+      "en-US": "Gooey Mulch",
+      "ja-JP": "ねばねばこやし"
+    },
+    "나나열매": {
+      "en-US": "Nanab Berry",
+      "ja-JP": "ナナのみ"
+    },
+    "나무열매쥬스": {
+      "en-US": "Berry Juice",
+      "ja-JP": "きのみジュース"
+    },
+    "나무열매플랜터": {
+      "en-US": "Berry Pots",
+      "ja-JP": "きのみプランター"
+    },
+    "낡은낚싯대": {
+      "en-US": "Old Rod",
+      "ja-JP": "ボロのつりざお"
+    },
+    "네스트볼": {
+      "en-US": "Nest Ball",
+      "ja-JP": "ネストボール"
+    },
+    "넷트볼": {
+      "en-US": "Net Ball",
+      "ja-JP": "ネットボール"
+    },
+    "노랑규토리": {
+      "en-US": "Yellow Apricorn",
+      "ja-JP": "きぼんぐり"
+    },
+    "노랑밴드": {
+      "en-US": "Yellow Scarf",
+      "ja-JP": "きいろのバンダナ"
+    },
+    "노랑비드로": {
+      "en-US": "Yellow Flute",
+      "ja-JP": "きいろビードロ"
+    },
+    "노랑조각": {
+      "en-US": "Yellow Shard",
+      "ja-JP": "きいろいかけら"
+    },
+    "노멜열매": {
+      "en-US": "Nomel Berry",
+      "ja-JP": "ノメルのみ"
+    },
+    "녹지않는얼음": {
+      "en-US": "Never-Melt Ice",
+      "ja-JP": "とけないこおり"
+    },
+    "느림보꼬리": {
+      "en-US": "Lagging Tail",
+      "ja-JP": "こうこうのしっぽ"
+    },
+    "다우징머신": {
+      "en-US": "Dowsing Machine",
+      "ja-JP": "ダウジングマシン"
+    },
+    "다이브볼": {
+      "en-US": "Dive Ball",
+      "ja-JP": "ダイブボール"
+    },
+    "다크볼": {
+      "en-US": "Dusk Ball",
+      "ja-JP": "ダークボール"
+    },
+    "달의돌": {
+      "en-US": "Moon Stone",
+      "ja-JP": "つきのいし"
+    },
+    "달인의띠": {
+      "en-US": "Expert Belt",
+      "ja-JP": "たつじんのおび"
+    },
+    "달콤한꿀": {
+      "en-US": "Honey",
+      "ja-JP": "あまいミツ"
+    },
+    "담홍규토리": {
+      "en-US": "Pink Apricorn",
+      "ja-JP": "ももぼんぐり"
+    },
+    "대단한낚싯대": {
+      "en-US": "Super Rod",
+      "ja-JP": "すごいつりざお"
+    },
+    "대지플레이트": {
+      "en-US": "Earth Plate",
+      "ja-JP": "だいちのプレート"
+    },
+    "대파": {
+      "en-US": "Leek",
+      "ja-JP": "ながねぎ"
+    },
+    "데이터카드01": {
+      "en-US": "Data Card 01",
+      "ja-JP": "データカード０１"
+    },
+    "데이터카드02": {
+      "en-US": "Data Card 02",
+      "ja-JP": "データカード０２"
+    },
+    "데이터카드03": {
+      "en-US": "Data Card 03",
+      "ja-JP": "データカード０３"
+    },
+    "데이터카드04": {
+      "en-US": "Data Card 04",
+      "ja-JP": "データカード０４"
+    },
+    "데이터카드05": {
+      "en-US": "Data Card 05",
+      "ja-JP": "データカード０５"
+    },
+    "데이터카드06": {
+      "en-US": "Data Card 06",
+      "ja-JP": "データカード０６"
+    },
+    "데이터카드07": {
+      "en-US": "Data Card 07",
+      "ja-JP": "データカード０７"
+    },
+    "데이터카드08": {
+      "en-US": "Data Card 08",
+      "ja-JP": "データカード０８"
+    },
+    "데이터카드09": {
+      "en-US": "Data Card 09",
+      "ja-JP": "データカード０９"
+    },
+    "독바늘": {
+      "en-US": "Poison Barb",
+      "ja-JP": "どくバリ"
+    },
+    "동굴탈출로프": {
+      "en-US": "Escape Rope",
+      "ja-JP": "あなぬけのヒモ"
+    },
+    "동글동글돌": {
+      "en-US": "Oval Stone",
+      "ja-JP": "まんまるいし"
+    },
+    "동전케이스": {
+      "en-US": "Coin Case",
+      "ja-JP": "コインケース"
+    },
+    "두개의화석": {
+      "en-US": "Skull Fossil",
+      "ja-JP": "ずがいのカセキ"
+    },
+    "두리열매": {
+      "en-US": "Durin Berry",
+      "ja-JP": "ドリのみ"
+    },
+    "디펜드업": {
+      "en-US": "X Defense",
+      "ja-JP": "ディフェンダー"
+    },
+    "딱딱한돌": {
+      "en-US": "Hard Stone",
+      "ja-JP": "かたいいし"
+    },
+    "또뽀열매": {
+      "en-US": "Grepa Berry",
+      "ja-JP": "ウブのみ"
+    },
+    "뜨거운바위": {
+      "en-US": "Heat Rock",
+      "ja-JP": "あついいわ"
+    },
+    "라부탐열매": {
+      "en-US": "Rabuta Berry",
+      "ja-JP": "ラブタのみ"
+    },
+    "라즈열매": {
+      "en-US": "Razz Berry",
+      "ja-JP": "ズリのみ"
+    },
+    "랑사열매": {
+      "en-US": "Lansat Berry",
+      "ja-JP": "サンのみ"
+    },
+    "러브러브메일": {
+      "en-US": "Heart Mail",
+      "ja-JP": "ラブラブメール"
+    },
+    "러브러브볼": {
+      "en-US": "Love Ball",
+      "ja-JP": "ラブラブボール"
+    },
+    "럭셔리볼": {
+      "en-US": "Luxury Ball",
+      "ja-JP": "ゴージャスボール"
+    },
+    "럭키펀치": {
+      "en-US": "Lucky Punch",
+      "ja-JP": "ラッキーパンチ"
+    },
+    "레벨볼": {
+      "en-US": "Level Ball",
+      "ja-JP": "レベルボール"
+    },
+    "로매열매": {
+      "en-US": "Hondew Berry",
+      "ja-JP": "ロメのみ"
+    },
+    "로플열매": {
+      "en-US": "Chople Berry",
+      "ja-JP": "ヨプのみ"
+    },
+    "루미열매": {
+      "en-US": "Charti Berry",
+      "ja-JP": "ヨロギのみ"
+    },
+    "루베열매": {
+      "en-US": "Belue Berry",
+      "ja-JP": "ベリブのみ"
+    },
+    "루어볼": {
+      "en-US": "Lure Ball",
+      "ja-JP": "ルアーボール"
+    },
+    "룰북": {
+      "en-US": "Rule Book",
+      "ja-JP": "ルールブック"
+    },
+    "룸키": {
+      "en-US": "Suite Key",
+      "ja-JP": "ルームキー"
+    },
+    "리니어패스": {
+      "en-US": "Pass",
+      "ja-JP": "リニアパス"
+    },
+    "리보플라빈": {
+      "en-US": "Calcium",
+      "ja-JP": "リゾチウム"
+    },
+    "리샘열매": {
+      "en-US": "Lum Berry",
+      "ja-JP": "ラムのみ"
+    },
+    "리체열매": {
+      "en-US": "Tanga Berry",
+      "ja-JP": "タンガのみ"
+    },
+    "리프의돌": {
+      "en-US": "Leaf Stone",
+      "ja-JP": "リーフのいし"
+    },
+    "리피드볼": {
+      "en-US": "Repeat Ball",
+      "ja-JP": "リピートボール"
+    },
+    "린드열매": {
+      "en-US": "Rindo Berry",
+      "ja-JP": "リンドのみ"
+    },
+    "마고열매": {
+      "en-US": "Mago Berry",
+      "ja-JP": "マゴのみ"
+    },
+    "마그마부스터": {
+      "en-US": "Magmarizer",
+      "ja-JP": "マグマブースター"
+    },
+    "마비치료제": {
+      "en-US": "Paralyze Heal",
+      "ja-JP": "まひなおし"
+    },
+    "마스터볼": {
+      "en-US": "Master Ball",
+      "ja-JP": "マスターボール"
+    },
+    "마음의물방울": {
+      "en-US": "Soul Dew",
+      "ja-JP": "こころのしずく"
+    },
+    "마코열매": {
+      "en-US": "Colbur Berry",
+      "ja-JP": "ナモのみ"
+    },
+    "만능가루": {
+      "en-US": "Heal Powder",
+      "ja-JP": "ばんのうごな"
+    },
+    "만병통치제": {
+      "en-US": "Full Heal",
+      "ja-JP": "なんでもなおし"
+    },
+    "만복향로": {
+      "en-US": "Full Incense",
+      "ja-JP": "まんぷくおこう"
+    },
+    "맛있는꼬리": {
+      "en-US": "Slowpoke Tail",
+      "ja-JP": "おいしいシッポ"
+    },
+    "맛있는물": {
+      "en-US": "Fresh Water",
+      "ja-JP": "おいしいみず"
+    },
+    "맥스업": {
+      "en-US": "HP Up",
+      "ja-JP": "マックスアップ"
+    },
+    "맹독구슬": {
+      "en-US": "Toxic Orb",
+      "ja-JP": "どくどくだま"
+    },
+    "맹독플레이트": {
+      "en-US": "Toxic Plate",
+      "ja-JP": "もうどくプレート"
+    },
+    "먹다남은음식": {
+      "en-US": "Leftovers",
+      "ja-JP": "たべのこし"
+    },
+    "메트로놈": {
+      "en-US": "Metronome",
+      "ja-JP": "メトロノーム"
+    },
+    "메호키열매": {
+      "en-US": "Spelon Berry",
+      "ja-JP": "ノワキのみ"
+    },
+    "멘탈허브": {
+      "en-US": "Mental Herb",
+      "ja-JP": "メンタルハーブ"
+    },
+    "멤버스카드": {
+      "en-US": "Member Card",
+      "ja-JP": "メンバーズカード"
+    },
+    "모자이크메일": {
+      "en-US": "Mosaic Mail",
+      "ja-JP": "モザイクメール"
+    },
+    "모험노트": {
+      "en-US": "Journal",
+      "ja-JP": "ぼうけんノート"
+    },
+    "목탄": {
+      "en-US": "Charcoal",
+      "ja-JP": "もくたん"
+    },
+    "몬스터볼": {
+      "en-US": "Poké Ball",
+      "ja-JP": "モンスターボール"
+    },
+    "무럭무럭비료": {
+      "en-US": "Growth Mulch",
+      "ja-JP": "すくすくこやし"
+    },
+    "무사태평향로": {
+      "en-US": "Lax Incense",
+      "ja-JP": "のんきのおこう"
+    },
+    "무지갯빛날개": {
+      "en-US": "Rainbow Wing",
+      "ja-JP": "にじいろのはね"
+    },
+    "무화열매": {
+      "en-US": "Figy Berry",
+      "ja-JP": "フィラのみ"
+    },
+    "문볼": {
+      "en-US": "Moon Ball",
+      "ja-JP": "ムーンボール"
+    },
+    "물방울플레이트": {
+      "en-US": "Splash Plate",
+      "ja-JP": "しずくプレート"
+    },
+    "물의돌": {
+      "en-US": "Water Stone",
+      "ja-JP": "みずのいし"
+    },
+    "미네랄사이다": {
+      "en-US": "Soda Pop",
+      "ja-JP": "サイコソーダ"
+    },
+    "미클열매": {
+      "en-US": "Micle Berry",
+      "ja-JP": "ミクルのみ"
+    },
+    "바닷물향로": {
+      "en-US": "Sea Incense",
+      "ja-JP": "うしおのおこう"
+    },
+    "바리비열매": {
+      "en-US": "Babiri Berry",
+      "ja-JP": "リリバのみ"
+    },
+    "바코열매": {
+      "en-US": "Coba Berry",
+      "ja-JP": "バコウのみ"
+    },
+    "박식안경": {
+      "en-US": "Wise Glasses",
+      "ja-JP": "ものしりメガネ"
+    },
+    "반짝가루": {
+      "en-US": "Bright Powder",
+      "ja-JP": "ひかりのこな"
+    },
+    "발전소키": {
+      "en-US": "Works Key",
+      "ja-JP": "はつでんしょキー"
+    },
+    "발톱화석": {
+      "en-US": "Claw Fossil",
+      "ja-JP": "ツメのカセキ"
+    },
+    "방패의화석": {
+      "en-US": "Armor Fossil",
+      "ja-JP": "たてのカセキ"
+    },
+    "배리열매": {
+      "en-US": "Aspear Berry",
+      "ja-JP": "ナナシのみ"
+    },
+    "배틀레코더": {
+      "en-US": "Vs. Recorder",
+      "ja-JP": "バトルレコーダー"
+    },
+    "배틀서처": {
+      "en-US": "Vs. Seeker",
+      "ja-JP": "バトルサーチャー"
+    },
+    "백금옥": {
+      "en-US": "Griseous Orb",
+      "ja-JP": "はっきんだま"
+    },
+    "백옥": {
+      "en-US": "Lustrous Orb",
+      "ja-JP": "しらたま"
+    },
+    "버치열매": {
+      "en-US": "Cheri Berry",
+      "ja-JP": "クラボのみ"
+    },
+    "벌레회피스프레이": {
+      "en-US": "Repel",
+      "ja-JP": "むしよけスプレー"
+    },
+    "변함없는돌": {
+      "en-US": "Everstone",
+      "ja-JP": "かわらずのいし"
+    },
+    "별의모래": {
+      "en-US": "Stardust",
+      "ja-JP": "ほしのすな"
+    },
+    "별의조각": {
+      "en-US": "Star Piece",
+      "ja-JP": "ほしのかけら"
+    },
+    "보물주머니": {
+      "en-US": "Loot Sack",
+      "ja-JP": "たからぶくろ"
+    },
+    "보송보송바위": {
+      "en-US": "Smooth Rock",
+      "ja-JP": "さらさらいわ"
+    },
+    "복분열매": {
+      "en-US": "Rawst Berry",
+      "ja-JP": "チーゴのみ"
+    },
+    "복슝열매": {
+      "en-US": "Pecha Berry",
+      "ja-JP": "モモンのみ"
+    },
+    "부드러운모래": {
+      "en-US": "Soft Sand",
+      "ja-JP": "やわらかいすな"
+    },
+    "부적금화": {
+      "en-US": "Amulet Coin",
+      "ja-JP": "おまもりこばん"
+    },
+    "부활초": {
+      "en-US": "Revival Herb",
+      "ja-JP": "ふっかつそう"
+    },
+    "분노의호두과자": {
+      "en-US": "Rage Candy Bar",
+      "ja-JP": "いかりまんじゅう"
+    },
+    "분실물": {
+      "en-US": "Lost Item",
+      "ja-JP": "おとしもの"
+    },
+    "분홍밴드": {
+      "en-US": "Pink Scarf",
+      "ja-JP": "ピンクのバンダナ"
+    },
+    "불구슬플레이트": {
+      "en-US": "Flame Plate",
+      "ja-JP": "ひのたまプレート"
+    },
+    "불꽃의돌": {
+      "en-US": "Fire Stone",
+      "ja-JP": "ほのおのいし"
+    },
+    "브릭메일": {
+      "en-US": "Brick Mail",
+      "ja-JP": "ブリックメール"
+    },
+    "블루메일": {
+      "en-US": "Bubble Mail",
+      "ja-JP": "ブルーメール"
+    },
+    "블루카드": {
+      "en-US": "Blue Card",
+      "ja-JP": "ブルーカード"
+    },
+    "블룸메일": {
+      "en-US": "Bloom Mail",
+      "ja-JP": "ブルームメール"
+    },
+    "블리열매": {
+      "en-US": "Bluk Berry",
+      "ja-JP": "ブリーのみ"
+    },
+    "블리자드메일": {
+      "en-US": "Snow Mail",
+      "ja-JP": "ブリザードメール"
+    },
+    "비단벌레플레이트": {
+      "en-US": "Insect Plate",
+      "ja-JP": "たまむしプレート"
+    },
+    "비밀의열쇠": {
+      "en-US": "Secret Key",
+      "ja-JP": "ひみつのカギ"
+    },
+    "비밀의호박": {
+      "en-US": "Old Amber",
+      "ja-JP": "ひみつのコハク"
+    },
+    "비전머신01": {
+      "en-US": "HM01",
+      "ja-JP": "ひでんマシン０１"
+    },
+    "비전머신02": {
+      "en-US": "HM02",
+      "ja-JP": "ひでんマシン０２"
+    },
+    "비전머신03": {
+      "en-US": "HM03",
+      "ja-JP": "ひでんマシン０３"
+    },
+    "비전머신04": {
+      "en-US": "HM04",
+      "ja-JP": "ひでんマシン０４"
+    },
+    "비전머신05": {
+      "en-US": "HM05",
+      "ja-JP": "ひでんマシン０５"
+    },
+    "비전머신06": {
+      "en-US": "HM06",
+      "ja-JP": "ひでんマシン０６"
+    },
+    "비전머신07": {
+      "en-US": "HM07",
+      "ja-JP": "ひでんマシン０７"
+    },
+    "비전머신08": {
+      "en-US": "HM08",
+      "ja-JP": "ひでんマシン０８"
+    },
+    "비전신약": {
+      "en-US": "Secret Potion",
+      "ja-JP": "ひでんのくすり"
+    },
+    "빛의돌": {
+      "en-US": "Shiny Stone",
+      "ja-JP": "ひかりのいし"
+    },
+    "빛의점토": {
+      "en-US": "Light Clay",
+      "ja-JP": "ひかりのねんど"
+    },
+    "빨간규토리": {
+      "en-US": "Red Apricorn",
+      "ja-JP": "あかぼんぐり"
+    },
+    "빨간비늘": {
+      "en-US": "Red Scale",
+      "ja-JP": "あかいウロコ"
+    },
+    "빨간실": {
+      "en-US": "Destiny Knot",
+      "ja-JP": "あかいいと"
+    },
+    "빨강밴드": {
+      "en-US": "Red Scarf",
+      "ja-JP": "あかいバンダナ"
+    },
+    "빨강비드로": {
+      "en-US": "Red Flute",
+      "ja-JP": "あかいビードロ"
+    },
+    "빨강쇠사슬": {
+      "en-US": "Red Chain",
+      "ja-JP": "あかいくさり"
+    },
+    "빨강조각": {
+      "en-US": "Red Shard",
+      "ja-JP": "あかいかけら"
+    },
+    "뿌리화석": {
+      "en-US": "Root Fossil",
+      "ja-JP": "ねっこのカセキ"
+    },
+    "삐삐인형": {
+      "en-US": "Poké Doll",
+      "ja-JP": "ピッピにんぎょう"
+    },
+    "사파리볼": {
+      "en-US": "Safari Ball",
+      "ja-JP": "サファリボール"
+    },
+    "사포닌": {
+      "en-US": "Iron",
+      "ja-JP": "ブロムヘキシン"
+    },
+    "상처약": {
+      "en-US": "Potion",
+      "ja-JP": "キズぐすり"
+    },
+    "생명의구슬": {
+      "en-US": "Life Orb",
+      "ja-JP": "いのちのたま"
+    },
+    "서배열매": {
+      "en-US": "Wepear Berry",
+      "ja-JP": "セシナのみ"
+    },
+    "선제공격손톱": {
+      "en-US": "Quick Claw",
+      "ja-JP": "せんせいのツメ"
+    },
+    "성스러운분말": {
+      "en-US": "Sacred Ash",
+      "ja-JP": "せいなるはい"
+    },
+    "수불열매": {
+      "en-US": "Kasib Berry",
+      "ja-JP": "カシブのみ"
+    },
+    "수숙열매": {
+      "en-US": "Cornn Berry",
+      "ja-JP": "モコシのみ"
+    },
+    "수퍼볼": {
+      "en-US": "Great Ball",
+      "ja-JP": "スーパーボール"
+    },
+    "순결의부적": {
+      "en-US": "Cleanse Tag",
+      "ja-JP": "きよめのおふだ"
+    },
+    "순결의향로": {
+      "en-US": "Pure Incense",
+      "ja-JP": "きよめのおこう"
+    },
+    "숲의양갱": {
+      "en-US": "Old Gateau",
+      "ja-JP": "もりのヨウカン"
+    },
+    "슈박열매": {
+      "en-US": "Watmel Berry",
+      "ja-JP": "カイスのみ"
+    },
+    "슈캐열매": {
+      "en-US": "Shuca Berry",
+      "ja-JP": "シュカのみ"
+    },
+    "스타열매": {
+      "en-US": "Starf Berry",
+      "ja-JP": "スターのみ"
+    },
+    "스틸메일": {
+      "en-US": "Steel Mail",
+      "ja-JP": "スチールメール"
+    },
+    "스페셜가드": {
+      "en-US": "X Sp. Def",
+      "ja-JP": "スペシャルガード"
+    },
+    "스페셜업": {
+      "en-US": "X Sp. Atk",
+      "ja-JP": "スペシャルアップ"
+    },
+    "스페이스메일": {
+      "en-US": "Space Mail",
+      "ja-JP": "スペースメール"
+    },
+    "스피드볼": {
+      "en-US": "Fast Ball",
+      "ja-JP": "スピードボール"
+    },
+    "스피드업": {
+      "en-US": "X Speed",
+      "ja-JP": "スピーダー"
+    },
+    "스피드파우더": {
+      "en-US": "Quick Powder",
+      "ja-JP": "スピードパウダー"
+    },
+    "승선티켓": {
+      "en-US": "S.S. Ticket",
+      "ja-JP": "ふねのチケット"
+    },
+    "시마열매": {
+      "en-US": "Kelpsy Berry",
+      "ja-JP": "ネコブのみ"
+    },
+    "시몬열매": {
+      "en-US": "Persim Berry",
+      "ja-JP": "キーのみ"
+    },
+    "신비의물방울": {
+      "en-US": "Mystic Water",
+      "ja-JP": "しんぴのしずく"
+    },
+    "실버스프레이": {
+      "en-US": "Super Repel",
+      "ja-JP": "シルバースプレー"
+    },
+    "실상자": {
+      "en-US": "Seal Case",
+      "ja-JP": "シールいれ"
+    },
+    "실주머니": {
+      "en-US": "Seal Bag",
+      "ja-JP": "シールぶくろ"
+    },
+    "실크스카프": {
+      "en-US": "Silk Scarf",
+      "ja-JP": "シルクのスカーフ"
+    },
+    "심해의비늘": {
+      "en-US": "Deep Sea Scale",
+      "ja-JP": "しんかいのウロコ"
+    },
+    "심해의이빨": {
+      "en-US": "Deep Sea Tooth",
+      "ja-JP": "しんかいのキバ"
+    },
+    "쐐기돌": {
+      "en-US": "Odd Keystone",
+      "ja-JP": "かなめいし"
+    },
+    "아름다운허물": {
+      "en-US": "Shed Shell",
+      "ja-JP": "きれいなぬけがら"
+    },
+    "아바열매": {
+      "en-US": "Aguav Berry",
+      "ja-JP": "バンジのみ"
+    },
+    "안농노트": {
+      "en-US": "Unown Report",
+      "ja-JP": "アンノーンノート"
+    },
+    "알칼로이드": {
+      "en-US": "Carbos",
+      "ja-JP": "インドメタシン"
+    },
+    "암석플레이트": {
+      "en-US": "Stone Plate",
+      "ja-JP": "がんせきプレート"
+    },
+    "암석향로": {
+      "en-US": "Rock Incense",
+      "ja-JP": "がんせきおこう"
+    },
+    "애슈열매": {
+      "en-US": "Custap Berry",
+      "ja-JP": "イバンのみ"
+    },
+    "애터열매": {
+      "en-US": "Rowap Berry",
+      "ja-JP": "レンブのみ"
+    },
+    "액세서리상자": {
+      "en-US": "Fashion Case",
+      "ja-JP": "アクセサリーいれ"
+    },
+    "야타비열매": {
+      "en-US": "Petaya Berry",
+      "ja-JP": "ヤタピのみ"
+    },
+    "야파열매": {
+      "en-US": "Payapa Berry",
+      "ja-JP": "ウタンのみ"
+    },
+    "어둠의돌": {
+      "en-US": "Dusk Stone",
+      "ja-JP": "やみのいし"
+    },
+    "얼음상태치료제": {
+      "en-US": "Ice Heal",
+      "ja-JP": "こおりなおし"
+    },
+    "업그레이드": {
+      "en-US": "Upgrade",
+      "ja-JP": "アップグレード"
+    },
+    "에나비꼬리": {
+      "en-US": "Fluffy Tail",
+      "ja-JP": "エネコのシッポ"
+    },
+    "에레키부스터": {
+      "en-US": "Electirizer",
+      "ja-JP": "エレキブースター"
+    },
+    "에어메일": {
+      "en-US": "Air Mail",
+      "ja-JP": "エアメール"
+    },
+    "여울소금": {
+      "en-US": "Shoal Salt",
+      "ja-JP": "あさせのしお"
+    },
+    "여울조개껍질": {
+      "en-US": "Shoal Shell",
+      "ja-JP": "あさせのかいがら"
+    },
+    "연막탄": {
+      "en-US": "Smoke Ball",
+      "ja-JP": "けむりだま"
+    },
+    "영계의천": {
+      "en-US": "Reaper Cloth",
+      "ja-JP": "れいかいのぬの"
+    },
+    "예리한부리": {
+      "en-US": "Sharp Beak",
+      "ja-JP": "するどいくちばし"
+    },
+    "예리한손톱": {
+      "en-US": "Razor Claw",
+      "ja-JP": "するどいツメ"
+    },
+    "예리한이빨": {
+      "en-US": "Razor Fang",
+      "ja-JP": "するどいキバ"
+    },
+    "오래오래비료": {
+      "en-US": "Stable Mulch",
+      "ja-JP": "ながながこやし"
+    },
+    "오랭열매": {
+      "en-US": "Oran Berry",
+      "ja-JP": "オレンのみ"
+    },
+    "오박사의편지": {
+      "en-US": "Oak’s Letter",
+      "ja-JP": "オーキドのてがみ"
+    },
+    "오카열매": {
+      "en-US": "Occa Berry",
+      "ja-JP": "オッカのみ"
+    },
+    "왕의징표석": {
+      "en-US": "King’s Rock",
+      "ja-JP": "おうじゃのしるし"
+    },
+    "용아열매": {
+      "en-US": "Ganlon Berry",
+      "ja-JP": "リュガのみ"
+    },
+    "용암전병": {
+      "en-US": "Lava Cookie",
+      "ja-JP": "フエンせんべい"
+    },
+    "용의비늘": {
+      "en-US": "Dragon Scale",
+      "ja-JP": "りゅうのウロコ"
+    },
+    "용의이빨": {
+      "en-US": "Dragon Fang",
+      "ja-JP": "りゅうのキバ"
+    },
+    "용의플레이트": {
+      "en-US": "Draco Plate",
+      "ja-JP": "りゅうのプレート"
+    },
+    "우뢰플레이트": {
+      "en-US": "Zap Plate",
+      "ja-JP": "いかずちプレート"
+    },
+    "원령플레이트": {
+      "en-US": "Spooky Plate",
+      "ja-JP": "もののけプレート"
+    },
+    "위키열매": {
+      "en-US": "Wiki Berry",
+      "ja-JP": "ウイのみ"
+    },
+    "유루열매": {
+      "en-US": "Chesto Berry",
+      "ja-JP": "カゴのみ"
+    },
+    "유석열매": {
+      "en-US": "Pomeg Berry",
+      "ja-JP": "ザロクのみ"
+    },
+    "으름열매": {
+      "en-US": "Kebia Berry",
+      "ja-JP": "ビアーのみ"
+    },
+    "은빛가루": {
+      "en-US": "Silver Powder",
+      "ja-JP": "ぎんのこな"
+    },
+    "은빛날개": {
+      "en-US": "Silver Wing",
+      "ja-JP": "ぎんいろのはね"
+    },
+    "의문열매": {
+      "en-US": "Enigma Berry",
+      "ja-JP": "ナゾのみ"
+    },
+    "이상한사탕": {
+      "en-US": "Rare Candy",
+      "ja-JP": "ふしぎなアメ"
+    },
+    "이상한알": {
+      "en-US": "Mystery Egg",
+      "ja-JP": "ふしぎなタマゴ"
+    },
+    "이상한플레이트": {
+      "en-US": "Mind Plate",
+      "ja-JP": "ふしぎのプレート"
+    },
+    "이펙트가드": {
+      "en-US": "Guard Spec.",
+      "ja-JP": "エフェクトガード"
+    },
+    "자뭉열매": {
+      "en-US": "Sitrus Berry",
+      "ja-JP": "オボンのみ"
+    },
+    "자보열매": {
+      "en-US": "Jaboca Berry",
+      "ja-JP": "ジャポのみ"
+    },
+    "자석": {
+      "en-US": "Magnet",
+      "ja-JP": "じしゃく"
+    },
+    "자야열매": {
+      "en-US": "Pamtre Berry",
+      "ja-JP": "シーヤのみ"
+    },
+    "자전거": {
+      "en-US": "Bicycle",
+      "ja-JP": "じてんしゃ"
+    },
+    "작은버섯": {
+      "en-US": "Tiny Mushroom",
+      "ja-JP": "ちいさなキノコ"
+    },
+    "잔디메일": {
+      "en-US": "Grass Mail",
+      "ja-JP": "グラスメール"
+    },
+    "잔물결향로": {
+      "en-US": "Wave Incense",
+      "ja-JP": "さざなみのおこう"
+    },
+    "잘-맞히기": {
+      "en-US": "X Accuracy",
+      "ja-JP": "ヨクアタール"
+    },
+    "잠깨는약": {
+      "en-US": "Awakening",
+      "ja-JP": "ねむけざまし"
+    },
+    "저주의부적": {
+      "en-US": "Spell Tag",
+      "ja-JP": "のろいのおふだ"
+    },
+    "전기구슬": {
+      "en-US": "Light Ball",
+      "ja-JP": "でんきだま"
+    },
+    "전해줄물건": {
+      "en-US": "Parcel",
+      "ja-JP": "おとどけもの"
+    },
+    "조개껍질방울": {
+      "en-US": "Shell Bell",
+      "ja-JP": "かいがらのすず"
+    },
+    "조개화석": {
+      "en-US": "Helix Fossil",
+      "ja-JP": "かいのカセキ"
+    },
+    "좋은낚싯대": {
+      "en-US": "Good Rod",
+      "ja-JP": "いいつりざお"
+    },
+    "좋은상처약": {
+      "en-US": "Super Potion",
+      "ja-JP": "いいキズぐすり"
+    },
+    "주먹플레이트": {
+      "en-US": "Fist Plate",
+      "ja-JP": "こぶしのプレート"
+    },
+    "지하의열쇠": {
+      "en-US": "Basement Key",
+      "ja-JP": "ちかのかぎ"
+    },
+    "진주": {
+      "en-US": "Pearl",
+      "ja-JP": "しんじゅ"
+    },
+    "차가운바위": {
+      "en-US": "Icy Rock",
+      "ja-JP": "つめたいいわ"
+    },
+    "창고열쇠": {
+      "en-US": "Storage Key",
+      "ja-JP": "そうこのカギ"
+    },
+    "천계의피리": {
+      "en-US": "Azure Flute",
+      "ja-JP": "てんかいのふえ"
+    },
+    "천둥의돌": {
+      "en-US": "Thunder Stone",
+      "ja-JP": "かみなりのいし"
+    },
+    "초나열매": {
+      "en-US": "Wacan Berry",
+      "ja-JP": "ソクノのみ"
+    },
+    "초록규토리": {
+      "en-US": "Green Apricorn",
+      "ja-JP": "みどぼんぐり"
+    },
+    "초록밴드": {
+      "en-US": "Green Scarf",
+      "ja-JP": "みどりのバンダナ"
+    },
+    "초록조각": {
+      "en-US": "Green Shard",
+      "ja-JP": "みどりのかけら"
+    },
+    "초록플레이트": {
+      "en-US": "Meadow Plate",
+      "ja-JP": "みどりのプレート"
+    },
+    "초승달날개": {
+      "en-US": "Lunar Wing",
+      "ja-JP": "みかづきのはね"
+    },
+    "초점렌즈": {
+      "en-US": "Scope Lens",
+      "ja-JP": "ピントレンズ"
+    },
+    "축축이비료": {
+      "en-US": "Damp Mulch",
+      "ja-JP": "じめじめこやし"
+    },
+    "축축한바위": {
+      "en-US": "Damp Rock",
+      "ja-JP": "しめったいわ"
+    },
+    "치리열매": {
+      "en-US": "Liechi Berry",
+      "ja-JP": "チイラのみ"
+    },
+    "친구수첩": {
+      "en-US": "Pal Pad",
+      "ja-JP": "ともだちてちょう"
+    },
+    "카드키": {
+      "en-US": "Card Key",
+      "ja-JP": "カードキー"
+    },
+    "카리열매": {
+      "en-US": "Chilan Berry",
+      "ja-JP": "ホズのみ"
+    },
+    "캄라열매": {
+      "en-US": "Salac Berry",
+      "ja-JP": "カムラのみ"
+    },
+    "콘테스트패스": {
+      "en-US": "Contest Pass",
+      "ja-JP": "コンテストパス"
+    },
+    "콤페볼": {
+      "en-US": "Sport Ball",
+      "ja-JP": "コンペボール"
+    },
+    "퀵볼": {
+      "en-US": "Quick Ball",
+      "ja-JP": "クイックボール"
+    },
+    "크리스탈방울": {
+      "en-US": "Clear Bell",
+      "ja-JP": "とうめいなスズ"
+    },
+    "크리티컬커터": {
+      "en-US": "Dire Hit",
+      "ja-JP": "クリティカット"
+    },
+    "큰버섯": {
+      "en-US": "Big Mushroom",
+      "ja-JP": "おおきなキノコ"
+    },
+    "큰뿌리": {
+      "en-US": "Big Root",
+      "ja-JP": "おおきなねっこ"
+    },
+    "큰진주": {
+      "en-US": "Big Pearl",
+      "ja-JP": "おおきなしんじゅ"
+    },
+    "키토산": {
+      "en-US": "Zinc",
+      "ja-JP": "キトサン"
+    },
+    "타우린": {
+      "en-US": "Protein",
+      "ja-JP": "タウリン"
+    },
+    "타운맵": {
+      "en-US": "Town Map",
+      "ja-JP": "タウンマップ"
+    },
+    "타이마볼": {
+      "en-US": "Timer Ball",
+      "ja-JP": "タイマーボール"
+    },
+    "태양의돌": {
+      "en-US": "Sun Stone",
+      "ja-JP": "たいようのいし"
+    },
+    "터널메일": {
+      "en-US": "Tunnel Mail",
+      "ja-JP": "トンネルメール"
+    },
+    "토망열매": {
+      "en-US": "Tamato Berry",
+      "ja-JP": "マトマのみ"
+    },
+    "튼튼밀크": {
+      "en-US": "Moomoo Milk",
+      "ja-JP": "モーモーミルク"
+    },
+    "파란규토리": {
+      "en-US": "Blue Apricorn",
+      "ja-JP": "あおぼんぐり"
+    },
+    "파랑밴드": {
+      "en-US": "Blue Scarf",
+      "ja-JP": "あおいバンダナ"
+    },
+    "파랑비드로": {
+      "en-US": "Blue Flute",
+      "ja-JP": "あおいビードロ"
+    },
+    "파랑조각": {
+      "en-US": "Blue Shard",
+      "ja-JP": "あおいかけら"
+    },
+    "파비열매": {
+      "en-US": "Qualot Berry",
+      "ja-JP": "タポルのみ"
+    },
+    "파야열매": {
+      "en-US": "Iapapa Berry",
+      "ja-JP": "イアのみ"
+    },
+    "파워렌즈": {
+      "en-US": "Power Lens",
+      "ja-JP": "パワーレンズ"
+    },
+    "파워리스트": {
+      "en-US": "Power Bracer",
+      "ja-JP": "パワーリスト"
+    },
+    "파워밴드": {
+      "en-US": "Power Band",
+      "ja-JP": "パワーバンド"
+    },
+    "파워벨트": {
+      "en-US": "Power Belt",
+      "ja-JP": "パワーベルト"
+    },
+    "파워앵클릿": {
+      "en-US": "Power Anklet",
+      "ja-JP": "パワーアンクル"
+    },
+    "파워웨이트": {
+      "en-US": "Power Weight",
+      "ja-JP": "パワーウエイト"
+    },
+    "파워풀허브": {
+      "en-US": "Power Herb",
+      "ja-JP": "パワフルハーブ"
+    },
+    "파인열매": {
+      "en-US": "Pinap Berry",
+      "ja-JP": "パイルのみ"
+    },
+    "파크볼": {
+      "en-US": "Park Ball",
+      "ja-JP": "パークボール"
+    },
+    "평온의방울": {
+      "en-US": "Soothe Bell",
+      "ja-JP": "やすらぎのすず"
+    },
+    "포인트맥스": {
+      "en-US": "PP Max",
+      "ja-JP": "ポイントマックス"
+    },
+    "포인트업": {
+      "en-US": "PP Up",
+      "ja-JP": "ポイントアップ"
+    },
+    "포인트카드": {
+      "en-US": "Point Card",
+      "ja-JP": "ポイントカード"
+    },
+    "포커스렌즈": {
+      "en-US": "Zoom Lens",
+      "ja-JP": "フォーカスレンズ"
+    },
+    "포켓트레": {
+      "en-US": "Poké Radar",
+      "ja-JP": "ポケトレ"
+    },
+    "포토앨범": {
+      "en-US": "Photo Album",
+      "ja-JP": "フォトアルバム"
+    },
+    "포핀케이스": {
+      "en-US": "Poffin Case",
+      "ja-JP": "ポフィンケース"
+    },
+    "푸른하늘플레이트": {
+      "en-US": "Sky Plate",
+      "ja-JP": "あおぞらプレート"
+    },
+    "풀회복약": {
+      "en-US": "Max Potion",
+      "ja-JP": "まんたんのくすり"
+    },
+    "프레미어볼": {
+      "en-US": "Premier Ball",
+      "ja-JP": "プレミアボール"
+    },
+    "프레셔스볼": {
+      "en-US": "Cherish Ball",
+      "ja-JP": "プレシャスボール"
+    },
+    "프렌드볼": {
+      "en-US": "Friend Ball",
+      "ja-JP": "フレンドボール"
+    },
+    "프로텍터": {
+      "en-US": "Protector",
+      "ja-JP": "プロテクター"
+    },
+    "플러스파워": {
+      "en-US": "X Attack",
+      "ja-JP": "プラスパワー"
+    },
+    "플레임메일": {
+      "en-US": "Flame Mail",
+      "ja-JP": "フレイムメール"
+    },
+    "플카열매": {
+      "en-US": "Yache Berry",
+      "ja-JP": "ヤチェのみ"
+    },
+    "하반열매": {
+      "en-US": "Haban Berry",
+      "ja-JP": "ハバンのみ"
+    },
+    "하얀규토리": {
+      "en-US": "White Apricorn",
+      "ja-JP": "しろぼんぐり"
+    },
+    "하양비드로": {
+      "en-US": "White Flute",
+      "ja-JP": "しろいビードロ"
+    },
+    "하양허브": {
+      "en-US": "White Herb",
+      "ja-JP": "しろいハーブ"
+    },
+    "하이퍼볼": {
+      "en-US": "Ultra Ball",
+      "ja-JP": "ハイパーボール"
+    },
+    "하트비늘": {
+      "en-US": "Heart Scale",
+      "ja-JP": "ハートのウロコ"
+    },
+    "학습장치": {
+      "en-US": "Exp. Share",
+      "ja-JP": "がくしゅうそうち"
+    },
+    "해독제": {
+      "en-US": "Antidote",
+      "ja-JP": "どくけし"
+    },
+    "해명의방울": {
+      "en-US": "Tidal Bell",
+      "ja-JP": "うみなりのスズ"
+    },
+    "행복의알": {
+      "en-US": "Lucky Egg",
+      "ja-JP": "しあわせタマゴ"
+    },
+    "행운의향로": {
+      "en-US": "Luck Incense",
+      "ja-JP": "こううんのおこう"
+    },
+    "헤비볼": {
+      "en-US": "Heavy Ball",
+      "ja-JP": "ヘビーボール"
+    },
+    "화산의돌": {
+      "en-US": "Magma Stone",
+      "ja-JP": "かざんのおきいし"
+    },
+    "화상치료제": {
+      "en-US": "Burn Heal",
+      "ja-JP": "やけどなおし"
+    },
+    "화염구슬": {
+      "en-US": "Flame Orb",
+      "ja-JP": "かえんだま"
+    },
+    "회복약": {
+      "en-US": "Full Restore",
+      "ja-JP": "かいふくのくすり"
+    },
+    "후르츠밀크": {
+      "en-US": "Lemonade",
+      "ja-JP": "ミックスオレ"
+    },
+    "휘어진스푼": {
+      "en-US": "Twisted Spoon",
+      "ja-JP": "まがったスプーン"
+    },
+    "힐볼": {
+      "en-US": "Heal Ball",
+      "ja-JP": "ヒールボール"
+    },
+    "힘의가루": {
+      "en-US": "Energy Powder",
+      "ja-JP": "ちからのこな"
+    },
+    "힘의머리띠": {
+      "en-US": "Muscle Band",
+      "ja-JP": "ちからのハチマキ"
+    },
+    "힘의뿌리": {
+      "en-US": "Energy Root",
+      "ja-JP": "ちからのねっこ"
+    }
+  },
   "items": {
     "각성의돌": {
       "en-US": {

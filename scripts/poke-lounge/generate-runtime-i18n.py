@@ -126,7 +126,21 @@ def generate() -> str:
     )
     move_translations = localized_names(read_csv("move_names.csv"), "move_id", set(move_names))
     type_translations = localized_names(read_csv("type_names.csv"), "type_id", set(type_names))
-    item_translations = localized_names(read_csv("item_names.csv"), "item_id", item_ids)
+    item_name_rows = read_csv("item_names.csv")
+    item_translations = localized_names(item_name_rows, "item_id", item_ids)
+    # Held-item messages use ROM indices; PokeAPI item IDs differ after early items.
+    battle_item_ids = {
+        int(row["game_index"]): int(row["item_id"])
+        for row in read_csv("item_game_indices.csv")
+        if row["generation_id"] == "4" and row["game_index"] in item_data["items"]
+    }
+    battle_item_translations = localized_names(
+        item_name_rows, "item_id", set(battle_item_ids.values())
+    )
+    battle_items = term_records(
+        {api_id: item_data["items"][str(rom_id)]["name"] for rom_id, api_id in battle_item_ids.items()},
+        battle_item_translations,
+    )
     item_descriptions = localized_item_descriptions(read_csv("item_flavor_text.csv"), item_ids)
 
     types = term_records(type_names, type_translations)
@@ -150,6 +164,7 @@ def generate() -> str:
         "moves": term_records(move_names, move_translations),
         "types": types,
         "items": items,
+        "battleItems": battle_items,
     }
     return json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 

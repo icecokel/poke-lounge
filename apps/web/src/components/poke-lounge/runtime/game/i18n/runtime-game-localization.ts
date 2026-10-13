@@ -1,4 +1,8 @@
-import { resolvePokeLoungeLocale, type PokeLoungeLocale } from "../../../poke-lounge-copy";
+import {
+  getPokeLoungeCopy,
+  resolvePokeLoungeLocale,
+  type PokeLoungeLocale,
+} from "../../../poke-lounge-copy";
 import type { BattlePresentationState } from "../battle/battle-ui-store";
 import type { MobileBattleUiState } from "../ui/mobile-battle-ui";
 import type { MobileWorldUiState } from "../ui/mobile-world-ui";
@@ -16,9 +20,41 @@ interface RuntimeTermCatalog {
   readonly moves: Record<string, LocalizedTerm>;
   readonly types: Record<string, LocalizedTerm>;
   readonly items: Record<string, LocalizedItem>;
+  readonly battleItems: Record<string, LocalizedTerm>;
 }
 
 const catalog = catalogJson as RuntimeTermCatalog;
+
+const BATTLE_STATUS_MESSAGES: Record<string, LocalizedTerm> = {
+  독: { "en-US": "was poisoned!", "ja-JP": "はどく状態になった！" },
+  맹독: { "en-US": "was badly poisoned!", "ja-JP": "はもうどく状態になった！" },
+  화상: { "en-US": "was burned!", "ja-JP": "はやけどを負った！" },
+  마비: { "en-US": "was paralyzed!", "ja-JP": "はまひしてしまった！" },
+  잠듦: { "en-US": "fell asleep!", "ja-JP": "は眠ってしまった！" },
+  얼음: { "en-US": "was frozen solid!", "ja-JP": "は凍ってしまった！" },
+  상태이상: { "en-US": "got a status condition!", "ja-JP": "は状態異常になった！" },
+};
+
+const BATTLE_EFFECT_NAMES: Record<string, LocalizedTerm> = {
+  독: { "en-US": "poison", "ja-JP": "どく" },
+  맹독: { "en-US": "bad poison", "ja-JP": "もうどく" },
+  화상: { "en-US": "its burn", "ja-JP": "やけど" },
+  마비: { "en-US": "paralysis", "ja-JP": "まひ" },
+  잠듦: { "en-US": "sleep", "ja-JP": "ねむり" },
+  얼음: { "en-US": "being frozen", "ja-JP": "こおり" },
+  혼란: { "en-US": "confusion", "ja-JP": "混乱" },
+  풀죽음: { "en-US": "flinching", "ja-JP": "ひるみ" },
+  "반동으로 인한 휴식": { "en-US": "recharging", "ja-JP": "反動" },
+  "기술 효과": { "en-US": "a move effect", "ja-JP": "わざの効果" },
+  추가: { "en-US": "an additional effect", "ja-JP": "追加効果" },
+  날씨: { "en-US": "weather", "ja-JP": "天気" },
+  비: { "en-US": "rain", "ja-JP": "雨" },
+  쾌청: { "en-US": "harsh sunlight", "ja-JP": "強い日差し" },
+  싸라기눈: { "en-US": "hail", "ja-JP": "あられ" },
+  모래바람: { "en-US": "sandstorm", "ja-JP": "砂嵐" },
+  "날씨 종료": { "en-US": "clear skies", "ja-JP": "晴れ" },
+  "지닌 도구": { "en-US": "held item", "ja-JP": "持ち物" },
+};
 
 const AI_TRAINER_NAMES: Record<string, LocalizedTerm> = {
   상대: { "en-US": "Opponent", "ja-JP": "相手" },
@@ -44,6 +80,34 @@ const AI_TRAINER_NAMES: Record<string, LocalizedTerm> = {
 };
 
 const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
+  "공격이 빗나갔다!": { "en-US": "The attack missed!", "ja-JP": "攻撃は外れた！" },
+  "효과가 없다!": { "en-US": "It had no effect!", "ja-JP": "効果がない！" },
+  "하지만 실패했다!": { "en-US": "But it failed!", "ja-JP": "しかし失敗した！" },
+  "효과가 굉장했다!": { "en-US": "It's super effective!", "ja-JP": "効果は抜群だ！" },
+  "그러나 아무 일도 일어나지 않았다!": {
+    "en-US": "But nothing happened!",
+    "ja-JP": "しかし何も起こらなかった！",
+  },
+  "야생 포켓몬에게만 몬스터볼을 던질 수 있습니다.": {
+    "en-US": "You can only throw Poké Balls at wild Pokémon.",
+    "ja-JP": "モンスターボールは野生のポケモンにだけ投げられます。",
+  },
+  "다음 경기가 배정되어 선택한 기술을 반영하지 못했습니다.": {
+    "en-US": "The next match was assigned before the selected moves could be saved.",
+    "ja-JP": "次の試合が決まったため、選んだわざを反映できませんでした。",
+  },
+  "성장 결과를 저장하지 못했습니다. 다시 확인해 주세요.": {
+    "en-US": "Couldn't save the growth results. Please confirm again.",
+    "ja-JP": "成長結果を保存できませんでした。もう一度確認してください。",
+  },
+  "파티를 저장하지 못했습니다. 다시 확인해 주세요.": {
+    "en-US": "Couldn't save your party. Please confirm again.",
+    "ja-JP": "手持ちを保存できませんでした。もう一度確認してください。",
+  },
+  "기술 선택 시간이 끝났습니다. 선택하지 않은 기술은 배우지 않습니다.": {
+    "en-US": "Move selection time is up. Unselected moves will not be learned.",
+    "ja-JP": "わざを選ぶ時間が終了しました。選ばなかったわざは覚えません。",
+  },
   대화: { "en-US": "Talk", "ja-JP": "話す" },
   "확인하면 파티에 합류합니다.": {
     "en-US": "Confirm to add it to your party.",
@@ -315,6 +379,90 @@ interface RuntimeTextPattern {
 
 const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
   pattern(
+    /^(.+)의 상태이상이 회복되었다!$/,
+    (_, name) => `${name} was cured of its status condition!`,
+    (_, name) => `${name}の状態異常が治った！`,
+  ),
+  pattern(
+    /^(.+)에게 (.+) 데미지!$/,
+    (_, name, effect) => `${name} took damage from ${translateBattleEffect(effect, "en-US")}!`,
+    (_, name, effect) => `${name}は${translateBattleEffect(effect, "ja-JP")}でダメージを受けた！`,
+  ),
+  pattern(
+    /^(.+)(?:은\(는\)|[은는]) (독|맹독|화상|마비|잠듦|얼음|상태이상) 상태가 되었다!$/,
+    (_, name, status) => `${name} ${BATTLE_STATUS_MESSAGES[status]!["en-US"]}`,
+    (_, name, status) => `${name}${BATTLE_STATUS_MESSAGES[status]!["ja-JP"]}`,
+  ),
+  pattern(
+    /^(.+)(?:은\(는\)|[은는]) 반동으로 움직일 수 없다!$/,
+    (_, name) => `${name} can't move because it must recharge!`,
+    (_, name) => `${name}は反動で動けない！`,
+  ),
+  pattern(
+    /^(.+)(?:은\(는\)|[은는]) (.+) 때문에 행동할 수 없다!$/,
+    (_, name, effect) => `${name} can't act because of ${translateBattleEffect(effect, "en-US")}!`,
+    (_, name, effect) => `${name}は${translateBattleEffect(effect, "ja-JP")}で動けない！`,
+  ),
+  pattern(
+    /^(.+)(?:은\(는\)|[은는]) (.+)(?:을\(를\)|[을를]) 준비하고 있다!$/,
+    (_, name, move) => `${name} is preparing ${move}!`,
+    (_, name, move) => `${name}は${move}を準備している！`,
+  ),
+  pattern(
+    /^(.+)(?:은\(는\)|[은는]) 다음 턴에 쉬어야 한다!$/,
+    (_, name) => `${name} must recharge next turn!`,
+    (_, name) => `${name}は次のターンに休まなければならない！`,
+  ),
+  pattern(
+    /^(.+?)(?:이\(가\)|[이가]) 계속되고 있다!$/,
+    (_, weather) => `The ${translateBattleEffect(weather, "en-US")} continues!`,
+    (_, weather) => `${translateBattleEffect(weather, "ja-JP")}が続いている！`,
+  ),
+  pattern(
+    /^(.+?)(?:으로|로) 날씨가 바뀌었다!$/,
+    (_, weather) => `The weather changed to ${translateBattleEffect(weather, "en-US")}!`,
+    (_, weather) => `天気が${translateBattleEffect(weather, "ja-JP")}に変わった！`,
+  ),
+  pattern(
+    /^(.+): (.+) 효과가 (적용되었다|끝났다)!$/,
+    (_, name, effect, action) =>
+      `${name}: ${translateBattleEffect(effect, "en-US")} ${action === "끝났다" ? "ended" : "took effect"}!`,
+    (_, name, effect, action) =>
+      `${name}：${translateBattleEffect(effect, "ja-JP")}の効果が${action === "끝났다" ? "切れた" : "発動した"}！`,
+  ),
+  pattern(
+    /^(.+)의 특성이 발동했다!$/,
+    (_, name) => `${name}'s Ability activated!`,
+    (_, name) => `${name}の特性が発動した！`,
+  ),
+  pattern(
+    /^(.+): (.+)(?:을\(를\)|[을를]) 사용했다!$/,
+    (_, name, item) => `${name} used ${translateBattleEffect(item, "en-US")}!`,
+    (_, name, item) => `${name}は${translateBattleEffect(item, "ja-JP")}を使った！`,
+  ),
+  pattern(
+    /^(.+): (.+)의 효과!$/,
+    (_, name, item) => `${name}'s ${translateBattleEffect(item, "en-US")} took effect!`,
+    (_, name, item) => `${name}の${translateBattleEffect(item, "ja-JP")}が発動した！`,
+  ),
+  pattern(
+    /^(\d+)번 맞았다!$/,
+    (_, count) => `Hit ${count} times!`,
+    (_, count) => `${count}回当たった！`,
+  ),
+  pattern(
+    /^(.+)(?:은\(는\)|[은는]) 전투에서 벗어났다!$/,
+    (_, name) => `${name} escaped from battle!`,
+    (_, name) => `${name}はバトルから逃げ出した！`,
+  ),
+  pattern(
+    /^(.+): (\d+) 경험치를 얻었다!(?: 레벨 (\d+) → (\d+)!)?$/,
+    (_, name, amount, previous, level) =>
+      `${name} gained ${amount} Exp. Points!${level ? ` Level ${previous} → ${level}!` : ""}`,
+    (_, name, amount, previous, level) =>
+      `${name}は経験値を${amount}もらった！${level ? ` レベル${previous} → ${level}！` : ""}`,
+  ),
+  pattern(
     /^야생 (.+)(?:이\(가\)|[이가]) 나타났다!$/,
     (_, name) => `A wild ${name} appeared!`,
     (_, name) => `野生の${name}が現れた！`,
@@ -365,12 +513,12 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name) => `${name}はまひして、わざが出にくくなった！`,
   ),
   pattern(
-    /^(.+)(?:은\(는\)|[은는]) 독 데미지를 입었다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 독(?:에 의한)? 데미지를 입었다!$/,
     (_, name) => `${name} was hurt by poison!`,
     (_, name) => `${name}はどくのダメージを受けた！`,
   ),
   pattern(
-    /^(.+)(?:은\(는\)|[은는]) 화상 데미지를 입었다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 화상(?:에 의한)? 데미지를 입었다!$/,
     (_, name) => `${name} was hurt by its burn!`,
     (_, name) => `${name}はやけどのダメージを受けた！`,
   ),
@@ -480,7 +628,7 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name, item) => `${name}に${item}を使った！`,
   ),
   pattern(
-    /^(.+)의 HP가 회복됐다!$/,
+    /^(.+)의 HP가 (?:회복됐다|회복되었다)!$/,
     (_, name) => `${name}'s HP was restored!`,
     (_, name) => `${name}のHPが回復した！`,
   ),
@@ -753,6 +901,7 @@ export function localizePokemonName(name: string, locale?: string | null): strin
 }
 
 export function localizeTrainerName(name: string, locale?: string | null): string {
+  if (name.startsWith("야생 ")) return localizePokemonName(name, locale);
   const resolvedLocale = resolvePokeLoungeLocale(locale);
   return resolvedLocale === "ko-KR" ? name : translateTerm(AI_TRAINER_NAMES, name, resolvedLocale);
 }
@@ -776,7 +925,11 @@ export function localizeTypeName(name: string, locale?: string | null): string {
 
 export function localizeItemName(name: string, locale?: string | null): string {
   const resolvedLocale = resolvePokeLoungeLocale(locale);
-  return resolvedLocale === "ko-KR" ? name : (catalog.items[name]?.[resolvedLocale].name ?? name);
+  return resolvedLocale === "ko-KR"
+    ? name
+    : (catalog.items[name]?.[resolvedLocale].name ??
+        catalog.battleItems[name]?.[resolvedLocale] ??
+        name);
 }
 
 export function localizeItemDescription(
@@ -913,31 +1066,8 @@ export function localizeMobileWorldUiState(
 }
 
 export function localizePokemonStatus(status: string, locale?: string | null): string {
-  const resolvedLocale = resolvePokeLoungeLocale(locale);
-  const labels: Record<PokeLoungeLocale, Record<string, string>> = {
-    "ko-KR": {
-      normal: "정상",
-      poisoned: "독",
-      burned: "화상",
-      paralyzed: "마비",
-      fainted: "전투불능",
-    },
-    "en-US": {
-      normal: "Normal",
-      poisoned: "Poisoned",
-      burned: "Burned",
-      paralyzed: "Paralyzed",
-      fainted: "Fainted",
-    },
-    "ja-JP": {
-      normal: "正常",
-      poisoned: "どく",
-      burned: "やけど",
-      paralyzed: "まひ",
-      fainted: "ひんし",
-    },
-  };
-  return labels[resolvedLocale][status] ?? status;
+  const labels = getPokeLoungeCopy(locale).game.statusLabel;
+  return labels[status as keyof typeof labels] ?? status;
 }
 
 function pattern(
@@ -966,6 +1096,7 @@ const termReplacements = [
   ...Object.entries(AI_TRAINER_NAMES).map(([source, value]) => ({ source, ...value })),
   ...Object.entries(catalog.pokemon).map(([source, value]) => ({ source, ...value })),
   ...Object.entries(catalog.moves).map(([source, value]) => ({ source, ...value })),
+  ...Object.entries(catalog.battleItems).map(([source, value]) => ({ source, ...value })),
   ...Object.entries(catalog.items).map(([source, value]) => ({
     source,
     "en-US": value["en-US"].name,
@@ -1062,4 +1193,14 @@ function translateTournamentStatus(value: string, locale: RuntimeTranslationLoca
     .reduce(function replacePhrase(current, [source, replacement]) {
       return current.replaceAll(source, replacement);
     }, matchCountLocalized);
+}
+
+function translateBattleEffect(effect: string, locale: RuntimeTranslationLocale): string {
+  return (
+    BATTLE_EFFECT_NAMES[effect]?.[locale] ??
+    catalog.moves[effect]?.[locale] ??
+    catalog.items[effect]?.[locale].name ??
+    catalog.battleItems[effect]?.[locale] ??
+    effect
+  );
 }
