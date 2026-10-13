@@ -58,6 +58,34 @@ export default async function GamePage() {
           A LITTLE WORLD. A NEW ADVENTURE.
         </span>
       </section>
+      <section id="gameplay-film" className={styles.film} aria-labelledby="gameplay-film-title">
+        <div className={styles.filmCopy}>
+          <p className={styles.sectionEyebrow}>{t("introVideoEyebrow")}</p>
+          <h2 id="gameplay-film-title">{t("introVideoTitle")}</h2>
+          <p className={styles.sectionDescription}>{t("introVideoDescription")}</p>
+          <Link href="/game/poke-lounge" className={styles.primaryCta}>
+            {t("playNow")} <ArrowUpRight size={20} aria-hidden="true" />
+          </Link>
+        </div>
+        <figure className={styles.filmFrame}>
+          <video
+            className={styles.filmVideo}
+            width={480}
+            height={824}
+            controls
+            autoPlay
+            playsInline
+            muted
+            preload="auto"
+            poster="/assets/poke-lounge/video/gameplay-poster.jpg"
+            aria-label={t("introVideoLabel")}
+          >
+            <source src="/assets/poke-lounge/video/gameplay.mp4" type="video/mp4" />
+            <a href="/assets/poke-lounge/video/gameplay.mp4">{t("introVideoFallback")}</a>
+          </video>
+          <figcaption>{t("introVideoCaption")}</figcaption>
+        </figure>
+      </section>
       <section id="how-to-play" className={styles.gameplay} aria-labelledby="gameplay-title">
         <div className={styles.sectionHeading}>
           <p className={styles.sectionEyebrow}>{t("introSectionEyebrow")}</p>

@@ -48,6 +48,12 @@
     "introTotodileDescription": "Get ready for an adventure with your Water-type partner.",
     "introPreviewHint": "Pick a step to explore the actual game screens.",
     "introPreviousScene": "Previous game screen",
-    "introNextScene": "Next game screen"
+    "introNextScene": "Next game screen",
+    "introVideoEyebrow": "30 seconds of gameplay",
+    "introVideoTitle": "See how your adventure unfolds.",
+    "introVideoDescription": "From choosing a partner to exploring tall grass and entering the tournament. Take a look at moments from the actual game.",
+    "introVideoLabel": "Actual Poke Lounge gameplay showing partner selection, exploration, and the tournament",
+    "introVideoCaption": "Actual gameplay · 30 seconds · Silent video",
+    "introVideoFallback": "Open the gameplay video"
   }
 }
