@@ -1,106 +1,92 @@
-import Image from "next/image";
+import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
+import { routing } from "@/i18n/routing";
 
+import { IntroGamePreview, IntroPartnerSelector } from "./intro-experience";
 import styles from "./page.module.css";
 
 export default async function GamePage() {
   const t = await getTranslations("Game");
-  const features = [
-    { title: t("introWorldTitle"), description: t("introWorldDescription") },
-    { title: t("introPartyTitle"), description: t("introPartyDescription") },
-    { title: t("introMultiplayerTitle"), description: t("introMultiplayerDescription") },
-  ];
+  const languageLabels = { "ko-KR": "한국어", "en-US": "English", "ja-JP": "日本語" };
 
   return (
     <main className={styles.page}>
-      <section className={styles.hero} aria-labelledby="poke-lounge-intro-title">
+      <section className={styles.hero} aria-labelledby="intro-title">
         <header className={styles.header}>
           <Link href="/game" className={styles.brand} aria-label="Poke Lounge">
             <span className={styles.brandMark} aria-hidden="true" />
-            Poke Lounge
+            POKE LOUNGE
           </Link>
-          <Link href="/game/poke-lounge" className={styles.headerCta}>
-            {t("playNow")}
-          </Link>
+          <nav className={styles.navigation} aria-label={t("introNavigation")}>
+            <a href="#how-to-play" className={styles.aboutLink}>
+              {t("introExplore")}
+            </a>
+            <Link href="/game/poke-lounge" className={styles.headerCta}>
+              {t("playNow")} <ArrowUpRight size={16} aria-hidden="true" />
+            </Link>
+          </nav>
         </header>
-
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}>{t("introEyebrow")}</p>
-            <h1 id="poke-lounge-intro-title" className={styles.title}>
-              <span>Poke Lounge</span>
-              {t("introTitle")}
+            <p className={styles.eyebrow}>
+              <span aria-hidden="true" />
+              {t("introEyebrow")}
+            </p>
+            <h1 id="intro-title" className={styles.title}>
+              Poke
+              <br />
+              Lounge<span>.</span>
             </h1>
+            <h2 className={styles.tagline}>{t("introTitle")}</h2>
             <p className={styles.description}>{t("pokeLoungeDesc")}</p>
             <div className={styles.heroActions}>
               <Link href="/game/poke-lounge" className={styles.primaryCta}>
-                {t("playNow")}
-                <span aria-hidden="true">→</span>
+                {t("playNow")} <ArrowUpRight size={20} aria-hidden="true" />
               </Link>
-              <span className={styles.playNote}>{t("introPlayNote")}</span>
+              <p className={styles.playNote}>{t("introPlayNote")}</p>
             </div>
           </div>
-
-          <div className={styles.starterStage} aria-label={t("introStarterLabel")}>
-            <div className={`${styles.starter} ${styles.chikorita}`} aria-hidden="true" />
-            <div className={`${styles.starter} ${styles.cyndaquil}`} aria-hidden="true" />
-            <div className={`${styles.starter} ${styles.totodile}`} aria-hidden="true" />
-            <p className={styles.starterPrompt}>{t("introStarterPrompt")}</p>
-          </div>
+          <IntroPartnerSelector />
         </div>
+        <a href="#how-to-play" className={styles.scrollLink}>
+          <span>{t("introExplore")}</span>
+          <ArrowDown size={17} aria-hidden="true" />
+        </a>
+        <span className={styles.heroIndex} aria-hidden="true">
+          A LITTLE WORLD. A NEW ADVENTURE.
+        </span>
       </section>
-
-      <section className={styles.preview} aria-labelledby="poke-lounge-preview-title">
-        <div className={styles.sectionHeading}>
-          <p className={styles.sectionEyebrow}>{t("introPreviewEyebrow")}</p>
-          <div>
-            <h2 id="poke-lounge-preview-title">{t("introPreviewTitle")}</h2>
-            <p className={styles.previewDescription}>{t("introPreviewDescription")}</p>
-          </div>
-        </div>
-        <figure className={styles.previewFrame}>
-          <Image
-            src="/assets/poke-lounge/game-intro-multiplayer.png"
-            alt={t("introPreviewAlt")}
-            width={1440}
-            height={900}
-            priority
-            sizes="(max-width: 600px) calc(100vw - 36px), 1120px"
-            className={styles.previewImage}
-          />
-        </figure>
-      </section>
-
-      <section className={styles.features} aria-labelledby="poke-lounge-features-title">
+      <section id="how-to-play" className={styles.gameplay} aria-labelledby="gameplay-title">
         <div className={styles.sectionHeading}>
           <p className={styles.sectionEyebrow}>{t("introSectionEyebrow")}</p>
-          <h2 id="poke-lounge-features-title">{t("introSectionTitle")}</h2>
+          <h2 id="gameplay-title">{t("introSectionTitle")}</h2>
+          <p className={styles.sectionDescription}>{t("introPreviewDescription")}</p>
         </div>
-        <div className={styles.featureList}>
-          {features.map(function mapFeature(feature, index) {
-            return (
-              <article key={feature.title} className={styles.feature}>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <h3>{feature.title}</h3>
-                <p>{feature.description}</p>
-              </article>
-            );
-          })}
-        </div>
+        <IntroGamePreview />
       </section>
-
-      <section className={styles.finalCta} aria-labelledby="poke-lounge-final-title">
-        <div>
-          <p>{t("introFinalEyebrow")}</p>
-          <h2 id="poke-lounge-final-title">{t("introFinalTitle")}</h2>
-        </div>
+      <section className={styles.finalCta} aria-labelledby="final-title">
+        <p className={styles.eyebrow}>{t("introFinalEyebrow")}</p>
+        <h2 id="final-title">{t("introFinalTitle")}</h2>
+        <p>{t("introFinalDescription")}</p>
         <Link href="/game/poke-lounge" className={styles.primaryCta}>
-          {t("playNow")}
-          <span aria-hidden="true">→</span>
+          {t("playNow")} <ArrowUpRight size={20} aria-hidden="true" />
         </Link>
       </section>
+      <footer className={styles.footer}>
+        <div>
+          <span className={styles.footerBrand}>POKE LOUNGE</span>
+          <p>{t("introFanNotice")}</p>
+        </div>
+        <nav aria-label={t("introLanguages")}>
+          {routing.locales.map(locale => (
+            <Link key={locale} href="/game" locale={locale} hrefLang={locale}>
+              {languageLabels[locale]}
+            </Link>
+          ))}
+        </nav>
+      </footer>
     </main>
   );
 }
