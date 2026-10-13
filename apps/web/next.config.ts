@@ -39,6 +39,7 @@ const connectSources = createConnectSources(process.env.NEXT_PUBLIC_API_URL);
 
 const nextConfig: NextConfig = {
   reactStrictMode: false,
+  devIndicators: false,
   // This option replaces Next's list. Extend the installed default so other crawlers retain head metadata.
   // Review the installed default list when upgrading Next.
   htmlLimitedBots: new RegExp(

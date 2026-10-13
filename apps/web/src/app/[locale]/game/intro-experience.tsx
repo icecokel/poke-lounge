@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, Check, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -35,12 +35,12 @@ const partners = [
 
 const scenes = [
   {
-    image: "starter",
+    image: "starter-selection",
     title: "introPartyTitle",
     description: "introPartyDescription",
     alt: "introPartyAlt",
-    width: 280,
-    height: 455,
+    width: 480,
+    height: 824,
   },
   {
     image: "world",
@@ -62,12 +62,12 @@ const scenes = [
 
 export function IntroPartnerSelector() {
   const t = useTranslations("Game");
-  const [selected, setSelected] = useState<(typeof partners)[number] | null>(null);
+  const [selected, setSelected] = useState<(typeof partners)[number]>(partners[0]);
 
   return (
-    <div className={styles.artwork} data-partner={selected?.id}>
-      <div className={styles.orbit} aria-hidden="true" />
-      {selected ? (
+    <div className={styles.artwork} data-partner={selected.id}>
+      <div className={styles.partnerStage}>
+        <div className={styles.orbit} aria-hidden="true" />
         <div key={selected.id} className={styles.partnerReveal}>
           <span className={styles.partnerType}>{t(selected.type)}</span>
           <div
@@ -78,48 +78,28 @@ export function IntroPartnerSelector() {
           />
           <p className={styles.partnerGreeting}>{t(selected.name)}</p>
           <p className={styles.partnerDescription}>{t(selected.description)}</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={styles.resetPartner}
-            aria-label={t("introResetPartner")}
-            onClick={() => setSelected(null)}
-          >
-            <RotateCcw size={12} aria-hidden="true" />
-            <span>{t("introResetPartner")}</span>
-          </Button>
         </div>
-      ) : (
-        <Image
-          src="/assets/poke-lounge/lounge-guide.png"
-          alt={t("introGuideAlt")}
-          width={1280}
-          height={1280}
-          sizes="(max-width: 700px) 90vw, 660px"
-          priority
-          className={styles.guide}
-        />
-      )}
+      </div>
       <div className={styles.starters} role="group" aria-label={t("introStarterPrompt")}>
         {partners.map(partner => (
           <Button
             key={partner.id}
             variant="ghost"
-            aria-pressed={selected?.id === partner.id}
+            aria-pressed={selected.id === partner.id}
             aria-label={t("introSelectPartner", { name: t(partner.name) })}
             className={styles.partnerButton}
             onClick={() => setSelected(partner)}
           >
             <span className={`${styles.starter} ${styles[partner.id]}`} aria-hidden="true" />
             <span className={styles.partnerName}>
-              {selected?.id === partner.id && <Check size={12} aria-hidden="true" />}
+              {selected.id === partner.id && <Check size={12} aria-hidden="true" />}
               {t(partner.name)}
             </span>
           </Button>
         ))}
       </div>
       <p className={styles.artworkCaption} aria-live="polite">
-        {selected ? t("introSelectedPartner", { name: t(selected.name) }) : t("introChoosePartner")}
+        {t("introSelectedPartner", { name: t(selected.name) })}
       </p>
     </div>
   );
