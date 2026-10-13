@@ -1,3 +1,4 @@
+import { withObjectParticle, withTopicParticle } from "../../battle-message-text";
 import { getExperienceForLevel } from "../battle/experience";
 import { planLevelUpPlayerProgression } from "../battle/level-up-progression";
 import { applyEvolutionStone, applyPlayerLevelUpStats } from "../battle/pokemon-evolution";
@@ -186,7 +187,7 @@ function applyHealingItem<TPokemon extends InventoryItemTarget>({
     ok: true,
     itemId,
     messages: [
-      `${pokemon.name}에게 ${displayName}을 사용했다!`,
+      `${pokemon.name}에게 ${withObjectParticle(displayName)} 사용했다!`,
       `${pokemon.name}의 HP가 회복됐다!`,
     ],
     pokemon: {
@@ -218,8 +219,8 @@ function applyRevive<TPokemon extends InventoryItemTarget>(
     ok: true,
     itemId: "revive",
     messages: [
-      `${pokemon.name}에게 ${displayName}을 사용했다!`,
-      `${pokemon.name}는 다시 일어났다!`,
+      `${pokemon.name}에게 ${withObjectParticle(displayName)} 사용했다!`,
+      `${withTopicParticle(pokemon.name)} 다시 일어났다!`,
     ],
     pokemon: {
       ...pokemon,
@@ -251,7 +252,7 @@ function applyRareCandy<TPokemon extends InventoryItemTarget>(
     level: nextLevel,
   };
   const baseMessages = [
-    `${pokemon.name}에게 ${displayName}을 사용했다!`,
+    `${pokemon.name}에게 ${withObjectParticle(displayName)} 사용했다!`,
     `${pokemon.name}의 레벨이 올랐다!`,
   ];
 
@@ -311,7 +312,7 @@ function applyAntidote<TPokemon extends InventoryItemTarget>(
     ok: true,
     itemId: "antidote",
     messages: [
-      `${pokemon.name}에게 ${displayName}를 사용했다!`,
+      `${pokemon.name}에게 ${withObjectParticle(displayName)} 사용했다!`,
       `${pokemon.name}의 독이 사라졌다!`,
     ],
     pokemon: {

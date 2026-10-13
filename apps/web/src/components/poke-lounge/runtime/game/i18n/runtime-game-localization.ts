@@ -330,52 +330,52 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name) => `${name}の攻撃は外れた！`,
   ),
   pattern(
-    /^(.+)[은는] 몸이 저려서 움직일 수 없다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 몸이 저려서 움직일 수 없다!$/,
     (_, name) => `${name} is paralyzed and can't move!`,
     (_, name) => `${name}は体がしびれて動けない！`,
   ),
   pattern(
-    /^(.+)[은는] 반동 데미지를 입었다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 반동 데미지를 입었다!$/,
     (_, name) => `${name} was hurt by recoil!`,
     (_, name) => `${name}は反動でダメージを受けた！`,
   ),
   pattern(
-    /^(.+)[은는] 이미 독에 걸려 있다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 이미 독에 걸려 있다!$/,
     (_, name) => `${name} is already poisoned!`,
     (_, name) => `${name}はすでにどく状態だ！`,
   ),
   pattern(
-    /^(.+)[은는] 이미 상태 이상이다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 이미 상태 이상이다!$/,
     (_, name) => `${name} already has a status condition!`,
     (_, name) => `${name}はすでに状態異常だ！`,
   ),
   pattern(
-    /^(.+)[은는] 독에 걸렸다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 독에 걸렸다!$/,
     (_, name) => `${name} was poisoned!`,
     (_, name) => `${name}はどく状態になった！`,
   ),
   pattern(
-    /^(.+)[은는] 화상을 입었다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 화상을 입었다!$/,
     (_, name) => `${name} was burned!`,
     (_, name) => `${name}はやけどを負った！`,
   ),
   pattern(
-    /^(.+)[은는] 마비되어 기술이 나오기 어려워졌다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 마비되어 기술이 나오기 어려워졌다!$/,
     (_, name) => `${name} was paralyzed! It may be unable to move!`,
     (_, name) => `${name}はまひして、わざが出にくくなった！`,
   ),
   pattern(
-    /^(.+)[은는] 독 데미지를 입었다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 독 데미지를 입었다!$/,
     (_, name) => `${name} was hurt by poison!`,
     (_, name) => `${name}はどくのダメージを受けた！`,
   ),
   pattern(
-    /^(.+)[은는] 화상 데미지를 입었다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 화상 데미지를 입었다!$/,
     (_, name) => `${name} was hurt by its burn!`,
     (_, name) => `${name}はやけどのダメージを受けた！`,
   ),
   pattern(
-    /^(.+)[은는] 쓰러졌다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 쓰러졌다!$/,
     (_, name) => `${name} fainted!`,
     (_, name) => `${name}は倒れた！`,
   ),
@@ -385,12 +385,12 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name) => `${name}、頼んだ！`,
   ),
   pattern(
-    /^(.+)[을를] 던졌다!$/,
+    /^(.+)(?:을\(를\)|[을를]) 던졌다!$/,
     (_, item) => `Threw a ${item}!`,
     (_, item) => `${item}を投げた！`,
   ),
   pattern(
-    /^(.+)[을를] 잡았다!$/,
+    /^(.+)(?:을\(를\)|[을를]) 잡았다!$/,
     (_, name) => `Caught ${name}!`,
     (_, name) => `${name}を捕まえた！`,
   ),
@@ -411,7 +411,7 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name, lead, reserve) => `${name}は経験値${lead}、控えはそれぞれ${reserve}をもらった！`,
   ),
   pattern(
-    /^(.+)은 마비 상태다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 마비 상태다!$/,
     (_, name) => `${name} is paralyzed!`,
     (_, name) => `${name}はまひしている！`,
   ),
@@ -426,22 +426,22 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name, amount) => `${name}は経験値を${amount}もらった！`,
   ),
   pattern(
-    /^(.+) (\d+) 경험치를 얻었다!$/,
+    /^(.+?)(?:은\(는\)|[은는])? (\d+) 경험치를 얻었다!$/,
     (_, name, amount) => `${name} gained ${amount} Exp. Points!`,
     (_, name, amount) => `${name}は経験値を${amount}もらった！`,
   ),
   pattern(
-    /^(.+)[은는] Lv\.(\d+)(?:이\(가\)|[이가]) 되었다!$/,
+    /^(.+)(?:은\(는\)|[은는]) Lv\.(\d+)(?:이\(가\)|[이가]) 되었다!$/,
     (_, name, level) => `${name} grew to Lv.${level}!`,
     (_, name, level) => `${name}はLv.${level}になった！`,
   ),
   pattern(
-    /^(.+)(?:이\(가\)|[이가]) (.+)[을를] 내보냈다!$/,
+    /^(.+)(?:이\(가\)|[이가]) (.+)(?:을\(를\)|[을를]) 내보냈다!$/,
     (_, trainer, name) => `${trainer} sent out ${name}!`,
     (_, trainer, name) => `${trainer}は${name}を繰り出した！`,
   ),
   pattern(
-    /^(.+)의 (공격|방어|특수공격|특수방어|스피드|명중률|회피율|능력치)(?:이\(가\)|[은는이가]) 더 이상 (오르지|떨어지지) 않는다!$/,
+    /^(.+)의 (공격|방어|특수공격|특수방어|스피드|명중률|회피율|능력치)(?:이\(가\)|은\(는\)|[은는이가]) 더 이상 (오르지|떨어지지) 않는다!$/,
     (_, name, stat, direction) =>
       `${name}'s ${translateStat(stat, "en-US")} won't go ${direction === "오르지" ? "any higher" : "any lower"}!`,
     (_, name, stat, direction) =>
@@ -460,22 +460,22 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
       `${name}の${translateStat(stat, "ja-JP")}が${sharply ? "がくっと" : ""}下がった！`,
   ),
   pattern(
-    /^(.+)[은는] (.+)[을를] 잊고 (.+)[을를] 배웠다!$/,
+    /^(.+)(?:은\(는\)|[은는]) (.+)(?:을\(를\)|[을를]) 잊고 (.+)(?:을\(를\)|[을를]) 배웠다!$/,
     (_, name, oldMove, newMove) => `${name} forgot ${oldMove} and learned ${newMove}!`,
     (_, name, oldMove, newMove) => `${name}は${oldMove}を忘れて${newMove}を覚えた！`,
   ),
   pattern(
-    /^(.+)[은는] (.+)[을를] 배웠다!$/,
+    /^(.+)(?:은\(는\)|[은는]) (.+)(?:을\(를\)|[을를]) 배웠다!$/,
     (_, name, move) => `${name} learned ${move}!`,
     (_, name, move) => `${name}は${move}を覚えた！`,
   ),
   pattern(
-    /^(.+)[은는] (.+)[을를] 배우지 않았다!$/,
+    /^(.+)(?:은\(는\)|[은는]) (.+)(?:을\(를\)|[을를]) 배우지 않았다!$/,
     (_, name, move) => `${name} did not learn ${move}.`,
     (_, name, move) => `${name}は${move}を覚えなかった。`,
   ),
   pattern(
-    /^(.+)에게 (.+)[을를] 사용했다!$/,
+    /^(.+)에게 (.+)(?:을\(를\)|[을를]) 사용했다!$/,
     (_, name, item) => `Used ${item} on ${name}!`,
     (_, name, item) => `${name}に${item}を使った！`,
   ),
@@ -485,7 +485,7 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name) => `${name}のHPが回復した！`,
   ),
   pattern(
-    /^(.+)[은는] 다시 일어났다!$/,
+    /^(.+)(?:은\(는\)|[은는]) 다시 일어났다!$/,
     (_, name) => `${name} recovered from fainting!`,
     (_, name) => `${name}は元気を取り戻した！`,
   ),
@@ -510,12 +510,12 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name) => `捕獲成功: ${name}`,
   ),
   pattern(
-    /^(.+)[을를] 사용할 대상을 선택해라\.$/,
+    /^(.+)(?:을\(를\)|[을를]) 사용할 대상을 선택해라\.$/,
     (_, item) => `Choose a Pokémon to use ${item} on.`,
     (_, item) => `${item}を使うポケモンを選んでください。`,
   ),
   pattern(
-    /^기술이 (.+)에서 (.+)로 바뀌었다!$/,
+    /^기술이 (.+)에서 (.+?)(?:\(으\)로|으로|로) 바뀌었다!$/,
     (_, oldMove, newMove) => `${oldMove} was replaced by ${newMove}!`,
     (_, oldMove, newMove) => `${oldMove}を忘れて${newMove}を覚えた！`,
   ),
@@ -525,27 +525,27 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, move) => `${move}を覚えるのをやめました。`,
   ),
   pattern(
-    /^(.+)[을를] PC 박스에 보관했다\.$/,
+    /^(.+)(?:을\(를\)|[을를]) PC 박스에 보관했다\.$/,
     (_, name) => `Stored ${name} in the PC Box.`,
     (_, name) => `${name}をPCボックスに預けました。`,
   ),
   pattern(
-    /^(.+)[을를] 파티로 데려왔다\.$/,
+    /^(.+)(?:을\(를\)|[을를]) 파티로 데려왔다\.$/,
     (_, name) => `Added ${name} to your party.`,
     (_, name) => `${name}を手持ちに加えました。`,
   ),
   pattern(
-    /^(.+)와 파티 포켓몬을 교체했다\.$/,
+    /^(.+)(?:와\(과\)|[와과]) 파티 포켓몬을 교체했다\.$/,
     (_, name) => `Swapped a party Pokémon with ${name}.`,
     (_, name) => `手持ちのポケモンと${name}を入れ替えました。`,
   ),
   pattern(
-    /^(\d+)[이가] 나왔다\. 예측 성공! (.+)[을를] 받았다\.$/,
+    /^(\d+)(?:이\(가\)|[이가]) 나왔다\. 예측 성공! (.+)(?:을\(를\)|[을를]) 받았다\.$/,
     (_, roll, reward) => `Rolled ${roll}. Correct! You received ${reward}.`,
     (_, roll, reward) => `${roll}が出ました。予想成功！ ${reward}を受け取りました。`,
   ),
   pattern(
-    /^(\d+)[이가] 나왔다\. 예측 실패\. (.+)[을를] 잃었다\.$/,
+    /^(\d+)(?:이\(가\)|[이가]) 나왔다\. 예측 실패\. (.+)(?:을\(를\)|[을를]) 잃었다\.$/,
     (_, roll, stake) => `Rolled ${roll}. Wrong prediction. You lost ${stake}.`,
     (_, roll, stake) => `${roll}が出ました。予想失敗。${stake}を失いました。`,
   ),
@@ -570,7 +570,7 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     (_, name) => `おめでとう！ ${name}`,
   ),
   pattern(
-    /^(.+)로 진화했습니다!$/,
+    /^(.+?)(?:\(으\)로|으로|로) 진화했습니다!$/,
     (_, name) => `Evolved into ${name}!`,
     (_, name) => `${name}に進化した！`,
   ),

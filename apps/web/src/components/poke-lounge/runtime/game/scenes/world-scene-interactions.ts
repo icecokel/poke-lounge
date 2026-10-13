@@ -1,3 +1,8 @@
+import {
+  withDirectionParticle,
+  withObjectParticle,
+  withSubjectParticle,
+} from "@poke-lounge/battle/battle-message-text";
 import { transferPcPokemon } from "@/features/poke-lounge/application/world/pc-transfer";
 import { formatFieldInteractionKey } from "@/features/poke-lounge/presentation/world/interaction-copy";
 import { formatPcTransferResult } from "@/features/poke-lounge/presentation/world/pc-transfer-message";
@@ -1071,7 +1076,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       const item = this.getKnownInventoryItem(selectedItemId);
 
       if (!selectedItemId || (localPlayer.inventory[selectedItemId] ?? 0) <= 0) {
-        this.inventoryMessage = `${item?.displayName ?? "아이템"}이 없다!`;
+        this.inventoryMessage = `${withSubjectParticle(item?.displayName ?? "아이템")} 없다!`;
         this.renderInventoryUi();
         return;
       }
@@ -1089,7 +1094,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       this.inventoryPartySlotIndex = targetSlotIndices.includes(localPlayer.activePartySlotIndex)
         ? localPlayer.activePartySlotIndex
         : targetSlotIndices[0];
-      this.inventoryMessage = `${item?.displayName ?? "아이템"}을 사용할 대상을 선택해라.`;
+      this.inventoryMessage = `${withObjectParticle(item?.displayName ?? "아이템")} 사용할 대상을 선택해라.`;
       this.renderInventoryUi();
       return;
     }
@@ -1174,7 +1179,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     };
     this.inventoryMoveReplacementDecisions.push(this.inventoryMoveReplaceIndex);
     this.pendingInventoryMoveReplacements.shift();
-    const outcomeMessage = `기술이 ${replacedMove.name}에서 ${pendingMove.name}로 바뀌었다!`;
+    const outcomeMessage = `기술이 ${replacedMove.name}에서 ${withDirectionParticle(pendingMove.name)} 바뀌었다!`;
 
     if (this.pendingInventoryMoveReplacements.length > 0) {
       this.inventoryMoveReplaceIndex = 0;

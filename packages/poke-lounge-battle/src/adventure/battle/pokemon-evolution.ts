@@ -1,3 +1,4 @@
+import { withObjectParticle } from "../../battle-message-text";
 import { evolvedGen4Ability } from "../../gen4/traits";
 import { getBattlePokemonAssets } from "./battle-pokemon-assets";
 import type { BattlePokemon, BattleSpriteRef } from "./battle-types";
@@ -201,7 +202,7 @@ export function applyEvolutionStone<TPokemon extends PlayerPokemon>({
     pokemonData,
     rule,
     createMessages: evolvedName => [
-      `${pokemon.name}에게 ${item.name}을 사용했다!`,
+      `${pokemon.name}에게 ${withObjectParticle(item.name)} 사용했다!`,
       ...createRomEvolutionMessages(pokemon.name, evolvedName),
     ],
   });

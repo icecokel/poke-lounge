@@ -1,4 +1,4 @@
-import { withSubjectParticle } from "@poke-lounge/battle/battle-message-text";
+import { withObjectParticle, withSubjectParticle } from "@poke-lounge/battle/battle-message-text";
 import { initializeGen4Adventure } from "@poke-lounge/battle/gen4/adventure";
 import { findBattleReadyPartySlot } from "@poke-lounge/battle/adventure/player/battle-ready-party";
 import type { LocalPlayerState } from "../state/game-state-store";
@@ -46,7 +46,7 @@ export function createPvpBattleState({
     player: playerParticipant,
     opponent: opponentParticipant,
     messageQueue: [
-      `${withSubjectParticle(opponent.displayName)} ${opponentParticipant.pokemon.name}을 내보냈다!`,
+      `${withSubjectParticle(opponent.displayName)} ${withObjectParticle(opponentParticipant.pokemon.name)} 내보냈다!`,
       `가랏! ${playerParticipant.pokemon.name}!`,
     ],
     selectedMoveId: null,

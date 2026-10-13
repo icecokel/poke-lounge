@@ -1,3 +1,4 @@
+import { withDirectionParticle } from "../../battle-message-text";
 export { ROM_EVOLUTION_ANIMATION_DURATION_MS } from "../../timing";
 
 export const ROM_EVOLUTION_MESSAGE_SOURCE = {
@@ -31,7 +32,7 @@ export function formatRomEvolutionSuccessMessage(
   fromPokemonName: string,
   toPokemonName: string,
 ): string {
-  return `축하합니다! ${fromPokemonName}\n${toPokemonName}로 진화했습니다!`;
+  return `축하합니다! ${fromPokemonName}\n${withDirectionParticle(toPokemonName)} 진화했습니다!`;
 }
 
 export function createRomEvolutionMessages(

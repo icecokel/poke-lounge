@@ -1,3 +1,7 @@
+import {
+  withDirectionParticle,
+  withSubjectParticle,
+} from "@poke-lounge/battle/battle-message-text";
 import { applyInventoryItemEffect } from "@poke-lounge/battle/adventure/items/inventory-item-effects";
 import type {
   ConsumeInventoryItemResult,
@@ -76,7 +80,7 @@ export function useInventoryItemOnPartySlot(
         ok: false,
         itemId,
         reason: "insufficient-quantity",
-        message: `${item.displayName}이 없다!`,
+        message: `${withSubjectParticle(item.displayName)} 없다!`,
       },
     };
   }
@@ -176,7 +180,7 @@ export function resolveInventoryItemMoveReplacements(
         ok: false,
         itemId,
         reason: "insufficient-quantity",
-        message: `${item.displayName}이 없다!`,
+        message: `${withSubjectParticle(item.displayName)} 없다!`,
       },
     };
   }
@@ -254,7 +258,9 @@ export function resolveInventoryItemMoveReplacements(
         return currentIndex === moveIndex ? pendingMove : move;
       }),
     };
-    replacementMessages.push(`기술이 ${replacedMove.name}에서 ${pendingMove.name}로 바뀌었다!`);
+    replacementMessages.push(
+      `기술이 ${replacedMove.name}에서 ${withDirectionParticle(pendingMove.name)} 바뀌었다!`,
+    );
   }
   const nextQuantity = quantity - 1;
   const nextInventory = { ...localPlayer.inventory };

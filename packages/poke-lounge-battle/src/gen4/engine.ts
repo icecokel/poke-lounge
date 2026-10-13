@@ -1,4 +1,4 @@
-import { withSubjectParticle } from "../battle-message-text";
+import { withObjectParticle, withSubjectParticle, withTopicParticle } from "../battle-message-text";
 import { createDefaultBattleStatStages } from "../battle-stat-stages";
 import { hgssPhazingSucceeds } from "./flow";
 import { serializeGen4Battle } from "./serialization";
@@ -602,7 +602,10 @@ function applyBagItem(b: Battle, s: Side, itemId: number, targetSlot: number): v
   const p = s.pokemon.find(p => slot(p) === targetSlot)!;
   const item = GEN4_ROM_ITEMS[itemId]!,
     effects = item.partyUseEffects!;
-  b.add("message", `${(p.set as TaggedSet).plMember.name}에게 ${item.name}을 사용했다!`);
+  b.add(
+    "message",
+    `${(p.set as TaggedSet).plMember.name}에게 ${withObjectParticle(item.name)} 사용했다!`,
+  );
   if (effects.revive || effects.reviveAll) {
     p.hp = Number(effects.hpRestoreParam) === 255 ? p.maxhp : Math.max(1, Math.floor(p.maxhp / 2));
     p.fainted = false;
@@ -754,7 +757,7 @@ function parseLogs(b: Battle, logs: readonly string[], before: [Gen4Party, Gen4P
       updateMove();
       state[who]!.hp = 0;
       state[who]!.status = "fainted";
-      push(`${mon}은 쓰러졌다!`, who, who);
+      push(`${withTopicParticle(mon)} 쓰러졌다!`, who, who);
       move = undefined;
       continue;
     }
@@ -774,7 +777,7 @@ function parseLogs(b: Battle, logs: readonly string[], before: [Gen4Party, Gen4P
     if (code === "-status") {
       state[who]!.status = STATUS_FROM_SIM[arg] ?? "normal";
       updateMove();
-      push(`${mon}은 ${STATUS_KO[arg] ?? "상태이상"} 상태가 되었다!`, who, who);
+      push(`${withTopicParticle(mon)} ${STATUS_KO[arg] ?? "상태이상"} 상태가 되었다!`, who, who);
       continue;
     }
     if (code === "-curestatus") {
@@ -793,8 +796,8 @@ function parseLogs(b: Battle, logs: readonly string[], before: [Gen4Party, Gen4P
       move = undefined;
       push(
         arg === "recharge"
-          ? `${mon}은 반동으로 움직일 수 없다!`
-          : `${mon}은 ${STATUS_KO[arg] ?? CONDITION_KO[arg] ?? "기술 효과"} 때문에 행동할 수 없다!`,
+          ? `${withTopicParticle(mon)} 반동으로 움직일 수 없다!`
+          : `${withTopicParticle(mon)} ${STATUS_KO[arg] ?? CONDITION_KO[arg] ?? "기술 효과"} 때문에 행동할 수 없다!`,
         who,
         who,
         "status",
@@ -804,14 +807,14 @@ function parseLogs(b: Battle, logs: readonly string[], before: [Gen4Party, Gen4P
     if (code === "-prepare") {
       if (move) move.damage = 0;
       push(
-        `${mon}은 ${GEN4_ROM_MOVE_NAMES[b.dex.moves.get(arg).num] ?? "공격"}을 준비하고 있다!`,
+        `${withTopicParticle(mon)} ${withObjectParticle(GEN4_ROM_MOVE_NAMES[b.dex.moves.get(arg).num] ?? "공격")} 준비하고 있다!`,
         who,
         who,
       );
       continue;
     }
     if (code === "-mustrecharge") {
-      push(`${mon}은 다음 턴에 쉬어야 한다!`, who, who);
+      push(`${withTopicParticle(mon)} 다음 턴에 쉬어야 한다!`, who, who);
       continue;
     }
     if (code === "-crit") {
@@ -899,7 +902,10 @@ function finishWildEscape(battle: Battle, pokemon: Pokemon): void {
   const cartridge = battle as CartridgeBattle;
   if (!cartridge.plWild) throw Error("Only wild encounters can end with escape");
   cartridge.plEscapeSide = pokemon.side.n as 0 | 1;
-  battle.add("message", `${(pokemon.set as TaggedSet).plMember.name}은 전투에서 벗어났다!`);
+  battle.add(
+    "message",
+    `${withTopicParticle((pokemon.set as TaggedSet).plMember.name)} 전투에서 벗어났다!`,
+  );
   battle.win();
 }
 export function getGen4EscapeInfo(session: Gen4Session, sideIndex: 0 | 1 = 0) {

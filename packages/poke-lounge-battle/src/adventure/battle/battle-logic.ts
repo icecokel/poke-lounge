@@ -1,4 +1,8 @@
-import { withSubjectParticle } from "../../battle-message-text";
+import {
+  withObjectParticle,
+  withSubjectParticle,
+  withTopicParticle,
+} from "../../battle-message-text";
 import { restoreGen4FieldPokemon } from "../../gen4/adventure";
 import { getGen4EscapeInfo } from "../../gen4/engine";
 import { GEN4_ROM_ITEMS } from "../../gen4/rom-catalog.generated";
@@ -378,8 +382,8 @@ function chooseCaptureBallItem(
       phase: "ended",
       selectedMoveId: null,
       messageQueue: appendBattleEndConfirmMessage([
-        `${ball.displayName}을 던졌다!`,
-        `${state.opponent.pokemon.name}을 잡았다!`,
+        `${withObjectParticle(ball.displayName)} 던졌다!`,
+        `${withObjectParticle(state.opponent.pokemon.name)} 잡았다!`,
       ]),
       usedInventoryItemId: ball.itemId,
       captureAttempt: {
@@ -404,7 +408,7 @@ function chooseCaptureBallItem(
       usedInventoryItemId: ball.itemId,
       captureAttempt: { ballItemId: ball.itemId, caught: false, shakes: captureAttempt.shakes },
       messageQueue: [
-        `${ball.displayName}을 던졌다!`,
+        `${withObjectParticle(ball.displayName)} 던졌다!`,
         "아쉽다! 포켓몬이 볼에서 빠져나왔다!",
         ...resolved.messageQueue,
       ],
@@ -951,7 +955,7 @@ function resolveFailedCaptureTurn(
 ): BattleScreenState {
   const opponentMove = randomUsableMove(state.opponent.pokemon.moves);
   const captureMessages = [
-    `${ball.displayName}을 던졌다!`,
+    `${withObjectParticle(ball.displayName)} 던졌다!`,
     `${withSubjectParticle(state.opponent.pokemon.name)} 볼에서 나왔다!`,
   ];
   const messageHpSnapshots: BattleMessageHpSnapshot[] = [];
@@ -1213,10 +1217,6 @@ function appendBattleEndConfirmMessage(messages: string[]): string[] {
   return [...messages, BATTLE_END_CONFIRM_MESSAGE];
 }
 
-function withTopicParticle(name: string): string {
-  return `${name}${getTopicParticle(name)}`;
-}
-
 export function formatWildVictoryRewardMessage(
   pokemonName: string,
   experienceGained: number,
@@ -1224,22 +1224,6 @@ export function formatWildVictoryRewardMessage(
   const subject = withTopicParticle(pokemonName);
   const normalizedExperience = Math.max(0, Math.floor(experienceGained));
   return `${subject} ${normalizedExperience} 경험치를 얻었다!`;
-}
-
-function getTopicParticle(name: string): "은" | "는" {
-  const lastCharacter = name[name.length - 1];
-
-  if (!lastCharacter) {
-    return "는";
-  }
-
-  const hangulOffset = lastCharacter.charCodeAt(0) - 0xac00;
-
-  if (hangulOffset < 0 || hangulOffset > 11171) {
-    return "는";
-  }
-
-  return hangulOffset % 28 === 0 ? "는" : "은";
 }
 
 function applyWildVictoryExperience(
@@ -1789,7 +1773,7 @@ function applyStatStageEffect(
       attacker,
       defender,
       messages: [
-        `${target.name}의 ${effect.label}은 더 이상 ${effect.delta > 0 ? "오르지" : "떨어지지"} 않는다!`,
+        `${target.name}의 ${withTopicParticle(effect.label)} 더 이상 ${effect.delta > 0 ? "오르지" : "떨어지지"} 않는다!`,
       ],
     };
   }
@@ -1931,7 +1915,7 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
       usedInventoryItemId: input.usedInventoryItemId,
       messageQueue: [
         ...faintMessages,
-        `${withSubjectParticle(opponent.displayName)} ${replacement.pokemon.name}을 내보냈다!`,
+        `${withSubjectParticle(opponent.displayName)} ${withObjectParticle(replacement.pokemon.name)} 내보냈다!`,
       ],
       result: null,
     };
