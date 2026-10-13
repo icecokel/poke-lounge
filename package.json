@@ -31,7 +31,8 @@
     "generate:poke-lounge-battle-animations": "pnpm --filter @poke-lounge/web exec tsx ../../scripts/poke-lounge/extract-battle-animations.ts",
     "player:browser": "pnpm --filter @poke-lounge/web exec tsx scripts/player-browser/cli.ts",
     "dev:rust": "pnpm --filter @poke-lounge/web exec tsx ../../scripts/rust-local/dev.ts",
-    "dev:rust:stop": "pnpm --filter @poke-lounge/web exec tsx ../../scripts/rust-local/dev.ts --stop"
+    "dev:rust:stop": "pnpm --filter @poke-lounge/web exec tsx ../../scripts/rust-local/dev.ts --stop",
+    "test:korean-messages": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/web exec tsx --tsconfig tests/korean-messages/tsconfig.json --test tests/korean-messages/particles.test.ts tests/korean-messages/localization.test.ts"
   },
   "devDependencies": {
     "prettier": "^3.8.4",

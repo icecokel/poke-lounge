@@ -1,3 +1,4 @@
+import { withObjectParticle } from "@poke-lounge/battle/battle-message-text";
 export type PokeLoungeLocale = "ko-KR" | "en-US" | "ja-JP";
 
 type PokeLoungeRandomNameWords = readonly [string, string, string, string, string];
@@ -367,7 +368,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     battleHelpLabel: "전투 도움말",
     battleTouchPrompt: "아래 터치 화면에서 행동을 선택하세요.",
     battleEnded: "전투가 종료되었습니다.",
-    moveLearnPrompt: moveName => `${moveName}을 배우려면 잊을 기술 선택`,
+    moveLearnPrompt: moveName => `${withObjectParticle(moveName)} 배우려면 잊을 기술 선택`,
     moveReplacementTitle: "기술 교체",
     chooseSwitchPokemon: "교체할 포켓몬 선택",
     forcedSwitch: "필수 교체",

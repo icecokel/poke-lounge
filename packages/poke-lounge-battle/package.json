@@ -23,6 +23,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@pkmn/sim": "0.10.11"
+    "@pkmn/sim": "0.10.11",
+    "es-hangul": "2.4.0"
   }
 }

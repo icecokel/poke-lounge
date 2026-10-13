@@ -308,6 +308,7 @@ const ACCESSIBLE_SCENE_COPY: Record<Exclude<PokeLoungeLocale, "ko-KR">, Accessib
     command: {
       싸운다: "Fight",
       가방: "Bag",
+      몬스터볼: "Poké Ball",
       포켓몬: "Pokémon",
       도망: "Run",
     },
@@ -344,6 +345,7 @@ const ACCESSIBLE_SCENE_COPY: Record<Exclude<PokeLoungeLocale, "ko-KR">, Accessib
     command: {
       싸운다: "たたかう",
       가방: "バッグ",
+      몬스터볼: "モンスターボール",
       포켓몬: "ポケモン",
       도망: "にげる",
     },
@@ -419,7 +421,7 @@ function localizeBattleInteraction(interaction: string, copy: AccessibleSceneCop
     return copy.battleUpdated;
   }
 
-  const command = interaction.match(/^전투 명령 (싸운다|가방|포켓몬|도망) 선택\.$/);
+  const command = interaction.match(/^전투 명령 (싸운다|몬스터볼|가방|포켓몬|도망) 선택\.$/);
   if (command) {
     return copy.battleCommand(copy.command[command[1]] ?? command[1]);
   }
@@ -433,7 +435,11 @@ function localizeBattleInteraction(interaction: string, copy: AccessibleSceneCop
     return copy.chooseMove;
   }
 
-  if (/^.+을 배우기 위해 .+을 잊도록 선택했습니다\.$/.test(interaction)) {
+  if (
+    /^.+(?:을\(를\)|[을를]) 배우기 위해 .+(?:을\(를\)|[을를]) 잊도록 선택했습니다\.$/.test(
+      interaction,
+    )
+  ) {
     return copy.moveReplacementSelected;
   }
 

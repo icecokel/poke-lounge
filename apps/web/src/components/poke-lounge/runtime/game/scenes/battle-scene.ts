@@ -1,3 +1,4 @@
+import { withObjectParticle, withTopicParticle } from "@poke-lounge/battle/battle-message-text";
 import { executeBattleChoice } from "@/features/poke-lounge/application/battle/execute-battle-choice";
 import { planPostBattleProgression } from "@/features/poke-lounge/application/battle/plan-battle-progression";
 import {
@@ -3220,7 +3221,7 @@ export class BattleController {
       const pending = this.getCurrentPendingMoveLearning();
       const move = playerPokemon.moves[this.selectedMoveIndex];
       interactionSummary = pending
-        ? `${pending.newMove.name}을 배우기 위해 ${move?.name ?? "기존 기술"}을 잊도록 선택했습니다.`
+        ? `${withObjectParticle(pending.newMove.name)} 배우기 위해 ${withObjectParticle(move?.name ?? "기존 기술")} 잊도록 선택했습니다.`
         : "기술 교체를 확인하는 중입니다.";
     } else if (!queuedMessage && this.state.phase === "party-select") {
       const pokemon = this.state.player.party.find(
@@ -3264,16 +3265,18 @@ export class BattleController {
       const cue = this.activeBattleEffect.cue;
       const name = this.state[cue.source].pokemon.name;
       if (cue.kind === "status" && cue.damage === 0 && cue.status !== "paralyzed")
-        return cue.status === "poisoned" ? `${name}은 독에 걸렸다!` : `${name}은 화상을 입었다!`;
+        return cue.status === "poisoned"
+          ? `${withTopicParticle(name)} 독에 걸렸다!`
+          : `${withTopicParticle(name)} 화상을 입었다!`;
       return cue.kind === "move"
         ? cue.effectMessage && this.activeBattleEffect.progress >= 0.3
           ? cue.effectMessage
           : `${name}의 ${getRuntimeMoveName(cue.moveId)}!`
         : cue.status === "poisoned"
-          ? `${name}은 독에 의한 데미지를 입었다!`
+          ? `${withTopicParticle(name)} 독에 의한 데미지를 입었다!`
           : cue.status === "burned"
-            ? `${name}은 화상에 의한 데미지를 입었다!`
-            : `${name}은 마비 상태다!`;
+            ? `${withTopicParticle(name)} 화상에 의한 데미지를 입었다!`
+            : `${withTopicParticle(name)} 마비 상태다!`;
     }
     const party = this.gameStateStore.getCurrentLocalPlayer().party;
     return formatBattleResultMessage(

@@ -1,12 +1,16 @@
+import {
+  withConjunctionParticle,
+  withObjectParticle,
+} from "@poke-lounge/battle/battle-message-text";
 import type { PcTransferResult } from "../../application/world/pc-transfer";
 export function formatPcTransferResult(result: PcTransferResult): string {
   switch (result.kind) {
     case "deposited":
-      return `${result.name}을 PC 박스에 보관했다.`;
+      return `${withObjectParticle(result.name)} PC 박스에 보관했다.`;
     case "withdrawn":
-      return `${result.name}을 파티로 데려왔다.`;
+      return `${withObjectParticle(result.name)} 파티로 데려왔다.`;
     case "swapped":
-      return `${result.name}와 파티 포켓몬을 교체했다.`;
+      return `${withConjunctionParticle(result.name)} 파티 포켓몬을 교체했다.`;
     case "rejected":
       return {
         "last-pokemon": "마지막 포켓몬은 보관할 수 없다.",

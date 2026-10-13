@@ -1,3 +1,4 @@
+import { withObjectParticle, withTopicParticle } from "../../battle-message-text";
 import type { PlayerPokemon, PlayerPokemonMove } from "../player/pokemon-types";
 import { isCompetitiveMoveEffectSelectable } from "../../competitive-ruleset-config";
 import {
@@ -395,7 +396,7 @@ function createPlayerPokemonMoveFromRuntimeData(moveId: number): PlayerPokemonMo
 }
 
 export function formatLearnedMoveMessage(pokemonName: string, moveName: string): string {
-  return `${pokemonName}${topicParticle(pokemonName)} ${moveName}${objectParticle(moveName)} 배웠다!`;
+  return `${withTopicParticle(pokemonName)} ${withObjectParticle(moveName)} 배웠다!`;
 }
 
 export function formatReplacedMoveMessage(
@@ -403,33 +404,9 @@ export function formatReplacedMoveMessage(
   replacedMoveName: string,
   moveName: string,
 ): string {
-  return `${pokemonName}${topicParticle(pokemonName)} ${replacedMoveName}${objectParticle(replacedMoveName)} 잊고 ${moveName}${objectParticle(moveName)} 배웠다!`;
+  return `${withTopicParticle(pokemonName)} ${withObjectParticle(replacedMoveName)} 잊고 ${withObjectParticle(moveName)} 배웠다!`;
 }
 
 export function formatSkippedMoveMessage(pokemonName: string, moveName: string): string {
-  return `${pokemonName}${topicParticle(pokemonName)} ${moveName}${objectParticle(moveName)} 배우지 않았다!`;
-}
-
-function topicParticle(value: string): "은" | "는" {
-  return hasFinalConsonant(value) ? "은" : "는";
-}
-
-function objectParticle(value: string): "을" | "를" {
-  return hasFinalConsonant(value) ? "을" : "를";
-}
-
-function hasFinalConsonant(value: string): boolean {
-  const lastCharacter = value[value.length - 1];
-
-  if (!lastCharacter) {
-    return false;
-  }
-
-  const hangulOffset = lastCharacter.charCodeAt(0) - 0xac00;
-
-  if (hangulOffset < 0 || hangulOffset > 11171) {
-    return false;
-  }
-
-  return hangulOffset % 28 !== 0;
+  return `${withTopicParticle(pokemonName)} ${withObjectParticle(moveName)} 배우지 않았다!`;
 }
