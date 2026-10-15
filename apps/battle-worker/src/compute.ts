@@ -13,7 +13,9 @@ import { getCompetitiveActionPlayerIds } from "@poke-lounge/battle/actions";
 import {
   normalizeCompetitiveParty,
   restoreCompetitiveParty,
+  CompetitivePartyValidationError,
 } from "@poke-lounge/battle/competitive-party";
+import { acceptPartySubmission, PartyAcceptanceError } from "@poke-lounge/battle/party-acceptance";
 import { chooseAiCompetitiveAction, createAiStarterParty } from "@poke-lounge/battle/ai-policy";
 import {
   createAiAdventure,
@@ -110,6 +112,16 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
       const party = normalizeCompetitiveParty(partySchema.parse(op.party));
       return op.restore ? restoreCompetitiveParty(party) : party;
     }
+    case "accept-party":
+      return acceptPartySubmission(
+        {
+          proposed: partySchema.parse(op.party),
+          roster: op.roster,
+          nowMs: op.nowMs,
+          trusted: op.trusted,
+        },
+        (await getContext()).pokemonData,
+      );
     case "settle-tournament": {
       const next = settleTournamentExperience(state(op.state));
       next.tournamentRewardParties = Object.fromEntries(
@@ -256,7 +268,20 @@ async function run(raw: unknown): Promise<ComputeResponse> {
   try {
     return { ...identity, ok: true, data: await calculate(input) };
   } catch (error) {
+    if (error instanceof PartyAcceptanceError) {
+      process.stderr.write(
+        JSON.stringify({
+          event: "compute.party_rejected",
+          requestId: input.requestId,
+          roomInstanceId: input.roomInstanceId,
+          rule: error.rule,
+        }) + "\n",
+      );
+    }
     const invalid =
+      error instanceof PartyAcceptanceError ||
+      (input.operation.kind === "accept-party" &&
+        error instanceof CompetitivePartyValidationError) ||
       error instanceof z.ZodError ||
       input.operation.kind === "validate" ||
       input.operation.kind === "complete-progression" ||

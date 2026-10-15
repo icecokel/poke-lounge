@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AI_DIFFICULTIES } from "@poke-lounge/battle/ai-difficulty";
+import { PARTY_ROSTER_LIMIT } from "@poke-lounge/battle/party-acceptance";
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
@@ -14,6 +15,21 @@ export const JOB_TIMEOUT_MS = 8_000;
 const boundedId = z.string().min(1).max(160);
 const aiDifficulty = z.enum(AI_DIFFICULTIES);
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const rosterSchema = z.strictObject({
+  version: z.literal(1),
+  highWaterLevel: integer.min(1).max(100),
+  entries: z
+    .array(
+      z.strictObject({
+        ivKey: z.string().regex(/^(?:[0-9]|[12][0-9]|3[01])(?:-(?:[0-9]|[12][0-9]|3[01])){5}$/),
+        speciesId: integer.min(1).max(493),
+        level: integer.min(1).max(100),
+        moveIds: z.array(integer.min(1).max(470)).max(4),
+        updatedAtMs: integer,
+      }),
+    )
+    .max(PARTY_ROSTER_LIMIT),
+});
 export const requestSchema = z.strictObject({
   protocolVersion: z.literal(1),
   requestId: z.uuid(),
@@ -25,6 +41,13 @@ export const requestSchema = z.strictObject({
       kind: z.literal("normalize-party"),
       party: z.unknown(),
       restore: z.boolean().default(false),
+    }),
+    z.strictObject({
+      kind: z.literal("accept-party"),
+      party: z.unknown(),
+      roster: rosterSchema.nullable(),
+      nowMs: integer,
+      trusted: z.boolean(),
     }),
     z.strictObject({ kind: z.literal("initial-party"), seed: boundedId }),
     z.strictObject({
