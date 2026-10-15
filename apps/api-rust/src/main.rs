@@ -148,6 +148,7 @@ async fn run() -> AppResult<()> {
         data,
         sockets: Arc::new(Semaphore::new(128)),
         origins: Arc::new(config.allowed_origins.clone()),
+        trusted_proxies: Arc::new(config.trusted_proxies.clone()),
         budgets: Arc::new(Mutex::new(HashMap::new())),
         requests: Arc::new(Semaphore::new(64)),
         release: logging::release(),

@@ -1,6 +1,10 @@
 use crate::error::{AppError, AppResult};
 use axum::http::HeaderValue;
-use std::{env, net::SocketAddr, time::Duration};
+use std::{
+    env,
+    net::{IpAddr, SocketAddr},
+    time::Duration,
+};
 pub const REDIS_PREFIX: &str = "poke-lounge:{rust-v2}";
 pub const MAX_ROOMS: usize = 30;
 pub const MAX_ACTORS: usize = 64;
@@ -19,6 +23,7 @@ pub struct Config {
     pub worker_url: String,
     pub worker_token: String,
     pub allowed_origins: Vec<HeaderValue>,
+    pub trusted_proxies: Vec<ipnet::IpNet>,
     pub database: tokio_postgres::Config,
 }
 impl Config {
@@ -73,6 +78,18 @@ impl Config {
                     .map_err(|_| AppError::Configuration("Invalid CORS header"))?,
             );
         }
+        let trusted_proxies = env::var("RUST_API_TRUSTED_PROXIES")
+            .unwrap_or_default()
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| {
+                value
+                    .parse::<ipnet::IpNet>()
+                    .or_else(|_| value.parse::<IpAddr>().map(ipnet::IpNet::from))
+                    .map_err(|_| AppError::Configuration("Invalid RUST_API_TRUSTED_PROXIES"))
+            })
+            .collect::<AppResult<Vec<_>>>()?;
         let mut database = tokio_postgres::Config::new();
         database
             .host(env::var("DB_HOST").unwrap_or_else(|_| "127.0.0.1".into()))
@@ -96,6 +113,7 @@ impl Config {
             worker_url,
             worker_token,
             allowed_origins,
+            trusted_proxies,
             database,
         })
     }
