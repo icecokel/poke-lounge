@@ -53,7 +53,7 @@ Rust가 방·참가자·라운드·대진·점수·명령 기록의 저장을 �
 
 첫 출발과 2·3라운드 출발 모두 전원 준비 후 3초 카운트다운으로 탐험 시간을 확정한다. 후속 라운드는 앞 토너먼트 완료 후 5초 결과 표시를 거치며 스타터를 재선택하지 않는다. 탐험 종료 후에는 별도 5초 집결 시간과 종료 준비를 확인해 토너먼트로 전환한다. 자세한 규칙은 [현재 게임 흐름](../../README.md#라운드-시작-규칙)을 따른다.
 
-토너먼트 경험치는 경기 종료 시 서버가 한 번 정산한다. 기술 선택을 위한 다음 경기 대기는 최대 25초이며 전투 턴 제한과 별개다. `party-snapshot` 명령에 `progressionMatchId`를 전달하면 해당 경기의 성장 결과를 처리한다. `competitiveParty: null`은 본인에게만 `progressionParty`를 반환하는 조회이고, 파티를 전달하면 서버가 허용된 기술 변경만 반영한다. 레벨·경험치·능력치·아이템은 클라이언트 제안으로 덮어쓰지 않는다. 25초가 지나거나 다음 경기가 배정됐다면 현재 파티를 반환하고 늦은 기술 선택을 반영하지 않는다. 탐험 종료 준비도 파티 저장·기술 선택 완료를 기다리며, 종료 후 최대 25초가 지나면 준비 장벽을 해제한다.
+토너먼트 경험치는 경기 종료 시 서버가 한 번 정산한다. 기술 선택을 위한 다음 경기 대기는 최대 25초이며 전투 턴 제한과 별개다. 성장 결과 조회는 인증된 `GET /poke-lounge/rooms/{code}/matches/{battle}/progression-party`에서 버전 검사나 조회 명령의 커밋 없이 `progressionParty`를 반환한다. `party-snapshot` 명령에 `progressionMatchId`와 파티를 전달하면 서버가 허용된 기술 변경만 반영한다. 기존 클라이언트의 `competitiveParty: null` 명령도 조회 응답을 유지한다. 레벨·경험치·능력치·아이템은 클라이언트 제안으로 덮어쓰지 않는다. 25초가 지나거나 다음 경기가 배정됐다면 현재 파티를 반환하고 늦은 기술 선택을 반영하지 않는다. 탐험 종료 준비도 파티 저장·기술 선택 완료를 기다리며, 종료 후 최대 25초가 지나면 준비 장벽을 해제한다.
 
 실시간 전송은 Rust 네이티브 WebSocket이다. 구독 시 세션/참가자/생성 회차를 확인하고 Origin, 메시지 크기, 연결 수, 입력 빈도, 보내기 제한시간을 적용한다. 지연된 수신자는 전체 스냅샷으로 복원하고 이전 연결의 이동 입력을 무제한 버퍼링하지 않는다. WebRTC는 추가하지 않았다.
 
@@ -69,6 +69,29 @@ ROM 자료는 기존 PostgreSQL 스키마에서 읽으며 원래 정적 데이�
 - `POST /poke-lounge/rooms/quick-play`: 기존 호환 경로로 격리되어 있으며 공개방 목록/직접 참가 흐름이 안정된 뒤 마지막 단계에서 자동 참가 UX에 연결한다.
 
 공개방 생성과 자동 참가는 서로 다른 동작이다. 현재 UI는 공개방 목록·새로고침·직접 참가·새 공개방 만들기를 제공하며 자동 참가를 연결하지 않는다. 목록 참가에는 `roomInstanceId`를 함께 전달하고, 정원 초과·참가 불가 경쟁 실패는 안내 후 최신 목록으로 복귀한다.
+
+## 게임 이용 DAU·MAU
+
+운영 웹은 방 신원과 별개인 익명 UUID를 브라우저 `localStorage`에 저장한다. 최초 생성 시 기존 플레이어 ID의 UUID를 이어받아 이전 로그와 같은 브라우저로 집계한다. 이후 방 신원을 지워도 이용 ID는 유지한다. 성공한 방 생성·참가·인증된 WebSocket 연결과 연결 중 30분 간격으로만 활동을 기록한다. Rust API는 UUID를 SHA-256으로 해시해 PostgreSQL의 `poke_lounge_active_visitor`에 한국 날짜별 한 행만 저장한다. 원본 UUID, IP, 방 코드, 세션 ID는 이 테이블에 저장하지 않는다. AI와 단순 페이지 방문은 제외한다.
+
+DAU는 한국 날짜의 고유 익명 브라우저 수, MAU는 오늘을 포함한 최근 30일의 고유 익명 브라우저 수다. 같은 사람이 브라우저나 저장소를 바꾸면 다른 이용자로 계산되며, 저장소를 사용할 수 없는 브라우저는 새로고침 후 새 ID가 될 수 있다. 집계 저장 실패는 게임 진행을 막지 않고 `usage.record_failed` 로그를 남긴다.
+
+기존 Rust API 로그에서 `socket.connected`·`socket.closed`·성공한 `room.command`에 유효한 플레이어 UUID가 있는 날짜만 [백필 스크립트](../../scripts/metrics/backfill-active-visitors.py)로 복원할 수 있다. 스크립트는 Docker 로그와 JSONL을 함께 읽고 날짜·해시별 중복을 제거한다. 플레이어 ID가 없던 초기 로그와 단순 방문은 복원하지 않으므로 과거 DAU·MAU는 하한값이다. 동일한 입력을 다시 적재해도 중복 행은 추가하지 않는다.
+
+운영 호스트에서 다음 읽기 전용 쿼리로 현재 값을 확인한다. `docker compose` 환경변수를 출력하지 않도록 PostgreSQL 컨테이너의 환경을 사용한다.
+
+```sh
+docker exec -i poke-lounge-postgres-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' <<'SQL'
+WITH day AS (SELECT (now() AT TIME ZONE 'Asia/Seoul')::date AS today)
+SELECT day.today AS as_of_kst,
+       count(DISTINCT a.visitor_hash) FILTER (WHERE a.activity_date = day.today) AS dau,
+       count(DISTINCT a.visitor_hash) AS mau_30d
+FROM day
+LEFT JOIN poke_lounge_active_visitor a
+  ON a.activity_date BETWEEN day.today - 29 AND day.today
+GROUP BY day.today;
+SQL
+```
 
 ## 실제 확인한 범위
 

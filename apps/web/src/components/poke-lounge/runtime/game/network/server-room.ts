@@ -202,10 +202,13 @@ type RecoveryOrigin = "transport" | "online-probe";
 const SERVER_IDENTITY_STORAGE_KEY = RUST_BACKEND_ENABLED
   ? "poke-lounge:rust-room-identity:v3"
   : "poke-lounge:server-room-identity";
+const USAGE_VISITOR_STORAGE_KEY = "poke-lounge:usage-visitor:v1";
+let memoryUsageVisitorId: string | null = null;
 const LEGACY_RUST_IDENTITY_STORAGE_KEY = "poke-lounge:rust-room-identity:v2";
 const RUST_IDENTITY_STORAGE_VERSION = 3;
 const RUST_IDENTITY_UUID_PATTERN =
   "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+const RUST_USAGE_VISITOR_PATTERN = new RegExp(`^${RUST_IDENTITY_UUID_PATTERN}$`, "i");
 const RUST_SESSION_ID_PATTERN = new RegExp(`^server-session-${RUST_IDENTITY_UUID_PATTERN}$`, "i");
 const RUST_PLAYER_ID_PATTERN = new RegExp(`^server-player-${RUST_IDENTITY_UUID_PATTERN}$`, "i");
 const SERVER_ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
@@ -297,6 +300,7 @@ class ServerRoomSchemaError extends Error {
 export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   resetClientDiagnosticContext();
   const identity = resolveServerIdentity(options);
+  const usageVisitorId = RUST_BACKEND_ENABLED ? resolveUsageVisitorId(identity.playerId) : null;
   const sessionId = identity.sessionId;
   const serverPlayerId = identity.playerId;
   const roomRunId = resolveServerRoomRunId(options);
@@ -343,6 +347,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     try {
       const request = (async function callback() {
         headers.set("X-Request-Id", trace.requestId!);
+        if (usageVisitorId) headers.set("X-Usage-Visitor", usageVisitorId);
         if (
           RUST_BACKEND_ENABLED &&
           roomInstanceId &&
@@ -1087,6 +1092,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       roomCode: activeRoomId,
       playerId: serverPlayerId,
       sessionId,
+      ...(usageVisitorId ? { visitorId: usageVisitorId } : {}),
       afterRevision: Math.max(0, lastAppliedTerminalRevision),
       ...(RUST_BACKEND_ENABLED && roomInstanceId ? { roomInstanceId } : {}),
     });
@@ -2510,6 +2516,15 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         throw new Error("Party synchronization is pending");
     },
     async completeTournamentProgression(matchId, party) {
+      if (party == null) {
+        const current = await requestRoom(
+          `/poke-lounge/rooms/${activeRoomId}/matches/${matchId}/progression-party`,
+        );
+        applyExpectedTransitionSnapshot(current);
+        if (!current.progressionParty)
+          throw new Error("Missing authoritative tournament reward party");
+        return current.progressionParty;
+      }
       const commandId = crypto.randomUUID();
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
@@ -2518,7 +2533,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             {
               playerId: serverPlayerId,
               sessionId,
-              competitiveParty: party ?? null,
+              competitiveParty: party,
               progressionMatchId: matchId,
             },
             getLatestRevision,
@@ -3968,4 +3983,20 @@ function createIdentityToken(): string {
     throw new Error("crypto.randomUUID is required for Poke Lounge room identity");
   }
   return crypto.randomUUID();
+}
+
+function resolveUsageVisitorId(playerId: string): string {
+  if (memoryUsageVisitorId) return memoryUsageVisitorId;
+  const previousPlayerId = playerId.slice("server-player-".length);
+  const visitorId = RUST_USAGE_VISITOR_PATTERN.test(previousPlayerId)
+    ? previousPlayerId
+    : createIdentityToken();
+  try {
+    const stored = window.localStorage.getItem(USAGE_VISITOR_STORAGE_KEY);
+    if (stored && RUST_USAGE_VISITOR_PATTERN.test(stored)) return (memoryUsageVisitorId = stored);
+    window.localStorage.setItem(USAGE_VISITOR_STORAGE_KEY, visitorId);
+    return (memoryUsageVisitorId = visitorId);
+  } catch {
+    return (memoryUsageVisitorId = visitorId);
+  }
 }

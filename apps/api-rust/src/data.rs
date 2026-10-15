@@ -81,6 +81,14 @@ impl Data {
     pub fn rom(&self) -> Value {
         (*self.rom).clone()
     }
+    pub async fn record_activity(&self, visitor_id: Uuid) -> AppResult<()> {
+        let visitor_hash = hash_bytes(visitor_id.as_bytes());
+        self.client().await?.execute(
+            "INSERT INTO poke_lounge_active_visitor (activity_date, visitor_hash) VALUES ((now() AT TIME ZONE 'Asia/Seoul')::date, $1) ON CONFLICT DO NOTHING",
+            &[&visitor_hash],
+        ).await?;
+        Ok(())
+    }
     pub async fn ranking(&self, game_type: &str) -> AppResult<Value> {
         if game_type == "POKE_LOUNGE" {
             return Ok(json!([]));

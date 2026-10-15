@@ -30,6 +30,11 @@ pub enum Operation {
         after: Option<u64>,
         requester: Option<(String, String)>,
     },
+    ReadProgression {
+        player: String,
+        session: String,
+        match_id: Uuid,
+    },
     Command {
         player: String,
         session: String,
@@ -463,6 +468,15 @@ impl Actor {
                     self.room.authorize(&player, &session)?;
                 }
                 Ok(self.snapshot(after))
+            }
+            Operation::ReadProgression {
+                player,
+                session,
+                match_id,
+            } => {
+                self.room.authorize(&player, &session)?;
+                self.room
+                    .read_progression_snapshot(&player, match_id, self.now)
             }
             Operation::Resync { connection } => {
                 if !self.connections.contains_key(&connection) {

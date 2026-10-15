@@ -632,13 +632,15 @@ impl Room {
                 progression_match_id,
             } => {
                 if let Some(match_id) = progression_match_id {
+                    if party.is_null() {
+                        return self
+                            .read_progression_snapshot(player, match_id, now)
+                            .map(Some);
+                    }
                     if !self.matches.get(&match_id).is_some_and(|m| {
                         m.players.iter().any(|id| id == player) && m.terminal_event_id.is_some()
                     }) {
                         return Err(AppError::PartyLocked);
-                    }
-                    if party.is_null() {
-                        return self.progression_snapshot(player, now);
                     }
                     let completed = self.matches.get(&match_id).ok_or(AppError::PartyLocked)?;
                     if completed.progression_ends_at_ms.is_some_and(|at| now >= at) {
@@ -1373,6 +1375,21 @@ impl Room {
             .map(|m| m.match_id)
             .collect()
     }
+    pub fn read_progression_snapshot(
+        &self,
+        player: &str,
+        match_id: Uuid,
+        now: u64,
+    ) -> AppResult<Value> {
+        if !self.matches.get(&match_id).is_some_and(|m| {
+            m.players.iter().any(|id| id == player) && m.terminal_event_id.is_some()
+        }) {
+            return Err(AppError::PartyLocked);
+        }
+        self.progression_snapshot(player, now)?
+            .ok_or(AppError::PartyLocked)
+    }
+
     fn progression_snapshot(&self, player: &str, now: u64) -> AppResult<Option<Value>> {
         let mut snapshot = self.snapshot(None);
         snapshot["serverNowMs"] = json!(now);

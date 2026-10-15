@@ -86,6 +86,10 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/poke-lounge/rooms/{code}/party-snapshot", post(party))
         .route("/poke-lounge/rooms/{code}/leave", post(leave))
         .route(
+            "/poke-lounge/rooms/{code}/matches/{battle}/progression-party",
+            get(progression_party),
+        )
+        .route(
             "/poke-lounge/rooms/{code}/matches/{battle}/session-actions",
             post(action),
         )
@@ -138,6 +142,7 @@ pub fn router(state: AppState, config: &Config) -> Router {
                     "x-player-id".parse().expect("static header"),
                     "x-session-id".parse().expect("static header"),
                     "x-request-id".parse().expect("static header"),
+                    "x-usage-visitor".parse().expect("static header"),
                 ])
                 .expose_headers(["x-request-id".parse().expect("static header")]),
         )
@@ -411,6 +416,24 @@ fn optional_revision(headers: &HeaderMap) -> AppResult<Option<u64>> {
         .map(|_| revision(headers))
         .transpose()
 }
+fn usage_visitor(headers: &HeaderMap) -> Option<Uuid> {
+    headers
+        .get("x-usage-visitor")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| Uuid::parse_str(value).ok())
+        .filter(|id| id.get_version_num() == 4)
+}
+pub(crate) fn record_activity(state: &AppState, visitor_id: Option<Uuid>) {
+    if let Some(visitor_id) = visitor_id.filter(|id| id.get_version_num() == 4) {
+        let data = state.data.clone();
+        // shortcut: a shutdown can drop this detached write; use a bounded queue if exact capture becomes necessary.
+        tokio::spawn(async move {
+            if let Err(error) = data.record_activity(visitor_id).await {
+                tracing::warn!(event = "usage.record_failed", error = %error);
+            }
+        });
+    }
+}
 pub fn instance(headers: &HeaderMap) -> AppResult<Option<Uuid>> {
     headers
         .get("x-room-instance")
@@ -437,6 +460,9 @@ async fn apply(
     expected: Option<u64>,
 ) -> AppResult<Json<Value>> {
     validate_player_id(&identity.player_id)?;
+    let visitor_id = matches!(&command, GameCommand::Join { .. })
+        .then(|| usage_visitor(&headers))
+        .flatten();
     let session = session_hash(&identity.session_id)?;
     let id = state
         .rooms
@@ -456,6 +482,7 @@ async fn apply(
             },
         )
         .await?;
+    record_activity(&state, visitor_id);
     Ok(success(value))
 }
 async fn create(
@@ -466,12 +493,13 @@ async fn create(
     if revision(&headers)? != 0 {
         return Err(AppError::Invalid("Create revision must be zero"));
     }
-    Ok(success(
-        state
-            .rooms
-            .create(body(value)?.normalize()?, command_id(&headers)?)
-            .await?,
-    ))
+    let visitor_id = usage_visitor(&headers);
+    let value = state
+        .rooms
+        .create(body(value)?.normalize()?, command_id(&headers)?)
+        .await?;
+    record_activity(&state, visitor_id);
+    Ok(success(value))
 }
 async fn public_rooms(State(state): State<AppState>) -> AppResult<Json<Value>> {
     Ok(success(state.rooms.public_rooms().await?))
@@ -481,12 +509,13 @@ async fn quick_play(
     headers: HeaderMap,
     value: Result<Json<CreateRoom>, JsonRejection>,
 ) -> AppResult<Json<Value>> {
-    Ok(success(
-        state
-            .rooms
-            .quick_play(body(value)?.normalize()?, command_id(&headers)?)
-            .await?,
-    ))
+    let visitor_id = usage_visitor(&headers);
+    let value = state
+        .rooms
+        .quick_play(body(value)?.normalize()?, command_id(&headers)?)
+        .await?;
+    record_activity(&state, visitor_id);
+    Ok(success(value))
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -753,6 +782,38 @@ async fn party(
         Some(expected),
     )
     .await
+}
+async fn progression_party(
+    State(state): State<AppState>,
+    Path((code, battle)): Path<(String, Uuid)>,
+    headers: HeaderMap,
+) -> AppResult<Json<Value>> {
+    let player = headers
+        .get("x-player-id")
+        .and_then(|value| value.to_str().ok())
+        .ok_or(AppError::Forbidden)?;
+    validate_player_id(player)?;
+    let session = headers
+        .get("x-session-id")
+        .and_then(|value| value.to_str().ok())
+        .ok_or(AppError::Forbidden)?;
+    let id = state
+        .rooms
+        .resolve(&normalize_code(&code)?, instance(&headers)?)
+        .await?;
+    Ok(success(
+        state
+            .rooms
+            .request(
+                id,
+                Operation::ReadProgression {
+                    player: player.to_owned(),
+                    session: session_hash(session)?,
+                    match_id: battle,
+                },
+            )
+            .await?,
+    ))
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
