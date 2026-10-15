@@ -33,6 +33,7 @@ struct Subscription {
     session_id: String,
     after_revision: Option<u64>,
     room_instance_id: Option<Uuid>,
+    visitor_id: Option<Uuid>,
 }
 
 pub async fn upgrade(
@@ -122,6 +123,7 @@ async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaph
         })
         .await;
     if let Ok(value) = initial {
+        crate::http::record_activity(&state, subscription.visitor_id);
         tracing::info!(event="socket.connected",connection_id=%id,room_instance_id=%room_id,player_id=%subscription.player_id,release=%state.release);
         if publish_state(&mut socket, value).await.is_ok() {
             if let Err(error) =
@@ -162,12 +164,18 @@ async fn serve(
 ) -> AppResult<()> {
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let mut activity_interval = tokio::time::interval_at(
+        tokio::time::Instant::now() + Duration::from_secs(30 * 60),
+        Duration::from_secs(30 * 60),
+    );
+    activity_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut seen = Instant::now();
     let mut budget_start = Instant::now();
     let mut count = 0_u32;
     loop {
         tokio::select! {
             _=state.shutdown.cancelled()=>return Ok(()),
+            _=activity_interval.tick()=>crate::http::record_activity(state, identity.visitor_id),
             _=interval.tick()=>{
                 if seen.elapsed()>Duration::from_secs(25){return Err(AppError::Timeout);}
                 handle.request(Operation::Heartbeat{connection}).await?;

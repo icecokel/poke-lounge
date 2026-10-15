@@ -70,6 +70,29 @@ ROM 자료는 기존 PostgreSQL 스키마에서 읽으며 원래 정적 데이�
 
 공개방 생성과 자동 참가는 서로 다른 동작이다. 현재 UI는 공개방 목록·새로고침·직접 참가·새 공개방 만들기를 제공하며 자동 참가를 연결하지 않는다. 목록 참가에는 `roomInstanceId`를 함께 전달하고, 정원 초과·참가 불가 경쟁 실패는 안내 후 최신 목록으로 복귀한다.
 
+## 게임 이용 DAU·MAU
+
+운영 웹은 방 신원과 별개인 익명 UUID를 브라우저 `localStorage`에 저장한다. 최초 생성 시 기존 플레이어 ID의 UUID를 이어받아 이전 로그와 같은 브라우저로 집계한다. 이후 방 신원을 지워도 이용 ID는 유지한다. 성공한 방 생성·참가·인증된 WebSocket 연결과 연결 중 30분 간격으로만 활동을 기록한다. Rust API는 UUID를 SHA-256으로 해시해 PostgreSQL의 `poke_lounge_active_visitor`에 한국 날짜별 한 행만 저장한다. 원본 UUID, IP, 방 코드, 세션 ID는 이 테이블에 저장하지 않는다. AI와 단순 페이지 방문은 제외한다.
+
+DAU는 한국 날짜의 고유 익명 브라우저 수, MAU는 오늘을 포함한 최근 30일의 고유 익명 브라우저 수다. 같은 사람이 브라우저나 저장소를 바꾸면 다른 이용자로 계산되며, 저장소를 사용할 수 없는 브라우저는 새로고침 후 새 ID가 될 수 있다. 집계 저장 실패는 게임 진행을 막지 않고 `usage.record_failed` 로그를 남긴다.
+
+기존 Rust API 로그에서 `socket.connected`·`socket.closed`·성공한 `room.command`에 유효한 플레이어 UUID가 있는 날짜만 [백필 스크립트](../../scripts/metrics/backfill-active-visitors.py)로 복원할 수 있다. 스크립트는 Docker 로그와 JSONL을 함께 읽고 날짜·해시별 중복을 제거한다. 플레이어 ID가 없던 초기 로그와 단순 방문은 복원하지 않으므로 과거 DAU·MAU는 하한값이다. 동일한 입력을 다시 적재해도 중복 행은 추가하지 않는다.
+
+운영 호스트에서 다음 읽기 전용 쿼리로 현재 값을 확인한다. `docker compose` 환경변수를 출력하지 않도록 PostgreSQL 컨테이너의 환경을 사용한다.
+
+```sh
+docker exec -i poke-lounge-postgres-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' <<'SQL'
+WITH day AS (SELECT (now() AT TIME ZONE 'Asia/Seoul')::date AS today)
+SELECT day.today AS as_of_kst,
+       count(DISTINCT a.visitor_hash) FILTER (WHERE a.activity_date = day.today) AS dau,
+       count(DISTINCT a.visitor_hash) AS mau_30d
+FROM day
+LEFT JOIN poke_lounge_active_visitor a
+  ON a.activity_date BETWEEN day.today - 29 AND day.today
+GROUP BY day.today;
+SQL
+```
+
 ## 실제 확인한 범위
 
 `output/rust-local-play-20260916/`에 로컬 빌드·실행 로그와 브라우저 캡처를 보존했다. 실제 UI에서 비공개 방 생성 → 준비 → 스타터 선택 → 탐험 중 새로고침/같은 파티와 시간으로 복귀 → 1~3라운드 → 최종 결과 → 설정/방 나가기/확인 → 입장 화면 복귀를 확인했다.
