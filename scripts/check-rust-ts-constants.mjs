@@ -9,6 +9,7 @@ const apiRequire = createRequire(resolve(root, "apps/api/package.json"));
 try {
   const timing = apiRequire("@poke-lounge/battle/timing");
   const ruleset = apiRequire("@poke-lounge/battle/competitive-ruleset-config");
+  const { STARTER_SPECIES_IDS } = apiRequire("@poke-lounge/battle/party-acceptance");
   const tsValues = { ...timing, COMPETITIVE_RULESET_VERSION: ruleset.COMPETITIVE_RULESET_VERSION };
   const rust = readFileSync(resolve(root, "apps/api-rust/src/domain.rs"), "utf8");
   const pairs = [
@@ -42,6 +43,22 @@ try {
     engineVersion,
     "gen4:" + ruleset.COMPETITIVE_RULESET_VERSION + ":" + ruleset.COMPETITIVE_RULESET_HASH,
   );
+  const bootstrap = JSON.parse(
+    readFileSync(resolve(root, "apps/web/public/game-data/bootstrap.json"), "utf8"),
+  );
+  const starterSpeciesIds = [...new Set(bootstrap.starters.map(starter => starter.speciesId))].sort(
+    (left, right) => left - right,
+  );
+  const expectedStarterIds = [...new Set(STARTER_SPECIES_IDS)].sort((left, right) => left - right);
+  if (JSON.stringify(starterSpeciesIds) !== JSON.stringify(expectedStarterIds)) {
+    console.error(
+      "Starter species differ: bootstrap=" +
+        JSON.stringify(starterSpeciesIds) +
+        ", TS=" +
+        JSON.stringify(expectedStarterIds),
+    );
+    process.exitCode = 1;
+  }
   if (!process.exitCode) console.log("rust/ts constants ok");
 } catch (error) {
   console.error("Rust/TS constants check failed:", error.message);
