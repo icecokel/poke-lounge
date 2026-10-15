@@ -6,6 +6,43 @@ import type { NormalizedCompetitiveParty } from "@poke-lounge/battle/competitive
 import type { Gen4ActionRequest, Gen4Status } from "@poke-lounge/battle/gen4/types";
 import type { TournamentBracketState } from "@poke-lounge/battle/tournament-bracket";
 
+/** Top-level keys of Room::snapshot json! in domain.rs. Checked by scripts/check-rust-room-contract.mjs. */
+export const RUST_ROOM_SNAPSHOT_KEYS = [
+  "roomCode",
+  "roomInstanceId",
+  "backend",
+  "visibility",
+  "status",
+  "createdAtMs",
+  "updatedAtMs",
+  "revision",
+  "expiresAtMs",
+  "hostPlayerId",
+  "participants",
+  "partySnapshots",
+  "round",
+  "tournament",
+  "finalStandings",
+  "competitiveAssignments",
+  "competitiveTransitions",
+] as const;
+
+/** Keys conditionally added by Room::snapshot; excludes Actor/progression response additions. */
+export const RUST_ROOM_SNAPSHOT_OPTIONAL_KEYS = ["competitive", "closeReason"] as const;
+
+/** Always-present keys of Participant::public json!. */
+export const RUST_PARTICIPANT_KEYS = [
+  "playerId",
+  "displayName",
+  "controller",
+  "role",
+  "ready",
+  "connected",
+  "joinedAtMs",
+] as const;
+
+export const RUST_PARTICIPANT_OPTIONAL_KEYS = ["aiDifficulty", "leftAtMs"] as const;
+
 export type RustRoomCloseReason =
   "session-expired" | "lobby-expired" | "no-human-participants" | "not-enough-participants";
 
