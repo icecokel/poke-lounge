@@ -6,6 +6,7 @@ import {
 } from "./canonical-state";
 import type { NormalizedCompetitiveParty } from "./competitive-party";
 import { COMPETITIVE_RULESET_VERSION } from "./competitive-ruleset-config";
+import { compareServerIds } from "./ordering";
 import {
   getCompetitiveMoveDefinition as getMoveDefinition,
   type CompetitiveResolvedMoveDefinition,
@@ -38,7 +39,7 @@ export function createInitialBattleState(
   }
 
   const canonicalParticipants = [...participants].sort(function compareItems(left, right) {
-    return left.playerId.localeCompare(right.playerId);
+    return compareServerIds(left.playerId, right.playerId);
   }) as [CompetitiveBattleParticipantInput, CompetitiveBattleParticipantInput];
   const participantIds = canonicalParticipants.map(function mapItem(participant) {
     return participant.playerId;
