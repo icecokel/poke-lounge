@@ -108,6 +108,7 @@ export class TournamentProjectionSchemaError extends Error {
 export function parseServerTournamentState(
   value: unknown,
   expectedGameRoundIndex: number,
+  roomParticipantIds: ReadonlySet<string>,
 ): ServerTournamentState {
   const tournament = requireRecord(value);
 
@@ -121,7 +122,7 @@ export function parseServerTournamentState(
       : parseTournamentBracket(tournament.bracket, expectedGameRoundIndex);
   const activeMatchId = parseOptionalId(tournament.activeMatchId);
   const activeMatchAuthority = parseActiveMatchAuthority(tournament.activeMatchAuthority);
-  const cumulativeScores = parseCumulativeScores(tournament.cumulativeScores, bracket);
+  const cumulativeScores = parseCumulativeScores(tournament.cumulativeScores, roomParticipantIds);
   const activeMatch = findCurrentMatch(bracket, activeMatchId);
 
   if (activeMatchId && activeMatch?.status !== "ready") {
@@ -577,14 +578,9 @@ function parseParticipantReference(
 
 function parseCumulativeScores(
   value: unknown,
-  bracket: TournamentBracketProjection | null,
+  roomParticipantIds: ReadonlySet<string>,
 ): Record<string, number> {
   const scores = requireRecord(value);
-  const participantIds = new Set(
-    bracket?.participants.map(function mapItem(participant) {
-      return participant.playerId;
-    }),
-  );
   const entries = Object.entries(scores);
 
   if (entries.length > MAX_PARTICIPANTS) {
@@ -595,7 +591,7 @@ function parseCumulativeScores(
     entries.map(function mapItem([playerId, score]) {
       if (
         !parseId(playerId) ||
-        (bracket && !participantIds.has(playerId)) ||
+        !roomParticipantIds.has(playerId) ||
         typeof score !== "number" ||
         !Number.isFinite(score) ||
         score < 0
