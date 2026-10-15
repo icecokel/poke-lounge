@@ -11,6 +11,13 @@ export interface WorldVelocity {
   y: number;
 }
 
+interface WorldHitbox {
+  bottom: number;
+  left: number;
+  right: number;
+  top: number;
+}
+
 export const WORLD_MOTION_MAX_STEP_PX = 4;
 
 export function moveWorldPlayer(
@@ -19,7 +26,8 @@ export function moveWorldPlayer(
   elapsedMs: number,
   model: WorldMapModel,
 ): WorldPosition {
-  if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) return position;
+  if (!Number.isFinite(elapsedMs) || elapsedMs <= 0 || (velocity.x === 0 && velocity.y === 0))
+    return position;
   const deltaX = (velocity.x * elapsedMs) / 1000;
   const deltaY = (velocity.y * elapsedMs) / 1000;
   const stepCount = Math.max(
@@ -31,10 +39,13 @@ export function moveWorldPlayer(
   let next = position;
 
   for (let step = 0; step < stepCount; step += 1) {
+    const previous = next;
     const movedX = { x: next.x + stepX, y: next.y };
-    if (!worldPlayerCollides(movedX, model)) next = movedX;
+    if (canMoveWorldPlayer(next, movedX, model)) next = movedX;
     const movedY = { x: next.x, y: next.y + stepY };
-    if (!worldPlayerCollides(movedY, model)) next = movedY;
+    if (canMoveWorldPlayer(next, movedY, model)) next = movedY;
+    if (next.x === previous.x && next.y === previous.y)
+      next = slidePastNpc(next, stepX, stepY, model);
   }
 
   return next;
@@ -57,6 +68,57 @@ export function resolveWorldCamera(
 
 export function worldPlayerCollides(position: WorldPosition, model: WorldMapModel): boolean {
   const player = getPlayerHitbox(position);
+  return (
+    playerCollidesWithMap(player, model) ||
+    model.npcs.some(npc => rectanglesOverlap(player, getNpcHitbox(npc)))
+  );
+}
+
+function canMoveWorldPlayer(from: WorldPosition, to: WorldPosition, model: WorldMapModel): boolean {
+  const player = getPlayerHitbox(to);
+  if (playerCollidesWithMap(player, model)) return false;
+  const previous = getPlayerHitbox(from);
+  return model.npcs.every(npc => {
+    const obstacle = getNpcHitbox(npc);
+    if (!rectanglesOverlap(player, obstacle)) return true;
+    // A loaded/spawned overlap must still allow walking out of the NPC.
+    return (
+      rectanglesOverlap(previous, obstacle) &&
+      getHitboxCenterDistance(player, obstacle) > getHitboxCenterDistance(previous, obstacle)
+    );
+  });
+}
+
+function slidePastNpc(
+  position: WorldPosition,
+  stepX: number,
+  stepY: number,
+  model: WorldMapModel,
+): WorldPosition {
+  const target = getPlayerHitbox({ x: position.x + stepX, y: position.y + stepY });
+  const npc = model.npcs.find(candidate => rectanglesOverlap(target, getNpcHitbox(candidate)));
+  if (!npc) return position;
+  const player = getPlayerHitbox(position);
+  const obstacle = getNpcHitbox(npc);
+  const horizontal = Math.abs(stepY) >= Math.abs(stepX);
+  const offset = horizontal
+    ? player.left + player.right - obstacle.left - obstacle.right
+    : player.top + player.bottom - obstacle.top - obstacle.bottom;
+  const distance = Math.max(Math.abs(stepX), Math.abs(stepY)) * (offset < 0 ? -1 : 1);
+  const next = horizontal
+    ? { x: position.x + distance, y: position.y }
+    : { x: position.x, y: position.y + distance };
+  return canMoveWorldPlayer(position, next, model) ? next : position;
+}
+
+function getHitboxCenterDistance(left: WorldHitbox, right: WorldHitbox): number {
+  return Math.hypot(
+    left.left + left.right - right.left - right.right,
+    left.top + left.bottom - right.top - right.bottom,
+  );
+}
+
+function playerCollidesWithMap(player: WorldHitbox, model: WorldMapModel): boolean {
   if (
     player.left < 0 ||
     player.top < 0 ||
@@ -76,12 +138,10 @@ export function worldPlayerCollides(position: WorldPosition, model: WorldMapMode
     }
   }
 
-  return model.npcs.some(function testItem(npc) {
-    return rectanglesOverlap(player, getNpcHitbox(npc));
-  });
+  return false;
 }
 
-export function getPlayerHitbox(position: WorldPosition) {
+export function getPlayerHitbox(position: WorldPosition): WorldHitbox {
   const { width, height, offsetX, offsetY } = FIELD_MAP.player.hitbox;
   const scaleX = FIELD_MAP.player.displaySize.width / 32;
   const scaleY = FIELD_MAP.player.displaySize.height / 32;
@@ -113,10 +173,7 @@ function getNpcHitbox(npc: WorldMapNpcModel) {
   };
 }
 
-function rectanglesOverlap(
-  left: { bottom: number; left: number; right: number; top: number },
-  right: { bottom: number; left: number; right: number; top: number },
-) {
+function rectanglesOverlap(left: WorldHitbox, right: WorldHitbox) {
   return (
     left.left < right.right &&
     left.right > right.left &&
