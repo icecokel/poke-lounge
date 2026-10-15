@@ -86,6 +86,10 @@ pub fn router(state: AppState, config: &Config) -> Router {
         .route("/poke-lounge/rooms/{code}/party-snapshot", post(party))
         .route("/poke-lounge/rooms/{code}/leave", post(leave))
         .route(
+            "/poke-lounge/rooms/{code}/matches/{battle}/progression-party",
+            get(progression_party),
+        )
+        .route(
             "/poke-lounge/rooms/{code}/matches/{battle}/session-actions",
             post(action),
         )
@@ -778,6 +782,38 @@ async fn party(
         Some(expected),
     )
     .await
+}
+async fn progression_party(
+    State(state): State<AppState>,
+    Path((code, battle)): Path<(String, Uuid)>,
+    headers: HeaderMap,
+) -> AppResult<Json<Value>> {
+    let player = headers
+        .get("x-player-id")
+        .and_then(|value| value.to_str().ok())
+        .ok_or(AppError::Forbidden)?;
+    validate_player_id(player)?;
+    let session = headers
+        .get("x-session-id")
+        .and_then(|value| value.to_str().ok())
+        .ok_or(AppError::Forbidden)?;
+    let id = state
+        .rooms
+        .resolve(&normalize_code(&code)?, instance(&headers)?)
+        .await?;
+    Ok(success(
+        state
+            .rooms
+            .request(
+                id,
+                Operation::ReadProgression {
+                    player: player.to_owned(),
+                    session: session_hash(session)?,
+                    match_id: battle,
+                },
+            )
+            .await?,
+    ))
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

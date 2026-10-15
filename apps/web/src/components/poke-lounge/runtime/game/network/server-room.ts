@@ -2516,6 +2516,15 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         throw new Error("Party synchronization is pending");
     },
     async completeTournamentProgression(matchId, party) {
+      if (party == null) {
+        const current = await requestRoom(
+          `/poke-lounge/rooms/${activeRoomId}/matches/${matchId}/progression-party`,
+        );
+        applyExpectedTransitionSnapshot(current);
+        if (!current.progressionParty)
+          throw new Error("Missing authoritative tournament reward party");
+        return current.progressionParty;
+      }
       const commandId = crypto.randomUUID();
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
@@ -2524,7 +2533,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             {
               playerId: serverPlayerId,
               sessionId,
-              competitiveParty: party ?? null,
+              competitiveParty: party,
               progressionMatchId: matchId,
             },
             getLatestRevision,
