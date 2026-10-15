@@ -22,6 +22,11 @@ use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{Instrument, Span};
 use uuid::Uuid;
 
+// Full document reads only detect external expiry; the actor is the sole writer after creation.
+const FULL_RELOAD_INTERVAL_MS: u64 = 5_000;
+// AI movement does not bump the room revision; persist it periodically so a restart resumes near it.
+const AI_CHECKPOINT_INTERVAL_MS: u64 = 2_000;
+
 pub enum Operation {
     Snapshot {
         after: Option<u64>,
@@ -150,6 +155,9 @@ impl Rooms {
             world_seq: 0,
             now,
             last_cursor_ms: now,
+            last_full_reload_ms: now,
+            last_persisted_ms: now,
+            unpersisted: false,
             last_tick_ms: self.last_tick_ms.clone(),
         };
         self.tasks.spawn(actor.run(receiver));
@@ -327,6 +335,9 @@ struct Actor {
     world_seq: u64,
     now: u64,
     last_cursor_ms: u64,
+    last_full_reload_ms: u64,
+    last_persisted_ms: u64,
+    unpersisted: bool,
     last_tick_ms: Arc<AtomicU64>,
 }
 impl Actor {
@@ -346,6 +357,7 @@ impl Actor {
                 biased;
                 _=self.shutdown.cancelled()=>{
                     receiver.close();while let Some(message)=receiver.recv().await{let _=message.reply.send(Err(AppError::Unavailable));}
+                    if self.unpersisted { let _ = self.checkpoint().await; }
                     self.emit("server.draining",json!({}));break;
                 }
                 _=ticker.tick()=>{
@@ -370,6 +382,8 @@ impl Actor {
         if room.revision != previous {
             let version = room.storage_version;
             self.repository.commit(version, &mut room, None).await?;
+            self.last_persisted_ms = self.now;
+            self.unpersisted = false;
         }
         let changed = room.revision != self.room.revision;
         self.room = room;
@@ -378,8 +392,48 @@ impl Actor {
         }
         Ok(())
     }
+    async fn sync_clock(&mut self) -> AppResult<()> {
+        let now = self.repository.now().await?;
+        self.now = now;
+        let mut room = self.room.clone();
+        let previous = room.revision;
+        room.prepare_clock(now);
+        if room.revision != previous {
+            self.repository
+                .commit(self.room.storage_version, &mut room, None)
+                .await?;
+            self.room = room;
+            self.last_persisted_ms = self.now;
+            self.unpersisted = false;
+            self.publish_room();
+        } else {
+            // prepare_clock only mutates state together with a revision bump (see 005-fix.md).
+            self.room = room;
+        }
+        Ok(())
+    }
+    async fn checkpoint(&mut self) -> AppResult<()> {
+        let mut next = self.room.clone();
+        self.repository
+            .commit(self.room.storage_version, &mut next, None)
+            .await?;
+        self.room = next;
+        self.last_persisted_ms = self.now;
+        self.unpersisted = false;
+        Ok(())
+    }
     async fn tick(&mut self) -> AppResult<()> {
-        self.reload().await?;
+        let now = self.repository.now().await?;
+        self.now = now;
+        if self.room.terminal() || now >= self.last_full_reload_ms + FULL_RELOAD_INTERVAL_MS {
+            if self.unpersisted {
+                self.checkpoint().await?;
+            }
+            self.reload().await?;
+            self.last_full_reload_ms = now;
+        } else {
+            self.sync_clock().await?;
+        }
         if self.room.terminal() {
             self.last_tick_ms.store(self.now, Ordering::Relaxed);
             return Ok(());
@@ -387,14 +441,18 @@ impl Actor {
         let mut next = self.room.clone();
         next.step_ai(self.now, &self.compute).await?;
         next.advance_game(self.now, &self.compute).await?;
-        if next.revision != self.room.revision || next.last_ai_step_ms != self.room.last_ai_step_ms
-        {
-            let changed = next.revision != self.room.revision;
+        if next.revision != self.room.revision {
             let expected = self.room.storage_version;
             self.repository.commit(expected, &mut next, None).await?;
             self.room = next;
-            if changed {
-                self.publish_room();
+            self.last_persisted_ms = self.now;
+            self.unpersisted = false;
+            self.publish_room();
+        } else if next.last_ai_step_ms != self.room.last_ai_step_ms {
+            self.room = next;
+            self.unpersisted = true;
+            if self.now >= self.last_persisted_ms + AI_CHECKPOINT_INTERVAL_MS {
+                self.checkpoint().await?;
             }
         }
         let removed = self
@@ -459,7 +517,7 @@ impl Actor {
             self.update_world(&player, &event, position)?;
             return Ok(Value::Null);
         }
-        self.reload().await?;
+        self.sync_clock().await?;
         match operation {
             Operation::Snapshot { after } => Ok(self.snapshot(after)),
             Operation::ReadSnapshot { after, requester } => {
@@ -544,7 +602,7 @@ impl Actor {
                     )
                     .await?;
                 if committed.replayed {
-                    self.reload().await?;
+                    self.sync_clock().await?;
                     let stored = committed.receipt.ok_or(AppError::Unavailable)?;
                     if stored.request_hash != hash {
                         return Err(AppError::CommandConflict);
@@ -553,6 +611,8 @@ impl Actor {
                 }
                 let changed = self.room.revision != next.revision;
                 self.room = next;
+                self.last_persisted_ms = self.now;
+                self.unpersisted = false;
                 if changed {
                     self.publish_room();
                 }
@@ -596,6 +656,8 @@ impl Actor {
                     self.repository
                         .commit(self.room.storage_version, &mut next, None)
                         .await?;
+                    self.last_persisted_ms = self.now;
+                    self.unpersisted = false;
                 }
                 let changed = next.revision != self.room.revision;
                 self.room = next;
@@ -633,6 +695,8 @@ impl Actor {
                             .commit(self.room.storage_version, &mut next, None)
                             .await?;
                         self.room = next;
+                        self.last_persisted_ms = self.now;
+                        self.unpersisted = false;
                     }
                 }
                 Ok(Value::Null)
@@ -654,6 +718,8 @@ impl Actor {
                             .commit(self.room.storage_version, &mut next, None)
                             .await?;
                         self.room = next;
+                        self.last_persisted_ms = self.now;
+                        self.unpersisted = false;
                     }
                 }
                 Ok(Value::Null)
