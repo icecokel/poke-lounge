@@ -58,6 +58,7 @@ export const FIELD_MAP = {
   npcs: {
     nurse: {
       ...FIELD_NPC_BASE,
+      hitbox: { width: 16, height: 10, offsetX: 8, offsetY: 22 },
       textureKey: "field-npc-nurse",
       imageUrl: "/assets/poke-lounge/textures/a_0_8_1_0133/pcwoman1_5.png",
     },
