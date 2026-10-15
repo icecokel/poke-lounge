@@ -27,6 +27,7 @@ const FULL_RELOAD_INTERVAL_MS: u64 = 5_000;
 // AI movement does not bump the room revision; persist it periodically so a restart resumes near it.
 const AI_CHECKPOINT_INTERVAL_MS: u64 = 2_000;
 const CONNECTION_STALE_MS: u64 = 30_000;
+const MIN_MOVE_INTERVAL: Duration = Duration::from_millis(50);
 
 pub enum Operation {
     Snapshot {
@@ -170,6 +171,7 @@ impl Rooms {
             events,
             shutdown: self.shutdown.clone(),
             world: BTreeMap::new(),
+            last_move_accepted: HashMap::new(),
             connections: BTreeMap::new(),
             connection_seen: BTreeMap::new(),
             world_epoch: Uuid::new_v4(),
@@ -351,6 +353,7 @@ struct Actor {
     events: broadcast::Sender<Value>,
     shutdown: CancellationToken,
     world: BTreeMap<String, Value>,
+    last_move_accepted: HashMap<String, tokio::time::Instant>,
     connections: BTreeMap<Uuid, String>,
     connection_seen: BTreeMap<Uuid, u64>,
     world_epoch: Uuid,
@@ -500,6 +503,7 @@ impl Actor {
             .cloned()
             .collect::<Vec<_>>();
         for id in removed {
+            self.last_move_accepted.remove(&id);
             if let Some(snapshot) = self.world.remove(&id) {
                 self.world_seq += 1;
                 self.emit("room.player-event",json!({"type":"PLAYER_LEFT","roomCode":self.room.room_code,"worldEpoch":self.world_epoch,"worldSeq":self.world_seq,"snapshot":snapshot}));
@@ -546,6 +550,17 @@ impl Actor {
                 // Rendering may emit one last movement frame while the final-result UI mounts.
                 // Terminal rooms are immutable, so drop that stale frame without killing the socket.
                 return Ok(Value::Null);
+            }
+            if event == "PLAYER_MOVED" {
+                let now = tokio::time::Instant::now();
+                if self
+                    .last_move_accepted
+                    .get(&player)
+                    .is_some_and(|at| now.duration_since(*at) < MIN_MOVE_INTERVAL)
+                {
+                    return Ok(Value::Null); // Drop silently; the next frame carries the newer position.
+                }
+                self.last_move_accepted.insert(player.clone(), now);
             }
             self.update_world(&player, &event, position)?;
             return Ok(Value::Null);
