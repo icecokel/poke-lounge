@@ -1295,7 +1295,7 @@ function MobileWorldTask({
         state.screen === "help"
           ? "[data-poke-lounge-mobile-menu='true']"
           : state.screen === "party"
-            ? "[data-poke-lounge-mobile-party='true']"
+            ? "#game-root"
             : "[data-mobile-control='bag']"
       }
       context={

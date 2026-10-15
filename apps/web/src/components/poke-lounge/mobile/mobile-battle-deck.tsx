@@ -624,7 +624,7 @@ export function MobileBattleHelpDeck({ copy, onAction, state, presentation }: De
       name="battle-help"
       backLabel={copy.settingsClose}
       onBack={() => onAction({ type: "toggle-help" })}
-      returnFocusSelector="[data-poke-lounge-mobile-menu='true']"
+      returnFocusSelector="#game-root"
       context={<MobileBattleContext copy={copy} state={state} presentation={presentation} />}
     >
       <ul className="m-0 grid list-none gap-3 p-0 [&_li]:rounded-[10px] [&_li]:border [&_li]:border-[#9dad93] [&_li]:bg-[#fffef5] [&_li]:p-4 [&_p]:mt-2">
