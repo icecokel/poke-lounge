@@ -50,6 +50,7 @@ jobs:
           pnpm lint
           pnpm check:api-contract
           pnpm check:rust-room-contract
+          pnpm check:rust-ts-constants
           pnpm check:poke-lounge-i18n
           pnpm check:poke-lounge-competitive-catalog
           pnpm check:poke-lounge-battle-resolution

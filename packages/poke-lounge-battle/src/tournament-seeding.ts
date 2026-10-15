@@ -1,3 +1,5 @@
+import { compareServerIds } from "./ordering";
+
 /** Server room IDs must be sorted before any client-local ID remapping.
  * AI seats can share a join timestamp, so insertion order is not a seed order.
  * Returning a copy preserves the room's original participant/event ordering.
@@ -7,6 +9,6 @@ export function sortTournamentParticipantsByJoinOrder<
 >(participants: readonly T[]): T[] {
   return [...participants].sort(
     (left, right) =>
-      left.joinedAtMs - right.joinedAtMs || left.playerId.localeCompare(right.playerId),
+      left.joinedAtMs - right.joinedAtMs || compareServerIds(left.playerId, right.playerId),
   );
 }
