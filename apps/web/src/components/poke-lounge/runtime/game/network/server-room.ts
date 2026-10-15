@@ -524,10 +524,17 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let leavePromise: Promise<void> | null = null;
   let reconnectAttempt: Promise<boolean> | null = null;
   let finishReconnect: ((success: boolean) => void) | null = null;
+  let roomEventHandlerFailures = 0;
+  let handlerRecoveryRevision: number | null = null;
 
   const emit = <T extends RoomMessage>(type: T, payload: RoomEvent[T]) => {
-    for (const handler of handlers.get(type) ?? []) {
-      handler(payload as RoomEvent[RoomMessage]);
+    for (const handler of [...(handlers.get(type) ?? [])]) {
+      try {
+        handler(payload as RoomEvent[RoomMessage]);
+      } catch (error) {
+        roomEventHandlerFailures += 1;
+        reportStateApplyFailure(`ROOM_EVENT_HANDLER_FAILED_${type}`, error);
+      }
     }
   };
 
@@ -1741,6 +1748,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           reportPartyPublicationFailure(error);
         });
     }
+    // Terminal transitions are not replayed; their handler failures are only isolated and reported.
+    const handlerFailuresBefore = roomEventHandlerFailures;
     lastAppliedRoomRevision = state.revision;
     activeRoomId = state.roomCode;
     updateClientDiagnosticContext({
@@ -1858,6 +1867,16 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     scheduleRoomLivenessCheck();
     if (previousState && previousState.status !== state.status && !isPartySnapshotLocked()) {
       resumePendingPartyPublication();
+    }
+
+    if (
+      roomEventHandlerFailures !== handlerFailuresBefore &&
+      handlerRecoveryRevision !== state.revision &&
+      state.status !== "completed" &&
+      state.status !== "closed"
+    ) {
+      handlerRecoveryRevision = state.revision;
+      requestTerminalRecovery();
     }
 
     return true;
