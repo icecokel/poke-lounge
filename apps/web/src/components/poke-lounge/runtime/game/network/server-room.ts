@@ -2212,6 +2212,17 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         }
       }
     } catch (error) {
+      if (
+        error instanceof ServerRoomRequestError &&
+        (error.status === 400 || error.status === 422)
+      ) {
+        if (pendingPartyPublication === entry) {
+          pendingPartyPublication = null;
+          clearPartyRetryTimer();
+        }
+        reportPartyPublicationFailure(error);
+        return;
+      }
       const revisionConflict = getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE;
       const retryable = error instanceof ServerRoomTransportError || revisionConflict;
       if (retryable && pendingPartyPublication !== entry) return;
