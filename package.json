@@ -2,6 +2,7 @@
   "name": "poke-lounge",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "packageManager": "pnpm@9.12.0",
   "engines": {
     "node": ">=20.0.0"

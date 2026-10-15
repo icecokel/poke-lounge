@@ -2,6 +2,7 @@
   "name": "@poke-lounge/web",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "next dev --hostname localhost",
     "build": "next build",
