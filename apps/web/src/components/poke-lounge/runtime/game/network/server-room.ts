@@ -3291,7 +3291,12 @@ function parseServerRoomState(value: unknown): ServerRoomState {
     throw new ServerRoomSchemaError();
   }
   const round = parseServerRoomRound(room.round);
-  const tournament = parseServerTournamentState(room.tournament, round.index);
+  const roomParticipantIds = new Set(
+    participants.map(function mapItem(participant) {
+      return participant.playerId;
+    }),
+  );
+  const tournament = parseServerTournamentState(room.tournament, round.index, roomParticipantIds);
   const competitiveContract = parseCompetitiveRoomSnapshotContract(room);
   const parsed: ServerRoomState = {
     ...(value as ServerRoomState),
