@@ -29,6 +29,7 @@ import {
 import { isSupportedPokemonSpeciesId } from "../battle/pokemon-species";
 import {
   findCurrentMatch,
+  type TournamentRoomParticipant,
   type TournamentStateRoomPayload,
 } from "../network/tournament-projection";
 import { type PlayerPokemonSlot } from "../player/player-types";
@@ -568,6 +569,7 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
         state,
         input.finalStandings,
         bracket?.participants,
+        input.participants,
       );
 
       if (input.finalStandings.length > 0 && !finalRows) {
@@ -1171,6 +1173,7 @@ function normalizeRoomTournamentStandingRows(
   state: GameState,
   standings: ApplyTournamentCompletedFromRoomInput["standings"],
   canonicalParticipants?: ReadonlyArray<TournamentParticipant>,
+  roomParticipants?: ReadonlyArray<Pick<TournamentRoomParticipant, "playerId" | "displayName">>,
 ): CumulativeTournamentScoreRank[] | null {
   if (!Array.isArray(standings) || standings.length < 2 || standings.length > 8) {
     return null;
@@ -1178,6 +1181,7 @@ function normalizeRoomTournamentStandingRows(
 
   const seenPlayerIds = new Set<string>();
   const rows: CumulativeTournamentScoreRank[] = [];
+  let offStandingCount = 0;
 
   for (const [index, standing] of standings.entries()) {
     const playerId = typeof standing.playerId === "string" ? standing.playerId.trim() : "";
@@ -1190,17 +1194,30 @@ function normalizeRoomTournamentStandingRows(
     const canonicalParticipant = canonicalParticipants?.find(function findItem(participant) {
       return participant.playerId === playerId;
     });
+    const roomParticipant = roomParticipants?.find(function findItem(participant) {
+      return participant.playerId === playerId;
+    });
 
     if (canonicalParticipants && !canonicalParticipant) {
-      return null;
+      if (!roomParticipant) {
+        return null;
+      }
+
+      offStandingCount += 1;
     }
 
     seenPlayerIds.add(playerId);
     rows.push({
       playerId,
-      displayName: canonicalParticipant?.displayName ?? resolvePlayerDisplayName(state, playerId),
+      displayName:
+        canonicalParticipant?.displayName ??
+        roomParticipant?.displayName ??
+        resolvePlayerDisplayName(state, playerId),
       seed:
-        canonicalParticipant?.seed ?? (readExistingTournamentSeed(state, playerId) || index + 1),
+        canonicalParticipant?.seed ??
+        (canonicalParticipants
+          ? canonicalParticipants.length + offStandingCount
+          : readExistingTournamentSeed(state, playerId) || index + 1),
       rank,
       score: normalizeScore(standing.score),
     });
