@@ -1292,11 +1292,9 @@ function MobileWorldTask({
       backLabel={copy.mobile.back}
       onBack={state.screen === "inventory-move-replace" ? undefined : goBack}
       returnFocusSelector={
-        state.screen === "help"
-          ? "[data-poke-lounge-mobile-menu='true']"
-          : state.screen === "party"
-            ? "#game-root"
-            : "[data-mobile-control='bag']"
+        state.screen === "help" || state.screen === "party"
+          ? "#game-root"
+          : "[data-mobile-control='bag']"
       }
       context={
         competitive ? (
