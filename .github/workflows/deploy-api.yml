@@ -27,6 +27,7 @@ jobs:
       RELEASE_SHA: ${{ github.sha }}
       NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
       CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+      RUST_API_TRUSTED_PROXIES: ${{ vars.RUST_API_TRUSTED_PROXIES }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       BATTLE_WORKER_TOKEN: ${{ secrets.BATTLE_WORKER_TOKEN }}
       COMPOSE_BAKE: "false" # ponytail: Remove after docker-buildx is installed on the runner.
