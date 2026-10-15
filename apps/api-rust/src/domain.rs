@@ -701,13 +701,34 @@ impl Room {
                             .collect::<AppResult<BTreeMap<_, _>>>()?
                     };
                     let current = self.parties.get(player).ok_or(AppError::PartyLocked)?;
+                    let mut roster = current.roster.clone();
                     let value = compute.run(self.room_instance_id, self.storage_version,
                         json!({"kind":"complete-progression","party":current.competitive_party,"proposed":party,"previousLevels":previous_levels})).await?;
+                    let merged = compute
+                        .run(
+                            self.room_instance_id,
+                            self.storage_version,
+                            json!({"kind":"accept-party","party":value,"roster":roster,"nowMs":now,"trusted":true}),
+                        )
+                        .await
+                        .and_then(|accepted| {
+                            accepted
+                                .get("roster")
+                                .filter(|roster| roster.is_object())
+                                .cloned()
+                                .ok_or(AppError::ComputeUnavailable)
+                        });
+                    match merged {
+                        Ok(merged) => roster = merged,
+                        Err(_) => {
+                            tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player)
+                        }
+                    }
                     self.parties.insert(
                         player.into(),
                         Party {
                             competitive_party: value,
-                            roster: current.roster.clone(),
+                            roster,
                             updated_at_ms: now,
                         },
                     );
@@ -1243,15 +1264,38 @@ impl Room {
                 // Tournament matches already restore parties; experience must not consume persistent held items.
                 member["heldItemId"] = old["heldItemId"].clone();
             }
+            let mut roster = self
+                .parties
+                .get(player)
+                .map(|p| p.roster.clone())
+                .unwrap_or(Value::Null);
+            if !ai_players.contains(player) {
+                let merged = compute
+                    .run(
+                        self.room_instance_id,
+                        self.storage_version,
+                        json!({"kind":"accept-party","party":party,"roster":roster,"nowMs":now,"trusted":true}),
+                    )
+                    .await
+                    .and_then(|accepted| {
+                        accepted
+                            .get("roster")
+                            .filter(|roster| roster.is_object())
+                            .cloned()
+                            .ok_or(AppError::ComputeUnavailable)
+                    });
+                match merged {
+                    Ok(merged) => roster = merged,
+                    Err(_) => {
+                        tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player)
+                    }
+                }
+            }
             self.parties.insert(
                 player.clone(),
                 Party {
                     competitive_party: party,
-                    roster: self
-                        .parties
-                        .get(player)
-                        .map(|p| p.roster.clone())
-                        .unwrap_or(Value::Null),
+                    roster,
                     updated_at_ms: now,
                 },
             );
