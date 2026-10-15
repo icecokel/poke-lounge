@@ -146,7 +146,7 @@ async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaph
     tracing::info!(event="socket.closed",connection_id=%id,room_instance_id=%room_id,player_id=%subscription.player_id,duration_ms=connected_at.elapsed().as_millis() as u64,release=%state.release);
     // Connect may have committed even when its response timed out. Always enqueue matching cleanup.
     let _ = handle
-        .request(Operation::Disconnect { connection: id })
+        .request_reliable(Operation::Disconnect { connection: id })
         .await;
     let _ = send_message(&mut socket, Message::Close(None)).await;
 }

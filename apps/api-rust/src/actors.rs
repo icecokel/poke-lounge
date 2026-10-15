@@ -100,6 +100,25 @@ impl Handle {
             .map_err(|_| AppError::Timeout)?
             .map_err(|_| AppError::Unavailable)?
     }
+    /// Cleanup must not be dropped when the mailbox is momentarily full.
+    pub async fn request_reliable(&self, operation: Operation) -> AppResult<Value> {
+        let (reply, receiver) = oneshot::channel();
+        tokio::time::timeout(
+            REQUEST_TIMEOUT,
+            self.sender.send(Envelope {
+                operation,
+                reply,
+                span: Span::current(),
+            }),
+        )
+        .await
+        .map_err(|_| AppError::Timeout)?
+        .map_err(|_| AppError::Unavailable)?;
+        tokio::time::timeout(REQUEST_TIMEOUT, receiver)
+            .await
+            .map_err(|_| AppError::Timeout)?
+            .map_err(|_| AppError::Unavailable)?
+    }
 }
 #[derive(Clone)]
 pub struct Rooms {
