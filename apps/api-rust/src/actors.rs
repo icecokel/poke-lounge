@@ -407,8 +407,8 @@ impl Actor {
             self.unpersisted = false;
             self.publish_room();
         } else {
+            // prepare_clock only mutates state together with a revision bump (see 005-fix.md).
             self.room = room;
-            self.unpersisted = true;
         }
         Ok(())
     }
