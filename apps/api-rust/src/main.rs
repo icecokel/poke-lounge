@@ -22,10 +22,10 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     actors::Rooms,
-    config::{Config, OWNER_RENEWAL},
+    config::{Config, OWNER_RENEWAL, OWNER_STOP_AFTER},
     error::{AppError, AppResult},
     http::AppState,
-    repository::Repository,
+    repository::{Renewal, Repository},
 };
 
 #[tokio::main]
@@ -66,6 +66,8 @@ async fn run() -> AppResult<()> {
         let shutdown = shutdown.clone();
         let lease_stop = lease_stop.clone();
         tokio::spawn(async move {
+            let mut last_renewed = tokio::time::Instant::now();
+            let mut failures: u32 = 0;
             let mut interval = tokio::time::interval(OWNER_RENEWAL);
             interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
@@ -73,10 +75,28 @@ async fn run() -> AppResult<()> {
                     biased;
                     _ = lease_stop.cancelled() => return false,
                     _ = interval.tick() => {
-                        if repository.renew().await.is_err() {
-                            tracing::error!(event = "backend.owner_lost", "Stopping rather than serving with an uncertain owner lease");
-                            shutdown.cancel();
-                            return true;
+                        match repository.renew().await {
+                            Ok(Renewal::Renewed) => {
+                                last_renewed = tokio::time::Instant::now();
+                                if failures > 0 {
+                                    tracing::info!(event = "backend.owner_renew_recovered", failures);
+                                    failures = 0;
+                                }
+                            }
+                            Ok(Renewal::Lost) => {
+                                tracing::error!(event = "backend.owner_lost", "Stopping rather than serving with an uncertain owner lease");
+                                shutdown.cancel();
+                                return true;
+                            }
+                            Err(error) => {
+                                failures += 1;
+                                tracing::warn!(event = "backend.owner_renew_failed", failures, error = %error);
+                                if last_renewed.elapsed() >= OWNER_STOP_AFTER {
+                                    tracing::error!(event = "backend.owner_lost", "lease 만료 임박");
+                                    shutdown.cancel();
+                                    return true;
+                                }
+                            }
                         }
                     }
                 }
