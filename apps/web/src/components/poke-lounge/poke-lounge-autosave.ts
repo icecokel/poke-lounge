@@ -264,7 +264,15 @@ export function startPokeLoungeAutosave({
     }, debounceMs);
   };
 
+  let observedState = gameStateStore.getState();
   const unsubscribe = gameStateStore.subscribe(function callback() {
+    const nextState = gameStateStore.getState();
+    const saveTargetChanged =
+      nextState.playersById !== observedState.playersById ||
+      nextState.currentPlayerId !== observedState.currentPlayerId;
+    observedState = nextState;
+    if (!saveTargetChanged) return;
+
     if (revisionConflicted) {
       return;
     }

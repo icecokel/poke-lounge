@@ -89,6 +89,16 @@ export type {
   PlayerPokemonStatus,
 } from "@poke-lounge/battle/adventure/player/pokemon-types";
 
+/** True when only the remote player map changed between two store states. */
+export function isRemotePlayersOnlyChange(previous: GameState, next: GameState): boolean {
+  if (previous === next || previous.remotePlayers === next.remotePlayers) return false;
+  const keys = new Set([...Object.keys(previous), ...Object.keys(next)]) as Set<keyof GameState>;
+  for (const key of keys) {
+    if (key !== "remotePlayers" && previous[key] !== next[key]) return false;
+  }
+  return true;
+}
+
 export function createDefaultGameState(): GameState {
   const localPlayer = createDefaultLocalPlayer();
 
