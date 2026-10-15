@@ -357,6 +357,18 @@ function MobileDirectionalJoystick({
     [input],
   );
 
+  useEffect(
+    function runEffect() {
+      return input.subscribeReset(function handleReset() {
+        // Battle animations reset every frame; only touch React state when something was held.
+        if (activeDirectionsRef.current.size === 0) return;
+        activeDirectionsRef.current = new Set();
+        setActiveDirections([]);
+      });
+    },
+    [input],
+  );
+
   const holdDirections = (directions: ReadonlyArray<MobileJoystickDirection>) => {
     const nextDirections = new Set(directions);
 

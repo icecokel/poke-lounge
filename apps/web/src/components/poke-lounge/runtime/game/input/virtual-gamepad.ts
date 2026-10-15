@@ -3,11 +3,13 @@ export type VirtualGamepadButton =
 
 const pressedButtons = new Set<VirtualGamepadButton>();
 const pendingPresses = new Set<VirtualGamepadButton>();
+const resetListeners = new Set<() => void>();
 
 export interface VirtualGamepadController {
   press(button: VirtualGamepadButton): void;
   release(button: VirtualGamepadButton): void;
   reset(): void;
+  subscribeReset(listener: () => void): () => void;
   setHeld(button: VirtualGamepadButton, isHeld: boolean): void;
 }
 
@@ -47,14 +49,25 @@ export function consumeVirtualGamepadPress(button: VirtualGamepadButton): boolea
   return true;
 }
 
+export function subscribeVirtualGamepadReset(listener: () => void): () => void {
+  resetListeners.add(listener);
+  return function unsubscribe() {
+    resetListeners.delete(listener);
+  };
+}
+
 export function resetVirtualGamepad(): void {
   pressedButtons.clear();
   pendingPresses.clear();
+  for (const listener of [...resetListeners]) {
+    listener();
+  }
 }
 
 export const virtualGamepadController: VirtualGamepadController = {
   press: pressVirtualGamepadButton,
   release: releaseVirtualGamepadButton,
   reset: resetVirtualGamepad,
+  subscribeReset: subscribeVirtualGamepadReset,
   setHeld: setVirtualGamepadButtonHeld,
 };
