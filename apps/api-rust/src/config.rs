@@ -9,6 +9,8 @@ pub const IO_TIMEOUT: Duration = Duration::from_secs(2);
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 pub const OWNER_LEASE_MS: u64 = 15_000;
 pub const OWNER_RENEWAL: Duration = Duration::from_secs(3);
+// Stop serving before the lease can expire under us: one renewal interval plus one IO timeout of margin.
+pub const OWNER_STOP_AFTER: Duration = Duration::from_millis(OWNER_LEASE_MS - 3_000 - 2_000);
 pub struct Config {
     pub bind: SocketAddr,
     pub redis_url: String,

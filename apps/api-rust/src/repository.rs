@@ -37,6 +37,12 @@ pub struct Repository {
     owner: Arc<str>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Renewal {
+    Renewed,
+    Lost,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Receipt {
@@ -85,17 +91,18 @@ impl Repository {
         Ok(())
     }
 
-    pub async fn renew(&self) -> AppResult<()> {
+    pub async fn renew(&self) -> AppResult<Renewal> {
         let value: i64 = Script::new(RENEW)
             .key(self.owner_key())
             .arg(self.owner.as_ref())
             .arg(OWNER_LEASE_MS)
             .invoke_async(&mut self.connection.clone())
             .await?;
-        if value != 1 {
-            return Err(AppError::Unavailable);
+        if value == 1 {
+            Ok(Renewal::Renewed)
+        } else {
+            Ok(Renewal::Lost)
         }
-        Ok(())
     }
 
     pub async fn release(&self) -> AppResult<()> {
