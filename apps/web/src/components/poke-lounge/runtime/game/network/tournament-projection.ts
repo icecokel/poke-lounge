@@ -1,4 +1,9 @@
-import type { components } from "@/types/api";
+import type {
+  RustRoomParticipant,
+  RustRoomRound,
+  RustRoomSnapshot,
+  RustRoomTournament,
+} from "@/features/poke-lounge/contracts/rust-room";
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import type {
   TournamentBye,
@@ -9,11 +14,6 @@ import type {
   TournamentRoundSlot,
 } from "@poke-lounge/battle/tournament-bracket";
 import type { TournamentState } from "../tournament/tournament-state";
-
-type ApiTournamentState = components["schemas"]["PokeLoungeTournamentDto"];
-type ApiRoomStatus = components["schemas"]["PokeLoungeRoomResponseDto"]["status"];
-type ApiRoomParticipant = components["schemas"]["PokeLoungeRoomParticipantDto"];
-type ApiRoomRound = components["schemas"]["PokeLoungeRoundDto"];
 
 const MAX_PARTICIPANTS = 8;
 const MAX_BRACKET_ROUNDS = 4;
@@ -28,10 +28,10 @@ export type TournamentProjectionRound = TournamentRound;
 export type TournamentBracketProjection = TournamentState;
 
 export interface ServerTournamentState {
-  version: ApiTournamentState["version"];
+  version: RustRoomTournament["version"];
   bracket: TournamentBracketProjection | null;
   activeMatchId: string | null;
-  activeMatchAuthority: ApiTournamentState["activeMatchAuthority"];
+  activeMatchAuthority: RustRoomTournament["activeMatchAuthority"] | "casual";
   cumulativeScores: Record<string, number>;
 }
 
@@ -45,9 +45,9 @@ export interface TournamentRoomParticipant {
   startPosition?: { map: string; x: number; y: number; facing: "front" };
   playerId: string;
   displayName: string;
-  controller?: ApiRoomParticipant["controller"];
+  controller?: RustRoomParticipant["controller"];
   aiDifficulty?: AiDifficulty;
-  role: ApiRoomParticipant["role"];
+  role: RustRoomParticipant["role"] | "spectator";
   ready: boolean;
   partyReady: boolean;
   connected: boolean;
@@ -56,7 +56,7 @@ export interface TournamentRoomParticipant {
 
 export interface TournamentRoomRound {
   index: number;
-  phase: ApiRoomRound["phase"];
+  phase: RustRoomRound["phase"];
   durationMs: number;
   startedAtMs: number | null;
   endsAtMs: number | null;
@@ -67,7 +67,7 @@ export interface TournamentStateRoomPayload {
   roomCode: string;
   hostPlayerId: string | null;
   roundIndex: number;
-  roomStatus: ApiRoomStatus;
+  roomStatus: RustRoomSnapshot["status"];
   roomRound: TournamentRoomRound;
   participants: TournamentRoomParticipant[];
   tournament: ServerTournamentState;
