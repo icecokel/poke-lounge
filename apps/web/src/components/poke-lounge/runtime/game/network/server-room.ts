@@ -13,7 +13,11 @@ import {
 } from "@/lib/client-diagnostics";
 import { ROOM_ERROR_CODES } from "../../../poke-lounge-error-codes";
 import { getServerRoomErrorMessage } from "../server-room-error-copy";
-import type { components } from "@/types/api";
+import type {
+  RustProgressionSnapshot,
+  RustRoomParticipant,
+  RustRoomSnapshot,
+} from "@/features/poke-lounge/contracts/rust-room";
 import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import {
@@ -84,27 +88,22 @@ type SharedWorldPlayerEvent = {
   cursor: SharedWorldCursor | null;
 };
 
-type ApiServerRoom = components["schemas"]["PokeLoungeRoomResponseDto"];
-type ServerParticipant = ApiServerRoom["participants"][number] & {
-  aiDifficulty?: AiDifficulty;
+type ServerParticipant = Omit<RustRoomParticipant, "role"> & {
+  role: RustRoomParticipant["role"] | "spectator";
 };
-type ServerPartySnapshot = components["schemas"]["PokeLoungePartySnapshotDto"];
-
-interface ServerRoomState {
-  progressionParty?: import("@poke-lounge/battle/competitive-party").NormalizedCompetitiveParty;
-  roomCode: string;
-  roomInstanceId?: string;
-  visibility: ApiServerRoom["visibility"];
-  hostPlayerId: string | null;
-  revision: number;
-  expiresAtMs: number;
-  serverNowMs?: number;
-  status: ApiServerRoom["status"];
+interface ServerRoomState
+  extends
+    Omit<
+      RustRoomSnapshot,
+      | "participants"
+      | "tournament"
+      | "competitiveTransitions"
+      | "competitiveAssignments"
+      | "competitive"
+    >,
+    Partial<Pick<RustProgressionSnapshot, "progressionParty">> {
   participants: ServerParticipant[];
-  partySnapshots: Record<string, ServerPartySnapshot>;
-  round: ApiServerRoom["round"];
   tournament: ServerTournamentState;
-  finalStandings: ApiServerRoom["finalStandings"];
   competitiveTransitions: CompetitiveTerminalTransition[];
   competitiveAssignments: CompetitiveProjection[];
   competitive?: CompetitiveProjection;
