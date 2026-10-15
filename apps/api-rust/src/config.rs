@@ -11,6 +11,8 @@ pub const OWNER_LEASE_MS: u64 = 15_000;
 pub const OWNER_RENEWAL: Duration = Duration::from_secs(3);
 // Stop serving before the lease can expire under us: one renewal interval plus one IO timeout of margin.
 pub const OWNER_STOP_AFTER: Duration = Duration::from_millis(OWNER_LEASE_MS - 3_000 - 2_000);
+pub const OWNER_ACQUIRE_WAIT: Duration = Duration::from_millis(OWNER_LEASE_MS + 5_000);
+pub const OWNER_ACQUIRE_RETRY: Duration = Duration::from_secs(1);
 pub struct Config {
     pub bind: SocketAddr,
     pub redis_url: String,
