@@ -468,7 +468,7 @@ impl Room {
             && self
                 .participants
                 .iter()
-                .any(|p| !p.ai && (!p.connected || !p.admitted || p.disconnect_pending))
+                .any(|p| !p.ai && p.connected && (!p.admitted || p.disconnect_pending))
         {
             self.round.started_at_ms = None;
             self.round.ends_at_ms = None;
@@ -897,9 +897,8 @@ impl Room {
         }
         if self.status == Status::RoundStarted
             && self.round.started_at_ms.is_none()
-            && self.participants.iter().all(|p| {
-                p.connected
-                    && p.admitted
+            && self.participants.iter().filter(|p| p.connected).all(|p| {
+                p.admitted
                     && !p.disconnect_pending
                     && p.ready
                     && self.parties.contains_key(&p.player_id)
