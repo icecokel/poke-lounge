@@ -233,6 +233,8 @@ pub struct Round {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Party {
     pub competitive_party: Value,
+    #[serde(default)]
+    pub roster: Value,
     pub updated_at_ms: u64,
 }
 #[derive(Clone, Serialize, Deserialize)]
@@ -705,6 +707,7 @@ impl Room {
                         player.into(),
                         Party {
                             competitive_party: value,
+                            roster: current.roster.clone(),
                             updated_at_ms: now,
                         },
                     );
@@ -723,13 +726,34 @@ impl Room {
                 {
                     return Err(AppError::PartyLocked);
                 }
-                let value = compute
+                let accepted = compute
                     .run(
                         self.room_instance_id,
                         self.storage_version,
-                        json!({"kind":"normalize-party","party":party,"restore":false}),
+                        json!({
+                            "kind":"accept-party",
+                            "party":party,
+                            "roster":self.parties.get(player).map(|p| p.roster.clone()).unwrap_or(Value::Null),
+                            "nowMs":now,
+                            "trusted":false,
+                        }),
                     )
-                    .await?;
+                    .await
+                    .inspect_err(|error| {
+                        if matches!(error, AppError::Invalid(_)) {
+                            tracing::warn!(event = "room.party_rejected", room_instance_id = %self.room_instance_id, player_id = %player);
+                        }
+                    })?;
+                let value = accepted
+                    .get("party")
+                    .filter(|party| party.is_object())
+                    .ok_or(AppError::ComputeUnavailable)?
+                    .clone();
+                let roster = accepted
+                    .get("roster")
+                    .filter(|roster| roster.is_object())
+                    .ok_or(AppError::ComputeUnavailable)?
+                    .clone();
                 if self
                     .parties
                     .get(player)
@@ -739,10 +763,13 @@ impl Room {
                         player.into(),
                         Party {
                             competitive_party: value,
+                            roster,
                             updated_at_ms: now,
                         },
                     );
                     self.touch(now);
+                } else if let Some(current) = self.parties.get_mut(player) {
+                    current.roster = roster;
                 }
             }
             GameCommand::Leave => {
@@ -831,6 +858,7 @@ impl Room {
             id,
             Party {
                 competitive_party: party,
+                roster: Value::Null,
                 updated_at_ms: now,
             },
         );
@@ -973,6 +1001,7 @@ impl Room {
                     p.player_id.clone(),
                     Party {
                         competitive_party: normalized,
+                        roster: party.roster.clone(),
                         updated_at_ms: now,
                     },
                 );
@@ -1218,6 +1247,11 @@ impl Room {
                 player.clone(),
                 Party {
                     competitive_party: party,
+                    roster: self
+                        .parties
+                        .get(player)
+                        .map(|p| p.roster.clone())
+                        .unwrap_or(Value::Null),
                     updated_at_ms: now,
                 },
             );
@@ -1393,6 +1427,7 @@ impl Room {
                         id.clone(),
                         Party {
                             competitive_party: party.clone(),
+                            roster: Value::Null,
                             updated_at_ms: now,
                         },
                     );
