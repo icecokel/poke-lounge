@@ -1270,20 +1270,58 @@ impl Room {
                 self.terminal_at_ms = Some(now);
                 self.round.phase = "completed".into();
                 self.round.ends_at_ms = None;
-                let mut ranked = bracket
-                    .participants
-                    .iter()
-                    .map(|p| {
-                        (
-                            p.clone(),
+                let mut seen = BTreeSet::new();
+                let mut ranked = Vec::new();
+                for p in &bracket.participants {
+                    if seen.insert(p.player_id.clone()) {
+                        let joined_at_ms = self
+                            .participants
+                            .iter()
+                            .find(|participant| participant.player_id == p.player_id)
+                            .map_or(u64::MAX, |participant| participant.joined_at_ms);
+                        ranked.push((
+                            p.player_id.clone(),
+                            p.display_name.clone(),
+                            Some(p.seed),
+                            joined_at_ms,
                             *self.cumulative_scores.get(&p.player_id).unwrap_or(&0),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                ranked.sort_by(|(a, sa), (b, sb)| sb.cmp(sa).then(a.seed.cmp(&b.seed)));
+                        ));
+                    }
+                }
+                for (player_id, score) in &self.cumulative_scores {
+                    if seen.insert(player_id.clone()) {
+                        let participant =
+                            self.participants.iter().find(|p| p.player_id == *player_id);
+                        ranked.push((
+                            player_id.clone(),
+                            participant
+                                .map_or_else(|| "플레이어".to_owned(), |p| p.display_name.clone()),
+                            None,
+                            participant.map_or(u64::MAX, |p| p.joined_at_ms),
+                            *score,
+                        ));
+                    }
+                }
+                ranked.sort_by(|a, b| {
+                    b.4.cmp(&a.4)
+                        .then_with(|| b.2.is_some().cmp(&a.2.is_some()))
+                        .then_with(|| a.2.cmp(&b.2))
+                        .then_with(|| a.3.cmp(&b.3))
+                        .then_with(|| a.0.as_bytes().cmp(b.0.as_bytes()))
+                });
                 let mut last = None;
                 let mut rank = 0;
-                self.final_standings=ranked.iter().enumerate().map(|(i,(p,score))|{if last!=Some(*score){rank=i+1;last=Some(*score);}json!({"playerId":p.player_id,"displayName":p.display_name,"score":score,"rank":rank})}).collect();
+                self.final_standings = ranked
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (player_id, display_name, _, _, score))| {
+                        if last != Some(*score) {
+                            rank = i + 1;
+                            last = Some(*score);
+                        }
+                        json!({"playerId":player_id,"displayName":display_name,"score":score,"rank":rank})
+                    })
+                    .collect();
             }
         }
         Ok(())
