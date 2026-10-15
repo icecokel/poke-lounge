@@ -10,16 +10,35 @@ use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
 pub const SCHEMA_VERSION: u32 = 2;
+// Must match packages/poke-lounge-battle/src/timing.ts ROUND_DURATION_OPTIONS_MS (pnpm check:rust-ts-constants).
+pub const ROUND_DURATION_OPTIONS_MS: [u64; 3] = [90_000, 180_000, 300_000];
+// Must match packages/poke-lounge-battle/src/timing.ts DEFAULT_ROUND_DURATION_MS (pnpm check:rust-ts-constants).
+pub const DEFAULT_ROUND_DURATION_MS: u64 = 90_000;
+// Must match packages/poke-lounge-battle/src/timing.ts ROUND_START_COUNTDOWN_MS (pnpm check:rust-ts-constants).
+pub const ROUND_START_COUNTDOWN_MS: u64 = 3_000;
+// Must match packages/poke-lounge-battle/src/competitive-ruleset-config.ts COMPETITIVE_RULESET_VERSION (pnpm check:rust-ts-constants).
+pub const COMPETITIVE_RULESET_VERSION: u64 = 3;
+// Must match packages/poke-lounge-battle/src/timing.ts POKE_LOUNGE_SESSION_MAX_LIFETIME_MS (pnpm check:rust-ts-constants).
 pub const SESSION_MAX_MS: u64 = 7_200_000;
+// Rust-only.
 pub const LOBBY_MAX_MS: u64 = 600_000;
+// Must match packages/poke-lounge-battle/src/timing.ts PARTICIPANT_DISCONNECT_GRACE_MS (pnpm check:rust-ts-constants).
 pub const PRESENCE_LEASE_MS: u64 = 60_000;
+// Must match packages/poke-lounge-battle/src/timing.ts POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS (pnpm check:rust-ts-constants).
 pub const ADMISSION_MS: u64 = 15_000;
+// Rust-only.
 pub const COMPLETED_RETENTION_MS: u64 = 15 * 60_000;
+// Must match packages/poke-lounge-battle/src/timing.ts POKE_LOUNGE_FINISHED_ROOM_RETENTION_MS (pnpm check:rust-ts-constants).
 pub const CLOSED_RETENTION_MS: u64 = 60_000;
+// Must match packages/poke-lounge-battle/src/timing.ts COMPETITIVE_TURN_DEADLINE_MS (pnpm check:rust-ts-constants).
 pub const TURN_MS: u64 = 30_000;
+// Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_PROGRESSION_DEADLINE_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_PROGRESSION_MS: u64 = 25_000;
+// Rust-only.
 pub const AI_ONLY_TURN_READY_MS: u64 = 500;
+// Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_BRIEFING_DURATION_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_BRIEFING_MS: u64 = 5_000;
+// Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_RESULT_DURATION_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_RESULT_MS: u64 = 5_000;
 pub const MAX_PARTICIPANTS: usize = 8;
 pub const MAX_COMMANDS: u64 = 16_384;
@@ -94,7 +113,9 @@ impl CreateRoom {
         if let Some(code) = &self.room_code {
             self.room_code = Some(normalize_code(code)?);
         }
-        if ![90_000, 180_000, 300_000].contains(&self.round_duration_ms.unwrap_or(90_000)) {
+        if !ROUND_DURATION_OPTIONS_MS
+            .contains(&self.round_duration_ms.unwrap_or(DEFAULT_ROUND_DURATION_MS))
+        {
             return Err(AppError::Invalid("Invalid round duration"));
         }
         Ok(self)
@@ -246,7 +267,7 @@ impl Match {
     }
     pub fn projection(&self) -> Value {
         json!({"matchId":self.match_id,"bracketMatchId":self.bracket_match_id,"kind":"tournament-unranked","assignmentRevision":self.assignment_revision,
-            "rulesetVersion":3,"rulesetHash":ENGINE_VERSION.trim().rsplit(':').next().unwrap_or(""),"currentTurn":self.turn(),"turnEndsAtMs":self.turn_started_at_ms+TURN_MS,
+            "rulesetVersion":COMPETITIVE_RULESET_VERSION,"rulesetHash":ENGINE_VERSION.trim().rsplit(':').next().unwrap_or(""),"currentTurn":self.turn(),"turnEndsAtMs":self.turn_started_at_ms+TURN_MS,
             "status":if self.completed(){"completed"}else if self.actions.is_empty()&&self.turn()==0{"pending"}else{"active"},
             "terminalEventId":self.terminal_event_id,"terminalRoomRevision":self.terminal_room_revision,"progressionEndsAtMs":self.progression_ends_at_ms,"playerIds":self.pack.state["participantIds"],
             "currentState":self.pack.public_state,"stateHash":self.pack.state_hash,"submittedPlayerIds":self.actions.keys().collect::<Vec<_>>(),"terminal":self.pack.state["terminal"]})
@@ -310,7 +331,7 @@ impl Room {
             round: Round {
                 index: 1,
                 phase: "waiting".into(),
-                duration_ms: input.round_duration_ms.unwrap_or(90_000),
+                duration_ms: input.round_duration_ms.unwrap_or(DEFAULT_ROUND_DURATION_MS),
                 started_at_ms: None,
                 ends_at_ms: None,
             },
@@ -333,7 +354,7 @@ impl Room {
             || self.accepted_commands > MAX_COMMANDS
             || self.created_at_ms.checked_add(SESSION_MAX_MS) != Some(self.hard_expires_at_ms)
             || !(1..=3).contains(&self.round.index)
-            || ![90_000, 180_000, 300_000].contains(&self.round.duration_ms)
+            || !ROUND_DURATION_OPTIONS_MS.contains(&self.round.duration_ms)
         {
             return Err(AppError::Configuration("Invalid stored room invariants"));
         }
@@ -884,8 +905,8 @@ impl Room {
                     && self.parties.contains_key(&p.player_id)
             })
         {
-            self.round.started_at_ms = Some(now + 3_000);
-            self.round.ends_at_ms = Some(now + 3_000 + self.round.duration_ms);
+            self.round.started_at_ms = Some(now + ROUND_START_COUNTDOWN_MS);
+            self.round.ends_at_ms = Some(now + ROUND_START_COUNTDOWN_MS + self.round.duration_ms);
             for p in &mut self.participants {
                 if !p.ai {
                     p.ready = false;
