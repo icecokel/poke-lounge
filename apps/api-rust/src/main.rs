@@ -147,6 +147,8 @@ async fn run() -> AppResult<()> {
         compute,
         data,
         sockets: Arc::new(Semaphore::new(128)),
+        pending_sockets: Arc::new(Semaphore::new(socket::PENDING_SOCKET_CAPACITY)),
+        pending_by_ip: Arc::new(std::sync::Mutex::new(HashMap::new())),
         origins: Arc::new(config.allowed_origins.clone()),
         trusted_proxies: Arc::new(config.trusted_proxies.clone()),
         budgets: Arc::new(Mutex::new(HashMap::new())),

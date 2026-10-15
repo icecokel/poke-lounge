@@ -47,6 +47,8 @@ pub struct AppState {
     pub started: Instant,
     pub requests: Arc<Semaphore>,
     pub sockets: Arc<Semaphore>,
+    pub pending_sockets: Arc<Semaphore>,
+    pub pending_by_ip: Arc<std::sync::Mutex<HashMap<IpAddr, usize>>>,
     pub origins: Arc<Vec<HeaderValue>>,
     pub trusted_proxies: Arc<Vec<IpNet>>,
     pub budgets: Arc<Mutex<HashMap<IpAddr, Budget>>>,
