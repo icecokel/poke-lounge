@@ -21,6 +21,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{any, get, post},
 };
+use ipnet::IpNet;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{
@@ -47,6 +48,7 @@ pub struct AppState {
     pub requests: Arc<Semaphore>,
     pub sockets: Arc<Semaphore>,
     pub origins: Arc<Vec<HeaderValue>>,
+    pub trusted_proxies: Arc<Vec<IpNet>>,
     pub budgets: Arc<Mutex<HashMap<IpAddr, Budget>>>,
 }
 pub struct Budget {
@@ -168,6 +170,30 @@ async fn ready(State(state): State<AppState>) -> AppResult<Json<Value>> {
         json!({"status":"ok","backend":"rust","engineVersion":ENGINE_VERSION.trim(),"serverNowMs":now,"lastRoomTickMs":state.rooms.last_tick_ms.load(Ordering::Relaxed),"uptime":state.started.elapsed().as_secs()}),
     ))
 }
+/// The peer is authoritative unless it is a configured proxy; then walk X-Forwarded-For from the right.
+pub(crate) fn client_ip(peer: IpAddr, headers: &HeaderMap, trusted: &[IpNet]) -> IpAddr {
+    let peer = peer.to_canonical();
+    let is_trusted = |ip: &IpAddr| trusted.iter().any(|network| network.contains(ip));
+    if !is_trusted(&peer) {
+        return peer;
+    }
+    let mut client = peer;
+    for value in headers.get_all("x-forwarded-for").iter().rev() {
+        let Ok(value) = value.to_str() else {
+            return peer;
+        };
+        for value in value.rsplit(',') {
+            let Ok(ip) = value.trim().parse::<IpAddr>() else {
+                return peer;
+            };
+            client = ip.to_canonical();
+            if !is_trusted(&client) {
+                return client;
+            }
+        }
+    }
+    client
+}
 async fn limits(State(state): State<AppState>, request: Request, next: Next) -> Response {
     if state.shutdown.is_cancelled() {
         return AppError::Unavailable.into_response();
@@ -181,12 +207,13 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
         return AppError::Forbidden.into_response();
     }
     if let Some(peer) = request.extensions().get::<ConnectInfo<SocketAddr>>() {
+        let ip = client_ip(peer.0.ip(), request.headers(), &state.trusted_proxies);
         let mut budgets = state.budgets.lock().await;
         budgets.retain(|_, b| b.since.elapsed() < Duration::from_secs(60));
-        if budgets.len() >= 4096 && !budgets.contains_key(&peer.0.ip()) {
+        if budgets.len() >= 4096 && !budgets.contains_key(&ip) {
             return AppError::Busy.into_response();
         }
-        let budget = budgets.entry(peer.0.ip()).or_insert(Budget {
+        let budget = budgets.entry(ip).or_insert(Budget {
             since: Instant::now(),
             count: 0,
             creates: 0,
