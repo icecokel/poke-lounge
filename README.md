@@ -73,7 +73,7 @@ Redis는 방·경기·실시간 상태와 작업 큐를, PostgreSQL은 ROM 문�
 
 ### 시간 상수
 
-Web·TypeScript 계산 워커·레거시 API의 게임 진행·재접속·저장·표시/연출 시간은 `packages/poke-lounge-battle/src/timing.ts`에서 관리한다. `@poke-lounge/battle/timing`으로 참조하고 기존 공개 상수 경로는 재내보내기로 호환한다. `*_MS`는 밀리초, `*_SECONDS`는 초다. Rust 서버의 시간은 `apps/api-rust/src/domain.rs`에 별도로 정의되어 있다. 토너먼트 전 집결과 중간 결과 표시는 양쪽 모두 각각 5초이며 탐험 시간에 포함하지 않는다. 종료 방 보관은 아래 Rust 수명 정책을 따르며, TypeScript의 기존 종료 방 보관 상수 60초와 구분한다. 경험치 배율과 파티 공유율은 `round-settings.ts`에서 라운드 시간 프리셋 기준으로 관리한다. ROM 프레임 데이터·CSS 키프레임과 플레이 테스트 도구 자체의 타임아웃은 각각의 모듈에 유지한다.
+Web·TypeScript 계산 워커·레거시 API의 게임 진행·재접속·저장·표시/연출 시간은 `packages/poke-lounge-battle/src/timing.ts`에서 관리한다. `@poke-lounge/battle/timing`으로 참조하고 기존 공개 상수 경로는 재내보내기로 호환한다. `*_MS`는 밀리초, `*_SECONDS`는 초다. Rust 서버의 시간은 `apps/api-rust/src/domain.rs`에 별도로 정의되어 있다. 두 정의는 `pnpm check:rust-ts-constants`로 CI에서 대조한다. 토너먼트 전 집결과 중간 결과 표시는 양쪽 모두 각각 5초이며 탐험 시간에 포함하지 않는다. 종료 방 보관은 아래 Rust 수명 정책을 따르며, TypeScript의 기존 종료 방 보관 상수 60초와 구분한다. 경험치 배율과 파티 공유율은 `round-settings.ts`에서 라운드 시간 프리셋 기준으로 관리한다. ROM 프레임 데이터·CSS 키프레임과 플레이 테스트 도구 자체의 타임아웃은 각각의 모듈에 유지한다.
 
 ### 방 수명과 만료 처리
 
