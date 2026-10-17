@@ -272,13 +272,22 @@ async function run(raw: unknown): Promise<ComputeResponse> {
   try {
     return { ...identity, ok: true, data: await calculate(input) };
   } catch (error) {
-    if (error instanceof PartyAcceptanceError) {
+    const partyRule =
+      error instanceof PartyAcceptanceError
+        ? error.rule
+        : error instanceof CompetitivePartyValidationError
+          ? error.reason
+          : error instanceof z.ZodError
+            ? "party-schema-invalid"
+            : null;
+    if (
+      (input.operation.kind === "accept-party" || input.operation.kind === "normalize-party") &&
+      partyRule !== null
+    ) {
       process.stderr.write(
         JSON.stringify({
           event: "compute.party_rejected",
-          requestId: input.requestId,
-          roomInstanceId: input.roomInstanceId,
-          rule: error.rule,
+          rule: partyRule,
         }) + "\n",
       );
     }
