@@ -1671,11 +1671,32 @@ export class BattleController {
           const sceneGeneration = this.sceneGeneration;
           const nowMs = Date.now();
           const destination = this.state.returnToWorld;
-          this.gameStateStore.applyTournamentSnapshotFromRoom(payload, nowMs);
+          const previousRoundIndex = this.gameStateStore.getState().round.roundIndex;
+          const applied = this.gameStateStore.applyTournamentSnapshotFromRoom(payload, nowMs);
+          const round = this.gameStateStore.getState().round;
+
+          if (this.competitivePreemptionQueued || !destination) return;
 
           if (
-            this.competitivePreemptionQueued ||
-            !destination ||
+            applied.ok &&
+            this.authoritativeSpectating &&
+            this.authoritativeTerminalTransition?.status === "visible" &&
+            ((payload.tournament.bracket?.status === "completed" &&
+              payload.tournament.bracket.gameRoundIndex === round.roundIndex &&
+              (round.phase === "round-result" || round.phase === "game-result")) ||
+              round.roundIndex !== previousRoundIndex)
+          ) {
+            this.competitivePreemptionQueued = true;
+            queueMicrotask(() => {
+              if (!this.isSceneLifecycleCurrent(sceneGeneration)) return;
+              // The confirmation path checks this guard before returning to the world.
+              this.competitivePreemptionQueued = false;
+              this.confirmSelection();
+            });
+            return;
+          }
+
+          if (
             (this.authoritativeTerminalTransition !== null &&
               this.authoritativeTerminalTransition.status !== "transitioned") ||
             (payload.roomStatus !== "completed" &&
