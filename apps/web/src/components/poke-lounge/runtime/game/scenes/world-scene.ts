@@ -1,3 +1,4 @@
+import type { StarterSelection } from "@poke-lounge/battle/starter-selection";
 import { PLAYER_POSITION_PERSIST_INTERVAL_MS } from "@poke-lounge/battle/timing";
 import type { TournamentMatch } from "@poke-lounge/battle/tournament-bracket";
 import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
@@ -86,7 +87,7 @@ export interface WorldSceneOptions {
   roundDurationMs?: number;
   keyboard: RuntimeKeyboard;
   onRoomLobbyStateChange?: (state: RoomLobbyRuntimeState | null) => void;
-  onStarterSelectionRequested?: (onComplete: () => void) => void;
+  onStarterSelectionRequested?: (onComplete: () => void, selection?: StarterSelection) => void;
   onStartBattle(data: object): void;
   ownerDocument: Document;
   runtimeAssets: PokeLoungeRuntimeAssets;
@@ -1022,6 +1023,7 @@ export class WorldController {
             resetVirtualGamepad();
             this.interactions.showInitialShortcutGuideIfNeeded();
           }.bind(this),
+          payload.starterSelection,
         );
       }
       return;

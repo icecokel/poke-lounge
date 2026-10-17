@@ -15,6 +15,7 @@ import {
   restoreCompetitiveParty,
 } from "@poke-lounge/battle/competitive-party";
 import { chooseAiCompetitiveAction, createAiStarterParty } from "@poke-lounge/battle/ai-policy";
+import { getStarterSpeciesIds } from "@poke-lounge/battle/starter-selection";
 import {
   createAiAdventure,
   advanceAiAdventure,
@@ -108,6 +109,17 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
   switch (op.kind) {
     case "normalize-party": {
       const party = normalizeCompetitiveParty(partySchema.parse(op.party));
+      if (op.starterSelection) {
+        await getContext();
+        const candidates = getStarterSpeciesIds(op.starterSelection);
+        if (
+          party.members.length !== 1 ||
+          party.members[0]!.level !== 10 ||
+          !candidates.includes(party.members[0]!.speciesId)
+        ) {
+          throw new Error("Invalid starter party");
+        }
+      }
       return op.restore ? restoreCompetitiveParty(party) : party;
     }
     case "settle-tournament": {
@@ -139,8 +151,9 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
         op.previousLevels,
       );
     case "initial-party": {
+      await getContext();
       const random = createSeededRandom(op.seed);
-      return createAiStarterParty(() => random.next());
+      return createAiStarterParty(() => random.next(), op.starterSelection);
     }
     case "initialize": {
       const players = op.players.map(p => ({

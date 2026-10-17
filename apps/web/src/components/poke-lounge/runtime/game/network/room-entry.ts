@@ -1,4 +1,5 @@
 import { routing } from "@/i18n/routing";
+import type { StarterMode } from "@poke-lounge/battle/starter-selection";
 
 export const ROOM_CODE_LENGTH = 6;
 export const TEMPORARY_PASSWORD_LENGTH = 6;
@@ -23,6 +24,7 @@ export interface RoomEntryIntent {
   visibility?: "private" | "public";
   roomInstanceId?: string;
   roundDurationMs?: RoomRoundDurationMs;
+  starterMode?: StarterMode;
 }
 
 export function normalizeRoomCode(value: string): string | null {

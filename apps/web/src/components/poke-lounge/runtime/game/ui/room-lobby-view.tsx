@@ -35,6 +35,7 @@ import { RoomCodeCopyButton } from "./room-code-copy-button";
 import { getRoomLobbyCopy } from "./room-lobby-copy";
 import { createRoomLobbyViewState } from "./room-lobby-screen";
 import { useRoomLobbyCommands } from "./use-room-lobby-commands";
+import { getStarterModeCopy } from "./starter-mode-copy";
 
 const SECONDARY_BUTTON =
   "inline-flex min-h-11 min-w-0 touch-manipulation items-center justify-center gap-2 rounded-[7px] border-2 border-[#627f85] bg-[linear-gradient(#fffdf0_50%,#dfe9df_50%)] px-2.5 py-2 font-bold text-[#304e36] shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#536b73] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[#985512] focus-visible:outline-offset-3 disabled:cursor-not-allowed disabled:border-[#96a39b] disabled:bg-[#dfe5d8] disabled:text-[#586766] disabled:shadow-[inset_0_0_0_2px_#eef0e6]";
@@ -168,6 +169,13 @@ export function RoomLobbyScreen({
           ) : null}
         </header>
         <div className="flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1 border-b-[3px] border-[#526e7a] bg-[#e2edf0] px-3 pb-2 text-[0.8125rem] text-[#50624c]">
+          <span data-room-lobby-starter-mode>
+            {
+              getStarterModeCopy(fullCopy.locale).modes[
+                state.projection.starterSelection?.mode ?? "classic"
+              ]
+            }
+          </span>
           <div className="flex min-w-0 flex-wrap items-center gap-2 [&_strong]:rounded [&_strong]:border [&_strong]:border-[#8299a0] [&_strong]:bg-[#fffdf0] [&_strong]:px-1.5 [&_strong]:py-px [&_strong]:font-mono [&_strong]:text-[0.9375rem] [&_strong]:text-[#273a2d] [&_strong]:[overflow-wrap:anywhere]">
             <span>{state.privateRoomAccessCode ? text.privateCode : text.room}</span>
             <strong data-room-lobby-code>

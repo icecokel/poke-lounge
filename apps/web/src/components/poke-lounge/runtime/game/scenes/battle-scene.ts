@@ -2649,7 +2649,12 @@ export class BattleController {
         map: player.position.mapKey,
         ...player.position,
         activePartySlotIndex: player.activePartySlotIndex,
-        party: player.party,
+        // A capture at the cutoff can settle locally after this match's party was locked.
+        party: player.party.filter(slot =>
+          this.state.player.party.some(
+            battleSlot => battleSlot.slotIndex === slot.slotIndex && battleSlot.pokemon,
+          ),
+        ),
       });
       party.members = party.members.map(member => {
         const pokemon = this.state.player.party.find(

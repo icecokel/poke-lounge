@@ -1,3 +1,4 @@
+import { isStarterMode, type StarterMode } from "@poke-lounge/battle/starter-selection";
 import { acknowledgePreparation } from "@/features/poke-lounge/application/round/acknowledge-preparation";
 import { getApiBaseUrl } from "@/lib/constants";
 import {
@@ -91,6 +92,7 @@ type ServerParticipant = ApiServerRoom["participants"][number] & {
 type ServerPartySnapshot = components["schemas"]["PokeLoungePartySnapshotDto"];
 
 interface ServerRoomState {
+  starterMode: StarterMode;
   progressionParty?: import("@poke-lounge/battle/competitive-party").NormalizedCompetitiveParty;
   roomCode: string;
   roomInstanceId?: string;
@@ -121,6 +123,7 @@ export interface ServerRoomOptions {
   resumeRoom?: boolean;
   initialOpenCommandId?: string;
   roundDurationMs?: number;
+  starterMode?: StarterMode;
   sharedWorldOnly?: boolean;
   competitiveRoundsEnabled?: boolean;
   fetch?: typeof fetch;
@@ -1990,6 +1993,10 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       hostPlayerId: state.hostPlayerId ? mapServerPlayerIdForLocalStore(state.hostPlayerId) : null,
       roundIndex: state.round.index,
       roomStatus: state.status,
+      starterSelection: {
+        mode: state.starterMode,
+        seed: `${state.roomInstanceId}:${serverPlayerId}`,
+      },
       roomRound: {
         ...state.round,
         startedAtMs:
@@ -2742,6 +2749,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         ? { roundDurationMs: options.roundDurationMs }
         : {}),
       ...(options.createRoom ? { visibility: options.visibility ?? "private" } : {}),
+      ...(options.createRoom ? { starterMode: options.starterMode ?? "classic" } : {}),
     };
 
     if (options.createRoom) {
@@ -3234,6 +3242,7 @@ function parseServerRoomState(value: unknown): ServerRoomState {
       (!Number.isSafeInteger(room.serverNowMs) || (room.serverNowMs as number) < 0)) ||
     typeof room.roomCode !== "string" ||
     (room.visibility !== "public" && room.visibility !== "private") ||
+    (room.starterMode !== undefined && !isStarterMode(room.starterMode)) ||
     (room.hostPlayerId !== null && typeof room.hostPlayerId !== "string") ||
     !Number.isSafeInteger(room.revision) ||
     (room.revision as number) < 0 ||
@@ -3266,6 +3275,7 @@ function parseServerRoomState(value: unknown): ServerRoomState {
   const competitiveContract = parseCompetitiveRoomSnapshotContract(room);
   const parsed: ServerRoomState = {
     ...(value as ServerRoomState),
+    starterMode: room.starterMode === undefined ? "classic" : (room.starterMode as StarterMode),
     participants,
     round,
     tournament,

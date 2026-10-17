@@ -1,12 +1,13 @@
-export type StarterType = "Grass" | "Fire" | "Water";
+import type { BattleSpriteRef } from "@poke-lounge/battle/adventure/battle/battle-types";
 
 export interface StarterPokemon {
   id: string;
   speciesId: number;
   name: string;
   displayName: string;
-  type: StarterType;
+  type: string;
   assetPath: string;
+  sprite?: BattleSpriteRef;
 }
 
 export interface GameBootstrapData {
