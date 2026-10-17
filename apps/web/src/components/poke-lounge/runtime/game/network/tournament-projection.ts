@@ -1,5 +1,6 @@
 import type { components } from "@/types/api";
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
+import type { StarterSelection } from "@poke-lounge/battle/starter-selection";
 import type {
   TournamentBye,
   TournamentElimination,
@@ -63,6 +64,7 @@ export interface TournamentRoomRound {
 }
 
 export interface TournamentStateRoomPayload {
+  starterSelection?: StarterSelection;
   revision: number;
   roomCode: string;
   hostPlayerId: string | null;

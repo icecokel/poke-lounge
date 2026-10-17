@@ -18,6 +18,7 @@ import type { RoomLobbyRuntimeState } from "./ui/room-lobby-screen";
 import type { WorldFrameStore } from "./world/world-frame-store";
 import type { WorldMapModel } from "./world/world-map-model";
 import type { WorldRuntime } from "./world/world-runtime";
+import type { StarterSelection } from "@poke-lounge/battle/starter-selection";
 import type { WorldUiStore } from "./world/world-ui-store";
 
 export interface PokeLoungeGameResult {
@@ -35,7 +36,7 @@ export interface PokeLoungeGameOptions {
   multiplayerRoom?: MultiplayerRoom;
   onGameResult?: (result: PokeLoungeGameResult) => void;
   onRoomLobbyStateChange?: (state: RoomLobbyRuntimeState | null) => void;
-  onStarterSelectionRequested?: (onComplete: () => void) => void;
+  onStarterSelectionRequested?: (onComplete: () => void, selection?: StarterSelection) => void;
   serverAuthoritativeRounds?: boolean;
   viewportSize?: GameViewportDisplaySize;
   worldFrameStore: WorldFrameStore;

@@ -1,5 +1,5 @@
 import { resolvePokeLoungeLocale } from "../../../poke-lounge-copy";
-import type { StarterType } from "../../types";
+import { localizeTypeName } from "../i18n/runtime-game-localization";
 
 const COPY = {
   "ko-KR": {
@@ -35,6 +35,7 @@ export function getStarterSelectionCopy(locale: string) {
   return COPY[resolvePokeLoungeLocale(locale)];
 }
 
-export function getStarterTypeLabel(type: StarterType, locale: string): string {
-  return getStarterSelectionCopy(locale).types[type];
+export function getStarterTypeLabel(type: string, locale: string): string {
+  const types = getStarterSelectionCopy(locale).types;
+  return type in types ? types[type as keyof typeof types] : localizeTypeName(type, locale);
 }

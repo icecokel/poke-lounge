@@ -70,6 +70,13 @@ pub enum RoomVisibility {
     Private,
     Public,
 }
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum StarterMode {
+    #[default]
+    Classic,
+    Random,
+}
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CreateRoom {
@@ -83,6 +90,8 @@ pub struct CreateRoom {
     pub round_duration_ms: Option<u64>,
     #[serde(default)]
     pub visibility: RoomVisibility,
+    #[serde(default)]
+    pub starter_mode: StarterMode,
 }
 impl CreateRoom {
     pub fn normalize(mut self) -> AppResult<Self> {
@@ -260,6 +269,8 @@ pub struct Room {
     pub room_instance_id: Uuid,
     pub room_code: String,
     pub public: bool,
+    #[serde(default)]
+    pub starter_mode: StarterMode,
     pub revision: u64,
     pub accepted_commands: u64,
     pub created_at_ms: u64,
@@ -296,6 +307,7 @@ impl Room {
                     .collect()
             }),
             public,
+            starter_mode: input.starter_mode,
             revision: 0,
             accepted_commands: 1,
             created_at_ms: now,
@@ -706,7 +718,14 @@ impl Room {
                     .run(
                         self.room_instance_id,
                         self.storage_version,
-                        json!({"kind":"normalize-party","party":party,"restore":false}),
+                        json!({
+                            "kind":"normalize-party",
+                            "party":party,
+                            "restore":false,
+                            "starterSelection":if self.parties.contains_key(player) { Value::Null } else {
+                                json!({"mode":self.starter_mode,"seed":format!("{}:{player}",self.room_instance_id)})
+                            },
+                        }),
                     )
                     .await?;
                 if self
@@ -784,7 +803,7 @@ impl Room {
             .run(
                 self.room_instance_id,
                 self.storage_version,
-                json!({"kind":"initial-party","seed":seed}),
+                json!({"kind":"initial-party","seed":seed,"starterSelection":{"mode":self.starter_mode,"seed":format!("{}:{id}",self.room_instance_id)}}),
             )
             .await?;
         let start_index = (Uuid::new_v4().as_u128() as usize) % AI_DISPLAY_NAMES.len();
@@ -1441,7 +1460,7 @@ impl Room {
             let members=p.competitive_party["members"].as_array()?;let active=members.iter().find(|m|m["slotIndex"]==p.competitive_party["activeSlotIndex"])?;
             Some((id.clone(),json!({"playerId":id,"displayName":self.participants.iter().find(|p|&p.player_id==id).map(|p|p.display_name.as_str()).unwrap_or(id),"representativePokemon":{"speciesId":active["speciesId"],"level":active["level"],"currentHp":active["currentHp"],"maxHp":active["maxHp"]},"partySize":members.len(),"updatedAtMs":p.updated_at_ms})))
         }).collect::<BTreeMap<_,_>>();
-        let mut result = json!({"roomCode":self.room_code,"roomInstanceId":self.room_instance_id,"backend":"rust","visibility":if self.public{"public"}else{"private"},"status":self.status,"createdAtMs":self.created_at_ms,"updatedAtMs":self.updated_at_ms,"revision":self.revision,"expiresAtMs":if self.terminal(){self.retention_deadline()}else{self.active_deadline()},"hostPlayerId":self.host(),"participants":self.participants.iter().map(Participant::public).collect::<Vec<_>>(),"partySnapshots":parties,"round":self.round,"tournament":{"version":2,"bracket":self.bracket,"activeMatchId":ready.first().map(|m|m.match_id.as_str()),"activeMatchAuthority":if !ready.is_empty(){Some("server")}else{None},"cumulativeScores":self.cumulative_scores},"finalStandings":self.final_standings,"competitiveAssignments":assignments,"competitiveTransitions":terminal.iter().map(|m|json!({"terminalEventId":m.terminal_event_id,"terminalRoomRevision":m.terminal_room_revision,"projection":m.projection()})).collect::<Vec<_>>()});
+        let mut result = json!({"roomCode":self.room_code,"roomInstanceId":self.room_instance_id,"backend":"rust","starterMode":self.starter_mode,"visibility":if self.public{"public"}else{"private"},"status":self.status,"createdAtMs":self.created_at_ms,"updatedAtMs":self.updated_at_ms,"revision":self.revision,"expiresAtMs":if self.terminal(){self.retention_deadline()}else{self.active_deadline()},"hostPlayerId":self.host(),"participants":self.participants.iter().map(Participant::public).collect::<Vec<_>>(),"partySnapshots":parties,"round":self.round,"tournament":{"version":2,"bracket":self.bracket,"activeMatchId":ready.first().map(|m|m.match_id.as_str()),"activeMatchAuthority":if !ready.is_empty(){Some("server")}else{None},"cumulativeScores":self.cumulative_scores},"finalStandings":self.final_standings,"competitiveAssignments":assignments,"competitiveTransitions":terminal.iter().map(|m|json!({"terminalEventId":m.terminal_event_id,"terminalRoomRevision":m.terminal_room_revision,"projection":m.projection()})).collect::<Vec<_>>()});
         if let Some(projection) = assignments.first() {
             result["competitive"] = projection.clone();
         }

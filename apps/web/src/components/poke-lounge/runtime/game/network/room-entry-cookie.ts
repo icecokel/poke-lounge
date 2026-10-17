@@ -3,6 +3,7 @@ import { POKE_LOUNGE_SESSION_MAX_LIFETIME_MS } from "@poke-lounge/battle/timing"
 import { normalizeRoomInstanceId, normalizeRoomRoundDurationMs } from "./room-entry";
 import { normalizeMultiplayerDisplayName, type RoomEntrySelection } from "./room-entry-screen";
 import { RUST_BACKEND_ENABLED } from "./rust-room-socket";
+import { isStarterMode } from "@poke-lounge/battle/starter-selection";
 
 export const PENDING_ROOM_ENTRY_MAX_AGE_SECONDS = 120;
 const TAB_STORAGE_KEY = "poke-lounge:room-cookie-tab";
@@ -78,6 +79,7 @@ export function writePendingRoomEntry(entry: PendingRoomEntry): void {
         quickPlay: selection.quickPlay,
         visibility: selection.visibility,
         roundDurationMs: selection.roundDurationMs,
+        starterMode: selection.starterMode,
         roomInstanceId: selection.roomInstanceId,
       },
     },
@@ -108,6 +110,7 @@ export function readPendingRoomEntry(accountId?: string): PendingRoomEntry | nul
       selection.visibility !== "private") ||
     (selection.roundDurationMs !== undefined &&
       normalizeRoomRoundDurationMs(selection.roundDurationMs) === null) ||
+    (selection.starterMode !== undefined && !isStarterMode(selection.starterMode)) ||
     (selection.roomInstanceId !== undefined &&
       !normalizeRoomInstanceId(selection.roomInstanceId)) ||
     typeof selection.displayName !== "string" ||
@@ -126,6 +129,7 @@ export function readPendingRoomEntry(accountId?: string): PendingRoomEntry | nul
       quickPlay: selection.quickPlay,
       visibility: selection.visibility,
       roundDurationMs: selection.roundDurationMs,
+      starterMode: selection.starterMode,
       roomInstanceId: selection.roomInstanceId,
     },
   };

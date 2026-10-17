@@ -1,4 +1,8 @@
 import { createStarterPlayerPokemon } from "@/features/poke-lounge/domain/player/create-starter-pokemon";
+import { getStarterSpeciesIds, type StarterSelection } from "@poke-lounge/battle/starter-selection";
+import { getRuntimePokemonSpeciesSummary } from "@poke-lounge/battle/adventure/data/game-data-json";
+import { getGen4TypeName } from "@poke-lounge/battle/adventure/battle/battle-rom-data";
+import { getBattlePokemonAssets } from "@poke-lounge/battle/adventure/battle/battle-pokemon-assets";
 import {
   captureClientDiagnosticSnapshot,
   reportClientDiagnostic,
@@ -416,7 +420,10 @@ export async function startGamePage(
         );
       }
     }
-    function requestInGameStarterSelection(onComplete: () => void): void {
+    function requestInGameStarterSelection(
+      onComplete: () => void,
+      selection?: StarterSelection,
+    ): void {
       void showStarterSelection(
         function finishInGameStarterSelection() {
           if (destroyed || activeMultiplayerRoom !== multiplayerRoom) return;
@@ -429,6 +436,7 @@ export async function startGamePage(
           starterState = state;
           emitCurrentGameplayState();
         },
+        selection,
       ).catch(function handleStarterLoadError(error) {
         if (destroyed || activeMultiplayerRoom !== multiplayerRoom) return;
         const errorCode = reportGameStartupFailure(error, "STARTER_DATA_FAILED", multiplayerRoom);
@@ -437,7 +445,7 @@ export async function startGamePage(
           description: copy.startup.description,
           errorCode,
           onRetry: function retryStarterSelection() {
-            requestInGameStarterSelection(onComplete);
+            requestInGameStarterSelection(onComplete, selection);
           },
           onReturnToEntry: function leaveAfterStarterError() {
             leaveAndReturnToRoomEntry();
@@ -707,6 +715,7 @@ export async function startGamePage(
   const showStarterSelection = async (
     afterSelection: () => void,
     publish: (state: PokeLoungeRuntimeState) => void = emitRuntimeState,
+    selection?: StarterSelection,
   ) => {
     const requestId = (starterSelectionRequestId += 1);
     publish({ phase: "loading", progress: { loaded: 0, total: 1, ratio: 0 } });
@@ -718,10 +727,28 @@ export async function startGamePage(
       return;
     }
 
+    const starters =
+      !selection || selection.mode === "classic"
+        ? bootstrap.starters
+        : getStarterSpeciesIds(selection).map(speciesId => {
+            const species = getRuntimePokemonSpeciesSummary(speciesId);
+            if (!species) throw new Error(`Missing starter species ${speciesId}`);
+            const sprite = getBattlePokemonAssets(speciesId).front;
+            return {
+              id: String(speciesId),
+              speciesId,
+              name: species.name,
+              displayName: species.name,
+              type: getGen4TypeName(species.typeIds[0]),
+              assetPath: sprite.path,
+              sprite,
+            };
+          });
+
     let completed = false;
     publish({
       phase: "starter",
-      bootstrap,
+      bootstrap: { ...bootstrap, starters },
       onSelect: starter => {
         if (destroyed || completed || requestId !== starterSelectionRequestId) {
           return;

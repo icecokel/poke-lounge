@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/constants";
+import { isStarterMode, type StarterMode } from "@poke-lounge/battle/starter-selection";
 import {
   captureClientDiagnosticFailure,
   createDiagnosticRequestId,
@@ -23,6 +24,7 @@ export interface PublicRoomSummary {
   humanParticipantCount: number;
   maxParticipants: number;
   roundDurationMs: RoomRoundDurationMs;
+  starterMode: StarterMode;
   createdAtMs: number;
   updatedAtMs: number;
   expiresAtMs: number;
@@ -137,6 +139,7 @@ function parsePublicRoomSummary(value: unknown): PublicRoomSummary {
     !roomInstanceId ||
     !status ||
     roundDurationMs === null ||
+    (value.starterMode !== undefined && !isStarterMode(value.starterMode)) ||
     typeof value.revision !== "number" ||
     !Number.isSafeInteger(value.revision) ||
     value.revision < 0 ||
@@ -162,6 +165,7 @@ function parsePublicRoomSummary(value: unknown): PublicRoomSummary {
     humanParticipantCount: value.humanParticipantCount,
     maxParticipants: value.maxParticipants,
     roundDurationMs,
+    starterMode: value.starterMode === undefined ? "classic" : (value.starterMode as StarterMode),
     createdAtMs: value.createdAtMs,
     updatedAtMs: value.updatedAtMs,
     expiresAtMs: value.expiresAtMs,

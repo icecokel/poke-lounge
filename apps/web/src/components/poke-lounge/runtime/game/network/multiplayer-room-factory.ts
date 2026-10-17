@@ -37,6 +37,7 @@ export function createMultiplayerRoom(options: MultiplayerRoomFactoryOptions): M
       quickPlay: roomEntry.quickPlay === true,
       visibility: roomEntry.visibility,
       roundDurationMs: roomEntry.roundDurationMs,
+      starterMode: roomEntry.starterMode,
       idToken: options.idToken,
       getIdToken: options.getIdToken,
       resumeRoom: options.resumeRoom,

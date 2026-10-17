@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STARTER_MODES } from "@poke-lounge/battle/starter-selection";
 import { AI_DIFFICULTIES } from "@poke-lounge/battle/ai-difficulty";
 import {
   COMPETITIVE_RULESET_HASH,
@@ -14,6 +15,7 @@ export const JOB_TIMEOUT_MS = 8_000;
 const boundedId = z.string().min(1).max(160);
 const aiDifficulty = z.enum(AI_DIFFICULTIES);
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+const starterSelection = z.strictObject({ mode: z.enum(STARTER_MODES), seed: boundedId });
 export const requestSchema = z.strictObject({
   protocolVersion: z.literal(1),
   requestId: z.uuid(),
@@ -25,8 +27,13 @@ export const requestSchema = z.strictObject({
       kind: z.literal("normalize-party"),
       party: z.unknown(),
       restore: z.boolean().default(false),
+      starterSelection: starterSelection.nullish(),
     }),
-    z.strictObject({ kind: z.literal("initial-party"), seed: boundedId }),
+    z.strictObject({
+      kind: z.literal("initial-party"),
+      seed: boundedId,
+      starterSelection: starterSelection.optional(),
+    }),
     z.strictObject({
       kind: z.literal("initialize"),
       players: z.array(z.strictObject({ playerId: boundedId, party: z.unknown() })).length(2),

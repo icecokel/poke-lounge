@@ -218,6 +218,7 @@ impl Rooms {
                     "humanParticipantCount": human_participant_count,
                     "maxParticipants": MAX_PARTICIPANTS,
                     "roundDurationMs": room.round.duration_ms,
+                    "starterMode": room.starter_mode,
                     "createdAtMs": room.created_at_ms,
                     "updatedAtMs": room.updated_at_ms,
                     "expiresAtMs": room.active_deadline(),

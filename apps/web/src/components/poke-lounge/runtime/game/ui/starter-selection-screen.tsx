@@ -9,6 +9,7 @@ import type { PokeLoungeRuntimeState } from "../game-page-state";
 import { playPokeLoungeSfx, primePokeLoungeAudio } from "../audio/poke-lounge-audio";
 import { localizePokemonName } from "../i18n/runtime-game-localization";
 import { getStarterSelectionCopy, getStarterTypeLabel } from "./starter-selection-copy";
+import { MobilePokemonThumbnail } from "../../../mobile/mobile-selection-cards";
 
 export function StarterSelectionScreen({
   copy,
@@ -246,6 +247,13 @@ function StarterSprite({
 }) {
   const [missing, setMissing] = useState(false);
   const name = localizePokemonName(starter.displayName, copy.locale);
+  if (starter.sprite) {
+    return (
+      <span role="img" aria-label={name}>
+        <MobilePokemonThumbnail sprite={starter.sprite} />
+      </span>
+    );
+  }
   return (
     <span
       className="grid size-[var(--sprite-size)] shrink-0 place-items-center [--sprite-size:56px] data-[preview=true]:[--sprite-size:64px]"

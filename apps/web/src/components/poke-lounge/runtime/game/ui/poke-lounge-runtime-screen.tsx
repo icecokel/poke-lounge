@@ -33,6 +33,8 @@ import {
 } from "../network/public-room-directory";
 import { getWebRtcSignalingCopy } from "../network/web-rtc-signaling-panel";
 import { StarterSelectionScreen } from "./starter-selection-screen";
+import { STARTER_MODES, type StarterMode } from "@poke-lounge/battle/starter-selection";
+import { getStarterModeCopy } from "./starter-mode-copy";
 
 const FAN_NOTICE_SEEN_COOKIE = "poke_lounge_fan_notice_seen";
 const FAN_NOTICE_COOKIE_MAX_AGE = 14 * 24 * 60 * 60;
@@ -120,6 +122,8 @@ function RoomEntryScreen({
   const [joinPrivateRoomCode, setJoinPrivateRoomCode] = useState("");
   const [roundDurationMs, setRoundDurationMs] =
     useState<(typeof ROUND_DURATION_OPTIONS_MS)[number]>(DEFAULT_ROUND_DURATION_MS);
+  const [starterMode, setStarterMode] = useState<StarterMode>("classic");
+  const starterCopy = getStarterModeCopy(copy.locale);
   const selectedRoundDurationIndex = ROUND_DURATION_OPTIONS_MS.indexOf(roundDurationMs);
   const [publicRooms, setPublicRooms] = useState<PublicRoomSummary[]>([]);
   const [publicRoomsLoading, setPublicRoomsLoading] = useState(false);
@@ -302,6 +306,7 @@ function RoomEntryScreen({
         createRoom: true,
         visibility: "public",
         roundDurationMs,
+        starterMode,
       });
       return;
     }
@@ -326,6 +331,7 @@ function RoomEntryScreen({
         createRoom: true,
         visibility: "private",
         roundDurationMs,
+        starterMode,
       });
     } catch {
       setPending(false);
@@ -534,6 +540,40 @@ function RoomEntryScreen({
                 onSubmit={handleCreateRoom}
                 data-room-entry-create-panel
               >
+                <fieldset
+                  className="m-0 grid grid-cols-2 gap-2 border-0 p-0 [&>legend]:col-span-full"
+                  disabled={pending}
+                  aria-describedby="starter-mode-description"
+                >
+                  <legend className="mb-2 text-xs font-black text-[#17201a]">
+                    {starterCopy.label}
+                  </legend>
+                  {STARTER_MODES.map(mode => (
+                    <label
+                      key={mode}
+                      className="relative grid min-h-11 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-1.5 rounded-md border-2 border-[#17231c] bg-[#fffef3] px-1.5 py-1.5 text-center text-xs leading-[1.45] font-black text-[#17201a] shadow-[0_3px_0_#8a958b] has-[:checked]:bg-[#fff1a8] has-[:checked]:shadow-[inset_6px_0_#5f8f70,0_3px_0_#17231c]"
+                    >
+                      <input
+                        type="radio"
+                        name="starter-mode"
+                        className="min-h-0! w-auto! p-0!"
+                        value={mode}
+                        checked={starterMode === mode}
+                        onChange={() => setStarterMode(mode)}
+                        data-room-entry-starter-mode={mode}
+                      />
+                      <span>{starterCopy.modes[mode]}</span>
+                    </label>
+                  ))}
+                </fieldset>
+                <p
+                  id="starter-mode-description"
+                  className="-mt-1 m-0 rounded-md bg-[#fff1a8] px-3 py-1.5 text-xs font-black leading-[1.45] text-[#66583a]"
+                  aria-live="polite"
+                >
+                  {starterCopy.descriptions[starterMode]}
+                  {starterMode !== "classic" ? ` ${starterCopy.pool}` : ""}
+                </p>
                 <fieldset
                   className="m-0 grid grid-cols-3 gap-2 border-0 p-0 [&>legend]:col-span-full"
                   disabled={pending}
@@ -883,6 +923,7 @@ function PublicRoomCard({
           </span>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-bold text-[#486164]">
+          <span>{getStarterModeCopy(copy.locale).modes[room.starterMode]}</span>
           <span className="inline-flex items-center gap-1">
             <Users className="size-3.5" aria-hidden="true" />
             {copy.roomEntry.publicRoomPlayers(room.participantCount, room.maxParticipants)}
