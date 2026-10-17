@@ -287,6 +287,8 @@ async function run(raw: unknown): Promise<ComputeResponse> {
       process.stderr.write(
         JSON.stringify({
           event: "compute.party_rejected",
+          requestId: input.requestId,
+          roomInstanceId: input.roomInstanceId,
           rule: partyRule,
         }) + "\n",
       );
