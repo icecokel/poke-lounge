@@ -110,6 +110,7 @@ export class CompetitivePartyValidationError extends Error {
 
 export function normalizeCompetitiveParty(
   party: CompetitivePartyInput,
+  { requireBattleReady = true }: { requireBattleReady?: boolean } = {},
 ): NormalizedCompetitiveParty {
   if (party.members.length === 0) {
     throw new CompetitivePartyValidationError("party-empty");
@@ -227,10 +228,11 @@ export function normalizeCompetitiveParty(
   if (!active) {
     throw new CompetitivePartyValidationError("active-slot-missing");
   }
-  if (active.currentHp === 0) {
+  if (requireBattleReady && active.currentHp === 0) {
     throw new CompetitivePartyValidationError("active-pokemon-fainted");
   }
   if (
+    requireBattleReady &&
     !members.some(function testItem(member) {
       return member.currentHp > 0;
     })

@@ -109,7 +109,9 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
   const op = input.operation;
   switch (op.kind) {
     case "normalize-party": {
-      const party = normalizeCompetitiveParty(partySchema.parse(op.party));
+      const party = normalizeCompetitiveParty(partySchema.parse(op.party), {
+        requireBattleReady: !op.restore,
+      });
       return op.restore ? restoreCompetitiveParty(party) : party;
     }
     case "accept-party":
@@ -157,7 +159,9 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
     case "initialize": {
       const players = op.players.map(p => ({
         playerId: p.playerId,
-        party: restoreCompetitiveParty(normalizeCompetitiveParty(partySchema.parse(p.party))),
+        party: restoreCompetitiveParty(
+          normalizeCompetitiveParty(partySchema.parse(p.party), { requireBattleReady: false }),
+        ),
       }));
       const draft = createInitialBattleState([players[0]!, players[1]!]);
       return pack(initializeGen4Canonical(draft, createSeededRandom(`${op.seed}:initial`)));
