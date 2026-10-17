@@ -2167,9 +2167,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     if (entry.roundIndex !== null && latestState && entry.roundIndex !== latestState.round.index) {
       pendingPartyPublication = null;
       clearPartyRetryTimer();
-      if (latestSharedWorldSnapshot?.party?.some(slot => slot.pokemon != null)) {
-        void submitPartySnapshot(latestSharedWorldSnapshot).catch(reportPartyPublicationFailure);
-      }
       return;
     }
     if (!canPublishParty(entry)) return;
