@@ -505,12 +505,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let hasSynchronizedPartySnapshot = false;
   type PendingPartyPublication = {
     snapshot: PlayerSnapshot;
+    roundIndex: number | null;
     idempotencyKey: string;
     publishing: boolean;
     waitForUnlock: boolean;
     recoveryAttempts: number;
   };
   let pendingPartyPublication: PendingPartyPublication | null = null;
+  let serverPartyLockRound: number | null = null;
   let partyRetryTimer: number | null = null;
   let mutationQueue: Promise<void> = Promise.resolve();
   let announcedCompetitiveAssignmentKey: string | null = null;
@@ -1740,7 +1742,13 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       hydratedTournamentRewards.add(reward.terminalEventId);
       void room.completeTournamentProgression!(reward.projection.matchId)
         .then(party => {
-          if (!disposed) emit("TOURNAMENT_REWARD", { party });
+          if (!disposed) {
+            if (pendingPartyPublication && !pendingPartyPublication.publishing) {
+              pendingPartyPublication = null;
+              clearPartyRetryTimer();
+            }
+            emit("TOURNAMENT_REWARD", { party });
+          }
         })
         .catch(error => {
           hydratedTournamentRewards.delete(reward.terminalEventId);
@@ -2118,8 +2126,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   function isPartySnapshotLocked(): boolean {
     return (
+      serverPartyLockRound === latestState?.round.index ||
       latestState?.status === "tournament" ||
       (latestState?.status === "round-started" && latestState.tournament.bracket != null) ||
+      (latestState?.status === "round-started" &&
+        latestState.round.endsAtMs != null &&
+        getServerNowMs() >= latestState.round.endsAtMs + TOURNAMENT_PROGRESSION_DEADLINE_MS) ||
       latestState?.status === "completed" ||
       latestState?.status === "closed"
     );
@@ -2131,6 +2143,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     // Preserve the initial reconciliation probe for an incomplete server snapshot.
     // Once a party or a lock response is known, never POST while locked.
     return (
+      serverPartyLockRound !== latestState?.round.index &&
       !entry.waitForUnlock &&
       !hasSynchronizedPartySnapshot &&
       !(latestState && Object.hasOwn(latestState.partySnapshots, serverPlayerId))
@@ -2150,7 +2163,16 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   function resumePendingPartyPublication(): void {
     const entry = pendingPartyPublication;
-    if (!entry || entry.publishing || !canPublishParty(entry)) return;
+    if (!entry || entry.publishing) return;
+    if (entry.roundIndex !== null && latestState && entry.roundIndex !== latestState.round.index) {
+      pendingPartyPublication = null;
+      clearPartyRetryTimer();
+      if (latestSharedWorldSnapshot?.party?.some(slot => slot.pokemon != null)) {
+        void submitPartySnapshot(latestSharedWorldSnapshot).catch(reportPartyPublicationFailure);
+      }
+      return;
+    }
+    if (!canPublishParty(entry)) return;
     clearPartyRetryTimer();
     void publishPartyEntry(entry).catch(reportPartyPublicationFailure);
   }
@@ -2195,13 +2217,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             "code" in response &&
             response.code === "POKE_LOUNGE_PARTY_SNAPSHOT_LOCKED"
           ) {
-            // This conflict has no embedded snapshot. Refresh it, retain the
-            // latest local party, and defer instead of treating rejection as saved.
+            // Remember the server lock even if the refreshed snapshot has no bracket yet.
+            serverPartyLockRound = latestState?.round.index ?? null;
             entry.waitForUnlock = true;
             const recovered = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
             applySnapshot(recovered);
-            if (isPartySnapshotLocked() || disposed || leaveSent) return;
-            if (attempt < 2) continue;
+            return;
           }
           if (getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE) {
             // mutateRoom already applied the newer server revision. The exact
@@ -2220,7 +2241,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           pendingPartyPublication = null;
           clearPartyRetryTimer();
         }
-        reportPartyPublicationFailure(error);
+        reportStateApplyFailure("PARTY_SNAPSHOT_REJECTED", error);
         return;
       }
       const revisionConflict = getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE;
@@ -2256,6 +2277,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     clearPartyRetryTimer();
     const entry: PendingPartyPublication = {
       snapshot: structuredClone(snapshot),
+      roundIndex: latestState?.round.index ?? null,
       idempotencyKey,
       publishing: false,
       waitForUnlock: false,
@@ -2533,13 +2555,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       if (!pending) scheduleRoomClockRefresh();
     },
     async synchronizePartyForTournament(snapshot) {
-      if (
-        isPartySnapshotLocked() ||
-        (latestState?.status === "round-started" &&
-          latestState.round.endsAtMs != null &&
-          getServerNowMs() >= latestState.round.endsAtMs + TOURNAMENT_PROGRESSION_DEADLINE_MS)
-      )
-        return;
+      if (isPartySnapshotLocked()) return;
       await submitPartySnapshot(snapshot);
       if (pendingPartyPublication && !isPartySnapshotLocked())
         throw new Error("Party synchronization is pending");
@@ -2571,6 +2587,10 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           applyExpectedTransitionSnapshot(next);
           const value = next.progressionParty;
           if (!value) throw new Error("Missing authoritative tournament reward party");
+          if (pendingPartyPublication && !pendingPartyPublication.publishing) {
+            pendingPartyPublication = null;
+            clearPartyRetryTimer();
+          }
           return value;
         } catch (error) {
           if (getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE && attempt < 2)
@@ -2677,6 +2697,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     finishReconnect?.(false);
     clearPartyRetryTimer();
     pendingPartyPublication = null;
+    serverPartyLockRound = null;
     emitConnectionStatus("offline");
     clearRecoveryTimer();
     clearInitialWorkflowTimer();
