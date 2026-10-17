@@ -1564,7 +1564,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       }
     }
 
-    if (options.sharedWorldOnly && room.roomCode === activeRoomId) {
+    if (room.roomCode === activeRoomId) {
       publishSharedWorldSnapshot("PLAYER_CHANGED_MAP");
     }
   };
@@ -2587,10 +2587,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
       if (connectStarted) {
         if (initialSnapshot && activeRoomId !== PENDING_ROOM_ID) {
-          if (options.sharedWorldOnly) {
-            latestSharedWorldSnapshot = structuredClone(initialSnapshot);
-            publishSharedWorldSnapshot("PLAYER_CHANGED_MAP");
-          }
+          latestSharedWorldSnapshot = structuredClone(initialSnapshot);
+          publishSharedWorldSnapshot("PLAYER_CHANGED_MAP");
           if (!options.sharedWorldOnly || options.competitiveRoundsEnabled) {
             void submitPartySnapshot(initialSnapshot).catch(reportPartyPublicationFailure);
           }
@@ -2621,21 +2619,18 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       }
 
       if (
-        options.sharedWorldOnly &&
-        (type === "PLAYER_MOVED" ||
-          type === "PLAYER_MOVEMENT_ENDED" ||
-          type === "PLAYER_CHANGED_MAP")
+        type === "PLAYER_MOVED" ||
+        type === "PLAYER_MOVEMENT_ENDED" ||
+        type === "PLAYER_CHANGED_MAP"
       ) {
         latestSharedWorldSnapshot = structuredClone(payload as PlayerSnapshot);
         publishSharedWorldSnapshot(type);
-        if (type === "PLAYER_CHANGED_MAP" && options.competitiveRoundsEnabled) {
+        if (
+          type === "PLAYER_CHANGED_MAP" &&
+          (!options.sharedWorldOnly || options.competitiveRoundsEnabled)
+        ) {
           void submitPartySnapshot(payload as PlayerSnapshot).catch(reportPartyPublicationFailure);
         }
-        return;
-      }
-
-      if (type === "PLAYER_CHANGED_MAP") {
-        void submitPartySnapshot(payload as PlayerSnapshot).catch(reportPartyPublicationFailure);
         return;
       }
 
