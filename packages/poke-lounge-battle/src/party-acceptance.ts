@@ -61,7 +61,7 @@ export function acceptPartySubmission(
   },
   data: RomPersonalRecordCollection,
 ): { party: NormalizedCompetitiveParty; roster: PartyRoster } {
-  const party = normalizeCompetitiveParty(proposed);
+  const party = normalizeCompetitiveParty(proposed, { requireBattleReady: false });
   const previousEntries = roster?.entries ?? [];
   const highWaterLevel = roster?.highWaterLevel ?? 0;
   const starter = previousEntries.length === 0;
