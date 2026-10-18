@@ -38,6 +38,10 @@ import {
   type RemotePlayerState,
 } from "../state/game-state-store";
 import type { TournamentSession } from "../tournament/tournament-session";
+import {
+  createTournamentResultPanelViewModel,
+  formatTournamentResultPanel,
+} from "../tournament/tournament-result-view-model";
 import type { RoomLobbyRuntimeState } from "../ui/room-lobby-screen";
 import { FIELD_MAP, NURSE_HEAL_DURATION_MS } from "../world/field-map";
 import { getTournamentGatheringContext } from "../world/tournament-gathering";
@@ -140,6 +144,8 @@ export function resolveWorldSpawn(
 }
 
 export class WorldController {
+  private readonly viewedRoundResultKeys = new Set<string>();
+  private previousRoundResultTimer: number | null = null;
   private tournamentGatheringKey: string | null = null;
   private roundStartGatheringKey: string | null = null;
   private remotePlayerSnapshots = new Map<string, PlayerSnapshot>();
@@ -252,6 +258,10 @@ export class WorldController {
     });
     this.options.worldUiStore.setActionHandler(
       function callback(this: WorldController, action: WorldUiAction): void {
+        if (action.type === "close-previous-round-result") {
+          this.closePreviousRoundResult();
+          return;
+        }
         if (
           this.tournamentGatheringKey !== null ||
           this.roomLobbyOpen ||
@@ -353,6 +363,7 @@ export class WorldController {
 
   shutdown(): void {
     if (this.shutdownComplete) return;
+    this.closePreviousRoundResult();
     const shouldDisposeRoom = shouldDisposeRoomOnWorldShutdown(
       this.encounters.isBattleIntroPlaying(),
       this.preserveRoomForBattle,
@@ -408,9 +419,53 @@ export class WorldController {
   ): void {
     this.hud.createRoundHud(nowMs, preparationDurationMs);
     this.tournament?.showResultPresentationIfNeeded();
+    this.showPreviousRoundResultIfNeeded();
+  }
+
+  private roundResultKey(roundIndex: number): string {
+    const state = this.gameStateStore.getState();
+    const roomId = state.session.roomId ?? state.tournament.serverProjection?.roomCode ?? "local";
+    return `${roomId}:${state.currentPlayerId}:${roundIndex}`;
+  }
+
+  private showPreviousRoundResultIfNeeded(): void {
+    const state = this.gameStateStore.getState();
+    const projection = state.tournament.serverProjection;
+    const result = state.tournament.lastRoundResult;
+    if (
+      !result ||
+      projection?.roomStatus !== "round-started" ||
+      projection.roundIndex !== result.roundIndex + 1 ||
+      this.viewedRoundResultKeys.has(this.roundResultKey(result.roundIndex))
+    )
+      return;
+    this.viewedRoundResultKeys.add(this.roundResultKey(result.roundIndex));
+    const panel = createTournamentResultPanelViewModel({
+      ...result,
+      totalRounds: state.round.totalRounds,
+      final: false,
+    });
+    this.options.worldUiStore.publishPresentation({
+      previousRoundResult: formatTournamentResultPanel(panel),
+    });
+    this.previousRoundResultTimer = window.setTimeout(
+      () => this.closePreviousRoundResult(),
+      10_000,
+    );
+  }
+
+  private closePreviousRoundResult(): void {
+    if (this.previousRoundResultTimer !== null) window.clearTimeout(this.previousRoundResultTimer);
+    this.previousRoundResultTimer = null;
+    this.options.worldUiStore.publishPresentation({ previousRoundResult: null });
   }
 
   private updateRoundClock(nowMs: number): void {
+    if (
+      this.previousRoundResultTimer !== null &&
+      this.gameStateStore.getState().tournament.serverProjection?.roomStatus !== "round-started"
+    )
+      this.closePreviousRoundResult();
     this.syncTournamentGathering(nowMs);
     this.hud.updateRound(nowMs);
 
@@ -426,6 +481,11 @@ export class WorldController {
       forceResult ||
       this.gameStateStore.getState().round.phase === "round-result" ||
       this.gameStateStore.getState().round.phase === "game-result";
+    if (result) {
+      this.viewedRoundResultKeys.add(
+        this.roundResultKey(this.gameStateStore.getState().round.roundIndex),
+      );
+    }
     this.options.worldUiStore.publishPresentation({
       tournamentAnnouncement: result ? null : text,
       tournamentResult: result ? text : null,

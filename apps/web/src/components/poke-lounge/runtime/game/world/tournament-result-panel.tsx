@@ -38,6 +38,7 @@ export function TournamentResultPanel({
   localizedText,
   onLobby,
   onNewGame,
+  onClose,
   rawText,
 }: {
   copy: PokeLoungeCopy;
@@ -46,10 +47,13 @@ export function TournamentResultPanel({
   localizedText: string;
   onLobby(): void;
   onNewGame(): void;
+  onClose?(): void;
   rawText: string | null;
 }) {
   const table = createTournamentResultTable(rawText, locale);
-  const title = table?.title ?? localizedText.split("\n")[0];
+  const title = onClose
+    ? localizeRuntimeText("지난 라운드 결과", locale)
+    : (table?.title ?? localizedText.split("\n")[0]);
   const actions = (
     <div className="grid grid-cols-2 gap-2 [&_button]:min-h-12 [&_button]:rounded-[7px] [&_button]:border-2 [&_button]:border-[#577781] [&_button]:bg-[linear-gradient(#fffdf0_50%,#dce7e2_50%)] [&_button]:font-bold [&_button]:text-[#304550] [&_button]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#304550]">
       <Button type="button" variant="outline" onClick={onLobby}>
@@ -79,6 +83,11 @@ export function TournamentResultPanel({
         <header className="flex items-center gap-2.5 rounded-md border-2 border-[#78909b] border-b-[3px] border-b-[#b89a4b] bg-[linear-gradient(#dcebf0_50%,#edf3ed_50%)] px-3 py-2.5 text-base leading-[1.45] whitespace-normal text-[#304550] [&>span]:grid [&>span]:size-[30px] [&>span]:shrink-0 [&>span]:place-items-center [&>span]:rounded-full [&>span]:border-2 [&>span]:border-[#a3893e] [&>span]:bg-[#f8dc7d] [&>span]:text-[#775b22] [&>span]:before:content-['★']">
           <span aria-hidden="true" />
           <strong>{title}</strong>
+          {onClose ? (
+            <Button type="button" variant="outline" onClick={onClose} className="ml-auto">
+              {copy.settingsClose}
+            </Button>
+          ) : null}
         </header>
       ) : null}
       {table ? (
@@ -156,7 +165,7 @@ export function TournamentResultPanel({
               </tbody>
             </table>
           </div>
-          {table.statusLabel ? (
+          {table.statusLabel && !onClose ? (
             <p className="m-0 rounded-md border border-[#b0bdab] bg-[#f3f6ec] px-3 py-2 text-center text-xs font-black text-[#52614c]">
               {table.statusLabel}
             </p>

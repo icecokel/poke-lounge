@@ -111,6 +111,18 @@ export function formatTournamentResultRow(row: TournamentResultRow): string {
   return `${championLabel}${tieLabel}${row.rankLabel} ${truncateDisplayName(row.displayName)} · ${row.roundScoreLabel} · ${row.cumulativeScoreLabel}`;
 }
 
+export function formatTournamentResultPanel(panel: TournamentResultPanelViewModel): string {
+  return [
+    panel.title,
+    panel.roundWinnerLabel,
+    ...panel.rows.map(formatTournamentResultRow),
+    panel.rankingLabel,
+    panel.nextActionLabel,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function createRoundWinnerLabel(
   standings: ReadonlyArray<TournamentStanding>,
   roundScores: TournamentResultScoreLookup | undefined,

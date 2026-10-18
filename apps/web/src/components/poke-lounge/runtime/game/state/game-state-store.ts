@@ -12,6 +12,7 @@ import type {
   PlayerInventory,
 } from "@/features/poke-lounge/contracts/game-state";
 import * as playerOperations from "@/features/poke-lounge/domain/player/operations";
+import { createVisibleTournamentStandings } from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
 import type { PlayerChange } from "@/features/poke-lounge/domain/player/player-change";
 import {
   healLocalPlayer,
@@ -631,6 +632,7 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
           ...state.tournament,
           session,
           serverProjection: input,
+          lastRoundResult: roomChanged ? null : state.tournament.lastRoundResult,
           scoresByPlayerId: { ...input.tournament.cumulativeScores },
           standings: rows ?? (roomChanged ? [] : state.tournament.standings),
           lastRoundScores:
@@ -647,6 +649,20 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
                   : state.tournament.lastRoundScores,
         },
       };
+      if (bracket?.status === "completed" && rows && rows.length > 0) {
+        state = {
+          ...state,
+          tournament: {
+            ...state.tournament,
+            lastRoundResult: {
+              roundIndex: input.roundIndex,
+              standings: createVisibleTournamentStandings(state),
+              roundScores: state.tournament.lastRoundScores.map(row => ({ ...row })),
+              cumulativeScores: { ...input.tournament.cumulativeScores },
+            },
+          },
+        };
+      }
       if (shouldRestoreCurrentParty) {
         persistLocalPlayers();
       }
@@ -841,6 +857,7 @@ export function createDefaultGameTournamentState(): GameTournamentState {
     serverProjection: null,
     scoresByPlayerId: {},
     lastRoundScores: [],
+    lastRoundResult: null,
     standings: [],
   };
 }

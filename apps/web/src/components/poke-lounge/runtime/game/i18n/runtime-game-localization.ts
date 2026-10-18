@@ -334,6 +334,7 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
   "토너먼트 진행": { "en-US": "Tournament in progress", "ja-JP": "トーナメント進行中" },
   결과: { "en-US": "Result", "ja-JP": "結果" },
   "최종 결과": { "en-US": "Final results", "ja-JP": "最終結果" },
+  "지난 라운드 결과": { "en-US": "Previous round results", "ja-JP": "前のラウンドの結果" },
   "출발 준비": { "en-US": "Ready to start", "ja-JP": "出発準備" },
   "포켓몬 선택 대기": { "en-US": "Waiting for starter selections", "ja-JP": "パートナー選択待ち" },
   "포켓몬 선택 대기 · 모두 선택하면 함께 출발": {
