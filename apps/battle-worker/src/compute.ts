@@ -13,7 +13,9 @@ import { getCompetitiveActionPlayerIds } from "@poke-lounge/battle/actions";
 import {
   normalizeCompetitiveParty,
   restoreCompetitiveParty,
+  CompetitivePartyValidationError,
 } from "@poke-lounge/battle/competitive-party";
+import { acceptPartySubmission, PartyAcceptanceError } from "@poke-lounge/battle/party-acceptance";
 import { chooseAiCompetitiveAction, createAiStarterParty } from "@poke-lounge/battle/ai-policy";
 import { getStarterSpeciesIds } from "@poke-lounge/battle/starter-selection";
 import {
@@ -108,7 +110,9 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
   const op = input.operation;
   switch (op.kind) {
     case "normalize-party": {
-      const party = normalizeCompetitiveParty(partySchema.parse(op.party));
+      const party = normalizeCompetitiveParty(partySchema.parse(op.party), {
+        requireBattleReady: !op.restore,
+      });
       if (op.starterSelection) {
         await getContext();
         const candidates = getStarterSpeciesIds(op.starterSelection);
@@ -122,6 +126,16 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
       }
       return op.restore ? restoreCompetitiveParty(party) : party;
     }
+    case "accept-party":
+      return acceptPartySubmission(
+        {
+          proposed: partySchema.parse(op.party),
+          roster: op.roster,
+          nowMs: op.nowMs,
+          trusted: op.trusted,
+        },
+        (await getContext()).pokemonData,
+      );
     case "settle-tournament": {
       const next = settleTournamentExperience(state(op.state));
       next.tournamentRewardParties = Object.fromEntries(
@@ -158,7 +172,9 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
     case "initialize": {
       const players = op.players.map(p => ({
         playerId: p.playerId,
-        party: restoreCompetitiveParty(normalizeCompetitiveParty(partySchema.parse(p.party))),
+        party: restoreCompetitiveParty(
+          normalizeCompetitiveParty(partySchema.parse(p.party), { requireBattleReady: false }),
+        ),
       }));
       const draft = createInitialBattleState([players[0]!, players[1]!]);
       return pack(initializeGen4Canonical(draft, createSeededRandom(`${op.seed}:initial`)));
@@ -269,7 +285,31 @@ async function run(raw: unknown): Promise<ComputeResponse> {
   try {
     return { ...identity, ok: true, data: await calculate(input) };
   } catch (error) {
+    const partyRule =
+      error instanceof PartyAcceptanceError
+        ? error.rule
+        : error instanceof CompetitivePartyValidationError
+          ? error.reason
+          : error instanceof z.ZodError
+            ? "party-schema-invalid"
+            : null;
+    if (
+      (input.operation.kind === "accept-party" || input.operation.kind === "normalize-party") &&
+      partyRule !== null
+    ) {
+      process.stderr.write(
+        JSON.stringify({
+          event: "compute.party_rejected",
+          requestId: input.requestId,
+          roomInstanceId: input.roomInstanceId,
+          rule: partyRule,
+        }) + "\n",
+      );
+    }
     const invalid =
+      error instanceof PartyAcceptanceError ||
+      (input.operation.kind === "accept-party" &&
+        error instanceof CompetitivePartyValidationError) ||
       error instanceof z.ZodError ||
       input.operation.kind === "validate" ||
       input.operation.kind === "complete-progression" ||

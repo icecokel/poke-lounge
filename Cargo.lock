@@ -1010,6 +1010,7 @@ dependencies = [
  "axum",
  "file-rotate",
  "futures-util",
+ "ipnet",
  "redis",
  "reqwest",
  "serde",

@@ -147,6 +147,7 @@ export class WorldController {
   private roomConnected = false;
   private pendingRoomMessages: Array<{ type: RoomMessage; payload: RoomEvent[RoomMessage] }> = [];
   private lastLocalSnapshotSyncKey = "";
+  private lastLocalSnapshotPlayer: LocalPlayerState | null = null;
   private shutdownComplete = false;
   private hud!: WorldSceneHudController;
   private tournament: WorldSceneTournamentController | null = null;
@@ -381,6 +382,7 @@ export class WorldController {
     this.options.worldFrameStore.clear();
     this.options.worldUiStore.clear();
     this.lastLocalSnapshotSyncKey = "";
+    this.lastLocalSnapshotPlayer = null;
     this.isMovementActive = false;
     if (shouldDisposeRoom) {
       this.room.dispose();
@@ -794,12 +796,17 @@ export class WorldController {
 
   private bindLocalSnapshotSync(): void {
     this.lastLocalSnapshotSyncKey = this.createLocalSnapshotSyncKey();
+    this.lastLocalSnapshotPlayer = this.gameStateStore.getCurrentLocalPlayer();
     this.unsubscribers.push(
       this.gameStateStore.subscribe(
         function callback(this: WorldController): void {
           if (!this.roomConnected || !this.started) {
             return;
           }
+
+          const player = this.gameStateStore.getCurrentLocalPlayer();
+          if (player === this.lastLocalSnapshotPlayer) return;
+          this.lastLocalSnapshotPlayer = player;
 
           const nextSnapshotSyncKey = this.createLocalSnapshotSyncKey();
 

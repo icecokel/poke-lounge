@@ -5,10 +5,12 @@ import {
   getRoundRemainingMs,
   type GameRoundState,
 } from "../round/round-state";
-import type {
-  GameStateStore,
-  PlayerCompetitiveStats,
-  PlayerPokemon,
+import {
+  isRemotePlayersOnlyChange,
+  type GameState,
+  type GameStateStore,
+  type PlayerCompetitiveStats,
+  type PlayerPokemon,
 } from "../state/game-state-store";
 import { usesPokeLoungeMobileShell } from "../ui/mobile-ui-capability";
 import type { WorldUiStore } from "../world/world-ui-store";
@@ -65,6 +67,7 @@ export function createWorldSceneHud(
 class DefaultWorldSceneHud implements WorldSceneHudController {
   private partyHudSubscribed = false;
   private pokemonStatusPanelSlotIndex: number | null = null;
+  private lastRenderedState: GameState | null = null;
 
   constructor(private readonly dependencies: WorldSceneHudDependencies) {}
 
@@ -96,6 +99,10 @@ class DefaultWorldSceneHud implements WorldSceneHudController {
     this.dependencies.addUnsubscriber(
       this.dependencies.gameStateStore.subscribe(
         function callback(this: DefaultWorldSceneHud): void {
+          const next = this.dependencies.gameStateStore.getState();
+          const previous = this.lastRenderedState;
+          this.lastRenderedState = next;
+          if (previous && isRemotePlayersOnlyChange(previous, next)) return;
           return this.render();
         }.bind(this),
       ),
@@ -103,6 +110,7 @@ class DefaultWorldSceneHud implements WorldSceneHudController {
   }
 
   render(): void {
+    this.lastRenderedState = this.dependencies.gameStateStore.getState();
     if (
       this.pokemonStatusPanelSlotIndex !== null &&
       !this.getPartyPokemonBySlotIndex(this.pokemonStatusPanelSlotIndex)

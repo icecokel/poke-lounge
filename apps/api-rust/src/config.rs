@@ -1,6 +1,10 @@
 use crate::error::{AppError, AppResult};
 use axum::http::HeaderValue;
-use std::{env, net::SocketAddr, time::Duration};
+use std::{
+    env,
+    net::{IpAddr, SocketAddr},
+    time::Duration,
+};
 pub const REDIS_PREFIX: &str = "poke-lounge:{rust-v2}";
 pub const MAX_ROOMS: usize = 30;
 pub const MAX_ACTORS: usize = 64;
@@ -9,12 +13,17 @@ pub const IO_TIMEOUT: Duration = Duration::from_secs(2);
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 pub const OWNER_LEASE_MS: u64 = 15_000;
 pub const OWNER_RENEWAL: Duration = Duration::from_secs(3);
+// Stop serving before the lease can expire under us: one renewal interval plus one IO timeout of margin.
+pub const OWNER_STOP_AFTER: Duration = Duration::from_millis(OWNER_LEASE_MS - 3_000 - 2_000);
+pub const OWNER_ACQUIRE_WAIT: Duration = Duration::from_millis(OWNER_LEASE_MS + 5_000);
+pub const OWNER_ACQUIRE_RETRY: Duration = Duration::from_secs(1);
 pub struct Config {
     pub bind: SocketAddr,
     pub redis_url: String,
     pub worker_url: String,
     pub worker_token: String,
     pub allowed_origins: Vec<HeaderValue>,
+    pub trusted_proxies: Vec<ipnet::IpNet>,
     pub database: tokio_postgres::Config,
 }
 impl Config {
@@ -69,6 +78,18 @@ impl Config {
                     .map_err(|_| AppError::Configuration("Invalid CORS header"))?,
             );
         }
+        let trusted_proxies = env::var("RUST_API_TRUSTED_PROXIES")
+            .unwrap_or_default()
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| {
+                value
+                    .parse::<ipnet::IpNet>()
+                    .or_else(|_| value.parse::<IpAddr>().map(ipnet::IpNet::from))
+                    .map_err(|_| AppError::Configuration("Invalid RUST_API_TRUSTED_PROXIES"))
+            })
+            .collect::<AppResult<Vec<_>>>()?;
         let mut database = tokio_postgres::Config::new();
         database
             .host(env::var("DB_HOST").unwrap_or_else(|_| "127.0.0.1".into()))
@@ -92,6 +113,7 @@ impl Config {
             worker_url,
             worker_token,
             allowed_origins,
+            trusted_proxies,
             database,
         })
     }

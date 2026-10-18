@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { STARTER_MODES } from "@poke-lounge/battle/starter-selection";
 import { AI_DIFFICULTIES } from "@poke-lounge/battle/ai-difficulty";
+import { PARTY_ROSTER_LIMIT } from "@poke-lounge/battle/party-acceptance";
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
@@ -16,6 +17,21 @@ const boundedId = z.string().min(1).max(160);
 const aiDifficulty = z.enum(AI_DIFFICULTIES);
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const starterSelection = z.strictObject({ mode: z.enum(STARTER_MODES), seed: boundedId });
+const rosterSchema = z.strictObject({
+  version: z.literal(1),
+  highWaterLevel: integer.min(1).max(100),
+  entries: z
+    .array(
+      z.strictObject({
+        ivKey: z.string().regex(/^(?:[0-9]|[12][0-9]|3[01])(?:-(?:[0-9]|[12][0-9]|3[01])){5}$/),
+        speciesId: integer.min(1).max(493),
+        level: integer.min(1).max(100),
+        moveIds: z.array(integer.min(1).max(470)).max(4),
+        updatedAtMs: integer,
+      }),
+    )
+    .max(PARTY_ROSTER_LIMIT),
+});
 export const requestSchema = z.strictObject({
   protocolVersion: z.literal(1),
   requestId: z.uuid(),
@@ -33,6 +49,13 @@ export const requestSchema = z.strictObject({
       kind: z.literal("initial-party"),
       seed: boundedId,
       starterSelection: starterSelection.optional(),
+    }),
+    z.strictObject({
+      kind: z.literal("accept-party"),
+      party: z.unknown(),
+      roster: rosterSchema.nullable(),
+      nowMs: integer,
+      trusted: z.boolean(),
     }),
     z.strictObject({
       kind: z.literal("initialize"),
