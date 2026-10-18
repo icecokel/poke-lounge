@@ -191,12 +191,7 @@ export function MobileGameShell({
   );
   const worldState = rawWorldState ? localizeMobileWorldUiState(rawWorldState, copy.locale) : null;
 
-  const battleControls = useSyncExternalStore(
-    battleUiStore?.subscribe ?? subscribeToNothing,
-    () => battleUiStore?.getSnapshot().controls ?? null,
-    () => null,
-  );
-  const sceneContext = `${activeScene}:${activeScene === "battle" ? (battleControls?.selectionKey ?? battleControls?.phase) : "world"}`;
+  const sceneContext = activeScene;
   const previousContext = useRef(sceneContext);
   const { open: settingsOpen, onClose: closeSettings } = settings;
   useEffect(() => {
