@@ -1,5 +1,6 @@
 /** Rust 서버 응답의 단일 TS 정의. 원본은 domain.rs의 snapshot/public/projection/progression_snapshot. 바꾸면 `pnpm check:rust-room-contract`. */
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
+import type { StarterMode } from "@poke-lounge/battle/starter-selection";
 import type { BattleStatStages } from "@poke-lounge/battle/battle-stat-stages";
 import type { ResolvedTurnPresentation } from "@poke-lounge/battle/battle-presentation";
 import type { NormalizedCompetitiveParty } from "@poke-lounge/battle/competitive-party";
@@ -11,6 +12,7 @@ export const RUST_ROOM_SNAPSHOT_KEYS = [
   "roomCode",
   "roomInstanceId",
   "backend",
+  "starterMode",
   "visibility",
   "status",
   "createdAtMs",
@@ -167,6 +169,7 @@ export interface RustRoomSnapshot {
   roomCode: string;
   roomInstanceId: string;
   backend: "rust";
+  starterMode: StarterMode;
   visibility: "public" | "private";
   status: "waiting" | "round-started" | "tournament" | "completed" | "closed";
   createdAtMs: number;

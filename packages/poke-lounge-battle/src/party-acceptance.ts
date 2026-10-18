@@ -10,6 +10,7 @@ import {
   type PokemonEvolutionTable,
 } from "./adventure/battle/pokemon-evolution";
 import type { RomPersonalRecordCollection } from "./adventure/battle/wild-battle-factory";
+import { getStarterSpeciesIds, type StarterSelection } from "./starter-selection";
 
 export const STARTER_SPECIES_IDS = [1, 4, 7, 152, 155, 158] as const;
 export const STARTER_LEVEL = 10;
@@ -53,11 +54,13 @@ export function acceptPartySubmission(
     roster,
     nowMs,
     trusted,
+    starterSelection,
   }: {
     proposed: CompetitivePartyInput;
     roster: PartyRoster | null;
     nowMs: number;
     trusted: boolean;
+    starterSelection?: StarterSelection | null;
   },
   data: RomPersonalRecordCollection,
 ): { party: NormalizedCompetitiveParty; roster: PartyRoster } {
@@ -69,7 +72,9 @@ export function acceptPartySubmission(
     !trusted &&
     starter &&
     (party.members.length !== 1 ||
-      !STARTER_SPECIES_IDS.some(id => id === party.members[0].speciesId) ||
+      !(starterSelection ? getStarterSpeciesIds(starterSelection) : STARTER_SPECIES_IDS).some(
+        id => id === party.members[0].speciesId,
+      ) ||
       party.members[0].level !== STARTER_LEVEL)
   ) {
     throw new PartyAcceptanceError("starter");

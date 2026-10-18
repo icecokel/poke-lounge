@@ -769,6 +769,9 @@ impl Room {
                             "roster":self.parties.get(player).map(|p| p.roster.clone()).unwrap_or(Value::Null),
                             "nowMs":now,
                             "trusted":false,
+                            "starterSelection":if self.parties.contains_key(player) { Value::Null } else {
+                                json!({"mode":self.starter_mode,"seed":format!("{}:{player}",self.room_instance_id)})
+                            },
                         }),
                     )
                     .await

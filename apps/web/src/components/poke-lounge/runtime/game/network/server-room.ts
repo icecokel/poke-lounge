@@ -103,7 +103,6 @@ interface ServerRoomState
       | "competitive"
     >,
     Partial<Pick<RustProgressionSnapshot, "progressionParty">> {
-  starterMode: StarterMode;
   participants: ServerParticipant[];
   tournament: ServerTournamentState;
   competitiveTransitions: CompetitiveTerminalTransition[];

@@ -56,6 +56,7 @@ export const requestSchema = z.strictObject({
       roster: rosterSchema.nullable(),
       nowMs: integer,
       trusted: z.boolean(),
+      starterSelection: starterSelection.nullish(),
     }),
     z.strictObject({
       kind: z.literal("initialize"),

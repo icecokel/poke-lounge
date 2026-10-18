@@ -133,6 +133,7 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
           roster: op.roster,
           nowMs: op.nowMs,
           trusted: op.trusted,
+          starterSelection: op.starterSelection,
         },
         (await getContext()).pokemonData,
       );
