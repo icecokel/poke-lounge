@@ -413,6 +413,16 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       };
       if (!disposed) {
         recordClientBreadcrumb("request.failed", trace);
+        const response = error instanceof ServerRoomRequestError ? error.responseBody : null;
+        if (
+          error instanceof ServerRoomRequestError &&
+          error.status === 409 &&
+          response !== null &&
+          typeof response === "object" &&
+          "code" in response &&
+          response.code === REVISION_CONFLICT_CODE
+        )
+          throw error;
         const snapshot = captureClientDiagnosticFailure(error, trace);
         reportClientDiagnostic({
           kind: "api",
