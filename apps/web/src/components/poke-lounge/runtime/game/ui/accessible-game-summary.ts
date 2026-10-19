@@ -30,7 +30,7 @@ interface AccessibleSummaryCopy {
     status: string,
     moves: string,
   ): string;
-  partyBasic(partySize: number, pokemon: PlayerPokemon): string;
+  partyBasic(partySize: number, pokemon: Pick<PlayerPokemon, "name" | "level">): string;
   hp(currentHp: number, maxHp: number): string;
   hpUnknown: string;
   status(status: string): string;
@@ -161,6 +161,7 @@ const ACCESSIBLE_SUMMARY_COPY: Record<PokeLoungeLocale, AccessibleSummaryCopy> =
 
 export interface AccessibleGameSummaryOptions {
   omitMutablePartyState?: boolean;
+  battlePokemon?: Pick<PlayerPokemon, "name" | "level">;
 }
 
 export function createAccessibleGameSummary(
@@ -194,7 +195,11 @@ export function createAccessibleGameSummary(
     ? options.omitMutablePartyState
       ? copy.partyBasic(partySize, {
           ...activePokemon,
-          name: localizePokemonName(activePokemon.name, resolvedLocale),
+          ...options.battlePokemon,
+          name: localizePokemonName(
+            options.battlePokemon?.name ?? activePokemon.name,
+            resolvedLocale,
+          ),
         })
       : createPokemonSummary(activePokemon, partySize, copy, resolvedLocale)
     : copy.noParty;

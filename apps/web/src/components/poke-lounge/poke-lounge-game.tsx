@@ -146,7 +146,6 @@ export function PokeLoungeGame() {
   const copy = getPokeLoungeCopy(locale);
   const sentenceEnd = copy.locale === "ja-JP" ? "。" : ".";
   const [activeGameScene, setActiveGameScene] = useState<"battle" | "world" | null>(null);
-  const accessibleGameStatus = usePokeLoungeAccessibleStatus(locale, activeGameScene);
   const pageRef = useRef<HTMLElement>(null);
   const viewportUpdateRef = useRef<(() => void) | null>(null);
   const gamePageHandleRef = useRef<GamePageHandle | null>(null);
@@ -215,6 +214,11 @@ export function PokeLoungeGame() {
     runtimeState.phase === "lobby"
       ? runtimeState.battle.uiStore
       : undefined;
+  const accessibleGameStatus = usePokeLoungeAccessibleStatus(
+    locale,
+    activeGameScene,
+    battleUiStore,
+  );
   const roomLeaveLabel =
     runtimeState.phase === "world" ||
     runtimeState.phase === "battle" ||

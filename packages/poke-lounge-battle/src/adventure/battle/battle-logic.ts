@@ -128,6 +128,8 @@ export function applyPendingBattleExperienceReward(state: BattleScreenState): Ba
       { ...state.player, party: reward.party ?? state.player.party },
       reward.pokemon,
     ),
+    // Combat HP frames must not override level-up or evolution gains.
+    messageHpSnapshots: undefined,
     pendingExperienceReward: null,
   };
 }
