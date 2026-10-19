@@ -128,10 +128,8 @@ export function applyPendingBattleExperienceReward(state: BattleScreenState): Ba
       { ...state.player, party: reward.party ?? state.player.party },
       reward.pokemon,
     ),
-    messageHpSnapshots: state.messageHpSnapshots?.map(snapshot => ({
-      ...snapshot,
-      playerCurrentHp: reward.pokemon.currentHp,
-    })),
+    // Combat HP frames must not override level-up or evolution gains.
+    messageHpSnapshots: undefined,
     pendingExperienceReward: null,
   };
 }
