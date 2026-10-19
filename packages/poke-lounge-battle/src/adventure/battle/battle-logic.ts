@@ -128,6 +128,10 @@ export function applyPendingBattleExperienceReward(state: BattleScreenState): Ba
       { ...state.player, party: reward.party ?? state.player.party },
       reward.pokemon,
     ),
+    messageHpSnapshots: state.messageHpSnapshots?.map(snapshot => ({
+      ...snapshot,
+      playerCurrentHp: reward.pokemon.currentHp,
+    })),
     pendingExperienceReward: null,
   };
 }

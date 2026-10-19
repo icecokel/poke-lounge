@@ -11,10 +11,12 @@ import {
   type PokeLoungeAccessibleStatusDetail,
 } from "./runtime/game/ui/poke-lounge-ui-events";
 import { resolvePokeLoungeLocale } from "./poke-lounge-copy";
+import type { BattleUiStore } from "./runtime/game/battle/battle-ui-store";
 
 export function usePokeLoungeAccessibleStatus(
   locale?: string | null,
   activeScene?: "battle" | "world" | null,
+  battleUiStore?: BattleUiStore,
 ): string {
   const resolvedLocale = resolvePokeLoungeLocale(locale);
   const [gameSummary, setGameSummary] = useState(function callback() {
@@ -28,8 +30,10 @@ export function usePokeLoungeAccessibleStatus(
     function runEffect() {
       const store = getDefaultGameStateStore();
       const syncSummary = () => {
+        const battle = activeScene === "battle" ? battleUiStore?.getSnapshot().presentation : null;
         const nextSummary = createAccessibleGameSummary(store.getState(), resolvedLocale, {
           omitMutablePartyState: activeScene === "battle",
+          battlePokemon: battle && !battle.authoritative.spectating ? battle.player : undefined,
         });
         setGameSummary(function callback(currentSummary) {
           return currentSummary === nextSummary ? currentSummary : nextSummary;
@@ -37,9 +41,14 @@ export function usePokeLoungeAccessibleStatus(
       };
 
       syncSummary();
-      return store.subscribe(syncSummary);
+      const unsubscribeGame = store.subscribe(syncSummary);
+      const unsubscribeBattle = battleUiStore?.subscribe(syncSummary);
+      return () => {
+        unsubscribeGame();
+        unsubscribeBattle?.();
+      };
     },
-    [activeScene, resolvedLocale],
+    [activeScene, resolvedLocale, battleUiStore],
   );
 
   useEffect(
