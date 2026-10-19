@@ -19,6 +19,8 @@ pub enum AppError {
     Closed,
     #[error("Poke Lounge room is full")]
     RoomFull,
+    #[error("Room code is already in use")]
+    RoomCodeInUse,
     #[error("Room has already started")]
     RoomAlreadyStarted,
     #[error("Room participant identity does not match")]
@@ -67,6 +69,7 @@ impl IntoResponse for AppError {
             Self::NotFound => (StatusCode::NOT_FOUND, "ROOM_NOT_FOUND"),
             Self::Closed => (StatusCode::GONE, "ROOM_CLOSED"),
             Self::RoomFull => (StatusCode::CONFLICT, "POKE_LOUNGE_ROOM_FULL"),
+            Self::RoomCodeInUse => (StatusCode::CONFLICT, "POKE_LOUNGE_ROOM_CODE_IN_USE"),
             Self::RoomAlreadyStarted => {
                 (StatusCode::BAD_REQUEST, "POKE_LOUNGE_ROOM_ALREADY_STARTED")
             }

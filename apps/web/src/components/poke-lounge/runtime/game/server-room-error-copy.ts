@@ -31,6 +31,7 @@ const SERVER_ROOM_ERROR_MESSAGES = {
     ROOM_RESPONSE_INVALID:
       "서버 응답이 예상한 형식과 다릅니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.",
     ROOM_CREATE_FAILED: "서버 방을 만들지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
+    ROOM_CODE_IN_USE: "이미 사용 중인 방 코드입니다. 다른 코드를 입력해 주세요.",
     ROOM_JOIN_FAILED:
       "서버 방에 참가하지 못했습니다. 방 코드와 연결을 확인한 뒤 다시 시도해 주세요.",
     ROOM_PARTY_SYNC_FAILED: "파티 정보를 서버와 동기화하지 못했습니다. 다시 시도해 주세요.",
@@ -66,6 +67,7 @@ const SERVER_ROOM_ERROR_MESSAGES = {
     ROOM_RESPONSE_INVALID:
       "The server response did not match the expected format. Reload the page and try again.",
     ROOM_CREATE_FAILED: "Couldn't create the server room. Check your connection and try again.",
+    ROOM_CODE_IN_USE: "This room code is already in use. Enter a different code.",
     ROOM_JOIN_FAILED:
       "Couldn't join the server room. Check the room code and your connection, then try again.",
     ROOM_PARTY_SYNC_FAILED: "Couldn't sync your party with the server. Try again.",
@@ -106,6 +108,7 @@ const SERVER_ROOM_ERROR_MESSAGES = {
       "サーバーの応答が想定した形式と異なります。ページを再読み込みして、もう一度お試しください。",
     ROOM_CREATE_FAILED:
       "サーバールームを作成できませんでした。接続を確認して、もう一度お試しください。",
+    ROOM_CODE_IN_USE: "このルームコードは使用中です。別のコードを入力してください。",
     ROOM_JOIN_FAILED:
       "サーバールームに参加できませんでした。ルームコードと接続を確認して、もう一度お試しください。",
     ROOM_PARTY_SYNC_FAILED:
@@ -136,6 +139,7 @@ const SERVER_ROOM_ERROR_TITLES = {
     ROOM_NETWORK_FAILED: "서버 응답을 받지 못했습니다",
     ROOM_RESPONSE_INVALID: "서버 응답을 해석할 수 없습니다",
     ROOM_CREATE_FAILED: "방을 만들지 못했습니다",
+    ROOM_CODE_IN_USE: "이미 사용 중인 방 코드입니다",
     ROOM_JOIN_FAILED: "방에 참가하지 못했습니다",
     ROOM_PARTY_SYNC_FAILED: "파티 정보를 동기화하지 못했습니다",
     ROOM_READY_FAILED: "준비 상태를 반영하지 못했습니다",
@@ -160,6 +164,7 @@ const SERVER_ROOM_ERROR_TITLES = {
     ROOM_NETWORK_FAILED: "Could not receive the server response",
     ROOM_RESPONSE_INVALID: "The server response is invalid",
     ROOM_CREATE_FAILED: "Couldn't create the room",
+    ROOM_CODE_IN_USE: "Room code already in use",
     ROOM_JOIN_FAILED: "Couldn't join the room",
     ROOM_PARTY_SYNC_FAILED: "Couldn't sync your party",
     ROOM_READY_FAILED: "Couldn't update your readiness",
@@ -184,6 +189,7 @@ const SERVER_ROOM_ERROR_TITLES = {
     ROOM_NETWORK_FAILED: "サーバーの応答を受信できませんでした",
     ROOM_RESPONSE_INVALID: "サーバーの応答を読み取れません",
     ROOM_CREATE_FAILED: "ルームを作成できませんでした",
+    ROOM_CODE_IN_USE: "使用中のルームコードです",
     ROOM_JOIN_FAILED: "ルームに参加できませんでした",
     ROOM_PARTY_SYNC_FAILED: "パーティーを同期できませんでした",
     ROOM_READY_FAILED: "準備状態を更新できませんでした",
