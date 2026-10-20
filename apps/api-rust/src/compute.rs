@@ -78,7 +78,13 @@ impl Compute {
             let response = self.client.post(format!("{}/compute", self.url))
                 .header("x-worker-token", self.token.as_ref())
                 .json(&json!({"protocolVersion":1,"requestId":request_id,"roomInstanceId":id,"stateRevision":revision,"engineVersion":ENGINE_VERSION.trim(),"operation":operation}))
-                .send().await.map_err(|_| AppError::ComputeUnavailable)?;
+                .send().await.map_err(|error| {
+                    tracing::error!(event="compute.transport_failed", compute_request_id=%request_id,
+                        room_instance_id=%id, revision, operation=%kind,
+                        timeout=error.is_timeout(), connect=error.is_connect(),
+                        release=%crate::logging::release());
+                    AppError::ComputeUnavailable
+                })?;
             let status = response.status();
             let body = self.read(response).await?;
             if body["requestId"] != request_id.to_string()
@@ -87,9 +93,28 @@ impl Compute {
                 || body["engineVersion"] != ENGINE_VERSION.trim()
                 || body["protocolVersion"] != 1
             {
+                tracing::error!(event="compute.response_invalid", compute_request_id=%request_id,
+                    room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
+                    release=%crate::logging::release());
                 return Err(AppError::ComputeUnavailable);
             }
             if !status.is_success() || body["ok"] != true {
+                // Copy only bounded diagnostic labels from the internal worker, never its input.
+                let valid_label = |value: &str, max: usize| !value.is_empty() && value.len() <= max
+                    && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'));
+                let reason = body["diagnostic"]["reason"].as_str()
+                    .filter(|value| valid_label(value, 64)).unwrap_or("unspecified");
+                let issues: Vec<Value> = body["diagnostic"]["issues"].as_array().into_iter().flatten().take(8)
+                    .filter_map(|issue| {
+                        let code = issue["code"].as_str().filter(|value| valid_label(value, 48))?;
+                        let path = issue["path"].as_str().filter(|value| valid_label(value, 256))?;
+                        Some(json!({"code":code,"path":path}))
+                    }).collect();
+                let frames: Vec<&str> = body["diagnostic"]["frames"].as_array().into_iter().flatten().take(4)
+                    .filter_map(Value::as_str).filter(|frame| frame.len() <= 120 && frame.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b':'))).collect();
+                tracing::warn!(event="compute.rejected", compute_request_id=%request_id,
+                    room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
+                    reason, issues=%json!(issues), frames=%json!(frames), release=%crate::logging::release());
                 return Err(if body["code"] == "INVALID_INPUT" {
                     AppError::Invalid("Invalid battle or party input")
                 } else {
