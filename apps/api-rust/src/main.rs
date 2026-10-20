@@ -37,26 +37,40 @@ async fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match run().await {
+    let started = Instant::now();
+    let mut stage = "config";
+    match run(&mut stage).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             // Display only the safe wrapper, not Redis connection credentials in source errors.
-            tracing::error!(event = "backend.exit", error = %error);
+            let storage = error.storage_error();
+            tracing::error!(event = "backend.exit", error = %error, stage,
+                uptime_ms = started.elapsed().as_millis() as u64,
+                storage_kind = ?storage.map(redis::RedisError::kind),
+                storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
+                storage_timeout = ?storage.map(redis::RedisError::is_timeout),
+                release = %logging::release());
             ExitCode::FAILURE
         }
     }
 }
 
-async fn run() -> AppResult<()> {
+async fn run(stage: &mut &'static str) -> AppResult<()> {
     let config = Config::from_env()?;
+    *stage = "listener.bind";
     let listener = tokio::net::TcpListener::bind(config.bind)
         .await
         .map_err(|_| AppError::Configuration("cannot bind Rust API listener"))?;
+    *stage = "redis.connect";
     let repository = Repository::connect(&config.redis_url).await?;
+    *stage = "compute.configure";
     let compute =
         crate::compute::Compute::new(config.worker_url.clone(), config.worker_token.clone())?;
+    *stage = "compute.ready";
     compute.ready().await?;
+    *stage = "database.connect";
     let data = crate::data::Data::connect(config.database.clone()).await?;
+    *stage = "owner.acquire";
     repository.acquire().await?;
     let shutdown = CancellationToken::new();
     let lease_stop = CancellationToken::new();
@@ -73,13 +87,15 @@ async fn run() -> AppResult<()> {
                     biased;
                     _ = lease_stop.cancelled() => return false,
                     _ = interval.tick() => {
+                        let started = Instant::now();
                         if let Err(error) = repository.renew().await {
-                            let storage_kind = match &error {
-                                AppError::Storage(source) => Some(format!("{:?}", source.kind())),
-                                _ => None,
-                            };
+                            let storage = error.storage_error();
                             tracing::error!(event = "backend.owner_lost", reason = %error,
-                                ?storage_kind, release = %logging::release(), "Owner renewal failed; stopping with an uncertain owner lease");
+                                elapsed_ms = started.elapsed().as_millis() as u64,
+                                storage_kind = ?storage.map(redis::RedisError::kind),
+                                storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
+                                storage_timeout = ?storage.map(redis::RedisError::is_timeout),
+                                release = %logging::release(), "Owner renewal failed; stopping with an uncertain owner lease");
                             shutdown.cancel();
                             return true;
                         }
@@ -88,6 +104,7 @@ async fn run() -> AppResult<()> {
             }
         })
     };
+    *stage = "rooms.restore";
     if let Err(error) = rooms.restore().await {
         shutdown.cancel();
         let drained = rooms.drain().await;
@@ -109,8 +126,15 @@ async fn run() -> AppResult<()> {
                     biased;
                     _ = shutdown.cancelled() => break,
                     _ = timer.tick() => {
+                        let started = Instant::now();
                         if let Err(error) = rooms.restore().await {
-                            tracing::warn!(event = "backend.recovery_failed", reason = %error, release = %logging::release());
+                            let storage = error.storage_error();
+                            tracing::warn!(event = "backend.recovery_failed", reason = %error,
+                                elapsed_ms = started.elapsed().as_millis() as u64,
+                                storage_kind = ?storage.map(redis::RedisError::kind),
+                                storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
+                                storage_timeout = ?storage.map(redis::RedisError::is_timeout),
+                                release = %logging::release());
                         }
                     }
                 }
@@ -138,6 +162,7 @@ async fn run() -> AppResult<()> {
         release: logging::release(),
     };
     let router = http::router(state, &config);
+    *stage = "serving";
     tracing::info!(event = "backend.started", bind = %config.bind, protocol = "rust-game-v2", release = %logging::release());
     let server = axum::serve(
         listener,
@@ -153,12 +178,14 @@ async fn run() -> AppResult<()> {
         }
     };
     shutdown.cancel();
+    *stage = "shutdown.drain";
     let drained = rooms.drain().await;
     let _ = recovery_task.await;
     signal_task.abort();
     lease_stop.cancel();
     let owner_lost = lease_task.await.unwrap_or(true);
     if drained {
+        *stage = "owner.release";
         repository.release().await?;
     } else {
         // Do not release ownership while a command could still be finishing a write.
@@ -167,8 +194,10 @@ async fn run() -> AppResult<()> {
     }
     tracing::info!(event = "backend.stopped");
     if owner_lost {
+        *stage = "owner.renew";
         return Err(AppError::Unavailable);
     }
+    *stage = "server.stop";
     served
         .ok_or(AppError::Unavailable)?
         .map_err(|_| AppError::Unavailable)
