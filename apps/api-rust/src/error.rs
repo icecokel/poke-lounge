@@ -60,6 +60,14 @@ pub enum AppError {
     #[error("Configuration error: {0}")]
     Configuration(&'static str),
 }
+impl AppError {
+    pub fn storage_error(&self) -> Option<&redis::RedisError> {
+        match self {
+            Self::Storage(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, code) = match &self {
@@ -109,7 +117,11 @@ impl IntoResponse for AppError {
                 Self::Configuration(_) => "configuration",
                 _ => "other",
             };
-            tracing::error!(event = "api.error", code, source);
+            let storage = self.storage_error();
+            tracing::error!(event = "api.error", code, source,
+                storage_kind = ?storage.map(redis::RedisError::kind),
+                storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
+                storage_timeout = ?storage.map(redis::RedisError::is_timeout));
         } else if status.is_client_error() {
             tracing::warn!(event = "api.rejected", code, reason = %self);
         }

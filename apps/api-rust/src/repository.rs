@@ -63,7 +63,13 @@ impl Repository {
             ConnectionManager::new_with_config(client, config),
         )
         .await
-        .map_err(|_| AppError::Unavailable)??;
+        .map_err(|_| {
+            tracing::error!(
+                event = "storage.connect_timeout",
+                timeout_ms = (IO_TIMEOUT * 2).as_millis() as u64
+            );
+            AppError::Unavailable
+        })??;
         Ok(Self {
             connection,
             owner: Uuid::new_v4().to_string().into(),
