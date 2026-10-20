@@ -1,5 +1,6 @@
 import { parentPort } from "node:worker_threads";
 import { z } from "zod";
+import { computeFailureDiagnostic } from "./diagnostics";
 import {
   hashCanonicalState,
   createCanonicalIdRecord,
@@ -274,15 +275,26 @@ async function run(raw: unknown): Promise<ComputeResponse> {
       input.operation.kind === "validate" ||
       input.operation.kind === "complete-progression" ||
       input.operation.kind === "normalize-party";
-    return { ...identity, ok: false, code: invalid ? "INVALID_INPUT" : "COMPUTE_FAILED" };
+    return {
+      ...identity,
+      ok: false,
+      code: invalid ? "INVALID_INPUT" : "COMPUTE_FAILED",
+      diagnostic: computeFailureDiagnostic(error),
+    };
   }
 }
 
 // Workers own no database connection, room registry, queue or authoritative state.
 void getContext()
   .then(() => parentPort?.postMessage({ ready: true, engineVersion: ENGINE_VERSION }))
-  .catch(() => {
-    process.stderr.write(JSON.stringify({ event: "compute.assets_invalid" }) + "\n");
+  .catch(error => {
+    process.stderr.write(
+      JSON.stringify({
+        event: "compute.assets_invalid",
+        timestamp: new Date().toISOString(),
+        diagnostic: computeFailureDiagnostic(error),
+      }) + "\n",
+    );
     process.exit(1);
   });
 parentPort?.on("message", (input: unknown) => {

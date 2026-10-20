@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { availableParallelism } from "node:os";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Worker } from "node:worker_threads";
+import { computeFailureDiagnostic, type ComputeFailureDiagnostic } from "./diagnostics";
 import {
   ENGINE_VERSION,
   MAX_BODY_BYTES,
@@ -24,11 +25,15 @@ const tokenHash = createHash("sha256").update(token).digest();
 const concurrency = Math.min(4, Math.max(1, availableParallelism()));
 let draining = false;
 let inFlight = 0;
+const release = /^[a-f0-9]{40}$/i.test(process.env.RELEASE_SHA ?? "")
+  ? process.env.RELEASE_SHA
+  : "local";
 type Pending = {
   input: ComputeRequest;
   response: ServerResponse;
   timer: ReturnType<typeof setTimeout>;
   started: number;
+  dispatchedAt?: number;
 };
 type Slot = { worker: Worker; ready: boolean; pending: Pending | null; restarting: boolean };
 const slots: Slot[] = [];
@@ -45,7 +50,12 @@ function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
   response.end(encoded);
 }
-function finish(slot: Slot, status: number, result: unknown): void {
+function finish(
+  slot: Slot,
+  status: number,
+  result: unknown,
+  diagnostic?: ComputeFailureDiagnostic,
+): void {
   const pending = slot.pending;
   if (!pending) return;
   clearTimeout(pending.timer);
@@ -55,23 +65,52 @@ function finish(slot: Slot, status: number, result: unknown): void {
     process.stderr.write(
       JSON.stringify({
         event: status >= 400 ? "compute.failed" : "compute.slow",
+        timestamp: new Date().toISOString(),
+        release,
         requestId: pending.input.requestId,
         roomInstanceId: pending.input.roomInstanceId,
         revision: pending.input.stateRevision,
         operation: pending.input.operation.kind,
         status,
         durationMs: Date.now() - pending.started,
+        queueMs: (pending.dispatchedAt ?? Date.now()) - pending.started,
+        diagnostic,
       }) + "\n",
     );
   }
   json(pending.response, status, result);
   dispatch();
 }
-function restart(slot: Slot): void {
+function restart(slot: Slot, reason: string): void {
   if (slot.restarting || draining) return;
   slot.restarting = true;
   slot.ready = false;
-  finish(slot, 503, { code: "COMPUTE_WORKER_UNAVAILABLE" });
+  process.stderr.write(
+    JSON.stringify({
+      event: "compute.worker_restart",
+      timestamp: new Date().toISOString(),
+      release,
+      reason,
+      requestId: slot.pending?.input.requestId,
+    }) + "\n",
+  );
+  const input = slot.pending?.input;
+  const diagnostic = { reason, issues: [] };
+  finish(
+    slot,
+    503,
+    {
+      protocolVersion: 1,
+      requestId: input?.requestId,
+      roomInstanceId: input?.roomInstanceId,
+      stateRevision: input?.stateRevision,
+      engineVersion: ENGINE_VERSION,
+      ok: false,
+      code: "COMPUTE_WORKER_UNAVAILABLE",
+      diagnostic,
+    },
+    diagnostic,
+  );
   const old = slot.worker;
   old.removeAllListeners();
   void old.terminate().finally(() => {
@@ -97,7 +136,7 @@ function makeWorker(slot: Slot): Worker {
     ) => {
       if ("ready" in message) {
         if (message.engineVersion !== ENGINE_VERSION) {
-          restart(slot);
+          restart(slot, "engine-version-mismatch");
           return;
         }
         slot.ready = true;
@@ -113,18 +152,31 @@ function makeWorker(slot: Slot): Worker {
       }
       if (!slot.pending) return;
       if (!("requestId" in message) || message.requestId !== slot.pending.input.requestId) {
-        restart(slot);
+        restart(slot, "protocol-mismatch");
         return;
       }
-      finish(slot, message.ok ? 200 : message.code === "INVALID_INPUT" ? 422 : 500, message);
+      finish(
+        slot,
+        message.ok ? 200 : message.code === "INVALID_INPUT" ? 422 : 500,
+        message,
+        message.ok ? undefined : message.diagnostic,
+      );
     },
   );
-  worker.on("error", () => {
-    process.stderr.write('{"event":"compute.worker_error"}\n');
-    restart(slot);
+  worker.on("error", error => {
+    process.stderr.write(
+      JSON.stringify({
+        event: "compute.worker_error",
+        timestamp: new Date().toISOString(),
+        release,
+        requestId: slot.pending?.input.requestId,
+        diagnostic: computeFailureDiagnostic(error),
+      }) + "\n",
+    );
+    restart(slot, "worker-error");
   });
   worker.on("exit", code => {
-    if (code !== 0 && !draining) restart(slot);
+    if (code !== 0 && !draining) restart(slot, `worker-exit-${code}`);
   });
   return worker;
 }
@@ -140,6 +192,7 @@ function dispatch(): void {
     }
     if (!pending) return;
     slot.pending = pending;
+    pending.dispatchedAt = Date.now();
     slot.worker.postMessage(pending.input);
   }
 }
@@ -201,7 +254,7 @@ async function receive(request: IncomingMessage, response: ServerResponse): Prom
       timer: setTimeout(() => {
         const slot = slots.find(item => item.pending === pending);
         if (slot) {
-          restart(slot);
+          restart(slot, "execution-timeout");
           return;
         }
         const index = waiting.indexOf(pending);
@@ -209,10 +262,23 @@ async function receive(request: IncomingMessage, response: ServerResponse): Prom
           waiting.splice(index, 1);
           inFlight--;
         }
-        json(response, 504, { code: "COMPUTE_TIMEOUT" });
+        json(response, 504, {
+          protocolVersion: 1,
+          requestId: input.requestId,
+          roomInstanceId: input.roomInstanceId,
+          stateRevision: input.stateRevision,
+          engineVersion: ENGINE_VERSION,
+          ok: false,
+          code: "COMPUTE_TIMEOUT",
+          diagnostic: { reason: "queue-timeout", issues: [] },
+        });
         process.stderr.write(
           JSON.stringify({
             event: "compute.timeout",
+            timestamp: new Date().toISOString(),
+            release,
+            reason: "queue-timeout",
+            durationMs: Date.now() - pending.started,
             requestId: input.requestId,
             roomInstanceId: input.roomInstanceId,
             revision: input.stateRevision,
@@ -225,7 +291,15 @@ async function receive(request: IncomingMessage, response: ServerResponse): Prom
     queued = true;
     waiting.push(pending);
     dispatch();
-  } catch {
+  } catch (error) {
+    process.stderr.write(
+      JSON.stringify({
+        event: "compute.request_rejected",
+        timestamp: new Date().toISOString(),
+        release,
+        diagnostic: computeFailureDiagnostic(error),
+      }) + "\n",
+    );
     json(response, 422, { code: "INVALID_COMPUTE_REQUEST" });
   } finally {
     if (!queued) inFlight--;

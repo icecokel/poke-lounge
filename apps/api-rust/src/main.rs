@@ -73,8 +73,13 @@ async fn run() -> AppResult<()> {
                     biased;
                     _ = lease_stop.cancelled() => return false,
                     _ = interval.tick() => {
-                        if repository.renew().await.is_err() {
-                            tracing::error!(event = "backend.owner_lost", "Stopping rather than serving with an uncertain owner lease");
+                        if let Err(error) = repository.renew().await {
+                            let storage_kind = match &error {
+                                AppError::Storage(source) => Some(format!("{:?}", source.kind())),
+                                _ => None,
+                            };
+                            tracing::error!(event = "backend.owner_lost", reason = %error,
+                                ?storage_kind, release = %logging::release(), "Owner renewal failed; stopping with an uncertain owner lease");
                             shutdown.cancel();
                             return true;
                         }
@@ -104,8 +109,8 @@ async fn run() -> AppResult<()> {
                     biased;
                     _ = shutdown.cancelled() => break,
                     _ = timer.tick() => {
-                        if rooms.restore().await.is_err() {
-                            tracing::warn!(event = "backend.recovery_failed");
+                        if let Err(error) = rooms.restore().await {
+                            tracing::warn!(event = "backend.recovery_failed", reason = %error, release = %logging::release());
                         }
                     }
                 }
