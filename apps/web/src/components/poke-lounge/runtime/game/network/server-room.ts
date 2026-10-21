@@ -16,6 +16,7 @@ import { ROOM_ERROR_CODES } from "../../../poke-lounge-error-codes";
 import { getServerRoomErrorMessage } from "../server-room-error-copy";
 import type { components } from "@/types/api";
 import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
+import { FIELD_MAP } from "@poke-lounge/battle/adventure/world/field-map";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import {
   INITIAL_WORKFLOW_RETRY_MAX_DELAY_MS,
@@ -2964,9 +2965,8 @@ function createDefaultSnapshot(sessionId: string, playerId: string): PlayerSnaps
     sessionId,
     playerId,
     displayName: "Player 1",
-    map: "new-bark-town",
-    x: 656,
-    y: 446,
+    map: FIELD_MAP.key,
+    ...FIELD_MAP.fallbackSpawn,
     facing: "front",
   };
 }
