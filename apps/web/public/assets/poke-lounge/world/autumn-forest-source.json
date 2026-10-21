@@ -4,19 +4,19 @@
   "archive": "a/0/4/4",
   "baseAtlas": "apps/web/public/assets/pokemmo-reference/tilesets/tuxmon-sample-32px-extruded.png",
   "baseAtlasSha256": "f61019250cf88448f52b907842c32d912167ac028e12d9ffb5da7cbc1abf031b",
-  "processing": "Preserve base 720 tiles and the approved green ground/path colors and map layout. Trees use the original autumn map model geometry, UVs and colors, projected and uniformly fitted to 64px. Static grass retains the existing staggered egrass_u layout and matching lower-10px foreground at 40% opacity. The separate normal-grass step effect preserves the full original RGBA and model dimensions. No generated artwork or synthetic wind.",
+  "processing": "Preserve base 720 tiles, ground/path colors and connected-grass behavior. Original projected autumn trees retain their geometry and colors. generate-autumn-map.py bakes overlapping native tree_en2..5 single and _re canopies across the map boundary into additional atlas tiles. No synthetic canopy clusters or decorative leaf piles.",
   "tileSize": 32,
   "margin": 1,
   "spacing": 2,
   "columns": 24,
-  "tileCount": 768,
+  "tileCount": 1176,
   "gids": {
-    "721-725": "original green ground, mirrored ground, ground, mirrored ground, green grass detail",
-    "729-744": "original pale dirt with path mask 0..15 (N=1 E=2 S=4 W=8)",
-    "745-748": "red tree row-major",
-    "749-752": "orange tree row-major",
-    "753-756": "gold tree row-major",
-    "757": "green encounter grass",
+    "721-725": "green ground and grass detail",
+    "729-744": "pale dirt path masks N=1 E=2 S=4 W=8",
+    "745-748": "red projected tree",
+    "749-752": "orange projected tree",
+    "753-756": "gold projected tree",
+    "757": "encounter grass",
     "758": "encounter grass foreground"
   },
   "textures": [
@@ -52,5 +52,18 @@
     "staticBaseTileIndices": [0, 15],
     "staticForegroundTileIndices": [16, 31],
     "connectivityMask": "N=1 E=2 S=4 W=8; connected sides stay seamless"
+  },
+  "bakedForest": {
+    "seed": 1711,
+    "canopies": 234,
+    "tileRange": [759, 979],
+    "palette": "native tree_en2..5 / _re palettes",
+    "placement": "Overlapping native canopies on a continuous outer band, with an uneven inner contour and grouped autumn colors; no resized clusters or leaf piles."
+  },
+  "forestFloor": {
+    "textures": ["a/0/4/4#88 momi", "momi_load_", "momi_loada", "momi_loadb"],
+    "tiles": 184,
+    "cells": 234,
+    "placement": "Native leaf carpet follows canopy silhouettes with original leaf-edge pieces and a thin scattered-leaf fringe; paths and encounter grass excluded."
   }
 }
