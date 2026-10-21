@@ -1,0 +1,90 @@
+{
+  "rom": "포켓몬스터 하트골드(K).nds",
+  "romSha1": "5834fb3a2d751c48501d47d6a56898d7af6ccf9e",
+  "archive": "a/0/4/4",
+  "baseAtlas": "apps/web/public/assets/pokemmo-reference/tilesets/tuxmon-sample-32px-extruded.png",
+  "baseAtlasSha256": "f61019250cf88448f52b907842c32d912167ac028e12d9ffb5da7cbc1abf031b",
+  "processing": "Preserve base 720 tiles. Exact named ROM palettes; nearest-neighbor canopy/trunk/shadow assembly; ground/path/encounter grass palette recolor; sparse ROM leaf compositing; grass foreground limited to lower 12px at 40% opacity for trainer visibility. No generated artwork.",
+  "tileSize": 32,
+  "margin": 1,
+  "spacing": 2,
+  "columns": 24,
+  "tileCount": 768,
+  "gids": {
+    "721-725": "ground, variation, leaf litter, sparse leaf litter, dry grass",
+    "729-744": "path mask 0..15 (N=1 E=2 S=4 W=8)",
+    "745-748": "red tree row-major",
+    "749-752": "orange tree row-major",
+    "753-756": "gold tree row-major",
+    "757": "olive encounter grass",
+    "758": "encounter grass foreground"
+  },
+  "textures": [
+    {
+      "member": 6,
+      "texture": "grass01gs",
+      "palette": "grass01",
+      "size": [32, 32]
+    },
+    {
+      "member": 88,
+      "texture": "momi_load_",
+      "palette": "momi_load__pl",
+      "size": [64, 64]
+    },
+    {
+      "member": 6,
+      "texture": "grass01_a",
+      "palette": "grass01_a",
+      "size": [16, 16]
+    },
+    {
+      "member": 6,
+      "texture": "road05",
+      "palette": "road05",
+      "size": [32, 32]
+    },
+    {
+      "member": 88,
+      "texture": "t_tree2_g",
+      "palette": "t_tree2_g_pl",
+      "size": [64, 64]
+    },
+    {
+      "member": 6,
+      "texture": "tree_en2_un",
+      "palette": "tree_en2_un_pl",
+      "size": [32, 32]
+    },
+    {
+      "member": 88,
+      "texture": "t_tree2_ex",
+      "palette": "t_tree2_ex_pl",
+      "size": [64, 64]
+    },
+    {
+      "member": 88,
+      "texture": "t_tree2_e",
+      "palette": "t_tree2_e_pl",
+      "size": [64, 64]
+    },
+    {
+      "member": 88,
+      "texture": "t_tree2_ey",
+      "palette": "t_tree2_ey_pl",
+      "size": [64, 64]
+    },
+    {
+      "member": 6,
+      "texture": "egrass",
+      "palette": "egrass_pl",
+      "size": [16, 16]
+    },
+    {
+      "member": 6,
+      "texture": "egrass_u",
+      "palette": "egrass_u_pl",
+      "size": [16, 16]
+    }
+  ]
+}

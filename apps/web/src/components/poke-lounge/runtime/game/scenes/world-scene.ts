@@ -307,10 +307,7 @@ export class WorldController {
         ? resolvePersistedWorldSpawn(
             this.gameStateStore.getCurrentLocalPlayer().position,
             FIELD_MAP.key,
-            {
-              width: this.options.worldModel.widthInPixels,
-              height: this.options.worldModel.heightInPixels,
-            },
+            this.options.worldModel,
           )
         : null;
     this.createPlayer(

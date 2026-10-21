@@ -271,10 +271,11 @@ function WorldTile({ model, tile }: { model: WorldMapModel; tile: WorldMapTile }
       style={{
         backgroundImage: `url(${model.tileset.imageUrl})`,
         backgroundPosition: `${-source.x}px ${-source.y}px`,
-        height: model.tileHeight,
+        // Cover fractional camera seams with the atlas's extruded edge.
+        height: model.tileHeight + 1,
         left: tile.x * model.tileWidth,
         top: tile.y * model.tileHeight,
-        width: model.tileWidth,
+        width: model.tileWidth + 1,
       }}
     />
   );
