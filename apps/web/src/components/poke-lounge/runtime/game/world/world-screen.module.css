@@ -1,22 +1,10 @@
-.animatedTile {
-  animation: world-tile-motion steps(var(--world-motion-frames), end) infinite;
-}
-
-@keyframes world-tile-motion {
-  to {
-    background-position-x: var(--world-motion-end);
-  }
-}
-
 .grassStep {
-  opacity: 0;
+  position: absolute;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animatedTile {
-    animation: none;
-  }
-
   .grassStep {
     display: none;
   }

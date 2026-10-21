@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import struct
+import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -41,18 +43,6 @@ def decode_member(data: bytes) -> tuple[dict, dict]:
     return dict(btx.textures), palettes
 
 
-def palette_tone(image: Image.Image, low: tuple, high: tuple) -> Image.Image:
-    image = image.convert("RGBA")
-    colors = {p[:3] for p in image.getdata() if p[3]}
-    luma = lambda p: (p[0] * 3 + p[1] * 6 + p[2]) / 10
-    darkest, lightest = min(map(luma, colors)), max(map(luma, colors))
-    def convert(p):
-        amount = (luma(p) - darkest) / max(1, lightest - darkest)
-        return tuple(round(a + (b - a) * amount) for a, b in zip(low, high)) + (p[3],)
-    image.putdata([convert(p) for p in image.getdata()])
-    return image
-
-
 def paste_extruded_tile(atlas: Image.Image, tile: Image.Image, index: int, columns: int) -> None:
     x, y = index % columns * 34 + 1, index // columns * 34 + 1
     atlas.paste(tile, (x, y))
@@ -66,12 +56,14 @@ def paste_extruded_tile(atlas: Image.Image, tile: Image.Image, index: int, colum
 
 def main() -> None:
     assert hashlib.sha1(ROM.read_bytes()).hexdigest() == ROM_SHA1, "Unexpected ROM revision"
+    for script in ("extract-field-trees.py", "extract-field-grass-effect.py"):
+        subprocess.run([sys.executable, "-B", str(ROOT / "scripts/poke-lounge" / script)], check=True)
     source = Image.open(SOURCE).convert("RGBA")
     assert source.size == (816, 1020), "Expected 24 columns × 30 rows of extruded 32px tiles"
     color.prepareLUTs()
     rom = NintendoDSRom.fromFile(ROM)
     archive = NARC(rom.getFileByName("a/0/4/4"))
-    members = {index: decode_member(bytes(archive.files[index])) for index in (6, 88)}
+    members = {6: decode_member(bytes(archive.files[6]))}
     used = []
 
     def get(member: int, name: str, palette_name: str | None = None) -> Image.Image:
@@ -101,35 +93,12 @@ def main() -> None:
                 tile.paste(ground.crop(box), box[:2])
         tiles[729 + mask] = tile
 
-    shadow = get(88, "t_tree2_g")
-    shadow = shadow.crop(shadow.getbbox()).resize((48, 14), NEAREST)
-    shadow.putalpha(shadow.getchannel("A").point(lambda a: round(a * .3)))
-    trunk = get(6, "tree_en2_un")
-    key = trunk.getpixel((0, 0))[:3]
-    trunk.putdata([p[:3] + (0 if max(abs(p[i] - key[i]) for i in range(3)) < 20 or (p[1] > p[0] * 1.25 and p[2] > p[0] * 1.1) else p[3],) for p in trunk.getdata()])
-    trunk = trunk.crop(trunk.getbbox()).resize((17, 24), NEAREST)
+    tree_atlas = Image.open(DEST / "field-trees.png").convert("RGBA")
+    assert tree_atlas.size == (192, 64)
     tree_previews = []
-    motion_tiles = {}
-    for first, name in ((745, "t_tree2_ex"), (749, "t_tree2_e"), (753, "t_tree2_ey")):
-        canopy = get(88, name)
-        canopy = canopy.crop(canopy.getbbox()).resize((60, 46), NEAREST)
-        if first == 745:
-            canopy = palette_tone(canopy, (130, 37, 27), (220, 81, 39))
-        fixed_tree = Image.new("RGBA", (64, 64))
-        fixed_tree.alpha_composite(shadow, (8, 47))
-        fixed_tree.alpha_composite(trunk, (24, 35))
-        tree_frames = []
-        for frame, offset in enumerate((0, -1, 0, 1)):
-            tree = fixed_tree.copy()
-            tree.alpha_composite(canopy, (2 + offset, 3))
-            tree_frames.append(tree)
-            for index in range(4):
-                x, y = index % 2 * 32, index // 2 * 32
-                motion_tiles[len(tree_previews) * 16 + frame * 4 + index] = tree.crop((x, y, x + 32, y + 32))
-        assert tree_frames[0].tobytes() == tree_frames[2].tobytes()
-        assert tree_frames[1].tobytes() != tree_frames[3].tobytes()
-        assert all(frame.crop((0, 49, 64, 64)).tobytes() == fixed_tree.crop((0, 49, 64, 64)).tobytes() for frame in tree_frames)
-        tree = tree_frames[0]
+    grass_tiles = {}
+    for index, first in enumerate((745, 749, 753)):
+        tree = tree_atlas.crop((index * 64, 0, (index + 1) * 64, 64))
         tree_previews.append(tree)
         for index in range(4):
             x, y = index % 2 * 32, index // 2 * 32
@@ -159,34 +128,20 @@ def main() -> None:
         fringe = tile.copy()
         fringe.paste((0, 0, 0, 0), (0, 0, 32, 22))
         fringe.putalpha(fringe.getchannel("A").point(lambda a: round(a * .4)))
-        motion_tiles[64 + mask] = tile
-        motion_tiles[80 + mask] = fringe
-    tiles[757] = motion_tiles[79]
-    tiles[758] = motion_tiles[95]
+        grass_tiles[mask] = tile
+        grass_tiles[16 + mask] = fringe
+    tiles[757] = grass_tiles[15]
+    tiles[758] = grass_tiles[31]
     assert len(tiles) == 35 and all(tile.size == (32, 32) for tile in tiles.values())
 
-    grass_textures, grass_palettes = decode_member(bytes(NARC(rom.getFileByName("a/1/0/3")).files[22]))
-    grass_sources = []
-    for frame, name in enumerate(("ngrass_ani1.1", "ngrass_ani1.2")):
-        palette_name = name + "_pl"
-        grass = grass_textures[name].renderAsImage(grass_palettes[palette_name]).convert("RGBA")
-        assert grass.size == (16, 16)
-        foreground = grass.resize((32, 32), NEAREST)
-        foreground.paste((0, 0, 0, 0), (0, 0, 32, 20))
-        foreground.putalpha(foreground.getchannel("A").point(lambda alpha: round(alpha * .4)))
-        assert foreground.getbbox()[1] >= 20 and foreground.getbbox()[3] <= 32
-        assert max(foreground.getchannel("A").getdata()) <= 102
-        motion_tiles[48 + frame] = foreground
-        grass_sources.append({"texture": name, "palette": palette_name, "size": [16, 16]})
-    assert len(motion_tiles) == 82 and all(tile.size == (32, 32) for tile in motion_tiles.values())
-    assert motion_tiles[48].tobytes() != motion_tiles[49].tobytes()
-    assert motion_tiles[79].getchannel("A").getextrema() == (255, 255)
-    assert motion_tiles[64].getchannel("A").getextrema() == (0, 255)
-    assert all(motion_tiles[80 + mask].crop((0, 22, 32, 32)).convert("RGB").tobytes() == motion_tiles[64 + mask].crop((0, 22, 32, 32)).convert("RGB").tobytes() for mask in range(16))
-    assert all(max(motion_tiles[80 + mask].getchannel("A").getdata()) <= 102 for mask in range(16))
-    motion_atlas = Image.new("RGBA", (544, 204))
-    for index, tile in motion_tiles.items():
-        paste_extruded_tile(motion_atlas, tile, index, 16)
+    assert len(grass_tiles) == 32 and all(tile.size == (32, 32) for tile in grass_tiles.values())
+    assert grass_tiles[15].getchannel("A").getextrema() == (255, 255)
+    assert grass_tiles[0].getchannel("A").getextrema() == (0, 255)
+    assert all(grass_tiles[16 + mask].crop((0, 22, 32, 32)).convert("RGB").tobytes() == grass_tiles[mask].crop((0, 22, 32, 32)).convert("RGB").tobytes() for mask in range(16))
+    assert all(max(grass_tiles[16 + mask].getchannel("A").getdata()) <= 102 for mask in range(16))
+    grass_atlas = Image.new("RGBA", (544, 68))
+    for index, tile in grass_tiles.items():
+        paste_extruded_tile(grass_atlas, tile, index, 16)
 
     atlas = Image.new("RGBA", (816, 1088))
     atlas.paste(source, (0, 0))
@@ -196,31 +151,22 @@ def main() -> None:
     assert atlas.getbbox() and atlas.size == (816, 1088)
     DEST.mkdir(parents=True, exist_ok=True)
     atlas.save(DEST / "autumn-forest-32px-extruded.png", optimize=True)
-    motion_atlas.save(DEST / "autumn-forest-motion.png", optimize=True)
+    # Older open clients still preload the previously published autumn-forest-motion.png.
+    grass_atlas.save(DEST / "autumn-forest-grass.png", optimize=True)
     manifest = {
         "rom": "포켓몬스터 하트골드(K).nds", "romSha1": ROM_SHA1, "archive": "a/0/4/4",
         "baseAtlas": str(SOURCE.relative_to(ROOT)), "baseAtlasSha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
-        "processing": "Preserve base 720 tiles. Restore pre-autumn green ground from original atlas GID 126; use the same atlas's pale Path GID 174 for the current paths. Remove fallen-leaf ground overlays. Keep autumn ROM tree canopy/trunk/shadow assembly. Encounter grass uses original ROM green palettes and overlaps full-proportion egrass_u leaves in staggered rows, with exposed-edge silhouettes and matching lower-10px foreground at 40% opacity. No generated artwork.",
+        "processing": "Preserve base 720 tiles and the approved green ground/path colors and map layout. Trees use the original autumn map model geometry, UVs and colors, projected and uniformly fitted to 64px. Static grass retains the existing staggered egrass_u layout and matching lower-10px foreground at 40% opacity. The separate normal-grass step effect preserves the full original RGBA and model dimensions. No generated artwork or synthetic wind.",
         "tileSize": 32, "margin": 1, "spacing": 2, "columns": 24, "tileCount": 768,
         "gids": {"721-725": "original green ground, mirrored ground, ground, mirrored ground, green grass detail", "729-744": "original pale dirt with path mask 0..15 (N=1 E=2 S=4 W=8)", "745-748": "red tree row-major", "749-752": "orange tree row-major", "753-756": "gold tree row-major", "757": "green encounter grass", "758": "encounter grass foreground"},
         "textures": used,
-        "motionAtlas": {
-            "path": "apps/web/public/assets/poke-lounge/world/autumn-forest-motion.png",
-            "size": [544, 204], "tileSize": 32, "margin": 1, "spacing": 2, "columns": 16, "rows": 6,
-            "trees": {
-                "provenance": "Derived from the static ROM canopy, trunk and shadow assembly; not an original ROM wind animation.",
-                "rows": ["red", "orange", "gold"], "frameCount": 4, "quadrantsPerFrame": 4,
-                "quadrantOrder": "top-left, top-right, bottom-left, bottom-right",
-                "canopyOffsetsX": [0, -1, 0, 1], "trunkAndShadow": "fixed",
-            },
-            "grass": {
-                "provenance": "ROM egrass_u leaves retain their original green palette and are scaled uniformly 2x, staggered every 16px over the original atlas ground. Connectivity masks trim exposed patch edges only; the foreground copies the same bottom 10px at 40% opacity. Two original ROM ngrass leaf frames provide a brief footstep overlay; original 3D control and timing are not reproduced.",
-                "staticBaseTileIndices": [64, 79], "staticForegroundTileIndices": [80, 95],
-                "connectivityMask": "N=1 E=2 S=4 W=8; connected sides stay seamless",
-                "archive": "a/1/0/3", "member": 22, "textures": grass_sources,
-                "frameCount": 2, "foregroundTileIndices": [48, 49],
-                "foreground": {"y": 20, "height": 12, "maxAlpha": 102},
-            },
+        "trees": {"sourceManifest": "field-trees.json", "quadrantOrder": "top-left, top-right, bottom-left, bottom-right"},
+        "grassStep": {"sourceManifest": "field-grass-effect.json", "lifecycle": "Initially settled; entries play to tick 12 at 30Hz; tick 13 begins exit checks; final pose remains while the actor occupies the tile."},
+        "grassAtlas": {
+            "path": "apps/web/public/assets/poke-lounge/world/autumn-forest-grass.png",
+            "size": [544, 68], "tileSize": 32, "margin": 1, "spacing": 2, "columns": 16, "rows": 2,
+            "staticBaseTileIndices": [0, 15], "staticForegroundTileIndices": [16, 31],
+            "connectivityMask": "N=1 E=2 S=4 W=8; connected sides stay seamless",
         },
     }
     (DEST / "autumn-forest-source.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
@@ -234,7 +180,7 @@ def main() -> None:
     evidence = ROOT / "output/environment-sprite-refine"
     evidence.mkdir(parents=True, exist_ok=True)
     preview.resize((1152, 576), NEAREST).save(evidence / "asset-preview.png")
-    print(f"Wrote 35 autumn tiles, 50 motion tiles and 32 connected-grass tiles; preserved 720 original tiles: {DEST}")
+    print(f"Wrote 35 field tiles and 32 connected-grass tiles; preserved 720 original tiles: {DEST}")
 
 
 if __name__ == "__main__":
