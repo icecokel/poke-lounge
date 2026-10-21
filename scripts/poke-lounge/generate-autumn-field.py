@@ -151,6 +151,7 @@ def main() -> None:
     assert atlas.getbbox() and atlas.size == (816, 1088)
     DEST.mkdir(parents=True, exist_ok=True)
     atlas.save(DEST / "autumn-forest-32px-extruded.png", optimize=True)
+    # Older open clients still preload the previously published autumn-forest-motion.png.
     grass_atlas.save(DEST / "autumn-forest-grass.png", optimize=True)
     manifest = {
         "rom": "포켓몬스터 하트골드(K).nds", "romSha1": ROM_SHA1, "archive": "a/0/4/4",
