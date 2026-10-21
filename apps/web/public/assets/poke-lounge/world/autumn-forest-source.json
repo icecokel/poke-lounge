@@ -4,45 +4,27 @@
   "archive": "a/0/4/4",
   "baseAtlas": "apps/web/public/assets/pokemmo-reference/tilesets/tuxmon-sample-32px-extruded.png",
   "baseAtlasSha256": "f61019250cf88448f52b907842c32d912167ac028e12d9ffb5da7cbc1abf031b",
-  "processing": "Preserve base 720 tiles. Exact named ROM palettes; nearest-neighbor canopy/trunk/shadow assembly; ground/path/encounter grass palette recolor; sparse ROM leaf compositing; grass foreground limited to lower 12px at 40% opacity for trainer visibility. No generated artwork.",
+  "processing": "Preserve base 720 tiles. Restore pre-autumn green ground from original atlas GID 126; use the same atlas's pale Path GID 174 for the current paths. Remove fallen-leaf ground overlays. Keep autumn ROM tree canopy/trunk/shadow assembly. Encounter grass uses original ROM green palettes and overlaps full-proportion egrass_u leaves in staggered rows, with exposed-edge silhouettes and matching lower-10px foreground at 40% opacity. No generated artwork.",
   "tileSize": 32,
   "margin": 1,
   "spacing": 2,
   "columns": 24,
   "tileCount": 768,
   "gids": {
-    "721-725": "ground, variation, leaf litter, sparse leaf litter, dry grass",
-    "729-744": "path mask 0..15 (N=1 E=2 S=4 W=8)",
+    "721-725": "original green ground, mirrored ground, ground, mirrored ground, green grass detail",
+    "729-744": "original pale dirt with path mask 0..15 (N=1 E=2 S=4 W=8)",
     "745-748": "red tree row-major",
     "749-752": "orange tree row-major",
     "753-756": "gold tree row-major",
-    "757": "olive encounter grass",
+    "757": "green encounter grass",
     "758": "encounter grass foreground"
   },
   "textures": [
     {
       "member": 6,
-      "texture": "grass01gs",
-      "palette": "grass01",
-      "size": [32, 32]
-    },
-    {
-      "member": 88,
-      "texture": "momi_load_",
-      "palette": "momi_load__pl",
-      "size": [64, 64]
-    },
-    {
-      "member": 6,
       "texture": "grass01_a",
       "palette": "grass01_a",
       "size": [16, 16]
-    },
-    {
-      "member": 6,
-      "texture": "road05",
-      "palette": "road05",
-      "size": [32, 32]
     },
     {
       "member": 88,
@@ -76,15 +58,54 @@
     },
     {
       "member": 6,
-      "texture": "egrass",
-      "palette": "egrass_pl",
-      "size": [16, 16]
-    },
-    {
-      "member": 6,
       "texture": "egrass_u",
       "palette": "egrass_u_pl",
       "size": [16, 16]
     }
-  ]
+  ],
+  "motionAtlas": {
+    "path": "apps/web/public/assets/poke-lounge/world/autumn-forest-motion.png",
+    "size": [544, 204],
+    "tileSize": 32,
+    "margin": 1,
+    "spacing": 2,
+    "columns": 16,
+    "rows": 6,
+    "trees": {
+      "provenance": "Derived from the static ROM canopy, trunk and shadow assembly; not an original ROM wind animation.",
+      "rows": ["red", "orange", "gold"],
+      "frameCount": 4,
+      "quadrantsPerFrame": 4,
+      "quadrantOrder": "top-left, top-right, bottom-left, bottom-right",
+      "canopyOffsetsX": [0, -1, 0, 1],
+      "trunkAndShadow": "fixed"
+    },
+    "grass": {
+      "provenance": "ROM egrass_u leaves retain their original green palette and are scaled uniformly 2x, staggered every 16px over the original atlas ground. Connectivity masks trim exposed patch edges only; the foreground copies the same bottom 10px at 40% opacity. Two original ROM ngrass leaf frames provide a brief footstep overlay; original 3D control and timing are not reproduced.",
+      "staticBaseTileIndices": [64, 79],
+      "staticForegroundTileIndices": [80, 95],
+      "connectivityMask": "N=1 E=2 S=4 W=8; connected sides stay seamless",
+      "archive": "a/1/0/3",
+      "member": 22,
+      "textures": [
+        {
+          "texture": "ngrass_ani1.1",
+          "palette": "ngrass_ani1.1_pl",
+          "size": [16, 16]
+        },
+        {
+          "texture": "ngrass_ani1.2",
+          "palette": "ngrass_ani1.2_pl",
+          "size": [16, 16]
+        }
+      ],
+      "frameCount": 2,
+      "foregroundTileIndices": [48, 49],
+      "foreground": {
+        "y": 20,
+        "height": 12,
+        "maxAlpha": 102
+      }
+    }
+  }
 }

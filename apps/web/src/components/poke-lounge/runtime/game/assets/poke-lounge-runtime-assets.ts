@@ -24,6 +24,7 @@ import {
   type RuntimeGameDataJson,
 } from "../data/game-data-json";
 import { FIELD_MAP } from "../world/field-map";
+import { WORLD_TILE_MOTION_ASSET } from "../world/world-tile-motion";
 import { WILD_ENCOUNTER_TABLES_JSON_ASSET } from "../world/wild-encounter-tables";
 
 const JSON_CACHE_ASSETS = [
@@ -97,6 +98,7 @@ export async function loadPokeLoungeRuntimeAssets({
       return { key, path };
     }),
     { key: FIELD_MAP.tilesetKey, path: FIELD_MAP.tilesetUrl },
+    WORLD_TILE_MOTION_ASSET,
     ...Object.values(FIELD_MAP.npcs).map(function mapItem(npc) {
       return { key: npc.textureKey, path: npc.imageUrl };
     }),
