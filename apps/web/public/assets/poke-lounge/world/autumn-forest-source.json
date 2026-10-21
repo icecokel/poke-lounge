@@ -4,7 +4,7 @@
   "archive": "a/0/4/4",
   "baseAtlas": "apps/web/public/assets/pokemmo-reference/tilesets/tuxmon-sample-32px-extruded.png",
   "baseAtlasSha256": "f61019250cf88448f52b907842c32d912167ac028e12d9ffb5da7cbc1abf031b",
-  "processing": "Preserve base 720 tiles. Restore pre-autumn green ground from original atlas GID 126; use the same atlas's pale Path GID 174 for the current paths. Remove fallen-leaf ground overlays. Keep autumn ROM tree canopy/trunk/shadow assembly. Encounter grass uses original ROM green palettes and overlaps full-proportion egrass_u leaves in staggered rows, with exposed-edge silhouettes and matching lower-10px foreground at 40% opacity. No generated artwork.",
+  "processing": "Preserve base 720 tiles and the approved green ground/path colors and map layout. Trees use the original autumn map model geometry, UVs and colors, projected and uniformly fitted to 64px. Static grass retains the existing staggered egrass_u layout and matching lower-10px foreground at 40% opacity. The separate normal-grass step effect preserves the full original RGBA and model dimensions. No generated artwork or synthetic wind.",
   "tileSize": 32,
   "margin": 1,
   "spacing": 2,
@@ -27,85 +27,30 @@
       "size": [16, 16]
     },
     {
-      "member": 88,
-      "texture": "t_tree2_g",
-      "palette": "t_tree2_g_pl",
-      "size": [64, 64]
-    },
-    {
-      "member": 6,
-      "texture": "tree_en2_un",
-      "palette": "tree_en2_un_pl",
-      "size": [32, 32]
-    },
-    {
-      "member": 88,
-      "texture": "t_tree2_ex",
-      "palette": "t_tree2_ex_pl",
-      "size": [64, 64]
-    },
-    {
-      "member": 88,
-      "texture": "t_tree2_e",
-      "palette": "t_tree2_e_pl",
-      "size": [64, 64]
-    },
-    {
-      "member": 88,
-      "texture": "t_tree2_ey",
-      "palette": "t_tree2_ey_pl",
-      "size": [64, 64]
-    },
-    {
       "member": 6,
       "texture": "egrass_u",
       "palette": "egrass_u_pl",
       "size": [16, 16]
     }
   ],
-  "motionAtlas": {
-    "path": "apps/web/public/assets/poke-lounge/world/autumn-forest-motion.png",
-    "size": [544, 204],
+  "trees": {
+    "sourceManifest": "field-trees.json",
+    "quadrantOrder": "top-left, top-right, bottom-left, bottom-right"
+  },
+  "grassStep": {
+    "sourceManifest": "field-grass-effect.json",
+    "lifecycle": "Initially settled; entries play to tick 12 at 30Hz; tick 13 begins exit checks; final pose remains while the actor occupies the tile."
+  },
+  "grassAtlas": {
+    "path": "apps/web/public/assets/poke-lounge/world/autumn-forest-grass.png",
+    "size": [544, 68],
     "tileSize": 32,
     "margin": 1,
     "spacing": 2,
     "columns": 16,
-    "rows": 6,
-    "trees": {
-      "provenance": "Derived from the static ROM canopy, trunk and shadow assembly; not an original ROM wind animation.",
-      "rows": ["red", "orange", "gold"],
-      "frameCount": 4,
-      "quadrantsPerFrame": 4,
-      "quadrantOrder": "top-left, top-right, bottom-left, bottom-right",
-      "canopyOffsetsX": [0, -1, 0, 1],
-      "trunkAndShadow": "fixed"
-    },
-    "grass": {
-      "provenance": "ROM egrass_u leaves retain their original green palette and are scaled uniformly 2x, staggered every 16px over the original atlas ground. Connectivity masks trim exposed patch edges only; the foreground copies the same bottom 10px at 40% opacity. Two original ROM ngrass leaf frames provide a brief footstep overlay; original 3D control and timing are not reproduced.",
-      "staticBaseTileIndices": [64, 79],
-      "staticForegroundTileIndices": [80, 95],
-      "connectivityMask": "N=1 E=2 S=4 W=8; connected sides stay seamless",
-      "archive": "a/1/0/3",
-      "member": 22,
-      "textures": [
-        {
-          "texture": "ngrass_ani1.1",
-          "palette": "ngrass_ani1.1_pl",
-          "size": [16, 16]
-        },
-        {
-          "texture": "ngrass_ani1.2",
-          "palette": "ngrass_ani1.2_pl",
-          "size": [16, 16]
-        }
-      ],
-      "frameCount": 2,
-      "foregroundTileIndices": [48, 49],
-      "foreground": {
-        "y": 20,
-        "height": 12,
-        "maxAlpha": 102
-      }
-    }
+    "rows": 2,
+    "staticBaseTileIndices": [0, 15],
+    "staticForegroundTileIndices": [16, 31],
+    "connectivityMask": "N=1 E=2 S=4 W=8; connected sides stay seamless"
   }
 }
