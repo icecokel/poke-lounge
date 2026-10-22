@@ -10,7 +10,12 @@
 # 최근 오류: FE 수집 이벤트, API 실패, 소켓 오류, 전투 계산 실패
 for name in poke-lounge-api-1 poke-lounge-battle-worker-1 poke-lounge-web-1; do
   docker logs --since 2h --timestamps "$name" 2>&1
-done | grep -E 'browser.error|api.error|compute.failed|compute.timeout|socket.*error|api.request' | grep -v '"route":"/health'
+done | grep -E '"level":"(WARN|ERROR|warn|error)"|browser.error|api.request' | grep -v '"route":"/health'
+
+# 경고·오류만 이벤트별로 집계 (API는 대문자 level, 워커는 소문자 level)
+for name in poke-lounge-api-1 poke-lounge-battle-worker-1; do
+  docker logs --since 2h "$name" 2>&1
+done | jq -Rr 'fromjson? | select((.level // "" | ascii_upcase) as $l | $l == "WARN" or $l == "ERROR") | (.fields.event // .event)' | sort | uniq -c | sort -rn
 
 # 화면 코드 11004의 단계와 오류 텍스트를 사람이 읽기 좋게 출력
 docker logs --since 2h poke-lounge-api-1 2>&1 |
@@ -35,6 +40,36 @@ done | grep -F '여기에-방-인스턴스-UUID'
 docker logs --since 2h poke-lounge-api-1 2>&1 |
   jq -R 'fromjson? | select(.fields.event == "browser.error") | {timestamp, code: .fields.code, user_code: .fields.user_code, request_id: .fields.related_request_id, detail: (.fields.error_text | fromjson?)}'
 ```
+
+## 오류 이벤트
+
+모든 실패 로그는 `code`(응답 코드와 같은 고정 값)와 `error`(표시 문자열)를 함께 남긴다. Postgres·저장 데이터 오류는 `detail`에 서버 메시지와 분류를, `db_code`에 SQLSTATE를 남긴다. Redis 오류의 표시 문자열은 접속 URL을 포함할 수 있어 `storage_kind` 등 분류만 기록한다.
+
+| 이벤트                                                                           | 수준                | 남기는 정보                                                                                                                       |
+| -------------------------------------------------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `api.error` / `api.rejected`                                                     | error / warn        | 5xx·4xx 응답. `source`, `detail`, `db_code`                                                                                       |
+| `http.body_rejected`                                                             | warn                | 요청 JSON 거부 사유(필드 이름·기대 형식, 최대 300자)                                                                              |
+| `http.limited` / `http.origin_rejected` / `http.timeout`                         | warn / error        | 어떤 요청 한도에 걸렸는지, 거부된 Origin, 30초 초과 경로. 한도 로그는 클라이언트당 분당 1회, 과부하 로그는 초당 1회로 제한한다    |
+| `browser.report_rejected`                                                        | warn                | 브라우저 진단 보고가 검증에 실패한 필드 이름                                                                                      |
+| `browser.lifecycle`                                                              | info                | `PAGE_HIDDEN`·`PAGE_RESTORED`·`HISTORY_NAVIGATION`. 오류가 아니므로 `browser.error`와 분리한다                                    |
+| `room.tick_failed` / `room.tick_recovered`                                       | warn / info         | 방 틱 실패 단계(`stage`: clock·reload·ai_step·advance_game·commit·world 등)와 연속 실패 수. 첫 실패와 약 10초마다 기록한다        |
+| `room.actor_stopped` / `room.restore_failed` / `room.shutdown_checkpoint_failed` | info / warn / error | 방 액터 종료 사유, 복구 실패 원인, 종료 직전 저장 실패                                                                            |
+| `room.party_rejected` / `room.party_submit_failed`                               | warn / error        | 거부된 파티 규칙(`rule`: `level-growth`, `move`, `hp-out-of-range` 등)과 방 상태. 규칙 거부가 아닌 계산 실패는 별도 이벤트다      |
+| `room.roster_merge_failed`                                                       | warn                | 성장·토너먼트 보상 반영 단계(`stage`)와 원인                                                                                      |
+| `room.ai_step_failed`                                                            | warn                | 실패 수, 혼잡으로 미룬 수(`busy`), 첫 실패 코드                                                                                   |
+| `match.initialize_failed` / `match.resolve_failed` / `match.resolve_stalled`     | error               | 경기 생성·턴 계산 실패와 턴이 진행되지 않은 계산 결과. `match_id`, `turn`                                                         |
+| `match.ai_choice_failed` / `match.party_missing`                                 | error               | AI 행동 선택 실패, 대진 생성 시 파티가 없는 참가자                                                                                |
+| `compute.not_ready`                                                              | warn                | 준비 상태 확인 실패 사유: transport·status·engine_version·no_workers                                                              |
+| `compute.failed`                                                                 | error               | 실패 단계(`stage`: transport·identity·rejected·worker_failed·json_parse 등). 입력 거부는 `compute.rejected`(warn)로만 남긴다      |
+| `compute.rejected`                                                               | warn / error        | 워커 진단 `reason`, `error_name`, `error_message`(경로·따옴표 값 제거, 200자), `issues`, `frames`                                 |
+| `compute.response_invalid` / `compute.battle_invalid`                            | error               | 어긋난 응답 필드 이름(`mismatched`)과 워커 코드, 실패한 전투 결과 검사 이름(`check`)                                              |
+| `socket.subscription_rejected`                                                   | warn                | `reason`과 세부 사유(`detail_reason`: first_frame_timeout·frame_json·subscription_schema 등), 신원·방 확인 실패 코드, server_busy |
+| `socket.disconnected_error` / `socket.frame_invalid` / `socket.lagged`           | warn                | 끊긴 단계(`stage`: idle_timeout·message_rate_limit·heartbeat 등), 거부된 프레임 사유, 놓친 브로드캐스트 수                        |
+| `socket.cleanup_failed`                                                          | warn                | 연결 종료 정리 실패. 접속 상태는 오래된 연결 정리로 만료된다                                                                      |
+| `database.connect_failed` / `database.connect_timeout`                           | error               | DB 연결 실패 분류와 SQLSTATE                                                                                                      |
+| 워커 `compute.unauthorized` / `compute.busy` / `compute.client_gone`             | error / warn        | 토큰 불일치, 작업 한도·종료 중 거부, API가 기다리지 않고 떠난 계산                                                                |
+| 워커 `compute.abandoned` / `compute.worker_restart`                              | warn / error        | 대기 중 버려진 요청, 계산 스레드 재시작 사유와 요청 정보                                                                          |
+| 워커 `compute.uncaught_exception` / `compute.unhandled_rejection`                | error               | 프로세스 종료 직전 예외 진단                                                                                                      |
 
 ## 배포 이전 기록
 
