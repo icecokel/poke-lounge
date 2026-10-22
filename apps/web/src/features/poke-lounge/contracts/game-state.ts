@@ -13,6 +13,7 @@ import type {
 import type {
   TournamentMatch,
   TournamentParticipantInput,
+  TournamentStanding,
 } from "@poke-lounge/battle/tournament-bracket";
 import {
   type CumulativeTournamentScoreRank,
@@ -69,6 +70,12 @@ export interface GameTournamentState {
   serverProjection: TournamentStateRoomPayload | null;
   scoresByPlayerId: Record<string, number>;
   lastRoundScores: TournamentRoundScore[];
+  lastRoundResult: {
+    roundIndex: number;
+    standings: TournamentStanding[];
+    roundScores: TournamentRoundScore[];
+    cumulativeScores: Record<string, number>;
+  } | null;
   standings: CumulativeTournamentScoreRank[];
 }
 

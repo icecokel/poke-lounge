@@ -4,7 +4,8 @@ export type WorldUiAction =
   | MobileWorldUiAction
   | { type: "open-pokemon-status"; slotIndex: number }
   | { type: "set-pokemon-status-lead"; slotIndex: number }
-  | { type: "close-pokemon-status" };
+  | { type: "close-pokemon-status" }
+  | { type: "close-previous-round-result" };
 
 export interface WorldUiSnapshot {
   areaAnnouncement: string | null;
@@ -15,6 +16,7 @@ export interface WorldUiSnapshot {
   pokemonStatusSlotIndex: number | null;
   tournamentAnnouncement: string | null;
   tournamentResult: string | null;
+  previousRoundResult: string | null;
 }
 
 export interface WorldUiStore {
@@ -36,6 +38,7 @@ const emptySnapshot = (): WorldUiSnapshot => ({
   pokemonStatusSlotIndex: null,
   tournamentAnnouncement: null,
   tournamentResult: null,
+  previousRoundResult: null,
 });
 
 export function createWorldUiStore(): WorldUiStore {

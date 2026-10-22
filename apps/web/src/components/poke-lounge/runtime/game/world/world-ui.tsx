@@ -83,6 +83,7 @@ export function WorldUiLayer({
         copy={copy}
         gameStateStore={gameStateStore}
         rawTournamentResult={rawUi.tournamentResult}
+        onPreviousResultClose={() => uiStore.dispatch({ type: "close-previous-round-result" })}
         onResultLobby={onResultLobby}
         onResultNewGame={onResultNewGame}
         ui={ui}
@@ -410,6 +411,7 @@ export function WorldNoticeLayer({
   onResultLobby,
   onResultNewGame,
   rawTournamentResult,
+  onPreviousResultClose,
   ui,
 }: {
   copy: PokeLoungeCopy;
@@ -417,6 +419,7 @@ export function WorldNoticeLayer({
   onResultLobby(): void;
   onResultNewGame(): void;
   rawTournamentResult: string | null;
+  onPreviousResultClose(): void;
   ui: WorldUiSnapshot;
 }) {
   const gameState = useSyncExternalStore(
@@ -467,6 +470,17 @@ export function WorldNoticeLayer({
           final={gameState.round.phase === "game-result"}
           onLobby={onResultLobby}
           onNewGame={onResultNewGame}
+        />
+      ) : ui.previousRoundResult ? (
+        <TournamentResultPanel
+          copy={copy}
+          locale={copy.locale}
+          localizedText={localizeRuntimeText(ui.previousRoundResult, copy.locale)}
+          rawText={ui.previousRoundResult}
+          final={false}
+          onLobby={onResultLobby}
+          onNewGame={onResultNewGame}
+          onClose={onPreviousResultClose}
         />
       ) : null}
     </div>

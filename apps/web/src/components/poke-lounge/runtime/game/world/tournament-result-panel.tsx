@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { MobileTaskScreen } from "../../../mobile/mobile-task-screen";
 import type { PokeLoungeCopy, PokeLoungeLocale } from "../../../poke-lounge-copy";
 import { localizeRuntimeText } from "../i18n/runtime-game-localization";
@@ -37,6 +40,7 @@ export function TournamentResultPanel({
   localizedText,
   onLobby,
   onNewGame,
+  onClose,
   rawText,
 }: {
   copy: PokeLoungeCopy;
@@ -45,10 +49,20 @@ export function TournamentResultPanel({
   localizedText: string;
   onLobby(): void;
   onNewGame(): void;
+  onClose?(): void;
   rawText: string | null;
 }) {
+  // The field viewport is short on every layout (the game is a narrow column even on desktop),
+  // so non-final panels render over the whole game root rather than inside the field.
+  const [rootTarget, setRootTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (final) return;
+    setRootTarget(document.querySelector<HTMLElement>("[data-testid='poke-lounge-page']"));
+  }, [final]);
   const table = createTournamentResultTable(rawText, locale);
-  const title = table?.title ?? localizedText.split("\n")[0];
+  const title = onClose
+    ? localizeRuntimeText("지난 라운드 결과", locale)
+    : (table?.title ?? localizedText.split("\n")[0]);
   const actions = (
     <div className="grid grid-cols-2 gap-2 [&_button]:min-h-12 [&_button]:rounded-[7px] [&_button]:border-2 [&_button]:border-[#577781] [&_button]:bg-[linear-gradient(#fffdf0_50%,#dce7e2_50%)] [&_button]:font-bold [&_button]:text-[#304550] [&_button]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#304550]">
       <Button type="button" variant="outline" onClick={onLobby}>
@@ -65,7 +79,9 @@ export function TournamentResultPanel({
       className={
         final
           ? "text-left leading-[1.6] text-[#304550] [overflow-wrap:anywhere]"
-          : "pointer-events-auto absolute top-3 left-1/2 z-[900] box-border max-h-[calc(100%-24px)] w-[min(calc(100%-24px),720px)] -translate-x-1/2 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain rounded-[9px] border-[3px] border-[#4c6977] bg-[#fffdf0] p-3 text-left leading-[1.6] text-[#304550] shadow-[var(--hg-frame),0_3px_0_#304550] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[var(--pl-color-gold)] focus-visible:-outline-offset-5"
+          : cn(
+              "pointer-events-auto absolute top-3 left-1/2 z-[900] box-border max-h-[calc(100%-24px)] w-[min(calc(100%-24px),720px)] -translate-x-1/2 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain rounded-[9px] border-[3px] border-[#4c6977] bg-[#fffdf0] p-3 text-left leading-[1.6] text-[#304550] shadow-[var(--hg-frame),0_3px_0_#304550] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[var(--pl-color-gold)] focus-visible:-outline-offset-5",
+            )
       }
       data-poke-lounge-tournament-result="true"
       aria-label={final ? undefined : title}
@@ -75,15 +91,20 @@ export function TournamentResultPanel({
       onKeyDown={event => event.stopPropagation()}
     >
       {!final ? (
-        <header className="flex items-center gap-2.5 rounded-md border-2 border-[#78909b] border-b-[3px] border-b-[#b89a4b] bg-[linear-gradient(#dcebf0_50%,#edf3ed_50%)] px-3 py-2.5 text-base leading-[1.45] whitespace-normal text-[#304550] [&>span]:grid [&>span]:size-[30px] [&>span]:shrink-0 [&>span]:place-items-center [&>span]:rounded-full [&>span]:border-2 [&>span]:border-[#a3893e] [&>span]:bg-[#f8dc7d] [&>span]:text-[#775b22] [&>span]:before:content-['★']">
+        <header className="flex items-center gap-2.5 rounded-md border-2 border-[#78909b] border-b-[3px] border-b-[#b89a4b] bg-[linear-gradient(#dcebf0_50%,#edf3ed_50%)] px-3 py-1.5 text-base sm:py-2.5 leading-[1.45] whitespace-normal text-[#304550] [&>span]:grid [&>span]:size-[30px] [&>span]:shrink-0 [&>span]:place-items-center [&>span]:rounded-full [&>span]:border-2 [&>span]:border-[#a3893e] [&>span]:bg-[#f8dc7d] [&>span]:text-[#775b22] [&>span]:before:content-['★']">
           <span aria-hidden="true" />
           <strong>{title}</strong>
+          {onClose ? (
+            <Button type="button" variant="outline" onClick={onClose} className="ml-auto">
+              {copy.settingsClose}
+            </Button>
+          ) : null}
         </header>
       ) : null}
       {table ? (
         <div className="mt-2 grid gap-2">
           {table.roundWinnerLabel ? (
-            <p className="m-0 rounded-md border-2 border-[#ae9454] bg-[#fff3c5] px-3 py-2 text-sm font-black text-[#6a5126]">
+            <p className="m-0 rounded-md border-2 border-[#ae9454] bg-[#fff3c5] px-3 py-1 text-sm font-black sm:py-2 text-[#6a5126]">
               {table.roundWinnerLabel}
             </p>
           ) : null}
@@ -93,25 +114,27 @@ export function TournamentResultPanel({
               data-poke-lounge-tournament-result-table="true"
             >
               {table.rankingLabel ? (
-                <caption className="border-b border-[#b0bdab] bg-[#eef2e5] px-3 py-2 text-left text-xs font-black text-[#52614c]">
+                <caption className="border-b border-[#b0bdab] bg-[#eef2e5] px-3 py-1 text-left text-xs sm:py-2 font-black text-[#52614c]">
                   {table.rankingLabel}
                 </caption>
               ) : null}
               <thead className="bg-[#dcebf0] text-xs text-[#405761]">
                 <tr>
-                  <th className="w-[18%] border-r border-[#b0bdab] px-1 py-2 text-center sm:px-2">
+                  <th className="w-[18%] border-r border-[#b0bdab] px-1 py-1 text-center sm:py-2 sm:px-2">
                     {table.labels.rank}
                   </th>
-                  <th className="w-[42%] border-r border-[#b0bdab] px-1 py-2 text-left sm:w-[40%] sm:px-2">
+                  <th className="w-[42%] border-r border-[#b0bdab] px-1 py-1 text-left sm:py-2 sm:w-[40%] sm:px-2">
                     {table.labels.trainer}
                   </th>
-                  <th className="hidden w-[20%] border-r border-[#b0bdab] px-2 py-2 text-right sm:table-cell">
+                  <th className="hidden w-[20%] border-r border-[#b0bdab] px-2 py-1 text-right sm:py-2 sm:table-cell">
                     {table.labels.roundScore}
                   </th>
-                  <th className="hidden w-[22%] px-2 py-2 text-right sm:table-cell">
+                  <th className="hidden w-[22%] px-2 py-1 text-right sm:py-2 sm:table-cell">
                     {table.labels.cumulativeScore}
                   </th>
-                  <th className="w-[40%] px-1 py-2 text-right sm:hidden">{table.labels.score}</th>
+                  <th className="w-[40%] px-1 py-1 text-right sm:py-2 sm:hidden">
+                    {table.labels.score}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -122,10 +145,10 @@ export function TournamentResultPanel({
                       className="border-t border-[#c6d0c1] odd:bg-[#fffdf0] even:bg-[#eef2e5] data-[champion=true]:bg-[#fff3c5]"
                       data-champion={row.champion}
                     >
-                      <td className="border-r border-[#c6d0c1] px-1 py-2 text-center font-black sm:px-2">
+                      <td className="border-r border-[#c6d0c1] px-1 py-1 text-center sm:py-2 font-black sm:px-2">
                         {formatTournamentResultRank(row, locale)}
                       </td>
-                      <td className="border-r border-[#c6d0c1] px-1 py-2 font-bold sm:px-2">
+                      <td className="border-r border-[#c6d0c1] px-1 py-1 font-bold sm:px-2 sm:py-2">
                         <span className="flex min-w-0 flex-wrap items-center gap-1.5">
                           {row.champion ? (
                             <span className="shrink-0 rounded border border-[#ae9454] bg-[#f8dc7d] px-1.5 py-0.5 text-[0.64rem] font-black text-[#6a5126]">
@@ -135,17 +158,17 @@ export function TournamentResultPanel({
                           <span className="min-w-0 truncate">{row.displayName}</span>
                         </span>
                       </td>
-                      <td className="hidden border-r border-[#c6d0c1] px-2 py-2 text-right font-bold tabular-nums sm:table-cell">
+                      <td className="hidden border-r border-[#c6d0c1] px-2 py-1 text-right sm:py-2 font-bold tabular-nums sm:table-cell">
                         +{row.roundScore}
                       </td>
-                      <td className="hidden px-2 py-2 text-right font-black tabular-nums sm:table-cell">
+                      <td className="hidden px-2 py-1 text-right sm:py-2 font-black tabular-nums sm:table-cell">
                         {row.cumulativeScore}
                       </td>
-                      <td className="px-1 py-2 text-right tabular-nums sm:hidden">
+                      <td className="px-1 py-1 text-right sm:py-2 tabular-nums sm:hidden">
                         <span className="block text-xs font-bold">
                           {table.labels.roundScore} +{row.roundScore}
                         </span>
-                        <strong className="block">
+                        <strong className="block text-xs">
                           {table.labels.cumulativeScore} {row.cumulativeScore}
                         </strong>
                       </td>
@@ -155,8 +178,8 @@ export function TournamentResultPanel({
               </tbody>
             </table>
           </div>
-          {table.statusLabel ? (
-            <p className="m-0 rounded-md border border-[#b0bdab] bg-[#f3f6ec] px-3 py-2 text-center text-xs font-black text-[#52614c]">
+          {table.statusLabel && !onClose ? (
+            <p className="m-0 rounded-md border border-[#b0bdab] bg-[#f3f6ec] px-3 py-1 text-center sm:py-2 text-xs font-black text-[#52614c]">
               {table.statusLabel}
             </p>
           ) : null}
@@ -178,6 +201,8 @@ export function TournamentResultPanel({
     >
       {panel}
     </MobileTaskScreen>
+  ) : rootTarget ? (
+    createPortal(panel, rootTarget)
   ) : (
     panel
   );

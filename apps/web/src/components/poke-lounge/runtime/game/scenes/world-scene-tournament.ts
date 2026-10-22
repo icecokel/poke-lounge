@@ -22,7 +22,7 @@ import {
 } from "../state/game-state-store";
 import {
   createTournamentResultPanelViewModel,
-  formatTournamentResultRow,
+  formatTournamentResultPanel,
 } from "../tournament/tournament-result-view-model";
 import type { TournamentSession } from "../tournament/tournament-session";
 export {
@@ -244,20 +244,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       roundScores: state.tournament.lastRoundScores,
       cumulativeScores: state.tournament.scoresByPlayerId,
     });
-    this.setAnnouncement(
-      [
-        panel.title,
-        ...(panel.roundWinnerLabel ? [panel.roundWinnerLabel] : []),
-        ...panel.rows.map(formatTournamentResultRow),
-        panel.rankingLabel,
-        panel.nextActionLabel,
-      ]
-        .filter(function filterItem(line): line is string {
-          return Boolean(line);
-        })
-        .join("\n"),
-      "14px",
-    );
+    this.setAnnouncement(formatTournamentResultPanel(panel), "14px");
   }
 
   destroy(): void {
