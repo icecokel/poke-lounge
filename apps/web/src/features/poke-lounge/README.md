@@ -30,4 +30,4 @@ React 컴포넌트는 `components/poke-lounge`에 유지한다. CSS, 포커스, 
 
 ## 검사
 
-테스트는 루트 [PLAYER_TESTING.md](../../../../../PLAYER_TESTING.md)에 따라 실제 화면과 개별 사용자 입력으로만 수행한다. 자동 단위·아키텍처·브라우저 회귀 실행기는 제거했다. 타입·린트·빌드는 별도의 개발 확인이며 플레이 PASS를 대체하지 않는다.
+테스트는 루트 [PLAYER_TESTING.md](../../../../../PLAYER_TESTING.md)에 따라 실제 화면과 개별 사용자 입력으로만 수행한다. 아키텍처·브라우저 회귀 실행기는 제거했다. 단위 검사는 루트 `pnpm test:korean-messages`(한국어 조사·현지화 문구를 `node:test`로 검사, CI 미실행)만 남아 있으며 이 기능의 `presentation/world/pc-transfer-message`도 검사한다. 타입·린트·빌드는 별도의 개발 확인이며 플레이 PASS를 대체하지 않는다.

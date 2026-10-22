@@ -1,6 +1,6 @@
 # Web·Rust API·계산 워커 배포와 환경
 
-구현 대조: `13f230f`와 현재 작업 트리 · 2026-10-11 KST. 이 문서는 Git에서 제외된 내부 `docs/` 없이도 배포 조건을 확인할 수 있는 안내다. 운영 값·비밀번호·실제 방 ID는 기록하지 않는다.
+구현 대조: `46e6933` · 2026-10-23 KST. 이 문서는 Git에서 제외된 내부 `docs/` 없이도 배포 조건을 확인할 수 있는 안내다. 운영 값·비밀번호·실제 방 ID는 기록하지 않는다.
 
 ## 배포 경로
 
@@ -68,7 +68,7 @@ docker run --rm -v poke-lounge-runtime-logs:/logs:ro alpine:3.20 \
 - 전송은 한 번에 하나, 시도당 5초 제한, 분당 최대 10회(배경 기록 2회)다. 네트워크 실패·429·5xx는 최대 60초 간격으로 재시도하며 전송량 제한은 폐기 대신 지연한다. 다른 4xx는 재전송하지 않는다. 큐가 가득 차면 배경 기록, 일반 API 오류 순으로 중요한 화면 오류에 자리를 내준다. 보관 한도·만료·중복·저장 실패 수치는 `error_text.delivery`에 남는다.
 - Next의 클라이언트 초기 실행 단계에서 오류 리스너를 설치한다. 화면 코드·이미지·스타일 등 같은 origin의 허용된 리소스 경로와 히스토리 이동·페이지 캐시 복원·탭 숨김/복귀·온라인 상태를 기록한다. URL 쿼리·히스토리 state·입력 내용·파티 원문은 기록하지 않는다. 진단 코드 자체가 로드되기 전의 실패는 수집할 수 없다.
 - 파티·전투 검증 실패는 API 영속 로그의 `compute.rejected`에서 `reason`을 확인한다. 예: `active-pokemon-fainted`, `hp-out-of-range`, `schema-invalid`, 파티 제출 규칙 `level-growth`·`move`·`catch-species`. 파티 제출 거부는 `room.party_rejected`의 `rule`에도 같은 값이 남는다. 예상하지 못한 계산 예외는 `error_name`과 경로·따옴표 값을 지운 `error_message`로 원인을 읽는다. `issues`는 최대 8개의 검증 코드·허용된 필드 경로이며 값·메시지·동적 플레이어 키를 포함하지 않는다. `frames`는 최대 4개의 코드 파일명·행·열이다. `compute_request_id`로 워커의 `compute.failed`와 연결하고 HTTP span의 요청 ID·명령 ID로 브라우저 요청을 연결한다.
-- 워커는 실행 시간초과·큐 대기 시간초과·비정상 종료·프로토콜 불일치를 구분하고 대기 시간(`queueMs`)을 남긴다. API는 워커 연결 실패와 잘못된 응답을 별도로 기록한다. `backend.owner_lost`의 `reason`·`storage_kind`는 실제 소유권 불일치와 Redis 오류 분류를 구분하는 근거이며, 이 이벤트 이름만으로 소유권 만료를 단정하지 않는다.
+- 워커는 실행 시간초과·큐 대기 시간초과·비정상 종료·프로토콜 불일치를 구분하고 대기 시간(`queueMs`)을 남긴다. API는 워커 연결 실패와 잘못된 응답을 별도로 기록한다. `backend.owner_lost`는 두 경우에 남는다. `failures` 필드가 없으면 Redis가 소유권 불일치를 응답한 경우이고, `failures`가 있으면 갱신 실패가 임대 만료 시점까지 이어진 경우다. 후자의 Redis 오류 분류는 직전 `backend.owner_renew_failed`의 `reason`·`storage_kind`에서 확인하며, 이벤트 이름만으로 다른 인스턴스가 소유권을 가져갔다고 단정하지 않는다.
 
 이 기록은 진단용이며 오류를 자동 복구하거나 게임 규칙·파티 검증 조건을 바꾸지 않는다. 운영 반영은 Web·Rust API·계산 워커 배포 후 적용된다.
 
@@ -82,7 +82,7 @@ docker run --rm -v poke-lounge-runtime-logs:/logs:ro alpine:3.20 \
 
 ROM import는 `poke_lounge_rom_document` 테이블에 검증한 문서를 upsert하고 그 테이블에서 현재 import 집합 밖의 키를 제거한다. 이 작업의 삭제 범위를 일반 계정/게임 테이블까지 확대해 설명하지 않는다. 변경 시 DB와 Web/API 공통 데이터의 호환성을 확인한다.
 
-근거: [레거시 정리](src/migrations/1795132800000-drop-legacy-poke-lounge-postgres-state.ts), [ROM importer](scripts/import-poke-lounge-rom-data.ts), [데이터 소스](src/data-source.ts). production의 `DB_SYNCHRONIZE=true`는 금지되어 있다.
+근거: [레거시 정리](src/migrations/1795132800000-drop-legacy-poke-lounge-postgres-state.ts), [ROM importer](scripts/import-poke-lounge-rom-data.ts), [데이터 소스](src/data-source.ts). 데이터 소스는 `synchronize: false`로 고정되어 있어 스키마 변경은 마이그레이션으로만 반영된다. compose의 `DB_SYNCHRONIZE` 값은 코드에서 읽지 않는다.
 
 ## 실행 전·후 확인
 
@@ -90,7 +90,7 @@ ROM import는 `poke_lounge_rom_document` 테이블에 검증한 문서를 upsert
 
 배포 workflow는 API `/health`, `/health/ready`, `/poke-lounge/rooms/public`과 Web `/ko-KR`을 확인한다. 게임 주소는 `/{locale}`, 소개 주소는 `/{locale}/intro`이며 기존 긴 경로는 현재 주소로 리디렉션한다. 이 응답만으로 ROM 데이터·AI·다인 전투가 정상이라고 판단하지 않는다. 직접 플레이의 기대 동작은 [현재 게임 흐름](../../README.md)을 기준으로 확인한다.
 
-CI는 정적 검사와 프로덕션 빌드만 수행한다. 자동 테스트와 Storybook은 제거했다. 플레이어 테스트는 [직접 조작 지침](../../PLAYER_TESTING.md)에 따라 실제 브라우저에서 별도로 수행하며 CI 성공을 플레이 PASS로 해석하지 않는다.
+CI는 정적 검사와 프로덕션 빌드만 수행한다. Storybook은 제거했고, 자동 테스트는 루트 `pnpm test:korean-messages`(한국어 조사·현지화 문구를 `node:test`로 검사, CI 미실행)만 남아 있다. 플레이어 테스트는 [직접 조작 지침](../../PLAYER_TESTING.md)에 따라 실제 브라우저에서 별도로 수행하며 CI 성공을 플레이 PASS로 해석하지 않는다.
 
 ## 장애 확인·복구 경계
 
