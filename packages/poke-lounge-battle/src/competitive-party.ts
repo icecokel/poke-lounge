@@ -16,7 +16,7 @@ export const COMPETITIVE_MOVE_COUNT_MAX = 4;
 export const COMPETITIVE_POKEMON_LEVEL_MIN = 1;
 export const COMPETITIVE_POKEMON_LEVEL_MAX = 100;
 
-export interface CompetitiveIndividualValues {
+interface CompetitiveIndividualValues {
   hp: number;
   attack: number;
   defense: number;
@@ -27,7 +27,7 @@ export interface CompetitiveIndividualValues {
 
 export type CompetitivePersistentStatus = import("./gen4/types").Gen4Status;
 
-export interface CompetitivePartyMemberInput extends Gen4Traits {
+interface CompetitivePartyMemberInput extends Gen4Traits {
   slotIndex: number;
   speciesId: number;
   level: number;

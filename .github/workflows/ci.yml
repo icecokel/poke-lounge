@@ -19,7 +19,6 @@ jobs:
       cancel-in-progress: true
     env:
       NEXT_PUBLIC_API_URL: http://127.0.0.1:3001
-      NEXT_PUBLIC_POKE_BACKEND: "rust"
       NEXT_TELEMETRY_DISABLED: "1"
       LOCAL_TEST_AUTH_TOKEN: ""
     steps:

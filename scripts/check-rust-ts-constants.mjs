@@ -4,7 +4,8 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
-const apiRequire = createRequire(resolve(root, "apps/api/package.json"));
+// Any workspace package that depends on @poke-lounge/battle resolves the built dist.
+const apiRequire = createRequire(resolve(root, "apps/battle-worker/package.json"));
 
 try {
   const timing = apiRequire("@poke-lounge/battle/timing");

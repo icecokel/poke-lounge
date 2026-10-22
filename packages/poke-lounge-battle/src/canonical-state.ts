@@ -7,7 +7,7 @@ import type { CompetitivePersistentStatus } from "./competitive-party";
 
 export { canonicalize } from "./canonical-json";
 
-export type CanonicalBattleStatus = CompetitivePersistentStatus;
+type CanonicalBattleStatus = CompetitivePersistentStatus;
 
 export type CanonicalIdRecord<T> = Readonly<Record<string, T>>;
 

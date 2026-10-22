@@ -37,8 +37,7 @@ import {
 } from "@poke-lounge/battle/timing";
 import { sortTournamentParticipantsByJoinOrder } from "@poke-lounge/battle/tournament-seeding";
 import { TERMINAL_PROJECTION_PAGE_SIZE } from "@poke-lounge/battle/tournament-bracket";
-import { io } from "socket.io-client";
-import { createRustRoomSocket, RUST_BACKEND_ENABLED } from "./rust-room-socket";
+import { createRustRoomSocket } from "./rust-room-socket";
 import { createRoomRunId, isRoomRunId } from "../room-run-id";
 import {
   clearPendingRoomEntry,
@@ -192,20 +191,10 @@ interface ServerRoomSocket {
 
 type ServerRoomSocketListener = (() => void) | ((event: unknown) => void);
 
-type ServerRoomSocketFactory = (
-  url: string,
-  options: {
-    path: "/socket.io";
-    transports: ["polling", "websocket"];
-    tryAllTransports: true;
-    reconnection: true;
-  },
-) => ServerRoomSocket;
+type ServerRoomSocketFactory = (url: string) => ServerRoomSocket;
 type RecoveryOrigin = "transport" | "online-probe";
 
-const SERVER_IDENTITY_STORAGE_KEY = RUST_BACKEND_ENABLED
-  ? "poke-lounge:rust-room-identity:v3"
-  : "poke-lounge:server-room-identity";
+const SERVER_IDENTITY_STORAGE_KEY = "poke-lounge:rust-room-identity:v3";
 const USAGE_VISITOR_STORAGE_KEY = "poke-lounge:usage-visitor:v1";
 let memoryUsageVisitorId: string | null = null;
 const LEGACY_RUST_IDENTITY_STORAGE_KEY = "poke-lounge:rust-room-identity:v2";
@@ -304,7 +293,7 @@ class ServerRoomSchemaError extends Error {
 export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   resetClientDiagnosticContext();
   const identity = resolveServerIdentity(options);
-  const usageVisitorId = RUST_BACKEND_ENABLED ? resolveUsageVisitorId(identity.playerId) : null;
+  const usageVisitorId = resolveUsageVisitorId(identity.playerId);
   const sessionId = identity.sessionId;
   const serverPlayerId = identity.playerId;
   const roomRunId = resolveServerRoomRunId(options);
@@ -353,7 +342,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         headers.set("X-Request-Id", trace.requestId!);
         if (usageVisitorId) headers.set("X-Usage-Visitor", usageVisitorId);
         if (
-          RUST_BACKEND_ENABLED &&
           roomInstanceId &&
           new URL(url).pathname.startsWith(`/poke-lounge/rooms/${activeRoomId}`)
         )
@@ -709,7 +697,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         headers: {
           ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}),
           ...init?.headers,
-          ...(RUST_BACKEND_ENABLED && (!init?.method || init.method === "GET")
+          ...(!init?.method || init.method === "GET"
             ? { "X-Player-Id": serverPlayerId, "X-Session-Id": sessionId }
             : {}),
         },
@@ -1107,7 +1095,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       sessionId,
       ...(usageVisitorId ? { visitorId: usageVisitorId } : {}),
       afterRevision: Math.max(0, lastAppliedTerminalRevision),
-      ...(RUST_BACKEND_ENABLED && roomInstanceId ? { roomInstanceId } : {}),
+      ...(roomInstanceId ? { roomInstanceId } : {}),
     });
   };
 
@@ -1665,12 +1653,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return;
     }
 
-    roomSocket = socketFactory(`${getApiBaseUrl().replace(/\/$/, "")}/poke-lounge`, {
-      path: "/socket.io",
-      transports: ["polling", "websocket"],
-      tryAllTransports: true,
-      reconnection: true,
-    });
+    roomSocket = socketFactory(`${getApiBaseUrl().replace(/\/$/, "")}/poke-lounge`);
     roomSocket.on("connect", handleSocketConnect);
     roomSocket.on("connect_error", handleSocketConnectError);
     roomSocket.on("disconnect", handleSocketDisconnect);
@@ -1689,11 +1672,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const applySnapshot = (state: ServerRoomState): boolean => {
     // Ignore in-flight responses from an expired/disposed session.
     if (disposed) return false;
-    if (RUST_BACKEND_ENABLED) {
-      if (!state.roomInstanceId || (roomInstanceId && state.roomInstanceId !== roomInstanceId))
-        return false;
-      roomInstanceId = state.roomInstanceId;
-    }
+    if (!state.roomInstanceId || (roomInstanceId && state.roomInstanceId !== roomInstanceId))
+      return false;
+    roomInstanceId = state.roomInstanceId;
     const acceptsCreatedRoom = activeRoomId === PENDING_ROOM_ID;
 
     if (!acceptsCreatedRoom && state.roomCode !== activeRoomId) {
@@ -2741,11 +2722,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       try {
         current = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
       } catch (error) {
-        if (
-          !RUST_BACKEND_ENABLED ||
-          !(error instanceof ServerRoomRequestError) ||
-          error.status !== 403
-        ) {
+        if (!(error instanceof ServerRoomRequestError) || error.status !== 403) {
           throw error;
         }
         const rejoined = await mutateIdempotentRoom(
@@ -2807,23 +2784,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       );
     }
 
-    if (RUST_BACKEND_ENABLED) {
-      return mutateIdempotentRoom(
-        `/poke-lounge/rooms/${activeRoomId}/join`,
-        body,
-        initialOpenIdempotencyKey,
-      );
-    }
-
-    return mutateRoom(
+    return mutateIdempotentRoom(
       `/poke-lounge/rooms/${activeRoomId}/join`,
       body,
-      async function callback() {
-        const current = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
-        applySnapshot(current);
-
-        return getLatestRevision();
-      },
       initialOpenIdempotencyKey,
     );
   }
@@ -3232,7 +3195,7 @@ export function clearStoredServerRoomSession(accountId?: string): void {
 }
 
 export function consumeLegacyServerRoomIdentity(accountId?: string): boolean {
-  if (!RUST_BACKEND_ENABLED || typeof window === "undefined") {
+  if (typeof window === "undefined") {
     return false;
   }
 
@@ -3293,10 +3256,7 @@ function parseServerRoomState(value: unknown): ServerRoomState {
   }
 
   const room = value as Record<string, unknown>;
-  if (
-    RUST_BACKEND_ENABLED &&
-    (typeof room.roomInstanceId !== "string" || !isRoomRunId(room.roomInstanceId))
-  )
+  if (typeof room.roomInstanceId !== "string" || !isRoomRunId(room.roomInstanceId))
     throw new ServerRoomSchemaError();
 
   if (
@@ -3837,10 +3797,8 @@ function hasSamePlayerIds(left: ReadonlyArray<string>, right: ReadonlyArray<stri
 }
 
 function resolveServerRoomSocketFactory(): ServerRoomSocketFactory {
-  return function callback(url, options) {
-    return RUST_BACKEND_ENABLED
-      ? createRustRoomSocket(url)
-      : (io(url, options) as unknown as ServerRoomSocket);
+  return function callback(url) {
+    return createRustRoomSocket(url);
   };
 }
 
@@ -3935,12 +3893,11 @@ function parseStoredIdentity(stored: string | null): StoredServerRoomIdentity | 
     if (typeof parsed.sessionId !== "string" || typeof parsed.playerId !== "string") {
       return null;
     }
+    // Earlier v3 builds did not write a version field, but did generate UUID v4 credentials.
     if (
-      RUST_BACKEND_ENABLED &&
-      // Earlier v3 builds did not write a version field, but did generate UUID v4 credentials.
-      ((parsed.version !== undefined && parsed.version !== RUST_IDENTITY_STORAGE_VERSION) ||
-        !RUST_SESSION_ID_PATTERN.test(parsed.sessionId) ||
-        !RUST_PLAYER_ID_PATTERN.test(parsed.playerId))
+      (parsed.version !== undefined && parsed.version !== RUST_IDENTITY_STORAGE_VERSION) ||
+      !RUST_SESSION_ID_PATTERN.test(parsed.sessionId) ||
+      !RUST_PLAYER_ID_PATTERN.test(parsed.playerId)
     ) {
       return null;
     }
@@ -3964,9 +3921,7 @@ function writeStoredIdentity(identity: StoredServerRoomIdentity, accountId?: str
   try {
     window.localStorage.setItem(
       getServerIdentityStorageKey(accountId),
-      JSON.stringify(
-        RUST_BACKEND_ENABLED ? { ...identity, version: RUST_IDENTITY_STORAGE_VERSION } : identity,
-      ),
+      JSON.stringify({ ...identity, version: RUST_IDENTITY_STORAGE_VERSION }),
     );
   } catch {
     // Ignore storage failures; generated identities still work for the current page lifetime.
