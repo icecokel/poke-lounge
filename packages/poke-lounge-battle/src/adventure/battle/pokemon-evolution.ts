@@ -14,11 +14,6 @@ export const LEVEL_UP_EVOLUTION_METHOD = 4;
 export const ITEM_EVOLUTION_METHOD = 7;
 export const MALE_ITEM_EVOLUTION_METHOD = 16;
 export const FEMALE_ITEM_EVOLUTION_METHOD = 17;
-export const ITEM_EVOLUTION_METHODS = [
-  ITEM_EVOLUTION_METHOD,
-  MALE_ITEM_EVOLUTION_METHOD,
-  FEMALE_ITEM_EVOLUTION_METHOD,
-] as const;
 
 export interface PokemonEvolutionRule {
   method: number;

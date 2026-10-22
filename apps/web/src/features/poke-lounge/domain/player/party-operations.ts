@@ -9,9 +9,8 @@ import type {
   SetActivePartySlotResult,
   SwapPartyPokemonWithBoxResult,
   UpdatePokemonInPartySlotResult,
+  LocalPlayerState,
 } from "../../contracts/game-state";
-
-import type { LocalPlayerState } from "../../contracts/game-state";
 
 import type { PlayerChange } from "../player/player-change";
 

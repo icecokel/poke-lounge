@@ -1,5 +1,14 @@
 export const TOURNAMENT_MIN_PARTICIPANT_COUNT = 2;
+// Must match apps/api-rust/src/domain.rs MAX_PARTICIPANTS (pnpm check:rust-ts-constants).
 export const TOURNAMENT_MAX_PARTICIPANT_COUNT = 8;
+// Must match apps/api-rust/src/domain.rs ROUND_COUNT (pnpm check:rust-ts-constants).
+export const GAME_ROUND_COUNT = 3;
+// Must match apps/api-rust/src/domain.rs TERMINAL_PAGE_SIZE (pnpm check:rust-ts-constants).
+export const TERMINAL_PROJECTION_PAGE_SIZE = 8;
+// Must match apps/api-rust/src/tournament.rs SEED_ORDER_2/4/8 (pnpm check:rust-ts-constants).
+export const TOURNAMENT_SEED_ORDER_2 = [1, 2] as const;
+export const TOURNAMENT_SEED_ORDER_4 = [1, 4, 2, 3] as const;
+export const TOURNAMENT_SEED_ORDER_8 = [1, 8, 4, 5, 3, 6, 2, 7] as const;
 
 export type TournamentStatus = "in-progress" | "completed";
 export type TournamentMatchStatus = "ready" | "completed";
@@ -317,9 +326,9 @@ function createOpeningRoundEntrants(
 }
 
 function getBracketSeedOrder(participantCount: number): readonly number[] {
-  if (participantCount <= 2) return [1, 2];
-  if (participantCount <= 4) return [1, 4, 2, 3];
-  return [1, 8, 4, 5, 3, 6, 2, 7];
+  if (participantCount <= 2) return TOURNAMENT_SEED_ORDER_2;
+  if (participantCount <= 4) return TOURNAMENT_SEED_ORDER_4;
+  return TOURNAMENT_SEED_ORDER_8;
 }
 
 function normalizeTournamentParticipants(

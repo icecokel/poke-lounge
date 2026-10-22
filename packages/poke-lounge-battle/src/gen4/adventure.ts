@@ -2,7 +2,6 @@ import {
   getGen4PokemonOutsideBattle,
   advanceGen4Battle,
   createGen4Battle,
-  readGen4Battle,
   defaultGen4Action,
   validateGen4Action,
 } from "./engine";
@@ -103,9 +102,6 @@ export function resolveGen4Adventure(
     winner: f.winner,
     ...(f.escapedBy !== undefined ? { escapedBy: f.escapedBy } : {}),
   };
-}
-export function refreshGen4Adventure(state: BattleScreenState): BattleScreenState {
-  return state.gen4Session ? applyFrame(state, readGen4Battle(state.gen4Session)) : state;
 }
 function updatePokemon(old: BattlePokemon, member: Gen4Member): BattlePokemon {
   return {

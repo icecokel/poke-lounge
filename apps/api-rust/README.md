@@ -2,7 +2,7 @@
 
 구현 대조: `13f230f`와 현재 작업 트리 · 2026-10-11 KST. 전환 작업의 시작점은 `main@cfcd039`이며 아래는 현재 실행 구성을 설명한다.
 
-Rust API는 로컬과 운영의 실제 게임 서버다. 방 생성·참가·준비, 스타터 준비 장벽, 3라운드 탐험·토너먼트, AI, 누적 점수·최종 결과, WebSocket 구독·재접속을 실제 실행 경로에서 처리한다. `migration-draft/`는 이전 중간 코드 보관용이며 실행 대상이 아니다.
+Rust API는 로컬과 운영의 실제 게임 서버다. 방 생성·참가·준비, 스타터 준비 장벽, 3라운드 탐험·토너먼트, AI, 누적 점수·최종 결과, WebSocket 구독·재접속을 실제 실행 경로에서 처리한다.
 
 운영 `compose.yaml`은 Rust API와 `apps/battle-worker` 계산 워커를 실행한다. 기존 NestJS API 코드는 런타임 서버로 실행하지 않고 PostgreSQL migration과 ROM 데이터 import를 위한 빌드 도구로만 재사용한다. 운영 웹은 `NEXT_PUBLIC_POKE_BACKEND=rust`로 빌드하며 기존 외부 API 포트 계약은 유지한다.
 

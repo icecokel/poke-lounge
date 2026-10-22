@@ -1,5 +1,13 @@
+use crate::domain::MAX_PARTICIPANTS;
 use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
+
+// Must match packages/poke-lounge-battle/src/tournament-bracket.ts TOURNAMENT_SEED_ORDER_2/4/8 (pnpm check:rust-ts-constants).
+pub const SEED_ORDER_2: [usize; 2] = [1, 2];
+pub const SEED_ORDER_4: [usize; 4] = [1, 4, 2, 3];
+pub const SEED_ORDER_8: [usize; 8] = [1, 8, 4, 5, 3, 6, 2, 7];
+// Must match packages/poke-lounge-battle/src/tournament-scoring.ts DEFAULT_TOURNAMENT_SCORE_BY_RANK (pnpm check:rust-ts-constants).
+pub const SCORE_BY_RANK: [u64; 6] = [100, 70, 45, 30, 15, 5];
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -75,15 +83,15 @@ pub struct Bracket {
 }
 impl Bracket {
     pub fn new(participants: Vec<Entrant>, index: u8) -> AppResult<Self> {
-        if !(2..=8).contains(&participants.len()) {
+        if !(2..=MAX_PARTICIPANTS).contains(&participants.len()) {
             return Err(AppError::Invalid("Invalid tournament participant count"));
         }
         let order: &[usize] = if participants.len() <= 2 {
-            &[1, 2]
+            &SEED_ORDER_2
         } else if participants.len() <= 4 {
-            &[1, 4, 2, 3]
+            &SEED_ORDER_4
         } else {
-            &[1, 8, 4, 5, 3, 6, 2, 7]
+            &SEED_ORDER_8
         };
         let entrants = order
             .iter()
@@ -197,15 +205,8 @@ impl Bracket {
         rounds.sort_unstable_by(|a, b| b.cmp(a));
         rounds.dedup();
         for round in rounds {
-            let score = match scores.len() + 1 {
-                1 => 100,
-                2 => 70,
-                3 => 45,
-                4 => 30,
-                5 => 15,
-                6 => 5,
-                _ => 0,
-            };
+            // scores.len() + 1 is the rank about to be assigned; ranks past the table score 0.
+            let score = SCORE_BY_RANK.get(scores.len()).copied().unwrap_or(0);
             for e in self.eliminations.iter().filter(|e| e.round_number == round) {
                 scores.push((e.player_id.clone(), score));
             }

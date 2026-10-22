@@ -1,5 +1,5 @@
 import { hgssCaptureValue, hgssShakeThreshold } from "../../gen4/capture";
-import { calculateCaptureValue, resolveCaptureAttempt } from "../../capture";
+import { resolveCaptureAttempt } from "../../capture";
 
 export interface Gen4CaptureValueInput {
   cartridgeRules?: boolean;
@@ -19,18 +19,6 @@ export interface Gen4CaptureAttemptResult {
   shakes: number;
   captureValue: number;
   shakeThreshold: number;
-}
-
-export function calculateGen4CaptureValue(input: Gen4CaptureValueInput): number {
-  return input.cartridgeRules ? hgssCaptureValue(input) : calculateCaptureValue(input);
-}
-
-export function calculateGen4ShakeThreshold(captureValue: number): number {
-  if (captureValue <= 0) {
-    return 0;
-  }
-
-  return Math.floor(1048560 / Math.sqrt(Math.sqrt(16711680 / captureValue)));
 }
 
 export function resolveGen4CaptureAttempt(

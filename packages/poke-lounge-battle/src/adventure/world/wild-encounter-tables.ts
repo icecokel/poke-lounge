@@ -1,6 +1,4 @@
 import { MAX_POKEMON_LEVEL, MIN_POKEMON_LEVEL, type WildEncounterSlot } from "./wild-encounters";
-
-export const DEFAULT_WILD_ENCOUNTER_TABLE_ID = "starter-field";
 export const WILD_ENCOUNTER_TABLES_JSON_ASSET = [
   "wildEncounterTables",
   "/game-data/wild-encounter-tables.json",
@@ -51,15 +49,6 @@ export function selectWildEncounterConfig(
         slots: table.slots,
       }
     : undefined;
-}
-
-export function selectWildEncounterSlots(
-  data: unknown,
-  mapKey: string,
-  areaId?: string | null,
-  pokemonData?: unknown,
-): ReadonlyArray<WildEncounterSlot> | undefined {
-  return selectWildEncounterConfig(data, mapKey, areaId, pokemonData)?.slots;
 }
 
 function selectWildEncounterTable(

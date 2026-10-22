@@ -48,7 +48,6 @@ jobs:
         run: |
           pnpm exec prettier --check ".github/workflows/**/*.{yml,yaml}"
           pnpm lint
-          pnpm check:api-contract
           pnpm check:rust-room-contract
           pnpm check:rust-ts-constants
           pnpm check:poke-lounge-i18n

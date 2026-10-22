@@ -9,6 +9,7 @@ import {
 import { createInitialBattleState } from "@poke-lounge/battle/ruleset";
 import { initializeGen4Canonical } from "@poke-lounge/battle/gen4/canonical";
 import { createSeededRandom } from "@poke-lounge/battle/prng";
+import { COMPETITIVE_RULESET_VERSION } from "@poke-lounge/battle/competitive-ruleset-config";
 import { validateCompetitiveAction, resolveTurn } from "@poke-lounge/battle/resolve-turn";
 import { getCompetitiveActionPlayerIds } from "@poke-lounge/battle/actions";
 import {
@@ -51,7 +52,7 @@ import {
 function state(value: unknown): CanonicalBattleState {
   const parsed = z
     .object({
-      rulesetVersion: z.literal(3),
+      rulesetVersion: z.literal(COMPETITIVE_RULESET_VERSION),
       turn: z.number().int().nonnegative(),
       participantIds: z.array(z.string()).length(2),
       playersById: z.record(z.string(), z.unknown()),

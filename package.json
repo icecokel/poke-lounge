@@ -26,8 +26,6 @@
     "check:poke-lounge-battle-resolution": "node scripts/check-poke-lounge-battle-resolution.mjs types && pnpm build:poke-lounge-battle && node scripts/check-poke-lounge-battle-resolution.mjs runtime",
     "poke-lounge:audio:verify": "node scripts/poke-lounge/verify-audio-assets.mjs",
     "generate:openapi": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/api openapi:generate",
-    "generate:types": "pnpm generate:openapi && prettier --write apps/api/openapi.json && pnpm --filter @poke-lounge/web generate:types && prettier --write apps/web/src/types/api.d.ts",
-    "check:api-contract": "node scripts/check-api-contract.mjs",
     "check:rust-room-contract": "node scripts/check-rust-room-contract.mjs",
     "check:rust-ts-constants": "node scripts/check-rust-ts-constants.mjs",
     "format:check": "prettier --check .",
@@ -38,8 +36,7 @@
     "test:korean-messages": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/web exec tsx --tsconfig tests/korean-messages/tsconfig.json --test tests/korean-messages/particles.test.ts tests/korean-messages/localization.test.ts"
   },
   "devDependencies": {
-    "prettier": "^3.8.4",
-    "prettier-plugin-tailwindcss": "^0.8.0"
+    "prettier": "^3.8.4"
   },
   "pnpm": {
     "overrides": {

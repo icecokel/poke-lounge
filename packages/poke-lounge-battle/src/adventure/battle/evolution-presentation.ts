@@ -1,14 +1,6 @@
 import { withDirectionParticle } from "../../battle-message-text";
 export { ROM_EVOLUTION_ANIMATION_DURATION_MS } from "../../timing";
 
-export const ROM_EVOLUTION_MESSAGE_SOURCE = {
-  romSha1: "5834fb3a2d751c48501d47d6a56898d7af6ccf9e",
-  archivePath: "a/0/2/7",
-  archiveMemberIndex: 196,
-  startMessageIndex: 915,
-  successMessageIndex: 918,
-} as const;
-
 const EVOLUTION_INTRO_END = 0.17;
 const EVOLUTION_MORPH_END = 0.82;
 const EVOLUTION_FLASH_END = 0.92;
