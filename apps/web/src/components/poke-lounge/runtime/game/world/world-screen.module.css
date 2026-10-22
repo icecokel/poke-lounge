@@ -1,0 +1,11 @@
+.grassStep {
+  position: absolute;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grassStep {
+    display: none;
+  }
+}

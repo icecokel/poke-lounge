@@ -20,6 +20,7 @@ import type {
   RustRoomSnapshot,
 } from "@/features/poke-lounge/contracts/rust-room";
 import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
+import { FIELD_MAP } from "@poke-lounge/battle/adventure/world/field-map";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import {
   INITIAL_WORKFLOW_RETRY_MAX_DELAY_MS,
@@ -144,6 +145,7 @@ export interface PokeLoungeFreshSessionRequiredDetail {
 export interface PokeLoungeServerRoomErrorDetail {
   code:
     | "ROOM_CREATE_FAILED"
+    | "ROOM_CODE_IN_USE"
     | "ROOM_JOIN_FAILED"
     | "ROOM_PARTY_SYNC_FAILED"
     | "ROOM_READY_FAILED"
@@ -3004,14 +3006,19 @@ function createDefaultSnapshot(sessionId: string, playerId: string): PlayerSnaps
     sessionId,
     playerId,
     displayName: "Player 1",
-    map: "new-bark-town",
-    x: 656,
-    y: 446,
+    map: FIELD_MAP.key,
+    ...FIELD_MAP.fallbackSpawn,
     facing: "front",
   };
 }
 
 function isRecoverableInitialWorkflowError(error: unknown): boolean {
+  if (
+    error instanceof ServerRoomRequestError &&
+    error.serverCode === "POKE_LOUNGE_ROOM_CODE_IN_USE"
+  ) {
+    return false;
+  }
   if (isRoomFullRequestError(error)) {
     return false;
   }
@@ -3038,6 +3045,19 @@ function createInitialWorkflowErrorDetail(
 ): Omit<PokeLoungeServerRoomErrorDetail, "cancel" | "retry"> {
   const status = error instanceof ServerRoomRequestError ? error.status : null;
   const statusMessage = status ? ` (HTTP ${status})` : "";
+
+  if (
+    stage === "open" &&
+    creatingRoom &&
+    error instanceof ServerRoomRequestError &&
+    error.serverCode === "POKE_LOUNGE_ROOM_CODE_IN_USE"
+  ) {
+    return {
+      code: "ROOM_CODE_IN_USE",
+      message: getServerRoomErrorMessage("ko-KR", "ROOM_CODE_IN_USE"),
+      recoverable: false,
+    };
+  }
 
   if (stage === "open" && isRoomFullRequestError(error)) {
     return {

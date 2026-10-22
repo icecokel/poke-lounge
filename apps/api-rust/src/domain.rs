@@ -1618,7 +1618,7 @@ impl Room {
         ids.sort();
         let i = ids.iter().position(|id| *id == player)?;
         Some(
-            json!({"map":"town","x":592+(i%4)*32,"y":304+if starting{64}else{0}+(i/4)*32,"facing":if starting{"front"}else{"back"}}),
+            json!({"map":"town","x":576+(i%4)*32,"y":448+if starting{64}else{0}+(i/4)*32,"facing":if starting{"front"}else{"back"}}),
         )
     }
 }

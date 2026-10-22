@@ -19,6 +19,8 @@ pub enum AppError {
     Closed,
     #[error("Poke Lounge room is full")]
     RoomFull,
+    #[error("Room code is already in use")]
+    RoomCodeInUse,
     #[error("Room has already started")]
     RoomAlreadyStarted,
     #[error("Room participant identity does not match")]
@@ -58,6 +60,14 @@ pub enum AppError {
     #[error("Configuration error: {0}")]
     Configuration(&'static str),
 }
+impl AppError {
+    pub fn storage_error(&self) -> Option<&redis::RedisError> {
+        match self {
+            Self::Storage(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, code) = match &self {
@@ -67,6 +77,7 @@ impl IntoResponse for AppError {
             Self::NotFound => (StatusCode::NOT_FOUND, "ROOM_NOT_FOUND"),
             Self::Closed => (StatusCode::GONE, "ROOM_CLOSED"),
             Self::RoomFull => (StatusCode::CONFLICT, "POKE_LOUNGE_ROOM_FULL"),
+            Self::RoomCodeInUse => (StatusCode::CONFLICT, "POKE_LOUNGE_ROOM_CODE_IN_USE"),
             Self::RoomAlreadyStarted => {
                 (StatusCode::BAD_REQUEST, "POKE_LOUNGE_ROOM_ALREADY_STARTED")
             }
@@ -106,7 +117,11 @@ impl IntoResponse for AppError {
                 Self::Configuration(_) => "configuration",
                 _ => "other",
             };
-            tracing::error!(event = "api.error", code, source);
+            let storage = self.storage_error();
+            tracing::error!(event = "api.error", code, source,
+                storage_kind = ?storage.map(redis::RedisError::kind),
+                storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
+                storage_timeout = ?storage.map(redis::RedisError::is_timeout));
         } else if status.is_client_error() {
             tracing::warn!(event = "api.rejected", code, reason = %self);
         }

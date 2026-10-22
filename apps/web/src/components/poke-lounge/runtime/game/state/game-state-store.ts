@@ -18,6 +18,7 @@ import {
   isValidPartySlotIndex,
 } from "@/features/poke-lounge/domain/player/player-helpers";
 import type { PlayerPokemon } from "@poke-lounge/battle/adventure/player/pokemon-types";
+import { FIELD_MAP } from "@poke-lounge/battle/adventure/world/field-map";
 import type { TournamentParticipant } from "@poke-lounge/battle/tournament-bracket";
 import {
   accumulateTournamentScores,
@@ -856,9 +857,8 @@ export function createDefaultLocalPlayer(playerId = "player-1"): LocalPlayerStat
     competitive: createDefaultCompetitiveStats(),
     guide: createDefaultPlayerGuideState(),
     position: {
-      mapKey: "town",
-      x: 656,
-      y: 446,
+      mapKey: FIELD_MAP.key,
+      ...FIELD_MAP.fallbackSpawn,
       facing: "front",
     },
   };

@@ -39,6 +39,7 @@ export const ROOM_ERROR_CODES = {
   ROOM_REQUEST_TIMEOUT: "21019",
   ROOM_NETWORK_FAILED: "21020",
   ROOM_RESPONSE_INVALID: "21021",
+  ROOM_CODE_IN_USE: "21022",
 } as const satisfies Record<PokeLoungeServerRoomErrorDetail["code"], string>;
 
 export type PokeLoungeErrorCode =

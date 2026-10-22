@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ComputeFailureDiagnostic } from "./diagnostics";
 import { STARTER_MODES } from "@poke-lounge/battle/starter-selection";
 import { AI_DIFFICULTIES } from "@poke-lounge/battle/ai-difficulty";
 import { PARTY_ROSTER_LIMIT } from "@poke-lounge/battle/party-acceptance";
@@ -119,7 +120,10 @@ export type ComputeResponse = {
   roomInstanceId: string;
   stateRevision: number;
   engineVersion: string;
-} & ({ ok: true; data: unknown } | { ok: false; code: "INVALID_INPUT" | "COMPUTE_FAILED" });
+} & (
+  | { ok: true; data: unknown }
+  | { ok: false; code: "INVALID_INPUT" | "COMPUTE_FAILED"; diagnostic: ComputeFailureDiagnostic }
+);
 
 const iv = z.strictObject({
   hp: integer.max(31),

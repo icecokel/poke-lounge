@@ -722,7 +722,7 @@ impl Actor {
                         "PLAYER_JOINED",
                         self.room
                             .position(&player, self.now)
-                            .unwrap_or(json!({"map":"town","x":656,"y":446,"facing":"front"})),
+                            .unwrap_or(json!({"map":"town","x":624,"y":688,"facing":"front"})),
                     )?;
                 }
                 Ok(json!({"room":self.snapshot(after),"world":self.world_snapshot()}))

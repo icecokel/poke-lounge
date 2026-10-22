@@ -72,7 +72,13 @@ impl Repository {
             ConnectionManager::new_with_config(client, config),
         )
         .await
-        .map_err(|_| AppError::Unavailable)??;
+        .map_err(|_| {
+            tracing::error!(
+                event = "storage.connect_timeout",
+                timeout_ms = (IO_TIMEOUT * 2).as_millis() as u64
+            );
+            AppError::Unavailable
+        })??;
         Ok(Self {
             connection,
             owner: Uuid::new_v4().to_string().into(),
@@ -229,7 +235,7 @@ return redis.call('ZRANGE', KEYS[2], 0, ARGV[2])
                     return Ok((room, receipt, true));
                 }
                 "collision" if input.room_code.is_none() => continue,
-                "collision" => return Err(AppError::Invalid("Room code is already in use")),
+                "collision" => return Err(AppError::RoomCodeInUse),
                 "capacity" => return Err(AppError::Capacity),
                 "expired" => return Err(AppError::Closed),
                 "fenced" => return Err(AppError::Unavailable),

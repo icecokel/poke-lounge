@@ -308,10 +308,7 @@ export class WorldController {
         ? resolvePersistedWorldSpawn(
             this.gameStateStore.getCurrentLocalPlayer().position,
             FIELD_MAP.key,
-            {
-              width: this.options.worldModel.widthInPixels,
-              height: this.options.worldModel.heightInPixels,
-            },
+            this.options.worldModel,
           )
         : null;
     this.createPlayer(
@@ -871,7 +868,8 @@ export class WorldController {
     const key = gathering.key;
     if (this.tournamentGatheringKey === key) return;
     this.tournamentGatheringKey = key;
-    this.encounters.cancelForTournament();
+    // Gathering after a refresh must preserve the assigned tournament battle intro.
+    if (!this.preserveRoomForBattle) this.encounters.cancelForTournament();
     this.interactions.destroy();
     this.options.ownerDocument.dispatchEvent(new CustomEvent("poke-lounge:tournament-gathering"));
     this.options.keyboard.clearPresses();

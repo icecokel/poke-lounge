@@ -1,0 +1,91 @@
+{
+  "romSha1": "5834fb3a2d751c48501d47d6a56898d7af6ccf9e",
+  "archive": "a/1/0/3",
+  "controlMember": 140,
+  "textureMember": 25,
+  "membersSha256": {
+    "126": "da55b9325d96d738441f98078bf150bae4da85178f4de73949cb9ed111f0abce",
+    "140": "58527da36cd1f0a87213f61f27f8bc1670c1312459469e1f07ed436e1b735ccf",
+    "25": "879c759478d8168b2daa878b07dcc2e05d1f0c0a71cf7d727a958c6e01407ac1"
+  },
+  "textures": ["kusaeff.1", "kusaeff.2", "kusaeff.3", "kusaeff.4"],
+  "palette": "kusaeff",
+  "frameKeys": [0, 4, 8, 12],
+  "tickRate": 30,
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "worldWidth": 32,
+  "worldHeight": 32,
+  "paletteIndices": [0, 0, 0, 0],
+  "model": {
+    "name": "kusaeff",
+    "member": 126,
+    "positionScale": 8.0,
+    "billboard": true,
+    "vertices": [
+      {
+        "position": [-16.0, 0.0, 0.0],
+        "uv": [0.0, 32.0]
+      },
+      {
+        "position": [16.0, 0.0, 0.0],
+        "uv": [32.0, 32.0]
+      },
+      {
+        "position": [16.0, 32.0, 0.0],
+        "uv": [32.0, 0.0]
+      },
+      {
+        "position": [-16.0, 32.0, 0.0],
+        "uv": [0.0, 0.0]
+      }
+    ]
+  },
+  "originalTileWorldUnits": 16,
+  "tileAnchorWorld": [8, 18],
+  "projectTilePixels": 32,
+  "projectSize": [64, 64],
+  "projectAnchor": [32, 64],
+  "projectTileAnchor": [16, 36],
+  "projectOriginOffset": [-16, -28],
+  "alphaBounds": [
+    [8, 17, 24, 31],
+    [8, 20, 24, 31],
+    [8, 21, 24, 31],
+    [8, 21, 24, 31]
+  ],
+  "alphaValues": [
+    [0, 255],
+    [0, 255],
+    [0, 255],
+    [0, 255]
+  ],
+  "processing": "Original full RGBA and UV orientation; nearest-neighbor 2x only. No crop, recolor, opacity adjustment, or generated motion.",
+  "sourceReferences": [
+    {
+      "claim": "normal grass resource loading",
+      "file": "asm/overlay_01_021FEEEC.s",
+      "lines": [43, 76]
+    },
+    {
+      "claim": "tile anchor X=tile*16+8, Z=tile*16+18",
+      "file": "asm/overlay_01_021FEEEC.s",
+      "lines": [340, 362]
+    },
+    {
+      "claim": "map tile world size is 16",
+      "file": "src/map_object.c",
+      "lines": [1989, 1995]
+    },
+    {
+      "claim": "main queue runs every two VBlanks",
+      "file": "src/main.c",
+      "lines": [104, 129]
+    },
+    {
+      "claim": "field effects run on main queue",
+      "file": "asm/unk_020689C8.s",
+      "lines": [291, 291]
+    }
+  ]
+}
