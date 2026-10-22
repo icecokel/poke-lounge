@@ -132,8 +132,12 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
         let drained = rooms.drain().await;
         lease_stop.cancel();
         let _ = lease_task.await;
-        if drained {
-            let _ = repository.release().await;
+        if drained && let Err(release_error) = repository.release().await {
+            tracing::warn!(
+                event = "backend.owner_release_failed",
+                stage = "rooms.restore",
+                code = release_error.code()
+            );
         }
         return Err(error);
     }
@@ -223,9 +227,17 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
         return Err(AppError::Unavailable);
     }
     *stage = "server.stop";
-    served
-        .ok_or(AppError::Unavailable)?
-        .map_err(|_| AppError::Unavailable)
+    match served {
+        None => {
+            tracing::error!(event = "backend.server_stop_timeout", timeout_ms = 15_000);
+            Err(AppError::Unavailable)
+        }
+        Some(Err(error)) => {
+            tracing::error!(event = "backend.server_failed", error = %error, io_kind = ?error.kind());
+            Err(AppError::Unavailable)
+        }
+        Some(Ok(())) => Ok(()),
+    }
 }
 
 async fn wait_for_shutdown_signal() {

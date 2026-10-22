@@ -75,9 +75,9 @@ export function installClientDiagnostics() {
     reportClientDiagnostic({ kind: "runtime", code: "PAGE_HIDDEN", priority: "background" });
     flushClientDiagnostics();
   };
+  // Back/forward is normal play; keep it as context for a later real failure, not as a report.
   const onHistory = () => {
     recordClientBreadcrumb("navigation.history");
-    reportClientDiagnostic({ kind: "runtime", code: "HISTORY_NAVIGATION", priority: "background" });
   };
   const onVisibility = () => {
     recordClientBreadcrumb(document.visibilityState === "visible" ? "page.visible" : "page.hidden");

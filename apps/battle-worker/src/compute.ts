@@ -302,10 +302,14 @@ async function run(raw: unknown): Promise<ComputeResponse> {
     ) {
       process.stderr.write(
         JSON.stringify({
+          level: "warn",
           event: "compute.party_rejected",
+          timestamp: new Date().toISOString(),
           requestId: input.requestId,
           roomInstanceId: input.roomInstanceId,
+          operation: input.operation.kind,
           rule: partyRule,
+          issues: computeFailureDiagnostic(error).issues,
         }) + "\n",
       );
     }
@@ -332,6 +336,7 @@ void getContext()
   .catch(error => {
     process.stderr.write(
       JSON.stringify({
+        level: "error",
         event: "compute.assets_invalid",
         timestamp: new Date().toISOString(),
         diagnostic: computeFailureDiagnostic(error),
@@ -342,5 +347,16 @@ void getContext()
 parentPort?.on("message", (input: unknown) => {
   void run(input)
     .then(result => parentPort?.postMessage(result))
-    .catch(() => parentPort?.postMessage({ protocolError: true }));
+    .catch((error: unknown) => {
+      // The request envelope itself was unusable; the parent restarts this thread.
+      process.stderr.write(
+        JSON.stringify({
+          level: "error",
+          event: "compute.protocol_error",
+          timestamp: new Date().toISOString(),
+          diagnostic: computeFailureDiagnostic(error),
+        }) + "\n",
+      );
+      parentPort?.postMessage({ protocolError: true });
+    });
 });

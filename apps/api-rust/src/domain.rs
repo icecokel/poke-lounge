@@ -70,7 +70,7 @@ const AI_DISPLAY_NAMES: [&str; 18] = [
     "피크닉걸 진미",
 ];
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Status {
     Waiting,
@@ -738,8 +738,8 @@ impl Room {
                         });
                     match merged {
                         Ok(merged) => roster = merged,
-                        Err(_) => {
-                            tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player)
+                        Err(error) => {
+                            tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player, stage = "progression", code = error.code(), error = %error, detail = ?error.detail())
                         }
                     }
                     self.parties.insert(
@@ -781,9 +781,12 @@ impl Room {
                         }),
                     )
                     .await
-                    .inspect_err(|error| {
-                        if matches!(error, AppError::Invalid(_)) {
-                            tracing::warn!(event = "room.party_rejected", room_instance_id = %self.room_instance_id, player_id = %player);
+                    .inspect_err(|error| match error {
+                        AppError::ComputeRejected(rule) => {
+                            tracing::warn!(event = "room.party_rejected", room_instance_id = %self.room_instance_id, player_id = %player, rule = %rule, status = ?self.status, round_index = self.round.index);
+                        }
+                        _ => {
+                            tracing::error!(event = "room.party_submit_failed", room_instance_id = %self.room_instance_id, player_id = %player, code = error.code(), error = %error);
                         }
                     })?;
                 let value = accepted
@@ -1115,7 +1118,8 @@ impl Room {
                             player,
                             self.matches[&id].turn()
                         );
-                        let action=compute.run(self.room_instance_id,self.storage_version,json!({"kind":"choose-ai","state":self.matches[&id].pack.state,"playerId":player,"difficulty":difficulty,"seed":decision_seed})).await?;
+                        let action=compute.run(self.room_instance_id,self.storage_version,json!({"kind":"choose-ai","state":self.matches[&id].pack.state,"playerId":player,"difficulty":difficulty,"seed":decision_seed})).await
+                            .inspect_err(|error| tracing::error!(event="match.ai_choice_failed",room_instance_id=%self.room_instance_id,match_id=%id,player_id=%player,turn=self.matches[&id].turn(),code=error.code(),error=%error,detail=?error.detail()))?;
                         self.matches
                             .get_mut(&id)
                             .ok_or(AppError::ActionConflict)?
@@ -1166,7 +1170,12 @@ impl Room {
                         .map(|p| json!({"playerId":id,"party":p.competitive_party}))
                         .ok_or(AppError::Invalid("Missing competitive party"))
                 })
-                .collect::<AppResult<Vec<_>>>()?;
+                .collect::<AppResult<Vec<_>>>()
+                .inspect_err(|_| {
+                    let missing: Vec<&String> =
+                        players.iter().filter(|id| !self.parties.contains_key(*id)).collect();
+                    tracing::error!(event = "match.party_missing", room_instance_id = %self.room_instance_id, bracket_match_id = %bracket.match_id, missing = ?missing);
+                })?;
             let seed = Uuid::new_v4().to_string();
             let id = Uuid::new_v4();
             let pack = compute
@@ -1176,7 +1185,10 @@ impl Room {
                     json!({"kind":"initialize","players":parties,"seed":seed}),
                     &players,
                 )
-                .await?;
+                .await
+                .inspect_err(|error| {
+                    tracing::error!(event = "match.initialize_failed", room_instance_id = %self.room_instance_id, bracket_match_id = %bracket.match_id, players = ?players, code = error.code(), error = %error, detail = ?error.detail());
+                })?;
             self.touch(now);
             self.matches.insert(
                 id,
@@ -1218,9 +1230,13 @@ impl Room {
                 json!({"kind":"resolve","state":m.pack.state,"actions":m.actions,"seed":m.seed}),
                 &m.players,
             )
-            .await?;
+            .await
+            .inspect_err(|error| {
+                tracing::error!(event = "match.resolve_failed", room_instance_id = %self.room_instance_id, match_id = %id, turn = m.turn(), actions = m.actions.len(), code = error.code(), error = %error, detail = ?error.detail());
+            })?;
         if pack.state["terminal"].is_null() && pack.state["turn"].as_u64().unwrap_or(0) <= m.turn()
         {
+            tracing::error!(event = "match.resolve_stalled", room_instance_id = %self.room_instance_id, match_id = %id, turn = m.turn(), returned_turn = %pack.state["turn"]);
             return Err(AppError::ComputeUnavailable);
         }
         let m = self.matches.get_mut(&id).ok_or(AppError::ActionConflict)?;
@@ -1305,8 +1321,8 @@ impl Room {
                     });
                 match merged {
                     Ok(merged) => roster = merged,
-                    Err(_) => {
-                        tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player)
+                    Err(error) => {
+                        tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player, stage = "tournament_reward", code = error.code(), error = %error, detail = ?error.detail())
                     }
                 }
             }
@@ -1466,11 +1482,19 @@ impl Room {
         });
         let results = futures_util::future::join_all(jobs).await;
         let mut failures = 0;
+        // Busy means the background compute lane was full and the step is simply retried next tick.
+        let mut busy = 0;
+        let mut first_failure: Option<&'static str> = None;
         for result in results {
             let (id, value) = match result {
                 Ok(v) => v,
-                Err(_) => {
+                Err(AppError::Busy) => {
+                    busy += 1;
+                    continue;
+                }
+                Err(error) => {
                     failures += 1;
+                    first_failure.get_or_insert(error.code());
                     continue;
                 }
             };
@@ -1478,6 +1502,7 @@ impl Room {
                 self.adventures.insert(id.clone(), adventure.clone());
             } else {
                 failures += 1;
+                first_failure.get_or_insert("ADVENTURE_MISSING");
                 continue;
             }
             if self.status == Status::RoundStarted {
@@ -1509,7 +1534,9 @@ impl Room {
             }
         }
         if failures > 0 {
-            tracing::warn!(event="room.ai_step_failed",room_instance_id=%self.room_instance_id,failures);
+            tracing::warn!(event="room.ai_step_failed",room_instance_id=%self.room_instance_id,failures,busy,first_failure=first_failure.unwrap_or("none"),round_index=self.round.index);
+        } else if busy > 0 {
+            tracing::debug!(event="room.ai_step_busy",room_instance_id=%self.room_instance_id,busy);
         }
         self.last_ai_step_ms = now;
         Ok(())
