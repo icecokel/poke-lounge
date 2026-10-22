@@ -13,7 +13,7 @@ import type { GameStateStore } from "../state/game-state-store";
 import { FIELD_MAP } from "./field-map";
 import { pixelToTile } from "./tile-steps";
 import type { WorldFrameStore } from "./world-frame-store";
-import grassEffect from "../../../../../../public/assets/poke-lounge/world/field-grass-effect.json";
+import grassEffect from "../../../../../../public/assets/poke-lounge/world/original-rice/step.json";
 import {
   getWorldTileSourcePosition,
   type WorldMapLayerModel,
@@ -97,16 +97,11 @@ export function WorldScreen({
           stage.style.transform = `scale(${scale})`;
           map.style.transform = `translate3d(${-frame.camera.x}px, ${-frame.camera.y}px, 0)`;
           updatePlayerStyle(localPlayer, frame.localPlayer, atlas);
-          updateGrassStepStyle(localGrassStepRef.current, frame.localPlayer, model, now);
+          updateGrassStepStyle(localGrassStepRef.current, frame.localPlayer, model);
           for (const remote of frame.remotePlayers) {
             const node = remotePlayerRefs.current.get(remote.sessionId);
             if (node) updatePlayerStyle(node, remote, atlas);
-            updateGrassStepStyle(
-              remoteGrassStepRefs.current.get(remote.sessionId),
-              remote,
-              model,
-              now,
-            );
+            updateGrassStepStyle(remoteGrassStepRefs.current.get(remote.sessionId), remote, model);
           }
         }
         renderBattleTransition(
@@ -157,7 +152,7 @@ export function WorldScreen({
               })}
             </WorldActorLayer>
             <TallGrassForegroundLayer model={model} />
-            <div className="absolute inset-auto z-[31] size-full">
+            <div className="absolute inset-auto z-[21] size-full">
               <GrassStepEffect ref={localGrassStepRef} />
               {remotePlayers.map(function mapItem(player) {
                 return (
@@ -259,7 +254,7 @@ export function TallGrassBaseLayer({ model }: { model: WorldMapModel }) {
 export function TallGrassForegroundLayer({ model }: { model: WorldMapModel }) {
   return (
     <WorldGrassLayer
-      depth={30}
+      depth={18}
       model={model}
       name="Tall Grass Foreground"
       tiles={model.tallGrassForeground}
@@ -312,7 +307,6 @@ function WorldTile({ model, tile }: { model: WorldMapModel; tile: WorldMapTile }
 
 const grassEffectLastTick = grassEffect.frameKeys[grassEffect.frameKeys.length - 1];
 const grassEffectDuration = (grassEffectLastTick / grassEffect.tickRate) * 1000;
-const grassEffectExitCheckAt = ((grassEffectLastTick + 1) / grassEffect.tickRate) * 1000;
 const grassEffectKeyframes = grassEffect.frameKeys.map((tick, index) => ({
   backgroundPositionX: `${-index * grassEffect.projectSize[0]}px`,
   easing: "steps(1, end)",
@@ -320,14 +314,28 @@ const grassEffectKeyframes = grassEffect.frameKeys.map((tick, index) => ({
 }));
 
 const GrassStepEffect = forwardRef<HTMLDivElement>(function GrassStepEffect(_, ref) {
-  return <div ref={ref} className="absolute inset-0" />;
+  return (
+    <div
+      ref={ref}
+      className={styles.grassStep}
+      style={{
+        backgroundImage: `url(${WORLD_GRASS_STEP_ASSET.path})`,
+        backgroundSize: `${grassEffect.projectSize[0] * grassEffect.frameKeys.length}px ${grassEffect.projectSize[1]}px`,
+        backgroundPosition: `${-(grassEffect.frameKeys.length - 1) * grassEffect.projectSize[0]}px 0`,
+        width: grassEffect.projectSize[0],
+        height: grassEffect.projectSize[1],
+        clipPath: `inset(${grassEffect.foregroundTop}px 0 0)`,
+        visibility: "hidden",
+      }}
+    />
+  );
 });
 
 const grassStepStates = new WeakMap<
   HTMLDivElement,
   {
     tileKey: string;
-    effects: Array<{ node: HTMLSpanElement; tileKey: string; removeAfter: number }>;
+    animation: Animation | undefined;
   }
 >();
 
@@ -335,45 +343,42 @@ function updateGrassStepStyle(
   node: HTMLDivElement | null | undefined,
   player: { x: number; y: number },
   model: WorldMapModel,
-  now: number,
 ) {
   if (!node) return;
   const tile = pixelToTile(player, model.tileWidth);
   const tileKey = `${tile.x},${tile.y}`;
   const initial = !grassStepStates.has(node);
-  const state = grassStepStates.get(node) ?? { tileKey: "", effects: [] };
+  const state = grassStepStates.get(node) ?? { tileKey: "", animation: undefined };
   grassStepStates.set(node, state);
   if (state.tileKey !== tileKey) {
     state.tileKey = tileKey;
-    if (model.tallGrassCoordinates.has(tileKey)) {
-      const effect = node.ownerDocument.createElement("span");
-      effect.className = styles.grassStep;
-      Object.assign(effect.style, {
-        backgroundImage: `url(${WORLD_GRASS_STEP_ASSET.path})`,
-        backgroundSize: `${grassEffect.projectSize[0] * grassEffect.frameKeys.length}px ${grassEffect.projectSize[1]}px`,
-        backgroundPosition: `${-(grassEffect.frameKeys.length - 1) * grassEffect.projectSize[0]}px 0`,
-        height: `${grassEffect.projectSize[1]}px`,
-        width: `${grassEffect.projectSize[0]}px`,
-        left: `${tile.x * model.tileWidth + grassEffect.projectOriginOffset[0]}px`,
-        top: `${tile.y * model.tileHeight + grassEffect.projectOriginOffset[1]}px`,
+    state.animation?.cancel();
+    state.animation = undefined;
+    const inGrass = model.tallGrassCoordinates.has(tileKey);
+    node.style.visibility = inGrass ? "visible" : "hidden";
+    if (inGrass && !initial) {
+      state.animation = node.animate(grassEffectKeyframes, {
+        duration: grassEffectDuration,
+        fill: "forwards",
       });
-      node.appendChild(effect);
-      state.effects.push({
-        node: effect,
-        tileKey,
-        removeAfter: initial ? now : now + grassEffectExitCheckAt,
-      });
-      if (!initial)
-        effect.animate(grassEffectKeyframes, { duration: grassEffectDuration, fill: "forwards" });
     }
   }
-  // The ROM finishes entry motion before checking tile exit; initialized grass is already settled.
-  state.effects = state.effects.filter(effect => {
-    if (effect.tileKey === tileKey || now < effect.removeAfter) return true;
-    for (const animation of effect.node.getAnimations()) animation.cancel();
-    effect.node.remove();
-    return false;
-  });
+  // Anchor foreground grass to the feet so tile boundaries never cover the actor's face.
+  const left = player.x + grassEffect.playerOriginOffset[0];
+  const top = player.y + grassEffect.playerOriginOffset[1];
+  const coordinates = model.tallGrassCoordinates;
+  // Keep footstep foliage inside exposed tile edges so it cannot follow the actor onto the path.
+  const clipLeft = coordinates.has(`${tile.x - 1},${tile.y}`)
+    ? 0
+    : Math.max(0, tile.x * model.tileWidth + 2 - left);
+  const clipRight = coordinates.has(`${tile.x + 1},${tile.y}`)
+    ? 0
+    : Math.max(0, left + grassEffect.projectSize[0] - (tile.x + 1) * model.tileWidth + 2);
+  const clipBottom = coordinates.has(`${tile.x},${tile.y + 1}`)
+    ? 0
+    : Math.max(0, top + grassEffect.projectSize[1] - (tile.y + 1) * model.tileHeight + 2);
+  node.style.clipPath = `inset(${grassEffect.foregroundTop}px ${clipRight}px ${clipBottom}px ${clipLeft}px)`;
+  node.style.transform = `translate3d(${left}px, ${top}px, 0)`;
 }
 
 export function WorldActorLayer({ children }: { children: React.ReactNode }) {

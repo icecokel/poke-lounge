@@ -4,20 +4,20 @@
   "archive": "a/0/4/4",
   "baseAtlas": "apps/web/public/assets/pokemmo-reference/tilesets/tuxmon-sample-32px-extruded.png",
   "baseAtlasSha256": "f61019250cf88448f52b907842c32d912167ac028e12d9ffb5da7cbc1abf031b",
-  "processing": "Preserve base 720 tiles, ground/path colors and connected-grass behavior. Original projected autumn trees retain their geometry and colors. generate-autumn-map.py bakes overlapping native tree_en2..5 single and _re canopies across the map boundary into additional atlas tiles. No synthetic canopy clusters or decorative leaf piles.",
+  "processing": "Preserve paths and service game objects; reshape connected rice encounter patches into tapered row runs. Bake original introduction-matched ground, earth, natural path verges, autumn trees and forest-floor falloff into the current 32px tile map.",
   "tileSize": 32,
   "margin": 1,
   "spacing": 2,
   "columns": 24,
-  "tileCount": 1224,
+  "tileCount": 1848,
   "gids": {
-    "721-725": "green ground and grass detail",
-    "729-744": "pale dirt path masks N=1 E=2 S=4 W=8",
-    "745-748": "red projected tree",
-    "749-752": "orange projected tree",
-    "753-756": "gold projected tree",
-    "757": "encounter grass",
-    "758": "encounter grass foreground"
+    "721-725": "original olive ground and grass detail",
+    "729-744": "original golden earth path masks N=1 E=2 S=4 W=8",
+    "745-748": "original red maple",
+    "749-752": "original golden maple",
+    "753-756": "original golden maple",
+    "757": "yellow meadow encounter field",
+    "758": "yellow meadow foreground"
   },
   "textures": [
     {
@@ -25,48 +25,69 @@
       "texture": "grass01_a",
       "palette": "grass01_a",
       "size": [16, 16]
-    },
-    {
-      "member": 6,
-      "texture": "egrass_u",
-      "palette": "egrass_u_pl",
-      "size": [16, 16]
     }
   ],
   "trees": {
-    "sourceManifest": "field-trees.json",
+    "sourceManifest": "original-autumn/source.json",
     "quadrantOrder": "top-left, top-right, bottom-left, bottom-right"
   },
   "grassStep": {
-    "sourceManifest": "field-grass-effect.json",
-    "lifecycle": "Initially settled; entries play to tick 12 at 30Hz; tick 13 begins exit checks; final pose remains while the actor occupies the tile."
+    "sourceManifest": "original-rice/step.json",
+    "lifecycle": "Initially settled; each grass tile entry plays four bending poses over 400ms. Foreground follows the feet and is clipped below the waist and inside exposed grass edges; final pose remains inside grass and hides immediately on exit."
   },
   "grassAtlas": {
     "path": "apps/web/public/assets/poke-lounge/world/autumn-forest-grass.png",
-    "size": [544, 68],
+    "sourceManifest": "original-rice/source.json",
+    "size": [544, 1088],
     "tileSize": 32,
     "margin": 1,
     "spacing": 2,
     "columns": 16,
-    "rows": 2,
-    "staticBaseTileIndices": [0, 15],
-    "staticForegroundTileIndices": [16, 31],
-    "connectivityMask": "N=1 E=2 S=4 W=8; connected sides stay seamless"
+    "rows": 32,
+    "variantPattern": "4x4 world-coordinate cells; variant=(y%4)*4+x%4, base=variant*32+mask, foreground=base+16",
+    "connectivityMask": "N=1 E=2 S=4 W=8; exposed edges end in whole clumps",
+    "planting": "Four flat colors, native 28x22px tall golden grass inspired by ROM encounter grass; 126 overlapping clumps per 128x128 interior, with thinned, uneven whole-clump fringes and up to seven pixels of exposed-edge variation."
   },
-  "bakedForest": {
-    "seed": 1711,
-    "canopies": 234,
-    "tileRange": [759, 979],
-    "palette": "native tree_en2..5 / _re palettes",
-    "placement": "Overlapping native canopies on a continuous outer band, with an uneven inner contour and grouped autumn colors; no resized clusters or leaf piles."
+  "ground": {
+    "sourceManifest": "original-ground/source.json",
+    "tiles": 873,
+    "tileRange": [953, 1825],
+    "patchSize": 128,
+    "repeatSize": 256,
+    "leafFadeDistancePixels": 180,
+    "cornerSmoothingPixels": 10,
+    "placement": "Mirror repeats in world coordinates for exact edge matching. Blend leaf variants toward forest edges, round convex and concave path corners, inset textured grass verges, then slice into extruded 32px tiles. Preserve path centers and keep the reshaped encounter patches clear of collision data."
   },
   "forestFloor": {
-    "textures": ["a/0/4/4#88 momi", "momi_load_"],
-    "tiles": 237,
-    "cells": 310,
-    "forestCells": 221,
-    "scatterPatches": 43,
+    "textures": [
+      "original-autumn/07-dense-gold-floor.png",
+      "original-autumn/08-mixed-forest-floor.png",
+      "original-autumn/12-scattered-leaves.png"
+    ],
+    "tiles": 263,
+    "cells": 302,
+    "forestCells": 194,
+    "scatterPatches": 44,
     "fadeDistancePixels": 64,
-    "placement": "Native leaf ground at 100% beneath canopy groups, fading by distance to transparent over 64px; scattered leaves share the same falloff at 42% strength. Paths and encounter grass excluded."
+    "placement": "Original leaf ground at 100% beneath canopy groups, fading by distance to transparent over 64px; scattered leaves share the same falloff at 42% strength. Paths and encounter grass excluded."
+  },
+  "bakedForest": {
+    "sourceManifest": "original-autumn/source.json",
+    "seed": 241022,
+    "counts": {
+      "orange": 35,
+      "gold": 13,
+      "transition": 6,
+      "shrub": 9,
+      "red-tree": 115,
+      "gold-tree": 30
+    },
+    "tileRange": [759, 952],
+    "accentTrees": {
+      "745": "03-red-maple",
+      "749": "02-golden-maple",
+      "753": "02-golden-maple"
+    },
+    "placement": "Original pixel-art groves at native scale, staggered and depth sorted. Whole sprites move outward where paths or fences narrow the perimeter; protected clearings stay open."
   }
 }

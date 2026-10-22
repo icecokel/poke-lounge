@@ -7,7 +7,7 @@ export const WORLD_GRASS_TILES_ASSET = {
 
 export const WORLD_GRASS_STEP_ASSET = {
   key: "world-grass-step",
-  path: "/assets/poke-lounge/world/field-grass-effect.png",
+  path: "/assets/poke-lounge/world/original-rice/14-tall-golden-grass-step.png",
 } as const;
 
 export function getWorldGrassSource(tile: WorldMapTile, coordinates: ReadonlySet<string>) {
@@ -18,5 +18,6 @@ export function getWorldGrassSource(tile: WorldMapTile, coordinates: ReadonlySet
     (coordinates.has(`${x + 1},${y}`) ? 2 : 0) |
     (coordinates.has(`${x},${y + 1}`) ? 4 : 0) |
     (coordinates.has(`${x - 1},${y}`) ? 8 : 0);
-  return { x: 1 + mask * 34, y: tile.gid === 757 ? 1 : 35 };
+  const variant = (y % 4) * 4 + (x % 4);
+  return { x: 1 + mask * 34, y: variant * 68 + (tile.gid === 757 ? 1 : 35) };
 }

@@ -1,0 +1,17 @@
+{
+  "frameKeys": [0, 4, 8, 12],
+  "tickRate": 30,
+  "frameWidth": 40,
+  "frameHeight": 40,
+  "projectSize": [40, 40],
+  "playerOriginOffset": [-20, -16],
+  "alphaBounds": [
+    [8, 19, 35, 38],
+    [8, 18, 32, 38],
+    [8, 18, 32, 38],
+    [7, 18, 33, 38]
+  ],
+  "processing": "Coarse generated poses resolved onto the project native grid by interior majority palette color; no interpolated colors or freehand repaint. Four flat colors and fixed root anchor; foreground roots sit just in front of the feet, with foreground clipped below the waist and inside exposed grass edges.",
+  "sourceSha256": "737acc7d9ed466cbaf3181f0d8aceb5804c8ef3467ae853d51bc28b6544ae32a",
+  "foregroundTop": 24
+}
