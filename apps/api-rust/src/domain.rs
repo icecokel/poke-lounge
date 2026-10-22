@@ -4,6 +4,7 @@ use crate::{
     repository::hash_bytes,
     tournament::{Bracket, Entrant},
 };
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
@@ -996,11 +997,9 @@ impl Room {
                 .iter()
                 .filter(|p| p.connected)
                 .collect::<Vec<_>>();
-            entrants.sort_by(|a, b| {
-                a.joined_at_ms
-                    .cmp(&b.joined_at_ms)
-                    .then(a.player_id.cmp(&b.player_id))
-            });
+            // Seeds are random every tournament. Seeding by join order always paired the
+            // humans with the AI filled in last, so two humans never met in round 1.
+            entrants.shuffle(&mut rand::rng());
             let participants = entrants
                 .into_iter()
                 .enumerate()
