@@ -132,7 +132,9 @@ export function TournamentResultPanel({
                             {labels.champion}
                           </span>
                         ) : null}
-                        <span className="min-w-0 truncate">{row.displayName}</span>
+                        <span className="min-w-0 truncate">
+                          {localizeRuntimeText(row.displayName, locale)}
+                        </span>
                       </span>
                     </td>
                     <td className="hidden border-r border-[#c6d0c1] px-2 py-1 text-right sm:py-2 font-bold tabular-nums sm:table-cell">
