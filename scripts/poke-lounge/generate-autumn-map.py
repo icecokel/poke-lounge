@@ -6,7 +6,7 @@ import runpy
 from random import Random
 from pathlib import Path
 from collections import deque
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageFilter
 from ndspy import color
 from ndspy.narc import NARC
 from ndspy.rom import NintendoDSRom
@@ -135,53 +135,74 @@ for y in range(H):
             mask=sum(bit for bit,dx,dy in ((1,0,-1),(2,1,0),(4,0,1),(8,-1,0)) if (x+dx,y+dy) in paths)
             below.append(729+mask)
         else:below.append(724 if (x*11+y*7)%19<3 else (725 if (x*7+y*5)%37==0 else 721))
-# Use the ROM leaf carpet beneath the outer woodland, with its original ragged edge pieces.
+# Use the ROM leaf carpet and transparent leaves over the original ground.
 leaf_textures,leaf_palettes=field['decode_member'](bytes(archive.files[88]))
-leaves={name:leaf_textures[name].renderAsImage(leaf_palettes[name+'_pl']).convert('RGBA') for name in ('momi','momi_load_','momi_loada','momi_loadb')}
-leaf_edges={}
-for direction,name,box in ((8,'momi_loada',(16,0,32,32)),(2,'momi_loada',(0,0,16,32)),(1,'momi_loadb',(0,16,32,32)),(4,'momi_loadb',(0,0,32,16))):
-    edge=leaves[name].copy()
-    edge.putalpha(Image.frombytes('L',edge.size,bytes(255 if r>g*.95 and r>140 and b<r*.7 else 0 for r,g,b,a in edge.getdata())))
-    edge.paste((0,0,0,0),box)
-    assert edge.getbbox() and edge.getchannel('A').getextrema()==(0,255)
-    leaf_edges[direction]=edge
+leaves={name:leaf_textures[name].renderAsImage(leaf_palettes[name+'_pl']).convert('RGBA') for name in ('momi','momi_load_')}
 forest_cells={(i%W,i//W) for i,gid in enumerate(world) if gid>=759}
-patches=Image.new('L',canopy.size)
-patch_draw=ImageDraw.Draw(patches)
-for cx,cy,rx,ry in ((300,36,130,60),(35,520,64,125),(365,748,105,64),(1250,445,55,115)):
-    patch_draw.ellipse((cx-rx,cy-ry,cx+rx,cy+ry),fill=185)
-patches=patches.filter(ImageFilter.GaussianBlur(14))
+# Match the green strips marked in the reference, keeping paths and encounter grass open.
+marked_leaves=(rect(2,2,10,3)|rect(2,3,4,12)|rect(16,1,27,3)|rect(16,3,18,9)
+               |rect(27,1,38,4)|rect(37,3,38,9)|rect(10,20,19,23)|rect(16,23,28,24))-paths-grass
+# Blend the native carpet into green ground, keeping its leaf pixels sharp.
+leaf_rng=Random(1712)
+scattered_leaves=Image.new('RGBA',canopy.size)
+leaf_patches=((104,204,58,100),(240,82,90,40),(574,90,125,45),(560,215,40,65),
+              (1020,100,165,48),(430,702,108,58),(780,752,145,36),
+              (66,455,66,215),(1230,440,55,190))
 canopy_alpha=canopy.getchannel('A')
-floor_mask=ImageChops.lighter(canopy_alpha,ImageChops.multiply(canopy_alpha.filter(ImageFilter.MaxFilter(49)),patches))
-scatter_mask=ImageChops.multiply(ImageChops.subtract(canopy_alpha.filter(ImageFilter.MaxFilter(65)),canopy_alpha.filter(ImageFilter.MaxFilter(49))),patches)
+forest_core=canopy_alpha.filter(ImageFilter.MaxFilter(25)).filter(ImageFilter.MinFilter(25))
+# A small distance field gives every canopy the same smooth, outward opacity falloff.
+distance_scale=4
+dw,dh=W*S//distance_scale,H*S//distance_scale
+core_samples=forest_core.resize((dw,dh),Image.Resampling.BOX)
+distances=[0.0 if a else float('inf') for a in core_samples.getdata()]
+for rows,columns,neighbors in ((range(dh),range(dw),((-1,0,1),(0,-1,1),(-1,-1,math.sqrt(2)),(1,-1,math.sqrt(2)))),
+                               (range(dh-1,-1,-1),range(dw-1,-1,-1),((1,0,1),(0,1,1),(-1,1,math.sqrt(2)),(1,1,math.sqrt(2))))):
+    for y in rows:
+        for x in columns:
+            i=y*dw+x
+            if distances[i]==0:continue
+            for dx,dy,cost in neighbors:
+                if 0<=x+dx<dw and 0<=y+dy<dh:
+                    distances[i]=min(distances[i],distances[(y+dy)*dw+x+dx]+cost)
+falloff=[round(255*(1-d/64)**1.5) for d in range(65)]
+assert falloff[0]==255 and falloff[-1]==0 and all(a>=b for a,b in zip(falloff,falloff[1:]))
+soft_floor=Image.frombytes('L',(dw,dh),bytes(falloff[min(64,round(d*distance_scale))] for d in distances))
+soft_floor=soft_floor.resize(canopy.size,Image.Resampling.BILINEAR)
+scatter_count=0
+for x,y in sorted(marked_leaves|forest_cells):
+    clustered=any(((x*S+16-cx)/rx)**2+((y*S+16-cy)/ry)**2<1 for cx,cy,rx,ry in leaf_patches)
+    if leaf_rng.random()>(.34 if clustered else .035):continue
+    stamp=leaves['momi_load_']
+    if leaf_rng.random()<.5:stamp=stamp.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+    scattered_leaves.alpha_composite(stamp,(x*S+leaf_rng.randrange(-24,9),y*S+leaf_rng.randrange(-24,9)))
+    scatter_count+=1
+scatter_alpha=scattered_leaves.getchannel('A').point(lambda a:round(a*.42))
+scattered_leaves.putalpha(ImageChops.multiply(scatter_alpha,soft_floor))
+assert scattered_leaves.getchannel('A').getextrema()[1]<=107
 baked_tiles=list(forest_tiles)
 floor_cache={}
 leaf_cells=[]
 for y in range(H):
     for x in range(W):
         p=(x,y)
-        if p in paths or p in grass or world[y*W+x] and p not in forest_cells:continue
-        mask=sum(bit for bit,dx,dy in ((1,0,-1),(2,1,0),(4,0,1),(8,-1,0)) if (x+dx,y+dy) in forest_cells)
+        if p in paths or p in grass or world[y*W+x] and p not in forest_cells|marked_leaves:continue
         box=(x*S,y*S,(x+1)*S,(y+1)*S)
-        coverage=floor_mask.crop(box)
-        scattered=scatter_mask.crop(box)
-        if not coverage.getbbox() and not scattered.getbbox():continue
+        coverage=soft_floor.crop(box)
+        scatter=scattered_leaves.crop(box)
+        if p in forest_cells:
+            coverage=ImageChops.lighter(coverage,forest_core.crop(box))
+        if not coverage.getbbox() and not scatter.getbbox():continue
         gid=below[y*W+x]-1;sx=gid%24*34+1;sy=gid//24*34+1
         tile=atlas.crop((sx,sy,sx+32,sy+32))
-        if p in forest_cells:
-            carpet=leaves['momi'].copy();carpet.putalpha(coverage);tile.alpha_composite(carpet)
-        else:
-            for bit,edge in leaf_edges.items():
-                if mask & bit:
-                    fringe=edge.copy();fringe.putalpha(ImageChops.multiply(edge.getchannel('A'),coverage));tile.alpha_composite(fringe)
-        scatter=leaves['momi_load_'].crop((x%2*32,y%2*32,x%2*32+32,y%2*32+32))
-        scatter.putalpha(ImageChops.multiply(scatter.getchannel('A'),scattered));tile.alpha_composite(scatter)
+        carpet=leaves['momi'].copy();carpet.putalpha(coverage);tile.alpha_composite(carpet)
+        tile.alpha_composite(scatter)
         pixels=tile.tobytes()
         if pixels not in floor_cache:
             floor_cache[pixels]=759+len(baked_tiles)
             baked_tiles.append(tile)
         below[y*W+x]=floor_cache[pixels]
         leaf_cells.append(p)
+assert forest_cells <= set(leaf_cells) and not set(leaf_cells) & (paths|grass)
 base_atlas=atlas.crop((0,0,816,1088))
 atlas=Image.new('RGBA',(816,math.ceil((758+len(baked_tiles))/24)*34))
 atlas.paste(base_atlas,(0,0))
@@ -215,7 +236,7 @@ assert {(i%W,i//W) for i,gid in enumerate(world) if gid in collision_gids} == co
 source_path=ROOT/'apps/web/public/assets/poke-lounge/world/autumn-forest-source.json'
 source=json.loads(source_path.read_text())
 source.update(tileCount=atlas.width//34*(atlas.height//34))
-source['forestFloor']={'textures':['a/0/4/4#88 momi','momi_load_','momi_loada','momi_loadb'],'tiles':len(floor_cache),'cells':len(leaf_cells),'placement':'Native leaf carpet follows canopy silhouettes with original leaf-edge pieces and a thin scattered-leaf fringe; paths and encounter grass excluded.'}
+source['forestFloor']={'textures':['a/0/4/4#88 momi','momi_load_'],'tiles':len(floor_cache),'cells':len(leaf_cells),'forestCells':len(forest_cells),'scatterPatches':scatter_count,'fadeDistancePixels':64,'placement':'Native leaf ground at 100% beneath canopy groups, fading by distance to transparent over 64px; scattered leaves share the same falloff at 42% strength. Paths and encounter grass excluded.'}
 source['bakedForest']={'seed':1711,'canopies':len(trees),'tileRange':[759,758+len(forest_tiles)],'palette':'native tree_en2..5 / _re palettes','placement':'Overlapping native canopies on a continuous outer band, with an uneven inner contour and grouped autumn colors; no resized clusters or leaf piles.'}
 source_path.write_text(json.dumps(source,ensure_ascii=False,indent=2)+'\n')
 MAP_PATH.write_text(json.dumps(map_data,ensure_ascii=False,indent=2)+'\n')
