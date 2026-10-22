@@ -87,7 +87,7 @@ Web·TypeScript 계산 워커·레거시 API의 게임 진행·재접속·저장
 
 Rust 게임 서버와 TypeScript 계산 워커를 실제 프런트에 연결했다. 운영 `compose.yaml`은 Rust API와 계산 워커를 실행하며, 기존 Nest API는 PostgreSQL 스키마 migration과 ROM 데이터 import 도구로만 남긴다. 웹은 운영 빌드에서 `NEXT_PUBLIC_POKE_BACKEND=rust`를 사용한다.
 
-로컬 개발은 `pnpm dev:rust`로 운영과 분리된 DB·Redis, Rust API, 계산 워커, 웹을 실행한다. 주소는 `http://localhost:3300/ko-KR`다. 이 명령은 웹 개발 서버에 임시 로컬 테스트 토큰을 전달하므로 입장 화면에서 테스트 모드로 시작·계속·종료할 수 있다. 토큰은 프로세스를 다시 시작할 때 새로 생성된다. 중지는 웹에서 Ctrl+C 후 `pnpm dev:rust:stop`을 사용하며 로컬 볼륨은 유지한다. 실행 구현은 `apps/api-rust/src`, `migration-draft`는 이전 코드 보관용이다. 자세한 범위와 실행법은 [Rust 백엔드 문서](apps/api-rust/README.md)에 있다.
+로컬 개발은 `pnpm dev:rust`로 운영과 분리된 DB·Redis, Rust API, 계산 워커, 웹을 실행한다. 주소는 `http://localhost:3300/ko-KR`다. 이 명령은 웹 개발 서버에 임시 로컬 테스트 토큰을 전달하므로 입장 화면에서 테스트 모드로 시작·계속·종료할 수 있다. 토큰은 프로세스를 다시 시작할 때 새로 생성된다. 중지는 웹에서 Ctrl+C 후 `pnpm dev:rust:stop`을 사용하며 로컬 볼륨은 유지한다. 실행 구현은 `apps/api-rust/src`에 있다. 자세한 범위와 실행법은 [Rust 백엔드 문서](apps/api-rust/README.md)에 있다.
 
 ## 브랜치 운영
 
