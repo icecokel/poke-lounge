@@ -390,8 +390,23 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
     {
         return Err(AppError::Invalid("Invalid diagnostic event"));
     }
+    let detail: Value = payload
+        .error_text
+        .as_deref()
+        .and_then(|text| serde_json::from_str(text).ok())
+        .unwrap_or(Value::Null);
+    let report_id = detail["reportId"]
+        .as_str()
+        .and_then(|id| Uuid::parse_str(id).ok());
+    let occurred_at_ms = detail["at"]
+        .as_u64()
+        .filter(|at| *at <= 9_007_199_254_740_991);
     tracing::warn!(
         event = "browser.error",
+        report_id = ?report_id,
+        occurred_at_ms = ?occurred_at_ms,
+        delivery_attempt = ?detail["attempt"].as_u64().filter(|attempt| *attempt <= 100_000),
+        server_release = %crate::logging::release(),
         kind = %payload.kind,
         code = %payload.code,
         related_request_id = %payload.request_id.map(|id| id.to_string()).unwrap_or_else(|| "none".to_string()),

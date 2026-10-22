@@ -40,7 +40,12 @@ pub const AI_ONLY_TURN_READY_MS: u64 = 500;
 pub const TOURNAMENT_BRIEFING_MS: u64 = 5_000;
 // Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_RESULT_DURATION_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_RESULT_MS: u64 = 5_000;
+// Must match packages/poke-lounge-battle/src/tournament-bracket.ts TOURNAMENT_MAX_PARTICIPANT_COUNT (pnpm check:rust-ts-constants).
 pub const MAX_PARTICIPANTS: usize = 8;
+// Must match packages/poke-lounge-battle/src/tournament-bracket.ts GAME_ROUND_COUNT (pnpm check:rust-ts-constants).
+pub const ROUND_COUNT: u8 = 3;
+// Must match packages/poke-lounge-battle/src/tournament-bracket.ts TERMINAL_PROJECTION_PAGE_SIZE (pnpm check:rust-ts-constants).
+pub const TERMINAL_PAGE_SIZE: usize = 8;
 pub const MAX_COMMANDS: u64 = 16_384;
 const ROOM_CODE_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const AI_DISPLAY_NAMES: [&str; 18] = [
@@ -367,7 +372,7 @@ impl Room {
             || self.pending_progressions.len() > MAX_PARTICIPANTS
             || self.accepted_commands > MAX_COMMANDS
             || self.created_at_ms.checked_add(SESSION_MAX_MS) != Some(self.hard_expires_at_ms)
-            || !(1..=3).contains(&self.round.index)
+            || !(1..=ROUND_COUNT).contains(&self.round.index)
             || !ROUND_DURATION_OPTIONS_MS.contains(&self.round.duration_ms)
         {
             return Err(AppError::Configuration("Invalid stored room invariants"));
@@ -1376,7 +1381,7 @@ impl Room {
             for (player, score) in bracket.scores()? {
                 *self.cumulative_scores.entry(player).or_default() += score;
             }
-            if self.round.index < 3 {
+            if self.round.index < ROUND_COUNT {
                 self.round.ends_at_ms = Some(now + TOURNAMENT_RESULT_MS);
             } else {
                 self.status = Status::Completed;
@@ -1443,10 +1448,11 @@ impl Room {
         if self.terminal() || self.status == Status::Waiting || now < self.last_ai_step_ms + 250 {
             return Ok(());
         }
+        // Every participant, connected or not, so AI slots match `position()` and the web
+        // (which both derive slots from the full sorted roster).
         let ids = self
             .participants
             .iter()
-            .filter(|p| p.connected)
             .map(|p| p.player_id.clone())
             .collect::<Vec<_>>();
         let starting = self.status == Status::RoundStarted
@@ -1567,13 +1573,13 @@ impl Room {
             terminal
                 .into_iter()
                 .rev()
-                .take(8)
+                .take(TERMINAL_PAGE_SIZE)
                 .collect::<Vec<_>>()
                 .into_iter()
                 .rev()
                 .collect::<Vec<_>>()
         } else {
-            terminal.into_iter().take(8).collect()
+            terminal.into_iter().take(TERMINAL_PAGE_SIZE).collect()
         };
         let assignments = self
             .active_matches()
@@ -1618,7 +1624,7 @@ impl Room {
         ids.sort();
         let i = ids.iter().position(|id| *id == player)?;
         Some(
-            json!({"map":"town","x":592+(i%4)*32,"y":304+if starting{64}else{0}+(i/4)*32,"facing":if starting{"front"}else{"back"}}),
+            json!({"map":"town","x":576+(i%4)*32,"y":448+if starting{64}else{0}+(i/4)*32,"facing":if starting{"front"}else{"back"}}),
         )
     }
 }

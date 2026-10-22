@@ -5,8 +5,7 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MobileTaskScreen } from "../../../mobile/mobile-task-screen";
-import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
-import type { PokeLoungeLocale } from "../../../poke-lounge-copy";
+import type { PokeLoungeCopy, PokeLoungeLocale } from "../../../poke-lounge-copy";
 import { localizeRuntimeText } from "../i18n/runtime-game-localization";
 
 interface TournamentResultTableRow {

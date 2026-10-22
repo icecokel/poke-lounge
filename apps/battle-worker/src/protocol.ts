@@ -1,7 +1,13 @@
 import { z } from "zod";
+import type { ComputeFailureDiagnostic } from "./diagnostics";
 import { STARTER_MODES } from "@poke-lounge/battle/starter-selection";
 import { AI_DIFFICULTIES } from "@poke-lounge/battle/ai-difficulty";
 import { PARTY_ROSTER_LIMIT } from "@poke-lounge/battle/party-acceptance";
+import { ROUND_DURATION_OPTIONS_MS } from "@poke-lounge/battle/timing";
+import {
+  GAME_ROUND_COUNT,
+  TOURNAMENT_MAX_PARTICIPANT_COUNT,
+} from "@poke-lounge/battle/tournament-bracket";
 import {
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
@@ -99,15 +105,15 @@ export const requestSchema = z.strictObject({
       party: z.unknown(),
       adventure: z.unknown().nullable(),
       nowMs: integer,
-      roundIndex: integer.min(1).max(3),
+      roundIndex: integer.min(1).max(GAME_ROUND_COUNT),
       preparing: z.boolean(),
       starting: z.boolean(),
       gathering: z.boolean(),
       playerId: boundedId,
-      playerIds: z.array(boundedId).min(1).max(8),
+      playerIds: z.array(boundedId).min(1).max(TOURNAMENT_MAX_PARTICIPANT_COUNT),
       difficulty: aiDifficulty,
       startAtMs: integer.nullable(),
-      roundDurationMs: z.union([z.literal(90_000), z.literal(180_000), z.literal(300_000)]),
+      roundDurationMs: z.literal([...ROUND_DURATION_OPTIONS_MS]),
       seed: boundedId,
     }),
   ]),
@@ -119,7 +125,10 @@ export type ComputeResponse = {
   roomInstanceId: string;
   stateRevision: number;
   engineVersion: string;
-} & ({ ok: true; data: unknown } | { ok: false; code: "INVALID_INPUT" | "COMPUTE_FAILED" });
+} & (
+  | { ok: true; data: unknown }
+  | { ok: false; code: "INVALID_INPUT" | "COMPUTE_FAILED"; diagnostic: ComputeFailureDiagnostic }
+);
 
 const iv = z.strictObject({
   hp: integer.max(31),

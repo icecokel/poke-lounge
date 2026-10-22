@@ -1,5 +1,6 @@
 import { parentPort } from "node:worker_threads";
 import { z } from "zod";
+import { computeFailureDiagnostic } from "./diagnostics";
 import {
   hashCanonicalState,
   createCanonicalIdRecord,
@@ -8,6 +9,7 @@ import {
 import { createInitialBattleState } from "@poke-lounge/battle/ruleset";
 import { initializeGen4Canonical } from "@poke-lounge/battle/gen4/canonical";
 import { createSeededRandom } from "@poke-lounge/battle/prng";
+import { COMPETITIVE_RULESET_VERSION } from "@poke-lounge/battle/competitive-ruleset-config";
 import { validateCompetitiveAction, resolveTurn } from "@poke-lounge/battle/resolve-turn";
 import { getCompetitiveActionPlayerIds } from "@poke-lounge/battle/actions";
 import {
@@ -50,7 +52,7 @@ import {
 function state(value: unknown): CanonicalBattleState {
   const parsed = z
     .object({
-      rulesetVersion: z.literal(3),
+      rulesetVersion: z.literal(COMPETITIVE_RULESET_VERSION),
       turn: z.number().int().nonnegative(),
       participantIds: z.array(z.string()).length(2),
       playersById: z.record(z.string(), z.unknown()),
@@ -315,15 +317,26 @@ async function run(raw: unknown): Promise<ComputeResponse> {
       input.operation.kind === "validate" ||
       input.operation.kind === "complete-progression" ||
       input.operation.kind === "normalize-party";
-    return { ...identity, ok: false, code: invalid ? "INVALID_INPUT" : "COMPUTE_FAILED" };
+    return {
+      ...identity,
+      ok: false,
+      code: invalid ? "INVALID_INPUT" : "COMPUTE_FAILED",
+      diagnostic: computeFailureDiagnostic(error),
+    };
   }
 }
 
 // Workers own no database connection, room registry, queue or authoritative state.
 void getContext()
   .then(() => parentPort?.postMessage({ ready: true, engineVersion: ENGINE_VERSION }))
-  .catch(() => {
-    process.stderr.write(JSON.stringify({ event: "compute.assets_invalid" }) + "\n");
+  .catch(error => {
+    process.stderr.write(
+      JSON.stringify({
+        event: "compute.assets_invalid",
+        timestamp: new Date().toISOString(),
+        diagnostic: computeFailureDiagnostic(error),
+      }) + "\n",
+    );
     process.exit(1);
   });
 parentPort?.on("message", (input: unknown) => {

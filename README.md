@@ -60,14 +60,14 @@ Poke Lounge는 같은 마을에서 포켓몬을 탐색·포획·육성하고 3�
 
 ## 구조
 
-| 경로                                  | 역할                                                |
-| ------------------------------------- | --------------------------------------------------- |
-| `apps/web/src/components/poke-lounge` | React 화면, 입력, 연출, Rust 런타임 연결부          |
-| `apps/web/src/features/poke-lounge`   | 분리한 도메인·응용·표시 모델·어댑터                 |
-| `apps/api-rust`                       | 운영 REST/WebSocket, 방·서버 권위 경기 상태         |
-| `apps/battle-worker`                  | Rust가 호출하는 TypeScript 전투 계산 워커           |
-| `apps/api`                            | PostgreSQL migration·ROM import 등 기존 스키마 도구 |
-| `packages/poke-lounge-battle`         | Web/계산 워커가 공유하는 전투·대진·라운드 규칙      |
+| 경로                                  | 역할                                                          |
+| ------------------------------------- | ------------------------------------------------------------- |
+| `apps/web/src/components/poke-lounge` | React 화면, 입력, 연출, Rust 런타임 연결부                    |
+| `apps/web/src/features/poke-lounge`   | 분리한 도메인·응용·표시 모델·어댑터                           |
+| `apps/api-rust`                       | 운영 REST/WebSocket, 방·서버 권위 경기 상태                   |
+| `apps/battle-worker`                  | Rust가 호출하는 TypeScript 전투 계산 워커                     |
+| `apps/db`                             | PostgreSQL migration·ROM import 도구 (TypeORM CLI, 서버 아님) |
+| `packages/poke-lounge-battle`         | Web/계산 워커가 공유하는 전투·대진·라운드 규칙                |
 
 Redis는 방·경기·실시간 상태와 작업 큐를, PostgreSQL은 ROM 문서와 영속 스키마를 담당한다.
 
@@ -85,9 +85,9 @@ Web·TypeScript 계산 워커·레거시 API의 게임 진행·재접속·저장
 
 ## Rust 백엔드 전환
 
-Rust 게임 서버와 TypeScript 계산 워커를 실제 프런트에 연결했다. 운영 `compose.yaml`은 Rust API와 계산 워커를 실행하며, 기존 Nest API는 PostgreSQL 스키마 migration과 ROM 데이터 import 도구로만 남긴다. 웹은 운영 빌드에서 `NEXT_PUBLIC_POKE_BACKEND=rust`를 사용한다.
+Rust 게임 서버와 TypeScript 계산 워커를 실제 프런트에 연결했다. 운영 `compose.yaml`은 Rust API와 계산 워커를 실행하며, PostgreSQL 스키마 migration과 ROM 데이터 import는 `apps/db`(TypeORM CLI 전용, NestJS 없음)가 맡는다. 웹은 Rust 백엔드만 지원한다.
 
-로컬 개발은 `pnpm dev:rust`로 운영과 분리된 DB·Redis, Rust API, 계산 워커, 웹을 실행한다. 주소는 `http://localhost:3300/ko-KR`다. 이 명령은 웹 개발 서버에 임시 로컬 테스트 토큰을 전달하므로 입장 화면에서 테스트 모드로 시작·계속·종료할 수 있다. 토큰은 프로세스를 다시 시작할 때 새로 생성된다. 중지는 웹에서 Ctrl+C 후 `pnpm dev:rust:stop`을 사용하며 로컬 볼륨은 유지한다. 실행 구현은 `apps/api-rust/src`, `migration-draft`는 이전 코드 보관용이다. 자세한 범위와 실행법은 [Rust 백엔드 문서](apps/api-rust/README.md)에 있다.
+로컬 개발은 `pnpm dev:rust`로 운영과 분리된 DB·Redis, Rust API, 계산 워커, 웹을 실행한다. 주소는 `http://localhost:3300/ko-KR`다. 이 명령은 웹 개발 서버에 임시 로컬 테스트 토큰을 전달하므로 입장 화면에서 테스트 모드로 시작·계속·종료할 수 있다. 토큰은 프로세스를 다시 시작할 때 새로 생성된다. 중지는 웹에서 Ctrl+C 후 `pnpm dev:rust:stop`을 사용하며 로컬 볼륨은 유지한다. 실행 구현은 `apps/api-rust/src`에 있다. 자세한 범위와 실행법은 [Rust 백엔드 문서](apps/api-rust/README.md)에 있다.
 
 ## 브랜치 운영
 
@@ -143,7 +143,7 @@ git switch -c feature/room-reconnect
 
 PR 충돌은 feature 브랜치에 최신 `upstream/main`을 병합해 해결한다. `main`에서 직접 커밋하거나 다른 작업의 미커밋 변경을 함께 스테이징하지 않는다.
 
-`main`에 병합되면 CI의 `verify` 성공 후 운영 배포가 실행된다. `main`에서 CI를 수동 실행한 경우에도 배포 조건을 만족한다. 배포 조건과 실행 절차는 [API 배포 가이드](apps/api/DEPLOY.md)를 따른다.
+`main`에 병합되면 CI의 `verify` 성공 후 운영 배포가 실행된다. `main`에서 CI를 수동 실행한 경우에도 배포 조건을 만족한다. 배포 조건과 실행 절차는 [배포 가이드](apps/db/DEPLOY.md)를 따른다.
 
 ### GitHub 저장소 설정
 
@@ -172,13 +172,13 @@ pnpm dev:rust
 
 브라우저 주소는 `http://localhost:3300/ko-KR`다. 실행기가 격리된 PostgreSQL·Redis, Rust API와 TypeScript 계산 워커를 준비하고 스키마 migration·ROM import 후 웹을 Rust 연결 모드로 실행한다. 기존 환경 파일을 복사하거나 운영 DB·Redis 설정을 바꿀 필요는 없다. 로컬 비밀번호와 워커 토큰은 Git 제외 경로 `output/rust-local/local.env`에 최초 생성하며 기존 파일과 볼륨은 유지한다.
 
-웹에서 Ctrl+C 후 `pnpm dev:rust:stop`으로 로컬 컨테이너를 중지한다. 세부 주소·생성 파일·재실행 주의사항은 [Rust 백엔드 문서](apps/api-rust/README.md#로컬-실행)를 따른다.
+웹에서 Ctrl+C 후 `pnpm dev:rust:stop`으로 로컬 컨테이너를 중지한다. 다른 체크아웃이 이미 3300·3011을 쓰고 있으면 `RUST_LOCAL_PROJECT=poke-lounge-rust-local-2 RUST_LOCAL_WEB_PORT=3400 RUST_LOCAL_API_PORT=3012 RUST_LOCAL_DB_PORT=35433 RUST_LOCAL_REDIS_PORT=36380 pnpm dev:rust`처럼 프로젝트명과 포트를 바꿔 나란히 띄울 수 있다(볼륨은 프로젝트별로 분리되며, 중지할 때도 같은 변수를 준다). 세부 주소·생성 파일·재실행 주의사항은 [Rust 백엔드 문서](apps/api-rust/README.md#로컬-실행)를 따른다.
 
-기존 `pnpm dev`, `pnpm dev:api`, `start:turn-worker` 명령은 NestJS 레거시 실행 경로다. 현재 Rust 게임의 기본 개발 절차는 `pnpm dev:rust`다. 운영 구성의 Docker 실행과 배포·DB 변경 주의사항은 [API 배포 가이드](apps/api/DEPLOY.md)를 따른다.
+Rust 게임의 개발 절차는 `pnpm dev:rust`뿐이다. 운영 구성의 Docker 실행과 배포·DB 변경 주의사항은 [배포 가이드](apps/db/DEPLOY.md)를 따른다.
 
 ## 플레이어 테스트와 개발 확인
 
-테스트는 실제 브라우저의 화면을 보고 플레이어처럼 한 동작씩 조작하는 방식만 허용한다. 기준은 [플레이어 직접 조작 지침](PLAYER_TESTING.md)이다. 기본 도구는 `agent-browser`이며 기존 `pnpm player:browser`는 로컬 HTTP용 대안이다. Playwright는 브라우저 API로만 사용한다. 자동 E2E·단위/API/통합 실행기와 Storybook 실행 환경은 제거했다. `poke-lounge-story-fixtures.ts`에는 외부 참조가 없는 과거 UI fixture와 상태 생성 함수가 남아 있지만 현재 플레이 테스트에 사용하지 않는다. fixture·게임 상태 주입을 통한 검증은 금지한다.
+테스트는 실제 브라우저의 화면을 보고 플레이어처럼 한 동작씩 조작하는 방식만 허용한다. 기준은 [플레이어 직접 조작 지침](PLAYER_TESTING.md)이다. 기본 도구는 `agent-browser`이며 기존 `pnpm player:browser`는 로컬 HTTP용 대안이다. Playwright는 브라우저 API로만 사용한다. 자동 E2E·단위/API/통합 실행기와 Storybook 실행 환경은 제거했다. fixture·게임 상태 주입을 통한 검증은 금지한다.
 
 모든 버튼 확인 요청에서는 화면·버튼·조건별 미검증이 남으면 전체 완료/PASS로 보고하지 않는다. 3라운드 최종 결과와 UI 퇴장까지가 전체 한 회이며 우승 여부는 조건이 아니다.
 
@@ -188,7 +188,6 @@ pnpm dev:rust
 pnpm lint
 pnpm build
 pnpm type:check:web
-pnpm check:api-contract
 ```
 
 ## 문서
@@ -198,7 +197,7 @@ Git에서 추적하는 기준 문서는 다음과 같다.
 - [작업 지침](AGENTS.md): 에이전트 작업 시 필수 기준
 - [플레이어 테스트 지침](PLAYER_TESTING.md): 허용 도구·실제 조작·모든 버튼 확인·판정
 - 이 README: 제품 개요·현재 흐름·로컬 실행
-- [API 배포 가이드](apps/api/DEPLOY.md): Compose·CI 배포·DB 변경·복구 경계
+- [배포 가이드](apps/db/DEPLOY.md): Compose·CI 배포·DB 변경·복구 경계
 - [운영 오류 추적](OBSERVABILITY.md): 브라우저·API·전투 워커 로그 연결과 조회
 - [기능 경계](apps/web/src/features/poke-lounge/README.md): UI와 비즈니스 로직의 책임 분리
 - [에이전트 브라우저 테스트](.agents/skills/poke-lounge-agent-browser-test/SKILL.md): 직접 플레이 절차·안전한 관찰

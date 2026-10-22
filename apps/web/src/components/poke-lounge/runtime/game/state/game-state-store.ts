@@ -19,6 +19,7 @@ import {
   isValidPartySlotIndex,
 } from "@/features/poke-lounge/domain/player/player-helpers";
 import type { PlayerPokemon } from "@poke-lounge/battle/adventure/player/pokemon-types";
+import { FIELD_MAP } from "@poke-lounge/battle/adventure/world/field-map";
 import type { TournamentParticipant } from "@poke-lounge/battle/tournament-bracket";
 import {
   accumulateTournamentScores,
@@ -873,9 +874,8 @@ export function createDefaultLocalPlayer(playerId = "player-1"): LocalPlayerStat
     competitive: createDefaultCompetitiveStats(),
     guide: createDefaultPlayerGuideState(),
     position: {
-      mapKey: "town",
-      x: 656,
-      y: 446,
+      mapKey: FIELD_MAP.key,
+      ...FIELD_MAP.fallbackSpawn,
       facing: "front",
     },
   };
@@ -1258,10 +1258,14 @@ function normalizeRoomTournamentStandingRows(
 function createRoomCumulativeStandingRows(
   input: TournamentStateRoomPayload,
 ): CumulativeTournamentScoreRank[] | null {
+  const scores = input.tournament.cumulativeScores;
+  // A participant who left mid-game stays on the roster (connected=false) but is not in the
+  // bracket, so it never gets a score key. Rank only the scored participants instead of
+  // requiring every roster member to have a score; the server ranks final standings the same way.
   const participants = input.participants.filter(function filterItem(participant) {
-    return participant.role === "participant";
+    return participant.role === "participant" && Object.hasOwn(scores, participant.playerId);
   });
-  const scorePlayerIds = Object.keys(input.tournament.cumulativeScores);
+  const scorePlayerIds = Object.keys(scores);
   const participantPlayerIds = new Set(
     participants.map(function mapItem(participant) {
       return participant.playerId;
@@ -1269,8 +1273,7 @@ function createRoomCumulativeStandingRows(
   );
 
   if (
-    scorePlayerIds.length < 2 ||
-    scorePlayerIds.length !== participants.length ||
+    participants.length < 2 ||
     scorePlayerIds.some(function testItem(playerId) {
       return !participantPlayerIds.has(playerId);
     })

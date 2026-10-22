@@ -1,0 +1,72 @@
+{
+  "rom": "포켓몬스터 하트골드(K).nds",
+  "romSha1": "5834fb3a2d751c48501d47d6a56898d7af6ccf9e",
+  "archive": "a/0/4/4",
+  "baseAtlas": "apps/web/public/assets/pokemmo-reference/tilesets/tuxmon-sample-32px-extruded.png",
+  "baseAtlasSha256": "f61019250cf88448f52b907842c32d912167ac028e12d9ffb5da7cbc1abf031b",
+  "processing": "Preserve base 720 tiles, ground/path colors and connected-grass behavior. Original projected autumn trees retain their geometry and colors. generate-autumn-map.py bakes overlapping native tree_en2..5 single and _re canopies across the map boundary into additional atlas tiles. No synthetic canopy clusters or decorative leaf piles.",
+  "tileSize": 32,
+  "margin": 1,
+  "spacing": 2,
+  "columns": 24,
+  "tileCount": 1224,
+  "gids": {
+    "721-725": "green ground and grass detail",
+    "729-744": "pale dirt path masks N=1 E=2 S=4 W=8",
+    "745-748": "red projected tree",
+    "749-752": "orange projected tree",
+    "753-756": "gold projected tree",
+    "757": "encounter grass",
+    "758": "encounter grass foreground"
+  },
+  "textures": [
+    {
+      "member": 6,
+      "texture": "grass01_a",
+      "palette": "grass01_a",
+      "size": [16, 16]
+    },
+    {
+      "member": 6,
+      "texture": "egrass_u",
+      "palette": "egrass_u_pl",
+      "size": [16, 16]
+    }
+  ],
+  "trees": {
+    "sourceManifest": "field-trees.json",
+    "quadrantOrder": "top-left, top-right, bottom-left, bottom-right"
+  },
+  "grassStep": {
+    "sourceManifest": "field-grass-effect.json",
+    "lifecycle": "Initially settled; entries play to tick 12 at 30Hz; tick 13 begins exit checks; final pose remains while the actor occupies the tile."
+  },
+  "grassAtlas": {
+    "path": "apps/web/public/assets/poke-lounge/world/autumn-forest-grass.png",
+    "size": [544, 68],
+    "tileSize": 32,
+    "margin": 1,
+    "spacing": 2,
+    "columns": 16,
+    "rows": 2,
+    "staticBaseTileIndices": [0, 15],
+    "staticForegroundTileIndices": [16, 31],
+    "connectivityMask": "N=1 E=2 S=4 W=8; connected sides stay seamless"
+  },
+  "bakedForest": {
+    "seed": 1711,
+    "canopies": 234,
+    "tileRange": [759, 979],
+    "palette": "native tree_en2..5 / _re palettes",
+    "placement": "Overlapping native canopies on a continuous outer band, with an uneven inner contour and grouped autumn colors; no resized clusters or leaf piles."
+  },
+  "forestFloor": {
+    "textures": ["a/0/4/4#88 momi", "momi_load_"],
+    "tiles": 237,
+    "cells": 310,
+    "forestCells": 221,
+    "scatterPatches": 43,
+    "fadeDistancePixels": 64,
+    "placement": "Native leaf ground at 100% beneath canopy groups, fading by distance to transparent over 64px; scattered leaves share the same falloff at 42% strength. Paths and encounter grass excluded."
+  }
+}

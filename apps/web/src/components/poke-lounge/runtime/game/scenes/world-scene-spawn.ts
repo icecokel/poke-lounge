@@ -1,11 +1,8 @@
 import type { PlayerFacing, PlayerPosition } from "../player/player-types";
+import type { WorldMapModel } from "../world/world-map-model";
+import { worldPlayerCollides } from "../world/world-runtime-motion";
 
 const playerFacings = new Set<PlayerFacing>(["front", "back", "left", "right"]);
-
-export interface PersistedWorldSpawnBounds {
-  height: number;
-  width: number;
-}
 
 export interface PersistedWorldSpawn {
   facing: PlayerFacing;
@@ -20,21 +17,22 @@ export function shouldPersistSoloWorldPosition(competitiveRoundsEnabled: boolean
 export function resolvePersistedWorldSpawn(
   position: PlayerPosition,
   mapKey: string,
-  bounds: PersistedWorldSpawnBounds,
+  model: WorldMapModel,
 ): PersistedWorldSpawn | null {
   if (
     position.mapKey !== mapKey ||
     !Number.isSafeInteger(position.x) ||
     !Number.isSafeInteger(position.y) ||
     !playerFacings.has(position.facing) ||
-    !Number.isFinite(bounds.width) ||
-    !Number.isFinite(bounds.height) ||
-    bounds.width <= 0 ||
-    bounds.height <= 0 ||
+    !Number.isFinite(model.widthInPixels) ||
+    !Number.isFinite(model.heightInPixels) ||
+    model.widthInPixels <= 0 ||
+    model.heightInPixels <= 0 ||
     position.x < 0 ||
     position.y < 0 ||
-    position.x >= bounds.width ||
-    position.y >= bounds.height
+    position.x >= model.widthInPixels ||
+    position.y >= model.heightInPixels ||
+    worldPlayerCollides(position, model)
   ) {
     return null;
   }

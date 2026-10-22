@@ -18,23 +18,6 @@ export interface LevelUpMoveDefinition {
   name: string;
 }
 
-export type LevelUpMoveChange<TMove> =
-  | {
-      kind: "learned";
-      move: TMove;
-    }
-  | {
-      kind: "replaced";
-      move: TMove;
-      replacedMove: TMove;
-    };
-
-export interface ApplyLevelUpMovesResult<TPokemon, TMove> {
-  pokemon: TPokemon;
-  changes: Array<LevelUpMoveChange<TMove>>;
-  messages: string[];
-}
-
 export interface PlanLevelUpBattleMovesResult {
   pokemon: BattlePokemon;
   pendingMoves: BattleMove[];
@@ -143,32 +126,6 @@ export function createPlayerPokemonMoveFromRom(
   };
 }
 
-export function applyLevelUpBattleMoves({
-  pokemon,
-  previousLevel,
-  moveRecords,
-}: {
-  pokemon: BattlePokemon;
-  previousLevel: number;
-  moveRecords: RomRefinedMoveCollection;
-}): ApplyLevelUpMovesResult<BattlePokemon, BattleMove> {
-  const learning = applyMoveListLearning({
-    pokemonName: pokemon.name,
-    moves: pokemon.moves,
-    moveDefinitions: getLevelUpMovesForSpecies(pokemon.speciesId, previousLevel, pokemon.level),
-    createMove: moveId => createBattleMoveFromRom(moveId, moveRecords),
-  });
-
-  return {
-    pokemon: {
-      ...pokemon,
-      moves: learning.moves,
-    },
-    changes: learning.changes,
-    messages: learning.messages,
-  };
-}
-
 export function planLevelUpBattleMoves({
   currentLevel,
   pokemon,
@@ -201,32 +158,6 @@ export function planLevelUpBattleMoves({
   };
 }
 
-export function applyLevelUpPlayerMoves({
-  pokemon,
-  previousLevel,
-  moveRecords,
-}: {
-  pokemon: PlayerPokemon;
-  previousLevel: number;
-  moveRecords: RomRefinedMoveCollection;
-}): ApplyLevelUpMovesResult<PlayerPokemon, PlayerPokemonMove> {
-  const learning = applyMoveListLearning({
-    pokemonName: pokemon.name,
-    moves: pokemon.moves ?? [],
-    moveDefinitions: getLevelUpMovesForSpecies(pokemon.speciesId, previousLevel, pokemon.level),
-    createMove: moveId => createPlayerPokemonMoveFromRom(moveId, moveRecords),
-  });
-
-  return {
-    pokemon: {
-      ...pokemon,
-      moves: learning.moves,
-    },
-    changes: learning.changes,
-    messages: learning.messages,
-  };
-}
-
 export function planLevelUpPlayerMoves<TPokemon extends PlayerPokemon>({
   currentLevel,
   pokemon,
@@ -254,59 +185,6 @@ export function planLevelUpPlayerMoves<TPokemon extends PlayerPokemon>({
     },
     pendingMoves: planning.pendingMoves,
     messages: planning.messages,
-  };
-}
-
-function applyMoveListLearning<TMove extends { id: number; name: string }>({
-  pokemonName,
-  moves: initialMoves,
-  moveDefinitions,
-  createMove,
-}: ApplyMoveListLearningInput<TMove>): {
-  moves: TMove[];
-  changes: Array<LevelUpMoveChange<TMove>>;
-  messages: string[];
-} {
-  let moves = initialMoves.slice(0, MAX_POKEMON_MOVE_COUNT);
-  const changes: Array<LevelUpMoveChange<TMove>> = [];
-  const messages: string[] = [];
-
-  for (const definition of moveDefinitions) {
-    if (
-      moves.some(function testItem(move) {
-        return move.id === definition.moveId;
-      })
-    ) {
-      continue;
-    }
-
-    const move = createMove(definition.moveId);
-
-    if (moves.length < MAX_POKEMON_MOVE_COUNT) {
-      moves = [...moves, move];
-      changes.push({ kind: "learned", move });
-      messages.push(formatLearnedMoveMessage(pokemonName, move.name));
-      continue;
-    }
-
-    const [replacedMove, ...remainingMoves] = moves;
-
-    if (!replacedMove) {
-      moves = [move];
-      changes.push({ kind: "learned", move });
-      messages.push(formatLearnedMoveMessage(pokemonName, move.name));
-      continue;
-    }
-
-    moves = [...remainingMoves, move];
-    changes.push({ kind: "replaced", move, replacedMove });
-    messages.push(formatReplacedMoveMessage(pokemonName, replacedMove.name, move.name));
-  }
-
-  return {
-    moves,
-    changes,
-    messages,
   };
 }
 

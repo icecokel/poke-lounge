@@ -17,15 +17,15 @@ export const FIELD_NPC_BASE = {
 export const FIELD_MAP = {
   key: "town",
   mapUrl: "/maps/pokemmo-reference/town.json",
-  tilesetKey: "tuxmon-sample-32px-extruded",
-  tilesetName: "tuxmon-sample-32px-extruded",
-  tilesetUrl: "/assets/pokemmo-reference/tilesets/tuxmon-sample-32px-extruded.png",
+  tilesetKey: "autumn-forest-32px-extruded",
+  tilesetName: "autumn-forest-32px-extruded",
+  tilesetUrl: "/assets/poke-lounge/world/autumn-forest-32px-extruded.png",
   tallGrass: {
     regionLayerName: "TallGrassZones",
     baseLayerName: "Tall Grass",
     foregroundLayerName: "Tall Grass Foreground",
-    baseTileIndex: 122,
-    foregroundTileIndex: 146,
+    baseTileIndex: 757,
+    foregroundTileIndex: 758,
   },
   player: {
     textureKey: "currentPlayer",
@@ -85,12 +85,12 @@ export const FIELD_MAP = {
   sourceRepository: "aaron5670/PokeMMO-Online-Realtime-Multiplayer-Game",
   defaultSpawn: "Spawn Point",
   fallbackSpawn: {
-    x: 656,
-    y: 446,
+    x: 624,
+    y: 688,
   },
   recoverySpawn: {
-    x: 640,
-    y: 304,
+    x: 624,
+    y: 448,
     facing: "back",
   },
   encounterAreas: [
@@ -99,34 +99,25 @@ export const FIELD_MAP = {
       x: 0,
       y: 64,
       width: 640,
-      height: 352,
+      height: 512,
     },
     {
       id: "town-plaza-field",
       x: 640,
       y: 64,
-      width: 512,
-      height: 352,
+      width: 640,
+      height: 512,
     },
     {
       id: "town-south-field",
       x: 0,
-      y: 416,
+      y: 576,
       width: 1280,
-      height: 160,
+      height: 192,
     },
   ],
   maxPlayers: 8,
 } as const;
-
-export const POKE_WORLD_MESSAGES = [
-  "CURRENT_PLAYERS",
-  "PLAYER_JOINED",
-  "PLAYER_MOVED",
-  "PLAYER_MOVEMENT_ENDED",
-  "PLAYER_CHANGED_MAP",
-  "PLAYER_LEFT",
-] as const;
 
 export function resolveFieldEncounterAreaId(
   position: { x: number; y: number },

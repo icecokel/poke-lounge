@@ -15,6 +15,7 @@ import type {
 } from "@/features/poke-lounge/contracts/rust-room";
 import type { TournamentStateRoomPayload } from "./tournament-projection";
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
+import { FIELD_MAP } from "@poke-lounge/battle/adventure/world/field-map";
 import type {
   CompetitivePartyInput,
   NormalizedCompetitiveParty,
@@ -468,9 +469,8 @@ function normalizeLocalSnapshot(sessionId: string, snapshot?: PlayerSnapshot): P
 function createDefaultSnapshot(sessionId: string): PlayerSnapshot {
   return {
     sessionId,
-    map: "town",
-    x: 656,
-    y: 446,
+    map: FIELD_MAP.key,
+    ...FIELD_MAP.fallbackSpawn,
     facing: "front",
   };
 }

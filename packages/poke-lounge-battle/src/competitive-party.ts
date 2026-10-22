@@ -5,10 +5,7 @@ import {
   COMPETITIVE_MOVE_CATALOG,
   COMPETITIVE_SPECIES_CATALOG,
 } from "./competitive-catalog.generated";
-import {
-  COMPETITIVE_RULESET_V2,
-  isCompetitiveMoveEffectSelectable,
-} from "./competitive-ruleset-config";
+import { isCompetitiveMoveEffectSelectable } from "./competitive-ruleset-config";
 import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
 import { getExperienceForLevel } from "./adventure/battle/experience";
 import { getRuntimePokemonSpeciesGrowthRate } from "./adventure/data/game-data-json";
@@ -19,10 +16,7 @@ export const COMPETITIVE_MOVE_COUNT_MAX = 4;
 export const COMPETITIVE_POKEMON_LEVEL_MIN = 1;
 export const COMPETITIVE_POKEMON_LEVEL_MAX = 100;
 
-export const COMPETITIVE_SUPPORTED_PRIMARY_STATUS_EFFECT_CODES =
-  COMPETITIVE_RULESET_V2.supportedPrimaryStatusEffectCodes;
-
-export interface CompetitiveIndividualValues {
+interface CompetitiveIndividualValues {
   hp: number;
   attack: number;
   defense: number;
@@ -33,7 +27,7 @@ export interface CompetitiveIndividualValues {
 
 export type CompetitivePersistentStatus = import("./gen4/types").Gen4Status;
 
-export interface CompetitivePartyMemberInput extends Gen4Traits {
+interface CompetitivePartyMemberInput extends Gen4Traits {
   slotIndex: number;
   speciesId: number;
   level: number;

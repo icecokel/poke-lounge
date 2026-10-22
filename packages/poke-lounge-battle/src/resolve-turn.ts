@@ -21,7 +21,12 @@ import {
   COMPETITIVE_MOVE_CATALOG,
   COMPETITIVE_SPECIES_CATALOG,
 } from "./competitive-catalog.generated";
-import { isLegacyCompetitiveMoveEffectSelectable } from "./competitive-ruleset-config";
+import {
+  isLegacyCompetitiveMoveEffectSelectable,
+  COMPETITIVE_RULESET_V2,
+  COMPETITIVE_RULESET_VERSION,
+  COMPETITIVE_STRUGGLE_MOVE_ID,
+} from "./competitive-ruleset-config";
 function isCompetitiveMoveSelectable(moveId: number): boolean {
   const move = COMPETITIVE_MOVE_CATALOG[moveId];
   return Boolean(move && isLegacyCompetitiveMoveEffectSelectable(move));
@@ -32,11 +37,6 @@ function canUseCompetitiveStruggle(moves: readonly { moveId: number; pp: number 
 import { calculateGen4Damage, checkGen4Accuracy, getGen4FixedDamage } from "./gen4-battle-math";
 import { calculateGen4TypeEffectiveness } from "./gen4-type-chart";
 import type { SeededRandom } from "./prng";
-import {
-  COMPETITIVE_RULESET_V2,
-  COMPETITIVE_RULESET_VERSION,
-  COMPETITIVE_STRUGGLE_MOVE_ID,
-} from "./competitive-ruleset-config";
 import { type CompetitiveResolvedMoveDefinition } from "./ruleset-contract";
 import { getCompetitiveMoveDefinition } from "./ruleset";
 

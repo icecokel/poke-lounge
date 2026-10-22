@@ -19,6 +19,7 @@ export interface CumulativeTournamentScoreRank {
   rank: number;
 }
 
+// Must match apps/api-rust/src/tournament.rs SCORE_BY_RANK (pnpm check:rust-ts-constants).
 export const DEFAULT_TOURNAMENT_SCORE_BY_RANK = {
   1: 100,
   2: 70,

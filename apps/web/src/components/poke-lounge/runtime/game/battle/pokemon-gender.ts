@@ -1,1 +1,0 @@
-export * from "@poke-lounge/battle/adventure/battle/pokemon-gender";

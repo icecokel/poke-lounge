@@ -1,5 +1,6 @@
-export const ROUND_TOTAL_COUNT = 3;
+import { GAME_ROUND_COUNT } from "@poke-lounge/battle/tournament-bracket";
 import { DEFAULT_ROUND_DURATION_MS } from "@poke-lounge/battle/round-settings";
+export const ROUND_TOTAL_COUNT = GAME_ROUND_COUNT;
 export const DEFAULT_PREPARATION_DURATION_MS: number = DEFAULT_ROUND_DURATION_MS;
 
 export type RoundPhase = "waiting" | "preparation" | "tournament" | "round-result" | "game-result";
