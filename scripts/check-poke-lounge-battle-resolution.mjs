@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const apiRoot = path.join(repoRoot, "apps/api");
+const apiRoot = path.join(repoRoot, "apps/db");
 const webRoot = path.join(repoRoot, "apps/web");
 const packageRoot = path.join(repoRoot, "packages/poke-lounge-battle");
 const packageModule = "@poke-lounge/battle/tournament-bracket";
@@ -54,7 +54,7 @@ if (mode === "types") {
 
   if (path.resolve(resolved) !== expected) {
     throw new Error(
-      `Expected API Node.js to resolve ${packageModule} to ${expected}, received ${resolved}`,
+      `Expected db tools Node.js to resolve ${packageModule} to ${expected}, received ${resolved}`,
     );
   }
 

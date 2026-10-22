@@ -8,14 +8,11 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "pnpm build:poke-lounge-battle && pnpm --parallel --filter @poke-lounge/battle --filter @poke-lounge/web --filter @poke-lounge/api dev",
     "dev:web": "pnpm --filter @poke-lounge/web dev",
-    "dev:api": "pnpm build:poke-lounge-battle && pnpm --parallel --stream --filter @poke-lounge/battle --filter @poke-lounge/api dev",
-    "build": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/web build && pnpm --filter @poke-lounge/api build",
+    "build": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/web build && pnpm --filter @poke-lounge/db build",
     "build:poke-lounge-battle": "pnpm --filter @poke-lounge/battle build",
     "build:web": "pnpm --filter @poke-lounge/web build",
-    "build:api": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/api build",
-    "lint": "pnpm --filter @poke-lounge/battle lint && pnpm --filter @poke-lounge/web lint && pnpm --filter @poke-lounge/api lint",
+    "lint": "pnpm --filter @poke-lounge/battle lint && pnpm --filter @poke-lounge/web lint && pnpm --filter @poke-lounge/db lint",
     "lint:web": "pnpm --filter @poke-lounge/web lint",
     "type:check:web": "pnpm --filter @poke-lounge/web type:check",
     "generate:poke-lounge-rom-data": "python3 scripts/poke-lounge/extract-rom-game-data.py && prettier --write apps/web/public/game-data/pokemon-data.json apps/web/public/game-data/level-up-move-table.json apps/web/public/game-data/item-data.json apps/web/src/components/poke-lounge/runtime/game/battle/growthTable.json && pnpm generate:poke-lounge-competitive-catalog",
@@ -25,7 +22,6 @@
     "check:poke-lounge-competitive-catalog": "node scripts/poke-lounge/generate-competitive-catalog.mjs --check",
     "check:poke-lounge-battle-resolution": "node scripts/check-poke-lounge-battle-resolution.mjs types && pnpm build:poke-lounge-battle && node scripts/check-poke-lounge-battle-resolution.mjs runtime",
     "poke-lounge:audio:verify": "node scripts/poke-lounge/verify-audio-assets.mjs",
-    "generate:openapi": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/api openapi:generate",
     "check:rust-room-contract": "node scripts/check-rust-room-contract.mjs",
     "check:rust-ts-constants": "node scripts/check-rust-ts-constants.mjs",
     "format:check": "prettier --check .",
@@ -42,13 +38,9 @@
     "overrides": {
       "next>@playwright/test": "-",
       "postcss@<8.5.23": "8.5.26",
-      "multer@<2.4.0": "2.4.0",
       "fast-uri@>=3.0.0 <3.1.8": "3.1.8",
-      "js-yaml@>=5.0.0 <5.4.1": "5.4.1",
       "ip-address@<10.7.3": "10.7.3",
-      "moment@>=2.29.2 <2.31.0": "2.31.0",
-      "brace-expansion@>=2.0.0 <2.1.7": "2.1.7",
-      "engine.io@>=6.6.0 <6.6.10": "6.6.11"
+      "brace-expansion@>=2.0.0 <2.1.7": "2.1.7"
     }
   }
 }

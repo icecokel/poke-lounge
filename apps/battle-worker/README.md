@@ -29,7 +29,7 @@ pnpm --filter @poke-lounge/battle-worker build
 
 실행은 별도 환경변수를 준비한 후 `pnpm --filter @poke-lounge/battle-worker start`를 사용한다. `BATTLE_WEB_ROOT` 기본값은 worker 패키지 기준 `../web`이며 커밋된 추출 게임 데이터와 맵을 읽는다. 잘못된 메타데이터나 누락된 자료가 있으면 준비된 worker로 취급하지 않는다.
 
-`BATTLE_WORKER_HOST`와 `BATTLE_WORKER_PORT`로 수신 주소를 지정할 수 있지만 운영 공개 포트로 노출하면 안 된다. 운영 Compose는 내부 `0.0.0.0:3021`에서 실행하며 Rust API에 `http://battle-worker:3021`과 같은 `BATTLE_WORKER_TOKEN`을 전달한다. 호스트 포트는 공개하지 않는다. 워커의 인증된 `/health`에서 준비된 thread가 있는지 확인하고, Rust API는 워커 healthy 이후 시작하며 `/health/ready`에서 계산 연결도 확인한다. 배포 환경과 순서는 [배포 가이드](../api/DEPLOY.md)를 따른다.
+`BATTLE_WORKER_HOST`와 `BATTLE_WORKER_PORT`로 수신 주소를 지정할 수 있지만 운영 공개 포트로 노출하면 안 된다. 운영 Compose는 내부 `0.0.0.0:3021`에서 실행하며 Rust API에 `http://battle-worker:3021`과 같은 `BATTLE_WORKER_TOKEN`을 전달한다. 호스트 포트는 공개하지 않는다. 워커의 인증된 `/health`에서 준비된 thread가 있는지 확인하고, Rust API는 워커 healthy 이후 시작하며 `/health/ready`에서 계산 연결도 확인한다. 배포 환경과 순서는 [배포 가이드](../db/DEPLOY.md)를 따른다.
 
 ## 검증 범위
 

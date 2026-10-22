@@ -56,13 +56,12 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-        NEXT_PUBLIC_POKE_BACKEND: rust
         NEXT_PUBLIC_RELEASE_SHA: ${RELEASE_SHA:-}
     command:
       [
         "sh",
         "-lc",
-        "pnpm --filter @poke-lounge/api migration:run && pnpm --filter @poke-lounge/api rom-data:import",
+        "pnpm --filter @poke-lounge/db migration:run && pnpm --filter @poke-lounge/db rom-data:import",
       ]
     environment: *db-environment
     depends_on:
@@ -166,7 +165,6 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-      NEXT_PUBLIC_POKE_BACKEND: rust
       NEXT_PUBLIC_RELEASE_SHA: ${RELEASE_SHA:-}
     depends_on:
       api:

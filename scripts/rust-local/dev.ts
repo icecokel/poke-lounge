@@ -78,8 +78,8 @@ async function main(): Promise<void> {
   await requireFreeWebPort();
   await run("pnpm", ["build:poke-lounge-battle"]);
   await run("pnpm", ["--filter", "@poke-lounge/battle-worker", "build"]);
-  // The existing migration/import commands are build-time schema tools, not a running NestJS server.
-  await run("pnpm", ["--filter", "@poke-lounge/api", "build"]);
+  // The db package is a build-time schema/ROM import tool, not a running server.
+  await run("pnpm", ["--filter", "@poke-lounge/db", "build"]);
   await run("docker", [
     "run",
     "--rm",
@@ -107,8 +107,8 @@ async function main(): Promise<void> {
     DB_DATABASE: "poke_rust_local",
     DB_SYNCHRONIZE: "false",
   };
-  await run("pnpm", ["--filter", "@poke-lounge/api", "migration:run"], database);
-  await run("pnpm", ["--filter", "@poke-lounge/api", "rom-data:import"], database);
+  await run("pnpm", ["--filter", "@poke-lounge/db", "migration:run"], database);
+  await run("pnpm", ["--filter", "@poke-lounge/db", "rom-data:import"], database);
   // Recreate only the two owned game services so rebuilt bind-mounted binaries are loaded.
   await run("docker", [
     ...compose,
@@ -139,7 +139,6 @@ async function main(): Promise<void> {
       ],
       {
         NEXT_PUBLIC_API_URL: "http://127.0.0.1:3011",
-        NEXT_PUBLIC_POKE_BACKEND: "rust",
         LOCAL_TEST_AUTH_TOKEN: randomBytes(32).toString("hex"),
         NEXT_DIST_DIR: ".next-rust-local",
         NEXT_TYPESCRIPT_CONFIG_PATH: "tsconfig.rust-local.json",

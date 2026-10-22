@@ -4,7 +4,7 @@
 
 Rust API는 로컬과 운영의 실제 게임 서버다. 방 생성·참가·준비, 스타터 준비 장벽, 3라운드 탐험·토너먼트, AI, 누적 점수·최종 결과, WebSocket 구독·재접속을 실제 실행 경로에서 처리한다.
 
-운영 `compose.yaml`은 Rust API와 `apps/battle-worker` 계산 워커를 실행한다. 기존 NestJS API 코드는 런타임 서버로 실행하지 않고 PostgreSQL migration과 ROM 데이터 import를 위한 빌드 도구로만 재사용한다. 운영 웹은 `NEXT_PUBLIC_POKE_BACKEND=rust`로 빌드하며 기존 외부 API 포트 계약은 유지한다.
+운영 `compose.yaml`은 Rust API와 `apps/battle-worker` 계산 워커를 실행한다. PostgreSQL migration과 ROM 데이터 import는 `apps/db`(TypeORM CLI 전용)가 배포 시 한 번 실행한다. 기존 외부 API 포트 계약은 유지한다.
 
 ## 로컬 실행
 
@@ -37,7 +37,7 @@ pnpm dev:rust:stop
 
 개발 DB 비밀번호와 워커 토큰은 Git 제외 경로 `output/rust-local/local.env`에 최초 자동 생성된다. 파일 권한은 `0600`이고 기존 파일은 덮어쓰지 않는다. 이 파일을 지우고 기존 DB 볼륨만 남기면 생성된 비밀번호와 DB 비밀번호가 달라질 수 있다. 토큰을 브라우저 번들·`NEXT_PUBLIC_*`에 넣지 않는다.
 
-웹은 `NEXT_PUBLIC_POKE_BACKEND=rust`일 때 네이티브 WebSocket 어댑터를 선택하며 운영 빌드는 이 값을 `rust`로 고정한다. 로컬 `pnpm dev:rust`도 같은 연결 모드를 사용하지만 출력·타입 설정은 `.next-rust-local`, `tsconfig.rust-local.json`으로 분리한다. 웹은 `localhost`에 바인딩하며 임시 `LOCAL_TEST_AUTH_TOKEN`을 실행마다 생성해 로컬 테스트 모드 시작·계속·종료를 제공한다. 실행기가 종료되면 `next-env.d.ts`의 Next 자동 생성 참조만 원래 내용으로 복원하고 외부 편집은 덮어쓰지 않는다.
+웹은 네이티브 WebSocket 어댑터로 Rust API에 연결한다. 로컬 `pnpm dev:rust`도 같은 연결 모드를 사용하지만 출력·타입 설정은 `.next-rust-local`, `tsconfig.rust-local.json`으로 분리한다. 웹은 `localhost`에 바인딩하며 임시 `LOCAL_TEST_AUTH_TOKEN`을 실행마다 생성해 로컬 테스트 모드 시작·계속·종료를 제공한다. 실행기가 종료되면 `next-env.d.ts`의 Next 자동 생성 참조만 원래 내용으로 복원하고 외부 편집은 덮어쓰지 않는다.
 
 ## 책임과 안정성 규칙
 
