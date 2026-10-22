@@ -36,8 +36,7 @@
     "test:korean-messages": "pnpm build:poke-lounge-battle && pnpm --filter @poke-lounge/web exec tsx --tsconfig tests/korean-messages/tsconfig.json --test tests/korean-messages/particles.test.ts tests/korean-messages/localization.test.ts"
   },
   "devDependencies": {
-    "prettier": "^3.8.4",
-    "prettier-plugin-tailwindcss": "^0.8.0"
+    "prettier": "^3.8.4"
   },
   "pnpm": {
     "overrides": {
