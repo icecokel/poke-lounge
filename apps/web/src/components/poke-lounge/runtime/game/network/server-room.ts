@@ -431,14 +431,27 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const handlers = new Map<RoomMessage, Set<Handler<RoomMessage>>>();
   let disposed = false;
   const reportedStateApplyFailures = new Set<string>();
-  const reportStateApplyFailure = (code: string, error: unknown) => {
+  const reportStateApplyFailure = (
+    code: string,
+    error: unknown,
+    trace: { stage: "apply" | "socket"; causeType: "client" | "schema" } = {
+      stage: "apply",
+      causeType: "client",
+    },
+  ) => {
     if (disposed || leaveSent || reportedStateApplyFailures.has(code)) return;
     // Recovery can repeat indefinitely; keep only the first exception per code in this room.
     reportedStateApplyFailures.add(code);
-    recordClientBreadcrumb("room.apply_failed", { stage: "apply", causeType: "client" });
-    const snapshot = captureClientDiagnosticFailure(error, { stage: "apply", causeType: "client" });
+    recordClientBreadcrumb(
+      trace.stage === "socket" ? "socket.event_invalid" : "room.apply_failed",
+      trace,
+    );
+    const snapshot = captureClientDiagnosticFailure(error, trace);
     reportClientDiagnostic({ kind: "room", code, error, snapshot, priority: "background" });
   };
+  // A schema drift between the Rust events and this parser would otherwise be silently ignored.
+  const reportSocketEventInvalid = (code: string, error: unknown) =>
+    reportStateApplyFailure(code, error, { stage: "socket", causeType: "schema" });
   let recoveryTimer: number | null = null;
   let roomLivenessTimer: number | null = null;
   let recoveryAttempt = 0;
@@ -1465,7 +1478,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     let snapshot: SharedWorldSnapshot;
     try {
       snapshot = parseSharedWorldSnapshot(event);
-    } catch {
+    } catch (error) {
+      reportSocketEventInvalid("WS_WORLD_SNAPSHOT_SCHEMA_FAILED", error);
       worldResyncRequested = false;
       requestWorldResync();
       return;
@@ -1516,7 +1530,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     let cursor: SharedWorldCursor;
     try {
       cursor = parseSharedWorldCursor(event);
-    } catch {
+    } catch (error) {
+      reportSocketEventInvalid("WS_WORLD_CURSOR_SCHEMA_FAILED", error);
       return;
     }
     if (cursor.roomCode !== activeRoomId) {
@@ -1620,7 +1635,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
     try {
       room = parseSocketRoomEvent(event);
-    } catch {
+    } catch (error) {
+      reportSocketEventInvalid("WS_REVISION_CONFLICT_SCHEMA_FAILED", error);
       return;
     }
 
