@@ -8,7 +8,11 @@ import {
 } from "./tournament-room-protocol";
 import type { PlayerPokemonSlot } from "../player/player-types";
 import type { PlayerPokemon } from "../state/game-state-store";
-import type { components } from "@/types/api";
+import type {
+  RustCompetitiveAction,
+  RustCompetitiveProjection,
+  RustCompetitiveTransition,
+} from "@/features/poke-lounge/contracts/rust-room";
 import type { TournamentStateRoomPayload } from "./tournament-projection";
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import { FIELD_MAP } from "@poke-lounge/battle/adventure/world/field-map";
@@ -17,12 +21,13 @@ import type {
   NormalizedCompetitiveParty,
 } from "@poke-lounge/battle/competitive-party";
 
-type GeneratedCompetitiveProjection = components["schemas"]["CompetitiveActionResponseDto"];
-
 export type CompetitiveProjection = Omit<
-  GeneratedCompetitiveProjection,
-  "terminalEventId" | "terminalRoomRevision"
+  RustCompetitiveProjection,
+  "terminalEventId" | "terminalRoomRevision" | "kind" | "rulesetVersion" | "progressionEndsAtMs"
 > & {
+  kind: RustCompetitiveProjection["kind"] | "ranked-head-to-head";
+  rulesetVersion: number;
+  progressionEndsAtMs?: number | null;
   terminalEventId?: string | null;
   terminalRoomRevision?: number | null;
 };
@@ -32,9 +37,10 @@ export interface CompetitiveProjectionParseResult {
   projection: CompetitiveProjection;
   terminalMetadataState: CompetitiveTerminalMetadataState;
 }
-export interface CompetitiveTerminalTransition {
-  terminalEventId: string;
-  terminalRoomRevision: number;
+export interface CompetitiveTerminalTransition extends Omit<
+  RustCompetitiveTransition,
+  "projection"
+> {
   projection: CompetitiveProjection;
 }
 export interface CompetitiveRoomSnapshotContract {
@@ -43,7 +49,7 @@ export interface CompetitiveRoomSnapshotContract {
   competitiveAssignments: CompetitiveProjection[];
   competitive?: CompetitiveProjection;
 }
-export type CompetitiveAction = components["schemas"]["CompetitiveActionDto"];
+export type CompetitiveAction = RustCompetitiveAction;
 export interface CompetitiveActionCommand {
   matchId: string;
   assignmentRevision: number;

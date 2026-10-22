@@ -9,7 +9,10 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::{
-    config::{IO_TIMEOUT, MAX_ROOMS, OWNER_LEASE_MS, REDIS_PREFIX},
+    config::{
+        IO_TIMEOUT, MAX_ROOMS, OWNER_ACQUIRE_RETRY, OWNER_ACQUIRE_WAIT, OWNER_LEASE_MS,
+        REDIS_PREFIX,
+    },
     domain::{CreateRoom, Room},
     error::{AppError, AppResult},
 };
@@ -35,6 +38,12 @@ return redis.call('DEL', KEYS[1])
 pub struct Repository {
     connection: ConnectionManager,
     owner: Arc<str>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Renewal {
+    Renewed,
+    Lost,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -77,31 +86,46 @@ impl Repository {
     }
 
     pub async fn acquire(&self) -> AppResult<()> {
-        let value: Option<String> = redis::cmd("SET")
-            .arg(self.owner_key())
-            .arg(self.owner.as_ref())
-            .arg("NX")
-            .arg("PX")
-            .arg(OWNER_LEASE_MS)
-            .query_async(&mut self.connection.clone())
-            .await?;
-        if value.as_deref() != Some("OK") {
-            return Err(AppError::Unavailable);
-        }
-        Ok(())
+        tokio::time::timeout(OWNER_ACQUIRE_WAIT, async {
+            let mut waiting = false;
+            loop {
+                let value: Option<String> = redis::cmd("SET")
+                    .arg(self.owner_key())
+                    .arg(self.owner.as_ref())
+                    .arg("NX")
+                    .arg("PX")
+                    .arg(OWNER_LEASE_MS)
+                    .query_async(&mut self.connection.clone())
+                    .await?;
+                if value.as_deref() == Some("OK") {
+                    return Ok(());
+                }
+                if !waiting {
+                    tracing::warn!(
+                        event = "backend.owner_wait",
+                        "Waiting for the previous owner lease to expire"
+                    );
+                    waiting = true;
+                }
+                tokio::time::sleep(OWNER_ACQUIRE_RETRY).await;
+            }
+        })
+        .await
+        .map_err(|_| AppError::Unavailable)?
     }
 
-    pub async fn renew(&self) -> AppResult<()> {
+    pub async fn renew(&self) -> AppResult<Renewal> {
         let value: i64 = Script::new(RENEW)
             .key(self.owner_key())
             .arg(self.owner.as_ref())
             .arg(OWNER_LEASE_MS)
             .invoke_async(&mut self.connection.clone())
             .await?;
-        if value != 1 {
-            return Err(AppError::Unavailable);
+        if value == 1 {
+            Ok(Renewal::Renewed)
+        } else {
+            Ok(Renewal::Lost)
         }
-        Ok(())
     }
 
     pub async fn release(&self) -> AppResult<()> {

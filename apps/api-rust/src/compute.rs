@@ -5,6 +5,10 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::Semaphore;
 use uuid::Uuid;
 
+const COMPUTE_CAPACITY: usize = 32;
+const BACKGROUND_CAPACITY: usize = 16;
+const INTERACTIVE_QUEUE_WAIT: Duration = Duration::from_secs(1);
+
 pub const ENGINE_VERSION: &str = include_str!("../engine-version.txt");
 #[derive(Clone)]
 pub struct Compute {
@@ -12,6 +16,7 @@ pub struct Compute {
     url: Arc<str>,
     token: Arc<str>,
     capacity: Arc<Semaphore>,
+    background: Arc<Semaphore>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -43,7 +48,8 @@ impl Compute {
             client,
             url: url.trim_end_matches('/').into(),
             token: token.into(),
-            capacity: Arc::new(Semaphore::new(32)),
+            capacity: Arc::new(Semaphore::new(COMPUTE_CAPACITY)),
+            background: Arc::new(Semaphore::new(BACKGROUND_CAPACITY)),
         })
     }
     pub async fn ready(&self) -> AppResult<()> {
@@ -66,13 +72,33 @@ impl Compute {
         Ok(())
     }
     pub async fn run(&self, id: Uuid, revision: u64, operation: Value) -> AppResult<Value> {
-        let _permit = self
-            .capacity
-            .clone()
-            .try_acquire_owned()
-            .map_err(|_| AppError::Busy)?;
-        let request_id = Uuid::new_v4();
         let kind = operation["kind"].as_str().unwrap_or("unknown").to_owned();
+        let (_background_permit, _permit) = if kind == "ai-step" {
+            let lane = self
+                .background
+                .clone()
+                .try_acquire_owned()
+                .map_err(|_| AppError::Busy)?;
+            let permit = self
+                .capacity
+                .clone()
+                .try_acquire_owned()
+                .map_err(|_| AppError::Busy)?;
+            (Some(lane), permit)
+        } else {
+            let permit = tokio::time::timeout(
+                INTERACTIVE_QUEUE_WAIT,
+                self.capacity.clone().acquire_owned(),
+            )
+            .await
+            .map_err(|_| {
+                tracing::warn!(event = "compute.busy", operation = %kind, room_instance_id = %id);
+                AppError::Busy
+            })?
+            .map_err(|_| AppError::Unavailable)?;
+            (None, permit)
+        };
+        let request_id = Uuid::new_v4();
         let started = std::time::Instant::now();
         let result: AppResult<Value> = async {
             let response = self.client.post(format!("{}/compute", self.url))

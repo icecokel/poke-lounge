@@ -22,6 +22,13 @@ use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{Instrument, Span};
 use uuid::Uuid;
 
+// Full document reads only detect external expiry; the actor is the sole writer after creation.
+const FULL_RELOAD_INTERVAL_MS: u64 = 5_000;
+// AI movement does not bump the room revision; persist it periodically so a restart resumes near it.
+const AI_CHECKPOINT_INTERVAL_MS: u64 = 2_000;
+const CONNECTION_STALE_MS: u64 = 30_000;
+const MIN_MOVE_INTERVAL: Duration = Duration::from_millis(50);
+
 pub enum Operation {
     Snapshot {
         after: Option<u64>,
@@ -95,6 +102,25 @@ impl Handle {
             .map_err(|_| AppError::Timeout)?
             .map_err(|_| AppError::Unavailable)?
     }
+    /// Cleanup must not be dropped when the mailbox is momentarily full.
+    pub async fn request_reliable(&self, operation: Operation) -> AppResult<Value> {
+        let (reply, receiver) = oneshot::channel();
+        tokio::time::timeout(
+            REQUEST_TIMEOUT,
+            self.sender.send(Envelope {
+                operation,
+                reply,
+                span: Span::current(),
+            }),
+        )
+        .await
+        .map_err(|_| AppError::Timeout)?
+        .map_err(|_| AppError::Unavailable)?;
+        tokio::time::timeout(REQUEST_TIMEOUT, receiver)
+            .await
+            .map_err(|_| AppError::Timeout)?
+            .map_err(|_| AppError::Unavailable)?
+    }
 }
 #[derive(Clone)]
 pub struct Rooms {
@@ -145,11 +171,16 @@ impl Rooms {
             events,
             shutdown: self.shutdown.clone(),
             world: BTreeMap::new(),
+            last_move_accepted: HashMap::new(),
             connections: BTreeMap::new(),
+            connection_seen: BTreeMap::new(),
             world_epoch: Uuid::new_v4(),
             world_seq: 0,
             now,
             last_cursor_ms: now,
+            last_full_reload_ms: now,
+            last_persisted_ms: now,
+            unpersisted: false,
             last_tick_ms: self.last_tick_ms.clone(),
         };
         self.tasks.spawn(actor.run(receiver));
@@ -323,11 +354,16 @@ struct Actor {
     events: broadcast::Sender<Value>,
     shutdown: CancellationToken,
     world: BTreeMap<String, Value>,
+    last_move_accepted: HashMap<String, tokio::time::Instant>,
     connections: BTreeMap<Uuid, String>,
+    connection_seen: BTreeMap<Uuid, u64>,
     world_epoch: Uuid,
     world_seq: u64,
     now: u64,
     last_cursor_ms: u64,
+    last_full_reload_ms: u64,
+    last_persisted_ms: u64,
+    unpersisted: bool,
     last_tick_ms: Arc<AtomicU64>,
 }
 impl Actor {
@@ -347,6 +383,7 @@ impl Actor {
                 biased;
                 _=self.shutdown.cancelled()=>{
                     receiver.close();while let Some(message)=receiver.recv().await{let _=message.reply.send(Err(AppError::Unavailable));}
+                    if self.unpersisted { let _ = self.checkpoint().await; }
                     self.emit("server.draining",json!({}));break;
                 }
                 _=ticker.tick()=>{
@@ -371,6 +408,8 @@ impl Actor {
         if room.revision != previous {
             let version = room.storage_version;
             self.repository.commit(version, &mut room, None).await?;
+            self.last_persisted_ms = self.now;
+            self.unpersisted = false;
         }
         let changed = room.revision != self.room.revision;
         self.room = room;
@@ -379,8 +418,58 @@ impl Actor {
         }
         Ok(())
     }
+    async fn sync_clock(&mut self) -> AppResult<()> {
+        let now = self.repository.now().await?;
+        self.now = now;
+        let mut room = self.room.clone();
+        let previous = room.revision;
+        room.prepare_clock(now);
+        if room.revision != previous {
+            self.repository
+                .commit(self.room.storage_version, &mut room, None)
+                .await?;
+            self.room = room;
+            self.last_persisted_ms = self.now;
+            self.unpersisted = false;
+            self.publish_room();
+        } else {
+            // Waiting retain only removes participants disconnected in the same call, which bumps the revision.
+            self.room = room;
+        }
+        Ok(())
+    }
+    async fn checkpoint(&mut self) -> AppResult<()> {
+        let mut next = self.room.clone();
+        self.repository
+            .commit(self.room.storage_version, &mut next, None)
+            .await?;
+        self.room = next;
+        self.last_persisted_ms = self.now;
+        self.unpersisted = false;
+        Ok(())
+    }
     async fn tick(&mut self) -> AppResult<()> {
-        self.reload().await?;
+        let now = self.repository.now().await?;
+        self.now = now;
+        if self.room.terminal() || now >= self.last_full_reload_ms + FULL_RELOAD_INTERVAL_MS {
+            if self.unpersisted {
+                self.checkpoint().await?;
+            }
+            self.reload().await?;
+            self.last_full_reload_ms = now;
+        } else {
+            self.sync_clock().await?;
+        }
+        let stale = self
+            .connection_seen
+            .iter()
+            .filter(|(_, seen)| self.now >= **seen + CONNECTION_STALE_MS)
+            .map(|(id, _)| *id)
+            .collect::<Vec<_>>();
+        for id in stale {
+            self.disconnect(id).await?;
+            tracing::warn!(event = "room.connection_stale", room_instance_id = %self.room.room_instance_id, connection_id = %id);
+        }
         if self.room.terminal() {
             self.last_tick_ms.store(self.now, Ordering::Relaxed);
             return Ok(());
@@ -388,14 +477,18 @@ impl Actor {
         let mut next = self.room.clone();
         next.step_ai(self.now, &self.compute).await?;
         next.advance_game(self.now, &self.compute).await?;
-        if next.revision != self.room.revision || next.last_ai_step_ms != self.room.last_ai_step_ms
-        {
-            let changed = next.revision != self.room.revision;
+        if next.revision != self.room.revision {
             let expected = self.room.storage_version;
             self.repository.commit(expected, &mut next, None).await?;
             self.room = next;
-            if changed {
-                self.publish_room();
+            self.last_persisted_ms = self.now;
+            self.unpersisted = false;
+            self.publish_room();
+        } else if next.last_ai_step_ms != self.room.last_ai_step_ms {
+            self.room = next;
+            self.unpersisted = true;
+            if self.now >= self.last_persisted_ms + AI_CHECKPOINT_INTERVAL_MS {
+                self.checkpoint().await?;
             }
         }
         let removed = self
@@ -411,6 +504,7 @@ impl Actor {
             .cloned()
             .collect::<Vec<_>>();
         for id in removed {
+            self.last_move_accepted.remove(&id);
             if let Some(snapshot) = self.world.remove(&id) {
                 self.world_seq += 1;
                 self.emit("room.player-event",json!({"type":"PLAYER_LEFT","roomCode":self.room.room_code,"worldEpoch":self.world_epoch,"worldSeq":self.world_seq,"snapshot":snapshot}));
@@ -452,15 +546,27 @@ impl Actor {
                 .get(&connection)
                 .cloned()
                 .ok_or(AppError::Forbidden)?;
+            self.connection_seen.insert(connection, self.now);
             if self.room.terminal() {
                 // Rendering may emit one last movement frame while the final-result UI mounts.
                 // Terminal rooms are immutable, so drop that stale frame without killing the socket.
                 return Ok(Value::Null);
             }
+            if event == "PLAYER_MOVED" {
+                let now = tokio::time::Instant::now();
+                if self
+                    .last_move_accepted
+                    .get(&player)
+                    .is_some_and(|at| now.duration_since(*at) < MIN_MOVE_INTERVAL)
+                {
+                    return Ok(Value::Null); // Drop silently; the next frame carries the newer position.
+                }
+                self.last_move_accepted.insert(player.clone(), now);
+            }
             self.update_world(&player, &event, position)?;
             return Ok(Value::Null);
         }
-        self.reload().await?;
+        self.sync_clock().await?;
         match operation {
             Operation::Snapshot { after } => Ok(self.snapshot(after)),
             Operation::ReadSnapshot { after, requester } => {
@@ -483,6 +589,7 @@ impl Actor {
                 if !self.connections.contains_key(&connection) {
                     return Err(AppError::Forbidden);
                 }
+                self.connection_seen.insert(connection, self.now);
                 Ok(json!({"room":self.snapshot(None),"world":self.world_snapshot()}))
             }
             Operation::Command {
@@ -545,7 +652,7 @@ impl Actor {
                     )
                     .await?;
                 if committed.replayed {
-                    self.reload().await?;
+                    self.sync_clock().await?;
                     let stored = committed.receipt.ok_or(AppError::Unavailable)?;
                     if stored.request_hash != hash {
                         return Err(AppError::CommandConflict);
@@ -554,6 +661,8 @@ impl Actor {
                 }
                 let changed = self.room.revision != next.revision;
                 self.room = next;
+                self.last_persisted_ms = self.now;
+                self.unpersisted = false;
                 if changed {
                     self.publish_room();
                 }
@@ -597,10 +706,13 @@ impl Actor {
                     self.repository
                         .commit(self.room.storage_version, &mut next, None)
                         .await?;
+                    self.last_persisted_ms = self.now;
+                    self.unpersisted = false;
                 }
                 let changed = next.revision != self.room.revision;
                 self.room = next;
                 self.connections.insert(connection, player.clone());
+                self.connection_seen.insert(connection, self.now);
                 if changed {
                     self.publish_room();
                 }
@@ -634,33 +746,43 @@ impl Actor {
                             .commit(self.room.storage_version, &mut next, None)
                             .await?;
                         self.room = next;
+                        self.last_persisted_ms = self.now;
+                        self.unpersisted = false;
                     }
                 }
+                self.connection_seen.insert(connection, self.now);
                 Ok(Value::Null)
             }
             Operation::Disconnect { connection } => {
-                if let Some(player) = self.connections.remove(&connection)
-                    && !self.connections.values().any(|id| id == &player)
-                    && !self.room.terminal()
-                {
-                    let mut next = self.room.clone();
-                    if let Some(p) = next
-                        .participants
-                        .iter_mut()
-                        .find(|p| p.player_id == player && p.connected)
-                    {
-                        p.disconnect_pending = true;
-                        p.presence_until_ms = self.now + PRESENCE_LEASE_MS;
-                        self.repository
-                            .commit(self.room.storage_version, &mut next, None)
-                            .await?;
-                        self.room = next;
-                    }
-                }
+                self.disconnect(connection).await?;
                 Ok(Value::Null)
             }
             Operation::World { .. } => unreachable!(),
         }
+    }
+    async fn disconnect(&mut self, connection: Uuid) -> AppResult<()> {
+        self.connection_seen.remove(&connection);
+        if let Some(player) = self.connections.remove(&connection)
+            && !self.connections.values().any(|id| id == &player)
+            && !self.room.terminal()
+        {
+            let mut next = self.room.clone();
+            if let Some(p) = next
+                .participants
+                .iter_mut()
+                .find(|p| p.player_id == player && p.connected)
+            {
+                p.disconnect_pending = true;
+                p.presence_until_ms = self.now + PRESENCE_LEASE_MS;
+                self.repository
+                    .commit(self.room.storage_version, &mut next, None)
+                    .await?;
+                self.room = next;
+                self.last_persisted_ms = self.now;
+                self.unpersisted = false;
+            }
+        }
+        Ok(())
     }
     fn emit(&self, event: &str, payload: Value) {
         let _ = self.events.send(json!({"event":event,"payload":payload}));

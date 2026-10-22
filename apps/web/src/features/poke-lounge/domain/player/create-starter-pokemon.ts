@@ -7,10 +7,11 @@ import {
   getRuntimePokemonSpeciesSummary,
 } from "@poke-lounge/battle/adventure/data/game-data-json";
 import { calculateGen4BattleStats } from "@poke-lounge/battle/gen4-pokemon-stats";
+import { STARTER_LEVEL } from "@poke-lounge/battle/party-acceptance";
 import type { PlayerPokemon } from "../../contracts/game-state";
 export function createStarterPlayerPokemon(
   starter: { speciesId: number },
-  level = 10,
+  level = STARTER_LEVEL,
   random: () => number = Math.random,
 ): PlayerPokemon {
   const gender = createPokemonGenderFromRatio(

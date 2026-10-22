@@ -10,16 +10,35 @@ use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
 pub const SCHEMA_VERSION: u32 = 2;
+// Must match packages/poke-lounge-battle/src/timing.ts ROUND_DURATION_OPTIONS_MS (pnpm check:rust-ts-constants).
+pub const ROUND_DURATION_OPTIONS_MS: [u64; 3] = [90_000, 180_000, 300_000];
+// Must match packages/poke-lounge-battle/src/timing.ts DEFAULT_ROUND_DURATION_MS (pnpm check:rust-ts-constants).
+pub const DEFAULT_ROUND_DURATION_MS: u64 = 90_000;
+// Must match packages/poke-lounge-battle/src/timing.ts ROUND_START_COUNTDOWN_MS (pnpm check:rust-ts-constants).
+pub const ROUND_START_COUNTDOWN_MS: u64 = 3_000;
+// Must match packages/poke-lounge-battle/src/competitive-ruleset-config.ts COMPETITIVE_RULESET_VERSION (pnpm check:rust-ts-constants).
+pub const COMPETITIVE_RULESET_VERSION: u64 = 3;
+// Must match packages/poke-lounge-battle/src/timing.ts POKE_LOUNGE_SESSION_MAX_LIFETIME_MS (pnpm check:rust-ts-constants).
 pub const SESSION_MAX_MS: u64 = 7_200_000;
+// Rust-only.
 pub const LOBBY_MAX_MS: u64 = 600_000;
+// Must match packages/poke-lounge-battle/src/timing.ts PARTICIPANT_DISCONNECT_GRACE_MS (pnpm check:rust-ts-constants).
 pub const PRESENCE_LEASE_MS: u64 = 60_000;
+// Must match packages/poke-lounge-battle/src/timing.ts POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS (pnpm check:rust-ts-constants).
 pub const ADMISSION_MS: u64 = 15_000;
+// Rust-only.
 pub const COMPLETED_RETENTION_MS: u64 = 15 * 60_000;
+// Must match packages/poke-lounge-battle/src/timing.ts POKE_LOUNGE_FINISHED_ROOM_RETENTION_MS (pnpm check:rust-ts-constants).
 pub const CLOSED_RETENTION_MS: u64 = 60_000;
+// Must match packages/poke-lounge-battle/src/timing.ts COMPETITIVE_TURN_DEADLINE_MS (pnpm check:rust-ts-constants).
 pub const TURN_MS: u64 = 30_000;
+// Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_PROGRESSION_DEADLINE_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_PROGRESSION_MS: u64 = 25_000;
+// Rust-only.
 pub const AI_ONLY_TURN_READY_MS: u64 = 500;
+// Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_BRIEFING_DURATION_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_BRIEFING_MS: u64 = 5_000;
+// Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_RESULT_DURATION_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_RESULT_MS: u64 = 5_000;
 pub const MAX_PARTICIPANTS: usize = 8;
 pub const MAX_COMMANDS: u64 = 16_384;
@@ -103,7 +122,9 @@ impl CreateRoom {
         if let Some(code) = &self.room_code {
             self.room_code = Some(normalize_code(code)?);
         }
-        if ![90_000, 180_000, 300_000].contains(&self.round_duration_ms.unwrap_or(90_000)) {
+        if !ROUND_DURATION_OPTIONS_MS
+            .contains(&self.round_duration_ms.unwrap_or(DEFAULT_ROUND_DURATION_MS))
+        {
             return Err(AppError::Invalid("Invalid round duration"));
         }
         Ok(self)
@@ -221,6 +242,8 @@ pub struct Round {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Party {
     pub competitive_party: Value,
+    #[serde(default)]
+    pub roster: Value,
     pub updated_at_ms: u64,
 }
 #[derive(Clone, Serialize, Deserialize)]
@@ -255,7 +278,7 @@ impl Match {
     }
     pub fn projection(&self) -> Value {
         json!({"matchId":self.match_id,"bracketMatchId":self.bracket_match_id,"kind":"tournament-unranked","assignmentRevision":self.assignment_revision,
-            "rulesetVersion":3,"rulesetHash":ENGINE_VERSION.trim().rsplit(':').next().unwrap_or(""),"currentTurn":self.turn(),"turnEndsAtMs":self.turn_started_at_ms+TURN_MS,
+            "rulesetVersion":COMPETITIVE_RULESET_VERSION,"rulesetHash":ENGINE_VERSION.trim().rsplit(':').next().unwrap_or(""),"currentTurn":self.turn(),"turnEndsAtMs":self.turn_started_at_ms+TURN_MS,
             "status":if self.completed(){"completed"}else if self.actions.is_empty()&&self.turn()==0{"pending"}else{"active"},
             "terminalEventId":self.terminal_event_id,"terminalRoomRevision":self.terminal_room_revision,"progressionEndsAtMs":self.progression_ends_at_ms,"playerIds":self.pack.state["participantIds"],
             "currentState":self.pack.public_state,"stateHash":self.pack.state_hash,"submittedPlayerIds":self.actions.keys().collect::<Vec<_>>(),"terminal":self.pack.state["terminal"]})
@@ -322,7 +345,7 @@ impl Room {
             round: Round {
                 index: 1,
                 phase: "waiting".into(),
-                duration_ms: input.round_duration_ms.unwrap_or(90_000),
+                duration_ms: input.round_duration_ms.unwrap_or(DEFAULT_ROUND_DURATION_MS),
                 started_at_ms: None,
                 ends_at_ms: None,
             },
@@ -345,7 +368,7 @@ impl Room {
             || self.accepted_commands > MAX_COMMANDS
             || self.created_at_ms.checked_add(SESSION_MAX_MS) != Some(self.hard_expires_at_ms)
             || !(1..=3).contains(&self.round.index)
-            || ![90_000, 180_000, 300_000].contains(&self.round.duration_ms)
+            || !ROUND_DURATION_OPTIONS_MS.contains(&self.round.duration_ms)
         {
             return Err(AppError::Configuration("Invalid stored room invariants"));
         }
@@ -459,7 +482,7 @@ impl Room {
             && self
                 .participants
                 .iter()
-                .any(|p| !p.ai && (!p.connected || !p.admitted || p.disconnect_pending))
+                .any(|p| !p.ai && p.connected && (!p.admitted || p.disconnect_pending))
         {
             self.round.started_at_ms = None;
             self.round.ends_at_ms = None;
@@ -690,12 +713,34 @@ impl Room {
                             .collect::<AppResult<BTreeMap<_, _>>>()?
                     };
                     let current = self.parties.get(player).ok_or(AppError::PartyLocked)?;
+                    let mut roster = current.roster.clone();
                     let value = compute.run(self.room_instance_id, self.storage_version,
                         json!({"kind":"complete-progression","party":current.competitive_party,"proposed":party,"previousLevels":previous_levels})).await?;
+                    let merged = compute
+                        .run(
+                            self.room_instance_id,
+                            self.storage_version,
+                            json!({"kind":"accept-party","party":value,"roster":roster,"nowMs":now,"trusted":true}),
+                        )
+                        .await
+                        .and_then(|accepted| {
+                            accepted
+                                .get("roster")
+                                .filter(|roster| roster.is_object())
+                                .cloned()
+                                .ok_or(AppError::ComputeUnavailable)
+                        });
+                    match merged {
+                        Ok(merged) => roster = merged,
+                        Err(_) => {
+                            tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player)
+                        }
+                    }
                     self.parties.insert(
                         player.into(),
                         Party {
                             competitive_party: value,
+                            roster,
                             updated_at_ms: now,
                         },
                     );
@@ -714,20 +759,37 @@ impl Room {
                 {
                     return Err(AppError::PartyLocked);
                 }
-                let value = compute
+                let accepted = compute
                     .run(
                         self.room_instance_id,
                         self.storage_version,
                         json!({
-                            "kind":"normalize-party",
+                            "kind":"accept-party",
                             "party":party,
-                            "restore":false,
+                            "roster":self.parties.get(player).map(|p| p.roster.clone()).unwrap_or(Value::Null),
+                            "nowMs":now,
+                            "trusted":false,
                             "starterSelection":if self.parties.contains_key(player) { Value::Null } else {
                                 json!({"mode":self.starter_mode,"seed":format!("{}:{player}",self.room_instance_id)})
                             },
                         }),
                     )
-                    .await?;
+                    .await
+                    .inspect_err(|error| {
+                        if matches!(error, AppError::Invalid(_)) {
+                            tracing::warn!(event = "room.party_rejected", room_instance_id = %self.room_instance_id, player_id = %player);
+                        }
+                    })?;
+                let value = accepted
+                    .get("party")
+                    .filter(|party| party.is_object())
+                    .ok_or(AppError::ComputeUnavailable)?
+                    .clone();
+                let roster = accepted
+                    .get("roster")
+                    .filter(|roster| roster.is_object())
+                    .ok_or(AppError::ComputeUnavailable)?
+                    .clone();
                 if self
                     .parties
                     .get(player)
@@ -737,10 +799,13 @@ impl Room {
                         player.into(),
                         Party {
                             competitive_party: value,
+                            roster,
                             updated_at_ms: now,
                         },
                     );
                     self.touch(now);
+                } else if let Some(current) = self.parties.get_mut(player) {
+                    current.roster = roster;
                 }
             }
             GameCommand::Leave => {
@@ -829,6 +894,7 @@ impl Room {
             id,
             Party {
                 competitive_party: party,
+                roster: Value::Null,
                 updated_at_ms: now,
             },
         );
@@ -895,16 +961,15 @@ impl Room {
         }
         if self.status == Status::RoundStarted
             && self.round.started_at_ms.is_none()
-            && self.participants.iter().all(|p| {
-                p.connected
-                    && p.admitted
+            && self.participants.iter().filter(|p| p.connected).all(|p| {
+                p.admitted
                     && !p.disconnect_pending
                     && p.ready
                     && self.parties.contains_key(&p.player_id)
             })
         {
-            self.round.started_at_ms = Some(now + 3_000);
-            self.round.ends_at_ms = Some(now + 3_000 + self.round.duration_ms);
+            self.round.started_at_ms = Some(now + ROUND_START_COUNTDOWN_MS);
+            self.round.ends_at_ms = Some(now + ROUND_START_COUNTDOWN_MS + self.round.duration_ms);
             for p in &mut self.participants {
                 if !p.ai {
                     p.ready = false;
@@ -972,6 +1037,7 @@ impl Room {
                     p.player_id.clone(),
                     Party {
                         competitive_party: normalized,
+                        roster: party.roster.clone(),
                         updated_at_ms: now,
                     },
                 );
@@ -1213,10 +1279,38 @@ impl Room {
                 // Tournament matches already restore parties; experience must not consume persistent held items.
                 member["heldItemId"] = old["heldItemId"].clone();
             }
+            let mut roster = self
+                .parties
+                .get(player)
+                .map(|p| p.roster.clone())
+                .unwrap_or(Value::Null);
+            if !ai_players.contains(player) {
+                let merged = compute
+                    .run(
+                        self.room_instance_id,
+                        self.storage_version,
+                        json!({"kind":"accept-party","party":party,"roster":roster,"nowMs":now,"trusted":true}),
+                    )
+                    .await
+                    .and_then(|accepted| {
+                        accepted
+                            .get("roster")
+                            .filter(|roster| roster.is_object())
+                            .cloned()
+                            .ok_or(AppError::ComputeUnavailable)
+                    });
+                match merged {
+                    Ok(merged) => roster = merged,
+                    Err(_) => {
+                        tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player)
+                    }
+                }
+            }
             self.parties.insert(
                 player.clone(),
                 Party {
                     competitive_party: party,
+                    roster,
                     updated_at_ms: now,
                 },
             );
@@ -1289,20 +1383,58 @@ impl Room {
                 self.terminal_at_ms = Some(now);
                 self.round.phase = "completed".into();
                 self.round.ends_at_ms = None;
-                let mut ranked = bracket
-                    .participants
-                    .iter()
-                    .map(|p| {
-                        (
-                            p.clone(),
+                let mut seen = BTreeSet::new();
+                let mut ranked = Vec::new();
+                for p in &bracket.participants {
+                    if seen.insert(p.player_id.clone()) {
+                        let joined_at_ms = self
+                            .participants
+                            .iter()
+                            .find(|participant| participant.player_id == p.player_id)
+                            .map_or(u64::MAX, |participant| participant.joined_at_ms);
+                        ranked.push((
+                            p.player_id.clone(),
+                            p.display_name.clone(),
+                            Some(p.seed),
+                            joined_at_ms,
                             *self.cumulative_scores.get(&p.player_id).unwrap_or(&0),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                ranked.sort_by(|(a, sa), (b, sb)| sb.cmp(sa).then(a.seed.cmp(&b.seed)));
+                        ));
+                    }
+                }
+                for (player_id, score) in &self.cumulative_scores {
+                    if seen.insert(player_id.clone()) {
+                        let participant =
+                            self.participants.iter().find(|p| p.player_id == *player_id);
+                        ranked.push((
+                            player_id.clone(),
+                            participant
+                                .map_or_else(|| "플레이어".to_owned(), |p| p.display_name.clone()),
+                            None,
+                            participant.map_or(u64::MAX, |p| p.joined_at_ms),
+                            *score,
+                        ));
+                    }
+                }
+                ranked.sort_by(|a, b| {
+                    b.4.cmp(&a.4)
+                        .then_with(|| b.2.is_some().cmp(&a.2.is_some()))
+                        .then_with(|| a.2.cmp(&b.2))
+                        .then_with(|| a.3.cmp(&b.3))
+                        .then_with(|| a.0.as_bytes().cmp(b.0.as_bytes()))
+                });
                 let mut last = None;
                 let mut rank = 0;
-                self.final_standings=ranked.iter().enumerate().map(|(i,(p,score))|{if last!=Some(*score){rank=i+1;last=Some(*score);}json!({"playerId":p.player_id,"displayName":p.display_name,"score":score,"rank":rank})}).collect();
+                self.final_standings = ranked
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (player_id, display_name, _, _, score))| {
+                        if last != Some(*score) {
+                            rank = i + 1;
+                            last = Some(*score);
+                        }
+                        json!({"playerId":player_id,"displayName":display_name,"score":score,"rank":rank})
+                    })
+                    .collect();
             }
         }
         Ok(())
@@ -1354,6 +1486,7 @@ impl Room {
                         id.clone(),
                         Party {
                             competitive_party: party.clone(),
+                            roster: Value::Null,
                             updated_at_ms: now,
                         },
                     );

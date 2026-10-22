@@ -6,14 +6,15 @@
 
 [CI](../../.github/workflows/ci.yml)의 `verify`가 성공한 뒤 [Deploy](../../.github/workflows/deploy-api.yml)를 호출한다. `main`의 push 또는 `main`에서 CI를 수동 실행한 경우만 배포하며 PR 검증은 배포하지 않는다. runner는 `[self-hosted, linux, x64, poke-lounge]` 라벨과 Docker Compose가 필요하다. 배포 체크아웃은 `github.sha`다.
 
-| 설정                    | 현재 소비 위치/의미                                                                                                  |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL`   | 저장소 variable. 브라우저가 실제 접근할 API 주소이며 이미지 빌드 인자로 들어간다. 변경 시 웹 이미지를 다시 빌드한다. |
-| `CORS_ORIGINS`          | 저장소 variable. 실제 웹 origin 목록.                                                                                |
-| `DB_PASSWORD`           | 필수 저장소 secret. 문서·로그에 출력하지 않는다.                                                                     |
-| `BATTLE_WORKER_TOKEN`   | 필수 저장소 secret. Rust API와 계산 워커 사이 인증에 사용한다.                                                       |
-| `BIND_ADDRESS`          | 배포 workflow 기본 `127.0.0.1`. Compose 단독 실행 기본은 `0.0.0.0`이므로 외부 노출을 별도 확인한다.                  |
-| `WEB_PORT` / `API_PORT` | workflow 기본 3100/3101, Compose 단독 기본 3000/3001.                                                                |
+| 설정                       | 현재 소비 위치/의미                                                                                                                                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_API_URL`      | 저장소 variable. 브라우저가 실제 접근할 API 주소이며 이미지 빌드 인자로 들어간다. 변경 시 웹 이미지를 다시 빌드한다.                                                                                               |
+| `CORS_ORIGINS`             | 저장소 variable. 실제 웹 origin 목록.                                                                                                                                                                              |
+| `RUST_API_TRUSTED_PROXIES` | 선택. 앞단 리버스 프록시(및 Docker 게이트웨이) CIDR. 설정 시 X-Forwarded-For 오른쪽부터 첫 비신뢰 IP로 요청 한도를 센다. 비우면 접속 peer IP 기준. 프록시가 X-Forwarded-For를 덮어쓰거나 추가하도록 설정해야 한다. |
+| `DB_PASSWORD`              | 필수 저장소 secret. 문서·로그에 출력하지 않는다.                                                                                                                                                                   |
+| `BATTLE_WORKER_TOKEN`      | 필수 저장소 secret. Rust API와 계산 워커 사이 인증에 사용한다.                                                                                                                                                     |
+| `BIND_ADDRESS`             | 배포 workflow 기본 `127.0.0.1`. Compose 단독 실행 기본은 `0.0.0.0`이므로 외부 노출을 별도 확인한다.                                                                                                                |
+| `WEB_PORT` / `API_PORT`    | workflow 기본 3100/3101, Compose 단독 기본 3000/3001.                                                                                                                                                              |
 
 위 값은 템플릿/워크플로 기준이며 실제 운영 환경의 설정값을 조회한 결과가 아니다.
 

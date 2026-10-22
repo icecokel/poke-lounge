@@ -6,7 +6,7 @@ use crate::{
 };
 use axum::{
     extract::{
-        State, WebSocketUpgrade,
+        ConnectInfo, State, WebSocketUpgrade,
         ws::{Message, WebSocket},
     },
     http::{HeaderMap, header},
@@ -14,11 +14,50 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, SocketAddr},
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 use tokio::sync::{OwnedSemaphorePermit, broadcast};
 use uuid::Uuid;
 
 const SEND_TIMEOUT: Duration = Duration::from_secs(3);
+pub(crate) const PENDING_SOCKET_CAPACITY: usize = 32;
+const PENDING_SOCKETS_PER_IP: usize = 8;
+const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(5);
+
+struct PendingIp {
+    ip: IpAddr,
+    map: Arc<Mutex<HashMap<IpAddr, usize>>>,
+}
+impl Drop for PendingIp {
+    fn drop(&mut self) {
+        let mut map = self.map.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(count) = map.get_mut(&self.ip) {
+            *count -= 1;
+            if *count == 0 {
+                map.remove(&self.ip);
+            }
+        }
+    }
+}
+fn admit_pending_ip(state: &AppState, ip: IpAddr) -> AppResult<PendingIp> {
+    let mut map = state
+        .pending_by_ip
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let count = map.entry(ip).or_default();
+    if *count >= PENDING_SOCKETS_PER_IP {
+        return Err(AppError::Busy);
+    }
+    *count += 1;
+    Ok(PendingIp {
+        ip,
+        map: state.pending_by_ip.clone(),
+    })
+}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Frame {
@@ -38,6 +77,7 @@ struct Subscription {
 
 pub async fn upgrade(
     State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> AppResult<Response> {
@@ -45,15 +85,17 @@ pub async fn upgrade(
     if !state.origins.contains(origin) || state.shutdown.is_cancelled() {
         return Err(AppError::Forbidden);
     }
-    let permit = state
-        .sockets
+    let ip = crate::http::client_ip(peer.ip(), &headers, &state.trusted_proxies);
+    let ip_guard = admit_pending_ip(&state, ip)?;
+    let pending = state
+        .pending_sockets
         .clone()
         .try_acquire_owned()
         .map_err(|_| AppError::Busy)?;
     Ok(ws
         .max_message_size(16 * 1024)
         .max_frame_size(16 * 1024)
-        .on_upgrade(move |socket| connection(socket, state, permit)))
+        .on_upgrade(move |socket| connection(socket, state, pending, ip_guard)))
 }
 async fn send(socket: &mut WebSocket, event: &str, payload: Value) -> AppResult<()> {
     send_message(
@@ -68,9 +110,14 @@ async fn send_message(socket: &mut WebSocket, message: Message) -> AppResult<()>
         .map_err(|_| AppError::Timeout)?
         .map_err(|_| AppError::Unavailable)
 }
-async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit) {
+async fn connection(
+    mut socket: WebSocket,
+    state: AppState,
+    pending: OwnedSemaphorePermit,
+    ip_guard: PendingIp,
+) {
     let id = Uuid::new_v4();
-    let first = tokio::time::timeout(Duration::from_secs(10), socket.recv()).await;
+    let first = tokio::time::timeout(FIRST_FRAME_TIMEOUT, socket.recv()).await;
     let subscription = match first {
         Ok(Some(Ok(Message::Text(text)))) => serde_json::from_str::<Frame>(&text)
             .ok()
@@ -114,6 +161,18 @@ async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaph
     };
     let mut events = handle.subscribe();
     let connected_at = std::time::Instant::now();
+    let Ok(active) = state.sockets.clone().try_acquire_owned() else {
+        let _ = send(
+            &mut socket,
+            "room.subscription-error",
+            json!({"code":"SERVER_BUSY"}),
+        )
+        .await;
+        return;
+    };
+    drop(pending);
+    drop(ip_guard);
+    let _active = active;
     let initial = handle
         .request(Operation::Connect {
             connection: id,
@@ -146,7 +205,7 @@ async fn connection(mut socket: WebSocket, state: AppState, _permit: OwnedSemaph
     tracing::info!(event="socket.closed",connection_id=%id,room_instance_id=%room_id,player_id=%subscription.player_id,duration_ms=connected_at.elapsed().as_millis() as u64,release=%state.release);
     // Connect may have committed even when its response timed out. Always enqueue matching cleanup.
     let _ = handle
-        .request(Operation::Disconnect { connection: id })
+        .request_reliable(Operation::Disconnect { connection: id })
         .await;
     let _ = send_message(&mut socket, Message::Close(None)).await;
 }

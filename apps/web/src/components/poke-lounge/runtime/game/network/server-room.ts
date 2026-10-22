@@ -14,7 +14,11 @@ import {
 } from "@/lib/client-diagnostics";
 import { ROOM_ERROR_CODES } from "../../../poke-lounge-error-codes";
 import { getServerRoomErrorMessage } from "../server-room-error-copy";
-import type { components } from "@/types/api";
+import type {
+  RustProgressionSnapshot,
+  RustRoomParticipant,
+  RustRoomSnapshot,
+} from "@/features/poke-lounge/contracts/rust-room";
 import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import { FIELD_MAP } from "@poke-lounge/battle/adventure/world/field-map";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
@@ -86,28 +90,22 @@ type SharedWorldPlayerEvent = {
   cursor: SharedWorldCursor | null;
 };
 
-type ApiServerRoom = components["schemas"]["PokeLoungeRoomResponseDto"];
-type ServerParticipant = ApiServerRoom["participants"][number] & {
-  aiDifficulty?: AiDifficulty;
+type ServerParticipant = Omit<RustRoomParticipant, "role"> & {
+  role: RustRoomParticipant["role"] | "spectator";
 };
-type ServerPartySnapshot = components["schemas"]["PokeLoungePartySnapshotDto"];
-
-interface ServerRoomState {
-  starterMode: StarterMode;
-  progressionParty?: import("@poke-lounge/battle/competitive-party").NormalizedCompetitiveParty;
-  roomCode: string;
-  roomInstanceId?: string;
-  visibility: ApiServerRoom["visibility"];
-  hostPlayerId: string | null;
-  revision: number;
-  expiresAtMs: number;
-  serverNowMs?: number;
-  status: ApiServerRoom["status"];
+interface ServerRoomState
+  extends
+    Omit<
+      RustRoomSnapshot,
+      | "participants"
+      | "tournament"
+      | "competitiveTransitions"
+      | "competitiveAssignments"
+      | "competitive"
+    >,
+    Partial<Pick<RustProgressionSnapshot, "progressionParty">> {
   participants: ServerParticipant[];
-  partySnapshots: Record<string, ServerPartySnapshot>;
-  round: ApiServerRoom["round"];
   tournament: ServerTournamentState;
-  finalStandings: ApiServerRoom["finalStandings"];
   competitiveTransitions: CompetitiveTerminalTransition[];
   competitiveAssignments: CompetitiveProjection[];
   competitive?: CompetitiveProjection;
@@ -511,12 +509,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let hasSynchronizedPartySnapshot = false;
   type PendingPartyPublication = {
     snapshot: PlayerSnapshot;
+    roundIndex: number | null;
     idempotencyKey: string;
     publishing: boolean;
     waitForUnlock: boolean;
     recoveryAttempts: number;
   };
   let pendingPartyPublication: PendingPartyPublication | null = null;
+  let serverPartyLockRound: number | null = null;
   let partyRetryTimer: number | null = null;
   let mutationQueue: Promise<void> = Promise.resolve();
   let announcedCompetitiveAssignmentKey: string | null = null;
@@ -529,10 +529,17 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let leavePromise: Promise<void> | null = null;
   let reconnectAttempt: Promise<boolean> | null = null;
   let finishReconnect: ((success: boolean) => void) | null = null;
+  let roomEventHandlerFailures = 0;
+  let handlerRecoveryRevision: number | null = null;
 
   const emit = <T extends RoomMessage>(type: T, payload: RoomEvent[T]) => {
-    for (const handler of handlers.get(type) ?? []) {
-      handler(payload as RoomEvent[RoomMessage]);
+    for (const handler of [...(handlers.get(type) ?? [])]) {
+      try {
+        handler(payload as RoomEvent[RoomMessage]);
+      } catch (error) {
+        roomEventHandlerFailures += 1;
+        reportStateApplyFailure(`ROOM_EVENT_HANDLER_FAILED_${type}`, error);
+      }
     }
   };
 
@@ -1563,7 +1570,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       }
     }
 
-    if (options.sharedWorldOnly && room.roomCode === activeRoomId) {
+    if (room.roomCode === activeRoomId) {
       publishSharedWorldSnapshot("PLAYER_CHANGED_MAP");
     }
   };
@@ -1739,13 +1746,21 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       hydratedTournamentRewards.add(reward.terminalEventId);
       void room.completeTournamentProgression!(reward.projection.matchId)
         .then(party => {
-          if (!disposed) emit("TOURNAMENT_REWARD", { party });
+          if (!disposed) {
+            if (pendingPartyPublication && !pendingPartyPublication.publishing) {
+              pendingPartyPublication = null;
+              clearPartyRetryTimer();
+            }
+            emit("TOURNAMENT_REWARD", { party });
+          }
         })
         .catch(error => {
           hydratedTournamentRewards.delete(reward.terminalEventId);
           reportPartyPublicationFailure(error);
         });
     }
+    // Terminal transitions are not replayed; their handler failures are only isolated and reported.
+    const handlerFailuresBefore = roomEventHandlerFailures;
     lastAppliedRoomRevision = state.revision;
     activeRoomId = state.roomCode;
     updateClientDiagnosticContext({
@@ -1863,6 +1878,16 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     scheduleRoomLivenessCheck();
     if (previousState && previousState.status !== state.status && !isPartySnapshotLocked()) {
       resumePendingPartyPublication();
+    }
+
+    if (
+      roomEventHandlerFailures !== handlerFailuresBefore &&
+      handlerRecoveryRevision !== state.revision &&
+      state.status !== "completed" &&
+      state.status !== "closed"
+    ) {
+      handlerRecoveryRevision = state.revision;
+      requestTerminalRecovery();
     }
 
     return true;
@@ -2109,8 +2134,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   function isPartySnapshotLocked(): boolean {
     return (
+      serverPartyLockRound === latestState?.round.index ||
       latestState?.status === "tournament" ||
       (latestState?.status === "round-started" && latestState.tournament.bracket != null) ||
+      (latestState?.status === "round-started" &&
+        latestState.round.endsAtMs != null &&
+        getServerNowMs() >= latestState.round.endsAtMs + TOURNAMENT_PROGRESSION_DEADLINE_MS) ||
       latestState?.status === "completed" ||
       latestState?.status === "closed"
     );
@@ -2122,6 +2151,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     // Preserve the initial reconciliation probe for an incomplete server snapshot.
     // Once a party or a lock response is known, never POST while locked.
     return (
+      serverPartyLockRound !== latestState?.round.index &&
       !entry.waitForUnlock &&
       !hasSynchronizedPartySnapshot &&
       !(latestState && Object.hasOwn(latestState.partySnapshots, serverPlayerId))
@@ -2141,7 +2171,13 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   function resumePendingPartyPublication(): void {
     const entry = pendingPartyPublication;
-    if (!entry || entry.publishing || !canPublishParty(entry)) return;
+    if (!entry || entry.publishing) return;
+    if (entry.roundIndex !== null && latestState && entry.roundIndex !== latestState.round.index) {
+      pendingPartyPublication = null;
+      clearPartyRetryTimer();
+      return;
+    }
+    if (!canPublishParty(entry)) return;
     clearPartyRetryTimer();
     void publishPartyEntry(entry).catch(reportPartyPublicationFailure);
   }
@@ -2186,13 +2222,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             "code" in response &&
             response.code === "POKE_LOUNGE_PARTY_SNAPSHOT_LOCKED"
           ) {
-            // This conflict has no embedded snapshot. Refresh it, retain the
-            // latest local party, and defer instead of treating rejection as saved.
+            // Remember the server lock even if the refreshed snapshot has no bracket yet.
+            serverPartyLockRound = latestState?.round.index ?? null;
             entry.waitForUnlock = true;
             const recovered = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
             applySnapshot(recovered);
-            if (isPartySnapshotLocked() || disposed || leaveSent) return;
-            if (attempt < 2) continue;
+            return;
           }
           if (getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE) {
             // mutateRoom already applied the newer server revision. The exact
@@ -2203,6 +2238,17 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         }
       }
     } catch (error) {
+      if (
+        error instanceof ServerRoomRequestError &&
+        (error.status === 400 || error.status === 422)
+      ) {
+        if (pendingPartyPublication === entry) {
+          pendingPartyPublication = null;
+          clearPartyRetryTimer();
+        }
+        reportStateApplyFailure("PARTY_SNAPSHOT_REJECTED", error);
+        return;
+      }
       const revisionConflict = getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE;
       const retryable = error instanceof ServerRoomTransportError || revisionConflict;
       if (retryable && pendingPartyPublication !== entry) return;
@@ -2236,6 +2282,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     clearPartyRetryTimer();
     const entry: PendingPartyPublication = {
       snapshot: structuredClone(snapshot),
+      roundIndex: latestState?.round.index ?? null,
       idempotencyKey,
       publishing: false,
       waitForUnlock: false,
@@ -2513,13 +2560,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       if (!pending) scheduleRoomClockRefresh();
     },
     async synchronizePartyForTournament(snapshot) {
-      if (
-        isPartySnapshotLocked() ||
-        (latestState?.status === "round-started" &&
-          latestState.round.endsAtMs != null &&
-          getServerNowMs() >= latestState.round.endsAtMs + TOURNAMENT_PROGRESSION_DEADLINE_MS)
-      )
-        return;
+      if (isPartySnapshotLocked()) return;
       await submitPartySnapshot(snapshot);
       if (pendingPartyPublication && !isPartySnapshotLocked())
         throw new Error("Party synchronization is pending");
@@ -2551,6 +2592,10 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           applyExpectedTransitionSnapshot(next);
           const value = next.progressionParty;
           if (!value) throw new Error("Missing authoritative tournament reward party");
+          if (pendingPartyPublication && !pendingPartyPublication.publishing) {
+            pendingPartyPublication = null;
+            clearPartyRetryTimer();
+          }
           return value;
         } catch (error) {
           if (getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE && attempt < 2)
@@ -2567,10 +2612,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
       if (connectStarted) {
         if (initialSnapshot && activeRoomId !== PENDING_ROOM_ID) {
-          if (options.sharedWorldOnly) {
-            latestSharedWorldSnapshot = structuredClone(initialSnapshot);
-            publishSharedWorldSnapshot("PLAYER_CHANGED_MAP");
-          }
+          latestSharedWorldSnapshot = structuredClone(initialSnapshot);
+          publishSharedWorldSnapshot("PLAYER_CHANGED_MAP");
           if (!options.sharedWorldOnly || options.competitiveRoundsEnabled) {
             void submitPartySnapshot(initialSnapshot).catch(reportPartyPublicationFailure);
           }
@@ -2601,21 +2644,18 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       }
 
       if (
-        options.sharedWorldOnly &&
-        (type === "PLAYER_MOVED" ||
-          type === "PLAYER_MOVEMENT_ENDED" ||
-          type === "PLAYER_CHANGED_MAP")
+        type === "PLAYER_MOVED" ||
+        type === "PLAYER_MOVEMENT_ENDED" ||
+        type === "PLAYER_CHANGED_MAP"
       ) {
         latestSharedWorldSnapshot = structuredClone(payload as PlayerSnapshot);
         publishSharedWorldSnapshot(type);
-        if (type === "PLAYER_CHANGED_MAP" && options.competitiveRoundsEnabled) {
+        if (
+          type === "PLAYER_CHANGED_MAP" &&
+          (!options.sharedWorldOnly || options.competitiveRoundsEnabled)
+        ) {
           void submitPartySnapshot(payload as PlayerSnapshot).catch(reportPartyPublicationFailure);
         }
-        return;
-      }
-
-      if (type === "PLAYER_CHANGED_MAP") {
-        void submitPartySnapshot(payload as PlayerSnapshot).catch(reportPartyPublicationFailure);
         return;
       }
 
@@ -2662,6 +2702,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     finishReconnect?.(false);
     clearPartyRetryTimer();
     pendingPartyPublication = null;
+    serverPartyLockRound = null;
     emitConnectionStatus("offline");
     clearRecoveryTimer();
     clearInitialWorkflowTimer();
@@ -3291,7 +3332,12 @@ function parseServerRoomState(value: unknown): ServerRoomState {
     throw new ServerRoomSchemaError();
   }
   const round = parseServerRoomRound(room.round);
-  const tournament = parseServerTournamentState(room.tournament, round.index);
+  const roomParticipantIds = new Set(
+    participants.map(function mapItem(participant) {
+      return participant.playerId;
+    }),
+  );
+  const tournament = parseServerTournamentState(room.tournament, round.index, roomParticipantIds);
   const competitiveContract = parseCompetitiveRoomSnapshotContract(room);
   const parsed: ServerRoomState = {
     ...(value as ServerRoomState),
