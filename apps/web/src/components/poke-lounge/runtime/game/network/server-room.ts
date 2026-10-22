@@ -36,6 +36,7 @@ import {
   TOURNAMENT_PROGRESSION_DEADLINE_MS,
 } from "@poke-lounge/battle/timing";
 import { sortTournamentParticipantsByJoinOrder } from "@poke-lounge/battle/tournament-seeding";
+import { TERMINAL_PROJECTION_PAGE_SIZE } from "@poke-lounge/battle/tournament-bracket";
 import { io } from "socket.io-client";
 import { createRustRoomSocket, RUST_BACKEND_ENABLED } from "./rust-room-socket";
 import { createRoomRunId, isRoomRunId } from "../room-run-id";
@@ -216,7 +217,7 @@ const RUST_SESSION_ID_PATTERN = new RegExp(`^server-session-${RUST_IDENTITY_UUID
 const RUST_PLAYER_ID_PATTERN = new RegExp(`^server-player-${RUST_IDENTITY_UUID_PATTERN}$`, "i");
 const SERVER_ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 
-const MAX_RECENT_TERMINAL_PROJECTIONS = 8;
+const MAX_RECENT_TERMINAL_PROJECTIONS = TERMINAL_PROJECTION_PAGE_SIZE;
 const PENDING_ROOM_ID = "server-pending";
 const REVISION_CONFLICT_CODE = "POKE_LOUNGE_REVISION_CONFLICT";
 const IDEMPOTENCY_CONFLICT_CODE = "POKE_LOUNGE_IDEMPOTENCY_CONFLICT";
