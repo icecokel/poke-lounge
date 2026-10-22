@@ -1,10 +1,12 @@
 # Isolated local Rust game stack. Production uses compose.yaml with separate volumes.
+# Ports and the project name come from scripts/rust-local/dev.ts (RUST_LOCAL_* overrides let two
+# checkouts run side by side; named volumes are scoped per project).
 name: poke-lounge-rust-local
 services:
   redis:
     image: redis:7-alpine
     command: [redis-server, --appendonly, "yes"]
-    ports: ["127.0.0.1:36379:6379"]
+    ports: ["127.0.0.1:${RUST_LOCAL_REDIS_PORT:-36379}:6379"]
     volumes: ["rust-local-redis:/data"]
     healthcheck:
       test: [CMD, redis-cli, ping]
@@ -17,7 +19,7 @@ services:
       POSTGRES_USER: poke_rust_local
       POSTGRES_PASSWORD: ${RUST_LOCAL_DB_PASSWORD:?Set a development database password}
       POSTGRES_DB: poke_rust_local
-    ports: ["127.0.0.1:35432:5432"]
+    ports: ["127.0.0.1:${RUST_LOCAL_DB_PORT:-35432}:5432"]
     volumes: ["rust-local-postgres:/var/lib/postgresql/data"]
     healthcheck:
       test: [CMD-SHELL, "pg_isready -U poke_rust_local -d poke_rust_local"]
@@ -55,7 +57,7 @@ services:
     working_dir: /workspace
     command: [/workspace/target/release/poke-lounge-api-rust]
     volumes: [".:/workspace:ro"]
-    ports: ["127.0.0.1:3011:3011"]
+    ports: ["127.0.0.1:${RUST_LOCAL_API_PORT:-3011}:3011"]
     environment:
       RUST_API_BIND_ADDR: "0.0.0.0:3011"
       RUST_API_ALLOW_REMOTE: "true"
@@ -67,7 +69,7 @@ services:
       DB_USERNAME: poke_rust_local
       DB_DATABASE: poke_rust_local
       DB_PASSWORD: ${RUST_LOCAL_DB_PASSWORD:?Set a development database password}
-      CORS_ORIGINS: http://localhost:3300,http://127.0.0.1:3300
+      CORS_ORIGINS: http://localhost:${RUST_LOCAL_WEB_PORT:-3300},http://127.0.0.1:${RUST_LOCAL_WEB_PORT:-3300}
       RUST_LOG: info
     depends_on:
       postgres: { condition: service_healthy }

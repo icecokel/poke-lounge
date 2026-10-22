@@ -172,7 +172,7 @@ pnpm dev:rust
 
 브라우저 주소는 `http://localhost:3300/ko-KR`다. 실행기가 격리된 PostgreSQL·Redis, Rust API와 TypeScript 계산 워커를 준비하고 스키마 migration·ROM import 후 웹을 Rust 연결 모드로 실행한다. 기존 환경 파일을 복사하거나 운영 DB·Redis 설정을 바꿀 필요는 없다. 로컬 비밀번호와 워커 토큰은 Git 제외 경로 `output/rust-local/local.env`에 최초 생성하며 기존 파일과 볼륨은 유지한다.
 
-웹에서 Ctrl+C 후 `pnpm dev:rust:stop`으로 로컬 컨테이너를 중지한다. 세부 주소·생성 파일·재실행 주의사항은 [Rust 백엔드 문서](apps/api-rust/README.md#로컬-실행)를 따른다.
+웹에서 Ctrl+C 후 `pnpm dev:rust:stop`으로 로컬 컨테이너를 중지한다. 다른 체크아웃이 이미 3300·3011을 쓰고 있으면 `RUST_LOCAL_PROJECT=poke-lounge-rust-local-2 RUST_LOCAL_WEB_PORT=3400 RUST_LOCAL_API_PORT=3012 RUST_LOCAL_DB_PORT=35433 RUST_LOCAL_REDIS_PORT=36380 pnpm dev:rust`처럼 프로젝트명과 포트를 바꿔 나란히 띄울 수 있다(볼륨은 프로젝트별로 분리되며, 중지할 때도 같은 변수를 준다). 세부 주소·생성 파일·재실행 주의사항은 [Rust 백엔드 문서](apps/api-rust/README.md#로컬-실행)를 따른다.
 
 Rust 게임의 개발 절차는 `pnpm dev:rust`뿐이다. 운영 구성의 Docker 실행과 배포·DB 변경 주의사항은 [배포 가이드](apps/db/DEPLOY.md)를 따른다.
 
