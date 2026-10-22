@@ -178,7 +178,7 @@ pnpm dev:rust
 
 ## 플레이어 테스트와 개발 확인
 
-테스트는 실제 브라우저의 화면을 보고 플레이어처럼 한 동작씩 조작하는 방식만 허용한다. 기준은 [플레이어 직접 조작 지침](PLAYER_TESTING.md)이다. 기본 도구는 `agent-browser`이며 기존 `pnpm player:browser`는 로컬 HTTP용 대안이다. Playwright는 브라우저 API로만 사용한다. 자동 E2E·단위/API/통합 실행기와 Storybook 실행 환경은 제거했다. `poke-lounge-story-fixtures.ts`에는 외부 참조가 없는 과거 UI fixture와 상태 생성 함수가 남아 있지만 현재 플레이 테스트에 사용하지 않는다. fixture·게임 상태 주입을 통한 검증은 금지한다.
+테스트는 실제 브라우저의 화면을 보고 플레이어처럼 한 동작씩 조작하는 방식만 허용한다. 기준은 [플레이어 직접 조작 지침](PLAYER_TESTING.md)이다. 기본 도구는 `agent-browser`이며 기존 `pnpm player:browser`는 로컬 HTTP용 대안이다. Playwright는 브라우저 API로만 사용한다. 자동 E2E·단위/API/통합 실행기와 Storybook 실행 환경은 제거했다. fixture·게임 상태 주입을 통한 검증은 금지한다.
 
 모든 버튼 확인 요청에서는 화면·버튼·조건별 미검증이 남으면 전체 완료/PASS로 보고하지 않는다. 3라운드 최종 결과와 UI 퇴장까지가 전체 한 회이며 우승 여부는 조건이 아니다.
 
