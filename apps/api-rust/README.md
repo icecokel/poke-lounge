@@ -76,7 +76,7 @@ ROM 자료는 기존 PostgreSQL 스키마에서 읽으며 원래 정적 데이�
 
 DAU는 한국 날짜의 고유 익명 브라우저 수, MAU는 오늘을 포함한 최근 30일의 고유 익명 브라우저 수다. 같은 사람이 브라우저나 저장소를 바꾸면 다른 이용자로 계산되며, 저장소를 사용할 수 없는 브라우저는 새로고침 후 새 ID가 될 수 있다. 집계 저장 실패는 게임 진행을 막지 않고 `usage.record_failed` 로그를 남긴다.
 
-기존 Rust API 로그에서 `socket.connected`·`socket.closed`·성공한 `room.command`에 유효한 플레이어 UUID가 있는 날짜만 [백필 스크립트](../../scripts/metrics/backfill-active-visitors.py)로 복원할 수 있다. 스크립트는 Docker 로그와 JSONL을 함께 읽고 날짜·해시별 중복을 제거한다. 플레이어 ID가 없던 초기 로그와 단순 방문은 복원하지 않으므로 과거 DAU·MAU는 하한값이다. 동일한 입력을 다시 적재해도 중복 행은 추가하지 않는다.
+기존 Rust API 로그에서 `socket.connected`·`socket.closed`·성공한 `room.command`·`room.command_replayed`에 유효한 플레이어 UUID가 있는 날짜만 [백필 스크립트](../../scripts/metrics/backfill-active-visitors.py)로 복원할 수 있다. 스크립트는 표준 입력의 JSON 로그 줄만 읽으므로 Docker 로그와 `api.jsonl`을 이어 붙여 넣는다. 날짜·해시별 중복을 제거하고, `--sql`을 주면 멱등 PostgreSQL 적재 SQL을 출력한다. 플레이어 ID가 없던 초기 로그와 단순 방문은 복원하지 않으므로 과거 DAU·MAU는 하한값이다. 동일한 입력을 다시 적재해도 중복 행은 추가하지 않는다.
 
 운영 호스트에서 다음 읽기 전용 쿼리로 현재 값을 확인한다. `docker compose` 환경변수를 출력하지 않도록 PostgreSQL 컨테이너의 환경을 사용한다.
 

@@ -4,7 +4,7 @@
 
 ## 허용 범위
 
-`playwright`의 브라우저 API와 `tsx`를 사용한다. Playwright Test Runner, 자동 E2E·단위·API·통합 검사 및 테스트 도구 자체의 자동 검사는 제거했다. 기본 범용 도구는 `agent-browser`이며 이 CLI는 로컬 HTTP 전용 대안이다.
+`playwright`의 브라우저 API와 `tsx`를 사용한다. 이 도구는 Playwright Test Runner를 쓰지 않으며 도구 자체의 자동 검사도 없다. 기본 범용 도구는 `agent-browser`이며 이 CLI는 로컬 HTTP 전용 대안이다.
 
 이 CLI의 운영 주소 제한을 우회하는 임시 어댑터나 복제 드라이버를 만들지 않는다. 운영 테스트는 운영 접근을 지원하는 기존 `agent-browser`로 수행한다. 도구가 차단되면 해당 단계와 원인을 보고하고 보안 차단을 우회하지 않는다.
 
@@ -13,7 +13,7 @@
 저장소 루트에서 고유한 세션 이름을 사용한다. 브라우저 설치가 필요하면 `pnpm --filter @poke-lounge/web exec playwright install chromium webkit`을 실행한다.
 
 ```sh
-pnpm player:browser open manual-001 http://127.0.0.1:3000/ko-KR/game/poke-lounge webkit
+pnpm player:browser open manual-001 http://localhost:3300/ko-KR/game/poke-lounge webkit
 pnpm player:browser observe manual-001
 ```
 
@@ -39,7 +39,7 @@ pnpm player:browser act manual-001 '{"requestId":"manual-step-001","seen":{"fram
 
 ## 불명확한 결과와 종료
 
-입력과 캡처 결과는 별개다. 입력 후 캡처 실패나 timeout은 `uncertain`으로 기록하며 같은 요청을 자동 재실행하지 않는다. 먼저 `observe`로 새 화면을 확인한다. 프레임의 시간 만료나 무응답 자동 종료는 없지만 게임 시간은 계속 흐른다. `OPERATOR_GAP`은 관찰 공백 기록이며 이를 자동 진행의 직접 플레이 실적으로 세지 않는다.
+입력과 캡처 결과는 별개다. 입력 실행이 실패하면 `INPUT_UNCERTAIN`과 `uncertain`, CLI 전송이 끊기거나 시간 초과되면 `DRIVER_ERROR`와 `uncertain`으로 기록한다. 입력은 보냈지만 그 뒤 캡처가 실패하면 `CAPTURE_OR_TRANSPORT_FAILED`와 `sent`로 기록한다. 어느 경우든 같은 요청을 자동 재실행하지 않는다. 먼저 `observe`로 새 화면을 확인한다. 프레임의 시간 만료나 무응답 자동 종료는 없지만 게임 시간은 계속 흐른다. `OPERATOR_GAP`은 관찰 공백 기록이며 이를 자동 진행의 직접 플레이 실적으로 세지 않는다.
 
 ```sh
 pnpm player:browser status manual-001
