@@ -12,7 +12,7 @@ export const TOURNAMENT_SEED_ORDER_8 = [1, 8, 4, 5, 3, 6, 2, 7] as const;
 
 export type TournamentStatus = "in-progress" | "completed";
 export type TournamentMatchStatus = "ready" | "completed";
-export type TournamentMatchResultReason = "faint" | "timeout" | "forfeit" | "run" | "capture";
+type TournamentMatchResultReason = "faint" | "timeout" | "forfeit" | "run" | "capture";
 
 export interface TournamentParticipantInput {
   playerId: string;
