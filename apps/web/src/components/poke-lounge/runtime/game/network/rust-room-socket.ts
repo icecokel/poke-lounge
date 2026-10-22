@@ -4,9 +4,7 @@ import {
   reportClientDiagnostic,
 } from "@/lib/client-diagnostics";
 
-/** Opt-in transport for the Rust authority. No gameplay decisions live in this adapter. */
-export const RUST_BACKEND_ENABLED = process.env.NEXT_PUBLIC_POKE_BACKEND === "rust";
-
+/** Transport for the Rust authority. No gameplay decisions live in this adapter. */
 type Listener = (() => void) | ((payload: unknown) => void);
 interface SocketAdapter {
   readonly connected: boolean;
