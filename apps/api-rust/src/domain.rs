@@ -1448,10 +1448,11 @@ impl Room {
         if self.terminal() || self.status == Status::Waiting || now < self.last_ai_step_ms + 250 {
             return Ok(());
         }
+        // Every participant, connected or not, so AI slots match `position()` and the web
+        // (which both derive slots from the full sorted roster).
         let ids = self
             .participants
             .iter()
-            .filter(|p| p.connected)
             .map(|p| p.player_id.clone())
             .collect::<Vec<_>>();
         let starting = self.status == Status::RoundStarted
