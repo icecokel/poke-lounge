@@ -1,4 +1,5 @@
 import type { MobileWorldUiAction, MobileWorldUiState } from "../ui/mobile-world-ui";
+import type { TournamentResultPanelViewModel } from "../tournament/tournament-result-view-model";
 
 export type WorldUiAction =
   | MobileWorldUiAction
@@ -15,8 +16,8 @@ export interface WorldUiSnapshot {
   nurseMessage: string | null;
   pokemonStatusSlotIndex: number | null;
   tournamentAnnouncement: string | null;
-  tournamentResult: string | null;
-  previousRoundResult: string | null;
+  tournamentResult: TournamentResultPanelViewModel | null;
+  previousRoundResult: TournamentResultPanelViewModel | null;
 }
 
 export interface WorldUiStore {
