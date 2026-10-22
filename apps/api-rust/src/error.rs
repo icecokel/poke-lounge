@@ -49,6 +49,9 @@ pub enum AppError {
     Unavailable,
     #[error("Battle computation unavailable")]
     ComputeUnavailable,
+    /// The worker refused the input. The string is its bounded diagnostic reason (e.g. a party rule).
+    #[error("Invalid battle or party input")]
+    ComputeRejected(String),
     #[error("Account authentication is disabled. Use anonymous play.")]
     AccountDisabled,
     #[error("Storage unavailable")]
@@ -67,11 +70,11 @@ impl AppError {
             _ => None,
         }
     }
-}
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        let (status, code) = match &self {
-            Self::Invalid(_) => (StatusCode::BAD_REQUEST, "INVALID_INPUT"),
+    pub fn classify(&self) -> (StatusCode, &'static str) {
+        match self {
+            Self::Invalid(_) | Self::ComputeRejected(_) => {
+                (StatusCode::BAD_REQUEST, "INVALID_INPUT")
+            }
             Self::Unauthorized => (StatusCode::UNAUTHORIZED, "UNAUTHORIZED"),
             Self::Forbidden => (StatusCode::FORBIDDEN, "FORBIDDEN"),
             Self::NotFound => (StatusCode::NOT_FOUND, "ROOM_NOT_FOUND"),
@@ -105,25 +108,62 @@ impl IntoResponse for AppError {
             Self::Corrupt(_) | Self::Configuration(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR")
             }
+        }
+    }
+    /// Stable response code, for log fields.
+    pub fn code(&self) -> &'static str {
+        self.classify().1
+    }
+    /// Which dependency or layer produced the error, for log fields.
+    pub fn source_label(&self) -> &'static str {
+        match self {
+            Self::Storage(_) => "redis",
+            Self::Database(_) => "postgres",
+            Self::ComputeUnavailable | Self::ComputeRejected(_) => "compute",
+            Self::Corrupt(_) => "stored_data",
+            Self::Timeout => "timeout",
+            Self::Unavailable => "backend",
+            Self::Configuration(_) => "configuration",
+            Self::Busy | Self::Capacity | Self::CommandLimit => "capacity",
+            _ => "request",
+        }
+    }
+    /// Internal cause safe to log. Redis errors are excluded: their text can echo the connection
+    /// URL with credentials, so only their kind/flags are logged (see `log_fields`).
+    pub fn detail(&self) -> Option<String> {
+        let text = match self {
+            // Other variants already carry their whole cause in their display text.
+            Self::ComputeRejected(reason) => reason.clone(),
+            // Server message only; DETAIL/HINT can quote row values.
+            Self::Database(error) => match error.as_db_error() {
+                Some(db) => format!("{}: {}", db.severity(), db.message()),
+                None => error.to_string(),
+            },
+            Self::Corrupt(error) => format!("{:?}: {error}", error.classify()),
+            _ => return None,
         };
+        Some(text.chars().filter(|c| !c.is_control()).take(300).collect())
+    }
+    /// Postgres SQLSTATE, when the error came from the database server.
+    pub fn db_code(&self) -> Option<&str> {
+        match self {
+            Self::Database(error) => error.code().map(|code| code.code()),
+            _ => None,
+        }
+    }
+}
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status, code) = self.classify();
         if status.is_server_error() {
-            let source = match &self {
-                Self::Storage(_) => "redis",
-                Self::Database(_) => "postgres",
-                Self::ComputeUnavailable => "compute",
-                Self::Corrupt(_) => "stored_data",
-                Self::Timeout => "timeout",
-                Self::Unavailable => "backend",
-                Self::Configuration(_) => "configuration",
-                _ => "other",
-            };
             let storage = self.storage_error();
-            tracing::error!(event = "api.error", code, source,
+            tracing::error!(event = "api.error", code, source = self.source_label(),
+                error = %self, detail = ?self.detail(), db_code = ?self.db_code(),
                 storage_kind = ?storage.map(redis::RedisError::kind),
                 storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
                 storage_timeout = ?storage.map(redis::RedisError::is_timeout));
         } else if status.is_client_error() {
-            tracing::warn!(event = "api.rejected", code, reason = %self);
+            tracing::warn!(event = "api.rejected", code, reason = %self, detail = ?self.detail());
         }
         let message = if matches!(self, Self::Corrupt(_) | Self::Configuration(_)) {
             "Internal server error".into()

@@ -58,6 +58,18 @@ pub struct Budget {
     count: u32,
     creates: u32,
     diagnostics: u32,
+    limited_logged: bool,
+}
+static CONCURRENCY_LIMIT_LOGGED_S: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+static CLIENT_TABLE_LIMIT_LOGGED_S: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+/// True at most once per second per slot: overload rejections must not turn into log floods.
+fn first_this_second(slot: &std::sync::atomic::AtomicU64) -> bool {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs());
+    slot.swap(now, std::sync::atomic::Ordering::Relaxed) != now
 }
 pub fn router(state: AppState, config: &Config) -> Router {
     Router::new()
@@ -201,11 +213,15 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
         return AppError::Unavailable.into_response();
     }
     let Ok(_permit) = state.requests.try_acquire() else {
+        if first_this_second(&CONCURRENCY_LIMIT_LOGGED_S) {
+            tracing::warn!(event = "http.limited", limit = "concurrent_requests", path = %request.uri().path());
+        }
         return AppError::Busy.into_response();
     };
     if let Some(origin) = request.headers().get(header::ORIGIN)
         && !state.origins.contains(origin)
     {
+        tracing::warn!(event = "http.origin_rejected", origin = %origin.to_str().unwrap_or("non-ascii").chars().take(120).collect::<String>(), path = %request.uri().path());
         return AppError::Forbidden.into_response();
     }
     if let Some(peer) = request.extensions().get::<ConnectInfo<SocketAddr>>() {
@@ -213,6 +229,9 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
         let mut budgets = state.budgets.lock().await;
         budgets.retain(|_, b| b.since.elapsed() < Duration::from_secs(60));
         if budgets.len() >= 4096 && !budgets.contains_key(&ip) {
+            if first_this_second(&CLIENT_TABLE_LIMIT_LOGGED_S) {
+                tracing::warn!(event = "http.limited", limit = "tracked_clients", path = %request.uri().path());
+            }
             return AppError::Busy.into_response();
         }
         let budget = budgets.entry(ip).or_insert(Budget {
@@ -220,6 +239,7 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             count: 0,
             creates: 0,
             diagnostics: 0,
+            limited_logged: false,
         });
         budget.count += 1;
         if request.method() == Method::POST
@@ -234,13 +254,29 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             budget.diagnostics += 1;
         }
         if budget.count > 6_000 || budget.creates > 60 || budget.diagnostics > 600 {
+            let limit = if budget.count > 6_000 {
+                "requests_per_minute"
+            } else if budget.creates > 60 {
+                "creates_per_minute"
+            } else {
+                "diagnostics_per_minute"
+            };
+            // Once per client per budget window, so a flooding client cannot flood the log.
+            if !budget.limited_logged {
+                budget.limited_logged = true;
+                tracing::warn!(event = "http.limited", limit, path = %request.uri().path(), count = budget.count, creates = budget.creates, diagnostics = budget.diagnostics);
+            }
             return AppError::Busy.into_response();
         }
     }
     // WebSocket upgrades return immediately. The connection has separate limits and deadlines.
+    let path = request.uri().path().to_owned();
     match tokio::time::timeout(REQUEST_TIMEOUT, next.run(request)).await {
         Ok(r) => r,
-        Err(_) => AppError::Timeout.into_response(),
+        Err(_) => {
+            tracing::error!(event = "http.timeout", path = %path, timeout_ms = REQUEST_TIMEOUT.as_millis() as u64);
+            AppError::Timeout.into_response()
+        }
     }
 }
 async fn diagnostics(State(state): State<AppState>, request: Request, next: Next) -> Response {
@@ -323,7 +359,8 @@ struct ClientError {
     user_agent: Option<String>,
 }
 
-async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode> {
+async fn client_error(payload: Result<Json<ClientError>, JsonRejection>) -> AppResult<StatusCode> {
+    let payload = body(payload)?;
     let valid_label = |value: &str, max: usize| {
         !value.is_empty()
             && value.len() <= max
@@ -331,63 +368,104 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
                 .bytes()
                 .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
     };
-    if !valid_label(&payload.kind, 32)
-        || !valid_label(&payload.code, 64)
-        || !matches!(payload.page.as_str(), "poke-lounge" | "other")
-        || payload.line.is_some_and(|line| line > 1_000_000)
-        || payload.column.is_some_and(|column| column > 1_000_000)
-        || payload.release.as_ref().is_some_and(|release| {
-            release.len() != 40 || !release.bytes().all(|byte| byte.is_ascii_hexdigit())
-        })
-        || payload.script.as_ref().is_some_and(|script| {
-            !script.starts_with("/_next/static/")
-                || script.len() > 200
-                || !script.bytes().all(|byte| {
-                    byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'_' | b'.' | b'-')
-                })
-        })
-        || payload
-            .error_name
-            .as_ref()
-            .is_some_and(|name| !valid_label(name, 48))
-        || payload
-            .room_code
-            .as_ref()
-            .is_some_and(|code| !valid_label(code, 64))
-        || payload
-            .session_id
-            .as_ref()
-            .is_some_and(|id| !valid_label(id, 80))
-        || payload.error_text.as_ref().is_some_and(|text| {
-            text.is_empty()
-                || text.len() > 8192
-                || text
-                    .chars()
-                    .any(|character| character.is_control() && !matches!(character, '\n' | '\t'))
-        })
-        || payload.startup_step.as_ref().is_some_and(|step| {
-            step.is_empty()
-                || step.len() > 48
-                || !step
-                    .bytes()
-                    .all(|byte| byte.is_ascii_lowercase() || byte == b'_')
-        })
-        || payload.resource_path.as_ref().is_some_and(|path| {
-            path.len() > 200
-                || !(path.starts_with("/assets/") || path.starts_with("/game-data/"))
-                || path.contains("..")
-                || !path.bytes().all(|byte| {
-                    byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'_' | b'.' | b'-')
-                })
-        })
-        || payload
-            .user_code
-            .as_ref()
-            .is_some_and(|code| code.len() != 5 || !code.bytes().all(|byte| byte.is_ascii_digit()))
-        || payload.user_agent.as_ref().is_some_and(|agent| {
-            agent.is_empty() || agent.len() > 1024 || agent.chars().any(char::is_control)
-        })
-    {
+    // Name the rejected field: a dropped report is otherwise invisible to operators.
+    let invalid_field = [
+        ("kind", !valid_label(&payload.kind, 32)),
+        ("code", !valid_label(&payload.code, 64)),
+        (
+            "page",
+            !matches!(payload.page.as_str(), "poke-lounge" | "other"),
+        ),
+        ("line", payload.line.is_some_and(|line| line > 1_000_000)),
+        (
+            "column",
+            payload.column.is_some_and(|column| column > 1_000_000),
+        ),
+        (
+            "release",
+            payload.release.as_ref().is_some_and(|release| {
+                release.len() != 40 || !release.bytes().all(|byte| byte.is_ascii_hexdigit())
+            }),
+        ),
+        (
+            "script",
+            payload.script.as_ref().is_some_and(|script| {
+                !script.starts_with("/_next/static/")
+                    || script.len() > 200
+                    || !script.bytes().all(|byte| {
+                        byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'_' | b'.' | b'-')
+                    })
+            }),
+        ),
+        (
+            "errorName",
+            payload
+                .error_name
+                .as_ref()
+                .is_some_and(|name| !valid_label(name, 48)),
+        ),
+        (
+            "roomCode",
+            payload
+                .room_code
+                .as_ref()
+                .is_some_and(|code| !valid_label(code, 64)),
+        ),
+        (
+            "sessionId",
+            payload
+                .session_id
+                .as_ref()
+                .is_some_and(|id| !valid_label(id, 80)),
+        ),
+        (
+            "errorText",
+            payload.error_text.as_ref().is_some_and(|text| {
+                text.is_empty()
+                    || text.len() > 8192
+                    || text.chars().any(|character| {
+                        character.is_control() && !matches!(character, '\n' | '\t')
+                    })
+            }),
+        ),
+        (
+            "startupStep",
+            payload.startup_step.as_ref().is_some_and(|step| {
+                step.is_empty()
+                    || step.len() > 48
+                    || !step
+                        .bytes()
+                        .all(|byte| byte.is_ascii_lowercase() || byte == b'_')
+            }),
+        ),
+        (
+            "resourcePath",
+            payload.resource_path.as_ref().is_some_and(|path| {
+                path.len() > 200
+                    || !(path.starts_with("/assets/") || path.starts_with("/game-data/"))
+                    || path.contains("..")
+                    || !path.bytes().all(|byte| {
+                        byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'_' | b'.' | b'-')
+                    })
+            }),
+        ),
+        (
+            "userCode",
+            payload.user_code.as_ref().is_some_and(|code| {
+                code.len() != 5 || !code.bytes().all(|byte| byte.is_ascii_digit())
+            }),
+        ),
+        (
+            "userAgent",
+            payload.user_agent.as_ref().is_some_and(|agent| {
+                agent.is_empty() || agent.len() > 1024 || agent.chars().any(char::is_control)
+            }),
+        ),
+    ]
+    .into_iter()
+    .find_map(|(name, invalid)| invalid.then_some(name));
+    if let Some(field) = invalid_field {
+        tracing::warn!(event = "browser.report_rejected", field, kind = %payload.kind.chars().take(32).collect::<String>(), code = %payload.code.chars().take(64).collect::<String>());
         return Err(AppError::Invalid("Invalid diagnostic event"));
     }
     let detail: Value = payload
@@ -401,8 +479,16 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
     let occurred_at_ms = detail["at"]
         .as_u64()
         .filter(|at| *at <= 9_007_199_254_740_991);
-    tracing::warn!(
-        event = "browser.error",
+    // Page lifecycle reports flush breadcrumbs on leave/restore; they are not failures.
+    let lifecycle = payload.kind == "runtime"
+        && matches!(
+            payload.code.as_str(),
+            "PAGE_HIDDEN" | "PAGE_RESTORED" | "HISTORY_NAVIGATION"
+        );
+    macro_rules! browser_event {
+        ($level:ident, $event:literal) => {
+            tracing::$level!(
+                event = $event,
         report_id = ?report_id,
         occurred_at_ms = ?occurred_at_ms,
         delivery_attempt = ?detail["attempt"].as_u64().filter(|attempt| *attempt <= 100_000),
@@ -424,13 +510,28 @@ async fn client_error(Json(payload): Json<ClientError>) -> AppResult<StatusCode>
         resource_path = %payload.resource_path.as_deref().unwrap_or("none"),
         user_code = %payload.user_code.as_deref().unwrap_or("none"),
         user_agent = %payload.user_agent.as_deref().unwrap_or("none"),
-    );
+            )
+        };
+    }
+    if lifecycle {
+        browser_event!(info, "browser.lifecycle");
+    } else {
+        browser_event!(warn, "browser.error");
+    }
     Ok(StatusCode::NO_CONTENT)
 }
 fn body<T>(value: Result<Json<T>, JsonRejection>) -> AppResult<T> {
-    value
-        .map(|j| j.0)
-        .map_err(|_| AppError::Invalid("Request body is invalid"))
+    value.map(|j| j.0).map_err(|rejection| {
+        // Serde names the field and expected type; bound it since it can quote a wrong-typed value.
+        let detail: String = rejection
+            .body_text()
+            .chars()
+            .filter(|c| !c.is_control())
+            .take(300)
+            .collect();
+        tracing::warn!(event = "http.body_rejected", status = rejection.status().as_u16(), detail = %detail);
+        AppError::Invalid("Request body is invalid")
+    })
 }
 fn command_id(headers: &HeaderMap) -> AppResult<String> {
     let value = headers

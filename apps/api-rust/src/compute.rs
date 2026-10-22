@@ -53,21 +53,51 @@ impl Compute {
         })
     }
     pub async fn ready(&self) -> AppResult<()> {
+        let not_ready = |reason: &'static str| {
+            move |detail: String| {
+                tracing::warn!(event = "compute.not_ready", reason, detail = %detail);
+                AppError::Unavailable
+            }
+        };
         let response = self
             .client
             .get(format!("{}/health", self.url))
             .header("x-worker-token", self.token.as_ref())
             .send()
             .await
-            .map_err(|_| AppError::Unavailable)?;
-        if !response.status().is_success() {
-            return Err(AppError::Unavailable);
+            .map_err(|error| {
+                not_ready("transport")(format!(
+                    "timeout={} connect={}",
+                    error.is_timeout(),
+                    error.is_connect()
+                ))
+            })?;
+        let status = response.status();
+        let body = self
+            .read(response)
+            .await
+            .map_err(|(_, stage)| not_ready("body")(stage.to_owned()))?;
+        if !status.is_success() {
+            return Err(not_ready("status")(format!(
+                "status={} code={} readyWorkers={} draining={}",
+                status.as_u16(),
+                body["code"],
+                body["readyWorkers"],
+                body["draining"]
+            )));
         }
-        let body = self.read(response).await?;
-        if body["engineVersion"] != ENGINE_VERSION.trim()
-            || body["readyWorkers"].as_u64().unwrap_or(0) == 0
-        {
-            return Err(AppError::Unavailable);
+        if body["engineVersion"] != ENGINE_VERSION.trim() {
+            return Err(not_ready("engine_version")(format!(
+                "worker={} api={}",
+                body["engineVersion"],
+                ENGINE_VERSION.trim()
+            )));
+        }
+        if body["readyWorkers"].as_u64().unwrap_or(0) == 0 {
+            return Err(not_ready("no_workers")(format!(
+                "pending={}",
+                body["pending"]
+            )));
         }
         Ok(())
     }
@@ -100,7 +130,8 @@ impl Compute {
         };
         let request_id = Uuid::new_v4();
         let started = std::time::Instant::now();
-        let result: AppResult<Value> = async {
+        // Each failure carries the stage that produced it so `compute.failed` says where it broke.
+        let result: Result<Value, (AppError, &'static str)> = async {
             let response = self.client.post(format!("{}/compute", self.url))
                 .header("x-worker-token", self.token.as_ref())
                 .json(&json!({"protocolVersion":1,"requestId":request_id,"roomInstanceId":id,"stateRevision":revision,"engineVersion":ENGINE_VERSION.trim(),"operation":operation}))
@@ -109,7 +140,7 @@ impl Compute {
                         room_instance_id=%id, revision, operation=%kind,
                         timeout=error.is_timeout(), connect=error.is_connect(),
                         release=%crate::logging::release());
-                    AppError::ComputeUnavailable
+                    (AppError::ComputeUnavailable, "transport")
                 })?;
             let status = response.status();
             let body = self.read(response).await?;
@@ -119,10 +150,21 @@ impl Compute {
                 || body["engineVersion"] != ENGINE_VERSION.trim()
                 || body["protocolVersion"] != 1
             {
+                // Name the mismatched fields; a worker-level error such as 401 or 503 has no identity.
+                let mismatched: Vec<&str> = [
+                    ("requestId", body["requestId"] != request_id.to_string()),
+                    ("roomInstanceId", body["roomInstanceId"] != id.to_string()),
+                    ("stateRevision", body["stateRevision"] != revision),
+                    ("engineVersion", body["engineVersion"] != ENGINE_VERSION.trim()),
+                    ("protocolVersion", body["protocolVersion"] != 1),
+                ].into_iter().filter_map(|(name, bad)| bad.then_some(name)).collect();
+                let worker_code = body["code"].as_str().filter(|code| code.len() <= 64
+                    && code.bytes().all(|byte| byte.is_ascii_uppercase() || byte == b'_')).unwrap_or("none");
                 tracing::error!(event="compute.response_invalid", compute_request_id=%request_id,
                     room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
-                    release=%crate::logging::release());
-                return Err(AppError::ComputeUnavailable);
+                    worker_code, mismatched=%mismatched.join(","),
+                    worker_engine_version=%body["engineVersion"], release=%crate::logging::release());
+                return Err((AppError::ComputeUnavailable, "identity"));
             }
             if !status.is_success() || body["ok"] != true {
                 // Copy only bounded diagnostic labels from the internal worker, never its input.
@@ -138,23 +180,51 @@ impl Compute {
                     }).collect();
                 let frames: Vec<&str> = body["diagnostic"]["frames"].as_array().into_iter().flatten().take(4)
                     .filter_map(Value::as_str).filter(|frame| frame.len() <= 120 && frame.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b':'))).collect();
-                tracing::warn!(event="compute.rejected", compute_request_id=%request_id,
-                    room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
-                    reason, issues=%json!(issues), frames=%json!(frames), release=%crate::logging::release());
-                return Err(if body["code"] == "INVALID_INPUT" {
-                    AppError::Invalid("Invalid battle or party input")
+                let error_name = body["diagnostic"]["name"].as_str()
+                    .filter(|value| valid_label(value, 48)).unwrap_or("none");
+                // The worker already strips paths and truncates; re-bound it here anyway.
+                let error_message: String = body["diagnostic"]["message"].as_str().unwrap_or("")
+                    .chars().filter(|c| !c.is_control()).take(200).collect();
+                let worker_code = body["code"].as_str().filter(|code| code.len() <= 64
+                    && code.bytes().all(|byte| byte.is_ascii_uppercase() || byte == b'_')).unwrap_or("none");
+                let invalid = body["code"] == "INVALID_INPUT";
+                if invalid {
+                    tracing::warn!(event="compute.rejected", compute_request_id=%request_id,
+                        room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
+                        worker_code, reason, error_name, error_message=%error_message,
+                        issues=%json!(issues), frames=%json!(frames), release=%crate::logging::release());
                 } else {
-                    AppError::ComputeUnavailable
+                    tracing::error!(event="compute.rejected", compute_request_id=%request_id,
+                        room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
+                        worker_code, reason, error_name, error_message=%error_message,
+                        issues=%json!(issues), frames=%json!(frames), release=%crate::logging::release());
+                }
+                return Err(if invalid {
+                    (AppError::ComputeRejected(reason.to_owned()), "rejected")
+                } else {
+                    (AppError::ComputeUnavailable, "worker_failed")
                 });
             }
-            body.get("data").cloned().ok_or(AppError::ComputeUnavailable)
+            body.get("data").cloned().ok_or((AppError::ComputeUnavailable, "data_missing"))
         }.await;
-        if result.is_err() {
-            tracing::error!(event="compute.failed",compute_request_id=%request_id,room_instance_id=%id,revision,operation=%kind,duration_ms=started.elapsed().as_millis() as u64);
-        } else if started.elapsed() >= Duration::from_secs(2) {
-            tracing::warn!(event="compute.slow",compute_request_id=%request_id,room_instance_id=%id,revision,operation=%kind,duration_ms=started.elapsed().as_millis() as u64);
+        let duration_ms = started.elapsed().as_millis() as u64;
+        match result {
+            Err((error, stage)) => {
+                if matches!(error, AppError::ComputeRejected(_)) {
+                    // Expected input rejections are already logged as compute.rejected at warn level.
+                    tracing::debug!(event="compute.failed",compute_request_id=%request_id,room_instance_id=%id,revision,operation=%kind,stage,code=error.code(),duration_ms);
+                } else {
+                    tracing::error!(event="compute.failed",compute_request_id=%request_id,room_instance_id=%id,revision,operation=%kind,stage,code=error.code(),duration_ms);
+                }
+                Err(error)
+            }
+            Ok(value) => {
+                if duration_ms >= 2_000 {
+                    tracing::warn!(event="compute.slow",compute_request_id=%request_id,room_instance_id=%id,revision,operation=%kind,duration_ms);
+                }
+                Ok(value)
+            }
         }
-        result
     }
     pub async fn battle(
         &self,
@@ -163,33 +233,54 @@ impl Compute {
         operation: Value,
         players: &[String; 2],
     ) -> AppResult<BattlePack> {
-        let result: BattlePack = serde_json::from_value(self.run(id, revision, operation).await?)?;
-        if result.state["participantIds"] != json!(players)
-            || result.public_state["participantIds"] != json!(players)
-            || result.state["turn"] != result.public_state["turn"]
-            || result.state["terminal"] != result.public_state["terminal"]
-            || result.state_hash.len() != 64
-            || result
-                .required_player_ids
-                .iter()
-                .any(|p| !players.contains(p))
+        let kind = operation["kind"].as_str().unwrap_or("unknown").to_owned();
+        let result: BattlePack = serde_json::from_value(self.run(id, revision, operation).await?)
+            .map_err(|error| {
+            tracing::error!(event = "compute.battle_invalid", room_instance_id = %id, revision,
+                    operation = %kind, check = "shape", detail = %error);
+            AppError::Corrupt(error)
+        })?;
+        let failed_check = if result.state["participantIds"] != json!(players) {
+            Some("state_participants")
+        } else if result.public_state["participantIds"] != json!(players) {
+            Some("public_participants")
+        } else if result.state["turn"] != result.public_state["turn"] {
+            Some("turn_mismatch")
+        } else if result.state["terminal"] != result.public_state["terminal"] {
+            Some("terminal_mismatch")
+        } else if result.state_hash.len() != 64 {
+            Some("state_hash")
+        } else if result
+            .required_player_ids
+            .iter()
+            .any(|p| !players.contains(p))
         {
+            Some("required_players")
+        } else {
+            None
+        };
+        if let Some(check) = failed_check {
+            tracing::error!(event = "compute.battle_invalid", room_instance_id = %id, revision,
+                operation = %kind, check);
             return Err(AppError::ComputeUnavailable);
         }
         Ok(result)
     }
-    async fn read(&self, mut response: reqwest::Response) -> AppResult<Value> {
+    async fn read(
+        &self,
+        mut response: reqwest::Response,
+    ) -> Result<Value, (AppError, &'static str)> {
         let mut bytes = Vec::new();
         while let Some(chunk) = response
             .chunk()
             .await
-            .map_err(|_| AppError::ComputeUnavailable)?
+            .map_err(|_| (AppError::ComputeUnavailable, "body_read"))?
         {
             if bytes.len() + chunk.len() > 8 * 1024 * 1024 {
-                return Err(AppError::ComputeUnavailable);
+                return Err((AppError::ComputeUnavailable, "body_too_large"));
             }
             bytes.extend_from_slice(&chunk);
         }
-        serde_json::from_slice(&bytes).map_err(AppError::from)
+        serde_json::from_slice(&bytes).map_err(|error| (AppError::from(error), "json_parse"))
     }
 }

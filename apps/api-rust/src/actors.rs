@@ -182,6 +182,8 @@ impl Rooms {
             last_persisted_ms: now,
             unpersisted: false,
             last_tick_ms: self.last_tick_ms.clone(),
+            tick_stage: "idle",
+            tick_failures: 0,
         };
         self.tasks.spawn(actor.run(receiver));
         Ok(h)
@@ -202,7 +204,7 @@ impl Rooms {
                 if matches!(e, AppError::Unavailable | AppError::Storage(_)) {
                     return Err(e);
                 }
-                tracing::warn!(event="room.restore_failed",room_instance_id=%id);
+                tracing::warn!(event="room.restore_failed",room_instance_id=%id,code=e.code(),error=%e,detail=?e.detail());
             }
         }
         Ok(())
@@ -365,6 +367,10 @@ struct Actor {
     last_persisted_ms: u64,
     unpersisted: bool,
     last_tick_ms: Arc<AtomicU64>,
+    /// Step of `tick` currently running, reported when it fails.
+    tick_stage: &'static str,
+    /// Consecutive failed ticks, to throttle repeated failure logs and report recovery.
+    tick_failures: u32,
 }
 impl Actor {
     fn snapshot(&self, after: Option<u64>) -> Value {
@@ -383,13 +389,30 @@ impl Actor {
                 biased;
                 _=self.shutdown.cancelled()=>{
                     receiver.close();while let Some(message)=receiver.recv().await{let _=message.reply.send(Err(AppError::Unavailable));}
-                    if self.unpersisted { let _ = self.checkpoint().await; }
+                    if self.unpersisted && let Err(error) = self.checkpoint().await {
+                        tracing::error!(event="room.shutdown_checkpoint_failed",room_instance_id=%self.room.room_instance_id,revision=self.room.revision,code=error.code(),error=%error,detail=?error.detail());
+                    }
                     self.emit("server.draining",json!({}));break;
                 }
                 _=ticker.tick()=>{
                     match self.tick().await {
-                        Ok(())=>(),Err(AppError::NotFound|AppError::Unavailable)=>{if !self.room.terminal(){self.emit("room.expired",json!({"roomCode":self.room.room_code,"roomInstanceId":self.room.room_instance_id}));}break;}
-                        Err(_)=>tracing::warn!(event="room.tick_failed",room_instance_id=%self.room.room_instance_id,revision=self.room.revision),
+                        Ok(())=>{
+                            if self.tick_failures>0{
+                                tracing::info!(event="room.tick_recovered",room_instance_id=%self.room.room_instance_id,revision=self.room.revision,failures=self.tick_failures);
+                                self.tick_failures=0;
+                            }
+                        }
+                        Err(error@(AppError::NotFound|AppError::Unavailable))=>{
+                            tracing::info!(event="room.actor_stopped",room_instance_id=%self.room.room_instance_id,revision=self.room.revision,stage=self.tick_stage,code=error.code(),terminal=self.room.terminal());
+                            if !self.room.terminal(){self.emit("room.expired",json!({"roomCode":self.room.room_code,"roomInstanceId":self.room.room_instance_id}));}break;
+                        }
+                        Err(error)=>{
+                            self.tick_failures=self.tick_failures.saturating_add(1);
+                            // Ticks run every 250ms; log the first failure and then about every 10s.
+                            if self.tick_failures==1||self.tick_failures.is_multiple_of(40){
+                                tracing::warn!(event="room.tick_failed",room_instance_id=%self.room.room_instance_id,revision=self.room.revision,status=?self.room.status,stage=self.tick_stage,failures=self.tick_failures,code=error.code(),error=%error,detail=?error.detail());
+                            }
+                        }
                     }
                     ticker.reset();
                 }
@@ -449,17 +472,22 @@ impl Actor {
         Ok(())
     }
     async fn tick(&mut self) -> AppResult<()> {
+        self.tick_stage = "clock";
         let now = self.repository.now().await?;
         self.now = now;
         if self.room.terminal() || now >= self.last_full_reload_ms + FULL_RELOAD_INTERVAL_MS {
             if self.unpersisted {
+                self.tick_stage = "checkpoint";
                 self.checkpoint().await?;
             }
+            self.tick_stage = "reload";
             self.reload().await?;
             self.last_full_reload_ms = now;
         } else {
+            self.tick_stage = "sync_clock";
             self.sync_clock().await?;
         }
+        self.tick_stage = "disconnect_stale";
         let stale = self
             .connection_seen
             .iter()
@@ -475,8 +503,11 @@ impl Actor {
             return Ok(());
         }
         let mut next = self.room.clone();
+        self.tick_stage = "ai_step";
         next.step_ai(self.now, &self.compute).await?;
+        self.tick_stage = "advance_game";
         next.advance_game(self.now, &self.compute).await?;
+        self.tick_stage = "commit";
         if next.revision != self.room.revision {
             let expected = self.room.storage_version;
             self.repository.commit(expected, &mut next, None).await?;
@@ -510,6 +541,7 @@ impl Actor {
                 self.emit("room.player-event",json!({"type":"PLAYER_LEFT","roomCode":self.room.room_code,"worldEpoch":self.world_epoch,"worldSeq":self.world_seq,"snapshot":snapshot}));
             }
         }
+        self.tick_stage = "world";
         let players = self
             .room
             .participants
