@@ -3,13 +3,19 @@ import {
   withSubjectParticle,
   withTopicParticle,
 } from "../../battle-message-text";
-import { restoreGen4FieldPokemon } from "../../gen4/adventure";
-import { getGen4EscapeInfo } from "../../gen4/engine";
+import {
+  restoreGen4FieldPokemon,
+  resolveGen4Adventure,
+  ensureGen4Adventure,
+} from "../../gen4/adventure";
+import { getGen4EscapeInfo, canUseGen4ItemOnMember, validateGen4Action } from "../../gen4/engine";
 import { GEN4_ROM_ITEMS } from "../../gen4/rom-catalog.generated";
-import { resolveGen4Adventure, ensureGen4Adventure } from "../../gen4/adventure";
-import { canUseGen4ItemOnMember, validateGen4Action } from "../../gen4/engine";
 import { awardGen4EffortValues } from "../../gen4/traits";
-import { RUNTIME_ITEM_ROM_IDS, type RuntimeItemId } from "../items/runtime-items";
+import {
+  RUNTIME_ITEM_ROM_IDS,
+  type RuntimeItemId,
+  getRuntimeGameItem,
+} from "../items/runtime-items";
 import type { Gen4Action } from "../../gen4/types";
 import type {
   BattleCaptureAttempt,
@@ -20,7 +26,6 @@ import type {
   BattleScreenState,
 } from "./battle-types";
 import { applyInventoryItemEffect } from "../items/inventory-item-effects";
-import { getRuntimeGameItem } from "../items/runtime-items";
 import { BATTLE_PARTY_SLOT_COUNT, syncActivePartyPokemon } from "./battle-party";
 import { resolveGen4CaptureAttempt } from "./capture-logic";
 import { applyExperienceGain, calculateWildBattleExpGain } from "./experience";

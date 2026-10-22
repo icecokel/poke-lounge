@@ -9,13 +9,15 @@ import {
   type CompetitivePartyInput,
   type NormalizedCompetitiveParty,
 } from "./competitive-party";
-import { getRuntimePokemonSpeciesGrowthRate } from "./adventure/data/game-data-json";
+import {
+  getRuntimePokemonSpeciesGrowthRate,
+  getRuntimePokemonSpeciesSummary,
+} from "./adventure/data/game-data-json";
 import {
   applyExperienceGain,
   calculateWildBattleExpGain,
   getExperienceForLevel,
 } from "./adventure/battle/experience";
-import { getRuntimePokemonSpeciesSummary } from "./adventure/data/game-data-json";
 import { getLevelUpMovesForSpecies } from "./adventure/battle/level-up-moves";
 
 /** The room commits this result with the match's terminal event, never from a browser reward. */
