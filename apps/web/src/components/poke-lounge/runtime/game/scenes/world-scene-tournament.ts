@@ -22,7 +22,7 @@ import {
 } from "../state/game-state-store";
 import {
   createTournamentResultPanelViewModel,
-  formatTournamentResultPanel,
+  type TournamentResultPanelViewModel,
 } from "../tournament/tournament-result-view-model";
 import type { TournamentSession } from "../tournament/tournament-session";
 export {
@@ -83,11 +83,8 @@ export interface WorldSceneTournamentDependencies {
   sendRoundScoreUpdates(
     payloads: ReturnType<typeof createRoundScoreUpdatedAuthorityPayloads>,
   ): void;
-  createAnnouncement(
-    text: string,
-    fontSize: "14px" | "16px",
-    result?: boolean,
-  ): TournamentAnnouncement;
+  createAnnouncement(text: string, fontSize: "14px" | "16px"): TournamentAnnouncement;
+  createResultPanel(panel: TournamentResultPanelViewModel): TournamentAnnouncement;
 }
 
 export function createWorldSceneTournament(
@@ -244,7 +241,8 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       roundScores: state.tournament.lastRoundScores,
       cumulativeScores: state.tournament.scoresByPlayerId,
     });
-    this.setAnnouncement(formatTournamentResultPanel(panel), "14px");
+    this.announcement = this.dependencies.createResultPanel(panel);
+    this.announcementText = null;
   }
 
   destroy(): void {
@@ -482,13 +480,13 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
     this.clearPresentation();
   }
 
-  private setAnnouncement(text: string, fontSize: "14px" | "16px", result = false): void {
+  private setAnnouncement(text: string, fontSize: "14px" | "16px"): void {
     if (this.announcement && this.announcementText === text) {
       return;
     }
 
     this.announcement?.destroy();
-    this.announcement = this.dependencies.createAnnouncement(text, fontSize, result);
+    this.announcement = this.dependencies.createAnnouncement(text, fontSize);
     this.announcementText = text;
   }
 }

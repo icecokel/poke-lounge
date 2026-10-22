@@ -40,7 +40,7 @@ import {
 import type { TournamentSession } from "../tournament/tournament-session";
 import {
   createTournamentResultPanelViewModel,
-  formatTournamentResultPanel,
+  type TournamentResultPanelViewModel,
 } from "../tournament/tournament-result-view-model";
 import type { RoomLobbyRuntimeState } from "../ui/room-lobby-screen";
 import { FIELD_MAP, NURSE_HEAL_DURATION_MS } from "../world/field-map";
@@ -297,8 +297,8 @@ export class WorldController {
       sendRoundScoreUpdates: payloads => {
         for (const payload of payloads) this.sendRoomMessage("ROUND_SCORE_UPDATED", payload);
       },
-      createAnnouncement: (text, _fontSize, result) =>
-        this.createTournamentAnnouncement(text, result),
+      createAnnouncement: text => this.createTournamentAnnouncement(text),
+      createResultPanel: panel => this.createTournamentResultPresentation(panel),
     });
     this.applyReturnedTournamentResult(data);
     if (!this.competitiveRoundsEnabled) this.gameStateStore.resetCompetitiveSession();
@@ -442,9 +442,7 @@ export class WorldController {
       totalRounds: state.round.totalRounds,
       final: false,
     });
-    this.options.worldUiStore.publishPresentation({
-      previousRoundResult: formatTournamentResultPanel(panel),
-    });
+    this.options.worldUiStore.publishPresentation({ previousRoundResult: panel });
     this.previousRoundResultTimer = window.setTimeout(
       () => this.closePreviousRoundResult(),
       10_000,
@@ -473,26 +471,30 @@ export class WorldController {
     this.tournament?.update(nowMs);
   }
 
-  private createTournamentAnnouncement(text: string, forceResult = false): { destroy(): void } {
-    const result =
-      forceResult ||
-      this.gameStateStore.getState().round.phase === "round-result" ||
-      this.gameStateStore.getState().round.phase === "game-result";
-    if (result) {
-      this.viewedRoundResultKeys.add(
-        this.roundResultKey(this.gameStateStore.getState().round.roundIndex),
-      );
-    }
+  private createTournamentAnnouncement(text: string): { destroy(): void } {
     this.options.worldUiStore.publishPresentation({
-      tournamentAnnouncement: result ? null : text,
-      tournamentResult: result ? text : null,
+      tournamentAnnouncement: text,
+      tournamentResult: null,
     });
     return {
       destroy: () =>
-        this.options.worldUiStore.publishPresentation({
-          tournamentAnnouncement: null,
-          tournamentResult: null,
-        }),
+        this.options.worldUiStore.publishPresentation({ tournamentAnnouncement: null }),
+    };
+  }
+
+  private createTournamentResultPresentation(panel: TournamentResultPanelViewModel): {
+    destroy(): void;
+  } {
+    // Showing the live result counts as having seen this round, so it is not replayed later.
+    this.viewedRoundResultKeys.add(
+      this.roundResultKey(this.gameStateStore.getState().round.roundIndex),
+    );
+    this.options.worldUiStore.publishPresentation({
+      tournamentAnnouncement: null,
+      tournamentResult: panel,
+    });
+    return {
+      destroy: () => this.options.worldUiStore.publishPresentation({ tournamentResult: null }),
     };
   }
 
