@@ -156,9 +156,9 @@ def main() -> None:
     manifest = {
         "rom": "포켓몬스터 하트골드(K).nds", "romSha1": ROM_SHA1, "archive": "a/0/4/4",
         "baseAtlas": str(SOURCE.relative_to(ROOT)), "baseAtlasSha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
-        "processing": "Preserve base 720 tiles and the approved green ground/path colors and map layout. Trees use the original autumn map model geometry, UVs and colors, projected and uniformly fitted to 64px. Static grass retains the existing staggered egrass_u layout and matching lower-10px foreground at 40% opacity. The separate normal-grass step effect preserves the full original RGBA and model dimensions. No generated artwork or synthetic wind.",
+        "processing": "Preserve base 720 tiles, ground/path colors and connected-grass behavior. Original projected autumn trees retain their geometry and colors. generate-autumn-map.py bakes overlapping native tree_en2..5 single and _re canopies across the map boundary into additional atlas tiles. No synthetic canopy clusters or decorative leaf piles.",
         "tileSize": 32, "margin": 1, "spacing": 2, "columns": 24, "tileCount": 768,
-        "gids": {"721-725": "original green ground, mirrored ground, ground, mirrored ground, green grass detail", "729-744": "original pale dirt with path mask 0..15 (N=1 E=2 S=4 W=8)", "745-748": "red tree row-major", "749-752": "orange tree row-major", "753-756": "gold tree row-major", "757": "green encounter grass", "758": "encounter grass foreground"},
+        "gids": {"721-725": "green ground and grass detail", "729-744": "pale dirt path masks N=1 E=2 S=4 W=8", "745-748": "red projected tree", "749-752": "orange projected tree", "753-756": "gold projected tree", "757": "encounter grass", "758": "encounter grass foreground"},
         "textures": used,
         "trees": {"sourceManifest": "field-trees.json", "quadrantOrder": "top-left, top-right, bottom-left, bottom-right"},
         "grassStep": {"sourceManifest": "field-grass-effect.json", "lifecycle": "Initially settled; entries play to tick 12 at 30Hz; tick 13 begins exit checks; final pose remains while the actor occupies the tile."},
