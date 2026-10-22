@@ -188,7 +188,6 @@ pnpm dev:rust
 pnpm lint
 pnpm build
 pnpm type:check:web
-pnpm check:api-contract
 ```
 
 ## 문서
