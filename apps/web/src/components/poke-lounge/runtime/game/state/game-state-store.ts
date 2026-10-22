@@ -1241,10 +1241,14 @@ function normalizeRoomTournamentStandingRows(
 function createRoomCumulativeStandingRows(
   input: TournamentStateRoomPayload,
 ): CumulativeTournamentScoreRank[] | null {
+  const scores = input.tournament.cumulativeScores;
+  // A participant who left mid-game stays on the roster (connected=false) but is not in the
+  // bracket, so it never gets a score key. Rank only the scored participants instead of
+  // requiring every roster member to have a score; the server ranks final standings the same way.
   const participants = input.participants.filter(function filterItem(participant) {
-    return participant.role === "participant";
+    return participant.role === "participant" && Object.hasOwn(scores, participant.playerId);
   });
-  const scorePlayerIds = Object.keys(input.tournament.cumulativeScores);
+  const scorePlayerIds = Object.keys(scores);
   const participantPlayerIds = new Set(
     participants.map(function mapItem(participant) {
       return participant.playerId;
@@ -1252,8 +1256,7 @@ function createRoomCumulativeStandingRows(
   );
 
   if (
-    scorePlayerIds.length < 2 ||
-    scorePlayerIds.length !== participants.length ||
+    participants.length < 2 ||
     scorePlayerIds.some(function testItem(playerId) {
       return !participantPlayerIds.has(playerId);
     })
