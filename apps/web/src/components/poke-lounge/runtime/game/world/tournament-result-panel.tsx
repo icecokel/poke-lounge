@@ -52,19 +52,12 @@ export function TournamentResultPanel({
   onClose?(): void;
   rawText: string | null;
 }) {
-  const [mobileTarget, setMobileTarget] = useState<HTMLElement | null>(null);
+  // The field viewport is short on every layout (the game is a narrow column even on desktop),
+  // so non-final panels render over the whole game root rather than inside the field.
+  const [rootTarget, setRootTarget] = useState<HTMLElement | null>(null);
   useEffect(() => {
     if (final) return;
-    const media = window.matchMedia("(max-width: 640px) and (orientation: portrait)");
-    const updateTarget = () =>
-      setMobileTarget(
-        media.matches
-          ? document.querySelector<HTMLElement>("[data-testid='poke-lounge-page']")
-          : null,
-      );
-    updateTarget();
-    media.addEventListener("change", updateTarget);
-    return () => media.removeEventListener("change", updateTarget);
+    setRootTarget(document.querySelector<HTMLElement>("[data-testid='poke-lounge-page']"));
   }, [final]);
   const table = createTournamentResultTable(rawText, locale);
   const title = onClose
@@ -87,8 +80,7 @@ export function TournamentResultPanel({
         final
           ? "text-left leading-[1.6] text-[#304550] [overflow-wrap:anywhere]"
           : cn(
-              "pointer-events-auto absolute top-3 left-1/2 z-[900] box-border w-[min(calc(100%-24px),720px)] -translate-x-1/2 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain rounded-[9px] border-[3px] border-[#4c6977] bg-[#fffdf0] p-3 text-left leading-[1.6] text-[#304550] shadow-[var(--hg-frame),0_3px_0_#304550] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[var(--pl-color-gold)] focus-visible:-outline-offset-5",
-              mobileTarget ? "max-h-[calc(100dvh-24px)]" : "max-h-[calc(100%-24px)]",
+              "pointer-events-auto absolute top-3 left-1/2 z-[900] box-border max-h-[calc(100%-24px)] w-[min(calc(100%-24px),720px)] -translate-x-1/2 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain rounded-[9px] border-[3px] border-[#4c6977] bg-[#fffdf0] p-3 text-left leading-[1.6] text-[#304550] shadow-[var(--hg-frame),0_3px_0_#304550] [overflow-wrap:anywhere] focus-visible:outline-3 focus-visible:outline-[var(--pl-color-gold)] focus-visible:-outline-offset-5",
             )
       }
       data-poke-lounge-tournament-result="true"
@@ -209,8 +201,8 @@ export function TournamentResultPanel({
     >
       {panel}
     </MobileTaskScreen>
-  ) : mobileTarget ? (
-    createPortal(panel, mobileTarget)
+  ) : rootTarget ? (
+    createPortal(panel, rootTarget)
   ) : (
     panel
   );
