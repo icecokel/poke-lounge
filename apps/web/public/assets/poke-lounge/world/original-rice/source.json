@@ -1,0 +1,81 @@
+{
+  "origin": "Original artwork generated with built-in image_gen, 2026-10-22",
+  "preparation": "Each coarse source grid block mapped to one flat native pixel by interior majority color; no interpolation or freehand repaint. Frames share root anchor, four retained colors; the impact frame preserves the airborne leaf.",
+  "assets": [
+    {
+      "file": "01-ripe-rice-field.png",
+      "size": [128, 128],
+      "sourceSha256": "5f405b96cc6a6e01679c3d41faa6053c08499b80fb58d9a757e0bed08bc0827c"
+    },
+    {
+      "file": "02-ripe-rice-field-variation.png",
+      "size": [128, 128],
+      "sourceSha256": "d350c72e45e08ac27ae7b61c2dd6a8a3fce704bf2bf8336500f74dc618a8e1ea"
+    },
+    {
+      "file": "03-ripe-rice-clump.png",
+      "size": [32, 22],
+      "sourceSha256": "4d5480e856bdb8994fc0ce8e7663e93323bde954c451057fc4c3a277dcde9f52"
+    },
+    {
+      "file": "04-ripe-rice-fringe.png",
+      "size": [32, 9],
+      "sourceSha256": "d37c8476761b2cd93beba8b5b912bbaaf08f943f56d633cc6ec39591391232eb"
+    },
+    {
+      "file": "05-rice-step.png",
+      "size": [160, 40],
+      "sourceSha256": "6207fdb8c622826e355d34d4fb452e72458c37909f1cae12ebcab45deae66268"
+    },
+    {
+      "file": "06-simple-rice-clump.png",
+      "size": [23, 19],
+      "sourceSha256": "6207fdb8c622826e355d34d4fb452e72458c37909f1cae12ebcab45deae66268"
+    },
+    {
+      "file": "07-native-rice-clump.png",
+      "size": [24, 20],
+      "sourceSha256": "b93d17b217658f7a5be3752d4d6bec76ad3d0c63186268ae91a698efc8f64bd3"
+    },
+    {
+      "file": "08-native-rice-step.png",
+      "size": [160, 40],
+      "sourceSha256": "b93d17b217658f7a5be3752d4d6bec76ad3d0c63186268ae91a698efc8f64bd3"
+    },
+    {
+      "file": "09-yellow-grass-clump.png",
+      "size": [30, 20],
+      "sourceSha256": "f38269c826869d1f295aba2915ddc0f4e925b96ce8e9b7d496abbb0acbc8f5bf"
+    },
+    {
+      "file": "10-yellow-grass-step.png",
+      "size": [160, 40],
+      "sourceSha256": "f38269c826869d1f295aba2915ddc0f4e925b96ce8e9b7d496abbb0acbc8f5bf"
+    },
+    {
+      "file": "11-dense-yellow-grass-clump.png",
+      "size": [26, 16],
+      "sourceSha256": "1123e44fe5d2ad6810fb76d74eef2d31ce8a27a184f681513191ed252bc52b83",
+      "reference": "HeartGold a/0/4/4 member 6 egrass_u silhouette and a/1/0/3 kusaeff movement, original generated autumn adaptation"
+    },
+    {
+      "file": "12-dense-yellow-grass-step.png",
+      "size": [160, 40],
+      "sourceSha256": "1123e44fe5d2ad6810fb76d74eef2d31ce8a27a184f681513191ed252bc52b83",
+      "reference": "HeartGold a/0/4/4 member 6 egrass_u silhouette and a/1/0/3 kusaeff movement, original generated autumn adaptation"
+    },
+    {
+      "file": "13-tall-golden-grass-clump.png",
+      "size": [28, 22],
+      "sourceSha256": "737acc7d9ed466cbaf3181f0d8aceb5804c8ef3467ae853d51bc28b6544ae32a",
+      "reference": "Original taller golden encounter grass with pressed, left rebound, right rebound and settled poses"
+    },
+    {
+      "file": "14-tall-golden-grass-step.png",
+      "size": [160, 40],
+      "sourceSha256": "737acc7d9ed466cbaf3181f0d8aceb5804c8ef3467ae853d51bc28b6544ae32a",
+      "reference": "Original taller golden encounter grass with pressed, left rebound, right rebound and settled poses"
+    }
+  ],
+  "activeAssets": ["13-tall-golden-grass-clump.png", "14-tall-golden-grass-step.png"]
+}

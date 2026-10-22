@@ -23,30 +23,38 @@ ROM_SHA1 = "5834fb3a2d751c48501d47d6a56898d7af6ccf9e"
 CAMERA = {"distanceFx32": 0x29AEC1, "pitchIdx": 0xDD62, "yawIdx": 0, "perspectiveIdx": 0x05C1}
 
 
-def read_tree_parts(rom: NintendoDSRom):
-    land = bytes(NARC(rom.getFileByName("a/0/6/5")).files[447])
+def read_model_parts(rom: NintendoDSRom, member: int, texture_prefix: str):
+    # Only the checked static, single-node field models are supported.
+    land = bytes(NARC(rom.getFileByName("a/0/6/5")).files[member])
     bmd_offset = land.index(b"BMD0")
     bmd = land[bmd_offset:]
-    assert bmd_offset == 2164 and bmd[20:24] == b"MDL0"
+    assert bmd[20:24] == b"MDL0"
     mdl0 = bmd[20:]
     name, _, _, offset = _common.loadInfoBlock(mdl0, 8, 4)[0]
     data = mdl0[struct.unpack("<I", offset)[0]:]
     _, sbc, materials, shapes, _ = struct.unpack_from("<5I", data)
     position_scale = struct.unpack_from("<i", data, 28)[0] / 4096
-    assert name == "m_dun1711_01_00c" and position_scale == 64
+    assert position_scale == 64
     node = _common.loadInfoBlock(data, 64, 4)
     assert len(node) == 1 and struct.unpack_from("<H", data, 64 + struct.unpack("<I", node[0][3])[0])[0] & 7 == 7
     mats = _common.loadInfoBlock(data, materials + 4, 4)
     # This static model's SBC pairs each material with one display list.
     pairs = re.findall(b"\x04(.)\x05(.)", data[sbc:materials], re.S)
     shape_material = {shape[0]: material[0] for material, shape in pairs}
-    assert len(shape_material) == len(mats) == 13
+    assert len(shape_material) == len(_common.loadInfoBlock(data, shapes, 4))
+    bindings = {}
+    for kind, dictionary in zip(("texture", "palette"), struct.unpack_from("<HH", data, materials)):
+        for resource, _, _, header in _common.loadInfoBlock(data, materials + dictionary, 4):
+            offset, count = struct.unpack("<HBx", header)
+            for material in data[materials + offset:materials + offset + count]:
+                bindings.setdefault(material, {})[kind] = resource
     parts = {}
     for index, (_, _, _, shape_offset) in enumerate(_common.loadInfoBlock(data, shapes, 4)):
-        material_name, _, _, material_offset = mats[shape_material[index]]
-        if not material_name.startswith("t_tree2_"):
+        material_index = shape_material[index]
+        _, _, _, material_offset = mats[material_index]
+        texture_name = bindings[material_index]["texture"]
+        if not texture_name.startswith(texture_prefix):
             continue
-        texture_name = material_name.split("_lm")[0]
         mat_offset = materials + struct.unpack("<I", material_offset)[0]
         polygon_attr = struct.unpack_from("<I", data, mat_offset + 12)[0]
         alpha = ((polygon_attr >> 16) & 31) / 31
@@ -77,16 +85,27 @@ def read_tree_parts(rom: NintendoDSRom):
                     uv = tuple(value / 16 for value in struct.unpack("<hh", params))
                 elif command == 0x23:
                     position = list(struct.unpack("<hhh", params[:6]))
+                elif command == 0x24:
+                    packed = struct.unpack("<I", params)[0]
+                    values = [(packed >> shift) & 1023 for shift in (0, 10, 20)]
+                    position = [(value - 1024 if value & 512 else value) * 64 for value in values]
                 elif command in (0x25, 0x26, 0x27):
                     axes = {0x25: (0, 1), 0x26: (0, 2), 0x27: (1, 2)}[command]
                     for axis, value in zip(axes, struct.unpack("<hh", params)):
                         position[axis] = value
                 else:
                     assert command in (0, 0x21), f"Unsupported tree geometry command: {command:#x}"
-                if command in (0x23, 0x25, 0x26, 0x27):
+                if command in (0x23, 0x24, 0x25, 0x26, 0x27):
                     vertices.append([*[value * position_scale / 4096 for value in position], *uv])
         assert offset == len(display_list)
-        parts[texture_name] = {"alpha": alpha, "cull": cull, "primitive": primitive, "quads": quads}
+        assert texture_name not in parts
+        parts[texture_name] = {"texture": texture_name, "palette": bindings[material_index]["palette"], "alpha": alpha, "cull": cull, "primitive": primitive, "quads": quads}
+    return parts, bmd_offset, name
+
+
+def read_tree_parts(rom: NintendoDSRom):
+    parts, bmd_offset, name = read_model_parts(rom, 447, "t_tree2_")
+    assert bmd_offset == 2164 and name == "m_dun1711_01_00c"
     return parts, bmd_offset
 
 

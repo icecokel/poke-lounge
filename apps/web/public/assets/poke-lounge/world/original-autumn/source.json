@@ -1,0 +1,56 @@
+{
+  "origin": "Original artwork generated with built-in image_gen, 2026-10-22",
+  "preparation": "Crop visible alpha bounds, threshold alpha at 128, nearest-neighbor resample to native map scale. Original colors retained.",
+  "assets": [
+    {
+      "file": "02-golden-maple.png",
+      "size": [40, 35],
+      "sourceSha256": "38d218d1259af8c369a216f002703dd0503ef97b743bcae1fbc5c77139560214"
+    },
+    {
+      "file": "03-red-maple.png",
+      "size": [40, 33],
+      "sourceSha256": "0fee6e00b5a18ab8e63d7f956e6c5e49bbfe74c79cad41793c604269a4fa49b1"
+    },
+    {
+      "file": "04-rust-grove.png",
+      "size": [128, 88],
+      "sourceSha256": "0cc7813a05be7516f91455f8fdc1b10f79364d44c1e4ac80f7118f1323df1458"
+    },
+    {
+      "file": "05-golden-grove.png",
+      "size": [128, 83],
+      "sourceSha256": "a275b63ccbcaf76cfc594e2ed451839adad4bb00c6cc715ff4e88a6157c09a3c"
+    },
+    {
+      "file": "06-mixed-grove.png",
+      "size": [128, 80],
+      "sourceSha256": "97dcd992015c6e38fa6315c57409b79a392fe92bdd17ddfbad1cf50b3b092314"
+    },
+    {
+      "file": "07-dense-gold-floor.png",
+      "size": [64, 64],
+      "sourceSha256": "dd00eb19165a86bd56bc713fa05c446d840cfe90f7a1b8a2dd237851e6833e74"
+    },
+    {
+      "file": "08-mixed-forest-floor.png",
+      "size": [64, 64],
+      "sourceSha256": "a850efc04b30ec4252a909b61cddc5fea5f323c769e6f23d77d33f0be4bbcb6a"
+    },
+    {
+      "file": "11-autumn-shrub.png",
+      "size": [24, 14],
+      "sourceSha256": "bbc250fa8de4850d7d21062057f289cc873764cf098d0f5e1a8c52a693d990bb"
+    },
+    {
+      "file": "12-scattered-leaves.png",
+      "size": [64, 50],
+      "sourceSha256": "81051be225a70f50e038618dda5995fa8d7d3949e861050595718e0f5eba2069"
+    }
+  ],
+  "excluded": {
+    "01-rust-maple": "Front-facing silhouette and stronger contrast differ from selected trees.",
+    "09-leaf-edge": "Generated edge is not an exact tile connection; use existing distance-based terrain blending.",
+    "10-leaf-corner": "Generated corner is not an exact tile connection; use existing distance-based terrain blending."
+  }
+}

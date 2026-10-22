@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble the autumn field atlas from the checked HeartGold ROM and existing atlas."""
+"""Assemble original yellow meadow grass and autumn ground with the checked HeartGold base atlas."""
 from __future__ import annotations
 
 import hashlib
@@ -8,6 +8,7 @@ import struct
 import subprocess
 import sys
 from pathlib import Path
+from random import Random
 from types import SimpleNamespace
 
 from ndspy import _common, color, texture
@@ -76,13 +77,13 @@ def main() -> None:
         used.append({"member": member, "texture": name, "palette": palette_name, "size": list(image.size)})
         return image
 
-    # Restore the pre-autumn terrain while retaining the ROM foliage and current map layout.
-    ground = source.crop((171, 171, 203, 203))  # Original atlas GID 126.
+    # Keep the ground palette shared with the map and the rice patch verges.
+    ground = Image.open(DEST / "original-ground/01-meadow-grass.png").convert("RGBA").crop((0, 0, 32, 32))
     ground_variant = ground.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
     grass_detail = ground.copy()
     blades = get(6, "grass01_a")
     grass_detail.alpha_composite(blades, (5, 9))
-    path = source.crop((171, 239, 203, 271))  # Original atlas Path GID 174.
+    path = Image.open(DEST / "original-ground/03-golden-earth.png").convert("RGBA").crop((0, 0, 32, 32))
     tiles = {721: ground, 722: ground_variant, 723: ground, 724: ground_variant, 725: grass_detail}
 
     for mask in range(16):
@@ -104,42 +105,65 @@ def main() -> None:
             x, y = index % 2 * 32, index // 2 * 32
             tiles[first + index] = tree.crop((x, y, x + 32, y + 32))
 
-    blades = get(6, "egrass_u").resize((32, 32), NEAREST)
-    encounter = ground.copy()
-    # Overlap full-proportion ROM leaves across tile boundaries instead of flattening each clump.
-    for row in range(-2, 2):
-        for column in range(-1, 2):
-            encounter.alpha_composite(blades, (column * 32 + (row % 2) * 16, row * 16))
-    leaf_alpha = blades.crop(blades.getbbox()).getchannel("A")
-    upper = [next(y for y in range(leaf_alpha.height) if leaf_alpha.getpixel((x, y))) for x in range(32)]
-    lower = [next(y for y in range(leaf_alpha.height) if leaf_alpha.getpixel((x, leaf_alpha.height - 1 - y))) for x in range(32)]
-    for mask in range(16):
-        tile = encounter.copy()
-        # Only exposed patch edges reveal the ground; connected tiles keep their shared pixels.
-        alpha = Image.new("L", (32, 32))
-        alpha.putdata([
-            255 if ((mask & 1 or y >= upper[x] + 2)
-                    and (mask & 2 or x < 30 - upper[y] // 2)
-                    and (mask & 4 or y < 30 - lower[(x + 16) % 32])
-                    and (mask & 8 or x >= 2 + upper[y] // 2)) else 0
-            for y in range(32) for x in range(32)
-        ])
-        tile.putalpha(alpha)
-        fringe = tile.copy()
-        fringe.paste((0, 0, 0, 0), (0, 0, 32, 22))
-        fringe.putalpha(fringe.getchannel("A").point(lambda a: round(a * .4)))
-        grass_tiles[mask] = tile
-        grass_tiles[16 + mask] = fringe
+    rice = DEST / "original-rice"
+    clump = Image.open(rice / "13-tall-golden-grass-clump.png").convert("RGBA")
+    assert clump.size == (28, 22)
+    assert set(clump.getchannel("A").getdata()) == {0, 255}
+    assert len({pixel[:3] for pixel in clump.getdata() if pixel[3]}) == 4
+    planting = Random(241023)
+    tufts = []
+    for row in range(14):
+        for column in range(9):
+            x = round(column*128/9 + (row%2)*7) + planting.randrange(-2,3)
+            y = round(row*128/14) + planting.randrange(-3,4)
+            sprite = clump.transpose(Image.Transpose.FLIP_LEFT_RIGHT) if planting.random()<.5 else clump
+            for dx in (-128,0,128):
+                for dy in (-128,0,128):
+                    tufts.append((x+dx,y+dy,sprite))
+    tufts.sort(key=lambda item:item[1])
+    for variant in range(16):
+        sx, sy = variant % 4 * 32, variant // 4 * 32
+        for mask in range(16):
+            tile = Image.new("RGBA", (32,32))
+            fringe = Image.new("RGBA", (32,32))
+            for root_x,root_y,sprite in tufts:
+                x, y = root_x-sprite.width//2-sx, root_y-sprite.height-sy
+                if x>=32 or y>=32 or x+sprite.width<=0 or y+sprite.height<=0:
+                    continue
+                # Exposed edges end in whole plants, with the meadow visible between them.
+                if (not mask&8 and root_x<sx) or (not mask&2 and root_x>=sx+32):continue
+                if (not mask&1 and root_y<sy) or (not mask&4 and root_y>=sy+32):continue
+                seed = (root_x*19 + root_y*31) & 63
+                exposed = ((not mask&8 and x<4) or (not mask&2 and x+sprite.width>28)
+                           or (not mask&1 and y<4) or (not mask&4 and y+sprite.height>28))
+                # Thin the fringe and vary whole-plant positions instead of lining up their roots.
+                if exposed and seed%8<3:continue
+                if mask&1 and mask&10 and not mask&4 and root_y-sy>30-seed//8:continue
+                if not mask&8:x=max(seed%8,x)
+                if not mask&2:x=min(32-sprite.width-(seed//8)%8,x)
+                if not mask&1:y=max((seed//8)%8,y)
+                if not mask&10:x=seed%(33-sprite.width)
+                if not mask&5:y=seed%(33-sprite.height)
+                tile.alpha_composite(sprite,(x,y))
+                if y+sprite.height>=27:fringe.alpha_composite(sprite,(x,y))
+            # Only the front eight pixels cover the actor; tall leaves must not hide the head.
+            fringe.paste((0,0,0,0),(0,0,32,24))
+            fringe.putalpha(fringe.getchannel("A").point(lambda a: round(a*.65)))
+            grass_tiles[variant*32 + mask] = tile
+            grass_tiles[variant*32 + 16 + mask] = fringe
     tiles[757] = grass_tiles[15]
     tiles[758] = grass_tiles[31]
     assert len(tiles) == 35 and all(tile.size == (32, 32) for tile in tiles.values())
 
-    assert len(grass_tiles) == 32 and all(tile.size == (32, 32) for tile in grass_tiles.values())
-    assert grass_tiles[15].getchannel("A").getextrema() == (255, 255)
+    assert len(grass_tiles) == 512 and all(tile.size == (32, 32) for tile in grass_tiles.values())
+    assert all(set(grass_tiles[v*32+15].getchannel("A").getdata()) <= {0, 255} for v in range(16))
     assert grass_tiles[0].getchannel("A").getextrema() == (0, 255)
-    assert all(grass_tiles[16 + mask].crop((0, 22, 32, 32)).convert("RGB").tobytes() == grass_tiles[mask].crop((0, 22, 32, 32)).convert("RGB").tobytes() for mask in range(16))
-    assert all(max(grass_tiles[16 + mask].getchannel("A").getdata()) <= 102 for mask in range(16))
-    grass_atlas = Image.new("RGBA", (544, 68))
+    assert all(grass_tiles[v*32+m].getbbox() for v in range(16) for m in range(16)), [
+        (v,m) for v in range(16) for m in range(16) if not grass_tiles[v*32+m].getbbox()
+    ]
+    assert all(grass_tiles[v*32+16+m].getchannel("A").getextrema()[1] <= 166 for v in range(16) for m in range(16))
+    assert all(not grass_tiles[v*32+16+m].crop((0,0,32,24)).getbbox() for v in range(16) for m in range(16))
+    grass_atlas = Image.new("RGBA", (544, 1088))
     for index, tile in grass_tiles.items():
         paste_extruded_tile(grass_atlas, tile, index, 16)
 
@@ -151,22 +175,23 @@ def main() -> None:
     assert atlas.getbbox() and atlas.size == (816, 1088)
     DEST.mkdir(parents=True, exist_ok=True)
     atlas.save(DEST / "autumn-forest-32px-extruded.png", optimize=True)
-    # Older open clients still preload the previously published autumn-forest-motion.png.
     grass_atlas.save(DEST / "autumn-forest-grass.png", optimize=True)
     manifest = {
         "rom": "포켓몬스터 하트골드(K).nds", "romSha1": ROM_SHA1, "archive": "a/0/4/4",
         "baseAtlas": str(SOURCE.relative_to(ROOT)), "baseAtlasSha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
-        "processing": "Preserve base 720 tiles, ground/path colors and connected-grass behavior. Original projected autumn trees retain their geometry and colors. generate-autumn-map.py bakes overlapping native tree_en2..5 single and _re canopies across the map boundary into additional atlas tiles. No synthetic canopy clusters or decorative leaf piles.",
+        "processing": "Preserve base 720 tiles and connected encounter behavior. Use original yellow meadow grass, introduction-matched ground and earth; generate-autumn-map.py then bakes autumn trees and continuous rounded paths into the final atlas.",
         "tileSize": 32, "margin": 1, "spacing": 2, "columns": 24, "tileCount": 768,
-        "gids": {"721-725": "green ground and grass detail", "729-744": "pale dirt path masks N=1 E=2 S=4 W=8", "745-748": "red projected tree", "749-752": "orange projected tree", "753-756": "gold projected tree", "757": "encounter grass", "758": "encounter grass foreground"},
+        "gids": {"721-725": "original olive ground and grass detail", "729-744": "original golden earth path masks N=1 E=2 S=4 W=8", "745-748": "red projected tree", "749-752": "orange projected tree", "753-756": "gold projected tree", "757": "yellow meadow encounter field", "758": "yellow meadow foreground"},
         "textures": used,
         "trees": {"sourceManifest": "field-trees.json", "quadrantOrder": "top-left, top-right, bottom-left, bottom-right"},
-        "grassStep": {"sourceManifest": "field-grass-effect.json", "lifecycle": "Initially settled; entries play to tick 12 at 30Hz; tick 13 begins exit checks; final pose remains while the actor occupies the tile."},
+        "grassStep": {"sourceManifest": "original-rice/step.json", "lifecycle": "Initially settled; each grass tile entry plays four bending poses over 400ms. Foreground follows the feet and is clipped below the waist and inside exposed grass edges; final pose remains inside grass and hides immediately on exit."},
         "grassAtlas": {
             "path": "apps/web/public/assets/poke-lounge/world/autumn-forest-grass.png",
-            "size": [544, 68], "tileSize": 32, "margin": 1, "spacing": 2, "columns": 16, "rows": 2,
-            "staticBaseTileIndices": [0, 15], "staticForegroundTileIndices": [16, 31],
-            "connectivityMask": "N=1 E=2 S=4 W=8; connected sides stay seamless",
+            "sourceManifest": "original-rice/source.json",
+            "size": [544, 1088], "tileSize": 32, "margin": 1, "spacing": 2, "columns": 16, "rows": 32,
+            "variantPattern": "4x4 world-coordinate cells; variant=(y%4)*4+x%4, base=variant*32+mask, foreground=base+16",
+            "connectivityMask": "N=1 E=2 S=4 W=8; exposed edges end in whole clumps",
+            "planting": "Four flat colors, native 28x22px tall golden grass inspired by ROM encounter grass; 126 overlapping clumps per 128x128 interior, with thinned, uneven whole-clump fringes and up to seven pixels of exposed-edge variation.",
         },
     }
     (DEST / "autumn-forest-source.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
@@ -177,10 +202,10 @@ def main() -> None:
         preview.alpha_composite(tiles[gid], (index * 48 + 8, 104))
     for index, gid in enumerate((729, 730, 732, 734, 736, 739, 744)):
         preview.alpha_composite(tiles[gid], (index * 48 + 8, 152))
-    evidence = ROOT / "output/environment-sprite-refine"
+    evidence = ROOT / "output/natural-grass-edge"
     evidence.mkdir(parents=True, exist_ok=True)
     preview.resize((1152, 576), NEAREST).save(evidence / "asset-preview.png")
-    print(f"Wrote 35 field tiles and 32 connected-grass tiles; preserved 720 original tiles: {DEST}")
+    print(f"Wrote 35 field tiles and 512 connected rice tiles; preserved 720 original tiles: {DEST}")
 
 
 if __name__ == "__main__":
