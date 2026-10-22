@@ -83,6 +83,25 @@ export interface TournamentStanding {
   eliminatedRoundNumber: number | null;
 }
 
+/**
+ * Random seeding, matching the Rust server (apps/api-rust/src/domain.rs): the caller
+ * shuffles entrants before `createTournamentBracketState` assigns seeds by input order.
+ */
+export function shuffleTournamentParticipants<T>(
+  items: ReadonlyArray<T>,
+  random: () => number = Math.random,
+): T[] {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.min(
+      index,
+      Math.floor(Math.max(0, Math.min(0.999999, random())) * (index + 1)),
+    );
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex]!, shuffled[index]!];
+  }
+  return shuffled;
+}
+
 export function createTournamentBracketState(
   participantInputs: ReadonlyArray<TournamentParticipantInput>,
   gameRoundIndex = 1,

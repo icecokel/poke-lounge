@@ -4,7 +4,10 @@ import {
   getMatchParticipantIds,
 } from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
 import { findBattleReadyPartySlot } from "@poke-lounge/battle/adventure/player/battle-ready-party";
-import { type TournamentMatch } from "@poke-lounge/battle/tournament-bracket";
+import {
+  shuffleTournamentParticipants,
+  type TournamentMatch,
+} from "@poke-lounge/battle/tournament-bracket";
 import { TOURNAMENT_PROGRESSION_DEADLINE_MS } from "@poke-lounge/battle/timing";
 import type { BattleResultReason } from "../battle/battle-types";
 import type { PlayerSnapshot } from "../network/local-preview-room";
@@ -295,7 +298,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       }
 
       const started = gameStateStore.startTournamentSession(
-        tournamentPlayers.map(function mapItem(player) {
+        shuffleTournamentParticipants(tournamentPlayers).map(function mapItem(player) {
           return {
             playerId: player.playerId,
             displayName: player.displayName,

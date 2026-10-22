@@ -5,6 +5,13 @@ export type AiDifficulty = (typeof AI_DIFFICULTIES)[number];
 export const DEFAULT_AI_DIFFICULTY: AiDifficulty = "normal";
 
 export interface AiDifficultyProfile {
+  /**
+   * Extra wait before each AI wild-battle action (and once at battle start), on top of
+   * message auto-advance. The worker resolves battles instantly, so without it an AI
+   * fights a wild battle in a few seconds and outlevels every human by round end.
+   * Tuned so AI ends a round a few levels above the top human: normal ≈ 1.3-1.6×,
+   * hard ≈ 2× the human battle count.
+   */
   wildActionDelayMs: number;
   wildMoveSelection: "random" | "optimal";
   pvpMoveSelection: "random" | "optimal";
@@ -13,13 +20,13 @@ export interface AiDifficultyProfile {
 
 export const AI_DIFFICULTY_PROFILES: Record<AiDifficulty, AiDifficultyProfile> = {
   normal: {
-    wildActionDelayMs: 0,
+    wildActionDelayMs: 4_500,
     wildMoveSelection: "random",
     pvpMoveSelection: "optimal",
     captureRateMultiplier: 1.25,
   },
   hard: {
-    wildActionDelayMs: 0,
+    wildActionDelayMs: 3_000,
     wildMoveSelection: "optimal",
     pvpMoveSelection: "optimal",
     captureRateMultiplier: 1.5,
