@@ -1,10 +1,10 @@
 import { parseGen4ActionRequest } from "@poke-lounge/battle/gen4/request";
-import { LEGACY_COMPETITIVE_RULESET_HASH } from "@poke-lounge/battle/competitive-ruleset-config";
-import { parseResolvedTurnPresentation } from "@poke-lounge/battle/battle-presentation";
 import {
+  LEGACY_COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_VERSION,
 } from "@poke-lounge/battle/competitive-ruleset-config";
+import { parseResolvedTurnPresentation } from "@poke-lounge/battle/battle-presentation";
 import type {
   CompetitiveProjection,
   CompetitiveProjectionParseResult,

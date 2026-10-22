@@ -15,21 +15,12 @@ export const TOURNAMENT_BRIEFING_DURATION_MS = 5_000;
 export const TOURNAMENT_RESULT_DURATION_MS = 5_000;
 export const TOURNAMENT_PROGRESSION_DEADLINE_MS = 25_000;
 
-// 라운드 시간 입력 범위 (비표준 시간은 기존 NODE_ENV=test에서만 허용)
-export const MIN_ROUND_DURATION_MS = 1;
-export const MAX_ROUND_DURATION_MS = 3_600_000;
-
 // 방 수명 · 접속 유지
 // 전체 챔피언십 수명은 탐험 시간과 분리한다. 활동으로 무한 연장하지 않는다.
 export const POKE_LOUNGE_SESSION_MAX_LIFETIME_MS = 2 * 60 * 60 * 1_000;
 export const POKE_LOUNGE_FINISHED_ROOM_RETENTION_MS = 60_000;
 export const POKE_LOUNGE_PENDING_PRESENCE_LEASE_MS = 15_000;
 export const PARTICIPANT_DISCONNECT_GRACE_MS = 60_000;
-export const WORLD_CURSOR_INTERVAL_MS = 1_000;
-
-// 서버 워커 재시도 · 점검 주기
-export const TURN_RECONCILIATION_INTERVAL_MS = 10_000;
-export const COMPETITIVE_TURN_RETRY_DELAY_MS = 5_000;
 
 // 통신 · 재접속 (게임 제한시간과 별도로 관리)
 export const RECOVERY_INITIAL_DELAY_MS = 250;

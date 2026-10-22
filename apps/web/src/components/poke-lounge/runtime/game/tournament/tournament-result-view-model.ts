@@ -6,14 +6,13 @@ export type TournamentResultScoreLookup =
   | ReadonlyMap<string, number | null | undefined>
   | ReadonlyArray<{ playerId: string; score: number | null | undefined }>;
 
+/** One table row. Labels are rendered by the panel per locale; this carries only data. */
 export interface TournamentResultRow {
   displayName: string;
-  rankLabel: string;
-  rankTieLabel: string | null;
+  rank: number;
+  tied: boolean;
   roundScore: number;
-  roundScoreLabel: string;
   cumulativeScore: number;
-  cumulativeScoreLabel: string;
   champion: boolean;
   final: boolean;
 }
@@ -34,6 +33,10 @@ export interface CreateTournamentResultTitleInput {
 export type CreateTournamentResultPanelViewModelInput = CreateTournamentResultRowsInput &
   CreateTournamentResultTitleInput;
 
+/**
+ * Text fields are Korean source strings that the panel localizes with
+ * localizeRuntimeText; rows are structured so nothing is parsed back out of text.
+ */
 export interface TournamentResultPanelViewModel {
   title: string;
   final: boolean;
@@ -55,17 +58,12 @@ export function createTournamentResultRows({
   const tiedRanks = createTiedRankSet(sortedStandings);
 
   return sortedStandings.map(function mapItem(standing) {
-    const roundScore = readScore(roundScores, standing.playerId);
-    const cumulativeScore = readScore(cumulativeScores, standing.playerId);
-
     return {
       displayName: standing.displayName,
-      rankLabel: `${standing.rank}위`,
-      rankTieLabel: tiedRanks.has(standing.rank) ? "공동" : null,
-      roundScore,
-      roundScoreLabel: `이번 +${formatTournamentScore(roundScore)}`,
-      cumulativeScore,
-      cumulativeScoreLabel: `방 점수 ${formatTournamentScore(cumulativeScore)}`,
+      rank: standing.rank,
+      tied: tiedRanks.has(standing.rank),
+      roundScore: readScore(roundScores, standing.playerId),
+      cumulativeScore: readScore(cumulativeScores, standing.playerId),
       champion: final && standing.champion,
       final,
     };
@@ -104,11 +102,10 @@ export function createTournamentResultTitle({
   return `라운드 ${visibleRound}/${totalRounds} 결과`;
 }
 
-export function formatTournamentResultRow(row: TournamentResultRow): string {
-  const championLabel = row.champion ? "최종 우승 · " : row.final ? "" : "누적 ";
-  const tieLabel = row.rankTieLabel ? `${row.rankTieLabel} ` : "";
+export function formatTournamentScore(score: number): string {
+  const rounded = Math.round(score * 100) / 100;
 
-  return `${championLabel}${tieLabel}${row.rankLabel} ${truncateDisplayName(row.displayName)} · ${row.roundScoreLabel} · ${row.cumulativeScoreLabel}`;
+  return String(rounded);
 }
 
 function createRoundWinnerLabel(
@@ -168,10 +165,4 @@ function readScore(scores: TournamentResultScoreLookup | undefined, playerId: st
   }
 
   return Math.max(0, score);
-}
-
-function formatTournamentScore(score: number): string {
-  const rounded = Math.round(score * 100) / 100;
-
-  return String(rounded);
 }

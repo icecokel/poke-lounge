@@ -1,55 +1,50 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { MobileTaskScreen } from "../../../mobile/mobile-task-screen";
-import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
-import type { PokeLoungeLocale } from "../../../poke-lounge-copy";
+import type { PokeLoungeCopy, PokeLoungeLocale } from "../../../poke-lounge-copy";
 import { localizeRuntimeText } from "../i18n/runtime-game-localization";
-
-interface TournamentResultTableRow {
-  champion: boolean;
-  cumulativeScore: string;
-  displayName: string;
-  rank: string;
-  roundScore: string;
-  tied: boolean;
-}
-
-interface TournamentResultTableView {
-  labels: {
-    champion: string;
-    cumulativeScore: string;
-    rank: string;
-    roundScore: string;
-    score: string;
-    trainer: string;
-  };
-  rankingLabel: string | null;
-  roundWinnerLabel: string | null;
-  rows: TournamentResultTableRow[];
-  statusLabel: string | null;
-  title: string;
-}
+import {
+  formatTournamentScore,
+  type TournamentResultPanelViewModel,
+  type TournamentResultRow,
+} from "../tournament/tournament-result-view-model";
 
 export function TournamentResultPanel({
   copy,
-  final,
   locale,
-  localizedText,
+  onClose,
   onLobby,
   onNewGame,
-  rawText,
+  panel,
 }: {
   copy: PokeLoungeCopy;
-  final: boolean;
   locale: PokeLoungeLocale;
-  localizedText: string;
+  /** Present only for the "previous round" replay, which also gets its own title. */
+  onClose?(): void;
   onLobby(): void;
   onNewGame(): void;
-  rawText: string | null;
+  panel: TournamentResultPanelViewModel;
 }) {
-  const table = createTournamentResultTable(rawText, locale);
-  const title = table?.title ?? localizedText.split("\n")[0];
+  const final = panel.final;
+  // The field viewport is short on every layout (the game is a narrow column even on desktop),
+  // so non-final panels render over the whole game root rather than inside the field.
+  const [rootTarget, setRootTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (final) return;
+    setRootTarget(document.querySelector<HTMLElement>("[data-testid='poke-lounge-page']"));
+  }, [final]);
+  const labels = getTournamentResultTableLabels(locale);
+  const title = onClose
+    ? localizeRuntimeText("지난 라운드 결과", locale)
+    : localizeRuntimeText(panel.title, locale);
+  const roundWinnerLabel = panel.roundWinnerLabel
+    ? localizeRuntimeText(panel.roundWinnerLabel, locale)
+    : null;
+  const rankingLabel = localizeRuntimeText(panel.rankingLabel, locale);
+  const statusLabel = localizeRuntimeText(panel.nextActionLabel, locale);
   const actions = (
     <div className="grid grid-cols-2 gap-2 [&_button]:min-h-12 [&_button]:rounded-[7px] [&_button]:border-2 [&_button]:border-[#577781] [&_button]:bg-[linear-gradient(#fffdf0_50%,#dce7e2_50%)] [&_button]:font-bold [&_button]:text-[#304550] [&_button]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#304550]">
       <Button type="button" variant="outline" onClick={onLobby}>
@@ -61,7 +56,7 @@ export function TournamentResultPanel({
     </div>
   );
 
-  const panel = (
+  const section = (
     <section
       className={
         final
@@ -76,97 +71,98 @@ export function TournamentResultPanel({
       onKeyDown={event => event.stopPropagation()}
     >
       {!final ? (
-        <header className="flex items-center gap-2.5 rounded-md border-2 border-[#78909b] border-b-[3px] border-b-[#b89a4b] bg-[linear-gradient(#dcebf0_50%,#edf3ed_50%)] px-3 py-2.5 text-base leading-[1.45] whitespace-normal text-[#304550] [&>span]:grid [&>span]:size-[30px] [&>span]:shrink-0 [&>span]:place-items-center [&>span]:rounded-full [&>span]:border-2 [&>span]:border-[#a3893e] [&>span]:bg-[#f8dc7d] [&>span]:text-[#775b22] [&>span]:before:content-['★']">
+        <header className="flex items-center gap-2.5 rounded-md border-2 border-[#78909b] border-b-[3px] border-b-[#b89a4b] bg-[linear-gradient(#dcebf0_50%,#edf3ed_50%)] px-3 py-1.5 text-base sm:py-2.5 leading-[1.45] whitespace-normal text-[#304550] [&>span]:grid [&>span]:size-[30px] [&>span]:shrink-0 [&>span]:place-items-center [&>span]:rounded-full [&>span]:border-2 [&>span]:border-[#a3893e] [&>span]:bg-[#f8dc7d] [&>span]:text-[#775b22] [&>span]:before:content-['★']">
           <span aria-hidden="true" />
           <strong>{title}</strong>
+          {onClose ? (
+            <Button type="button" variant="outline" onClick={onClose} className="ml-auto">
+              {copy.settingsClose}
+            </Button>
+          ) : null}
         </header>
       ) : null}
-      {table ? (
-        <div className="mt-2 grid gap-2">
-          {table.roundWinnerLabel ? (
-            <p className="m-0 rounded-md border-2 border-[#ae9454] bg-[#fff3c5] px-3 py-2 text-sm font-black text-[#6a5126]">
-              {table.roundWinnerLabel}
-            </p>
-          ) : null}
-          <div className="rounded-[5px] border border-[#b0bdab]">
-            <table
-              className="w-full table-fixed border-collapse text-sm"
-              data-poke-lounge-tournament-result-table="true"
-            >
-              {table.rankingLabel ? (
-                <caption className="border-b border-[#b0bdab] bg-[#eef2e5] px-3 py-2 text-left text-xs font-black text-[#52614c]">
-                  {table.rankingLabel}
-                </caption>
-              ) : null}
-              <thead className="bg-[#dcebf0] text-xs text-[#405761]">
-                <tr>
-                  <th className="w-[18%] border-r border-[#b0bdab] px-1 py-2 text-center sm:px-2">
-                    {table.labels.rank}
-                  </th>
-                  <th className="w-[42%] border-r border-[#b0bdab] px-1 py-2 text-left sm:w-[40%] sm:px-2">
-                    {table.labels.trainer}
-                  </th>
-                  <th className="hidden w-[20%] border-r border-[#b0bdab] px-2 py-2 text-right sm:table-cell">
-                    {table.labels.roundScore}
-                  </th>
-                  <th className="hidden w-[22%] px-2 py-2 text-right sm:table-cell">
-                    {table.labels.cumulativeScore}
-                  </th>
-                  <th className="w-[40%] px-1 py-2 text-right sm:hidden">{table.labels.score}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {table.rows.map(function mapResultRow(row, index) {
-                  return (
-                    <tr
-                      key={`${row.rank}-${row.displayName}-${index}`}
-                      className="border-t border-[#c6d0c1] odd:bg-[#fffdf0] even:bg-[#eef2e5] data-[champion=true]:bg-[#fff3c5]"
-                      data-champion={row.champion}
-                    >
-                      <td className="border-r border-[#c6d0c1] px-1 py-2 text-center font-black sm:px-2">
-                        {formatTournamentResultRank(row, locale)}
-                      </td>
-                      <td className="border-r border-[#c6d0c1] px-1 py-2 font-bold sm:px-2">
-                        <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-                          {row.champion ? (
-                            <span className="shrink-0 rounded border border-[#ae9454] bg-[#f8dc7d] px-1.5 py-0.5 text-[0.64rem] font-black text-[#6a5126]">
-                              {table.labels.champion}
-                            </span>
-                          ) : null}
-                          <span className="min-w-0 truncate">{row.displayName}</span>
+      <div className="mt-2 grid gap-2">
+        {roundWinnerLabel ? (
+          <p className="m-0 rounded-md border-2 border-[#ae9454] bg-[#fff3c5] px-3 py-1 text-sm font-black sm:py-2 text-[#6a5126]">
+            {roundWinnerLabel}
+          </p>
+        ) : null}
+        <div className="rounded-[5px] border border-[#b0bdab]">
+          <table
+            className="w-full table-fixed border-collapse text-sm"
+            data-poke-lounge-tournament-result-table="true"
+          >
+            <caption className="border-b border-[#b0bdab] bg-[#eef2e5] px-3 py-1 text-left text-xs sm:py-2 font-black text-[#52614c]">
+              {rankingLabel}
+            </caption>
+            <thead className="bg-[#dcebf0] text-xs text-[#405761]">
+              <tr>
+                <th className="w-[18%] border-r border-[#b0bdab] px-1 py-1 text-center sm:py-2 sm:px-2">
+                  {labels.rank}
+                </th>
+                <th className="w-[42%] border-r border-[#b0bdab] px-1 py-1 text-left sm:py-2 sm:w-[40%] sm:px-2">
+                  {labels.trainer}
+                </th>
+                <th className="hidden w-[20%] border-r border-[#b0bdab] px-2 py-1 text-right sm:py-2 sm:table-cell">
+                  {labels.roundScore}
+                </th>
+                <th className="hidden w-[22%] px-2 py-1 text-right sm:py-2 sm:table-cell">
+                  {labels.cumulativeScore}
+                </th>
+                <th className="w-[40%] px-1 py-1 text-right sm:py-2 sm:hidden">{labels.score}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {panel.rows.map(function mapResultRow(row, index) {
+                const roundScore = formatTournamentScore(row.roundScore);
+                const cumulativeScore = formatTournamentScore(row.cumulativeScore);
+                return (
+                  <tr
+                    key={`${row.rank}-${row.displayName}-${index}`}
+                    className="border-t border-[#c6d0c1] odd:bg-[#fffdf0] even:bg-[#eef2e5] data-[champion=true]:bg-[#fff3c5]"
+                    data-champion={row.champion}
+                  >
+                    <td className="border-r border-[#c6d0c1] px-1 py-1 text-center sm:py-2 font-black sm:px-2">
+                      {formatTournamentResultRank(row, locale)}
+                    </td>
+                    <td className="border-r border-[#c6d0c1] px-1 py-1 font-bold sm:px-2 sm:py-2">
+                      <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        {row.champion ? (
+                          <span className="shrink-0 rounded border border-[#ae9454] bg-[#f8dc7d] px-1.5 py-0.5 text-[0.64rem] font-black text-[#6a5126]">
+                            {labels.champion}
+                          </span>
+                        ) : null}
+                        <span className="min-w-0 truncate">
+                          {localizeRuntimeText(row.displayName, locale)}
                         </span>
-                      </td>
-                      <td className="hidden border-r border-[#c6d0c1] px-2 py-2 text-right font-bold tabular-nums sm:table-cell">
-                        +{row.roundScore}
-                      </td>
-                      <td className="hidden px-2 py-2 text-right font-black tabular-nums sm:table-cell">
-                        {row.cumulativeScore}
-                      </td>
-                      <td className="px-1 py-2 text-right tabular-nums sm:hidden">
-                        <span className="block text-xs font-bold">
-                          {table.labels.roundScore} +{row.roundScore}
-                        </span>
-                        <strong className="block">
-                          {table.labels.cumulativeScore} {row.cumulativeScore}
-                        </strong>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {table.statusLabel ? (
-            <p className="m-0 rounded-md border border-[#b0bdab] bg-[#f3f6ec] px-3 py-2 text-center text-xs font-black text-[#52614c]">
-              {table.statusLabel}
-            </p>
-          ) : null}
+                      </span>
+                    </td>
+                    <td className="hidden border-r border-[#c6d0c1] px-2 py-1 text-right sm:py-2 font-bold tabular-nums sm:table-cell">
+                      +{roundScore}
+                    </td>
+                    <td className="hidden px-2 py-1 text-right sm:py-2 font-black tabular-nums sm:table-cell">
+                      {cumulativeScore}
+                    </td>
+                    <td className="px-1 py-1 text-right sm:py-2 tabular-nums sm:hidden">
+                      <span className="block text-xs font-bold">
+                        {labels.roundScore} +{roundScore}
+                      </span>
+                      <strong className="block text-xs">
+                        {labels.cumulativeScore} {cumulativeScore}
+                      </strong>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      ) : (
-        <div className="mt-2 rounded-[5px] border border-[#b0bdab] bg-[repeating-linear-gradient(0deg,#fffdf0_0_25px,#eef2e5_25px_50px)] px-3 py-2.5 text-sm leading-[1.7] whitespace-pre-line text-[#304550] [overflow-wrap:anywhere]">
-          {localizedText.split("\n").slice(1).join("\n")}
-        </div>
-      )}
+        {!onClose ? (
+          <p className="m-0 rounded-md border border-[#b0bdab] bg-[#f3f6ec] px-3 py-1 text-center sm:py-2 text-xs font-black text-[#52614c]">
+            {statusLabel}
+          </p>
+        ) : null}
+      </div>
     </section>
   );
 
@@ -177,89 +173,19 @@ export function TournamentResultPanel({
       backLabel={copy.resultLobby}
       footer={actions}
     >
-      {panel}
+      {section}
     </MobileTaskScreen>
+  ) : rootTarget ? (
+    createPortal(section, rootTarget)
   ) : (
-    panel
+    section
   );
 }
 
-function createTournamentResultTable(
-  text: string | null,
-  locale: PokeLoungeLocale,
-): TournamentResultTableView | null {
-  if (!text) return null;
-
-  const lines = text
-    .split("\n")
-    .map(line => line.trim())
-    .filter(Boolean);
-  const title = lines[0];
-
-  if (!title) return null;
-
-  const rows: TournamentResultTableRow[] = [];
-  let roundWinnerLabel: string | null = null;
-  let rankingLabel: string | null = null;
-  let statusLabel: string | null = null;
-
-  for (const line of lines.slice(1)) {
-    const row = parseTournamentResultTableRow(line);
-
-    if (row) {
-      rows.push(row);
-      continue;
-    }
-
-    if (line.startsWith("이번 라운드 우승 · ")) {
-      roundWinnerLabel = localizeRuntimeText(line, locale);
-      continue;
-    }
-
-    if (line === "현재 게임 누적 점수") {
-      rankingLabel = localizeRuntimeText(line, locale);
-      continue;
-    }
-
-    statusLabel = localizeTournamentResultStatus(line, locale);
-  }
-
-  if (rows.length === 0) return null;
-
-  return {
-    labels: getTournamentResultTableLabels(locale),
-    rankingLabel,
-    roundWinnerLabel,
-    rows,
-    statusLabel,
-    title: localizeRuntimeText(title, locale),
-  };
-}
-
-function parseTournamentResultTableRow(line: string): TournamentResultTableRow | null {
-  const champion = line.startsWith("최종 우승 · ") || line.startsWith("우승 · ");
-  const normalized = line
-    .replace(/^누적 /, "")
-    .replace(/^최종 우승 · /, "")
-    .replace(/^우승 · /, "");
-  const match = normalized.match(/^(공동 )?(\d+)위 (.+) · 이번 \+(.+) · 방 점수 (.+)$/);
-
-  if (!match) return null;
-
-  const [, tied, rank, displayName, roundScore, cumulativeScore] = match;
-
-  if (!rank || !displayName || roundScore === undefined || cumulativeScore === undefined) {
-    return null;
-  }
-
-  return {
-    champion,
-    cumulativeScore,
-    displayName,
-    rank,
-    roundScore,
-    tied: Boolean(tied),
-  };
+function formatTournamentResultRank(row: TournamentResultRow, locale: PokeLoungeLocale): string {
+  if (locale === "en-US") return `${row.tied ? "Tied " : ""}#${row.rank}`;
+  if (locale === "ja-JP") return `${row.tied ? "同率 " : ""}${row.rank}位`;
+  return `${row.tied ? "공동 " : ""}${row.rank}위`;
 }
 
 function getTournamentResultTableLabels(locale: PokeLoungeLocale) {
@@ -293,25 +219,4 @@ function getTournamentResultTableLabels(locale: PokeLoungeLocale) {
     score: "점수",
     trainer: "트레이너",
   };
-}
-
-function formatTournamentResultRank(
-  row: TournamentResultTableRow,
-  locale: PokeLoungeLocale,
-): string {
-  if (locale === "en-US") return `${row.tied ? "Tied " : ""}#${row.rank}`;
-  if (locale === "ja-JP") return `${row.tied ? "同率 " : ""}${row.rank}位`;
-  return `${row.tied ? "공동 " : ""}${row.rank}위`;
-}
-
-function localizeTournamentResultStatus(line: string, locale: PokeLoungeLocale): string {
-  const nextRoundPreparation = line.match(/^다음 라운드 준비 중 · (.+)$/);
-
-  if (!nextRoundPreparation?.[1]) {
-    return localizeRuntimeText(line, locale);
-  }
-
-  if (locale === "en-US") return `Next round preparation · ${nextRoundPreparation[1]}`;
-  if (locale === "ja-JP") return `次のラウンド準備中 · ${nextRoundPreparation[1]}`;
-  return line;
 }

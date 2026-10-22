@@ -2,12 +2,11 @@ import { createRoomRunId, isRoomRunId } from "../room-run-id";
 import { POKE_LOUNGE_SESSION_MAX_LIFETIME_MS } from "@poke-lounge/battle/timing";
 import { normalizeRoomInstanceId, normalizeRoomRoundDurationMs } from "./room-entry";
 import { normalizeMultiplayerDisplayName, type RoomEntrySelection } from "./room-entry-screen";
-import { RUST_BACKEND_ENABLED } from "./rust-room-socket";
 import { isStarterMode } from "@poke-lounge/battle/starter-selection";
 
 export const PENDING_ROOM_ENTRY_MAX_AGE_SECONDS = 120;
 const TAB_STORAGE_KEY = "poke-lounge:room-cookie-tab";
-const COOKIE_PREFIX = RUST_BACKEND_ENABLED ? "poke_rust_entry" : "poke_server_entry";
+const COOKIE_PREFIX = "poke_rust_entry";
 const ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 
 export interface PendingRoomEntry {

@@ -334,6 +334,7 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
   "토너먼트 진행": { "en-US": "Tournament in progress", "ja-JP": "トーナメント進行中" },
   결과: { "en-US": "Result", "ja-JP": "結果" },
   "최종 결과": { "en-US": "Final results", "ja-JP": "最終結果" },
+  "지난 라운드 결과": { "en-US": "Previous round results", "ja-JP": "前のラウンドの結果" },
   "출발 준비": { "en-US": "Ready to start", "ja-JP": "出発準備" },
   "포켓몬 선택 대기": { "en-US": "Waiting for starter selections", "ja-JP": "パートナー選択待ち" },
   "포켓몬 선택 대기 · 모두 선택하면 함께 출발": {
@@ -820,27 +821,6 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     /^이번 라운드 우승 · (.+)$/,
     (_, name) => `This round's winner · ${name}`,
     (_, name) => `今回のラウンド優勝 · ${name}`,
-  ),
-  pattern(
-    /^누적 (공동 )?(\d+)위 (.+) · 이번 \+(.+) · 방 점수 (.+)$/,
-    (_, tie, rank, name, roundScore, roomScore) =>
-      `Cumulative ${tie ? "tied " : ""}#${rank} ${name} · This round +${roundScore} · Room score ${roomScore}`,
-    (_, tie, rank, name, roundScore, roomScore) =>
-      `累計 ${tie ? "同率 " : ""}${rank}位 ${name} · 今回 +${roundScore} · ルームスコア ${roomScore}`,
-  ),
-  pattern(
-    /^최종 우승 · (공동 )?(\d+)위 (.+) · 이번 \+(.+) · 방 점수 (.+)$/,
-    (_, tie, rank, name, roundScore, roomScore) =>
-      `Overall champion · ${tie ? "Tied " : ""}#${rank} ${name} · This round +${roundScore} · Room score ${roomScore}`,
-    (_, tie, rank, name, roundScore, roomScore) =>
-      `総合優勝 · ${tie ? "同率 " : ""}${rank}位 ${name} · 今回 +${roundScore} · ルームスコア ${roomScore}`,
-  ),
-  pattern(
-    /^(우승 · )?(공동 )?(\d+)위 (.+) · 이번 \+(.+) · 방 점수 (.+)$/,
-    (_, champion, tie, rank, name, roundScore, roomScore) =>
-      `${champion ? "Champion · " : ""}${tie ? "Tied " : ""}#${rank} ${name} · This round +${roundScore} · Room score ${roomScore}`,
-    (_, champion, tie, rank, name, roundScore, roomScore) =>
-      `${champion ? "優勝 · " : ""}${tie ? "同率 " : ""}${rank}位 ${name} · 今回 +${roundScore} · ルームスコア ${roomScore}`,
   ),
   pattern(
     /^(\d+)위$/,

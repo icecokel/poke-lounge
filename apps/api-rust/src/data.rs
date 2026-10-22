@@ -64,10 +64,19 @@ impl Data {
         }
         let (client, connection) = tokio::time::timeout(IO_TIMEOUT, self.config.connect(NoTls))
             .await
-            .map_err(|_| AppError::Unavailable)??;
+            .map_err(|_| {
+                tracing::error!(event = "database.connect_timeout", timeout_ms = IO_TIMEOUT.as_millis() as u64);
+                AppError::Unavailable
+            })?
+            .map_err(|error| {
+                let error = AppError::from(error);
+                tracing::error!(event = "database.connect_failed", detail = ?error.detail(), db_code = ?error.db_code());
+                error
+            })?;
         tokio::spawn(async move {
-            if connection.await.is_err() {
-                tracing::warn!(event = "database.connection_closed");
+            if let Err(error) = connection.await {
+                let error = AppError::from(error);
+                tracing::warn!(event = "database.connection_closed", detail = ?error.detail(), db_code = ?error.db_code());
             }
         });
         let client = Arc::new(client);

@@ -38,6 +38,10 @@ import {
   type RemotePlayerState,
 } from "../state/game-state-store";
 import type { TournamentSession } from "../tournament/tournament-session";
+import {
+  createTournamentResultPanelViewModel,
+  type TournamentResultPanelViewModel,
+} from "../tournament/tournament-result-view-model";
 import type { RoomLobbyRuntimeState } from "../ui/room-lobby-screen";
 import { FIELD_MAP, NURSE_HEAL_DURATION_MS } from "../world/field-map";
 import { getTournamentGatheringContext } from "../world/tournament-gathering";
@@ -140,6 +144,8 @@ export function resolveWorldSpawn(
 }
 
 export class WorldController {
+  private readonly viewedRoundResultKeys = new Set<string>();
+  private previousRoundResultTimer: number | null = null;
   private tournamentGatheringKey: string | null = null;
   private roundStartGatheringKey: string | null = null;
   private remotePlayerSnapshots = new Map<string, PlayerSnapshot>();
@@ -147,6 +153,7 @@ export class WorldController {
   private roomConnected = false;
   private pendingRoomMessages: Array<{ type: RoomMessage; payload: RoomEvent[RoomMessage] }> = [];
   private lastLocalSnapshotSyncKey = "";
+  private lastLocalSnapshotPlayer: LocalPlayerState | null = null;
   private shutdownComplete = false;
   private hud!: WorldSceneHudController;
   private tournament: WorldSceneTournamentController | null = null;
@@ -251,6 +258,10 @@ export class WorldController {
     });
     this.options.worldUiStore.setActionHandler(
       function callback(this: WorldController, action: WorldUiAction): void {
+        if (action.type === "close-previous-round-result") {
+          this.closePreviousRoundResult();
+          return;
+        }
         if (
           this.tournamentGatheringKey !== null ||
           this.roomLobbyOpen ||
@@ -286,8 +297,8 @@ export class WorldController {
       sendRoundScoreUpdates: payloads => {
         for (const payload of payloads) this.sendRoomMessage("ROUND_SCORE_UPDATED", payload);
       },
-      createAnnouncement: (text, _fontSize, result) =>
-        this.createTournamentAnnouncement(text, result),
+      createAnnouncement: text => this.createTournamentAnnouncement(text),
+      createResultPanel: panel => this.createTournamentResultPresentation(panel),
     });
     this.applyReturnedTournamentResult(data);
     if (!this.competitiveRoundsEnabled) this.gameStateStore.resetCompetitiveSession();
@@ -349,6 +360,7 @@ export class WorldController {
 
   shutdown(): void {
     if (this.shutdownComplete) return;
+    this.closePreviousRoundResult();
     const shouldDisposeRoom = shouldDisposeRoomOnWorldShutdown(
       this.encounters.isBattleIntroPlaying(),
       this.preserveRoomForBattle,
@@ -378,6 +390,7 @@ export class WorldController {
     this.options.worldFrameStore.clear();
     this.options.worldUiStore.clear();
     this.lastLocalSnapshotSyncKey = "";
+    this.lastLocalSnapshotPlayer = null;
     this.isMovementActive = false;
     if (shouldDisposeRoom) {
       this.room.dispose();
@@ -403,9 +416,51 @@ export class WorldController {
   ): void {
     this.hud.createRoundHud(nowMs, preparationDurationMs);
     this.tournament?.showResultPresentationIfNeeded();
+    this.showPreviousRoundResultIfNeeded();
+  }
+
+  private roundResultKey(roundIndex: number): string {
+    const state = this.gameStateStore.getState();
+    const roomId = state.session.roomId ?? state.tournament.serverProjection?.roomCode ?? "local";
+    return `${roomId}:${state.currentPlayerId}:${roundIndex}`;
+  }
+
+  private showPreviousRoundResultIfNeeded(): void {
+    const state = this.gameStateStore.getState();
+    const projection = state.tournament.serverProjection;
+    const result = state.tournament.lastRoundResult;
+    if (
+      !result ||
+      projection?.roomStatus !== "round-started" ||
+      projection.roundIndex !== result.roundIndex + 1 ||
+      this.viewedRoundResultKeys.has(this.roundResultKey(result.roundIndex))
+    )
+      return;
+    this.viewedRoundResultKeys.add(this.roundResultKey(result.roundIndex));
+    const panel = createTournamentResultPanelViewModel({
+      ...result,
+      totalRounds: state.round.totalRounds,
+      final: false,
+    });
+    this.options.worldUiStore.publishPresentation({ previousRoundResult: panel });
+    this.previousRoundResultTimer = window.setTimeout(
+      () => this.closePreviousRoundResult(),
+      10_000,
+    );
+  }
+
+  private closePreviousRoundResult(): void {
+    if (this.previousRoundResultTimer !== null) window.clearTimeout(this.previousRoundResultTimer);
+    this.previousRoundResultTimer = null;
+    this.options.worldUiStore.publishPresentation({ previousRoundResult: null });
   }
 
   private updateRoundClock(nowMs: number): void {
+    if (
+      this.previousRoundResultTimer !== null &&
+      this.gameStateStore.getState().tournament.serverProjection?.roomStatus !== "round-started"
+    )
+      this.closePreviousRoundResult();
     this.syncTournamentGathering(nowMs);
     this.hud.updateRound(nowMs);
 
@@ -416,21 +471,30 @@ export class WorldController {
     this.tournament?.update(nowMs);
   }
 
-  private createTournamentAnnouncement(text: string, forceResult = false): { destroy(): void } {
-    const result =
-      forceResult ||
-      this.gameStateStore.getState().round.phase === "round-result" ||
-      this.gameStateStore.getState().round.phase === "game-result";
+  private createTournamentAnnouncement(text: string): { destroy(): void } {
     this.options.worldUiStore.publishPresentation({
-      tournamentAnnouncement: result ? null : text,
-      tournamentResult: result ? text : null,
+      tournamentAnnouncement: text,
+      tournamentResult: null,
     });
     return {
       destroy: () =>
-        this.options.worldUiStore.publishPresentation({
-          tournamentAnnouncement: null,
-          tournamentResult: null,
-        }),
+        this.options.worldUiStore.publishPresentation({ tournamentAnnouncement: null }),
+    };
+  }
+
+  private createTournamentResultPresentation(panel: TournamentResultPanelViewModel): {
+    destroy(): void;
+  } {
+    // Showing the live result counts as having seen this round, so it is not replayed later.
+    this.viewedRoundResultKeys.add(
+      this.roundResultKey(this.gameStateStore.getState().round.roundIndex),
+    );
+    this.options.worldUiStore.publishPresentation({
+      tournamentAnnouncement: null,
+      tournamentResult: panel,
+    });
+    return {
+      destroy: () => this.options.worldUiStore.publishPresentation({ tournamentResult: null }),
     };
   }
 
@@ -791,12 +855,17 @@ export class WorldController {
 
   private bindLocalSnapshotSync(): void {
     this.lastLocalSnapshotSyncKey = this.createLocalSnapshotSyncKey();
+    this.lastLocalSnapshotPlayer = this.gameStateStore.getCurrentLocalPlayer();
     this.unsubscribers.push(
       this.gameStateStore.subscribe(
         function callback(this: WorldController): void {
           if (!this.roomConnected || !this.started) {
             return;
           }
+
+          const player = this.gameStateStore.getCurrentLocalPlayer();
+          if (player === this.lastLocalSnapshotPlayer) return;
+          this.lastLocalSnapshotPlayer = player;
 
           const nextSnapshotSyncKey = this.createLocalSnapshotSyncKey();
 

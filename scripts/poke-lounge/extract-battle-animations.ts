@@ -11,7 +11,6 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { fileURLToPath } from "node:url";
 import {
   AnimationRom,
   readNarc,

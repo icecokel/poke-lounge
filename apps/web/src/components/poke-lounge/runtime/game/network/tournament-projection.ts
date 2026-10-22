@@ -1,4 +1,9 @@
-import type { components } from "@/types/api";
+import type {
+  RustRoomParticipant,
+  RustRoomRound,
+  RustRoomSnapshot,
+  RustRoomTournament,
+} from "@/features/poke-lounge/contracts/rust-room";
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import type { StarterSelection } from "@poke-lounge/battle/starter-selection";
 import type {
@@ -10,11 +15,6 @@ import type {
   TournamentRoundSlot,
 } from "@poke-lounge/battle/tournament-bracket";
 import type { TournamentState } from "../tournament/tournament-state";
-
-type ApiTournamentState = components["schemas"]["PokeLoungeTournamentDto"];
-type ApiRoomStatus = components["schemas"]["PokeLoungeRoomResponseDto"]["status"];
-type ApiRoomParticipant = components["schemas"]["PokeLoungeRoomParticipantDto"];
-type ApiRoomRound = components["schemas"]["PokeLoungeRoundDto"];
 
 const MAX_PARTICIPANTS = 8;
 const MAX_BRACKET_ROUNDS = 4;
@@ -29,10 +29,10 @@ export type TournamentProjectionRound = TournamentRound;
 export type TournamentBracketProjection = TournamentState;
 
 export interface ServerTournamentState {
-  version: ApiTournamentState["version"];
+  version: RustRoomTournament["version"];
   bracket: TournamentBracketProjection | null;
   activeMatchId: string | null;
-  activeMatchAuthority: ApiTournamentState["activeMatchAuthority"];
+  activeMatchAuthority: RustRoomTournament["activeMatchAuthority"] | "casual";
   cumulativeScores: Record<string, number>;
 }
 
@@ -46,9 +46,9 @@ export interface TournamentRoomParticipant {
   startPosition?: { map: string; x: number; y: number; facing: "front" };
   playerId: string;
   displayName: string;
-  controller?: ApiRoomParticipant["controller"];
+  controller?: RustRoomParticipant["controller"];
   aiDifficulty?: AiDifficulty;
-  role: ApiRoomParticipant["role"];
+  role: RustRoomParticipant["role"] | "spectator";
   ready: boolean;
   partyReady: boolean;
   connected: boolean;
@@ -57,7 +57,7 @@ export interface TournamentRoomParticipant {
 
 export interface TournamentRoomRound {
   index: number;
-  phase: ApiRoomRound["phase"];
+  phase: RustRoomRound["phase"];
   durationMs: number;
   startedAtMs: number | null;
   endsAtMs: number | null;
@@ -69,7 +69,7 @@ export interface TournamentStateRoomPayload {
   roomCode: string;
   hostPlayerId: string | null;
   roundIndex: number;
-  roomStatus: ApiRoomStatus;
+  roomStatus: RustRoomSnapshot["status"];
   roomRound: TournamentRoomRound;
   participants: TournamentRoomParticipant[];
   tournament: ServerTournamentState;
@@ -110,6 +110,7 @@ export class TournamentProjectionSchemaError extends Error {
 export function parseServerTournamentState(
   value: unknown,
   expectedGameRoundIndex: number,
+  roomParticipantIds: ReadonlySet<string>,
 ): ServerTournamentState {
   const tournament = requireRecord(value);
 
@@ -123,7 +124,7 @@ export function parseServerTournamentState(
       : parseTournamentBracket(tournament.bracket, expectedGameRoundIndex);
   const activeMatchId = parseOptionalId(tournament.activeMatchId);
   const activeMatchAuthority = parseActiveMatchAuthority(tournament.activeMatchAuthority);
-  const cumulativeScores = parseCumulativeScores(tournament.cumulativeScores, bracket);
+  const cumulativeScores = parseCumulativeScores(tournament.cumulativeScores, roomParticipantIds);
   const activeMatch = findCurrentMatch(bracket, activeMatchId);
 
   if (activeMatchId && activeMatch?.status !== "ready") {
@@ -579,14 +580,9 @@ function parseParticipantReference(
 
 function parseCumulativeScores(
   value: unknown,
-  bracket: TournamentBracketProjection | null,
+  roomParticipantIds: ReadonlySet<string>,
 ): Record<string, number> {
   const scores = requireRecord(value);
-  const participantIds = new Set(
-    bracket?.participants.map(function mapItem(participant) {
-      return participant.playerId;
-    }),
-  );
   const entries = Object.entries(scores);
 
   if (entries.length > MAX_PARTICIPANTS) {
@@ -597,7 +593,7 @@ function parseCumulativeScores(
     entries.map(function mapItem([playerId, score]) {
       if (
         !parseId(playerId) ||
-        (bracket && !participantIds.has(playerId)) ||
+        !roomParticipantIds.has(playerId) ||
         typeof score !== "number" ||
         !Number.isFinite(score) ||
         score < 0

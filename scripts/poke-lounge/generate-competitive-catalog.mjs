@@ -8,7 +8,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const sourcePath = path.join(root, "apps/web/public/game-data/pokemon-data.json");
 const outputDirectory = path.join(root, "packages/poke-lounge-battle/src");
 const catalogPath = path.join(outputDirectory, "competitive-catalog.generated.ts");
-const metadataPath = path.join(outputDirectory, "competitive-catalog-metadata.generated.ts");
 const mode = process.argv[2];
 
 if (mode !== "--write" && mode !== "--check") {
@@ -79,17 +78,10 @@ const canonicalCatalog = JSON.stringify({ moves, species });
 const catalogHash = createHash("sha256").update(canonicalCatalog, "utf8").digest("hex");
 
 const catalogSource = `// 이 파일은 scripts/poke-lounge/generate-competitive-catalog.mjs로 생성한다.\n\nexport interface CompetitiveSpeciesDefinition {\n  speciesId: number;\n  baseStats: {\n    hp: number;\n    attack: number;\n    defense: number;\n    specialAttack: number;\n    specialDefense: number;\n    speed: number;\n  };\n  typeIds: readonly [number] | readonly [number, number];\n}\n\nexport interface CompetitiveMoveDefinition {\n  moveId: number;\n  typeId: number;\n  category: \"physical\" | \"special\" | \"status\";\n  power: number;\n  accuracy: number;\n  effectCode: number;\n  effectChance: number;\n  priority: number;\n  maxPp: number;\n}\n\nexport const COMPETITIVE_SPECIES_CATALOG: Readonly<Record<number, CompetitiveSpeciesDefinition>> = ${JSON.stringify(species, null, 2)};\n\nexport const COMPETITIVE_MOVE_CATALOG: Readonly<Record<number, CompetitiveMoveDefinition>> = ${JSON.stringify(moves, null, 2)};\n\nexport const COMPETITIVE_CATALOG_HASH = \"${catalogHash}\";\n`;
-const metadataSource = `// 이 파일은 scripts/poke-lounge/generate-competitive-catalog.mjs로 생성한다.\n\nexport const COMPETITIVE_CATALOG_HASH = \"${catalogHash}\";\nexport const COMPETITIVE_CATALOG_SPECIES_COUNT = ${Object.keys(species).length};\nexport const COMPETITIVE_CATALOG_MOVE_COUNT = ${Object.keys(moves).length};\n`;
 const prettierConfig = (await resolveConfig(catalogPath)) ?? {};
-const [catalogOutput, metadataOutput] = await Promise.all([
-  format(catalogSource, { ...prettierConfig, filepath: catalogPath }),
-  format(metadataSource, { ...prettierConfig, filepath: metadataPath }),
-]);
+const catalogOutput = await format(catalogSource, { ...prettierConfig, filepath: catalogPath });
 
-const outputs = [
-  [catalogPath, catalogOutput],
-  [metadataPath, metadataOutput],
-];
+const outputs = [[catalogPath, catalogOutput]];
 
 if (mode === "--write") {
   await Promise.all(

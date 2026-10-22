@@ -1,10 +1,12 @@
 import type { MobileWorldUiAction, MobileWorldUiState } from "../ui/mobile-world-ui";
+import type { TournamentResultPanelViewModel } from "../tournament/tournament-result-view-model";
 
 export type WorldUiAction =
   | MobileWorldUiAction
   | { type: "open-pokemon-status"; slotIndex: number }
   | { type: "set-pokemon-status-lead"; slotIndex: number }
-  | { type: "close-pokemon-status" };
+  | { type: "close-pokemon-status" }
+  | { type: "close-previous-round-result" };
 
 export interface WorldUiSnapshot {
   areaAnnouncement: string | null;
@@ -14,7 +16,8 @@ export interface WorldUiSnapshot {
   nurseMessage: string | null;
   pokemonStatusSlotIndex: number | null;
   tournamentAnnouncement: string | null;
-  tournamentResult: string | null;
+  tournamentResult: TournamentResultPanelViewModel | null;
+  previousRoundResult: TournamentResultPanelViewModel | null;
 }
 
 export interface WorldUiStore {
@@ -36,6 +39,7 @@ const emptySnapshot = (): WorldUiSnapshot => ({
   pokemonStatusSlotIndex: null,
   tournamentAnnouncement: null,
   tournamentResult: null,
+  previousRoundResult: null,
 });
 
 export function createWorldUiStore(): WorldUiStore {

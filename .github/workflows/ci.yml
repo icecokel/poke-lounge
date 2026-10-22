@@ -19,7 +19,6 @@ jobs:
       cancel-in-progress: true
     env:
       NEXT_PUBLIC_API_URL: http://127.0.0.1:3001
-      NEXT_PUBLIC_POKE_BACKEND: "rust"
       NEXT_TELEMETRY_DISABLED: "1"
       LOCAL_TEST_AUTH_TOKEN: ""
     steps:
@@ -48,7 +47,8 @@ jobs:
         run: |
           pnpm exec prettier --check ".github/workflows/**/*.{yml,yaml}"
           pnpm lint
-          pnpm check:api-contract
+          pnpm check:rust-room-contract
+          pnpm check:rust-ts-constants
           pnpm check:poke-lounge-i18n
           pnpm check:poke-lounge-competitive-catalog
           pnpm check:poke-lounge-battle-resolution

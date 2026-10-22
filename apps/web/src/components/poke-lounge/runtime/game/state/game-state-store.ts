@@ -12,6 +12,7 @@ import type {
   PlayerInventory,
 } from "@/features/poke-lounge/contracts/game-state";
 import * as playerOperations from "@/features/poke-lounge/domain/player/operations";
+import { createVisibleTournamentStandings } from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
 import type { PlayerChange } from "@/features/poke-lounge/domain/player/player-change";
 import {
   healLocalPlayer,
@@ -30,6 +31,7 @@ import {
 import { isSupportedPokemonSpeciesId } from "../battle/pokemon-species";
 import {
   findCurrentMatch,
+  type TournamentRoomParticipant,
   type TournamentStateRoomPayload,
 } from "../network/tournament-projection";
 import { type PlayerPokemonSlot } from "../player/player-types";
@@ -88,6 +90,16 @@ export type {
   PlayerPokemonMove,
   PlayerPokemonStatus,
 } from "@poke-lounge/battle/adventure/player/pokemon-types";
+
+/** True when only the remote player map changed between two store states. */
+export function isRemotePlayersOnlyChange(previous: GameState, next: GameState): boolean {
+  if (previous === next || previous.remotePlayers === next.remotePlayers) return false;
+  const keys = new Set([...Object.keys(previous), ...Object.keys(next)]) as Set<keyof GameState>;
+  for (const key of keys) {
+    if (key !== "remotePlayers" && previous[key] !== next[key]) return false;
+  }
+  return true;
+}
 
 export function createDefaultGameState(): GameState {
   const localPlayer = createDefaultLocalPlayer();
@@ -569,6 +581,7 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
         state,
         input.finalStandings,
         bracket?.participants,
+        input.participants,
       );
 
       if (input.finalStandings.length > 0 && !finalRows) {
@@ -620,6 +633,7 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
           ...state.tournament,
           session,
           serverProjection: input,
+          lastRoundResult: roomChanged ? null : state.tournament.lastRoundResult,
           scoresByPlayerId: { ...input.tournament.cumulativeScores },
           standings: rows ?? (roomChanged ? [] : state.tournament.standings),
           lastRoundScores:
@@ -636,6 +650,20 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
                   : state.tournament.lastRoundScores,
         },
       };
+      if (bracket?.status === "completed" && rows && rows.length > 0) {
+        state = {
+          ...state,
+          tournament: {
+            ...state.tournament,
+            lastRoundResult: {
+              roundIndex: input.roundIndex,
+              standings: createVisibleTournamentStandings(state),
+              roundScores: state.tournament.lastRoundScores.map(row => ({ ...row })),
+              cumulativeScores: { ...input.tournament.cumulativeScores },
+            },
+          },
+        };
+      }
       if (shouldRestoreCurrentParty) {
         persistLocalPlayers();
       }
@@ -830,6 +858,7 @@ export function createDefaultGameTournamentState(): GameTournamentState {
     serverProjection: null,
     scoresByPlayerId: {},
     lastRoundScores: [],
+    lastRoundResult: null,
     standings: [],
   };
 }
@@ -1171,6 +1200,7 @@ function normalizeRoomTournamentStandingRows(
   state: GameState,
   standings: ApplyTournamentCompletedFromRoomInput["standings"],
   canonicalParticipants?: ReadonlyArray<TournamentParticipant>,
+  roomParticipants?: ReadonlyArray<Pick<TournamentRoomParticipant, "playerId" | "displayName">>,
 ): CumulativeTournamentScoreRank[] | null {
   if (!Array.isArray(standings) || standings.length < 2 || standings.length > 8) {
     return null;
@@ -1178,6 +1208,7 @@ function normalizeRoomTournamentStandingRows(
 
   const seenPlayerIds = new Set<string>();
   const rows: CumulativeTournamentScoreRank[] = [];
+  let offStandingCount = 0;
 
   for (const [index, standing] of standings.entries()) {
     const playerId = typeof standing.playerId === "string" ? standing.playerId.trim() : "";
@@ -1190,17 +1221,30 @@ function normalizeRoomTournamentStandingRows(
     const canonicalParticipant = canonicalParticipants?.find(function findItem(participant) {
       return participant.playerId === playerId;
     });
+    const roomParticipant = roomParticipants?.find(function findItem(participant) {
+      return participant.playerId === playerId;
+    });
 
     if (canonicalParticipants && !canonicalParticipant) {
-      return null;
+      if (!roomParticipant) {
+        return null;
+      }
+
+      offStandingCount += 1;
     }
 
     seenPlayerIds.add(playerId);
     rows.push({
       playerId,
-      displayName: canonicalParticipant?.displayName ?? resolvePlayerDisplayName(state, playerId),
+      displayName:
+        canonicalParticipant?.displayName ??
+        roomParticipant?.displayName ??
+        resolvePlayerDisplayName(state, playerId),
       seed:
-        canonicalParticipant?.seed ?? (readExistingTournamentSeed(state, playerId) || index + 1),
+        canonicalParticipant?.seed ??
+        (canonicalParticipants
+          ? canonicalParticipants.length + offStandingCount
+          : readExistingTournamentSeed(state, playerId) || index + 1),
       rank,
       score: normalizeScore(standing.score),
     });
@@ -1214,10 +1258,14 @@ function normalizeRoomTournamentStandingRows(
 function createRoomCumulativeStandingRows(
   input: TournamentStateRoomPayload,
 ): CumulativeTournamentScoreRank[] | null {
+  const scores = input.tournament.cumulativeScores;
+  // A participant who left mid-game stays on the roster (connected=false) but is not in the
+  // bracket, so it never gets a score key. Rank only the scored participants instead of
+  // requiring every roster member to have a score; the server ranks final standings the same way.
   const participants = input.participants.filter(function filterItem(participant) {
-    return participant.role === "participant";
+    return participant.role === "participant" && Object.hasOwn(scores, participant.playerId);
   });
-  const scorePlayerIds = Object.keys(input.tournament.cumulativeScores);
+  const scorePlayerIds = Object.keys(scores);
   const participantPlayerIds = new Set(
     participants.map(function mapItem(participant) {
       return participant.playerId;
@@ -1225,8 +1273,7 @@ function createRoomCumulativeStandingRows(
   );
 
   if (
-    scorePlayerIds.length < 2 ||
-    scorePlayerIds.length !== participants.length ||
+    participants.length < 2 ||
     scorePlayerIds.some(function testItem(playerId) {
       return !participantPlayerIds.has(playerId);
     })

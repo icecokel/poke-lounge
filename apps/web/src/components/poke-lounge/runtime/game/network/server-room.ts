@@ -14,7 +14,11 @@ import {
 } from "@/lib/client-diagnostics";
 import { ROOM_ERROR_CODES } from "../../../poke-lounge-error-codes";
 import { getServerRoomErrorMessage } from "../server-room-error-copy";
-import type { components } from "@/types/api";
+import type {
+  RustProgressionSnapshot,
+  RustRoomParticipant,
+  RustRoomSnapshot,
+} from "@/features/poke-lounge/contracts/rust-room";
 import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import { FIELD_MAP } from "@poke-lounge/battle/adventure/world/field-map";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
@@ -32,8 +36,8 @@ import {
   TOURNAMENT_PROGRESSION_DEADLINE_MS,
 } from "@poke-lounge/battle/timing";
 import { sortTournamentParticipantsByJoinOrder } from "@poke-lounge/battle/tournament-seeding";
-import { io } from "socket.io-client";
-import { createRustRoomSocket, RUST_BACKEND_ENABLED } from "./rust-room-socket";
+import { TERMINAL_PROJECTION_PAGE_SIZE } from "@poke-lounge/battle/tournament-bracket";
+import { createRustRoomSocket } from "./rust-room-socket";
 import { createRoomRunId, isRoomRunId } from "../room-run-id";
 import {
   clearPendingRoomEntry,
@@ -86,28 +90,22 @@ type SharedWorldPlayerEvent = {
   cursor: SharedWorldCursor | null;
 };
 
-type ApiServerRoom = components["schemas"]["PokeLoungeRoomResponseDto"];
-type ServerParticipant = ApiServerRoom["participants"][number] & {
-  aiDifficulty?: AiDifficulty;
+type ServerParticipant = Omit<RustRoomParticipant, "role"> & {
+  role: RustRoomParticipant["role"] | "spectator";
 };
-type ServerPartySnapshot = components["schemas"]["PokeLoungePartySnapshotDto"];
-
-interface ServerRoomState {
-  starterMode: StarterMode;
-  progressionParty?: import("@poke-lounge/battle/competitive-party").NormalizedCompetitiveParty;
-  roomCode: string;
-  roomInstanceId?: string;
-  visibility: ApiServerRoom["visibility"];
-  hostPlayerId: string | null;
-  revision: number;
-  expiresAtMs: number;
-  serverNowMs?: number;
-  status: ApiServerRoom["status"];
+interface ServerRoomState
+  extends
+    Omit<
+      RustRoomSnapshot,
+      | "participants"
+      | "tournament"
+      | "competitiveTransitions"
+      | "competitiveAssignments"
+      | "competitive"
+    >,
+    Partial<Pick<RustProgressionSnapshot, "progressionParty">> {
   participants: ServerParticipant[];
-  partySnapshots: Record<string, ServerPartySnapshot>;
-  round: ApiServerRoom["round"];
   tournament: ServerTournamentState;
-  finalStandings: ApiServerRoom["finalStandings"];
   competitiveTransitions: CompetitiveTerminalTransition[];
   competitiveAssignments: CompetitiveProjection[];
   competitive?: CompetitiveProjection;
@@ -193,20 +191,10 @@ interface ServerRoomSocket {
 
 type ServerRoomSocketListener = (() => void) | ((event: unknown) => void);
 
-type ServerRoomSocketFactory = (
-  url: string,
-  options: {
-    path: "/socket.io";
-    transports: ["polling", "websocket"];
-    tryAllTransports: true;
-    reconnection: true;
-  },
-) => ServerRoomSocket;
+type ServerRoomSocketFactory = (url: string) => ServerRoomSocket;
 type RecoveryOrigin = "transport" | "online-probe";
 
-const SERVER_IDENTITY_STORAGE_KEY = RUST_BACKEND_ENABLED
-  ? "poke-lounge:rust-room-identity:v3"
-  : "poke-lounge:server-room-identity";
+const SERVER_IDENTITY_STORAGE_KEY = "poke-lounge:rust-room-identity:v3";
 const USAGE_VISITOR_STORAGE_KEY = "poke-lounge:usage-visitor:v1";
 let memoryUsageVisitorId: string | null = null;
 const LEGACY_RUST_IDENTITY_STORAGE_KEY = "poke-lounge:rust-room-identity:v2";
@@ -218,7 +206,7 @@ const RUST_SESSION_ID_PATTERN = new RegExp(`^server-session-${RUST_IDENTITY_UUID
 const RUST_PLAYER_ID_PATTERN = new RegExp(`^server-player-${RUST_IDENTITY_UUID_PATTERN}$`, "i");
 const SERVER_ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 
-const MAX_RECENT_TERMINAL_PROJECTIONS = 8;
+const MAX_RECENT_TERMINAL_PROJECTIONS = TERMINAL_PROJECTION_PAGE_SIZE;
 const PENDING_ROOM_ID = "server-pending";
 const REVISION_CONFLICT_CODE = "POKE_LOUNGE_REVISION_CONFLICT";
 const IDEMPOTENCY_CONFLICT_CODE = "POKE_LOUNGE_IDEMPOTENCY_CONFLICT";
@@ -305,7 +293,7 @@ class ServerRoomSchemaError extends Error {
 export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   resetClientDiagnosticContext();
   const identity = resolveServerIdentity(options);
-  const usageVisitorId = RUST_BACKEND_ENABLED ? resolveUsageVisitorId(identity.playerId) : null;
+  const usageVisitorId = resolveUsageVisitorId(identity.playerId);
   const sessionId = identity.sessionId;
   const serverPlayerId = identity.playerId;
   const roomRunId = resolveServerRoomRunId(options);
@@ -354,7 +342,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         headers.set("X-Request-Id", trace.requestId!);
         if (usageVisitorId) headers.set("X-Usage-Visitor", usageVisitorId);
         if (
-          RUST_BACKEND_ENABLED &&
           roomInstanceId &&
           new URL(url).pathname.startsWith(`/poke-lounge/rooms/${activeRoomId}`)
         )
@@ -417,6 +404,16 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       };
       if (!disposed) {
         recordClientBreadcrumb("request.failed", trace);
+        const response = error instanceof ServerRoomRequestError ? error.responseBody : null;
+        if (
+          error instanceof ServerRoomRequestError &&
+          error.status === 409 &&
+          response !== null &&
+          typeof response === "object" &&
+          "code" in response &&
+          response.code === REVISION_CONFLICT_CODE
+        )
+          throw error;
         const snapshot = captureClientDiagnosticFailure(error, trace);
         reportClientDiagnostic({
           kind: "api",
@@ -434,14 +431,27 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const handlers = new Map<RoomMessage, Set<Handler<RoomMessage>>>();
   let disposed = false;
   const reportedStateApplyFailures = new Set<string>();
-  const reportStateApplyFailure = (code: string, error: unknown) => {
+  const reportStateApplyFailure = (
+    code: string,
+    error: unknown,
+    trace: { stage: "apply" | "socket"; causeType: "client" | "schema" } = {
+      stage: "apply",
+      causeType: "client",
+    },
+  ) => {
     if (disposed || leaveSent || reportedStateApplyFailures.has(code)) return;
     // Recovery can repeat indefinitely; keep only the first exception per code in this room.
     reportedStateApplyFailures.add(code);
-    recordClientBreadcrumb("room.apply_failed", { stage: "apply", causeType: "client" });
-    const snapshot = captureClientDiagnosticFailure(error, { stage: "apply", causeType: "client" });
+    recordClientBreadcrumb(
+      trace.stage === "socket" ? "socket.event_invalid" : "room.apply_failed",
+      trace,
+    );
+    const snapshot = captureClientDiagnosticFailure(error, trace);
     reportClientDiagnostic({ kind: "room", code, error, snapshot, priority: "background" });
   };
+  // A schema drift between the Rust events and this parser would otherwise be silently ignored.
+  const reportSocketEventInvalid = (code: string, error: unknown) =>
+    reportStateApplyFailure(code, error, { stage: "socket", causeType: "schema" });
   let recoveryTimer: number | null = null;
   let roomLivenessTimer: number | null = null;
   let recoveryAttempt = 0;
@@ -511,12 +521,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let hasSynchronizedPartySnapshot = false;
   type PendingPartyPublication = {
     snapshot: PlayerSnapshot;
+    roundIndex: number | null;
     idempotencyKey: string;
     publishing: boolean;
     waitForUnlock: boolean;
     recoveryAttempts: number;
   };
   let pendingPartyPublication: PendingPartyPublication | null = null;
+  let serverPartyLockRound: number | null = null;
   let partyRetryTimer: number | null = null;
   let mutationQueue: Promise<void> = Promise.resolve();
   let announcedCompetitiveAssignmentKey: string | null = null;
@@ -529,10 +541,17 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let leavePromise: Promise<void> | null = null;
   let reconnectAttempt: Promise<boolean> | null = null;
   let finishReconnect: ((success: boolean) => void) | null = null;
+  let roomEventHandlerFailures = 0;
+  let handlerRecoveryRevision: number | null = null;
 
   const emit = <T extends RoomMessage>(type: T, payload: RoomEvent[T]) => {
-    for (const handler of handlers.get(type) ?? []) {
-      handler(payload as RoomEvent[RoomMessage]);
+    for (const handler of [...(handlers.get(type) ?? [])]) {
+      try {
+        handler(payload as RoomEvent[RoomMessage]);
+      } catch (error) {
+        roomEventHandlerFailures += 1;
+        reportStateApplyFailure(`ROOM_EVENT_HANDLER_FAILED_${type}`, error);
+      }
     }
   };
 
@@ -701,7 +720,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         headers: {
           ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}),
           ...init?.headers,
-          ...(RUST_BACKEND_ENABLED && (!init?.method || init.method === "GET")
+          ...(!init?.method || init.method === "GET"
             ? { "X-Player-Id": serverPlayerId, "X-Session-Id": sessionId }
             : {}),
         },
@@ -1099,7 +1118,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       sessionId,
       ...(usageVisitorId ? { visitorId: usageVisitorId } : {}),
       afterRevision: Math.max(0, lastAppliedTerminalRevision),
-      ...(RUST_BACKEND_ENABLED && roomInstanceId ? { roomInstanceId } : {}),
+      ...(roomInstanceId ? { roomInstanceId } : {}),
     });
   };
 
@@ -1459,7 +1478,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     let snapshot: SharedWorldSnapshot;
     try {
       snapshot = parseSharedWorldSnapshot(event);
-    } catch {
+    } catch (error) {
+      reportSocketEventInvalid("WS_WORLD_SNAPSHOT_SCHEMA_FAILED", error);
       worldResyncRequested = false;
       requestWorldResync();
       return;
@@ -1510,7 +1530,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     let cursor: SharedWorldCursor;
     try {
       cursor = parseSharedWorldCursor(event);
-    } catch {
+    } catch (error) {
+      reportSocketEventInvalid("WS_WORLD_CURSOR_SCHEMA_FAILED", error);
       return;
     }
     if (cursor.roomCode !== activeRoomId) {
@@ -1563,7 +1584,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       }
     }
 
-    if (options.sharedWorldOnly && room.roomCode === activeRoomId) {
+    if (room.roomCode === activeRoomId) {
       publishSharedWorldSnapshot("PLAYER_CHANGED_MAP");
     }
   };
@@ -1614,7 +1635,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
     try {
       room = parseSocketRoomEvent(event);
-    } catch {
+    } catch (error) {
+      reportSocketEventInvalid("WS_REVISION_CONFLICT_SCHEMA_FAILED", error);
       return;
     }
 
@@ -1657,12 +1679,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return;
     }
 
-    roomSocket = socketFactory(`${getApiBaseUrl().replace(/\/$/, "")}/poke-lounge`, {
-      path: "/socket.io",
-      transports: ["polling", "websocket"],
-      tryAllTransports: true,
-      reconnection: true,
-    });
+    roomSocket = socketFactory(`${getApiBaseUrl().replace(/\/$/, "")}/poke-lounge`);
     roomSocket.on("connect", handleSocketConnect);
     roomSocket.on("connect_error", handleSocketConnectError);
     roomSocket.on("disconnect", handleSocketDisconnect);
@@ -1681,11 +1698,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const applySnapshot = (state: ServerRoomState): boolean => {
     // Ignore in-flight responses from an expired/disposed session.
     if (disposed) return false;
-    if (RUST_BACKEND_ENABLED) {
-      if (!state.roomInstanceId || (roomInstanceId && state.roomInstanceId !== roomInstanceId))
-        return false;
-      roomInstanceId = state.roomInstanceId;
-    }
+    if (!state.roomInstanceId || (roomInstanceId && state.roomInstanceId !== roomInstanceId))
+      return false;
+    roomInstanceId = state.roomInstanceId;
     const acceptsCreatedRoom = activeRoomId === PENDING_ROOM_ID;
 
     if (!acceptsCreatedRoom && state.roomCode !== activeRoomId) {
@@ -1739,13 +1754,21 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       hydratedTournamentRewards.add(reward.terminalEventId);
       void room.completeTournamentProgression!(reward.projection.matchId)
         .then(party => {
-          if (!disposed) emit("TOURNAMENT_REWARD", { party });
+          if (!disposed) {
+            if (pendingPartyPublication && !pendingPartyPublication.publishing) {
+              pendingPartyPublication = null;
+              clearPartyRetryTimer();
+            }
+            emit("TOURNAMENT_REWARD", { party });
+          }
         })
         .catch(error => {
           hydratedTournamentRewards.delete(reward.terminalEventId);
           reportPartyPublicationFailure(error);
         });
     }
+    // Terminal transitions are not replayed; their handler failures are only isolated and reported.
+    const handlerFailuresBefore = roomEventHandlerFailures;
     lastAppliedRoomRevision = state.revision;
     activeRoomId = state.roomCode;
     updateClientDiagnosticContext({
@@ -1863,6 +1886,16 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     scheduleRoomLivenessCheck();
     if (previousState && previousState.status !== state.status && !isPartySnapshotLocked()) {
       resumePendingPartyPublication();
+    }
+
+    if (
+      roomEventHandlerFailures !== handlerFailuresBefore &&
+      handlerRecoveryRevision !== state.revision &&
+      state.status !== "completed" &&
+      state.status !== "closed"
+    ) {
+      handlerRecoveryRevision = state.revision;
+      requestTerminalRecovery();
     }
 
     return true;
@@ -2109,8 +2142,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   function isPartySnapshotLocked(): boolean {
     return (
+      serverPartyLockRound === latestState?.round.index ||
       latestState?.status === "tournament" ||
       (latestState?.status === "round-started" && latestState.tournament.bracket != null) ||
+      (latestState?.status === "round-started" &&
+        latestState.round.endsAtMs != null &&
+        getServerNowMs() >= latestState.round.endsAtMs + TOURNAMENT_PROGRESSION_DEADLINE_MS) ||
       latestState?.status === "completed" ||
       latestState?.status === "closed"
     );
@@ -2122,6 +2159,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     // Preserve the initial reconciliation probe for an incomplete server snapshot.
     // Once a party or a lock response is known, never POST while locked.
     return (
+      serverPartyLockRound !== latestState?.round.index &&
       !entry.waitForUnlock &&
       !hasSynchronizedPartySnapshot &&
       !(latestState && Object.hasOwn(latestState.partySnapshots, serverPlayerId))
@@ -2141,7 +2179,13 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   function resumePendingPartyPublication(): void {
     const entry = pendingPartyPublication;
-    if (!entry || entry.publishing || !canPublishParty(entry)) return;
+    if (!entry || entry.publishing) return;
+    if (entry.roundIndex !== null && latestState && entry.roundIndex !== latestState.round.index) {
+      pendingPartyPublication = null;
+      clearPartyRetryTimer();
+      return;
+    }
+    if (!canPublishParty(entry)) return;
     clearPartyRetryTimer();
     void publishPartyEntry(entry).catch(reportPartyPublicationFailure);
   }
@@ -2186,13 +2230,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             "code" in response &&
             response.code === "POKE_LOUNGE_PARTY_SNAPSHOT_LOCKED"
           ) {
-            // This conflict has no embedded snapshot. Refresh it, retain the
-            // latest local party, and defer instead of treating rejection as saved.
+            // Remember the server lock even if the refreshed snapshot has no bracket yet.
+            serverPartyLockRound = latestState?.round.index ?? null;
             entry.waitForUnlock = true;
             const recovered = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
             applySnapshot(recovered);
-            if (isPartySnapshotLocked() || disposed || leaveSent) return;
-            if (attempt < 2) continue;
+            return;
           }
           if (getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE) {
             // mutateRoom already applied the newer server revision. The exact
@@ -2203,6 +2246,17 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         }
       }
     } catch (error) {
+      if (
+        error instanceof ServerRoomRequestError &&
+        (error.status === 400 || error.status === 422)
+      ) {
+        if (pendingPartyPublication === entry) {
+          pendingPartyPublication = null;
+          clearPartyRetryTimer();
+        }
+        reportStateApplyFailure("PARTY_SNAPSHOT_REJECTED", error);
+        return;
+      }
       const revisionConflict = getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE;
       const retryable = error instanceof ServerRoomTransportError || revisionConflict;
       if (retryable && pendingPartyPublication !== entry) return;
@@ -2236,6 +2290,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     clearPartyRetryTimer();
     const entry: PendingPartyPublication = {
       snapshot: structuredClone(snapshot),
+      roundIndex: latestState?.round.index ?? null,
       idempotencyKey,
       publishing: false,
       waitForUnlock: false,
@@ -2513,13 +2568,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       if (!pending) scheduleRoomClockRefresh();
     },
     async synchronizePartyForTournament(snapshot) {
-      if (
-        isPartySnapshotLocked() ||
-        (latestState?.status === "round-started" &&
-          latestState.round.endsAtMs != null &&
-          getServerNowMs() >= latestState.round.endsAtMs + TOURNAMENT_PROGRESSION_DEADLINE_MS)
-      )
-        return;
+      if (isPartySnapshotLocked()) return;
       await submitPartySnapshot(snapshot);
       if (pendingPartyPublication && !isPartySnapshotLocked())
         throw new Error("Party synchronization is pending");
@@ -2551,6 +2600,10 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           applyExpectedTransitionSnapshot(next);
           const value = next.progressionParty;
           if (!value) throw new Error("Missing authoritative tournament reward party");
+          if (pendingPartyPublication && !pendingPartyPublication.publishing) {
+            pendingPartyPublication = null;
+            clearPartyRetryTimer();
+          }
           return value;
         } catch (error) {
           if (getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE && attempt < 2)
@@ -2567,10 +2620,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
       if (connectStarted) {
         if (initialSnapshot && activeRoomId !== PENDING_ROOM_ID) {
-          if (options.sharedWorldOnly) {
-            latestSharedWorldSnapshot = structuredClone(initialSnapshot);
-            publishSharedWorldSnapshot("PLAYER_CHANGED_MAP");
-          }
+          latestSharedWorldSnapshot = structuredClone(initialSnapshot);
+          publishSharedWorldSnapshot("PLAYER_CHANGED_MAP");
           if (!options.sharedWorldOnly || options.competitiveRoundsEnabled) {
             void submitPartySnapshot(initialSnapshot).catch(reportPartyPublicationFailure);
           }
@@ -2601,21 +2652,18 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       }
 
       if (
-        options.sharedWorldOnly &&
-        (type === "PLAYER_MOVED" ||
-          type === "PLAYER_MOVEMENT_ENDED" ||
-          type === "PLAYER_CHANGED_MAP")
+        type === "PLAYER_MOVED" ||
+        type === "PLAYER_MOVEMENT_ENDED" ||
+        type === "PLAYER_CHANGED_MAP"
       ) {
         latestSharedWorldSnapshot = structuredClone(payload as PlayerSnapshot);
         publishSharedWorldSnapshot(type);
-        if (type === "PLAYER_CHANGED_MAP" && options.competitiveRoundsEnabled) {
+        if (
+          type === "PLAYER_CHANGED_MAP" &&
+          (!options.sharedWorldOnly || options.competitiveRoundsEnabled)
+        ) {
           void submitPartySnapshot(payload as PlayerSnapshot).catch(reportPartyPublicationFailure);
         }
-        return;
-      }
-
-      if (type === "PLAYER_CHANGED_MAP") {
-        void submitPartySnapshot(payload as PlayerSnapshot).catch(reportPartyPublicationFailure);
         return;
       }
 
@@ -2662,6 +2710,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     finishReconnect?.(false);
     clearPartyRetryTimer();
     pendingPartyPublication = null;
+    serverPartyLockRound = null;
     emitConnectionStatus("offline");
     clearRecoveryTimer();
     clearInitialWorkflowTimer();
@@ -2699,11 +2748,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       try {
         current = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
       } catch (error) {
-        if (
-          !RUST_BACKEND_ENABLED ||
-          !(error instanceof ServerRoomRequestError) ||
-          error.status !== 403
-        ) {
+        if (!(error instanceof ServerRoomRequestError) || error.status !== 403) {
           throw error;
         }
         const rejoined = await mutateIdempotentRoom(
@@ -2765,23 +2810,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       );
     }
 
-    if (RUST_BACKEND_ENABLED) {
-      return mutateIdempotentRoom(
-        `/poke-lounge/rooms/${activeRoomId}/join`,
-        body,
-        initialOpenIdempotencyKey,
-      );
-    }
-
-    return mutateRoom(
+    return mutateIdempotentRoom(
       `/poke-lounge/rooms/${activeRoomId}/join`,
       body,
-      async function callback() {
-        const current = await requestRoom(`/poke-lounge/rooms/${activeRoomId}`);
-        applySnapshot(current);
-
-        return getLatestRevision();
-      },
       initialOpenIdempotencyKey,
     );
   }
@@ -3190,7 +3221,7 @@ export function clearStoredServerRoomSession(accountId?: string): void {
 }
 
 export function consumeLegacyServerRoomIdentity(accountId?: string): boolean {
-  if (!RUST_BACKEND_ENABLED || typeof window === "undefined") {
+  if (typeof window === "undefined") {
     return false;
   }
 
@@ -3251,10 +3282,7 @@ function parseServerRoomState(value: unknown): ServerRoomState {
   }
 
   const room = value as Record<string, unknown>;
-  if (
-    RUST_BACKEND_ENABLED &&
-    (typeof room.roomInstanceId !== "string" || !isRoomRunId(room.roomInstanceId))
-  )
+  if (typeof room.roomInstanceId !== "string" || !isRoomRunId(room.roomInstanceId))
     throw new ServerRoomSchemaError();
 
   if (
@@ -3291,7 +3319,12 @@ function parseServerRoomState(value: unknown): ServerRoomState {
     throw new ServerRoomSchemaError();
   }
   const round = parseServerRoomRound(room.round);
-  const tournament = parseServerTournamentState(room.tournament, round.index);
+  const roomParticipantIds = new Set(
+    participants.map(function mapItem(participant) {
+      return participant.playerId;
+    }),
+  );
+  const tournament = parseServerTournamentState(room.tournament, round.index, roomParticipantIds);
   const competitiveContract = parseCompetitiveRoomSnapshotContract(room);
   const parsed: ServerRoomState = {
     ...(value as ServerRoomState),
@@ -3790,10 +3823,8 @@ function hasSamePlayerIds(left: ReadonlyArray<string>, right: ReadonlyArray<stri
 }
 
 function resolveServerRoomSocketFactory(): ServerRoomSocketFactory {
-  return function callback(url, options) {
-    return RUST_BACKEND_ENABLED
-      ? createRustRoomSocket(url)
-      : (io(url, options) as unknown as ServerRoomSocket);
+  return function callback(url) {
+    return createRustRoomSocket(url);
   };
 }
 
@@ -3888,12 +3919,11 @@ function parseStoredIdentity(stored: string | null): StoredServerRoomIdentity | 
     if (typeof parsed.sessionId !== "string" || typeof parsed.playerId !== "string") {
       return null;
     }
+    // Earlier v3 builds did not write a version field, but did generate UUID v4 credentials.
     if (
-      RUST_BACKEND_ENABLED &&
-      // Earlier v3 builds did not write a version field, but did generate UUID v4 credentials.
-      ((parsed.version !== undefined && parsed.version !== RUST_IDENTITY_STORAGE_VERSION) ||
-        !RUST_SESSION_ID_PATTERN.test(parsed.sessionId) ||
-        !RUST_PLAYER_ID_PATTERN.test(parsed.playerId))
+      (parsed.version !== undefined && parsed.version !== RUST_IDENTITY_STORAGE_VERSION) ||
+      !RUST_SESSION_ID_PATTERN.test(parsed.sessionId) ||
+      !RUST_PLAYER_ID_PATTERN.test(parsed.playerId)
     ) {
       return null;
     }
@@ -3917,9 +3947,7 @@ function writeStoredIdentity(identity: StoredServerRoomIdentity, accountId?: str
   try {
     window.localStorage.setItem(
       getServerIdentityStorageKey(accountId),
-      JSON.stringify(
-        RUST_BACKEND_ENABLED ? { ...identity, version: RUST_IDENTITY_STORAGE_VERSION } : identity,
-      ),
+      JSON.stringify({ ...identity, version: RUST_IDENTITY_STORAGE_VERSION }),
     );
   } catch {
     // Ignore storage failures; generated identities still work for the current page lifetime.

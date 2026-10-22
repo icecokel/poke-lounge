@@ -191,12 +191,7 @@ export function MobileGameShell({
   );
   const worldState = rawWorldState ? localizeMobileWorldUiState(rawWorldState, copy.locale) : null;
 
-  const battleControls = useSyncExternalStore(
-    battleUiStore?.subscribe ?? subscribeToNothing,
-    () => battleUiStore?.getSnapshot().controls ?? null,
-    () => null,
-  );
-  const sceneContext = `${activeScene}:${activeScene === "battle" ? (battleControls?.selectionKey ?? battleControls?.phase) : "world"}`;
+  const sceneContext = activeScene;
   const previousContext = useRef(sceneContext);
   const { open: settingsOpen, onClose: closeSettings } = settings;
   useEffect(() => {
@@ -353,6 +348,18 @@ function MobileDirectionalJoystick({
           input.setHeld(direction, false);
         }
       };
+    },
+    [input],
+  );
+
+  useEffect(
+    function runEffect() {
+      return input.subscribeReset(function handleReset() {
+        // Battle animations reset every frame; only touch React state when something was held.
+        if (activeDirectionsRef.current.size === 0) return;
+        activeDirectionsRef.current = new Set();
+        setActiveDirections([]);
+      });
     },
     [input],
   );

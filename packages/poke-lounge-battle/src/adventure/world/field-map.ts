@@ -119,15 +119,6 @@ export const FIELD_MAP = {
   maxPlayers: 8,
 } as const;
 
-export const POKE_WORLD_MESSAGES = [
-  "CURRENT_PLAYERS",
-  "PLAYER_JOINED",
-  "PLAYER_MOVED",
-  "PLAYER_MOVEMENT_ENDED",
-  "PLAYER_CHANGED_MAP",
-  "PLAYER_LEFT",
-] as const;
-
 export function resolveFieldEncounterAreaId(
   position: { x: number; y: number },
   areas: ReadonlyArray<{

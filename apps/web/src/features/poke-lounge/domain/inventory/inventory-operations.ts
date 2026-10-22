@@ -6,9 +6,8 @@ import { applyInventoryItemEffect } from "@poke-lounge/battle/adventure/items/in
 import type {
   ConsumeInventoryItemResult,
   UseInventoryItemOnPartySlotResult,
+  LocalPlayerState,
 } from "../../contracts/game-state";
-
-import type { LocalPlayerState } from "../../contracts/game-state";
 
 import { getInventoryItemById } from "../inventory/item-catalog";
 

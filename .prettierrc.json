@@ -8,7 +8,7 @@
   "arrowParens": "avoid",
   "overrides": [
     {
-      "files": "apps/api/**/*.{js,mjs,cjs,ts}",
+      "files": "apps/db/**/*.{js,mjs,cjs,ts}",
       "options": {
         "singleQuote": true,
         "printWidth": 80,

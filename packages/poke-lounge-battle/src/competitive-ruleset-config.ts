@@ -52,8 +52,6 @@ export const COMPETITIVE_RULESET_V2 = deepFreeze({
   ],
 } as const);
 
-export const APPROVED_COMPETITIVE_RULESET_V2 = COMPETITIVE_RULESET_V2;
-
 export interface CompetitiveMoveEffectDescriptor {
   category: "physical" | "special" | "status";
   effectCode: number;
@@ -76,37 +74,6 @@ export function isLegacyCompetitiveMoveEffectSelectable(
 // canonical JSON({ catalogHash, ruleset: COMPETITIVE_RULESET_V2 })의 SHA-256이다.
 export const COMPETITIVE_RULESET_HASH =
   "e42604b7ba272d0ab93ebd5b4de302c4ab985c7ee1d41c98a683f023dae67097";
-
-/** New matches use HGSS turn semantics; old V2 snapshots retain their original resolver. */
-export const COMPETITIVE_RULESET_V3 = deepFreeze({
-  version: 3,
-  engine: "@pkmn/sim@0.10.11:gen4",
-  romSha1: "5834fb3a2d751c48501d47d6a56898d7af6ccf9e",
-  participantCount: 2,
-  partySize: { minimum: 1, maximum: 6 },
-  moveCountMaximum: 4,
-  moveIds: { minimum: 1, maximum: 467 },
-  allGen4Effects: true,
-  multiTurnContinuation: true,
-  midTurnReplacement: true,
-  statuses: [
-    "normal",
-    "poisoned",
-    "badlyPoisoned",
-    "burned",
-    "paralyzed",
-    "asleep",
-    "frozen",
-    "fainted",
-  ],
-  nature: true,
-  abilities: true,
-  heldItems: true,
-  effortValues: { perStat: 255, total: 510 },
-  timeout: "first-legal-action",
-  draw: "rematch-with-restored-parties",
-  scores: { win: 100, loss: 50 },
-} as const);
 export const LEGACY_COMPETITIVE_RULESET_HASH =
   "caa92057632c9a8d0767cf517d250181ab97b57cad4227cfe73e67966277f065";
 

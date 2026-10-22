@@ -4,7 +4,10 @@ import {
   getMatchParticipantIds,
 } from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
 import { findBattleReadyPartySlot } from "@poke-lounge/battle/adventure/player/battle-ready-party";
-import { type TournamentMatch } from "@poke-lounge/battle/tournament-bracket";
+import {
+  shuffleTournamentParticipants,
+  type TournamentMatch,
+} from "@poke-lounge/battle/tournament-bracket";
 import { TOURNAMENT_PROGRESSION_DEADLINE_MS } from "@poke-lounge/battle/timing";
 import type { BattleResultReason } from "../battle/battle-types";
 import type { PlayerSnapshot } from "../network/local-preview-room";
@@ -22,7 +25,7 @@ import {
 } from "../state/game-state-store";
 import {
   createTournamentResultPanelViewModel,
-  formatTournamentResultRow,
+  type TournamentResultPanelViewModel,
 } from "../tournament/tournament-result-view-model";
 import type { TournamentSession } from "../tournament/tournament-session";
 export {
@@ -83,11 +86,8 @@ export interface WorldSceneTournamentDependencies {
   sendRoundScoreUpdates(
     payloads: ReturnType<typeof createRoundScoreUpdatedAuthorityPayloads>,
   ): void;
-  createAnnouncement(
-    text: string,
-    fontSize: "14px" | "16px",
-    result?: boolean,
-  ): TournamentAnnouncement;
+  createAnnouncement(text: string, fontSize: "14px" | "16px"): TournamentAnnouncement;
+  createResultPanel(panel: TournamentResultPanelViewModel): TournamentAnnouncement;
 }
 
 export function createWorldSceneTournament(
@@ -244,20 +244,8 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       roundScores: state.tournament.lastRoundScores,
       cumulativeScores: state.tournament.scoresByPlayerId,
     });
-    this.setAnnouncement(
-      [
-        panel.title,
-        ...(panel.roundWinnerLabel ? [panel.roundWinnerLabel] : []),
-        ...panel.rows.map(formatTournamentResultRow),
-        panel.rankingLabel,
-        panel.nextActionLabel,
-      ]
-        .filter(function filterItem(line): line is string {
-          return Boolean(line);
-        })
-        .join("\n"),
-      "14px",
-    );
+    this.announcement = this.dependencies.createResultPanel(panel);
+    this.announcementText = null;
   }
 
   destroy(): void {
@@ -310,7 +298,7 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       }
 
       const started = gameStateStore.startTournamentSession(
-        tournamentPlayers.map(function mapItem(player) {
+        shuffleTournamentParticipants(tournamentPlayers).map(function mapItem(player) {
           return {
             playerId: player.playerId,
             displayName: player.displayName,
@@ -495,13 +483,13 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
     this.clearPresentation();
   }
 
-  private setAnnouncement(text: string, fontSize: "14px" | "16px", result = false): void {
+  private setAnnouncement(text: string, fontSize: "14px" | "16px"): void {
     if (this.announcement && this.announcementText === text) {
       return;
     }
 
     this.announcement?.destroy();
-    this.announcement = this.dependencies.createAnnouncement(text, fontSize, result);
+    this.announcement = this.dependencies.createAnnouncement(text, fontSize);
     this.announcementText = text;
   }
 }

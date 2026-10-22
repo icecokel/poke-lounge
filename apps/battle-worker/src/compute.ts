@@ -9,12 +9,15 @@ import {
 import { createInitialBattleState } from "@poke-lounge/battle/ruleset";
 import { initializeGen4Canonical } from "@poke-lounge/battle/gen4/canonical";
 import { createSeededRandom } from "@poke-lounge/battle/prng";
+import { COMPETITIVE_RULESET_VERSION } from "@poke-lounge/battle/competitive-ruleset-config";
 import { validateCompetitiveAction, resolveTurn } from "@poke-lounge/battle/resolve-turn";
 import { getCompetitiveActionPlayerIds } from "@poke-lounge/battle/actions";
 import {
   normalizeCompetitiveParty,
   restoreCompetitiveParty,
+  CompetitivePartyValidationError,
 } from "@poke-lounge/battle/competitive-party";
+import { acceptPartySubmission, PartyAcceptanceError } from "@poke-lounge/battle/party-acceptance";
 import { chooseAiCompetitiveAction, createAiStarterParty } from "@poke-lounge/battle/ai-policy";
 import { getStarterSpeciesIds } from "@poke-lounge/battle/starter-selection";
 import {
@@ -49,7 +52,7 @@ import {
 function state(value: unknown): CanonicalBattleState {
   const parsed = z
     .object({
-      rulesetVersion: z.literal(3),
+      rulesetVersion: z.literal(COMPETITIVE_RULESET_VERSION),
       turn: z.number().int().nonnegative(),
       participantIds: z.array(z.string()).length(2),
       playersById: z.record(z.string(), z.unknown()),
@@ -109,7 +112,9 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
   const op = input.operation;
   switch (op.kind) {
     case "normalize-party": {
-      const party = normalizeCompetitiveParty(partySchema.parse(op.party));
+      const party = normalizeCompetitiveParty(partySchema.parse(op.party), {
+        requireBattleReady: !op.restore,
+      });
       if (op.starterSelection) {
         await getContext();
         const candidates = getStarterSpeciesIds(op.starterSelection);
@@ -123,6 +128,17 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
       }
       return op.restore ? restoreCompetitiveParty(party) : party;
     }
+    case "accept-party":
+      return acceptPartySubmission(
+        {
+          proposed: partySchema.parse(op.party),
+          roster: op.roster,
+          nowMs: op.nowMs,
+          trusted: op.trusted,
+          starterSelection: op.starterSelection,
+        },
+        (await getContext()).pokemonData,
+      );
     case "settle-tournament": {
       const next = settleTournamentExperience(state(op.state));
       next.tournamentRewardParties = Object.fromEntries(
@@ -159,7 +175,9 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
     case "initialize": {
       const players = op.players.map(p => ({
         playerId: p.playerId,
-        party: restoreCompetitiveParty(normalizeCompetitiveParty(partySchema.parse(p.party))),
+        party: restoreCompetitiveParty(
+          normalizeCompetitiveParty(partySchema.parse(p.party), { requireBattleReady: false }),
+        ),
       }));
       const draft = createInitialBattleState([players[0]!, players[1]!]);
       return pack(initializeGen4Canonical(draft, createSeededRandom(`${op.seed}:initial`)));
@@ -270,7 +288,35 @@ async function run(raw: unknown): Promise<ComputeResponse> {
   try {
     return { ...identity, ok: true, data: await calculate(input) };
   } catch (error) {
+    const partyRule =
+      error instanceof PartyAcceptanceError
+        ? error.rule
+        : error instanceof CompetitivePartyValidationError
+          ? error.reason
+          : error instanceof z.ZodError
+            ? "party-schema-invalid"
+            : null;
+    if (
+      (input.operation.kind === "accept-party" || input.operation.kind === "normalize-party") &&
+      partyRule !== null
+    ) {
+      process.stderr.write(
+        JSON.stringify({
+          level: "warn",
+          event: "compute.party_rejected",
+          timestamp: new Date().toISOString(),
+          requestId: input.requestId,
+          roomInstanceId: input.roomInstanceId,
+          operation: input.operation.kind,
+          rule: partyRule,
+          issues: computeFailureDiagnostic(error).issues,
+        }) + "\n",
+      );
+    }
     const invalid =
+      error instanceof PartyAcceptanceError ||
+      (input.operation.kind === "accept-party" &&
+        error instanceof CompetitivePartyValidationError) ||
       error instanceof z.ZodError ||
       input.operation.kind === "validate" ||
       input.operation.kind === "complete-progression" ||
@@ -290,6 +336,7 @@ void getContext()
   .catch(error => {
     process.stderr.write(
       JSON.stringify({
+        level: "error",
         event: "compute.assets_invalid",
         timestamp: new Date().toISOString(),
         diagnostic: computeFailureDiagnostic(error),
@@ -300,5 +347,16 @@ void getContext()
 parentPort?.on("message", (input: unknown) => {
   void run(input)
     .then(result => parentPort?.postMessage(result))
-    .catch(() => parentPort?.postMessage({ protocolError: true }));
+    .catch((error: unknown) => {
+      // The request envelope itself was unusable; the parent restarts this thread.
+      process.stderr.write(
+        JSON.stringify({
+          level: "error",
+          event: "compute.protocol_error",
+          timestamp: new Date().toISOString(),
+          diagnostic: computeFailureDiagnostic(error),
+        }) + "\n",
+      );
+      parentPort?.postMessage({ protocolError: true });
+    });
 });

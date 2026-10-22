@@ -24,10 +24,35 @@ for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
 }
 if (!config.RUST_LOCAL_DB_PASSWORD || !config.BATTLE_WORKER_TOKEN)
   throw new Error("Incomplete local secrets");
-const env = { ...process.env, ...config };
+// Optional overrides so two checkouts can run their own stacks side by side.
+function readPort(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return fallback;
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535)
+    throw new Error(`${name} must be a port between 1024 and 65535`);
+  return port;
+}
+const project = process.env.RUST_LOCAL_PROJECT || "poke-lounge-rust-local";
+if (!/^[a-z0-9][a-z0-9_-]*$/.test(project))
+  throw new Error("RUST_LOCAL_PROJECT must be a lowercase docker compose project name");
+const ports = {
+  web: readPort("RUST_LOCAL_WEB_PORT", 3300),
+  api: readPort("RUST_LOCAL_API_PORT", 3011),
+  db: readPort("RUST_LOCAL_DB_PORT", 35432),
+  redis: readPort("RUST_LOCAL_REDIS_PORT", 36379),
+};
+const env = {
+  ...process.env,
+  ...config,
+  RUST_LOCAL_WEB_PORT: String(ports.web),
+  RUST_LOCAL_API_PORT: String(ports.api),
+  RUST_LOCAL_DB_PORT: String(ports.db),
+  RUST_LOCAL_REDIS_PORT: String(ports.redis),
+};
 let child: ChildProcess | null = null;
 let stopping = false;
-const compose = ["compose", "--env-file", envPath, "-f", "compose.rust-local.yaml"];
+const compose = ["compose", "-p", project, "--env-file", envPath, "-f", "compose.rust-local.yaml"];
 
 async function run(command: string, args: string[], extra: NodeJS.ProcessEnv = {}): Promise<void> {
   if (stopping) throw new Error("Stopped");
@@ -51,9 +76,15 @@ async function requireFreeWebPort(): Promise<void> {
   await new Promise<void>((done, fail) => {
     const server = createServer();
     server.once("error", () =>
-      fail(new Error("Port 3300 is already in use; stop that frontend before dev:rust")),
+      fail(
+        new Error(
+          `Port ${ports.web} is already in use; stop that frontend or set RUST_LOCAL_WEB_PORT`,
+        ),
+      ),
     );
-    server.listen(3300, "127.0.0.1", () => server.close(error => (error ? fail(error) : done())));
+    server.listen(ports.web, "127.0.0.1", () =>
+      server.close(error => (error ? fail(error) : done())),
+    );
   });
 }
 function stop(): void {
@@ -78,8 +109,8 @@ async function main(): Promise<void> {
   await requireFreeWebPort();
   await run("pnpm", ["build:poke-lounge-battle"]);
   await run("pnpm", ["--filter", "@poke-lounge/battle-worker", "build"]);
-  // The existing migration/import commands are build-time schema tools, not a running NestJS server.
-  await run("pnpm", ["--filter", "@poke-lounge/api", "build"]);
+  // The db package is a build-time schema/ROM import tool, not a running server.
+  await run("pnpm", ["--filter", "@poke-lounge/db", "build"]);
   await run("docker", [
     "run",
     "--rm",
@@ -101,14 +132,14 @@ async function main(): Promise<void> {
   await run("docker", [...compose, "up", "-d", "--wait", "postgres", "redis"]);
   const database = {
     DB_HOST: "127.0.0.1",
-    DB_PORT: "35432",
+    DB_PORT: String(ports.db),
     DB_USERNAME: "poke_rust_local",
     DB_PASSWORD: config.RUST_LOCAL_DB_PASSWORD,
     DB_DATABASE: "poke_rust_local",
     DB_SYNCHRONIZE: "false",
   };
-  await run("pnpm", ["--filter", "@poke-lounge/api", "migration:run"], database);
-  await run("pnpm", ["--filter", "@poke-lounge/api", "rom-data:import"], database);
+  await run("pnpm", ["--filter", "@poke-lounge/db", "migration:run"], database);
+  await run("pnpm", ["--filter", "@poke-lounge/db", "rom-data:import"], database);
   // Recreate only the two owned game services so rebuilt bind-mounted binaries are loaded.
   await run("docker", [
     ...compose,
@@ -119,7 +150,7 @@ async function main(): Promise<void> {
     "api-rust",
     "battle-worker",
   ]);
-  console.log("Rust local game: http://localhost:3300/ko-KR");
+  console.log(`Rust local game: http://localhost:${ports.web}/ko-KR (compose project ${project})`);
   console.log("Local Rust development uses isolated containers and does not touch production.");
   const nextEnvPath = resolve(root, "apps/web/next-env.d.ts");
   const originalNextEnv = readFileSync(nextEnvPath, "utf8");
@@ -135,11 +166,10 @@ async function main(): Promise<void> {
         "--hostname",
         "localhost",
         "--port",
-        "3300",
+        String(ports.web),
       ],
       {
-        NEXT_PUBLIC_API_URL: "http://127.0.0.1:3011",
-        NEXT_PUBLIC_POKE_BACKEND: "rust",
+        NEXT_PUBLIC_API_URL: `http://127.0.0.1:${ports.api}`,
         LOCAL_TEST_AUTH_TOKEN: randomBytes(32).toString("hex"),
         NEXT_DIST_DIR: ".next-rust-local",
         NEXT_TYPESCRIPT_CONFIG_PATH: "tsconfig.rust-local.json",
