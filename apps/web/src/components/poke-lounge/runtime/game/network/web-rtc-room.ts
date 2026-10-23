@@ -1,4 +1,4 @@
-import { ROOM_MESSAGES, isTournamentRoomMessage } from "./room-messages";
+import { PEER_RELAYED_ROOM_MESSAGES, isTournamentRoomMessage } from "./room-messages";
 import type {
   MultiplayerRoom,
   RoomEvent,
@@ -348,7 +348,7 @@ function dispatchDataChannelMessage(
   if (
     !message ||
     typeof message !== "object" ||
-    !ROOM_MESSAGES.has((message as { type?: RoomMessage }).type as RoomMessage)
+    !PEER_RELAYED_ROOM_MESSAGES.has((message as { type?: RoomMessage }).type as RoomMessage)
   ) {
     return;
   }
