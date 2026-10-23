@@ -4,40 +4,40 @@
 
 ## 문제 발생 시 조회
 
-운영 호스트에서 실행한다. `docker compose logs`는 배포 비밀 환경변수를 요구하므로 조회에는 컨테이너 이름을 지정하는 `docker logs`를 사용한다. 과거 브라우저 오류 로그에는 방 코드와 세션 ID가 포함될 수 있으므로 로그 공유 범위를 운영 담당자로 제한한다. 현재 프론트는 방 접속 코드와 세션 ID를 전송하지 않는다. 요청·응답 본문과 인증 토큰은 기록하지 않는다.
+운영 호스트(Mac mini)에서 실행한다. 운영 컨테이너 이름은 Compose 프로젝트 `poke-lounge-prod` 기준 `poke-lounge-prod-<서비스>-1`이다. `docker compose logs`는 배포 비밀 환경변수를 요구하므로 조회에는 컨테이너 이름을 지정하는 `docker logs`를 사용한다. 과거 브라우저 오류 로그에는 방 코드와 세션 ID가 포함될 수 있으므로 로그 공유 범위를 운영 담당자로 제한한다. 현재 프론트는 방 접속 코드와 세션 ID를 전송하지 않는다. 요청·응답 본문과 인증 토큰은 기록하지 않는다.
 
 ```bash
 # 최근 오류: FE 수집 이벤트, API 실패, 소켓 오류, 전투 계산 실패
-for name in poke-lounge-api-1 poke-lounge-battle-worker-1 poke-lounge-web-1; do
+for name in poke-lounge-prod-api-1 poke-lounge-prod-battle-worker-1 poke-lounge-prod-web-1; do
   docker logs --since 2h --timestamps "$name" 2>&1
 done | grep -E '"level":"(WARN|ERROR|warn|error)"|browser.error|api.request' | grep -v '"route":"/health'
 
 # 경고·오류만 이벤트별로 집계 (API는 대문자 level, 워커는 소문자 level)
-for name in poke-lounge-api-1 poke-lounge-battle-worker-1; do
+for name in poke-lounge-prod-api-1 poke-lounge-prod-battle-worker-1; do
   docker logs --since 2h "$name" 2>&1
 done | jq -Rr 'fromjson? | select((.level // "" | ascii_upcase) as $l | $l == "WARN" or $l == "ERROR") | (.fields.event // .event)' | sort | uniq -c | sort -rn
 
 # 화면 코드 11004의 단계와 오류 텍스트를 사람이 읽기 좋게 출력
-docker logs --since 2h poke-lounge-api-1 2>&1 |
+docker logs --since 2h poke-lounge-prod-api-1 2>&1 |
   jq -Rr 'fromjson? | select(.fields.event == "browser.error" and .fields.user_code == "11004") | "\(.timestamp) step=\(.fields.startup_step)\n\(.fields.error_text)"'
 
 # 브라우저 오류의 related_request_id 또는 HTTP 응답의 X-Request-Id로 연관 기록 조회
-for name in poke-lounge-api-1 poke-lounge-battle-worker-1; do
+for name in poke-lounge-prod-api-1 poke-lounge-prod-battle-worker-1; do
   docker logs --since 24h --timestamps "$name" 2>&1
 done | grep -F '여기에-요청-UUID'
 
 # API compute.failed의 compute_request_id를 워커 requestId와 대조
-for name in poke-lounge-api-1 poke-lounge-battle-worker-1; do
+for name in poke-lounge-prod-api-1 poke-lounge-prod-battle-worker-1; do
   docker logs --since 24h --timestamps "$name" 2>&1
 done | grep -F '여기에-계산-UUID'
 
 # room_instance_id로 비동기 방 명령, 틱, 소켓, 계산 기록 연결
-for name in poke-lounge-api-1 poke-lounge-battle-worker-1; do
+for name in poke-lounge-prod-api-1 poke-lounge-prod-battle-worker-1; do
   docker logs --since 24h --timestamps "$name" 2>&1
 done | grep -F '여기에-방-인스턴스-UUID'
 
 # 오류 시점의 화면·요청·최근 행동 읽기 (새 프론트의 error_text는 JSON 문자열)
-docker logs --since 2h poke-lounge-api-1 2>&1 |
+docker logs --since 2h poke-lounge-prod-api-1 2>&1 |
   jq -R 'fromjson? | select(.fields.event == "browser.error") | {timestamp, code: .fields.code, user_code: .fields.user_code, request_id: .fields.related_request_id, detail: (.fields.error_text | fromjson?)}'
 ```
 
@@ -160,4 +160,4 @@ Rust API는 표준 출력과 함께 `poke-lounge-runtime-logs` 외부 볼륨의 
 
 ## 적용 확인
 
-배포 후 `docker ps --filter name=poke-lounge`에서 `api`, `web`, `battle-worker` 상태, 보관 볼륨의 새 파일, `docker logs`의 시작 로그 및 `release`를 확인한다. 실제 브라우저에서 페이지를 열고 플레이어 입력 한 번을 실행한 뒤, 새 `api.request`가 남는지 확인한다. 브라우저 오류 수집 자체는 실제 오류가 관찰될 때 `browser.error`로 확인한다. 정상 플레이만으로 수집 성공을 단정하지 않는다. 플레이 검증은 [PLAYER_TESTING.md](PLAYER_TESTING.md)의 직접 조작 기준을 따른다.
+배포 후 `docker ps --filter name=poke-lounge-prod-`에서 `api`, `web`, `battle-worker` 상태, 보관 볼륨의 새 파일, `docker logs`의 시작 로그 및 `release`를 확인한다. 실제 브라우저에서 페이지를 열고 플레이어 입력 한 번을 실행한 뒤, 새 `api.request`가 남는지 확인한다. 브라우저 오류 수집 자체는 실제 오류가 관찰될 때 `browser.error`로 확인한다. 정상 플레이만으로 수집 성공을 단정하지 않는다. 플레이 검증은 [PLAYER_TESTING.md](PLAYER_TESTING.md)의 직접 조작 기준을 따른다.

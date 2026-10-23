@@ -1,6 +1,6 @@
 # Web·Rust API·계산 워커 배포와 환경
 
-구현 대조: `46e6933` · 2026-10-23 KST. 이 문서는 Git에서 제외된 내부 `docs/` 없이도 배포 조건을 확인할 수 있는 안내다. 운영 값·비밀번호·실제 방 ID는 기록하지 않는다.
+구현 대조: `f42bf1c` · 2026-10-23 KST. 이 문서는 Git에서 제외된 내부 `docs/` 없이도 배포 조건을 확인할 수 있는 안내다. 운영 값·비밀번호·실제 방 ID는 기록하지 않는다.
 
 ## 배포 경로
 
@@ -39,7 +39,7 @@ PostgreSQL healthy → migrate: migration:run → rom-data:import
 docker compose up --build --detach --wait --wait-timeout 180
 ```
 
-배포 workflow는 같은 명령에 `--remove-orphans`를 추가하고 `COMPOSE_PROJECT_NAME=poke-lounge-prod`로 실행한다. 운영 컨테이너를 직접 다룰 때도 같은 프로젝트 이름(`docker compose -p poke-lounge-prod …`)을 지정한다. PostgreSQL·Redis named volume을 유지한다. `docker compose down -v`는 데이터 삭제이므로 일반 재시작/복구 절차에 사용하지 않는다.
+배포 workflow는 같은 명령에 `--remove-orphans`를 추가하고 `COMPOSE_PROJECT_NAME=poke-lounge-prod`로 실행한다. 운영 컨테이너 이름은 `poke-lounge-prod-<서비스>-1`(예: `poke-lounge-prod-api-1`)이다. 로그 조회 등 직접 확인은 [운영 오류 추적](../../OBSERVABILITY.md)처럼 컨테이너 이름을 지정한다. PostgreSQL·Redis named volume을 유지한다. `docker compose down -v`는 데이터 삭제이므로 일반 재시작/복구 절차에 사용하지 않는다.
 
 ## 운영 로그 보관
 
