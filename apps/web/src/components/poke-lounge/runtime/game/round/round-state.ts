@@ -1,3 +1,4 @@
+export { formatClock as formatRoundTimer } from "../format";
 import { GAME_ROUND_COUNT } from "@poke-lounge/battle/tournament-bracket";
 import { DEFAULT_ROUND_DURATION_MS } from "@poke-lounge/battle/round-settings";
 export const ROUND_TOTAL_COUNT = GAME_ROUND_COUNT;
@@ -99,14 +100,6 @@ export function completeTournamentRound(state: GameRoundState, nowMs: number): G
     nowMs,
     state.preparationDurationMs,
   );
-}
-
-export function formatRoundTimer(remainingMs: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1_000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function normalizeDurationMs(durationMs: number): number {

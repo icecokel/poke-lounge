@@ -11,7 +11,10 @@ import { createOpponentPartySummary } from "@/features/poke-lounge/presentation/
 import { formatBattleResultMessage } from "@/features/poke-lounge/presentation/battle/result-message";
 import { PLAYER_PARTY_SLOT_COUNT } from "@poke-lounge/battle/adventure/player/player-types";
 import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "@poke-lounge/battle/battle-presentation";
-import { COMPETITIVE_STRUGGLE_MOVE_ID } from "@poke-lounge/battle/competitive-ruleset-config";
+import {
+  COMPETITIVE_STRUGGLE_MOVE_ID,
+  STRUGGLE_MOVE_ID,
+} from "@poke-lounge/battle/competitive-ruleset-config";
 import { canUseGen4ItemOnMember } from "@poke-lounge/battle/gen4/engine";
 import {
   getExperienceMultiplier,
@@ -1514,7 +1517,7 @@ export class BattleController {
           return;
         }
         if (
-          player?.actionRequest?.moves.some(m => m.moveId === 165) ||
+          player?.actionRequest?.moves.some(m => m.moveId === STRUGGLE_MOVE_ID) ||
           (activePokemon && canUseAuthoritativeStruggle(activePokemon.moves))
         ) {
           this.submitAuthoritativeAction({
@@ -1547,7 +1550,7 @@ export class BattleController {
         return pokemon.slotIndex === player.activeSlotIndex;
       });
       const moveId =
-        player?.actionRequest?.moves.some(m => m.moveId === 165) ||
+        player?.actionRequest?.moves.some(m => m.moveId === STRUGGLE_MOVE_ID) ||
         canUseAuthoritativeStruggle(activePokemon?.moves ?? [])
           ? COMPETITIVE_STRUGGLE_MOVE_ID
           : activePokemon?.moves[this.selectedMoveIndex]?.moveId;

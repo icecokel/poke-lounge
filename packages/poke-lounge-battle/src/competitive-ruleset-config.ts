@@ -2,6 +2,8 @@ import { GEN4_FIXED_DAMAGE_BY_EFFECT_CODE, getGen4FixedDamage } from "./gen4-bat
 
 export const COMPETITIVE_RULESET_VERSION = 3;
 export const COMPETITIVE_STRUGGLE_MOVE_ID = "struggle" as const;
+// 4세대 기술 번호 165 = 발버둥. COMPETITIVE_STRUGGLE_MOVE_ID는 경쟁 프로토콜용 문자열.
+export const STRUGGLE_MOVE_ID = 165 as const;
 
 function deepFreeze<T>(value: T): Readonly<T> {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
