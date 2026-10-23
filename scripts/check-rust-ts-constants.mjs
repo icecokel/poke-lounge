@@ -196,8 +196,12 @@ function compare(name, rustValue, tsValue) {
 }
 
 function readTsStringArray(source, name) {
+  // Ignore block comments and anchor at line start so commented-out declarations never match.
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, "");
   const matches = [
-    ...source.matchAll(new RegExp("export const " + name + " = \\[([^\\]]*)\\] as const;", "g")),
+    ...code.matchAll(
+      new RegExp("^export const " + name + "\\s*=\\s*\\[([^\\]]*)\\]\\s*as const;", "gm"),
+    ),
   ];
   if (matches.length !== 1) throw new Error("Expected exactly one TS array " + name);
   const body = matches[0][1];
