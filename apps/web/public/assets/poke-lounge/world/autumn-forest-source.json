@@ -50,13 +50,14 @@
   },
   "ground": {
     "sourceManifest": "original-ground/source.json",
-    "tiles": 873,
-    "tileRange": [953, 1825],
+    "tiles": 890,
+    "tileRange": [953, 1842],
     "patchSize": 128,
     "repeatSize": 256,
     "leafFadeDistancePixels": 180,
-    "cornerSmoothingPixels": 10,
-    "placement": "Mirror repeats in world coordinates for exact edge matching. Blend leaf variants toward forest edges, round convex and concave path corners, inset textured grass verges, then slice into extruded 32px tiles. Preserve path centers and keep the reshaped encounter patches clear of collision data."
+    "cornerSmoothingPixels": 6,
+    "vergeVariationSeed": 241024,
+    "placement": "Mirror repeats in world coordinates for exact edge matching. Blend leaf variants toward forest edges, soften path corners with irregular grass and earth contours sampled across the whole map, then slice into extruded 32px tiles. Preserve path centers and keep encounter patches clear of collision data."
   },
   "forestFloor": {
     "textures": [
@@ -64,12 +65,12 @@
       "original-autumn/08-mixed-forest-floor.png",
       "original-autumn/12-scattered-leaves.png"
     ],
-    "tiles": 263,
-    "cells": 302,
+    "tiles": 331,
+    "cells": 370,
     "forestCells": 194,
     "scatterPatches": 44,
     "fadeDistancePixels": 64,
-    "placement": "Original leaf ground at 100% beneath canopy groups, fading by distance to transparent over 64px; scattered leaves share the same falloff at 42% strength. Paths and encounter grass excluded."
+    "placement": "Original leaf ground at 100% beneath canopy groups, fading by distance to transparent over 64px; scattered leaves share the same falloff at 42% strength. The rendered path mask clips leaves per pixel, retaining continuous foliage on grassy verges and rounded corners. Path interiors and encounter grass stay clear."
   },
   "bakedForest": {
     "sourceManifest": "original-autumn/source.json",

@@ -8,7 +8,7 @@ from collections import deque
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / 'output/natural-grass-edge'
+OUT = ROOT / 'output/natural-path-verges'
 OUT.mkdir(parents=True, exist_ok=True)
 W, H, S = 40, 24, 32
 atlas = Image.open(ROOT/'apps/web/public/assets/poke-lounge/world/autumn-forest-32px-extruded.png').convert('RGBA')
@@ -220,8 +220,14 @@ earth=Image.composite(ground_surface('04-golden-earth-leaves.png'),ground_surfac
 path_mask=Image.new('L',canopy.size)
 path_draw=ImageDraw.Draw(path_mask)
 for x,y in paths:path_draw.rectangle((x*S,y*S,(x+1)*S-1,(y+1)*S-1),fill=255)
-# Threshold the softened shape to round both kinds of corner without blurring the artwork.
-rounded_mask=path_mask.filter(ImageFilter.GaussianBlur(10)).point(lambda a:255 if a>=128 else 0)
+# Vary the contour in world coordinates so worn verges stay continuous across tile seams.
+verge_rng=Random(241024)
+variation=Image.new('L',(W*2+1,H*2+1))
+variation.putdata([verge_rng.randrange(32,225) for _ in range(variation.width*variation.height)])
+variation=variation.resize(canopy.size,Image.Resampling.BICUBIC)
+soft_path=path_mask.filter(ImageFilter.GaussianBlur(6))
+rounded_mask=Image.frombytes('L',canopy.size,bytes(255 if a>=128+(n-128)*.5 else 0
+    for a,n in zip(soft_path.getdata(),variation.getdata())))
 rounded_draw=ImageDraw.Draw(rounded_mask)
 for x,y in grass:rounded_draw.rectangle((x*S,y*S,(x+1)*S-1,(y+1)*S-1),fill=0)
 assert all(rounded_mask.getpixel((x*S+S//2,y*S+S//2))==255 for x,y in paths)
@@ -229,7 +235,7 @@ assert all(not rounded_mask.crop((x*S,y*S,(x+1)*S,(y+1)*S)).getbbox() for x,y in
 assert ImageChops.subtract(rounded_mask,path_mask.filter(ImageFilter.MaxFilter(21))).getbbox() is None
 assert ImageChops.subtract(path_mask.filter(ImageFilter.MinFilter(21)),rounded_mask).getbbox() is None
 edge=rounded_mask.filter(ImageFilter.GaussianBlur(1.6))
-edge.putdata([255 if a==255 else min(255,max(0,(a-180+(g[1]-150)//2)*5)) if inside else 0
+edge.putdata([255 if a==255 else min(255,max(0,(a-170+(g[1]-150)*3)*5)) if inside else 0
               for a,inside,g in zip(edge.getdata(),rounded_mask.getdata(),ground.getdata())])
 assert ImageChops.subtract(edge,rounded_mask).getbbox() is None
 ground=Image.composite(earth,ground,edge)
@@ -242,11 +248,18 @@ for y in range(H):
         p=(x,y)
         box=(x*S,y*S,(x+1)*S,(y+1)*S)
         tile=ground.crop(box)
-        if p not in paths|grass and (not world[y*W+x] or p in forest_cells|marked_leaves):
+        if p not in grass and (not world[y*W+x] or p in forest_cells|marked_leaves):
             coverage=soft_floor.crop(box)
             scatter=scattered_leaves.crop(box)
             if p in forest_cells:
                 coverage=ImageChops.lighter(coverage,forest_core.crop(box))
+            # Follow the rendered path edge so its grassy corners do not expose square tile seams.
+            verge=ImageChops.invert(edge.crop(box))
+            coverage=ImageChops.multiply(coverage,verge)
+            scatter.putalpha(ImageChops.multiply(scatter.getchannel('A'),verge))
+            path_interior=edge.crop(box).point(lambda a:255 if a==255 else 0)
+            assert not ImageChops.multiply(coverage,path_interior).getbbox()
+            assert not ImageChops.multiply(scatter.getchannel('A'),path_interior).getbbox()
             if coverage.getbbox() or scatter.getbbox():
                 sx,sy=x%4*S,y%4*S
                 carpet=leaf_pattern.crop((sx,sy,sx+S,sy+S));carpet.putalpha(coverage);tile.alpha_composite(carpet)
@@ -258,7 +271,8 @@ for y in range(H):
             baked_tiles.append(tile)
         below.append(floor_cache[pixels])
 assert len(below)==W*H and all(gid>=759+len(forest_tiles) for gid in below)
-assert forest_cells <= set(leaf_cells) and not set(leaf_cells) & (paths|grass)
+assert forest_cells <= set(leaf_cells) and not set(leaf_cells) & grass
+assert set(leaf_cells) & paths  # Rounded path tiles retain leaf-covered verges.
 base_atlas=atlas.crop((0,0,816,1088))
 atlas=Image.new('RGBA',(816,math.ceil((758+len(baked_tiles))/24)*34))
 atlas.paste(base_atlas,(0,0))
@@ -296,9 +310,9 @@ assert {(i%W,i//W) for i,gid in enumerate(world) if gid in collision_gids} == co
 source_path=ROOT/'apps/web/public/assets/poke-lounge/world/autumn-forest-source.json'
 source=json.loads(source_path.read_text())
 source.update(tileCount=atlas.width//34*(atlas.height//34),processing='Preserve paths and service game objects; reshape connected rice encounter patches into tapered row runs. Bake original introduction-matched ground, earth, natural path verges, autumn trees and forest-floor falloff into the current 32px tile map.')
-source['ground']={'sourceManifest':'original-ground/source.json','tiles':len(floor_cache),'tileRange':[759+len(forest_tiles),758+len(baked_tiles)],'patchSize':128,'repeatSize':256,'leafFadeDistancePixels':180,'cornerSmoothingPixels':10,'placement':'Mirror repeats in world coordinates for exact edge matching. Blend leaf variants toward forest edges, round convex and concave path corners, inset textured grass verges, then slice into extruded 32px tiles. Preserve path centers and keep the reshaped encounter patches clear of collision data.'}
+source['ground']={'sourceManifest':'original-ground/source.json','tiles':len(floor_cache),'tileRange':[759+len(forest_tiles),758+len(baked_tiles)],'patchSize':128,'repeatSize':256,'leafFadeDistancePixels':180,'cornerSmoothingPixels':6,'vergeVariationSeed':241024,'placement':'Mirror repeats in world coordinates for exact edge matching. Blend leaf variants toward forest edges, soften path corners with irregular grass and earth contours sampled across the whole map, then slice into extruded 32px tiles. Preserve path centers and keep encounter patches clear of collision data.'}
 source['gids'].update({'745-748':'original red maple','749-752':'original golden maple','753-756':'original golden maple'})
-source['forestFloor']={'textures':['original-autumn/07-dense-gold-floor.png','original-autumn/08-mixed-forest-floor.png','original-autumn/12-scattered-leaves.png'],'tiles':len({below[y*W+x] for x,y in leaf_cells}),'cells':len(leaf_cells),'forestCells':len(forest_cells),'scatterPatches':scatter_count,'fadeDistancePixels':64,'placement':'Original leaf ground at 100% beneath canopy groups, fading by distance to transparent over 64px; scattered leaves share the same falloff at 42% strength. Paths and encounter grass excluded.'}
+source['forestFloor']={'textures':['original-autumn/07-dense-gold-floor.png','original-autumn/08-mixed-forest-floor.png','original-autumn/12-scattered-leaves.png'],'tiles':len({below[y*W+x] for x,y in leaf_cells}),'cells':len(leaf_cells),'forestCells':len(forest_cells),'scatterPatches':scatter_count,'fadeDistancePixels':64,'placement':'Original leaf ground at 100% beneath canopy groups, fading by distance to transparent over 64px; scattered leaves share the same falloff at 42% strength. The rendered path mask clips leaves per pixel, retaining continuous foliage on grassy verges and rounded corners. Path interiors and encounter grass stay clear.'}
 source['bakedForest']={'sourceManifest':'original-autumn/source.json','seed':241022,
                        'counts':{name:sum(tree['group']==name for tree in trees) for name in groups},
                        'tileRange':[759,758+len(forest_tiles)],'accentTrees':accent_sources,
