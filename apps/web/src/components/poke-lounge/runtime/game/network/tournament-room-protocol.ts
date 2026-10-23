@@ -1,3 +1,8 @@
+import {
+  TOURNAMENT_RESULT_REASONS,
+  type TournamentResultReason,
+} from "@poke-lounge/battle/competitive-contract";
+
 export type TournamentRoomMessageType =
   "TOURNAMENT_STARTED" | "TOURNAMENT_MATCH_RESULT" | "TOURNAMENT_COMPLETED" | "ROUND_SCORE_UPDATED";
 
@@ -13,7 +18,7 @@ export interface TournamentMatchResultRoomPayload {
   hostPlayerId?: string;
   matchId: string;
   winnerPlayerId: string;
-  reason: "faint" | "timeout" | "forfeit" | "run" | "capture";
+  reason: TournamentResultReason;
 }
 
 export interface TournamentCompletedRoomPayload {
@@ -246,7 +251,7 @@ function normalizeStandings(
   return standings;
 }
 
-function normalizeIdList(
+export function normalizeIdList(
   value: unknown,
   options: { maxCount?: number; minCount?: number; removeDuplicates?: boolean } = {},
 ): string[] | null {
@@ -282,7 +287,7 @@ function normalizeIdList(
   return ids;
 }
 
-function normalizeId(value: unknown): string | null {
+export function normalizeId(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
   }
@@ -311,15 +316,11 @@ function normalizeInteger(value: unknown, min: number): number | null {
 function normalizeMatchResultReason(
   value: unknown,
 ): TournamentMatchResultRoomPayload["reason"] | null {
-  return value === "faint" ||
-    value === "timeout" ||
-    value === "forfeit" ||
-    value === "run" ||
-    value === "capture"
-    ? value
+  return TOURNAMENT_RESULT_REASONS.includes(value as TournamentResultReason)
+    ? (value as TournamentResultReason)
     : null;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -10,6 +10,7 @@ import {
 } from "../../gen4/adventure";
 import { getGen4EscapeInfo, canUseGen4ItemOnMember, validateGen4Action } from "../../gen4/engine";
 import { GEN4_ROM_ITEMS } from "../../gen4/rom-catalog.generated";
+import { STRUGGLE_MOVE_ID } from "../../competitive-ruleset-config";
 import { awardGen4EffortValues } from "../../gen4/traits";
 import {
   RUNTIME_ITEM_ROM_IDS,
@@ -587,7 +588,7 @@ export function choosePlayerMove(
       {
         kind: "move",
         moveId:
-          available.length === 1 && available[0]!.moveId === 165
+          available.length === 1 && available[0]!.moveId === STRUGGLE_MOVE_ID
             ? "struggle"
             : (move?.id ?? "struggle"),
       },

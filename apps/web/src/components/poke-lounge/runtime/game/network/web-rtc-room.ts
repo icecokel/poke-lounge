@@ -1,13 +1,11 @@
+import { PEER_RELAYED_ROOM_MESSAGES, isTournamentRoomMessage } from "./room-messages";
 import type {
   MultiplayerRoom,
   RoomEvent,
   RoomMessage,
   RoomUnsubscribe,
 } from "./local-preview-room";
-import {
-  normalizeTournamentRoomPayload,
-  type TournamentRoomMessageType,
-} from "./tournament-room-protocol";
+import { normalizeTournamentRoomPayload } from "./tournament-room-protocol";
 
 type Handler<T extends RoomMessage> = (payload: RoomEvent[T]) => void;
 
@@ -55,25 +53,6 @@ export interface WebRtcRoom extends MultiplayerRoom {
   acceptOfferSignal(offerText: string): Promise<string>;
   acceptAnswerSignal(answerText: string): Promise<void>;
 }
-
-const ROOM_MESSAGES = new Set<RoomMessage>([
-  "CURRENT_PLAYERS",
-  "PLAYER_JOINED",
-  "PLAYER_MOVED",
-  "PLAYER_MOVEMENT_ENDED",
-  "PLAYER_CHANGED_MAP",
-  "PLAYER_LEFT",
-  "TOURNAMENT_STARTED",
-  "TOURNAMENT_MATCH_RESULT",
-  "TOURNAMENT_COMPLETED",
-  "ROUND_SCORE_UPDATED",
-]);
-const TOURNAMENT_ROOM_MESSAGES = new Set<TournamentRoomMessageType>([
-  "TOURNAMENT_STARTED",
-  "TOURNAMENT_MATCH_RESULT",
-  "TOURNAMENT_COMPLETED",
-  "ROUND_SCORE_UPDATED",
-]);
 
 export function createWebRtcRoom(options: WebRtcRoomOptions = {}): WebRtcRoom {
   const sessionId = options.sessionId ?? `webrtc-${Math.random().toString(16).slice(2, 6)}`;
@@ -369,7 +348,7 @@ function dispatchDataChannelMessage(
   if (
     !message ||
     typeof message !== "object" ||
-    !ROOM_MESSAGES.has((message as { type?: RoomMessage }).type as RoomMessage)
+    !PEER_RELAYED_ROOM_MESSAGES.has((message as { type?: RoomMessage }).type as RoomMessage)
   ) {
     return;
   }
@@ -390,8 +369,4 @@ function dispatchDataChannelMessage(
   }
 
   emit(type, payload as RoomEvent[typeof type]);
-}
-
-function isTournamentRoomMessage(type: RoomMessage): type is TournamentRoomMessageType {
-  return TOURNAMENT_ROOM_MESSAGES.has(type as TournamentRoomMessageType);
 }

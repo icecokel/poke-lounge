@@ -134,7 +134,8 @@ function playerCollidesWithMap(player: WorldHitbox, model: WorldMapModel): boole
   const lastTileY = Math.floor((player.bottom - Number.EPSILON) / model.tileHeight);
   for (let tileY = firstTileY; tileY <= lastTileY; tileY += 1) {
     for (let tileX = firstTileX; tileX <= lastTileX; tileX += 1) {
-      if (model.collisionCoordinates.has(`${tileX},${tileY}`)) return true;
+      const obstacle = model.collisionBounds.get(`${tileX},${tileY}`);
+      if (obstacle && rectanglesOverlap(player, obstacle)) return true;
     }
   }
 

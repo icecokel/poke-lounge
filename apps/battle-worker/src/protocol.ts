@@ -3,6 +3,20 @@ import type { ComputeFailureDiagnostic } from "./diagnostics";
 import { STARTER_MODES } from "@poke-lounge/battle/starter-selection";
 import { AI_DIFFICULTIES } from "@poke-lounge/battle/ai-difficulty";
 import { PARTY_ROSTER_LIMIT } from "@poke-lounge/battle/party-acceptance";
+import {
+  GEN4_SPECIES_ID_MAX,
+  GEN4_MOVE_ID_MAX,
+  GEN4_ITEM_ID_MAX,
+  GEN4_ABILITY_ID_MAX,
+  GEN4_NATURE_ID_MAX,
+  GEN4_IV_MAX,
+  GEN4_EV_MAX,
+  GEN4_HAPPINESS_MAX,
+  GEN4_STATUS_TURNS_MAX,
+  COMPETITIVE_PP_MAX,
+  COMPETITIVE_CURRENT_HP_MAX,
+} from "@poke-lounge/battle/competitive-contract";
+import { GEN4_STATUSES } from "@poke-lounge/battle/gen4/types";
 import { ROUND_DURATION_OPTIONS_MS } from "@poke-lounge/battle/timing";
 import {
   GAME_ROUND_COUNT,
@@ -30,9 +44,9 @@ const rosterSchema = z.strictObject({
     .array(
       z.strictObject({
         ivKey: z.string().regex(/^(?:[0-9]|[12][0-9]|3[01])(?:-(?:[0-9]|[12][0-9]|3[01])){5}$/),
-        speciesId: integer.min(1).max(493),
+        speciesId: integer.min(1).max(GEN4_SPECIES_ID_MAX),
         level: integer.min(1).max(100),
-        moveIds: z.array(integer.min(1).max(470)).max(4),
+        moveIds: z.array(integer.min(1).max(GEN4_MOVE_ID_MAX)).max(4),
         updatedAtMs: integer,
       }),
     )
@@ -92,6 +106,7 @@ export const requestSchema = z.strictObject({
     z.strictObject({
       kind: z.literal("settle-tournament"),
       state: z.unknown(),
+      // 한 매치는 참가자 2명이므로 AI도 최대 2명
       aiPlayerIds: z.array(boundedId).max(2),
     }),
     z.strictObject({
@@ -131,20 +146,20 @@ export type ComputeResponse = {
 );
 
 const iv = z.strictObject({
-  hp: integer.max(31),
-  attack: integer.max(31),
-  defense: integer.max(31),
-  specialAttack: integer.max(31),
-  specialDefense: integer.max(31),
-  speed: integer.max(31),
+  hp: integer.max(GEN4_IV_MAX),
+  attack: integer.max(GEN4_IV_MAX),
+  defense: integer.max(GEN4_IV_MAX),
+  specialAttack: integer.max(GEN4_IV_MAX),
+  specialDefense: integer.max(GEN4_IV_MAX),
+  speed: integer.max(GEN4_IV_MAX),
 });
 const ev = z.strictObject({
-  hp: integer.max(255),
-  attack: integer.max(255),
-  defense: integer.max(255),
-  specialAttack: integer.max(255),
-  specialDefense: integer.max(255),
-  speed: integer.max(255),
+  hp: integer.max(GEN4_EV_MAX),
+  attack: integer.max(GEN4_EV_MAX),
+  defense: integer.max(GEN4_EV_MAX),
+  specialAttack: integer.max(GEN4_EV_MAX),
+  specialDefense: integer.max(GEN4_EV_MAX),
+  speed: integer.max(GEN4_EV_MAX),
 });
 // Explicit input fields. Calculated stats are not accepted from a browser.
 export const partySchema = z.object({
@@ -154,31 +169,27 @@ export const partySchema = z.object({
     .array(
       z.object({
         slotIndex: integer.max(5),
-        speciesId: integer.min(1).max(493),
+        speciesId: integer.min(1).max(GEN4_SPECIES_ID_MAX),
         level: integer.min(1).max(100),
         experience: integer.optional(),
-        currentHp: integer.max(10_000),
-        status: z.enum([
-          "normal",
-          "poisoned",
-          "badlyPoisoned",
-          "burned",
-          "paralyzed",
-          "asleep",
-          "frozen",
-          "fainted",
-        ]),
+        currentHp: integer.max(COMPETITIVE_CURRENT_HP_MAX),
+        status: z.enum(GEN4_STATUSES),
         individualValues: iv,
         moves: z
-          .array(z.strictObject({ moveId: integer.min(1).max(470), pp: integer.max(100) }))
+          .array(
+            z.strictObject({
+              moveId: integer.min(1).max(GEN4_MOVE_ID_MAX),
+              pp: integer.max(COMPETITIVE_PP_MAX),
+            }),
+          )
           .min(1)
           .max(4),
         gender: z.enum(["male", "female", "genderless"]).optional(),
-        natureId: integer.max(24).optional(),
-        abilityId: integer.max(123).optional(),
-        heldItemId: integer.max(536).optional(),
-        statusTurns: integer.max(7).optional(),
-        happiness: integer.max(255).optional(),
+        natureId: integer.max(GEN4_NATURE_ID_MAX).optional(),
+        abilityId: integer.max(GEN4_ABILITY_ID_MAX).optional(),
+        heldItemId: integer.max(GEN4_ITEM_ID_MAX).optional(),
+        statusTurns: integer.max(GEN4_STATUS_TURNS_MAX).optional(),
+        happiness: integer.max(GEN4_HAPPINESS_MAX).optional(),
         effortValues: ev.optional(),
       }),
     )
@@ -188,7 +199,7 @@ export const partySchema = z.object({
 export const actionSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("move"),
-    moveId: z.union([integer.min(1).max(470), z.literal("struggle")]),
+    moveId: z.union([integer.min(1).max(GEN4_MOVE_ID_MAX), z.literal("struggle")]),
   }),
   z.strictObject({ kind: z.literal("switch"), slotIndex: integer.max(5) }),
   z.strictObject({ kind: z.literal("continue") }),

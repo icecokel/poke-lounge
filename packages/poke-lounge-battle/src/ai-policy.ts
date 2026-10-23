@@ -4,7 +4,7 @@ import {
   COMPETITIVE_MOVE_CATALOG,
   COMPETITIVE_SPECIES_CATALOG,
 } from "./competitive-catalog.generated";
-import { COMPETITIVE_STRUGGLE_MOVE_ID } from "./competitive-ruleset-config";
+import { COMPETITIVE_STRUGGLE_MOVE_ID, STRUGGLE_MOVE_ID } from "./competitive-ruleset-config";
 import { calculateGen4Damage, getGen4FixedDamage } from "./gen4-battle-math";
 import { calculateGen4TypeEffectiveness } from "./gen4-type-chart";
 import { calculateBattleStageModifiedStat } from "./battle-stat-stages";
@@ -175,8 +175,8 @@ export function estimateAiMoveDamage(
   defender: AiDamagePokemon,
   moveId: number | typeof COMPETITIVE_STRUGGLE_MOVE_ID,
 ): number {
-  const isStruggle = moveId === COMPETITIVE_STRUGGLE_MOVE_ID || moveId === 165;
-  const move = COMPETITIVE_MOVE_CATALOG[typeof moveId === "number" ? moveId : 165]!;
+  const isStruggle = moveId === COMPETITIVE_STRUGGLE_MOVE_ID || moveId === STRUGGLE_MOVE_ID;
+  const move = COMPETITIVE_MOVE_CATALOG[typeof moveId === "number" ? moveId : STRUGGLE_MOVE_ID]!;
   const effectiveness = isStruggle
     ? 1
     : calculateGen4TypeEffectiveness(move.typeId, defender.typeIds);

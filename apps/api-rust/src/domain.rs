@@ -41,6 +41,15 @@ pub const AI_ONLY_TURN_READY_MS: u64 = 500;
 pub const TOURNAMENT_BRIEFING_MS: u64 = 5_000;
 // Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_RESULT_DURATION_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_RESULT_MS: u64 = 5_000;
+pub const TERMINAL_REASONS: [&str; 3] = ["faint", "forfeit", "timeout"];
+pub const FIELD_MAP_KEY: &str = "town";
+pub const DEFAULT_SPAWN_X: u64 = 624;
+pub const DEFAULT_SPAWN_Y: u64 = 688;
+pub const ROUND_SPAWN_BASE_X: u64 = 576;
+pub const ROUND_SPAWN_BASE_Y: u64 = 448;
+pub const ROUND_SPAWN_START_Y_OFFSET: u64 = 64;
+pub const ROUND_SPAWN_STEP: u64 = 32;
+pub const ROUND_SPAWN_COLUMNS: u64 = 4;
 // Must match packages/poke-lounge-battle/src/tournament-bracket.ts TOURNAMENT_MAX_PARTICIPANT_COUNT (pnpm check:rust-ts-constants).
 pub const MAX_PARTICIPANTS: usize = 8;
 // Must match packages/poke-lounge-battle/src/tournament-bracket.ts GAME_ROUND_COUNT (pnpm check:rust-ts-constants).
@@ -48,7 +57,7 @@ pub const ROUND_COUNT: u8 = 3;
 // Must match packages/poke-lounge-battle/src/tournament-bracket.ts TERMINAL_PROJECTION_PAGE_SIZE (pnpm check:rust-ts-constants).
 pub const TERMINAL_PAGE_SIZE: usize = 8;
 pub const MAX_COMMANDS: u64 = 16_384;
-const ROOM_CODE_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+pub const ROOM_CODE_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const AI_DISPLAY_NAMES: [&str; 18] = [
     "반바지 꼬마 오성",
     "반바지 꼬마 강철",
@@ -1377,9 +1386,7 @@ impl Room {
             .as_str()
             .ok_or(AppError::ComputeUnavailable)?
             .to_owned();
-        if !m.players.contains(&winner)
-            || !matches!(reason.as_str(), "faint" | "forfeit" | "timeout")
-        {
+        if !m.players.contains(&winner) || !TERMINAL_REASONS.contains(&reason.as_str()) {
             return Err(AppError::ComputeUnavailable);
         }
         self.revision += 1;
@@ -1648,9 +1655,9 @@ impl Room {
             .map(|p| p.player_id.as_str())
             .collect::<Vec<_>>();
         ids.sort();
-        let i = ids.iter().position(|id| *id == player)?;
+        let i = ids.iter().position(|id| *id == player)? as u64;
         Some(
-            json!({"map":"town","x":576+(i%4)*32,"y":448+if starting{64}else{0}+(i/4)*32,"facing":if starting{"front"}else{"back"}}),
+            json!({"map":FIELD_MAP_KEY,"x":ROUND_SPAWN_BASE_X+(i%ROUND_SPAWN_COLUMNS)*ROUND_SPAWN_STEP,"y":ROUND_SPAWN_BASE_Y+if starting{ROUND_SPAWN_START_Y_OFFSET}else{0}+(i/ROUND_SPAWN_COLUMNS)*ROUND_SPAWN_STEP,"facing":if starting{"front"}else{"back"}}),
         )
     }
 }

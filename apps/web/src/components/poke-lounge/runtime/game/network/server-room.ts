@@ -19,7 +19,7 @@ import type {
   RustRoomParticipant,
   RustRoomSnapshot,
 } from "@/features/poke-lounge/contracts/rust-room";
-import { DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
+import { DEFAULT_AI_DIFFICULTY, isAiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import { FIELD_MAP } from "@poke-lounge/battle/adventure/world/field-map";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import {
@@ -3404,10 +3404,6 @@ function parseServerRoomParticipants(value: unknown[]): ServerParticipant[] {
     playerIds.add(participant.playerId);
     return candidate as ServerParticipant;
   });
-}
-
-function isAiDifficulty(value: unknown): value is AiDifficulty {
-  return value === "normal" || value === "hard";
 }
 
 function parseServerRoomRound(value: unknown): ServerRoomState["round"] {

@@ -2,6 +2,10 @@ export const AI_DIFFICULTIES = ["normal", "hard"] as const;
 
 export type AiDifficulty = (typeof AI_DIFFICULTIES)[number];
 
+export function isAiDifficulty(value: unknown): value is AiDifficulty {
+  return AI_DIFFICULTIES.includes(value as AiDifficulty);
+}
+
 export const DEFAULT_AI_DIFFICULTY: AiDifficulty = "normal";
 
 export interface AiDifficultyProfile {

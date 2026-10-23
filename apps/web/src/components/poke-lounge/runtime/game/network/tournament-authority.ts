@@ -6,6 +6,7 @@ import {
 import type { TournamentSession } from "../tournament/tournament-session";
 import {
   normalizeTournamentRoomPayload,
+  normalizeId,
   type RoundScoreUpdatedRoomPayload,
   type TournamentCompletedRoomPayload,
   type TournamentMatchResultRoomPayload,
@@ -387,16 +388,6 @@ function comparePlayerId(
   right: TournamentParticipantInput,
 ): number {
   return left.playerId.localeCompare(right.playerId, undefined, { numeric: true });
-}
-
-function normalizeId(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const id = value.trim();
-
-  return id.length > 0 ? id : null;
 }
 
 function normalizeDisplayName(value: string | null | undefined, fallback: string): string {

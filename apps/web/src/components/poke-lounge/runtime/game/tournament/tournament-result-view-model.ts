@@ -1,3 +1,4 @@
+import { truncateDisplayName } from "../format";
 import type { TournamentStanding } from "@poke-lounge/battle/tournament-bracket";
 import { DEFAULT_TOURNAMENT_SCORE_BY_RANK } from "@poke-lounge/battle/tournament-scoring";
 
@@ -121,12 +122,6 @@ function createRoundWinnerLabel(
   return winners.length === 1
     ? `이번 라운드 우승 · ${truncateDisplayName(winners[0]!.displayName)}`
     : null;
-}
-
-function truncateDisplayName(displayName: string): string {
-  const characters = Array.from(displayName);
-
-  return characters.length <= 12 ? displayName : `${characters.slice(0, 11).join("")}…`;
 }
 
 function createTiedRankSet(standings: ReadonlyArray<TournamentStanding>): ReadonlySet<number> {

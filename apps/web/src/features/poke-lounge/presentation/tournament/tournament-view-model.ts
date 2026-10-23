@@ -1,4 +1,9 @@
 import {
+  formatClock as formatRemainingTime,
+  truncateDisplayName,
+} from "@/components/poke-lounge/runtime/game/format";
+export { formatClock as formatRemainingTime } from "@/components/poke-lounge/runtime/game/format";
+import {
   findCurrentMatch,
   type TournamentCompetitionKind,
   type TournamentStateRoomPayload,
@@ -406,14 +411,6 @@ function createCompetitionKindLabel(kind: TournamentCompetitionKind): string {
   return "서버 대전 준비 중";
 }
 
-export function formatRemainingTime(remainingMs: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1_000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-}
-
 function formatMatchParticipants(match: TournamentMatch): string {
   return `${formatTournamentParticipant(match.participantA)} vs ${formatTournamentParticipant(match.participantB)}`;
 }
@@ -429,12 +426,6 @@ function formatOpponent(match: TournamentMatch, ownPlayerId: string): string {
     match.participantA.playerId === ownPlayerId ? match.participantB : match.participantA;
 
   return `#${opponent.seed} ${truncateDisplayName(opponent.displayName)}`;
-}
-
-function truncateDisplayName(displayName: string): string {
-  const characters = Array.from(displayName);
-
-  return characters.length <= 12 ? displayName : `${characters.slice(0, 11).join("")}…`;
 }
 
 export function getMatchParticipantIds(match: TournamentMatch): [string, string] {

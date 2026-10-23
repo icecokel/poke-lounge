@@ -7334,26 +7334,6 @@
           ]
         },
         {
-          "id": 744,
-          "properties": [
-            {
-              "name": "collides",
-              "type": "bool",
-              "value": true
-            }
-          ]
-        },
-        {
-          "id": 745,
-          "properties": [
-            {
-              "name": "collides",
-              "type": "bool",
-              "value": true
-            }
-          ]
-        },
-        {
           "id": 746,
           "properties": [
             {
@@ -7361,7 +7341,20 @@
               "type": "bool",
               "value": true
             }
-          ]
+          ],
+          "objectgroup": {
+            "type": "objectgroup",
+            "objects": [
+              {
+                "id": 1,
+                "x": 22,
+                "y": 8,
+                "width": 10,
+                "height": 16,
+                "rotation": 0
+              }
+            ]
+          }
         },
         {
           "id": 747,
@@ -7371,27 +7364,20 @@
               "type": "bool",
               "value": true
             }
-          ]
-        },
-        {
-          "id": 748,
-          "properties": [
-            {
-              "name": "collides",
-              "type": "bool",
-              "value": true
-            }
-          ]
-        },
-        {
-          "id": 749,
-          "properties": [
-            {
-              "name": "collides",
-              "type": "bool",
-              "value": true
-            }
-          ]
+          ],
+          "objectgroup": {
+            "type": "objectgroup",
+            "objects": [
+              {
+                "id": 1,
+                "x": 0,
+                "y": 8,
+                "width": 10,
+                "height": 16,
+                "rotation": 0
+              }
+            ]
+          }
         },
         {
           "id": 750,
@@ -7401,7 +7387,20 @@
               "type": "bool",
               "value": true
             }
-          ]
+          ],
+          "objectgroup": {
+            "type": "objectgroup",
+            "objects": [
+              {
+                "id": 1,
+                "x": 22,
+                "y": 8,
+                "width": 10,
+                "height": 16,
+                "rotation": 0
+              }
+            ]
+          }
         },
         {
           "id": 751,
@@ -7411,27 +7410,20 @@
               "type": "bool",
               "value": true
             }
-          ]
-        },
-        {
-          "id": 752,
-          "properties": [
-            {
-              "name": "collides",
-              "type": "bool",
-              "value": true
-            }
-          ]
-        },
-        {
-          "id": 753,
-          "properties": [
-            {
-              "name": "collides",
-              "type": "bool",
-              "value": true
-            }
-          ]
+          ],
+          "objectgroup": {
+            "type": "objectgroup",
+            "objects": [
+              {
+                "id": 1,
+                "x": 0,
+                "y": 8,
+                "width": 10,
+                "height": 16,
+                "rotation": 0
+              }
+            ]
+          }
         },
         {
           "id": 754,
@@ -7441,7 +7433,20 @@
               "type": "bool",
               "value": true
             }
-          ]
+          ],
+          "objectgroup": {
+            "type": "objectgroup",
+            "objects": [
+              {
+                "id": 1,
+                "x": 22,
+                "y": 8,
+                "width": 10,
+                "height": 16,
+                "rotation": 0
+              }
+            ]
+          }
         },
         {
           "id": 755,
@@ -7451,7 +7456,20 @@
               "type": "bool",
               "value": true
             }
-          ]
+          ],
+          "objectgroup": {
+            "type": "objectgroup",
+            "objects": [
+              {
+                "id": 1,
+                "x": 0,
+                "y": 8,
+                "width": 10,
+                "height": 16,
+                "rotation": 0
+              }
+            ]
+          }
         },
         {
           "id": 758,

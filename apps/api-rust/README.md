@@ -81,7 +81,7 @@ DAU는 한국 날짜의 고유 익명 브라우저 수, MAU는 오늘을 포함�
 운영 호스트에서 다음 읽기 전용 쿼리로 현재 값을 확인한다. `docker compose` 환경변수를 출력하지 않도록 PostgreSQL 컨테이너의 환경을 사용한다.
 
 ```sh
-docker exec -i poke-lounge-postgres-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' <<'SQL'
+docker exec -i poke-lounge-prod-postgres-1 sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' <<'SQL'
 WITH day AS (SELECT (now() AT TIME ZONE 'Asia/Seoul')::date AS today)
 SELECT day.today AS as_of_kst,
        count(DISTINCT a.visitor_hash) FILTER (WHERE a.activity_date = day.today) AS dau,

@@ -24,7 +24,6 @@ import {
 import {
   isLegacyCompetitiveMoveEffectSelectable,
   COMPETITIVE_RULESET_V2,
-  COMPETITIVE_RULESET_VERSION,
   COMPETITIVE_STRUGGLE_MOVE_ID,
 } from "./competitive-ruleset-config";
 function isCompetitiveMoveSelectable(moveId: number): boolean {

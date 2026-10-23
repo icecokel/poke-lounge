@@ -196,7 +196,7 @@ function registerFormat(): void {
         if ((this as CartridgeBattle).plWild && !this.runEvent("DragOut", target, source, move))
           return false;
       },
-      onHit(target, source, move) {
+      onHit(_target, source, move) {
         if ((this as CartridgeBattle).plWild) {
           move.forceSwitch = false;
           finishWildEscape(this, source);
@@ -537,7 +537,7 @@ export function advanceGen4Battle(
     const a = actions[index];
     if (a) {
       validateGen4Action(request(b, b.sides[index]!), a);
-      if (a.kind === "item" && !canUseGen4BagItem(b, b.sides[index]!, a.itemId, a.slotIndex))
+      if (a.kind === "item" && !canUseGen4BagItem(b.sides[index]!, a.itemId, a.slotIndex))
         throw Error("The item has no effect on this Pokémon");
     }
   }
@@ -546,7 +546,7 @@ export function advanceGen4Battle(
     if (!a) continue;
     const side = b.sides[index]!;
     if (a.kind === "item" || a.kind === "wait") {
-      if (a.kind === "item" && !canUseGen4BagItem(b, side, a.itemId, a.slotIndex))
+      if (a.kind === "item" && !canUseGen4BagItem(side, a.itemId, a.slotIndex))
         throw Error("The item has no effect on this Pokémon");
       // A real bag action, not a fake Pokémon move. Priority is before attacks, like HGSS's controller.
       const queued = {
@@ -592,7 +592,7 @@ export function canUseGen4ItemOnMember(
     (item.freezeHeal && st === "frozen"),
   );
 }
-function canUseGen4BagItem(b: Battle, s: Side, itemId: number, targetSlot: number): boolean {
+function canUseGen4BagItem(s: Side, itemId: number, targetSlot: number): boolean {
   const p = s.pokemon.find(p => slot(p) === targetSlot);
   return Boolean(
     p && canUseGen4ItemOnMember(itemId, { currentHp: p.hp, maxHp: p.maxhp, status: status(p) }),
