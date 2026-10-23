@@ -18,9 +18,10 @@ concurrency:
 jobs:
   deploy:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    timeout-minutes: 20
-    runs-on: [self-hosted, linux, x64, poke-lounge]
+    timeout-minutes: 30
+    runs-on: [self-hosted, macOS, ARM64, poke-lounge]
     env:
+      COMPOSE_PROJECT_NAME: poke-lounge-prod
       BIND_ADDRESS: ${{ vars.BIND_ADDRESS || '127.0.0.1' }}
       WEB_PORT: ${{ vars.WEB_PORT || '3100' }}
       API_PORT: ${{ vars.API_PORT || '3101' }}
@@ -30,7 +31,6 @@ jobs:
       RUST_API_TRUSTED_PROXIES: ${{ vars.RUST_API_TRUSTED_PROXIES }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       BATTLE_WORKER_TOKEN: ${{ secrets.BATTLE_WORKER_TOKEN }}
-      COMPOSE_BAKE: "false" # ponytail: Remove after docker-buildx is installed on the runner.
     steps:
       - uses: actions/checkout@v4
         with:

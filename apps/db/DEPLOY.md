@@ -4,7 +4,9 @@
 
 ## 배포 경로
 
-[CI](../../.github/workflows/ci.yml)의 `verify`가 성공한 뒤 [Deploy](../../.github/workflows/deploy-api.yml)를 호출한다. `main`의 push 또는 `main`에서 CI를 수동 실행한 경우만 배포하며 PR 검증은 배포하지 않는다. runner는 `[self-hosted, linux, x64, poke-lounge]` 라벨과 Docker Compose가 필요하다. 배포 체크아웃은 `github.sha`다.
+[CI](../../.github/workflows/ci.yml)의 `verify`가 성공한 뒤 [Deploy](../../.github/workflows/deploy-api.yml)를 호출한다. `main`의 push 또는 `main`에서 CI를 수동 실행한 경우만 배포하며 PR 검증은 배포하지 않는다. runner는 `[self-hosted, macOS, ARM64, poke-lounge]` 라벨과 Docker Compose가 필요하다. 배포 체크아웃은 `github.sha`다.
+
+운영 호스트는 Mac mini(Apple silicon)다. Docker 엔진은 OrbStack이고 runner는 로그인 사용자의 launchd 서비스로 실행한다. [setup-mac-mini-runner.sh](../../scripts/deploy/setup-mac-mini-runner.sh)로 runner를 설치·등록한다. runner는 OrbStack 소켓과 keychain `credsStore`가 없는 전용 Docker 설정을 사용한다. 배포 Compose 프로젝트 이름은 `poke-lounge-prod`라서 같은 Mac의 로컬 개발 스택(`poke-lounge`, `poke-lounge-rust-local*`)과 컨테이너·볼륨을 공유하지 않는다. 외부 주소는 Mac의 Cloudflare Tunnel이 `127.0.0.1`의 `WEB_PORT`/`API_PORT`로 전달한다. 터널 설정은 저장소 밖 운영 설정에서 관리한다. 로그인 세션이 있어야 runner·OrbStack·터널이 동작하므로 재부팅 후에는 로그인 상태를 확인한다.
 
 | 설정                       | 현재 소비 위치/의미                                                                                                                                                                                                |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -37,7 +39,7 @@ PostgreSQL healthy → migrate: migration:run → rom-data:import
 docker compose up --build --detach --wait --wait-timeout 180
 ```
 
-배포 workflow는 같은 명령에 `--remove-orphans`를 추가한다. PostgreSQL·Redis named volume을 유지한다. `docker compose down -v`는 데이터 삭제이므로 일반 재시작/복구 절차에 사용하지 않는다.
+배포 workflow는 같은 명령에 `--remove-orphans`를 추가하고 `COMPOSE_PROJECT_NAME=poke-lounge-prod`로 실행한다. 운영 컨테이너를 직접 다룰 때도 같은 프로젝트 이름(`docker compose -p poke-lounge-prod …`)을 지정한다. PostgreSQL·Redis named volume을 유지한다. `docker compose down -v`는 데이터 삭제이므로 일반 재시작/복구 절차에 사용하지 않는다.
 
 ## 운영 로그 보관
 
