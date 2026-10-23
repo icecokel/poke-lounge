@@ -79,6 +79,20 @@ const AI_DISPLAY_NAMES: [&str; 18] = [
     "피크닉걸 진미",
 ];
 
+pub const ROUND_PHASE_WAITING: &str = "waiting";
+pub const ROUND_PHASE_STARTED: &str = "round-started";
+pub const ROUND_PHASE_TOURNAMENT: &str = "tournament";
+pub const ROUND_PHASE_COMPLETED: &str = "completed";
+
+// Keep this list in Status declaration order with serde's kebab-case spelling; checked against TS.
+#[expect(dead_code, reason = "Read by scripts/check-rust-ts-constants.mjs")]
+pub const ROOM_STATUSES: [&str; 5] = [
+    "waiting",
+    "round-started",
+    "tournament",
+    "completed",
+    "closed",
+];
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Status {
@@ -359,7 +373,7 @@ impl Room {
             parties: BTreeMap::new(),
             round: Round {
                 index: 1,
-                phase: "waiting".into(),
+                phase: ROUND_PHASE_WAITING.into(),
                 duration_ms: input.round_duration_ms.unwrap_or(DEFAULT_ROUND_DURATION_MS),
                 started_at_ms: None,
                 ends_at_ms: None,
@@ -446,7 +460,7 @@ impl Room {
         self.status = Status::Closed;
         self.close_reason = Some(reason.into());
         self.terminal_at_ms = Some(now);
-        self.round.phase = "completed".into();
+        self.round.phase = ROUND_PHASE_COMPLETED.into();
         self.round.ends_at_ms = None;
         self.touch(now);
     }
@@ -630,7 +644,7 @@ impl Room {
                     self.add_ai(now, compute).await?;
                 }
                 self.status = Status::RoundStarted;
-                self.round.phase = "round-started".into();
+                self.round.phase = ROUND_PHASE_STARTED.into();
                 self.round.started_at_ms = None;
                 self.round.ends_at_ms = None;
                 for p in &mut self.participants {
@@ -967,7 +981,7 @@ impl Room {
                 self.round.index += 1;
                 self.bracket = None;
                 self.status = Status::RoundStarted;
-                self.round.phase = "round-started".into();
+                self.round.phase = ROUND_PHASE_STARTED.into();
                 self.round.started_at_ms = None;
                 self.round.ends_at_ms = None;
                 for p in &mut self.participants {
@@ -1059,7 +1073,7 @@ impl Room {
                 );
             }
             self.status = Status::Tournament;
-            self.round.phase = "tournament".into();
+            self.round.phase = ROUND_PHASE_TOURNAMENT.into();
             self.touch(now);
         }
         if self.status != Status::Tournament {
@@ -1408,7 +1422,7 @@ impl Room {
             } else {
                 self.status = Status::Completed;
                 self.terminal_at_ms = Some(now);
-                self.round.phase = "completed".into();
+                self.round.phase = ROUND_PHASE_COMPLETED.into();
                 self.round.ends_at_ms = None;
                 let mut seen = BTreeSet::new();
                 let mut ranked = Vec::new();

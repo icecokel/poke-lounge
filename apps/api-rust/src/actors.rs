@@ -3,7 +3,7 @@ use crate::{
     config::{MAILBOX_CAPACITY, MAX_ACTORS, REQUEST_TIMEOUT},
     domain::{
         CreateRoom, DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y, FIELD_MAP_KEY, GameCommand, MAX_PARTICIPANTS,
-        PRESENCE_LEASE_MS, Room, RoomVisibility, Status, session_hash,
+        PRESENCE_LEASE_MS, ROUND_PHASE_WAITING, Room, RoomVisibility, Status, session_hash,
     },
     error::{AppError, AppResult},
     repository::{Receipt, Repository, fingerprint},
@@ -235,7 +235,7 @@ impl Rooms {
                 .filter(|participant| !participant.ai && participant.left_at_ms.is_none())
                 .count();
             let joinable = room.status == Status::Waiting
-                && room.round.phase == "waiting"
+                && room.round.phase == ROUND_PHASE_WAITING
                 && participant_count < MAX_PARTICIPANTS;
 
             rooms.push((

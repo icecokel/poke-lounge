@@ -61,9 +61,16 @@ export interface RustRoomParticipant {
   leftAtMs?: number;
 }
 
+export const RUST_ROOM_ROUND_PHASES = [
+  "waiting",
+  "round-started",
+  "tournament",
+  "completed",
+] as const;
+
 export interface RustRoomRound {
   index: number;
-  phase: "waiting" | "round-started" | "tournament" | "completed";
+  phase: (typeof RUST_ROOM_ROUND_PHASES)[number];
   durationMs: number;
   startedAtMs: number | null;
   endsAtMs: number | null;
@@ -166,13 +173,21 @@ export interface RustCompetitiveAction {
   slotIndex?: number;
 }
 
+export const RUST_ROOM_STATUSES = [
+  "waiting",
+  "round-started",
+  "tournament",
+  "completed",
+  "closed",
+] as const;
+
 export interface RustRoomSnapshot {
   roomCode: string;
   roomInstanceId: string;
   backend: "rust";
   starterMode: StarterMode;
   visibility: "public" | "private";
-  status: "waiting" | "round-started" | "tournament" | "completed" | "closed";
+  status: (typeof RUST_ROOM_STATUSES)[number];
   createdAtMs: number;
   updatedAtMs: number;
   revision: number;
