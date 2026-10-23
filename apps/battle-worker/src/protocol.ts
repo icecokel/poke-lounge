@@ -92,6 +92,7 @@ export const requestSchema = z.strictObject({
     z.strictObject({
       kind: z.literal("settle-tournament"),
       state: z.unknown(),
+      // 한 매치는 참가자 2명이므로 AI도 최대 2명
       aiPlayerIds: z.array(boundedId).max(2),
     }),
     z.strictObject({
