@@ -129,12 +129,12 @@ for y in range(H):
         world[y*W+x]=759+len(forest_tiles)
         forest_tiles.append(tile)
         collision.add((x,y))
-# Keep the existing accent positions and footprints with the selected single trees.
+# Keep accent artwork in place; only the two lower tiles contain the trunk hitbox.
 for x,y,first in ((12,4,749),(12,8,753),(13,10,745),(25,11,745),(28,11,749),(26,15,745),(13,16,749),(15,18,753)):
     block=rect(x,y,x+2,y+2)
     if block & (clear|collision):continue
     for i,gid in enumerate(range(first,first+4)):world[(y+i//2)*W+x+i%2]=gid
-    collision |= block
+    collision |= rect(x,y+1,x+2,y+2)
 assert not paths & collision and not grass & collision
 # Static layout sanity: every path cell and every zone must connect to the hub.
 walkable={(x,y) for y in range(H) for x in range(W)}-collision
@@ -285,6 +285,13 @@ for exit_zone in layers['Worlds']['objects']:
     exit_zone.update(x=576,y=736,width=160,height=32)
 assert all(len(layers[name]['data'])==W*H for name in ('Below Player','World','Above Player'))
 map_data['tilesets'][0].update(imageheight=atlas.height,tilecount=atlas.width//34*(atlas.height//34))
+accent_gids=set(range(745,757))
+map_data['tilesets'][0]['tiles']=[tile for tile in map_data['tilesets'][0]['tiles'] if tile['id']+1 not in accent_gids]
+for first in accent_sources:
+    for offset,x in ((2,22),(3,0)):
+        map_data['tilesets'][0]['tiles'].append({
+            'id':first+offset-1,'properties':[{'name':'collides','type':'bool','value':True}],
+            'objectgroup':{'type':'objectgroup','objects':[{'id':1,'x':x,'y':8,'width':10,'height':16,'rotation':0}]}})
 collision_gids = {tile['id']+1 for tile in map_data['tilesets'][0]['tiles'] if any(p['name']=='collides' and p['value'] is True for p in tile.get('properties',[]))}
 map_data['tilesets'][0]['tiles']=[tile for tile in map_data['tilesets'][0]['tiles'] if tile['id']<758]
 collision_gids={gid for gid in collision_gids if gid<759}
