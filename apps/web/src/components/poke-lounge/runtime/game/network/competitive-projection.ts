@@ -1,4 +1,11 @@
 import { parseGen4ActionRequest } from "@poke-lounge/battle/gen4/request";
+import { GEN4_STATUSES, type Gen4Status } from "@poke-lounge/battle/gen4/types";
+import {
+  GEN4_MOVE_ID_MAX,
+  COMPETITIVE_PP_MAX,
+  COMPETITIVE_TERMINAL_REASONS,
+  type CompetitiveTerminalReason,
+} from "@poke-lounge/battle/competitive-contract";
 import {
   LEGACY_COMPETITIVE_RULESET_HASH,
   COMPETITIVE_RULESET_HASH,
@@ -583,7 +590,7 @@ function parseMove(
   const move = requireRecord(value, ["moveId", "pp"], 5);
   const moveId = requireNonnegativeSafeInteger(move.moveId);
   const pp = requireNonnegativeSafeInteger(move.pp);
-  if (moveId < 1 || moveId > 470 || pp > 99) {
+  if (moveId < 1 || moveId > GEN4_MOVE_ID_MAX || pp > COMPETITIVE_PP_MAX) {
     throw schemaError();
   }
 
@@ -637,9 +644,7 @@ function parseTerminal(
     winnerPlayerId === loserPlayerId ||
     !playerIds.includes(winnerPlayerId) ||
     !playerIds.includes(loserPlayerId) ||
-    (terminal.reason !== "faint" &&
-      terminal.reason !== "forfeit" &&
-      terminal.reason !== "timeout") ||
+    !COMPETITIVE_TERMINAL_REASONS.includes(terminal.reason as CompetitiveTerminalReason) ||
     scoreByPlayerId[winnerPlayerId] !== 100 ||
     scoreByPlayerId[loserPlayerId] !== 50
   ) {
@@ -649,7 +654,7 @@ function parseTerminal(
   return {
     winnerPlayerId,
     loserPlayerId,
-    reason: terminal.reason,
+    reason: terminal.reason as CompetitiveTerminalReason,
     scoreByPlayerId: {
       [playerIds[0]]: scoreByPlayerId[playerIds[0]] as 50 | 100,
       [playerIds[1]]: scoreByPlayerId[playerIds[1]] as 50 | 100,
@@ -775,9 +780,7 @@ function isCompetitivePokemonStatus(
 ): value is CompetitiveProjection["currentState"]["playersById"][string]["team"][number]["status"] {
   return currentHp === 0
     ? value === "fainted"
-    : ["normal", "poisoned", "badlyPoisoned", "burned", "paralyzed", "asleep", "frozen"].includes(
-        value as string,
-      );
+    : value !== "fainted" && GEN4_STATUSES.includes(value as Gen4Status);
 }
 
 function isCompetitiveStatus(value: unknown): value is CompetitiveProjection["status"] {

@@ -5,6 +5,7 @@ import type {
   RustRoomTournament,
 } from "@/features/poke-lounge/contracts/rust-room";
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
+import type { TournamentResultReason } from "@poke-lounge/battle/competitive-contract";
 import type { StarterSelection } from "@poke-lounge/battle/starter-selection";
 import type {
   TournamentBye,
@@ -22,7 +23,7 @@ const MAX_ROUND_ENTRIES = 4;
 const MAX_ID_LENGTH = 128;
 const MAX_DISPLAY_NAME_LENGTH = 80;
 
-export type TournamentResultReason = "faint" | "timeout" | "forfeit" | "run" | "capture";
+export type { TournamentResultReason } from "@poke-lounge/battle/competitive-contract";
 
 export type TournamentProjectionMatch = TournamentMatch;
 export type TournamentProjectionRound = TournamentRound;

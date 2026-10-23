@@ -1,3 +1,8 @@
+import {
+  TOURNAMENT_RESULT_REASONS,
+  type TournamentResultReason,
+} from "@poke-lounge/battle/competitive-contract";
+
 export type TournamentRoomMessageType =
   "TOURNAMENT_STARTED" | "TOURNAMENT_MATCH_RESULT" | "TOURNAMENT_COMPLETED" | "ROUND_SCORE_UPDATED";
 
@@ -13,7 +18,7 @@ export interface TournamentMatchResultRoomPayload {
   hostPlayerId?: string;
   matchId: string;
   winnerPlayerId: string;
-  reason: "faint" | "timeout" | "forfeit" | "run" | "capture";
+  reason: TournamentResultReason;
 }
 
 export interface TournamentCompletedRoomPayload {
@@ -311,12 +316,8 @@ function normalizeInteger(value: unknown, min: number): number | null {
 function normalizeMatchResultReason(
   value: unknown,
 ): TournamentMatchResultRoomPayload["reason"] | null {
-  return value === "faint" ||
-    value === "timeout" ||
-    value === "forfeit" ||
-    value === "run" ||
-    value === "capture"
-    ? value
+  return TOURNAMENT_RESULT_REASONS.includes(value as TournamentResultReason)
+    ? (value as TournamentResultReason)
     : null;
 }
 

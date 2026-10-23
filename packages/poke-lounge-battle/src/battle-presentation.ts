@@ -1,4 +1,5 @@
 export { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "./timing";
+import { GEN4_STATUSES, type Gen4Status } from "./gen4/types";
 
 /** Cosmetic, resolved-action telemetry. Never used to decide damage, PP, turn order or a winner. */
 export type PresentationStatus = import("./gen4/types").Gen4Status;
@@ -44,16 +45,6 @@ export function parseResolvedTurnPresentation(
   if (v.turn !== currentTurn - 1 || !Array.isArray(v.events) || v.events.length > 64)
     return undefined;
   const result: ResolvedAnimationEvent[] = [];
-  const statuses = [
-    "normal",
-    "poisoned",
-    "badlyPoisoned",
-    "burned",
-    "paralyzed",
-    "asleep",
-    "frozen",
-    "fainted",
-  ];
   for (const input of v.events) {
     if (!input || typeof input !== "object" || Array.isArray(input)) return undefined;
     const e = input as Record<string, unknown>;
@@ -61,9 +52,9 @@ export function parseResolvedTurnPresentation(
       (e.kind !== "move" && e.kind !== "status") ||
       !playerIds.includes(e.actorPlayerId as string) ||
       !playerIds.includes(e.targetPlayerId as string) ||
-      !statuses.includes(e.status as string) ||
-      !statuses.includes(e.actorStatus as string) ||
-      !statuses.includes(e.targetStatus as string) ||
+      !GEN4_STATUSES.includes(e.status as Gen4Status) ||
+      !GEN4_STATUSES.includes(e.actorStatus as Gen4Status) ||
+      !GEN4_STATUSES.includes(e.targetStatus as Gen4Status) ||
       typeof e.hit !== "boolean"
     )
       return undefined;
@@ -84,7 +75,7 @@ export function parseResolvedTurnPresentation(
           (e.actorPlayerId === e.targetPlayerId && e.actorSlotIndex !== e.targetSlotIndex))) ||
       (e.kind === "status" &&
         (e.moveId !== 0 ||
-          !statuses.includes(e.status as string) ||
+          !GEN4_STATUSES.includes(e.status as Gen4Status) ||
           e.actorPlayerId !== e.targetPlayerId))
     )
       return undefined;
