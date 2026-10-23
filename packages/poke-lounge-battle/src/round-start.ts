@@ -1,6 +1,11 @@
 import { FIELD_MAP } from "./adventure/world/field-map";
 
 export { ROUND_START_COUNTDOWN_MS } from "./timing";
+export const ROUND_SPAWN_BASE_X = FIELD_MAP.recoverySpawn.x - 48;
+export const ROUND_SPAWN_BASE_Y = FIELD_MAP.recoverySpawn.y;
+export const ROUND_SPAWN_START_Y_OFFSET = 64;
+export const ROUND_SPAWN_STEP = 32;
+export const ROUND_SPAWN_COLUMNS = 4;
 export interface RoundStartClock {
   phase: string;
   startedAtMs: number | null;
@@ -35,8 +40,11 @@ export function getRoundStartPosition(playerId: string, playerIds: readonly stri
   const index = ids.indexOf(playerId);
   return {
     map: FIELD_MAP.key,
-    x: FIELD_MAP.recoverySpawn.x - 48 + (index % 4) * 32,
-    y: FIELD_MAP.recoverySpawn.y + 64 + Math.floor(index / 4) * 32,
+    x: ROUND_SPAWN_BASE_X + (index % ROUND_SPAWN_COLUMNS) * ROUND_SPAWN_STEP,
+    y:
+      ROUND_SPAWN_BASE_Y +
+      ROUND_SPAWN_START_Y_OFFSET +
+      Math.floor(index / ROUND_SPAWN_COLUMNS) * ROUND_SPAWN_STEP,
     facing: "front" as const,
   };
 }

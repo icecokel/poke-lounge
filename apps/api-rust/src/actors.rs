@@ -2,8 +2,8 @@ use crate::{
     compute::Compute,
     config::{MAILBOX_CAPACITY, MAX_ACTORS, REQUEST_TIMEOUT},
     domain::{
-        CreateRoom, GameCommand, MAX_PARTICIPANTS, PRESENCE_LEASE_MS, Room, RoomVisibility, Status,
-        session_hash,
+        CreateRoom, DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y, FIELD_MAP_KEY, GameCommand, MAX_PARTICIPANTS,
+        PRESENCE_LEASE_MS, Room, RoomVisibility, Status, session_hash,
     },
     error::{AppError, AppResult},
     repository::{Receipt, Repository, fingerprint},
@@ -552,7 +552,7 @@ impl Actor {
         for player in players {
             let position=self.room.position(&player.player_id,self.now).or_else(||{
                 let a=self.room.adventures.get(&player.player_id)?;
-                Some(json!({"map":"town","x":a["position"]["x"],"y":a["position"]["y"],"facing":a["facing"]}))
+                Some(json!({"map":FIELD_MAP_KEY,"x":a["position"]["x"],"y":a["position"]["y"],"facing":a["facing"]}))
             });
             if let Some(position) = position {
                 self.update_world(&player.player_id, "PLAYER_MOVED", position)?;
@@ -754,7 +754,7 @@ impl Actor {
                         "PLAYER_JOINED",
                         self.room
                             .position(&player, self.now)
-                            .unwrap_or(json!({"map":"town","x":624,"y":688,"facing":"front"})),
+                            .unwrap_or(json!({"map":FIELD_MAP_KEY,"x":DEFAULT_SPAWN_X,"y":DEFAULT_SPAWN_Y,"facing":"front"})),
                     )?;
                 }
                 Ok(json!({"room":self.snapshot(after),"world":self.world_snapshot()}))
