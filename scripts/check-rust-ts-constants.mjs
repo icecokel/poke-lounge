@@ -133,6 +133,9 @@ function readRustConstant(source, name) {
     return literal[1];
   }
   if (type.startsWith("[&str;")) {
+    if (!/^\[\s*"[^"\\]*"(?:\s*,\s*"[^"\\]*")*\s*,?\s*\]$/.test(expression.trim())) {
+      throw new Error("Invalid string array literal for " + name);
+    }
     const items = JSON.parse(expression.trim().replace(/,\s*\]$/, "]"));
     if (
       !Array.isArray(items) ||
