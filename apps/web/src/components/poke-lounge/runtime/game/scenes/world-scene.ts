@@ -1,3 +1,4 @@
+import { clonePlayerSnapshot } from "../network/player-snapshot-clone";
 import type { StarterSelection } from "@poke-lounge/battle/starter-selection";
 import { PLAYER_POSITION_PERSIST_INTERVAL_MS } from "@poke-lounge/battle/timing";
 import type { TournamentMatch } from "@poke-lounge/battle/tournament-bracket";
@@ -912,7 +913,10 @@ export class WorldController {
       };
       movement = "snap";
     }
-    this.remotePlayerSnapshots.set(snapshot.sessionId, clonePlayerSnapshot(snapshot));
+    this.remotePlayerSnapshots.set(
+      snapshot.sessionId,
+      clonePlayerSnapshot({ ...snapshot, party: snapshot.party ?? [] }),
+    );
     this.options.worldRuntime.upsertRemotePlayer(snapshot, movement, performance.now());
     this.gameStateStore.upsertRemotePlayer(toRemotePlayerState(snapshot));
   }
@@ -1401,34 +1405,6 @@ export function toRemotePlayerState(snapshot: PlayerSnapshot): RemotePlayerState
     facing: snapshot.facing,
     activePokemon: snapshot.activePokemon,
   };
-}
-
-function clonePlayerSnapshot(snapshot: PlayerSnapshot): PlayerSnapshot {
-  return {
-    ...snapshot,
-    activePokemon: snapshot.activePokemon ? { ...snapshot.activePokemon } : undefined,
-    party: cloneSnapshotParty(snapshot.party),
-  };
-}
-
-function cloneSnapshotParty(
-  party: PlayerSnapshot["party"] | undefined,
-): NonNullable<PlayerSnapshot["party"]> {
-  return (
-    party?.map(function mapItem(slot) {
-      return {
-        slotIndex: slot.slotIndex,
-        pokemon: slot.pokemon
-          ? {
-              ...slot.pokemon,
-              moves: slot.pokemon.moves?.map(function mapItem(move) {
-                return { ...move };
-              }),
-            }
-          : null,
-      };
-    }) ?? []
-  );
 }
 
 function findObject(

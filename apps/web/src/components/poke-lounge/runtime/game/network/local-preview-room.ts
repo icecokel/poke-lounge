@@ -1,3 +1,4 @@
+import { clonePlayerSnapshot, cloneSnapshotParty } from "./player-snapshot-clone";
 import { ROOM_MESSAGES, isTournamentRoomMessage } from "./room-messages";
 import {
   normalizeTournamentRoomPayload,
@@ -246,7 +247,7 @@ export function createLocalPreviewRoom(options: LocalPreviewRoomOptions = {}): M
         postChannelMessage({
           kind: "HELLO_ECHO",
           targetSessionId: message.sourceSessionId,
-          payload: cloneSnapshot(localSnapshot),
+          payload: clonePlayerSnapshot(localSnapshot),
         });
       }
       return;
@@ -329,7 +330,7 @@ export function createLocalPreviewRoom(options: LocalPreviewRoomOptions = {}): M
       emit("CURRENT_PLAYERS", { players: clonePlayers(players) });
       postChannelMessage({
         kind: "HELLO",
-        payload: cloneSnapshot(localSnapshot),
+        payload: clonePlayerSnapshot(localSnapshot),
       });
     },
     dispose() {
@@ -370,7 +371,7 @@ export function createLocalPreviewRoom(options: LocalPreviewRoomOptions = {}): M
           sessionId,
         );
         players[sessionId] = localSnapshot;
-        outboundPayload = cloneSnapshot(localSnapshot);
+        outboundPayload = clonePlayerSnapshot(localSnapshot);
       } else if (type === "PLAYER_LEFT") {
         outboundPayload = { sessionId };
       }
@@ -464,42 +465,16 @@ function mergeSnapshot(
     ...snapshot,
     sessionId,
     activePokemon: snapshot.activePokemon ?? base.activePokemon,
-    party: cloneParty(snapshot.party ?? base.party),
+    party: cloneSnapshotParty(snapshot.party ?? base.party),
   };
 }
 
 function clonePlayers(players: Record<string, PlayerSnapshot>): Record<string, PlayerSnapshot> {
   return Object.fromEntries(
     Object.entries(players).map(function mapItem([sessionId, snapshot]) {
-      return [sessionId, cloneSnapshot(snapshot)];
+      return [sessionId, clonePlayerSnapshot(snapshot)];
     }),
   );
-}
-
-function cloneSnapshot(snapshot: PlayerSnapshot): PlayerSnapshot {
-  return {
-    ...snapshot,
-    activePokemon: snapshot.activePokemon ? { ...snapshot.activePokemon } : undefined,
-    party: cloneParty(snapshot.party),
-  };
-}
-
-function cloneParty(
-  party: PlayerSnapshot["party"] | undefined,
-): PlayerSnapshot["party"] | undefined {
-  return party?.map(function mapItem(slot) {
-    return {
-      slotIndex: slot.slotIndex,
-      pokemon: slot.pokemon
-        ? {
-            ...slot.pokemon,
-            moves: slot.pokemon.moves?.map(function mapItem(move) {
-              return { ...move };
-            }),
-          }
-        : null,
-    };
-  });
 }
 
 function toLocalPreviewChannelMessage(value: unknown): LocalPreviewChannelMessage | null {

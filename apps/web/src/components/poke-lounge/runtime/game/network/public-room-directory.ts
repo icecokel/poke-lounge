@@ -1,3 +1,4 @@
+import { isRecord } from "./tournament-room-protocol";
 import { getApiBaseUrl } from "@/lib/constants";
 import { isStarterMode, type StarterMode } from "@poke-lounge/battle/starter-selection";
 import {
@@ -171,10 +172,6 @@ function parsePublicRoomSummary(value: unknown): PublicRoomSummary {
     expiresAtMs: value.expiresAtMs,
     joinable: value.joinable,
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isNonNegativeInteger(value: unknown): value is number {

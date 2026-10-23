@@ -246,7 +246,7 @@ function normalizeStandings(
   return standings;
 }
 
-function normalizeIdList(
+export function normalizeIdList(
   value: unknown,
   options: { maxCount?: number; minCount?: number; removeDuplicates?: boolean } = {},
 ): string[] | null {
@@ -282,7 +282,7 @@ function normalizeIdList(
   return ids;
 }
 
-function normalizeId(value: unknown): string | null {
+export function normalizeId(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
   }
@@ -320,6 +320,6 @@ function normalizeMatchResultReason(
     : null;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

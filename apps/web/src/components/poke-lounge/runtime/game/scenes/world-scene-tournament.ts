@@ -1,3 +1,4 @@
+import { cloneSnapshotParty } from "../network/player-snapshot-clone";
 import {
   createTournamentBriefingText,
   createVisibleTournamentStandings,
@@ -503,7 +504,7 @@ function toTournamentLocalPlayerFromSnapshot(
   playerIdOverride?: string,
 ): LocalPlayerState | null {
   const playerId = playerIdOverride?.trim() || snapshot.playerId?.trim() || snapshot.sessionId;
-  const party = cloneTournamentSnapshotParty(snapshot.party);
+  const party = cloneSnapshotParty(snapshot.party) ?? [];
   const activePartySlotIndex = normalizeTournamentActivePartySlotIndex(
     snapshot.activePartySlotIndex,
     party,
@@ -528,26 +529,6 @@ function toTournamentLocalPlayerFromSnapshot(
       facing: snapshot.facing,
     },
   };
-}
-
-function cloneTournamentSnapshotParty(
-  party: PlayerSnapshot["party"] | undefined,
-): NonNullable<PlayerSnapshot["party"]> {
-  return (
-    party?.map(function mapItem(slot) {
-      return {
-        slotIndex: slot.slotIndex,
-        pokemon: slot.pokemon
-          ? {
-              ...slot.pokemon,
-              moves: slot.pokemon.moves?.map(function mapItem(move) {
-                return { ...move };
-              }),
-            }
-          : null,
-      };
-    }) ?? []
-  );
 }
 
 function normalizeTournamentActivePartySlotIndex(
