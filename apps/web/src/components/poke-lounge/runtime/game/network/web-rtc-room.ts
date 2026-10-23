@@ -1,13 +1,7 @@
+import { createRoomEventListeners } from "./room-event-listeners";
 import { PEER_RELAYED_ROOM_MESSAGES, isTournamentRoomMessage } from "./room-messages";
-import type {
-  MultiplayerRoom,
-  RoomEvent,
-  RoomMessage,
-  RoomUnsubscribe,
-} from "./local-preview-room";
+import type { MultiplayerRoom, RoomEvent, RoomMessage } from "./local-preview-room";
 import { normalizeTournamentRoomPayload } from "./tournament-room-protocol";
-
-type Handler<T extends RoomMessage> = (payload: RoomEvent[T]) => void;
 
 type WebRtcSignalType = "offer" | "answer";
 
@@ -57,29 +51,11 @@ export interface WebRtcRoom extends MultiplayerRoom {
 export function createWebRtcRoom(options: WebRtcRoomOptions = {}): WebRtcRoom {
   const sessionId = options.sessionId ?? `webrtc-${Math.random().toString(16).slice(2, 6)}`;
   const peerConnection = createPeerConnection(options);
-  const handlers = new Map<RoomMessage, Set<Handler<RoomMessage>>>();
+  const { emit, emitConnectionStatus, on, clear: clearEventListeners } = createRoomEventListeners();
   const queuedMessages: string[] = [];
   let dataChannel: WebRtcDataChannelLike | null = null;
   let connected = false;
   let disposed = false;
-  let connectionStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"] = "offline";
-  let connectionStatusAnnounced = false;
-
-  const emit = <T extends RoomMessage>(type: T, payload: RoomEvent[T]) => {
-    for (const handler of handlers.get(type) ?? []) {
-      handler(payload as RoomEvent[RoomMessage]);
-    }
-  };
-
-  const emitConnectionStatus = (nextStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"]) => {
-    if (connectionStatusAnnounced && connectionStatus === nextStatus) {
-      return;
-    }
-
-    connectionStatus = nextStatus;
-    connectionStatusAnnounced = true;
-    emit("CONNECTION_STATUS", { connectionStatus });
-  };
 
   const flushQueuedMessages = () => {
     if (dataChannel?.readyState !== "open") {
@@ -216,7 +192,7 @@ export function createWebRtcRoom(options: WebRtcRoomOptions = {}): WebRtcRoom {
       }
 
       emitConnectionStatus("offline");
-      handlers.clear();
+      clearEventListeners();
       queuedMessages.splice(0);
       connected = false;
     },
@@ -236,20 +212,7 @@ export function createWebRtcRoom(options: WebRtcRoomOptions = {}): WebRtcRoom {
         queuedMessages.push(message);
       }
     },
-    on(type, handler) {
-      const typedHandler = handler as Handler<RoomMessage>;
-      const nextHandlers = handlers.get(type) ?? new Set<Handler<RoomMessage>>();
-      nextHandlers.add(typedHandler);
-      handlers.set(type, nextHandlers);
-
-      if (type === "CONNECTION_STATUS" && connectionStatusAnnounced) {
-        typedHandler({ connectionStatus } as RoomEvent[RoomMessage]);
-      }
-
-      return function callback() {
-        nextHandlers.delete(typedHandler);
-      } satisfies RoomUnsubscribe;
-    },
+    on,
   };
 }
 

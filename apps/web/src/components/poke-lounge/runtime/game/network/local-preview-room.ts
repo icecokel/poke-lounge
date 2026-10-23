@@ -1,3 +1,4 @@
+import { createRoomEventListeners } from "./room-event-listeners";
 import { clonePlayerSnapshot, cloneSnapshotParty } from "./player-snapshot-clone";
 import { ROOM_MESSAGES, isTournamentRoomMessage } from "./room-messages";
 import {
@@ -136,8 +137,6 @@ export interface MultiplayerRoom {
   on<T extends RoomMessage>(type: T, handler: (payload: RoomEvent[T]) => void): RoomUnsubscribe;
 }
 
-type Handler<T extends RoomMessage> = (payload: RoomEvent[T]) => void;
-
 export interface LocalPreviewRoomOptions {
   roomId?: string;
   sessionId?: string;
@@ -184,30 +183,12 @@ export function createLocalPreviewRoom(options: LocalPreviewRoomOptions = {}): M
   const roomId = options.roomId ?? DEFAULT_LOCAL_ROOM_ID;
   const channelName = `poke-lounge:${roomId}`;
   const sessionId = options.sessionId ?? `local-${Math.random().toString(16).slice(2, 6)}`;
-  const handlers = new Map<RoomMessage, Set<Handler<RoomMessage>>>();
+  const { emit, emitConnectionStatus, on, clear: clearEventListeners } = createRoomEventListeners();
   const players: Record<string, PlayerSnapshot> = {};
   let transport: LocalPreviewMessageTransport | null = null;
   let connected = false;
   let disposed = false;
   let localSnapshot: PlayerSnapshot | null = null;
-  let connectionStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"] = "offline";
-  let connectionStatusAnnounced = false;
-
-  const emit = <T extends RoomMessage>(type: T, payload: RoomEvent[T]) => {
-    for (const handler of handlers.get(type) ?? []) {
-      handler(payload as RoomEvent[RoomMessage]);
-    }
-  };
-
-  const emitConnectionStatus = (nextStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"]) => {
-    if (connectionStatusAnnounced && connectionStatus === nextStatus) {
-      return;
-    }
-
-    connectionStatus = nextStatus;
-    connectionStatusAnnounced = true;
-    emit("CONNECTION_STATUS", { connectionStatus });
-  };
 
   const postChannelMessage = (message: LocalPreviewChannelMessageBody) => {
     if (disposed) {
@@ -355,7 +336,7 @@ export function createLocalPreviewRoom(options: LocalPreviewRoomOptions = {}): M
       disposed = true;
       delete players[sessionId];
       transport?.close();
-      handlers.clear();
+      clearEventListeners();
     },
     send(type, payload) {
       if (disposed) {
@@ -384,20 +365,7 @@ export function createLocalPreviewRoom(options: LocalPreviewRoomOptions = {}): M
         });
       }
     },
-    on(type, handler) {
-      const typedHandler = handler as Handler<RoomMessage>;
-      const nextHandlers = handlers.get(type) ?? new Set<Handler<RoomMessage>>();
-      nextHandlers.add(typedHandler);
-      handlers.set(type, nextHandlers);
-
-      if (type === "CONNECTION_STATUS" && connectionStatusAnnounced) {
-        typedHandler({ connectionStatus } as RoomEvent[RoomMessage]);
-      }
-
-      return function callback() {
-        nextHandlers.delete(typedHandler);
-      };
-    },
+    on,
   };
 }
 
