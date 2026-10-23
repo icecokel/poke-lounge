@@ -5,11 +5,12 @@ set -euo pipefail
 # before that happens, in a separate volume that `compose down -v` cannot remove.
 archive_volume=poke-lounge-trace-archive
 archive_image=alpine:3.20
+project=${COMPOSE_PROJECT_NAME:-poke-lounge}
 services=(api battle-worker web migrate postgres redis)
 
 existing=0
 for service in "${services[@]}"; do
-  if docker container inspect "poke-lounge-${service}-1" >/dev/null 2>&1; then
+  if docker container inspect "${project}-${service}-1" >/dev/null 2>&1; then
     existing=1
     break
   fi
@@ -22,7 +23,7 @@ fi
 docker volume create "$archive_volume" >/dev/null
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 for service in "${services[@]}"; do
-  container="poke-lounge-${service}-1"
+  container="${project}-${service}-1"
   if ! docker container inspect "$container" >/dev/null 2>&1; then
     continue
   fi
