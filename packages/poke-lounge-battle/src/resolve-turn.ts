@@ -25,6 +25,7 @@ import {
   isLegacyCompetitiveMoveEffectSelectable,
   COMPETITIVE_RULESET_V2,
   COMPETITIVE_STRUGGLE_MOVE_ID,
+  STRUGGLE_MOVE_ID,
 } from "./competitive-ruleset-config";
 function isCompetitiveMoveSelectable(moveId: number): boolean {
   const move = COMPETITIVE_MOVE_CATALOG[moveId];
@@ -379,7 +380,7 @@ function executeMove(
       state,
       actorPlayerId,
       targetPlayerId,
-      typeof action.moveId === "number" ? action.moveId : 165,
+      typeof action.moveId === "number" ? action.moveId : STRUGGLE_MOVE_ID,
       hit,
       beforeHp - defender.currentHp,
     );

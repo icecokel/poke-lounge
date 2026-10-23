@@ -1,3 +1,4 @@
+import { STRUGGLE_MOVE_ID } from "../competitive-ruleset-config";
 import { withObjectParticle, withSubjectParticle, withTopicParticle } from "../battle-message-text";
 import { createDefaultBattleStatStages } from "../battle-stat-stages";
 import { hgssPhazingSucceeds } from "./flow";
@@ -516,7 +517,7 @@ export function validateGen4Action(r: Gen4ActionRequest, a: Gen4Action): void {
     return;
   }
   if (a.kind === "move") {
-    const id = a.moveId === "struggle" ? 165 : a.moveId;
+    const id = a.moveId === "struggle" ? STRUGGLE_MOVE_ID : a.moveId;
     if (r.recharge || !r.moves.some(m => m.moveId === id && !m.disabled && m.pp > 0))
       throw Error("This move is unavailable");
     return;
@@ -566,7 +567,7 @@ export function advanceGen4Battle(
           ? "default"
           : a.kind === "switch"
             ? `switch ${side.pokemon.findIndex(p => slot(p) === a.slotIndex) + 1}`
-            : `move ${moveByNum.get(a.moveId === "struggle" ? 165 : a.moveId)!.id}`;
+            : `move ${moveByNum.get(a.moveId === "struggle" ? STRUGGLE_MOVE_ID : a.moveId)!.id}`;
       if (!b.choose(side.id, choice)) throw Error("Battle choice was rejected");
     }
   }
