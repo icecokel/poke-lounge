@@ -1,9 +1,9 @@
+import { ROOM_MESSAGES, isTournamentRoomMessage } from "./room-messages";
 import {
   normalizeTournamentRoomPayload,
   type RoundScoreUpdatedRoomPayload,
   type TournamentCompletedRoomPayload,
   type TournamentMatchResultRoomPayload,
-  type TournamentRoomMessageType,
   type TournamentStartedRoomPayload,
 } from "./tournament-room-protocol";
 import type { PlayerPokemonSlot } from "../player/player-types";
@@ -172,34 +172,11 @@ interface LocalPreviewMessageTransport {
 
 const LOCAL_PREVIEW_PROTOCOL = "poke-lounge-local-preview";
 const DEFAULT_LOCAL_ROOM_ID = "local-preview";
-const ROOM_MESSAGES = new Set<RoomMessage>([
-  "CURRENT_PLAYERS",
-  "PLAYER_JOINED",
-  "PLAYER_MOVED",
-  "PLAYER_MOVEMENT_ENDED",
-  "PLAYER_CHANGED_MAP",
-  "PLAYER_LEFT",
-  "TOURNAMENT_STARTED",
-  "TOURNAMENT_STATE",
-  "TOURNAMENT_MATCH_RESULT",
-  "TOURNAMENT_COMPLETED",
-  "ROUND_SCORE_UPDATED",
-  "COMPETITIVE_ASSIGNMENT",
-  "COMPETITIVE_STATE",
-  "COMPETITIVE_ACTION",
-  "COMPETITIVE_ACTION_FAILED",
-]);
 const SNAPSHOT_EVENTS = new Set<RoomMessage>([
   "PLAYER_JOINED",
   "PLAYER_MOVED",
   "PLAYER_MOVEMENT_ENDED",
   "PLAYER_CHANGED_MAP",
-]);
-const TOURNAMENT_ROOM_MESSAGES = new Set<TournamentRoomMessageType>([
-  "TOURNAMENT_STARTED",
-  "TOURNAMENT_MATCH_RESULT",
-  "TOURNAMENT_COMPLETED",
-  "ROUND_SCORE_UPDATED",
 ]);
 
 export function createLocalPreviewRoom(options: LocalPreviewRoomOptions = {}): MultiplayerRoom {
@@ -557,10 +534,6 @@ function toLocalPreviewChannelMessage(value: unknown): LocalPreviewChannelMessag
   }
 
   return null;
-}
-
-function isTournamentRoomMessage(type: RoomMessage): type is TournamentRoomMessageType {
-  return TOURNAMENT_ROOM_MESSAGES.has(type as TournamentRoomMessageType);
 }
 
 type InMemoryBroadcastHandler = (event: MessageEvent<unknown>) => void;
