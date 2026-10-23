@@ -2244,7 +2244,11 @@ function resolveGen4Action(
     opponentPokemon: state.opponent.pokemon,
     messageQueue: state.messageQueue,
     selectedMoveId:
-      action.kind === "move" ? (action.moveId === "struggle" ? STRUGGLE_MOVE_ID : action.moveId) : null,
+      action.kind === "move"
+        ? action.moveId === "struggle"
+          ? STRUGGLE_MOVE_ID
+          : action.moveId
+        : null,
     turn: state.turn,
     usedInventoryItemId: null,
   };
