@@ -1,6 +1,7 @@
 import { GEN4_ROM_SPECIES, GEN4_ROM_ITEMS } from "./gen4/rom-catalog.generated";
 import { normalizeGen4Traits } from "./gen4/traits";
-import { validGen4EffortValues, type Gen4Traits } from "./gen4/types";
+import { GEN4_STATUSES, validGen4EffortValues, type Gen4Traits } from "./gen4/types";
+import { GEN4_IV_MAX } from "./competitive-contract";
 import {
   COMPETITIVE_MOVE_CATALOG,
   COMPETITIVE_SPECIES_CATALOG,
@@ -305,7 +306,7 @@ function isPartySlot(value: number): boolean {
 
 function isValidIndividualValues(values: CompetitiveIndividualValues): boolean {
   return Object.values(values).every(function testItem(value) {
-    return Number.isSafeInteger(value) && value >= 0 && value <= 31;
+    return Number.isSafeInteger(value) && value >= 0 && value <= GEN4_IV_MAX;
   });
 }
 
@@ -313,13 +314,5 @@ function hasMatchingStatusAndHp(status: CompetitivePersistentStatus, currentHp: 
   if (currentHp === 0) {
     return status === "fainted";
   }
-  return [
-    "normal",
-    "poisoned",
-    "badlyPoisoned",
-    "burned",
-    "paralyzed",
-    "asleep",
-    "frozen",
-  ].includes(status);
+  return status !== "fainted" && GEN4_STATUSES.includes(status);
 }

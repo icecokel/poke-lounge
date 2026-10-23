@@ -1,5 +1,12 @@
 import { GEN4_ROM_SPECIES } from "./rom-catalog.generated";
 import {
+  GEN4_ITEM_ID_MAX,
+  GEN4_EV_MAX,
+  GEN4_HAPPINESS_MAX,
+  GEN4_STATUS_TURNS_MAX,
+  GEN4_NATURE_ID_MAX,
+} from "../competitive-contract";
+import {
   GEN4_ZERO_EVS,
   GEN4_STAT_KEYS,
   validGen4EffortValues,
@@ -20,17 +27,21 @@ export function normalizeGen4Traits(speciesId: number, input: Gen4Traits = {}) {
         : 0,
     abilityId: abilities.includes(input.abilityId ?? 0) ? input.abilityId! : (abilities[0] ?? 0),
     heldItemId:
-      Number.isInteger(input.heldItemId) && input.heldItemId! >= 0 && input.heldItemId! <= 536
+      Number.isInteger(input.heldItemId) &&
+      input.heldItemId! >= 0 &&
+      input.heldItemId! <= GEN4_ITEM_ID_MAX
         ? input.heldItemId!
         : 0,
     effortValues: {
       ...(validGen4EffortValues(input.effortValues) ? input.effortValues : GEN4_ZERO_EVS),
     },
     happiness: Number.isFinite(input.happiness)
-      ? Math.max(0, Math.min(255, Math.floor(input.happiness!)))
+      ? Math.max(0, Math.min(GEN4_HAPPINESS_MAX, Math.floor(input.happiness!)))
       : 70,
     ...(input.statusTurns !== undefined
-      ? { statusTurns: Math.max(0, Math.min(7, Math.floor(input.statusTurns))) }
+      ? {
+          statusTurns: Math.max(0, Math.min(GEN4_STATUS_TURNS_MAX, Math.floor(input.statusTurns))),
+        }
       : {}),
   };
 }
@@ -41,7 +52,7 @@ export function createGen4Traits(
   const abilities = GEN4_ROM_SPECIES[speciesId]?.abilities ?? [0];
   return {
     ...normalizeGen4Traits(speciesId),
-    natureId: Math.min(24, Math.floor(random() * 25)),
+    natureId: Math.min(GEN4_NATURE_ID_MAX, Math.floor(random() * 25)),
     abilityId: abilities[Math.min(abilities.length - 1, Math.floor(random() * abilities.length))],
   };
 }
@@ -53,7 +64,7 @@ export function awardGen4EffortValues(
   const reward = GEN4_ROM_SPECIES[defeatedSpeciesId]?.evYield ?? GEN4_ZERO_EVS;
   let remaining = 510 - GEN4_STAT_KEYS.reduce((total, key) => total + current[key], 0);
   for (const key of GEN4_STAT_KEYS) {
-    const gain = Math.max(0, Math.min(reward[key], 255 - current[key], remaining));
+    const gain = Math.max(0, Math.min(reward[key], GEN4_EV_MAX - current[key], remaining));
     current[key] += gain;
     remaining -= gain;
   }

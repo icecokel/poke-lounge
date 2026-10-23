@@ -1,14 +1,16 @@
 import type { BattleStatStages } from "../battle-stat-stages";
 
-export type Gen4Status =
-  | "normal"
-  | "poisoned"
-  | "badlyPoisoned"
-  | "burned"
-  | "paralyzed"
-  | "asleep"
-  | "frozen"
-  | "fainted";
+export const GEN4_STATUSES = [
+  "normal",
+  "poisoned",
+  "badlyPoisoned",
+  "burned",
+  "paralyzed",
+  "asleep",
+  "frozen",
+  "fainted",
+] as const;
+export type Gen4Status = (typeof GEN4_STATUSES)[number];
 export interface Gen4StatValues {
   hp: number;
   attack: number;

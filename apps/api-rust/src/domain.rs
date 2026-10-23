@@ -41,6 +41,7 @@ pub const AI_ONLY_TURN_READY_MS: u64 = 500;
 pub const TOURNAMENT_BRIEFING_MS: u64 = 5_000;
 // Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_RESULT_DURATION_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_RESULT_MS: u64 = 5_000;
+pub const TERMINAL_REASONS: [&str; 3] = ["faint", "forfeit", "timeout"];
 pub const FIELD_MAP_KEY: &str = "town";
 pub const DEFAULT_SPAWN_X: u64 = 624;
 pub const DEFAULT_SPAWN_Y: u64 = 688;
@@ -1385,9 +1386,7 @@ impl Room {
             .as_str()
             .ok_or(AppError::ComputeUnavailable)?
             .to_owned();
-        if !m.players.contains(&winner)
-            || !matches!(reason.as_str(), "faint" | "forfeit" | "timeout")
-        {
+        if !m.players.contains(&winner) || !TERMINAL_REASONS.contains(&reason.as_str()) {
             return Err(AppError::ComputeUnavailable);
         }
         self.revision += 1;

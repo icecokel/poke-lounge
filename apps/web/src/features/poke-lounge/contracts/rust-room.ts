@@ -1,5 +1,6 @@
 /** Rust 서버 응답의 단일 TS 정의. 원본은 domain.rs의 snapshot/public/projection/progression_snapshot. 바꾸면 `pnpm check:rust-room-contract`. */
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
+import type { CompetitiveTerminalReason } from "@poke-lounge/battle/competitive-contract";
 import type { StarterMode } from "@poke-lounge/battle/starter-selection";
 import type { BattleStatStages } from "@poke-lounge/battle/battle-stat-stages";
 import type { ResolvedTurnPresentation } from "@poke-lounge/battle/battle-presentation";
@@ -99,7 +100,7 @@ export interface RustFinalStanding {
 export interface RustCompetitiveTerminal {
   winnerPlayerId: string;
   loserPlayerId: string;
-  reason: "faint" | "forfeit" | "timeout";
+  reason: CompetitiveTerminalReason;
   scoreByPlayerId: Record<string, 50 | 100>;
 }
 
