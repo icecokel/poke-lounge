@@ -39,8 +39,7 @@ jobs:
       - name: Build shared battle package
         run: pnpm build:poke-lounge-battle
 
-      - name: Formatting (advisory)
-        continue-on-error: true
+      - name: Formatting
         run: pnpm format:check
 
       - name: Required static checks
