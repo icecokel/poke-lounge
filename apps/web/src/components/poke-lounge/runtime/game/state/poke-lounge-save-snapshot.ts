@@ -1,3 +1,4 @@
+import { isRecord } from "@/lib/is-record";
 import type { PokeLoungeSaveSnapshot } from "@/features/poke-lounge/contracts/save-state";
 import { GEN4_MOVE_MAX_PP, GEN4_PLAYABLE_MOVE_MAX_ID } from "@poke-lounge/battle/runtime-rom-data";
 import {
@@ -296,10 +297,6 @@ function sanitizePosition(value: Record<string, unknown>): LocalPlayerState["pos
   }
 
   return { mapKey: value.mapKey, x: value.x, y: value.y, facing: value.facing };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isNonEmptyString(value: unknown): value is string {

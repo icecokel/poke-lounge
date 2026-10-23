@@ -1,3 +1,4 @@
+import { isRecord } from "@/lib/is-record";
 import type { PokeLoungeSaveSnapshot } from "@/features/poke-lounge/contracts/save-state";
 export function hasSamePokeLoungeLocalProgress(
   left: PokeLoungeSaveSnapshot,
@@ -34,8 +35,4 @@ function haveSameJsonValue(left: unknown, right: unknown): boolean {
       return key === rightKeys[index] && haveSameJsonValue(left[key], right[key]);
     })
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
