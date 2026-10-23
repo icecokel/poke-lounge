@@ -19,11 +19,7 @@ import type {
   RustRoomParticipant,
   RustRoomSnapshot,
 } from "@/features/poke-lounge/contracts/rust-room";
-import {
-  DEFAULT_AI_DIFFICULTY,
-  isAiDifficulty,
-  type AiDifficulty,
-} from "@poke-lounge/battle/ai-difficulty";
+import { DEFAULT_AI_DIFFICULTY, isAiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import { FIELD_MAP } from "@poke-lounge/battle/adventure/world/field-map";
 import { getRoundStartPosition } from "@poke-lounge/battle/round-start";
 import {

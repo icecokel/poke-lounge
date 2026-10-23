@@ -13,12 +13,14 @@ try {
   const bracket = apiRequire("@poke-lounge/battle/tournament-bracket");
   const scoring = apiRequire("@poke-lounge/battle/tournament-scoring");
   const roundStart = apiRequire("@poke-lounge/battle/round-start");
+  const { COMPETITIVE_TERMINAL_REASONS } = apiRequire("@poke-lounge/battle/competitive-contract");
   const { FIELD_MAP } = apiRequire("@poke-lounge/battle/adventure/world/field-map");
   const { STARTER_SPECIES_IDS } = apiRequire("@poke-lounge/battle/party-acceptance");
   const tsValues = {
     ...timing,
     ...bracket,
     ...roundStart,
+    COMPETITIVE_TERMINAL_REASONS,
     FIELD_MAP_KEY: FIELD_MAP.key,
     DEFAULT_SPAWN_X: FIELD_MAP.fallbackSpawn.x,
     DEFAULT_SPAWN_Y: FIELD_MAP.fallbackSpawn.y,
@@ -55,6 +57,7 @@ try {
     [domain, "ROUND_SPAWN_START_Y_OFFSET", "ROUND_SPAWN_START_Y_OFFSET"],
     [domain, "ROUND_SPAWN_STEP", "ROUND_SPAWN_STEP"],
     [domain, "ROUND_SPAWN_COLUMNS", "ROUND_SPAWN_COLUMNS"],
+    [domain, "TERMINAL_REASONS", "COMPETITIVE_TERMINAL_REASONS"],
     [tournament, "SEED_ORDER_2", "TOURNAMENT_SEED_ORDER_2"],
     [tournament, "SEED_ORDER_4", "TOURNAMENT_SEED_ORDER_4"],
     [tournament, "SEED_ORDER_8", "TOURNAMENT_SEED_ORDER_8"],
@@ -115,7 +118,7 @@ function readRustConstant(source, name) {
   const pattern = new RegExp(
     "^pub const " +
       name +
-      ":\\s*(u64|usize|u8|&str|\\[(?:u64|usize);\\s*(\\d+)\\]|&\\[u8;\\s*(\\d+)\\])\\s*=\\s*([^;]+);",
+      ":\\s*(u64|usize|u8|&str|\\[(?:u64|usize|&str);\\s*(\\d+)\\]|&\\[u8;\\s*(\\d+)\\])\\s*=\\s*([^;]+);",
     "gm",
   );
   const matches = [...source.matchAll(pattern)];
@@ -128,6 +131,17 @@ function readRustConstant(source, name) {
       throw new Error("Invalid byte string length for " + name);
     }
     return literal[1];
+  }
+  if (type.startsWith("[&str;")) {
+    const items = JSON.parse(expression.trim().replace(/,\s*\]$/, "]"));
+    if (
+      !Array.isArray(items) ||
+      items.length !== Number(length) ||
+      items.some(item => typeof item !== "string")
+    ) {
+      throw new Error("Invalid string array literal or length for " + name);
+    }
+    return items;
   }
   const value = expression.replaceAll("_", "").trim();
   if (type.startsWith("[")) {
