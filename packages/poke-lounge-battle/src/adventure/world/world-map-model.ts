@@ -22,7 +22,10 @@ export interface WorldMapNpcModel {
 }
 
 export interface WorldMapModel {
-  collisionCoordinates: ReadonlySet<string>;
+  collisionBounds: ReadonlyMap<
+    string,
+    { left: number; top: number; right: number; bottom: number }
+  >;
   collisionGids: ReadonlySet<number>;
   height: number;
   heightInPixels: number;
@@ -189,27 +192,54 @@ export function createWorldMapModel(value: unknown): WorldMapModel {
     }),
   );
   const collisionGids = new Set<number>();
+  const tileCollisionBounds = new Map<
+    number,
+    { x: number; y: number; width: number; height: number }
+  >();
   for (const tile of readArray<Record<string, unknown>>(tileset.tiles, "world tileset tiles")) {
     const properties = readProperties(tile.properties);
     if (properties.get("collides") === true) {
-      collisionGids.add(firstGid + readNonNegativeInteger(tile.id, "world tileset tile id"));
+      const gid = firstGid + readNonNegativeInteger(tile.id, "world tileset tile id");
+      collisionGids.add(gid);
+      let bounds = { x: 0, y: 0, width: tileWidth, height: tileHeight };
+      if (tile.objectgroup !== undefined) {
+        const group = asRecord(tile.objectgroup, "tile collision group");
+        const objects = readArray<unknown>(group.objects, "tile collision objects");
+        if (objects.length !== 1) throw new Error("Tile collision must contain one rectangle.");
+        const object = asRecord(objects[0], "tile collision rectangle");
+        bounds = {
+          x: readNonNegativeInteger(object.x, "tile collision x"),
+          y: readNonNegativeInteger(object.y, "tile collision y"),
+          width: readPositiveInteger(object.width, "tile collision width"),
+          height: readPositiveInteger(object.height, "tile collision height"),
+        };
+        if (bounds.x + bounds.width > tileWidth || bounds.y + bounds.height > tileHeight)
+          throw new Error("Tile collision rectangle must fit inside its tile.");
+      }
+      tileCollisionBounds.set(gid, bounds);
     }
   }
   const worldLayer = tileLayers.find(function findItem(layer) {
     return layer.name === "World";
   });
-  const collisionCoordinates = new Set(
+  const collisionBounds = new Map(
     worldLayer?.tiles
       .filter(function filterItem(tile) {
         return collisionGids.has(tile.gid);
       })
       .map(function mapItem(tile) {
-        return `${tile.x},${tile.y}`;
+        const bounds = tileCollisionBounds.get(tile.gid)!;
+        const left = tile.x * tileWidth + bounds.x;
+        const top = tile.y * tileHeight + bounds.y;
+        return [
+          `${tile.x},${tile.y}`,
+          { left, top, right: left + bounds.width, bottom: top + bounds.height },
+        ] as const;
       }) ?? [],
   );
 
   return {
-    collisionCoordinates,
+    collisionBounds,
     collisionGids,
     height,
     heightInPixels: height * tileHeight,
