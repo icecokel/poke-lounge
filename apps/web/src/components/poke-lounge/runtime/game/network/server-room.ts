@@ -909,8 +909,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return;
     }
 
-    const delayMs = Math.min(
-      RECOVERY_INITIAL_DELAY_MS * 2 ** initialWorkflowAttempt,
+    const delayMs = exponentialBackoffDelayMs(
+      RECOVERY_INITIAL_DELAY_MS,
+      initialWorkflowAttempt,
       INITIAL_WORKFLOW_RETRY_MAX_DELAY_MS,
     );
     initialWorkflowAttempt += 1;
@@ -1067,8 +1068,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     const retryDelayMs =
       roomClockAttempt === 0
         ? 0
-        : Math.min(
-            ROOM_CLOCK_RETRY_INITIAL_DELAY_MS * 2 ** (roomClockAttempt - 1),
+        : exponentialBackoffDelayMs(
+            ROOM_CLOCK_RETRY_INITIAL_DELAY_MS,
+            roomClockAttempt - 1,
             ROOM_CLOCK_RETRY_MAX_DELAY_MS,
           );
     const target = roomClockTarget;
@@ -1133,8 +1135,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return;
     }
 
-    const delayMs = Math.min(
-      RECOVERY_INITIAL_DELAY_MS * 2 ** recoveryAttempt,
+    const delayMs = exponentialBackoffDelayMs(
+      RECOVERY_INITIAL_DELAY_MS,
+      recoveryAttempt,
       RECOVERY_MAX_DELAY_MS,
     );
     recoveryAttempt += 1;
@@ -1235,8 +1238,9 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         ((recoverySucceeded && retryOnlineExpectation) ||
           (onlineProbeFailed && !shouldContinueRecovery()))
       ) {
-        const delayMs = Math.min(
-          ONLINE_STALE_RECOVERY_DELAY_MS * 2 ** onlineStaleRecoveryAttempt,
+        const delayMs = exponentialBackoffDelayMs(
+          ONLINE_STALE_RECOVERY_DELAY_MS,
+          onlineStaleRecoveryAttempt,
           RECOVERY_MAX_DELAY_MS,
         );
         scheduleOnlineStaleRecovery(delayMs, false, true);
@@ -2237,7 +2241,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             applySnapshot(recovered);
             return;
           }
-          if (getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE) {
+          if (isRevisionConflict(error)) {
             // mutateRoom already applied the newer server revision. The exact
             // same body/key can retry, unless a newer local party superseded it.
             if (attempt < 2) continue;
@@ -2257,7 +2261,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         reportStateApplyFailure("PARTY_SNAPSHOT_REJECTED", error);
         return;
       }
-      const revisionConflict = getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE;
+      const revisionConflict = isRevisionConflict(error);
       const retryable = error instanceof ServerRoomTransportError || revisionConflict;
       if (retryable && pendingPartyPublication !== entry) return;
       if (
@@ -2527,7 +2531,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             getLatestRevision,
           ),
         apply: applyExpectedTransitionSnapshot,
-        isRevisionConflict: error => getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE,
+        isRevisionConflict,
       });
     },
     async startChampionship() {
@@ -2606,8 +2610,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           }
           return value;
         } catch (error) {
-          if (getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE && attempt < 2)
-            continue;
+          if (isRevisionConflict(error) && attempt < 2) continue;
           throw error;
         }
       }
@@ -2946,7 +2949,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         try {
           await send();
         } catch (error) {
-          if (getServerRoomConflict(error)?.code !== REVISION_CONFLICT_CODE) {
+          if (!isRevisionConflict(error)) {
             throw error;
           }
           await send();
@@ -3245,6 +3248,14 @@ export function consumeLegacyServerRoomIdentity(accountId?: string): boolean {
   } catch {
     return false;
   }
+}
+
+function exponentialBackoffDelayMs(baseMs: number, attempt: number, maxMs: number): number {
+  return Math.min(baseMs * 2 ** attempt, maxMs);
+}
+
+function isRevisionConflict(error: unknown): boolean {
+  return getServerRoomConflict(error)?.code === REVISION_CONFLICT_CODE;
 }
 
 function getServerRoomConflict(error: unknown): ServerRoomConflictResponse | null {
