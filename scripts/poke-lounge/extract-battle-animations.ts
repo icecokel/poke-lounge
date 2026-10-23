@@ -1,3 +1,4 @@
+import { ROM_SHA1 } from "./rom-constants";
 /**
  * Extracts move-specific particle bindings and artwork from a locally supplied IPKK ROM.
  * Usage: ./apps/web/node_modules/.bin/tsx scripts/poke-lounge/extract-battle-animations.ts [rom.nds]
@@ -28,7 +29,7 @@ const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
 const rom = new AnimationRom(
   readFileSync(process.argv[2] ?? resolve(repositoryRoot, "data/roms/포켓몬스터 하트골드(K).nds")),
 );
-if (rom.sha1 !== "5834fb3a2d751c48501d47d6a56898d7af6ccf9e")
+if (rom.sha1 !== ROM_SHA1)
   throw new Error("Unverified ROM revision; check archive layouts before adding another hash");
 const moveBytes = readNarc(rom.file("a/0/1/0")),
   commonBytes = readNarc(rom.file("a/0/6/1"));

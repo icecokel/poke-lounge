@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from rom_constants import ROM_SHA1 as EXPECTED_ROM_SHA1
+
 import argparse
 import hashlib
 import json
@@ -57,7 +59,6 @@ ITEM_ICON_NARC_PATH = "a/0/1/8"
 BALL_ICON_MEMBERS = {"pokeball": (8, 9), "ultraBall": (4, 5)}
 DEFAULT_BALL_ICON_DIRECTORY = REPO_ROOT / "apps/web/public/assets/pokemon/battle/balls"
 
-EXPECTED_ROM_SHA1 = "5834fb3a2d751c48501d47d6a56898d7af6ccf9e"
 EXPECTED_ARCHIVE_FILE_COUNTS = {
     PERSONAL_NARC_PATH: 508,
     MOVE_NARC_PATH: 471,

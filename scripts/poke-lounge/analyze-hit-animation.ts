@@ -1,10 +1,11 @@
+import { ROM_SHA1 } from "./rom-constants";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 /** Read-only verification of the locally supplied HG Korean ROM. No ROM data is published. */
 const rom = readFileSync(process.argv[2] ?? "data/roms/포켓몬스터 하트골드(K).nds");
 const sha1 = createHash("sha1").update(rom).digest("hex");
-if (sha1 !== "5834fb3a2d751c48501d47d6a56898d7af6ccf9e") throw Error("Unexpected ROM revision");
+if (sha1 !== ROM_SHA1) throw Error("Unexpected ROM revision");
 const fat = rom.readUInt32LE(0x48);
 const fnt = rom.readUInt32LE(0x40);
 function file(id: number) {
