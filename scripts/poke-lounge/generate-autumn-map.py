@@ -293,7 +293,7 @@ map_data['nextobjectid'] = next_id + len(zones)
 for spawn in layers['SpawnPoints']['objects']:
     spawn.update(x=624,y=688)
 for npc in layers['Npcs']['objects']:
-    x,y={'nurse':(624,400),'storagePc':(688,400),'soloChallenger':(1040,464)}[npc['name']]
+    x,y={'nurse':(624,400),'storagePc':(688,400)}[npc['name']]
     npc.update(x=x,y=y)
 for exit_zone in layers['Worlds']['objects']:
     exit_zone.update(x=576,y=736,width=160,height=32)
@@ -341,7 +341,7 @@ def draw_grass(x,y,foreground=False):
     sx=1+mask*34;sy=1+((y%4)*4+x%4)*68+(34 if foreground else 0)
     canvas.alpha_composite(grass_atlas.crop((sx,sy,sx+32,sy+32)),(x*S,y*S))
 for x,y in grass:draw_grass(x,y)
-npcs=[('nurse',19.5,12.5,'a_0_8_1_0133/pcwoman1_5.png'),('storagePc',21.5,12.5,'a_0_7_0_0093/tmfl04_door1.png'),('soloChallenger',32.5,14.5,'a_0_8_1_0039/gentleman_5.png')]
+npcs=[('nurse',19.5,12.5,'a_0_8_1_0133/pcwoman1_5.png'),('storagePc',21.5,12.5,'a_0_7_0_0093/tmfl04_door1.png')]
 for name,x,y,path in npcs:
     img=Image.open(ROOT/'apps/web/public/assets/poke-lounge/textures'/path).convert('RGBA').resize((40,40),Image.Resampling.NEAREST)
     canvas.alpha_composite(img,(round(x*S)-20,round(y*S)-40))
