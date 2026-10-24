@@ -475,7 +475,15 @@ impl Actor {
         self.tick_stage = "clock";
         let now = self.repository.now().await?;
         self.now = now;
-        if self.room.terminal() || now >= self.last_full_reload_ms + FULL_RELOAD_INTERVAL_MS {
+        if self.room.terminal() {
+            if self.unpersisted {
+                self.tick_stage = "checkpoint";
+                self.checkpoint().await?;
+            }
+            if now >= self.room.retention_deadline() {
+                return Err(AppError::NotFound);
+            }
+        } else if now >= self.last_full_reload_ms + FULL_RELOAD_INTERVAL_MS {
             if self.unpersisted {
                 self.tick_stage = "checkpoint";
                 self.checkpoint().await?;
