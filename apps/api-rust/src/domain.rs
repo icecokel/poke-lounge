@@ -40,7 +40,7 @@ pub const AI_ONLY_TURN_READY_MS: u64 = 500;
 // Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_BRIEFING_DURATION_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_BRIEFING_MS: u64 = 5_000;
 // Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_RESULT_DURATION_MS (pnpm check:rust-ts-constants).
-pub const TOURNAMENT_RESULT_MS: u64 = 5_000;
+pub const TOURNAMENT_RESULT_MS: u64 = 8_000;
 pub const TERMINAL_REASONS: [&str; 3] = ["faint", "forfeit", "timeout"];
 pub const FIELD_MAP_KEY: &str = "town";
 pub const DEFAULT_SPAWN_X: u64 = 624;
