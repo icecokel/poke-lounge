@@ -1,3 +1,4 @@
+import { isRecord } from "@/lib/is-record";
 import { ApiError, apiClient } from "@/lib/api-client";
 import {
   parsePokeLoungeSaveSnapshot,
@@ -176,10 +177,6 @@ export async function savePokeLoungeState(
       message: "네트워크 오류가 발생했습니다.",
     };
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function unwrapResponseRecord(value: unknown): Record<string, unknown> {

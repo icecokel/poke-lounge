@@ -1,3 +1,4 @@
+import { ROM_SHA1 } from "./rom-constants";
 import { readFileSync, writeFileSync } from "node:fs";
 import { AnimationRom, readNarc } from "./nds-animation-data";
 import { format, resolveConfig } from "prettier";
@@ -13,8 +14,7 @@ async function main(): Promise<void> {
   const personal = readNarc(rom.file("a/0/0/2")),
     moves = readNarc(rom.file("a/0/1/1")),
     itemRecords = readNarc(rom.file("a/0/1/7"));
-  if (rom.sha1 !== "5834fb3a2d751c48501d47d6a56898d7af6ccf9e")
-    throw Error("Unexpected Korean HGSS ROM revision");
+  if (rom.sha1 !== ROM_SHA1) throw Error("Unexpected Korean HGSS ROM revision");
   const species: Record<string, unknown> = {};
   for (let id = 1; id <= 493; id++) {
     const d = data.species[id],

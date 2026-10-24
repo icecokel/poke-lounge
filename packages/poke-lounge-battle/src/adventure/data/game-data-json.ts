@@ -1,3 +1,4 @@
+import { isRecord } from "../../shared/is-record";
 import { canonicalize } from "../../canonical-json";
 import {
   GEN4_PLAYABLE_MOVE_MAX_ID,
@@ -827,10 +828,6 @@ function readNonNegativeInteger(value: unknown): number | null {
   return typeof candidate === "number" && Number.isInteger(candidate) && candidate >= 0
     ? candidate
     : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function hasCompleteBattlePokemonSpriteSheetCoverage(

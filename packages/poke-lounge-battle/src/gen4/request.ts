@@ -1,3 +1,4 @@
+import { STRUGGLE_MOVE_ID } from "../competitive-ruleset-config";
 import type { Gen4ActionRequest } from "./types";
 import type { CanonicalCompetitiveAction } from "../actions";
 
@@ -77,6 +78,6 @@ export function isGen4ActionLegal(
   if (action.kind === "switch") return request.switchSlots.includes(action.slotIndex);
   if (request.kind === "switch") return false;
   if (action.kind === "continue") return request.recharge || request.forcedMoveId !== null;
-  const id = action.moveId === "struggle" ? 165 : action.moveId;
+  const id = action.moveId === "struggle" ? STRUGGLE_MOVE_ID : action.moveId;
   return !request.recharge && request.moves.some(m => m.moveId === id && !m.disabled && m.pp > 0);
 }

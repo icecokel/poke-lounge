@@ -1,3 +1,4 @@
+import { isRecord } from "@/lib/is-record";
 import {
   DEFAULT_GAME_VIEWPORT_SIZE_PRESET,
   type GameViewportSizePreset,
@@ -141,8 +142,4 @@ function isMasterVolume(value: unknown): value is number {
 
 function isGameViewportSizePreset(value: unknown): value is GameViewportSizePreset {
   return value === "normal" || value === "large";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

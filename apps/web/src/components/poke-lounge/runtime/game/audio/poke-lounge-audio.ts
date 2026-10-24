@@ -1,3 +1,4 @@
+import { isRecord } from "@/lib/is-record";
 import {
   APPLE_MOBILE_BGM_FADE_DURATION_MS,
   BGM_CROSSFADE_DURATION_SECONDS,
@@ -1149,8 +1150,4 @@ function hasExactAudioItemIds(
       return itemIds.has(expectedId);
     })
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

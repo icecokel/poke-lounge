@@ -2,6 +2,8 @@
 """Extract HeartGold's normal-grass billboard, checking its original model and keys."""
 from __future__ import annotations
 
+from rom_constants import ROM_SHA1
+
 import argparse
 import hashlib
 import json
@@ -16,7 +18,6 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 ROM = ROOT / "data/roms/포켓몬스터 하트골드(K).nds"
-ROM_SHA1 = "5834fb3a2d751c48501d47d6a56898d7af6ccf9e"
 DEST = ROOT / "apps/web/public/assets/poke-lounge/world"
 EVIDENCE = ROOT / "output/rom-grass-port-20261021"
 ARCHIVE = "a/1/0/3"

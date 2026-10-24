@@ -13,6 +13,7 @@ playwright-report
 storybook-static
 test-results
 *.tsbuildinfo
+__pycache__/
 
 # Raw ROM and generated extraction inputs stay local.
 data/processed/

@@ -2,6 +2,8 @@
 """Project Bellchime Trail's static tree geometry into uniformly fitted 64px frames."""
 from __future__ import annotations
 
+from rom_constants import ROM_SHA1
+
 import hashlib
 import json
 import math
@@ -19,7 +21,6 @@ ROOT = Path(__file__).resolve().parents[2]
 PUBLIC = ROOT / "apps/web/public/assets/poke-lounge/world"
 EVIDENCE = ROOT / "output/rom-tree-port-20261022"
 ROM = ROOT / "data/roms/포켓몬스터 하트골드(K).nds"
-ROM_SHA1 = "5834fb3a2d751c48501d47d6a56898d7af6ccf9e"
 CAMERA = {"distanceFx32": 0x29AEC1, "pitchIdx": 0xDD62, "yawIdx": 0, "perspectiveIdx": 0x05C1}
 
 

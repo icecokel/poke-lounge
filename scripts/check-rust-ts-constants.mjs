@@ -71,6 +71,26 @@ try {
     compare(rustName + " / " + tsName, rustValue, tsValue);
   }
 
+  const roomContract = readFileSync(
+    resolve(root, "apps/web/src/features/poke-lounge/contracts/rust-room.ts"),
+    "utf8",
+  );
+  compare(
+    "room statuses",
+    readRustConstant(domain, "ROOM_STATUSES"),
+    readTsStringArray(roomContract, "RUST_ROOM_STATUSES"),
+  );
+  compare(
+    "round phases",
+    [
+      "ROUND_PHASE_WAITING",
+      "ROUND_PHASE_STARTED",
+      "ROUND_PHASE_TOURNAMENT",
+      "ROUND_PHASE_COMPLETED",
+    ].map(name => readRustConstant(domain, name)),
+    readTsStringArray(roomContract, "RUST_ROOM_ROUND_PHASES"),
+  );
+
   const roomEntry = readFileSync(
     resolve(root, "apps/web/src/components/poke-lounge/runtime/game/network/room-entry.ts"),
     "utf8",
@@ -173,4 +193,19 @@ function compare(name, rustValue, tsValue) {
     );
     process.exitCode = 1;
   }
+}
+
+function readTsStringArray(source, name) {
+  // Ignore block comments and anchor at line start so commented-out declarations never match.
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, "");
+  const matches = [
+    ...code.matchAll(
+      new RegExp("^export const " + name + "\\s*=\\s*\\[([^\\]]*)\\]\\s*as const;", "gm"),
+    ),
+  ];
+  if (matches.length !== 1) throw new Error("Expected exactly one TS array " + name);
+  const body = matches[0][1];
+  if (body.replace(/"[^"\\]*"|[\s,]/g, "") !== "")
+    throw new Error("Expected string literals in " + name);
+  return JSON.parse("[" + body.replace(/,\s*$/, "") + "]");
 }

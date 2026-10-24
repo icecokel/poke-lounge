@@ -1,3 +1,4 @@
+import { isRecord } from "./shared/is-record";
 export const GEN4_PLAYABLE_MOVE_MIN_ID = 1;
 export const GEN4_PLAYABLE_MOVE_MAX_ID = 467;
 export const GEN4_MOVE_RECORD_MAX_ID = 470;
@@ -171,8 +172,4 @@ function isIntegerBetween(value: unknown, minimum: number, maximum: number): val
   return (
     Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= maximum
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

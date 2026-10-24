@@ -46,7 +46,7 @@ export const BATTLE_RUN_FAILED_MESSAGE = "도망칠 수 없었다!";
 export const ULTRA_BALL_BONUS = 2;
 
 const STRUGGLE_MOVE: BattleMove = {
-  id: 165,
+  id: STRUGGLE_MOVE_ID,
   name: "발버둥",
   pp: 1,
   maxPp: 1,
@@ -2244,7 +2244,11 @@ function resolveGen4Action(
     opponentPokemon: state.opponent.pokemon,
     messageQueue: state.messageQueue,
     selectedMoveId:
-      action.kind === "move" ? (action.moveId === "struggle" ? 165 : action.moveId) : null,
+      action.kind === "move"
+        ? action.moveId === "struggle"
+          ? STRUGGLE_MOVE_ID
+          : action.moveId
+        : null,
     turn: state.turn,
     usedInventoryItemId: null,
   };
