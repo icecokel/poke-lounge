@@ -482,15 +482,8 @@ impl Actor {
         self.tick_stage = "clock";
         let now = self.repository.now().await?;
         self.now = now;
-        if self.room.terminal() {
-            if self.unpersisted {
-                self.tick_stage = "checkpoint";
-                self.checkpoint().await?;
-            }
-            if now >= self.room.retention_deadline() {
-                return Err(AppError::NotFound);
-            }
-        } else if now >= self.last_full_reload_ms + FULL_RELOAD_INTERVAL_MS {
+        let check_version = now >= self.last_full_reload_ms + FULL_RELOAD_INTERVAL_MS;
+        if check_version {
             if self.unpersisted {
                 self.tick_stage = "checkpoint";
                 self.checkpoint().await?;
@@ -500,15 +493,20 @@ impl Actor {
                 .repository
                 .read_version(self.room.room_instance_id)
                 .await?;
-            if version == Some(self.room.storage_version) {
-                self.tick_stage = "sync_clock";
-                self.sync_clock_at(now).await?;
-            } else {
+            if version != Some(self.room.storage_version) {
                 self.tick_stage = "reload";
                 self.reload().await?;
+            } else if !self.room.terminal() {
+                self.tick_stage = "sync_clock";
+                self.sync_clock_at(now).await?;
             }
             self.last_full_reload_ms = now;
-        } else {
+        }
+        if self.room.terminal() {
+            if self.now >= self.room.retention_deadline() {
+                return Err(AppError::NotFound);
+            }
+        } else if !check_version {
             self.tick_stage = "sync_clock";
             self.sync_clock().await?;
         }
