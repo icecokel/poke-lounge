@@ -22,7 +22,7 @@ use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{Instrument, Span};
 use uuid::Uuid;
 
-// Full document reads only detect external expiry; the actor is the sole writer after creation.
+// Check the stored version periodically; the actor is the sole writer after creation.
 const FULL_RELOAD_INTERVAL_MS: u64 = 5_000;
 // AI movement does not bump the room revision; persist it periodically so a restart resumes near it.
 const AI_CHECKPOINT_INTERVAL_MS: u64 = 2_000;
@@ -76,13 +76,17 @@ struct Envelope {
     reply: oneshot::Sender<AppResult<Value>>,
     span: Span,
 }
+pub struct RoomEvent {
+    pub name: String,
+    pub text: Arc<str>,
+}
 #[derive(Clone)]
 pub struct Handle {
     sender: mpsc::Sender<Envelope>,
-    events: broadcast::Sender<Value>,
+    events: broadcast::Sender<Arc<RoomEvent>>,
 }
 impl Handle {
-    pub fn subscribe(&self) -> broadcast::Receiver<Value> {
+    pub fn subscribe(&self) -> broadcast::Receiver<Arc<RoomEvent>> {
         self.events.subscribe()
     }
     pub async fn request(&self, operation: Operation) -> AppResult<Value> {
@@ -353,7 +357,7 @@ struct Actor {
     room: Room,
     repository: Repository,
     compute: Compute,
-    events: broadcast::Sender<Value>,
+    events: broadcast::Sender<Arc<RoomEvent>>,
     shutdown: CancellationToken,
     world: BTreeMap<String, Value>,
     last_move_accepted: HashMap<String, tokio::time::Instant>,
@@ -443,6 +447,9 @@ impl Actor {
     }
     async fn sync_clock(&mut self) -> AppResult<()> {
         let now = self.repository.now().await?;
+        self.sync_clock_at(now).await
+    }
+    async fn sync_clock_at(&mut self, now: u64) -> AppResult<()> {
         self.now = now;
         let mut room = self.room.clone();
         let previous = room.revision;
@@ -488,8 +495,18 @@ impl Actor {
                 self.tick_stage = "checkpoint";
                 self.checkpoint().await?;
             }
-            self.tick_stage = "reload";
-            self.reload().await?;
+            self.tick_stage = "read_version";
+            let (now, version) = self
+                .repository
+                .read_version(self.room.room_instance_id)
+                .await?;
+            if version == Some(self.room.storage_version) {
+                self.tick_stage = "sync_clock";
+                self.sync_clock_at(now).await?;
+            } else {
+                self.tick_stage = "reload";
+                self.reload().await?;
+            }
             self.last_full_reload_ms = now;
         } else {
             self.tick_stage = "sync_clock";
@@ -825,7 +842,11 @@ impl Actor {
         Ok(())
     }
     fn emit(&self, event: &str, payload: Value) {
-        let _ = self.events.send(json!({"event":event,"payload":payload}));
+        let text = json!({"event":event,"payload":payload}).to_string().into();
+        let _ = self.events.send(Arc::new(RoomEvent {
+            name: event.to_owned(),
+            text,
+        }));
     }
     fn publish_room(&self) {
         self.emit("room.snapshot", json!({"room":self.snapshot(None)}));

@@ -9,6 +9,14 @@ redis.call('ZREMRANGEBYSCORE',KEYS[4],'-inf',now)
 if redis.call('ZCARD',KEYS[4])>=tonumber(ARGV[5]) then return {'capacity',''} end
 if redis.call('EXISTS',KEYS[2])==1 or redis.call('EXISTS',KEYS[3])==1 then return {'collision',''} end
 redis.call('SET',KEYS[2],ARGV[2],'PXAT',ARGV[3])
+local terminalAtMs=room.terminalAtMs
+if terminalAtMs==nil or terminalAtMs==cjson.null then terminalAtMs='' end
+redis.call('HSET',KEYS[6],
+  'roomInstanceId',room.roomInstanceId,'roomCode',room.roomCode,
+  'createdAtMs',room.createdAtMs,'hardExpiresAtMs',room.hardExpiresAtMs,
+  'storageVersion',room.storageVersion,'revision',room.revision,
+  'status',room.status,'terminalAtMs',terminalAtMs)
+redis.call('PEXPIREAT',KEYS[6],ARGV[3])
 redis.call('SET',KEYS[3],room.roomInstanceId,'PXAT',ARGV[3])
 redis.call('ZADD',KEYS[4],room.lobbyEndsAtMs,room.roomInstanceId)
 redis.call('SET',KEYS[5],ARGV[4],'PXAT',ARGV[3])
