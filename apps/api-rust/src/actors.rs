@@ -411,6 +411,9 @@ impl Actor {
                             if !self.room.terminal(){self.emit("room.expired",json!({"roomCode":self.room.room_code,"roomInstanceId":self.room.room_instance_id}));}break;
                         }
                         Err(error)=>{
+                            if matches!(error,AppError::RevisionConflict|AppError::Storage(_)|AppError::Timeout){
+                                self.last_full_reload_ms=0;
+                            }
                             self.tick_failures=self.tick_failures.saturating_add(1);
                             // Ticks run every 250ms; log the first failure and then about every 10s.
                             if self.tick_failures==1||self.tick_failures.is_multiple_of(40){
@@ -422,7 +425,11 @@ impl Actor {
                 }
                 message=receiver.recv()=>{
                     let Some(message)=message else{break;};
-                    let result=self.execute(message.operation).instrument(message.span).await;let _=message.reply.send(result);
+                    let result=self.execute(message.operation).instrument(message.span).await;
+                    if matches!(result,Err(AppError::RevisionConflict|AppError::Storage(_)|AppError::Timeout)){
+                        self.last_full_reload_ms=0;
+                    }
+                    let _=message.reply.send(result);
                 }
             }
         }
@@ -436,10 +443,10 @@ impl Actor {
             let version = room.storage_version;
             self.repository.commit(version, &mut room, None).await?;
             self.last_persisted_ms = self.now;
-            self.unpersisted = false;
         }
         let changed = room.revision != self.room.revision;
         self.room = room;
+        self.unpersisted = false;
         if changed {
             self.publish_room();
         }
@@ -486,7 +493,13 @@ impl Actor {
         if check_version {
             if self.unpersisted {
                 self.tick_stage = "checkpoint";
-                self.checkpoint().await?;
+                match self.checkpoint().await {
+                    Ok(()) => {}
+                    Err(AppError::RevisionConflict) => {
+                        tracing::warn!(event = "room.checkpoint_conflict", room_instance_id = %self.room.room_instance_id, revision = self.room.revision, storage_version = self.room.storage_version);
+                    }
+                    Err(error) => return Err(error),
+                }
             }
             self.tick_stage = "read_version";
             let (now, version) = self
