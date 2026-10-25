@@ -33,7 +33,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 120s
+      start_period: 30s
       start_interval: 2s
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -48,7 +48,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 120s
+      start_period: 30s
       start_interval: 2s
     volumes:
       - redis-data:/data
@@ -94,7 +94,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 120s
+      start_period: 30s
       start_interval: 2s
     stop_grace_period: 15s
 
@@ -147,7 +147,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 120s
+      start_period: 30s
       start_interval: 2s
     stop_grace_period: 45s
     ports:
@@ -187,7 +187,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 120s
+      start_period: 30s
       start_interval: 2s
     ports:
       - "${BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-3000}:3000"
