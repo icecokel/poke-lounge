@@ -8,7 +8,7 @@ export interface WorldMapTile {
 }
 
 export interface WorldMapLayerModel {
-  name: "Below Player" | "World" | "Above Player";
+  name: "Below Player" | "World" | "Above Player" | "Ground Leaves";
   tiles: WorldMapTile[];
 }
 
@@ -96,7 +96,7 @@ interface TiledTileset {
   tilewidth?: unknown;
 }
 
-const TILE_LAYER_NAMES = ["Below Player", "World", "Above Player"] as const;
+const TILE_LAYER_NAMES = ["Below Player", "World", "Above Player", "Ground Leaves"] as const;
 
 export function createWorldMapModel(value: unknown): WorldMapModel {
   const map = asRecord(value, "world map");

@@ -4,18 +4,18 @@
   "archive": "a/0/4/4",
   "baseAtlas": "apps/web/public/assets/pokemmo-reference/tilesets/tuxmon-sample-32px-extruded.png",
   "baseAtlasSha256": "f61019250cf88448f52b907842c32d912167ac028e12d9ffb5da7cbc1abf031b",
-  "processing": "Preserve paths and service game objects; reshape connected rice encounter patches into tapered row runs. Bake original introduction-matched ground, earth, natural path verges, autumn trees and forest-floor falloff into the current 32px tile map.",
+  "processing": "Preserve paths, encounters and services. Bake native-scale HeartGold-inspired image_gen artwork into 32px tiles; split accent canopies above actors and retain crisp leaf transparency.",
   "tileSize": 32,
   "margin": 1,
   "spacing": 2,
   "columns": 24,
-  "tileCount": 1848,
+  "tileCount": 1704,
   "gids": {
     "721-725": "original olive ground and grass detail",
     "729-744": "original golden earth path masks N=1 E=2 S=4 W=8",
-    "745-748": "original red maple",
-    "749-752": "original golden maple",
-    "753-756": "original golden maple",
+    "745-748": "red maple trunk layer",
+    "749-752": "golden maple trunk layer",
+    "753-756": "golden maple trunk layer",
     "757": "yellow meadow encounter field",
     "758": "yellow meadow foreground"
   },
@@ -29,6 +29,12 @@
   ],
   "trees": {
     "sourceManifest": "original-autumn/source.json",
+    "frameSize": [64, 64],
+    "artHeight": 54,
+    "rootY": 56,
+    "canopySplitY": 44,
+    "canopyTileRange": [1680, 1691],
+    "canopyLayer": "Above Player",
     "quadrantOrder": "top-left, top-right, bottom-left, bottom-right"
   },
   "grassStep": {
@@ -50,14 +56,13 @@
   },
   "ground": {
     "sourceManifest": "original-ground/source.json",
-    "tiles": 890,
-    "tileRange": [953, 1842],
+    "tiles": 499,
+    "tileRange": [954, 1452],
     "patchSize": 128,
     "repeatSize": 256,
-    "leafFadeDistancePixels": 180,
     "cornerSmoothingPixels": 6,
     "vergeVariationSeed": 241024,
-    "placement": "Mirror repeats in world coordinates for exact edge matching. Blend leaf variants toward forest edges, soften path corners with irregular grass and earth contours sampled across the whole map, then slice into extruded 32px tiles. Preserve path centers and keep encounter patches clear of collision data."
+    "placement": "Mirror repeats in world coordinates for exact edge matching. Use plain grass and earth without mirrored leaf motifs; round path corners with irregular grass and earth contours sampled across the whole map, then slice into extruded 32px tiles. Preserve path centers and keep encounter patches clear of collision data."
   },
   "forestFloor": {
     "textures": [
@@ -65,12 +70,17 @@
       "original-autumn/08-mixed-forest-floor.png",
       "original-autumn/12-scattered-leaves.png"
     ],
-    "tiles": 331,
-    "cells": 370,
-    "forestCells": 194,
-    "scatterPatches": 44,
-    "fadeDistancePixels": 64,
-    "placement": "Original leaf ground at 100% beneath canopy groups, fading by distance to transparent over 64px; scattered leaves share the same falloff at 42% strength. The rendered path mask clips leaves per pixel, retaining continuous foliage on grassy verges and rounded corners. Path interiors and encounter grass stay clear."
+    "layer": "Ground Leaves",
+    "depth": 5,
+    "tileRange": [1453, 1679],
+    "cells": 227,
+    "scatterPatches": 28,
+    "opaquePixels": 144327,
+    "patchSize": 64,
+    "forestReachPixels": 24,
+    "pileShapeSeed": 241026,
+    "accentTreeClearancePixels": 8,
+    "placement": "Separate transparent floor layer below perimeter forest trees and actors. Native-size gold and mixed leaf piles follow nearby forest colors, with uneven depth and sparse leaves at their edges. All leaves stay within 24px of perimeter forest artwork. Keep paths, encounter grass, interior clearings and isolated trees clear."
   },
   "bakedForest": {
     "sourceManifest": "original-autumn/source.json",
@@ -79,11 +89,11 @@
       "orange": 35,
       "gold": 13,
       "transition": 6,
-      "shrub": 9,
-      "red-tree": 115,
-      "gold-tree": 30
+      "shrub": 8,
+      "red-tree": 79,
+      "gold-tree": 20
     },
-    "tileRange": [759, 952],
+    "tileRange": [759, 953],
     "accentTrees": {
       "745": "03-red-maple",
       "749": "02-golden-maple",

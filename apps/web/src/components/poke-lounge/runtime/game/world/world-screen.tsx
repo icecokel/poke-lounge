@@ -130,6 +130,7 @@ export function WorldScreen({
         <div ref={stageRef} className="absolute inset-0 origin-top-left">
           <WorldMap ref={mapRef} model={model}>
             <WorldTileLayer model={model} layer={model.layers[0]} depth={0} />
+            <WorldTileLayer model={model} layer={model.layers[3]} depth={5} />
             <WorldTileLayer model={model} layer={model.layers[1]} depth={10} />
             <TallGrassBaseLayer model={model} />
             <WorldActorLayer>
