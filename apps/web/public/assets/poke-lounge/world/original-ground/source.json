@@ -1,27 +1,27 @@
 {
-  "origin": "Original artwork generated with built-in image_gen, 2026-10-22",
-  "reference": "intro/autumn-village.webp",
-  "preparation": "Nearest-neighbor resample to native 128px ground patches; source colors retained. Map generator mirrors repeats for matching edge pixels and bakes 32px tiles.",
+  "origin": "Original artwork generated with built-in image_gen, 2026-10-25",
+  "reference": "Pokemon HeartGold field perspective, clustered shading and native pixel scale.",
+  "preparation": "Crop four sheet cells to native 128px patches with nearest-neighbor sampling and 12 colors, no dithering. Warm leaf pixels overlay the matching base patch to avoid variant seams. The map generator mirrors repeats and slices 32px tiles.",
   "assets": [
     {
       "file": "01-meadow-grass.png",
       "size": [128, 128],
-      "sourceSha256": "619af2373675af97625a56220a436da71d977b6d974809866a504db8b7e9c311"
+      "sourceSha256": "249396fb189857109024ece674dc7f8c2a64dfb35aae3aefc36bab63fb999be4"
     },
     {
       "file": "02-meadow-leaves.png",
       "size": [128, 128],
-      "sourceSha256": "968117f3e9e5243b6b173c7d628df2b57b88dc11c8f23822a5628759002933f1"
+      "sourceSha256": "249396fb189857109024ece674dc7f8c2a64dfb35aae3aefc36bab63fb999be4"
     },
     {
       "file": "03-golden-earth.png",
       "size": [128, 128],
-      "sourceSha256": "002ed172d518bc6a4a07ffcda3e15dad3d3a650e4dc2acea8f3c2168967b043a"
+      "sourceSha256": "249396fb189857109024ece674dc7f8c2a64dfb35aae3aefc36bab63fb999be4"
     },
     {
       "file": "04-golden-earth-leaves.png",
       "size": [128, 128],
-      "sourceSha256": "1516590dbec071721ee487cd4fa23aae08c276f84457fdbd8f73dbc769c12a78"
+      "sourceSha256": "249396fb189857109024ece674dc7f8c2a64dfb35aae3aefc36bab63fb999be4"
     }
   ]
 }
