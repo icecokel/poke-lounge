@@ -430,6 +430,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const readIdToken = () => options.getIdToken?.() ?? options.idToken;
   const handlers = new Map<RoomMessage, Set<Handler<RoomMessage>>>();
   let disposed = false;
+  let disposedRoomInstanceId: string | undefined;
   let reportedSendAfterDispose = false;
   const reportedStateApplyFailures = new Set<string>();
   const reportStateApplyFailure = (
@@ -2652,12 +2653,22 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     dispose: disposeRoom,
     send(type, payload) {
       if (disposed) {
-        if (!reportedSendAfterDispose) {
+        if (
+          !reportedSendAfterDispose &&
+          type !== "PLAYER_MOVED" &&
+          type !== "PLAYER_MOVEMENT_ENDED" &&
+          type !== "PLAYER_CHANGED_MAP"
+        ) {
           reportedSendAfterDispose = true;
           reportClientDiagnostic({
             kind: "room",
             code: "ROOM_SEND_AFTER_DISPOSE",
             error: new Error(`send after dispose: ${type}`),
+            snapshot: {
+              at: Date.now(),
+              context: { roomInstanceId: disposedRoomInstanceId },
+              breadcrumbs: [],
+            },
           });
         }
         return;
@@ -2718,6 +2729,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       return;
     }
 
+    disposedRoomInstanceId = roomInstanceId;
     updateClientDiagnosticContext({ roomInstanceId });
     recordClientBreadcrumb("room.disposed");
     reportClientDiagnostic({
