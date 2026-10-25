@@ -298,7 +298,47 @@ pub struct Match {
     #[serde(default)]
     pub progression_ends_at_ms: Option<u64>,
 }
+impl BattlePack {
+    fn compact_terminal_state(&mut self) {
+        let compacted = (|| {
+            let terminal = self
+                .state
+                .get("terminal")
+                .filter(|value| !value.is_null())?;
+            let turn = self.state.get("turn")?;
+            let participant_ids = self.state.get("participantIds")?;
+            let players = self.state.get("playersById")?.as_object()?;
+            let players = players
+                .iter()
+                .map(|(id, player)| {
+                    let team = player.get("team")?.as_array()?;
+                    let team = team
+                        .iter()
+                        .map(|member| {
+                            Some(json!({"slotIndex":member.get("slotIndex")?,
+                                "previousLevel":member.get("previousLevel")?}))
+                        })
+                        .collect::<Option<Vec<_>>>()?;
+                    Some((id.clone(), json!({"team":team})))
+                })
+                .collect::<Option<serde_json::Map<_, _>>>()?;
+            Some(
+                json!({"terminal":terminal,"turn":turn,"participantIds":participant_ids,
+                "playersById":players,"compacted":true}),
+            )
+        })();
+        if let Some(state) = compacted {
+            self.state = state;
+        }
+    }
+}
 impl Match {
+    fn engine_state(&self) -> AppResult<&Value> {
+        if self.pack.state["compacted"] == true {
+            return Err(AppError::ActionConflict);
+        }
+        Ok(&self.pack.state)
+    }
     pub fn completed(&self) -> bool {
         !self.pack.state["terminal"].is_null()
     }
@@ -877,7 +917,7 @@ impl Room {
                 {
                     return Err(AppError::ActionConflict);
                 }
-                compute.run(self.room_instance_id,self.storage_version,json!({"kind":"validate","state":battle.pack.state,"playerId":player,"action":action})).await?;
+                compute.run(self.room_instance_id,self.storage_version,json!({"kind":"validate","state":battle.engine_state()?,"playerId":player,"action":action})).await?;
                 self.matches
                     .get_mut(&match_id)
                     .ok_or(AppError::ActionConflict)?
@@ -1098,7 +1138,7 @@ impl Room {
                     .battle(
                         self.room_instance_id,
                         self.storage_version,
-                        json!({"kind":"forfeit","state":m.pack.state,"loserPlayerId":loser}),
+                        json!({"kind":"forfeit","state":m.engine_state()?,"loserPlayerId":loser}),
                         &m.players,
                     )
                     .await?;
@@ -1141,7 +1181,7 @@ impl Room {
                             player,
                             self.matches[&id].turn()
                         );
-                        let action=compute.run(self.room_instance_id,self.storage_version,json!({"kind":"choose-ai","state":self.matches[&id].pack.state,"playerId":player,"difficulty":difficulty,"seed":decision_seed})).await
+                        let action=compute.run(self.room_instance_id,self.storage_version,json!({"kind":"choose-ai","state":self.matches[&id].engine_state()?,"playerId":player,"difficulty":difficulty,"seed":decision_seed})).await
                             .inspect_err(|error| tracing::error!(event="match.ai_choice_failed",room_instance_id=%self.room_instance_id,match_id=%id,player_id=%player,turn=self.matches[&id].turn(),code=error.code(),error=%error,detail=?error.detail()))?;
                         self.matches
                             .get_mut(&id)
@@ -1250,7 +1290,7 @@ impl Room {
             .battle(
                 self.room_instance_id,
                 self.storage_version,
-                json!({"kind":"resolve","state":m.pack.state,"actions":m.actions,"seed":m.seed}),
+                json!({"kind":"resolve","state":m.engine_state()?,"actions":m.actions,"seed":m.seed}),
                 &m.players,
             )
             .await
@@ -1294,7 +1334,7 @@ impl Room {
             .battle(
                 self.room_instance_id,
                 self.storage_version,
-                json!({"kind":"settle-tournament","state":m.pack.state,"aiPlayerIds":ai_players}),
+                json!({"kind":"settle-tournament","state":m.engine_state()?,"aiPlayerIds":ai_players}),
                 &m.players,
             )
             .await?;
@@ -1403,6 +1443,7 @@ impl Room {
         if !m.players.contains(&winner) || !TERMINAL_REASONS.contains(&reason.as_str()) {
             return Err(AppError::ComputeUnavailable);
         }
+        m.pack.compact_terminal_state();
         self.revision += 1;
         self.updated_at_ms = now;
         m.terminal_event_id = Some(Uuid::new_v4());

@@ -25,6 +25,14 @@ local value = redis.call('GET', KEYS[2])
 if not value then return {'missing', tostring(now), ''} end
 return {'ok', tostring(now), value}
 ";
+const READ_VERSION: &str = r"
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return {'fenced', '0', ''} end
+local t = redis.call('TIME')
+local now = t[1] * 1000 + math.floor(t[2] / 1000)
+local version = redis.call('HGET', KEYS[2], 'storageVersion')
+if not version then return {'missing', tostring(now), ''} end
+return {'ok', tostring(now), version}
+";
 const RENEW: &str = r"
 if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
 return redis.call('PEXPIRE', KEYS[1], ARGV[2])
@@ -149,6 +157,32 @@ impl Repository {
         Ok((now, room))
     }
 
+    pub async fn read_version(&self, id: Uuid) -> AppResult<(u64, Option<u64>)> {
+        let (status, now, version): (String, String, String) = Script::new(READ_VERSION)
+            .key(self.owner_key())
+            .key(self.room_meta_key(id))
+            .arg(self.owner.as_ref())
+            .invoke_async(&mut self.connection.clone())
+            .await?;
+        if status == "fenced" {
+            return Err(AppError::Unavailable);
+        }
+        if !matches!(status.as_str(), "ok" | "missing") {
+            return Err(AppError::Configuration("invalid version response"));
+        }
+        let now = now
+            .parse()
+            .map_err(|_| AppError::Configuration("invalid Redis clock"))?;
+        let version = (status == "ok")
+            .then(|| {
+                version
+                    .parse()
+                    .map_err(|_| AppError::Configuration("invalid Redis storage version"))
+            })
+            .transpose()?;
+        Ok((now, version))
+    }
+
     pub async fn lookup_code(&self, code: &str) -> AppResult<Uuid> {
         let (_, value) = self.read_value(self.code_key(code)).await?;
         Uuid::parse_str(&value.ok_or(AppError::NotFound)?)
@@ -216,6 +250,7 @@ return redis.call('ZRANGE', KEYS[2], 0, ARGV[2])
                     .key(self.code_key(&room.room_code))
                     .key(self.index_key())
                     .key(self.receipt_key(session_hash, command_id))
+                    .key(self.room_meta_key(room.room_instance_id))
                     .arg(self.owner.as_ref())
                     .arg(serde_json::to_string(&room)?)
                     .arg(room.retention_deadline())
@@ -269,6 +304,7 @@ return redis.call('ZRANGE', KEYS[2], 0, ARGV[2])
             .key(self.code_key(&room.room_code))
             .key(self.index_key())
             .key(key)
+            .key(self.room_meta_key(room.room_instance_id))
             .arg(self.owner.as_ref())
             .arg(expected)
             .arg(serialized)
@@ -276,6 +312,18 @@ return redis.call('ZRANGE', KEYS[2], 0, ARGV[2])
             .arg(raw)
             .arg(room.receipt_deadline())
             .arg(room.active_deadline())
+            .arg(room.room_instance_id.to_string())
+            .arg(&room.room_code)
+            .arg(room.created_at_ms)
+            .arg(room.hard_expires_at_ms)
+            .arg(room.storage_version)
+            .arg(room.revision)
+            .arg(serde_json::to_string(&room.status)?.trim_matches('"'))
+            .arg(
+                room.terminal_at_ms
+                    .map(|at| at.to_string())
+                    .unwrap_or_default(),
+            )
             .invoke_async(&mut self.connection.clone())
             .await?;
         match status.as_str() {
@@ -322,6 +370,9 @@ return redis.call('ZRANGE', KEYS[2], 0, ARGV[2])
     }
     fn room_key(&self, id: Uuid) -> String {
         format!("{REDIS_PREFIX}:room:{id}")
+    }
+    fn room_meta_key(&self, id: Uuid) -> String {
+        format!("{REDIS_PREFIX}:room-meta:{id}")
     }
     fn code_key(&self, code: &str) -> String {
         format!("{REDIS_PREFIX}:code:{code}")

@@ -1,5 +1,5 @@
 use crate::{
-    actors::{Handle, Operation},
+    actors::{Handle, Operation, RoomEvent},
     domain::{normalize_code, session_hash, validate_player_id},
     error::{AppError, AppResult},
     http::AppState,
@@ -254,7 +254,7 @@ async fn serve(
     socket: &mut WebSocket,
     state: &AppState,
     handle: &Handle,
-    events: &mut broadcast::Receiver<Value>,
+    events: &mut broadcast::Receiver<Arc<RoomEvent>>,
     connection: Uuid,
     identity: &Subscription,
     stage: &mut &'static str,
@@ -330,8 +330,8 @@ async fn serve(
             received=events.recv()=>match received {
                 Ok(event)=>{
                     *stage="forward_event";
-                    let terminal=event["event"]=="room.expired"||event["event"]=="server.draining";
-                    send_message(socket,Message::Text(event.to_string().into())).await?;if terminal{return Ok(());}
+                    let terminal=event.name=="room.expired"||event.name=="server.draining";
+                    send_message(socket,Message::Text(event.text.to_string().into())).await?;if terminal{return Ok(());}
                 }
                 Err(broadcast::error::RecvError::Lagged(skipped))=>{
                     // The client missed broadcast events; a full resync replaces them.

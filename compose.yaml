@@ -30,9 +30,11 @@ services:
       POSTGRES_DB: ${DB_DATABASE:-poke_lounge}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
+      interval: 30s
       timeout: 5s
-      retries: 12
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
@@ -43,9 +45,11 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 30s
       timeout: 5s
-      retries: 12
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
     volumes:
       - redis-data:/data
 
@@ -87,10 +91,11 @@ services:
           "-e",
           "fetch('http://127.0.0.1:3021/health',{headers:{'x-worker-token':process.env.BATTLE_WORKER_TOKEN},signal:AbortSignal.timeout(2000)}).then(async response=>{const body=await response.json();process.exit(response.ok&&body.readyWorkers>0?0:1)}).catch(()=>process.exit(1))",
         ]
-      interval: 5s
+      interval: 30s
       timeout: 5s
-      retries: 20
-      start_period: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
     stop_grace_period: 15s
 
   api:
@@ -139,9 +144,11 @@ services:
           "4",
           "http://127.0.0.1:3011/health/ready",
         ]
-      interval: 5s
+      interval: 30s
       timeout: 5s
-      retries: 12
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
     stop_grace_period: 45s
     ports:
       - "${BIND_ADDRESS:-0.0.0.0}:${API_PORT:-3001}:3011"
@@ -177,9 +184,11 @@ services:
           "-e",
           "fetch('http://127.0.0.1:3000/ko-KR').then(response => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
-      interval: 5s
+      interval: 30s
       timeout: 5s
-      retries: 12
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
     ports:
       - "${BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-3000}:3000"
 
