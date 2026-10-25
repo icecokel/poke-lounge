@@ -479,11 +479,11 @@ async fn client_error(payload: Result<Json<ClientError>, JsonRejection>) -> AppR
     let occurred_at_ms = detail["at"]
         .as_u64()
         .filter(|at| *at <= 9_007_199_254_740_991);
-    // Page lifecycle reports flush breadcrumbs on leave/restore; they are not failures.
+    // Lifecycle reports flush breadcrumbs on leave/restore/dispose; they are not failures.
     let lifecycle = payload.kind == "runtime"
         && matches!(
             payload.code.as_str(),
-            "PAGE_HIDDEN" | "PAGE_RESTORED" | "HISTORY_NAVIGATION"
+            "PAGE_HIDDEN" | "PAGE_RESTORED" | "HISTORY_NAVIGATION" | "ROOM_DISPOSED"
         );
     macro_rules! browser_event {
         ($level:ident, $event:literal) => {
