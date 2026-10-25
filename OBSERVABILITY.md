@@ -39,6 +39,9 @@ done | grep -F '여기에-방-인스턴스-UUID'
 # 오류 시점의 화면·요청·최근 행동 읽기 (새 프론트의 error_text는 JSON 문자열)
 docker logs --since 2h poke-lounge-prod-api-1 2>&1 |
   jq -R 'fromjson? | select(.fields.event == "browser.error") | {timestamp, code: .fields.code, user_code: .fields.user_code, request_id: .fields.related_request_id, detail: (.fields.error_text | fromjson?)}'
+
+# 방 연결 해제 호출 스택 보기 (browser.lifecycle의 ROOM_DISPOSED)
+docker logs --since 2h poke-lounge-prod-api-1 2>&1 | jq -Rr 'fromjson? | select(.fields.event == "browser.lifecycle" and .fields.code == "ROOM_DISPOSED") | .fields.error_text | fromjson | .causes[]?.stack // empty'
 ```
 
 ## 오류 이벤트
@@ -52,6 +55,8 @@ Rust 오류 값에서 나온 실패(`api.error`, `room.*_failed`, `match.*_faile
 | `http.limited` / `http.origin_rejected` / `http.timeout`                         | warn / error        | 어떤 요청 한도에 걸렸는지, 거부된 Origin, 10초 요청 제한을 넘긴 경로. 한도 로그는 클라이언트당 분당 1회, 과부하 로그는 초당 1회로 제한한다                                                           |
 | `browser.report_rejected`                                                        | warn                | 브라우저 진단 보고가 검증에 실패한 필드 이름                                                                                                                                                         |
 | `browser.lifecycle`                                                              | info                | `PAGE_HIDDEN`·`PAGE_RESTORED`. 오류가 아니므로 `browser.error`와 분리한다. 뒤로가기는 breadcrumb로만 남기며, 예전 탭이 보내는 `HISTORY_NAVIGATION`도 여기에 기록한다                                 |
+| `browser.lifecycle` / `ROOM_DISPOSED`                                            | info                | 방 연결 해제 시 호출 스택과 `room.disposed` breadcrumb                                                                                                                                               |
+| `browser.error` / `ROOM_SEND_AFTER_DISPOSE`                                      | warn                | 해제된 방으로 전송 시도 시 메시지 종류와 호출 스택. 방마다 첫 시도만 보고하며 #107 증상의 지문이다                                                                                                   |
 | `room.tick_failed` / `room.tick_recovered`                                       | warn / info         | 방 틱 실패 단계(`stage`: clock·reload·ai_step·advance_game·commit·world 등)와 연속 실패 수. 첫 실패와 약 10초마다 기록한다                                                                           |
 | `room.actor_stopped` / `room.restore_failed` / `room.shutdown_checkpoint_failed` | info / warn / error | 방 액터 종료 사유, 복구 실패 원인, 종료 직전 저장 실패                                                                                                                                               |
 | `room.party_rejected` / `room.party_submit_failed`                               | warn / error        | 거부된 파티 규칙(`rule`: `level-growth`, `move`, `hp-out-of-range` 등)과 방 상태. 규칙 거부가 아닌 계산 실패는 별도 이벤트다                                                                         |
