@@ -637,10 +637,8 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
           scoresByPlayerId: { ...input.tournament.cumulativeScores },
           standings: rows ?? (roomChanged ? [] : state.tournament.standings),
           lastRoundScores:
-            bracket?.status === "completed" && rows
-              ? hasAppliedTournamentRoundResult(state, input.roundIndex)
-                ? state.tournament.lastRoundScores
-                : createRoundScoresFromCumulativeRows(state.tournament.scoresByPlayerId, rows)
+            bracket?.status === "completed" && rows && session
+              ? scoreTournamentStandings(getTournamentSessionStandings(session))
               : completedRoundAdvanced && rows
                 ? hasAppliedTournamentRoundResult(state, input.roundIndex - 1)
                   ? state.tournament.lastRoundScores
