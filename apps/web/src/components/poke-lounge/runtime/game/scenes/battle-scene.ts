@@ -28,6 +28,10 @@ import {
   TOURNAMENT_PROGRESSION_DEADLINE_MS,
 } from "@poke-lounge/battle/timing";
 import { getTournamentGatherPosition } from "@poke-lounge/battle/tournament-gathering";
+import type {
+  CompetitivePartyInput,
+  NormalizedCompetitiveParty,
+} from "@poke-lounge/battle/competitive-party";
 import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
 import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-assets";
 import {
@@ -189,6 +193,12 @@ export const BATTLE_SCENE_WINDOW_FRAME_KEY = BATTLE_WINDOW_FRAME_ASSET_KEY;
 export const BATTLE_SCENE_WINDOW_STYLE = ROM_BATTLE_WINDOW_STYLE;
 export const BATTLE_HP_PANEL_WINDOW_OPTIONS = { radius: 4, includeFrameMarker: false } as const;
 export const BATTLE_CONFIRM_KEY_CODES = ["Enter", "Space", "KeyZ"] as const;
+interface TournamentProgressionSave {
+  party: CompetitivePartyInput;
+  saved: Promise<NormalizedCompetitiveParty>;
+}
+// Leaves room for the save request to reach the server before its progression deadline.
+const TOURNAMENT_PROGRESSION_SUBMIT_MARGIN_MS = 2_000;
 const BATTLE_BAG_ITEM_IDS = [
   "potion",
   "pokeball",
@@ -452,6 +462,8 @@ export class BattleController {
   private levelUpMoveLearningApplied = false;
   private tournamentPreviousLevels = new Map<number, number>();
   private pendingTournamentReturnKey: CompetitiveBattleLaunchKey | undefined;
+  private tournamentProgressionEndsAtMs: number | null = null;
+  private tournamentProgressionSave: TournamentProgressionSave | null = null;
   private persistWorldPositionOnReturn = true;
   private authoritativeProjection: CompetitiveProjection | null = null;
   private authoritativeOwnPlayerId: string | null = null;
@@ -557,6 +569,8 @@ export class BattleController {
     this.levelUpMoveLearningApplied = false;
     this.tournamentPreviousLevels.clear();
     this.pendingTournamentReturnKey = undefined;
+    this.tournamentProgressionEndsAtMs = null;
+    this.tournamentProgressionSave = null;
     this.lastAccessibleStatus = "";
     this.cancelHpTweens();
     this.cancelStatusCommitTweens();
@@ -1392,6 +1406,8 @@ export class BattleController {
         return;
       }
       this.authoritativeTerminalTransition.status = "acknowledged";
+      // The projection is cleared below, but the move choice must still meet the server deadline.
+      this.tournamentProgressionEndsAtMs = this.authoritativeProjection.progressionEndsAtMs ?? null;
       this.clearAuthoritativeSubscriptions();
       this.authoritativeInputPending = false;
       this.authoritativeProjection = null;
@@ -2663,38 +2679,9 @@ export class BattleController {
         ...(completedCompetitiveBattle ? { completedCompetitiveBattle } : {}),
       });
     if (completedCompetitiveBattle && (this.state.result?.experienceGained ?? 0) > 0) {
-      const room = this.multiplayerRoom;
-      if (!room?.completeTournamentProgression)
-        throw new Error("Tournament progression transport is missing");
-      const player = this.gameStateStore.getCurrentLocalPlayer();
-      const party = createCompetitivePartySnapshot({
-        sessionId: room.sessionId,
-        playerId: player.playerId,
-        map: player.position.mapKey,
-        ...player.position,
-        activePartySlotIndex: player.activePartySlotIndex,
-        // A capture at the cutoff can settle locally after this match's party was locked.
-        party: player.party.filter(slot =>
-          this.state.player.party.some(
-            battleSlot => battleSlot.slotIndex === slot.slotIndex && battleSlot.pokemon,
-          ),
-        ),
-      });
-      party.members = party.members.map(member => {
-        const pokemon = this.state.player.party.find(
-          slot => slot.slotIndex === member.slotIndex,
-        )?.pokemon;
-        if (!pokemon) throw new Error("Tournament reward slot is missing");
-        return {
-          ...member,
-          level: pokemon.level,
-          experience: pokemon.experience,
-          moves: pokemon.moves.map(move => ({ moveId: move.id, pp: move.maxPp })),
-        };
-      });
+      const { party, saved: save } = this.saveTournamentProgression(completedCompetitiveBattle);
       const generation = this.sceneGeneration;
-      void room
-        .completeTournamentProgression(completedCompetitiveBattle.matchId, party)
+      void save
         .then(saved => {
           if (!this.isSceneLifecycleCurrent(generation)) return;
           if (
@@ -2764,6 +2751,70 @@ export class BattleController {
       return;
     }
     finish();
+  }
+
+  private createTournamentProgressionParty(sessionId: string): CompetitivePartyInput {
+    const player = this.gameStateStore.getCurrentLocalPlayer();
+    const party = createCompetitivePartySnapshot({
+      sessionId,
+      playerId: player.playerId,
+      map: player.position.mapKey,
+      ...player.position,
+      activePartySlotIndex: player.activePartySlotIndex,
+      // A capture at the cutoff can settle locally after this match's party was locked.
+      party: player.party.filter(slot =>
+        this.state.player.party.some(
+          battleSlot => battleSlot.slotIndex === slot.slotIndex && battleSlot.pokemon,
+        ),
+      ),
+    });
+    party.members = party.members.map(member => {
+      const pokemon = this.state.player.party.find(
+        slot => slot.slotIndex === member.slotIndex,
+      )?.pokemon;
+      if (!pokemon) throw new Error("Tournament reward slot is missing");
+      return {
+        ...member,
+        level: pokemon.level,
+        experience: pokemon.experience,
+        moves: pokemon.moves.map(move => ({ moveId: move.id, pp: move.maxPp })),
+      };
+    });
+    return party;
+  }
+
+  /** Saves the move choices once, as soon as the last one is made, so slow message reading cannot miss the deadline. */
+  private saveTournamentProgression(
+    completedCompetitiveBattle: CompetitiveBattleLaunchKey,
+  ): TournamentProgressionSave {
+    if (this.tournamentProgressionSave) return this.tournamentProgressionSave;
+    const room = this.multiplayerRoom;
+    if (!room?.completeTournamentProgression)
+      throw new Error("Tournament progression transport is missing");
+    const party = this.createTournamentProgressionParty(room.sessionId);
+    const progression = {
+      party,
+      saved: room.completeTournamentProgression(completedCompetitiveBattle.matchId, party),
+    };
+    // The battle-end confirmation reports a failure and retries with a fresh request.
+    progression.saved.catch(() => {
+      if (this.tournamentProgressionSave === progression) this.tournamentProgressionSave = null;
+    });
+    this.tournamentProgressionSave = progression;
+    return progression;
+  }
+
+  private saveTournamentProgressionAfterChoices(): void {
+    const key = this.pendingTournamentReturnKey;
+    if (!key || this.pendingMoveLearnings.length > 0 || this.authoritativeSpectating) return;
+    // Every choice is made, so reading the result messages must not run out the selection timer.
+    this.moveLearningEndsAtMs = null;
+    this.moveLearningRemainingSeconds = null;
+    try {
+      this.saveTournamentProgression(key);
+    } catch {
+      // The battle-end confirmation retries and reports the failure.
+    }
   }
 
   private settleResolvedWildBattleBeforePreemption(): void {
@@ -2860,8 +2911,8 @@ export class BattleController {
     if (result.pendingMoveLearnings.length > 0) {
       const now = this.multiplayerRoom?.getServerNowMs?.() ?? Date.now();
       this.moveLearningEndsAtMs = tournamentReward
-        ? (this.authoritativeProjection?.progressionEndsAtMs ??
-          now + TOURNAMENT_PROGRESSION_DEADLINE_MS)
+        ? (this.tournamentProgressionEndsAtMs ?? now + TOURNAMENT_PROGRESSION_DEADLINE_MS) -
+          TOURNAMENT_PROGRESSION_SUBMIT_MARGIN_MS
         : now + TOURNAMENT_PROGRESSION_DEADLINE_MS;
       this.moveLearningRemainingSeconds = Math.max(
         0,
@@ -2951,6 +3002,7 @@ export class BattleController {
         this.pendingMoveLearnings.length > 0 ? [message] : appendBattleEndConfirmMessage([message]),
     });
     this.synchronizeWildMoveChoices();
+    this.saveTournamentProgressionAfterChoices();
   }
 
   private skipMoveReplacement(pending = this.pendingMoveLearnings.shift()): void {
@@ -2970,6 +3022,7 @@ export class BattleController {
               formatSkippedMoveMessage(pending.pokemonName, pending.newMove.name),
             ]),
     });
+    this.saveTournamentProgressionAfterChoices();
   }
 
   private toMoveLearningSummary(learning: {
