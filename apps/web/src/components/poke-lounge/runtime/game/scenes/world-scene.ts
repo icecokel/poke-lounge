@@ -197,11 +197,7 @@ export class WorldController {
       getEncounterTableData: () =>
         this.options.runtimeAssets.json.get(WILD_ENCOUNTER_TABLES_JSON_ASSET[0]),
       getPokemonData: () => this.options.runtimeAssets.json.get("pokemonData"),
-      persistPlayerPosition: position => {
-        if (shouldPersistSoloWorldPosition(this.competitiveRoundsEnabled)) {
-          this.gameStateStore.setLocalPlayerPosition(position);
-        }
-      },
+      persistPlayerPosition: position => this.gameStateStore.setLocalPlayerPosition(position),
       delay: (ms, onComplete) => window.setTimeout(onComplete, ms),
       startBattle: data =>
         this.startBattleScene({
@@ -314,14 +310,14 @@ export class WorldController {
     this.createPartyHud();
     const map = createWorldObjectLayerLookup(this.options.worldModel);
     this.interactions.createStaticNpcs(map);
-    const persistedSpawnPosition =
-      !this.competitiveRoundsEnabled && !data.spawnPosition
-        ? resolvePersistedWorldSpawn(
-            this.gameStateStore.getCurrentLocalPlayer().position,
-            FIELD_MAP.key,
-            this.options.worldModel,
-          )
-        : null;
+    // Room runs keep their own store scope, so a reload resumes the last field position there too.
+    const persistedSpawnPosition = !data.spawnPosition
+      ? resolvePersistedWorldSpawn(
+          this.gameStateStore.getCurrentLocalPlayer().position,
+          FIELD_MAP.key,
+          this.options.worldModel,
+        )
+      : null;
     this.createPlayer(
       map,
       data.spawnPointName ?? FIELD_MAP.defaultSpawn,
@@ -1221,10 +1217,6 @@ export class WorldController {
   }
 
   private persistLocalPlayerPositionIfChanged(): boolean {
-    if (!shouldPersistSoloWorldPosition(this.competitiveRoundsEnabled)) {
-      return false;
-    }
-
     const position = this.options.worldRuntime.readLocalPlayer().position;
     const nextPosition = {
       mapKey: FIELD_MAP.key,

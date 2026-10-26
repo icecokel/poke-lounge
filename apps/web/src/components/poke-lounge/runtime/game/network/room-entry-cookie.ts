@@ -167,3 +167,38 @@ export function readRoomResumeCookie(): RoomResumeCookie | null {
 export function clearRoomResumeCookie(): void {
   writeCookie("resume", null, 0);
 }
+
+const PRIVATE_ROOM_ACCESS_STORAGE_KEY = "poke-lounge:private-room-access";
+
+export interface PrivateRoomAccess {
+  roomCode: string;
+  code: string;
+}
+
+/** The private code stays in this tab only; the server never receives it. */
+export function writePrivateRoomAccess(access: PrivateRoomAccess | undefined): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (access)
+      window.sessionStorage.setItem(PRIVATE_ROOM_ACCESS_STORAGE_KEY, JSON.stringify(access));
+    else window.sessionStorage.removeItem(PRIVATE_ROOM_ACCESS_STORAGE_KEY);
+  } catch {
+    // Without storage the lobby falls back to the room ID after a reload.
+  }
+}
+
+export function readPrivateRoomAccess(roomCode: string): PrivateRoomAccess | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const value = JSON.parse(
+      window.sessionStorage.getItem(PRIVATE_ROOM_ACCESS_STORAGE_KEY) ?? "null",
+    ) as Partial<PrivateRoomAccess> | null;
+    return value?.roomCode === roomCode &&
+      typeof value.code === "string" &&
+      ROOM_CODE_PATTERN.test(value.code)
+      ? { roomCode, code: value.code }
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
