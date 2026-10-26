@@ -66,7 +66,7 @@ import {
   type WorldSceneInteractionsController,
 } from "./world-scene-interactions";
 import { shouldDisposeRoomOnWorldShutdown } from "./world-scene-room-lifecycle";
-import { resolvePersistedWorldSpawn, shouldPersistSoloWorldPosition } from "./world-scene-spawn";
+import { resolvePersistedWorldSpawn, shouldPersistBattleReturnPosition } from "./world-scene-spawn";
 import {
   createWorldSceneTournament,
   isWorldTournamentBattleResult,
@@ -202,7 +202,7 @@ export class WorldController {
       startBattle: data =>
         this.startBattleScene({
           ...data,
-          persistWorldPosition: shouldPersistSoloWorldPosition(this.competitiveRoundsEnabled),
+          persistWorldPosition: shouldPersistBattleReturnPosition(this.competitiveRoundsEnabled),
         }),
     });
     this.interactions = createWorldSceneInteractions({
@@ -323,6 +323,8 @@ export class WorldController {
       data.spawnPointName ?? FIELD_MAP.defaultSpawn,
       data.spawnPosition ?? persistedSpawnPosition ?? undefined,
     );
+    // Battle returns and tournament gathering place the player without a step, so record it now.
+    this.persistLocalPlayerPositionIfChanged();
     this.gameStateStore.setSession({
       sessionId: this.room.sessionId,
       roomId: this.room.roomId,
@@ -515,7 +517,7 @@ export class WorldController {
       matchIndex: match.matchNumber,
       player: healLocalPlayer(player),
       opponent: healLocalPlayer(opponent),
-      persistWorldPosition: shouldPersistSoloWorldPosition(this.competitiveRoundsEnabled),
+      persistWorldPosition: shouldPersistBattleReturnPosition(this.competitiveRoundsEnabled),
       returnToWorld: {
         mapKey: FIELD_MAP.key,
         x,
@@ -764,7 +766,9 @@ export class WorldController {
                 battleKind: "authoritative",
                 ownPlayerId: latest.viewPlayerId ?? latest.ownPlayerId,
                 spectating: latest.spectating === true,
-                persistWorldPosition: shouldPersistSoloWorldPosition(this.competitiveRoundsEnabled),
+                persistWorldPosition: shouldPersistBattleReturnPosition(
+                  this.competitiveRoundsEnabled,
+                ),
                 projection: latest.projection,
                 returnToWorld: {
                   mapKey: FIELD_MAP.key,

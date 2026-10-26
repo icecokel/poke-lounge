@@ -10,7 +10,8 @@ export interface PersistedWorldSpawn {
   y: number;
 }
 
-export function shouldPersistSoloWorldPosition(competitiveRoundsEnabled: boolean): boolean {
+/** Room battles return to a server-chosen spot; the world scene records it on start instead. */
+export function shouldPersistBattleReturnPosition(competitiveRoundsEnabled: boolean): boolean {
   return !competitiveRoundsEnabled;
 }
 

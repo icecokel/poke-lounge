@@ -709,6 +709,8 @@ export async function startGamePage(
       errorCode,
       onRetry: retry,
       onReturnToEntry: () => {
+        privateRoomAccess = undefined;
+        writePrivateRoomAccess(undefined);
         restoreOwnerGameState(true);
         clearRoomEntrySearchParams(currentUrl);
         replaceBrowserUrl(currentUrl);

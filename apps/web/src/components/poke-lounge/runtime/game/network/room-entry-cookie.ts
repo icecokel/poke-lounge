@@ -1,6 +1,11 @@
 import { createRoomRunId, isRoomRunId } from "../room-run-id";
 import { POKE_LOUNGE_SESSION_MAX_LIFETIME_MS } from "@poke-lounge/battle/timing";
-import { normalizeRoomInstanceId, normalizeRoomRoundDurationMs } from "./room-entry";
+import {
+  normalizeRoomInstanceId,
+  normalizeRoomRoundDurationMs,
+  normalizeTemporaryPassword,
+  TEMPORARY_PASSWORD_LENGTH,
+} from "./room-entry";
 import { normalizeMultiplayerDisplayName, type RoomEntrySelection } from "./room-entry-screen";
 import { isStarterMode } from "@poke-lounge/battle/starter-selection";
 
@@ -195,7 +200,8 @@ export function readPrivateRoomAccess(roomCode: string): PrivateRoomAccess | und
     ) as Partial<PrivateRoomAccess> | null;
     return value?.roomCode === roomCode &&
       typeof value.code === "string" &&
-      ROOM_CODE_PATTERN.test(value.code)
+      value.code.length === TEMPORARY_PASSWORD_LENGTH &&
+      normalizeTemporaryPassword(value.code) === value.code
       ? { roomCode, code: value.code }
       : undefined;
   } catch {
