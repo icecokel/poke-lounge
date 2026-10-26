@@ -4,7 +4,7 @@ import {
   type NormalizedCompetitiveParty,
 } from "./competitive-party";
 import { getLevelUpMovesForSpecies } from "./adventure/battle/level-up-moves";
-import { POKEMON_INDIVIDUAL_VALUE_KEYS } from "./adventure/battle/individual-values";
+import { getIndividualValueKey } from "./adventure/battle/individual-values";
 import {
   normalizePokemonEvolutionTable,
   type PokemonEvolutionTable,
@@ -84,7 +84,7 @@ export function acceptPartySubmission(
   const entries = [...previousEntries];
   const partyIndices = new Set<number>();
   for (const member of party.members) {
-    const ivKey = POKEMON_INDIVIDUAL_VALUE_KEYS.map(key => member.individualValues[key]).join("-");
+    const ivKey = getIndividualValueKey(member.individualValues);
     const previousIndex = previousEntries.findIndex(
       (entry, index) => entry.ivKey === ivKey && !partyIndices.has(index),
     );

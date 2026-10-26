@@ -1,6 +1,7 @@
 import { PLAYER_PARTY_SLOT_COUNT } from "@poke-lounge/battle/adventure/player/player-types";
 import type {
   AddPokemonToPartyResult,
+  DeferredMoveLearning,
   MoveBoxPokemonToPartyResult,
   MovePartyPokemonToBoxResult,
   PlayerPokemon,
@@ -17,6 +18,7 @@ import type { PlayerChange } from "../player/player-change";
 import {
   compactPartySlots,
   getPartySlot,
+  getPokemonIdentityKey,
   healLocalPlayer,
   isValidMoveIndex,
   isValidPartySlotIndex,
@@ -379,5 +381,74 @@ export function replacePokemonMove(
     },
     changed: true,
     result: { ok: true },
+  };
+}
+
+function isSameDeferredMoveLearning(left: DeferredMoveLearning, right: DeferredMoveLearning) {
+  return left.pokemonKey === right.pokemonKey && left.move.id === right.move.id;
+}
+
+export function deferMoveLearnings(
+  localPlayer: LocalPlayerState,
+  learnings: ReadonlyArray<DeferredMoveLearning>,
+): PlayerChange<void> {
+  const current = localPlayer.deferredMoveLearnings ?? [];
+  const added = learnings.filter(
+    (learning, index) =>
+      !current.some(existing => isSameDeferredMoveLearning(existing, learning)) &&
+      learnings.findIndex(other => isSameDeferredMoveLearning(other, learning)) === index,
+  );
+  if (added.length === 0) return { player: localPlayer, changed: false, result: undefined };
+  return {
+    player: { ...localPlayer, deferredMoveLearnings: [...current, ...added] },
+    changed: true,
+    result: undefined,
+  };
+}
+
+export function resolveDeferredMoveLearning(
+  localPlayer: LocalPlayerState,
+  learning: DeferredMoveLearning,
+  moveIndex: number | null,
+): PlayerChange<void> {
+  const current = localPlayer.deferredMoveLearnings ?? [];
+  if (!current.some(existing => isSameDeferredMoveLearning(existing, learning)))
+    return { player: localPlayer, changed: false, result: undefined };
+  const remaining = current.filter(existing => !isSameDeferredMoveLearning(existing, learning));
+  // Identical individual values are possible; only the first match learns the move.
+  const target = localPlayer.party.find(
+    slot => slot.pokemon && getPokemonIdentityKey(slot.pokemon) === learning.pokemonKey,
+  );
+  const party =
+    moveIndex === null || !target
+      ? localPlayer.party
+      : localPlayer.party.map(slot => {
+          const pokemon = slot.pokemon;
+          if (slot !== target || !pokemon) return slot;
+          const moves = pokemon.moves ?? [];
+          if (moves.some(move => move.id === learning.move.id) || !isValidMoveIndex(moveIndex))
+            return slot;
+          // A free slot appends; otherwise the chosen move is forgotten.
+          if (moveIndex >= moves.length) {
+            return moves.length < 4
+              ? { ...slot, pokemon: { ...pokemon, moves: [...moves, learning.move] } }
+              : slot;
+          }
+          return {
+            ...slot,
+            pokemon: {
+              ...pokemon,
+              moves: moves.map((move, index) => (index === moveIndex ? learning.move : move)),
+            },
+          };
+        });
+  return {
+    player: {
+      ...localPlayer,
+      party,
+      deferredMoveLearnings: remaining.length > 0 ? remaining : undefined,
+    },
+    changed: true,
+    result: undefined,
   };
 }

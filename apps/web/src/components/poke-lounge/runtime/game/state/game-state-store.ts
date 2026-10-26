@@ -314,6 +314,18 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
         playerOperations.updatePokemonInPartySlot(getCurrentLocalPlayer(state), ...args),
       );
     },
+    deferMoveLearnings(...args: Parameters<GameStateStore["deferMoveLearnings"]>) {
+      commitPlayerChange(
+        playerOperations.deferMoveLearnings(getCurrentLocalPlayer(state), ...args),
+      );
+    },
+    resolveDeferredMoveLearning(
+      ...args: Parameters<GameStateStore["resolveDeferredMoveLearning"]>
+    ) {
+      commitPlayerChange(
+        playerOperations.resolveDeferredMoveLearning(getCurrentLocalPlayer(state), ...args),
+      );
+    },
     replacePokemonMove(...args: Parameters<GameStateStore["replacePokemonMove"]>) {
       return commitPlayerChange(
         playerOperations.replacePokemonMove(getCurrentLocalPlayer(state), ...args),

@@ -4,6 +4,8 @@ import {
   withSubjectParticle,
 } from "@poke-lounge/battle/battle-message-text";
 import { transferPcPokemon } from "@/features/poke-lounge/application/world/pc-transfer";
+import type { DeferredMoveLearning } from "@/features/poke-lounge/contracts/game-state";
+import { getPokemonIdentityKey } from "@/features/poke-lounge/domain/player/player-helpers";
 import { formatFieldInteractionKey } from "@/features/poke-lounge/presentation/world/interaction-copy";
 import { formatPcTransferResult } from "@/features/poke-lounge/presentation/world/pc-transfer-message";
 import { FIELD_AREA_ANNOUNCEMENT_DURATION_MS } from "@poke-lounge/battle/timing";
@@ -87,6 +89,8 @@ export interface WorldSceneInteractionsDependencies {
   keyboard: RuntimeKeyboard;
   getPlayerPosition(): WorldScenePlayerPosition | null;
   canStartSoloChallenge(): boolean;
+  /** True while the room still accepts party changes for the coming tournament. */
+  canOfferDeferredMoveLearning(): boolean;
   startSoloChallenge(): void;
   playNurseHealingEffect(nursePosition: WorldScenePlayerPosition, onComplete: () => void): void;
   isBattleIntroPlaying(): boolean;
@@ -138,6 +142,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private pendingInventoryItemId: string | null = null;
   private pendingInventoryMovePokemon: PlayerPokemon | null = null;
   private pendingInventoryMoveReplacements: PlayerPokemonMove[] = [];
+  private deferredMoveLearning: DeferredMoveLearning | null = null;
   private inventoryMessage = "";
   private pcBoxOpen = false;
   private pcBoxFocus: PcBoxFocus = "party";
@@ -608,6 +613,8 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       return true;
     }
 
+    if (this.openDeferredMoveLearning()) return true;
+
     this.handleFieldInteractionInput();
 
     return this.inventoryOpen || this.pcBoxOpen || this.mobileWorldView === "party";
@@ -979,7 +986,58 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.renderInventoryUi();
   }
 
+  /** Offers one tournament move the player ran out of time to choose, reusing the move-replace screen. */
+  private openDeferredMoveLearning(): boolean {
+    const localPlayer = this.gameStateStore.getCurrentLocalPlayer();
+    const learnings = localPlayer.deferredMoveLearnings ?? [];
+    if (
+      learnings.length === 0 ||
+      this.nurseHealing ||
+      this.nurseMessage ||
+      !this.dependencies.canOfferDeferredMoveLearning()
+    )
+      return false;
+    const findPokemonSlot = (pokemonKey: string) =>
+      localPlayer.party.find(
+        candidate => candidate.pokemon && getPokemonIdentityKey(candidate.pokemon) === pokemonKey,
+      );
+    const inBox = (pokemonKey: string) =>
+      localPlayer.pokemonBox.some(pokemon => getPokemonIdentityKey(pokemon) === pokemonKey);
+    // A Pokémon resting in the PC keeps its move until it returns to the party.
+    const learning = learnings.find(
+      candidate => findPokemonSlot(candidate.pokemonKey) || !inBox(candidate.pokemonKey),
+    );
+    if (!learning) return false;
+    const slot = findPokemonSlot(learning.pokemonKey);
+    const moves = slot?.pokemon?.moves ?? [];
+    if (!slot?.pokemon || moves.some(move => move.id === learning.move.id)) {
+      // The Pokémon is gone or already knows the move.
+      this.gameStateStore.resolveDeferredMoveLearning(learning, null);
+      return false;
+    }
+    if (moves.length < 4) {
+      this.gameStateStore.resolveDeferredMoveLearning(learning, moves.length);
+      return false;
+    }
+    this.mobileWorldView = "explore";
+    this.inventoryOpen = true;
+    this.inventoryFocus = "move-replace";
+    this.inventoryPartySlotIndex = slot.slotIndex;
+    this.inventoryMoveReplaceIndex = 0;
+    this.inventoryMoveReplacementDecisions = [];
+    this.inventoryTargetItemId = null;
+    this.pendingInventoryItemId = null;
+    this.pendingInventoryMovePokemon = slot.pokemon;
+    this.pendingInventoryMoveReplacements = [learning.move];
+    this.inventoryMoveConfirmation = null;
+    this.deferredMoveLearning = learning;
+    this.inventoryMessage = "토너먼트에서 고르지 못한 기술을 다시 고를 수 있다.";
+    this.renderInventoryUi();
+    return true;
+  }
+
   private closeInventory(): void {
+    this.deferredMoveLearning = null;
     this.inventoryOpen = false;
     this.inventoryFocus = "items";
     this.inventoryMoveReplaceIndex = 0;
@@ -1229,6 +1287,17 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private completeInventoryMoveReplacement(fallbackMessage: string): void {
+    if (this.deferredMoveLearning) {
+      // After the round locks the party the choice would miss the server, so keep it for the next field.
+      if (this.dependencies.canOfferDeferredMoveLearning())
+        this.gameStateStore.resolveDeferredMoveLearning(
+          this.deferredMoveLearning,
+          this.inventoryMoveReplacementDecisions[0] ?? null,
+        );
+      this.closeInventory();
+      this.renderPartyHud();
+      return;
+    }
     const itemId = this.pendingInventoryItemId;
     const result = itemId
       ? this.gameStateStore.resolveInventoryItemMoveReplacements(
@@ -1254,6 +1323,11 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private cancelInventoryMoveReplacement(message: string): void {
+    if (this.deferredMoveLearning) {
+      // The entry stays saved and is offered again on a later field frame.
+      this.closeInventory();
+      return;
+    }
     this.resetPendingInventoryMoveReplacement();
     this.inventoryFocus = "party";
     this.inventoryMessage = message;

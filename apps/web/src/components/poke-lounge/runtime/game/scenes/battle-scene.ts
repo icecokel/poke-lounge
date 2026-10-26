@@ -6,6 +6,7 @@ import {
   persistTournamentRewardParty,
 } from "@/features/poke-lounge/application/battle/settle-battle";
 import { createCompetitivePartySnapshot } from "../network/competitive-party-snapshot";
+import { getPokemonIdentityKey } from "@/features/poke-lounge/domain/player/player-helpers";
 import { materializeResolvedWildBattleReward } from "@/features/poke-lounge/application/battle/settle-interrupted-battle";
 import { createOpponentPartySummary } from "@/features/poke-lounge/presentation/battle/opponent-party";
 import { formatBattleResultMessage } from "@/features/poke-lounge/presentation/battle/result-message";
@@ -2910,10 +2911,17 @@ export class BattleController {
     this.pendingMoveLearnings.push(...result.pendingMoveLearnings);
     if (result.pendingMoveLearnings.length > 0) {
       const now = this.multiplayerRoom?.getServerNowMs?.() ?? Date.now();
-      this.moveLearningEndsAtMs = tournamentReward
-        ? (this.tournamentProgressionEndsAtMs ?? now + TOURNAMENT_PROGRESSION_DEADLINE_MS) -
-          TOURNAMENT_PROGRESSION_SUBMIT_MARGIN_MS
-        : now + TOURNAMENT_PROGRESSION_DEADLINE_MS;
+      // Result messages can plan this before the projection is cleared on the final confirm.
+      const progressionEndsAtMs =
+        this.tournamentProgressionEndsAtMs ?? this.authoritativeProjection?.progressionEndsAtMs;
+      // The choice time starts when this screen opens, but cannot outlast the server's wait for the next match.
+      this.moveLearningEndsAtMs =
+        tournamentReward && progressionEndsAtMs != null
+          ? Math.min(
+              now + TOURNAMENT_PROGRESSION_DEADLINE_MS,
+              progressionEndsAtMs - TOURNAMENT_PROGRESSION_SUBMIT_MARGIN_MS,
+            )
+          : now + TOURNAMENT_PROGRESSION_DEADLINE_MS;
       this.moveLearningRemainingSeconds = Math.max(
         0,
         Math.ceil((this.moveLearningEndsAtMs - now) / 1000),
@@ -3094,13 +3102,16 @@ export class BattleController {
     const now = this.multiplayerRoom?.getServerNowMs?.() ?? Date.now();
     const seconds = Math.max(0, Math.ceil((this.moveLearningEndsAtMs - now) / 1000));
     if (seconds === 0) {
+      const deferred = this.deferUnchosenTournamentMoves();
       this.pendingMoveLearnings = [];
       this.pendingEvolutionTransitions = [];
       this.moveReplacementConfirmation = null;
       this.moveLearningEndsAtMs = null;
       this.setBattleState({ ...this.state, phase: "ended", messageQueue: [] });
       dispatchPokeLoungeNotice(this.ownerDocument, {
-        message: "기술 선택 시간이 끝났습니다. 선택하지 않은 기술은 배우지 않습니다.",
+        message: deferred
+          ? "기술 선택 시간이 끝났습니다. 고르지 못한 기술은 필드로 돌아가면 다시 고를 수 있습니다."
+          : "기술 선택 시간이 끝났습니다. 선택하지 않은 기술은 배우지 않습니다.",
         tone: "info",
       });
       this.returnToWorld();
@@ -3111,6 +3122,21 @@ export class BattleController {
       this.render();
     }
     return false;
+  }
+
+  /** Tournament moves left unchosen at the deadline are offered again once the field reopens. */
+  private deferUnchosenTournamentMoves(): boolean {
+    if (!this.pendingTournamentReturnKey || this.authoritativeSpectating) return false;
+    const party = this.gameStateStore.getCurrentLocalPlayer().party;
+    const learnings = this.pendingMoveLearnings.flatMap(pending => {
+      const pokemon = party.find(slot => slot.slotIndex === pending.slotIndex)?.pokemon;
+      const pokemonKey = pokemon ? getPokemonIdentityKey(pokemon) : null;
+      const { id, name, pp, maxPp } = pending.newMove;
+      return pokemonKey ? [{ pokemonKey, move: { id, name, pp, maxPp } }] : [];
+    });
+    if (learnings.length === 0) return false;
+    this.gameStateStore.deferMoveLearnings(learnings);
+    return true;
   }
 
   private goBack(): void {

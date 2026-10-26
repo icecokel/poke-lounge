@@ -35,6 +35,8 @@ pub const CLOSED_RETENTION_MS: u64 = 60_000;
 pub const TURN_MS: u64 = 30_000;
 // Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_PROGRESSION_DEADLINE_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_PROGRESSION_MS: u64 = 25_000;
+// Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_MOVE_CHOICE_WAIT_MAX_MS (pnpm check:rust-ts-constants).
+pub const TOURNAMENT_MOVE_CHOICE_WAIT_MAX_MS: u64 = 40_000;
 // Rust-only.
 pub const AI_ONLY_TURN_READY_MS: u64 = 500;
 // Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_BRIEFING_DURATION_MS (pnpm check:rust-ts-constants).
@@ -1425,7 +1427,7 @@ impl Room {
                     PendingProgression {
                         match_id: id,
                         previous_levels,
-                        expires_at_ms: now + TOURNAMENT_PROGRESSION_MS,
+                        expires_at_ms: now + TOURNAMENT_MOVE_CHOICE_WAIT_MAX_MS,
                     },
                 );
             }
@@ -1448,7 +1450,7 @@ impl Room {
         self.updated_at_ms = now;
         m.terminal_event_id = Some(Uuid::new_v4());
         m.terminal_room_revision = Some(self.revision);
-        m.progression_ends_at_ms = Some(now + TOURNAMENT_PROGRESSION_MS);
+        m.progression_ends_at_ms = Some(now + TOURNAMENT_MOVE_CHOICE_WAIT_MAX_MS);
         let bracket = self
             .bracket
             .as_mut()

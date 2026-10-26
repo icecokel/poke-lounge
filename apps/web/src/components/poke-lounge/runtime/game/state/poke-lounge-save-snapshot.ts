@@ -8,6 +8,7 @@ import {
 } from "../battle/individual-values";
 import { isSupportedPokemonSpeciesId } from "../battle/pokemon-species";
 import { PLAYER_PARTY_SLOT_COUNT, type PlayerFacing } from "../player/player-types";
+import type { DeferredMoveLearning } from "@/features/poke-lounge/contracts/game-state";
 import type {
   GameState,
   GameStateStore,
@@ -131,6 +132,7 @@ function sanitizeLocalPlayerState(
   const rank = value.competitive.rank;
   const score = value.competitive.score;
   const position = sanitizePosition(value.position);
+  const deferredMoveLearnings = sanitizeDeferredMoveLearnings(value.deferredMoveLearnings);
 
   if (
     !party ||
@@ -154,7 +156,23 @@ function sanitizeLocalPlayerState(
     competitive: { rank, score },
     guide: { shortcutGuideViewed: value.guide.shortcutGuideViewed },
     position,
+    ...(deferredMoveLearnings.length > 0 ? { deferredMoveLearnings } : {}),
   };
+}
+
+const MAX_DEFERRED_MOVE_LEARNINGS = 24;
+
+/** Optional and best effort: a bad entry is dropped rather than rejecting the whole save. */
+function sanitizeDeferredMoveLearnings(value: unknown): DeferredMoveLearning[] {
+  if (!Array.isArray(value)) return [];
+  const learnings: DeferredMoveLearning[] = [];
+  for (const entry of value.slice(0, MAX_DEFERRED_MOVE_LEARNINGS)) {
+    if (!isRecord(entry) || !isNonEmptyString(entry.pokemonKey) || entry.pokemonKey.length > 64)
+      continue;
+    const move = sanitizeMoves([entry.move])?.[0];
+    if (move) learnings.push({ pokemonKey: entry.pokemonKey, move });
+  }
+  return learnings;
 }
 
 function sanitizeParty(value: unknown[]): LocalPlayerState["party"] | null {

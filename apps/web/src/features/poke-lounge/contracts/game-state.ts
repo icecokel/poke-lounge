@@ -36,6 +36,13 @@ export interface PlayerGuideState {
   shortcutGuideViewed: boolean;
 }
 
+/** A tournament move the player ran out of time to choose; offered again on the field. */
+export interface DeferredMoveLearning {
+  /** Individual values identify the Pokémon across party moves, evolution and server rewrites. */
+  pokemonKey: string;
+  move: PlayerPokemonMove;
+}
+
 export interface LocalPlayerState {
   playerId: string;
   displayName: string;
@@ -46,6 +53,7 @@ export interface LocalPlayerState {
   competitive: PlayerCompetitiveStats;
   guide: PlayerGuideState;
   position: PlayerPosition;
+  deferredMoveLearnings?: DeferredMoveLearning[];
 }
 
 export interface RemotePlayerState {
@@ -239,6 +247,9 @@ export interface GameStateStore {
     moveIndex: number,
     move: PlayerPokemonMove,
   ): ReplacePokemonMoveResult;
+  deferMoveLearnings(learnings: ReadonlyArray<DeferredMoveLearning>): void;
+  /** Learns the move over moveIndex (or into a free slot), or drops it when moveIndex is null. */
+  resolveDeferredMoveLearning(learning: DeferredMoveLearning, moveIndex: number | null): void;
   setLocalPlayerPosition(position: PlayerPosition): void;
   upsertRemotePlayer(player: RemotePlayerState): void;
   removeRemotePlayer(sessionId: string): void;
