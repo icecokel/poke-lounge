@@ -8,6 +8,8 @@ export interface StarterPokemon {
   type: string;
   assetPath: string;
   sprite?: BattleSpriteRef;
+  /** The species stays secret until the starter is confirmed. */
+  hidden?: boolean;
 }
 
 export interface GameBootstrapData {

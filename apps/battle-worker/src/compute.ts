@@ -19,7 +19,7 @@ import {
 } from "@poke-lounge/battle/competitive-party";
 import { acceptPartySubmission, PartyAcceptanceError } from "@poke-lounge/battle/party-acceptance";
 import { chooseAiCompetitiveAction, createAiStarterParty } from "@poke-lounge/battle/ai-policy";
-import { getStarterSpeciesIds } from "@poke-lounge/battle/starter-selection";
+import { getStarterLevel, getStarterSpeciesIds } from "@poke-lounge/battle/starter-selection";
 import {
   createAiAdventure,
   advanceAiAdventure,
@@ -120,7 +120,8 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
         const candidates = getStarterSpeciesIds(op.starterSelection);
         if (
           party.members.length !== 1 ||
-          party.members[0]!.level !== 10 ||
+          party.members[0]!.level !==
+            getStarterLevel(op.starterSelection, party.members[0]!.speciesId) ||
           !candidates.includes(party.members[0]!.speciesId)
         ) {
           throw new Error("Invalid starter party");

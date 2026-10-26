@@ -139,9 +139,13 @@ export function StarterSelectionScreen({
                 type="button"
                 className="group relative flex h-auto min-h-28 min-w-0 touch-manipulation flex-col items-center justify-center gap-1 whitespace-normal rounded-md border-2 border-[#72846a] bg-[#fffdf0] px-1 py-2 text-[#24313b] shadow-[0_3px_0_#adba9f] hover:border-[#315d4b] hover:bg-[#fff1c4] aria-pressed:border-[#315d4b] aria-pressed:bg-[#fff1a8] aria-pressed:shadow-[inset_0_0_0_2px_#f4cf58,0_3px_0_#315d4b] focus-visible:border-[#315d4b] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-[#2f6b78] focus-visible:outline-offset-2 disabled:cursor-default"
                 aria-pressed={starter.id === selected?.id}
-                aria-label={`${localizePokemonName(starter.displayName, copy.locale)} · ${getStarterTypeLabel(starter.type, copy.locale)}`}
+                aria-label={
+                  starter.hidden
+                    ? text.mysteryLabel
+                    : `${localizePokemonName(starter.displayName, copy.locale)} · ${getStarterTypeLabel(starter.type, copy.locale)}`
+                }
                 data-starter-card={starter.id}
-                data-starter-type={starter.type}
+                data-starter-type={starter.hidden ? undefined : starter.type}
                 disabled={confirming}
                 onClick={() => choose(starter)}
                 onKeyDown={event => navigate(event, index)}
@@ -154,13 +158,13 @@ export function StarterSelectionScreen({
                 </span>
                 <StarterSprite key={starter.assetPath} starter={starter} copy={copy} />
                 <strong className="text-center text-sm leading-[1.35] font-black [overflow-wrap:anywhere]">
-                  {localizePokemonName(starter.displayName, copy.locale)}
+                  {getStarterName(starter, copy.locale)}
                 </strong>
                 <span
                   className="inline-flex w-fit min-w-11 items-center justify-center rounded border border-[#58614e] px-1.5 py-0.5 text-[0.6875rem] leading-[1.3] font-extrabold text-[#26342c] data-[type=Fire]:bg-[#f2b582] data-[type=Grass]:bg-[#c4dbab] data-[type=Water]:bg-[#b6d8e6]"
-                  data-type={starter.type}
+                  data-type={starter.hidden ? undefined : starter.type}
                 >
-                  {getStarterTypeLabel(starter.type, copy.locale)}
+                  {starter.hidden ? "?" : getStarterTypeLabel(starter.type, copy.locale)}
                 </span>
               </Button>
             ))}
@@ -196,13 +200,13 @@ export function StarterSelectionScreen({
                   {text.selected}
                 </p>
                 <strong className="min-w-0 text-lg leading-[1.3] font-black [overflow-wrap:anywhere]">
-                  {localizePokemonName(selected.displayName, copy.locale)}
+                  {getStarterName(selected, copy.locale)}
                 </strong>
                 <span
                   className="inline-flex w-fit min-w-11 items-center justify-center rounded border border-[#58614e] px-1.5 py-0.5 text-[0.6875rem] leading-[1.3] font-extrabold text-[#26342c] data-[type=Fire]:bg-[#f2b582] data-[type=Grass]:bg-[#c4dbab] data-[type=Water]:bg-[#b6d8e6]"
-                  data-type={selected.type}
+                  data-type={selected.hidden ? undefined : selected.type}
                 >
-                  {getStarterTypeLabel(selected.type, copy.locale)}
+                  {selected.hidden ? "?" : getStarterTypeLabel(selected.type, copy.locale)}
                 </span>
               </div>
             </>
@@ -236,6 +240,12 @@ export function StarterSelectionScreen({
   );
 }
 
+function getStarterName(starter: StarterPokemon, locale: string): string {
+  return starter.hidden
+    ? getStarterSelectionCopy(locale).mystery
+    : localizePokemonName(starter.displayName, locale);
+}
+
 function StarterSprite({
   starter,
   copy,
@@ -246,8 +256,9 @@ function StarterSprite({
   preview?: boolean;
 }) {
   const [missing, setMissing] = useState(false);
-  const name = localizePokemonName(starter.displayName, copy.locale);
-  if (starter.sprite) {
+  const name = getStarterName(starter, copy.locale);
+  // Never load the hidden candidate's sprite; its URL would reveal the species.
+  if (!starter.hidden && starter.sprite) {
     return (
       <span role="img" aria-label={name}>
         <MobilePokemonThumbnail sprite={starter.sprite} />
@@ -259,7 +270,16 @@ function StarterSprite({
       className="grid size-[var(--sprite-size)] shrink-0 place-items-center [--sprite-size:56px] data-[preview=true]:[--sprite-size:64px]"
       data-preview={preview || undefined}
     >
-      {missing ? (
+      {starter.hidden ? (
+        <span
+          className="grid size-4/5 place-items-center rounded-full border-2 border-dashed border-[#7f9576] bg-[#e7edd9] text-[1.75rem] text-[#58694e]"
+          role="img"
+          aria-label={getStarterSelectionCopy(copy.locale).mysteryLabel}
+          data-starter-mystery="true"
+        >
+          ?
+        </span>
+      ) : missing ? (
         <span
           className="grid size-4/5 place-items-center rounded-full border-2 border-dashed border-[#7f9576] bg-[#e7edd9] text-[1.75rem] text-[#58694e]"
           role="img"
@@ -281,14 +301,16 @@ function StarterSprite({
       )}
       {/* Two square animation frames are stored side-by-side. Keep the square
           viewport rather than stretching the entire image across the card. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        className="hidden"
-        src={starter.assetPath}
-        alt=""
-        aria-hidden="true"
-        onError={() => setMissing(true)}
-      />
+      {starter.hidden ? null : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          className="hidden"
+          src={starter.assetPath}
+          alt=""
+          aria-hidden="true"
+          onError={() => setMissing(true)}
+        />
+      )}
     </span>
   );
 }

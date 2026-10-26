@@ -1,5 +1,10 @@
 import { createStarterPlayerPokemon } from "@/features/poke-lounge/domain/player/create-starter-pokemon";
-import { getStarterSpeciesIds, type StarterSelection } from "@poke-lounge/battle/starter-selection";
+import {
+  getStarterLevel,
+  getStarterSpeciesIds,
+  isHiddenStarterCandidate,
+  type StarterSelection,
+} from "@poke-lounge/battle/starter-selection";
 import { getRuntimePokemonSpeciesSummary } from "@poke-lounge/battle/adventure/data/game-data-json";
 import { getGen4TypeName } from "@poke-lounge/battle/adventure/battle/battle-rom-data";
 import { getBattlePokemonAssets } from "@poke-lounge/battle/adventure/battle/battle-pokemon-assets";
@@ -736,12 +741,14 @@ export async function startGamePage(
     const starters =
       !selection || selection.mode === "classic"
         ? bootstrap.starters
-        : getStarterSpeciesIds(selection).map(speciesId => {
+        : getStarterSpeciesIds(selection).map((speciesId, index) => {
             const species = getRuntimePokemonSpeciesSummary(speciesId);
             if (!species) throw new Error(`Missing starter species ${speciesId}`);
             const sprite = getBattlePokemonAssets(speciesId).front;
+            const hidden = isHiddenStarterCandidate(selection, index);
             return {
-              id: String(speciesId),
+              id: hidden ? "mystery" : String(speciesId),
+              hidden,
               speciesId,
               name: species.name,
               displayName: species.name,
@@ -762,7 +769,9 @@ export async function startGamePage(
 
         completed = true;
         starterSelectionRequestId += 1;
-        gameStateStore.setStarterPokemon(createStarterPlayerPokemon(starter));
+        gameStateStore.setStarterPokemon(
+          createStarterPlayerPokemon(starter, getStarterLevel(selection, starter.speciesId)),
+        );
         afterSelection();
       },
     });

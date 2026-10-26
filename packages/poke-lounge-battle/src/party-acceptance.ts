@@ -10,10 +10,16 @@ import {
   type PokemonEvolutionTable,
 } from "./adventure/battle/pokemon-evolution";
 import type { RomPersonalRecordCollection } from "./adventure/battle/wild-battle-factory";
-import { getStarterSpeciesIds, type StarterSelection } from "./starter-selection";
+import {
+  getStarterLevel,
+  getStarterSpeciesIds,
+  STARTER_LEVEL,
+  type StarterSelection,
+} from "./starter-selection";
+
+export { STARTER_LEVEL };
 
 export const STARTER_SPECIES_IDS = [1, 4, 7, 152, 155, 158] as const;
-export const STARTER_LEVEL = 10;
 export const PARTY_ROSTER_LIMIT = 120;
 export const PARTY_GROWTH_LEVELS_BASE = 5;
 export const PARTY_GROWTH_MS_PER_LEVEL = 6_000;
@@ -75,7 +81,7 @@ export function acceptPartySubmission(
       !(starterSelection ? getStarterSpeciesIds(starterSelection) : STARTER_SPECIES_IDS).some(
         id => id === party.members[0].speciesId,
       ) ||
-      party.members[0].level !== STARTER_LEVEL)
+      party.members[0].level !== getStarterLevel(starterSelection, party.members[0].speciesId))
   ) {
     throw new PartyAcceptanceError("starter");
   }
@@ -94,7 +100,11 @@ export function acceptPartySubmission(
       let allowedMoves: Set<number> | undefined;
       if (starter) {
         allowedMoves = new Set(
-          getLevelUpMovesForSpecies(member.speciesId, 0, STARTER_LEVEL).map(move => move.moveId),
+          getLevelUpMovesForSpecies(
+            member.speciesId,
+            0,
+            getStarterLevel(starterSelection, member.speciesId),
+          ).map(move => move.moveId),
         );
       } else if (previous) {
         if (!isEvolutionDescendant(previous.speciesId, member.speciesId, evolutionTable)) {

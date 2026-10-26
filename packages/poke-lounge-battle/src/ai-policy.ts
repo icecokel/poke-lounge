@@ -17,7 +17,7 @@ import {
 } from "./competitive-party";
 
 import { createRandomIndividualValues } from "./adventure/battle/individual-values";
-import { getStarterSpeciesIds, type StarterSelection } from "./starter-selection";
+import { getStarterLevel, getStarterSpeciesIds, type StarterSelection } from "./starter-selection";
 import { getMoveIdsForSpeciesAtLevel } from "./adventure/battle/level-up-moves";
 
 const STARTER_SPECIES_IDS = [152, 155, 158] as const;
@@ -32,8 +32,9 @@ export function createAiStarterParty(
       : STARTER_SPECIES_IDS;
   const speciesId = candidates[Math.floor(random() * candidates.length)]!;
   const species = COMPETITIVE_SPECIES_CATALOG[speciesId]!;
+  const level = getStarterLevel(selection, speciesId);
   const individualValues = createRandomIndividualValues(random);
-  const stats = calculateGen4BattleStats(species.baseStats, 10, individualValues);
+  const stats = calculateGen4BattleStats(species.baseStats, level, individualValues);
   const moveId = speciesId === 158 ? 10 : 33;
 
   return normalizeCompetitiveParty({
@@ -43,13 +44,13 @@ export function createAiStarterParty(
       {
         slotIndex: 0,
         speciesId,
-        level: 10,
+        level,
         currentHp: stats.maxHp,
         status: "normal",
         individualValues,
         moves:
           selection && selection.mode !== "classic"
-            ? getMoveIdsForSpeciesAtLevel(speciesId, 10).map(moveId => ({
+            ? getMoveIdsForSpeciesAtLevel(speciesId, level).map(moveId => ({
                 moveId,
                 pp: COMPETITIVE_MOVE_CATALOG[moveId]!.maxPp,
               }))
