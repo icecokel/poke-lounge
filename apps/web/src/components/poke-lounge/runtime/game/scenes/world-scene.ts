@@ -216,6 +216,7 @@ export class WorldController {
         this.gameStateStore.getCurrentLocalPlayer().party.some(function testItem(slot) {
           return isBattleReadyPartySlot(slot);
         }),
+      canOfferDeferredMoveLearning: () => this.canOfferDeferredMoveLearning(),
       startSoloChallenge: () => this.startSoloChallenge(),
       playNurseHealingEffect: (nursePosition, onComplete) =>
         this.playNurseHealingEffect(nursePosition, onComplete),
@@ -919,6 +920,21 @@ export class WorldController {
     );
     this.options.worldRuntime.upsertRemotePlayer(snapshot, movement, performance.now());
     this.gameStateStore.upsertRemotePlayer(toRemotePlayerState(snapshot));
+  }
+
+  /** Party changes reach the next tournament only while the room round is still exploring. */
+  private canOfferDeferredMoveLearning(): boolean {
+    if (!this.started || !this.competitiveRoundsEnabled || this.encounters.isBattleIntroPlaying())
+      return false;
+    const projection = this.gameStateStore.getState().tournament.serverProjection;
+    const nowMs = Date.now();
+    return Boolean(
+      projection &&
+      projection.roomStatus === "round-started" &&
+      projection.roomRound.endsAtMs !== null &&
+      nowMs < projection.roomRound.endsAtMs &&
+      !isWaitingForRoundStart(projection, nowMs),
+    );
   }
 
   private syncTournamentGathering(nowMs: number): void {

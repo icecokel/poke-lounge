@@ -14,6 +14,8 @@ export const ROUND_START_COUNTDOWN_MS = 3_000;
 export const TOURNAMENT_BRIEFING_DURATION_MS = 5_000;
 export const TOURNAMENT_RESULT_DURATION_MS = 8_000;
 export const TOURNAMENT_PROGRESSION_DEADLINE_MS = 25_000;
+// 경기 후 기술 선택은 교체 화면이 열린 뒤 TOURNAMENT_PROGRESSION_DEADLINE_MS를 주되, 다음 경기 배정은 종료부터 이 시간 넘게 기다리지 않는다.
+export const TOURNAMENT_MOVE_CHOICE_WAIT_MAX_MS = 40_000;
 
 // 방 수명 · 접속 유지
 // 전체 챔피언십 수명은 탐험 시간과 분리한다. 활동으로 무한 연장하지 않는다.

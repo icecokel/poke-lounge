@@ -104,6 +104,10 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
     "en-US": "Couldn't save your party. Please confirm again.",
     "ja-JP": "手持ちを保存できませんでした。もう一度確認してください。",
   },
+  "기술 선택 시간이 끝났습니다. 고르지 못한 기술은 필드로 돌아가면 다시 고를 수 있습니다.": {
+    "en-US": "Move selection time is up. You can choose the remaining moves back on the field.",
+    "ja-JP": "わざを選ぶ時間が終了しました。選べなかったわざはフィールドに戻ると選び直せます。",
+  },
   "기술 선택 시간이 끝났습니다. 선택하지 않은 기술은 배우지 않습니다.": {
     "en-US": "Move selection time is up. Unselected moves will not be learned.",
     "ja-JP": "わざを選ぶ時間が終了しました。選ばなかったわざは覚えません。",

@@ -19,6 +19,11 @@ export const POKEMON_INDIVIDUAL_VALUE_KEYS = [
   "speed",
 ] as const satisfies ReadonlyArray<keyof PokemonIndividualValues>;
 
+/** Party identity shared by server acceptance and client bookkeeping. */
+export function getIndividualValueKey(values: PokemonIndividualValues): string {
+  return POKEMON_INDIVIDUAL_VALUE_KEYS.map(key => values[key]).join("-");
+}
+
 export const MAX_POKEMON_INDIVIDUAL_VALUES: Readonly<PokemonIndividualValues> = Object.freeze({
   hp: MAX_POKEMON_INDIVIDUAL_VALUE,
   attack: MAX_POKEMON_INDIVIDUAL_VALUE,

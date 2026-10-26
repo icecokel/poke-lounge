@@ -3,7 +3,13 @@ import {
   PLAYER_PARTY_SLOT_COUNT,
   type PlayerPokemonSlot,
 } from "@poke-lounge/battle/adventure/player/player-types";
+import { getIndividualValueKey } from "@poke-lounge/battle/adventure/battle/individual-values";
 import type { LocalPlayerState, PlayerPokemon } from "../../contracts/game-state";
+
+/** Matches the server's party identity, which also keys on individual values. */
+export function getPokemonIdentityKey(pokemon: PlayerPokemon): string | null {
+  return pokemon.individualValues ? getIndividualValueKey(pokemon.individualValues) : null;
+}
 export function isPositiveInteger(value: number): boolean {
   return Number.isFinite(value) && Number.isInteger(value) && value >= 1;
 }
