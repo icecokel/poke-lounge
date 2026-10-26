@@ -50,8 +50,11 @@ import { createMultiplayerRoom } from "./network/multiplayer-room-factory";
 import {
   clearPendingRoomEntry,
   readPendingRoomEntry,
+  readPrivateRoomAccess,
   writePendingRoomEntry,
+  writePrivateRoomAccess,
   type PendingRoomEntry,
+  type PrivateRoomAccess,
 } from "./network/room-entry-cookie";
 import {
   clearRoomEntrySearchParams,
@@ -211,7 +214,7 @@ export async function startGamePage(
   let leaveRoomForResultAction: ((openCreateRoom?: boolean) => Promise<boolean>) | null = null;
   let openCreateRoomOnEntry = false;
   let temporaryRoomCode: string | undefined;
-  let privateRoomAccess: { roomCode: string; code: string } | undefined;
+  let privateRoomAccess: PrivateRoomAccess | undefined;
   let activeRoomRunId: string | null = null;
   let resumingStoredRoom = false;
   let initialOpenCommandId: string | undefined;
@@ -513,6 +516,7 @@ export async function startGamePage(
       });
       temporaryRoomCode = undefined;
       privateRoomAccess = undefined;
+      writePrivateRoomAccess(undefined);
       resumingStoredRoom = false;
       restoreOwnerGameState(true);
       if (preserveDisplayName) {
@@ -822,10 +826,14 @@ export async function startGamePage(
       selection.mode === "server-room" && selection.createRoom
         ? (selection.roomCode ?? undefined)
         : undefined;
+    // A reloaded pending creation no longer carries the code, so recover it from this tab.
     privateRoomAccess =
-      selection.mode === "server-room" && selection.roomCode && selection.privateRoomAccessCode
-        ? { roomCode: selection.roomCode, code: selection.privateRoomAccessCode }
+      selection.mode === "server-room" && selection.roomCode
+        ? selection.privateRoomAccessCode
+          ? { roomCode: selection.roomCode, code: selection.privateRoomAccessCode }
+          : readPrivateRoomAccess(selection.roomCode)
         : undefined;
+    writePrivateRoomAccess(privateRoomAccess);
     resumingStoredRoom = false;
     initialOpenCommandId =
       selection.mode === "server-room" ? (restored?.commandId ?? createRoomRunId()) : undefined;
@@ -993,6 +1001,7 @@ export async function startGamePage(
     if (canResumeStoredRoom && storedResume) {
       activateRoomRun(storedResume.runId);
       temporaryRoomCode = storedResume.roomCode;
+      privateRoomAccess = readPrivateRoomAccess(storedResume.roomCode);
       resumingStoredRoom = true;
       selectedRoomEntry = {
         mode: "server-room",
