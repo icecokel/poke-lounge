@@ -212,9 +212,12 @@ export function applyPlayerInput(p: LeagueMatchProgress, input: LeagueInput): Le
   } catch {
     throw new LeagueInputError("ILLEGAL_INPUT", at);
   }
-  const ready = { ...p, inputs: [...p.inputs, [input[0], input[1]] as LeagueInput], steps: [] };
+  const ready = { ...p, steps: [] };
   luckByProgress.set(ready, luckByProgress.get(p)!);
-  return autoProgress(advance(ready, action, chooseLeagueAiAction(p.frame)));
+  const advanced = advance(ready, action, chooseLeagueAiAction(p.frame));
+  const recorded = { ...advanced, inputs: [...p.inputs, [input[0], input[1]] as LeagueInput] };
+  luckByProgress.set(recorded, luckByProgress.get(advanced)!);
+  return autoProgress(recorded);
 }
 
 export function replayLeagueMatch(
