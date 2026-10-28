@@ -1,12 +1,13 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createServer } from "node:net";
 
 const root = resolve(__dirname, "../..");
 const out = resolve(root, "output/rust-local");
 const envPath = resolve(out, "local.env");
+const league = process.argv.includes("--league");
 mkdirSync(out, { recursive: true });
 if (!existsSync(envPath)) {
   writeFileSync(
@@ -18,12 +19,19 @@ if (!existsSync(envPath)) {
 const config: Record<string, string> = {};
 for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
   if (!line.trim() || line.startsWith("#")) continue;
-  const match = /^(RUST_LOCAL_DB_PASSWORD|BATTLE_WORKER_TOKEN)=([a-f0-9]{32,128})$/.exec(line);
+  const match =
+    /^(RUST_LOCAL_DB_PASSWORD|BATTLE_WORKER_TOKEN|LEAGUE_JUDGE_TOKEN)=([a-f0-9]{32,128})$/.exec(
+      line,
+    );
   if (!match) throw new Error("Invalid private local.env; expected generated hexadecimal values");
   config[match[1]!] = match[2]!;
 }
 if (!config.RUST_LOCAL_DB_PASSWORD || !config.BATTLE_WORKER_TOKEN)
   throw new Error("Incomplete local secrets");
+if (league && !config.LEAGUE_JUDGE_TOKEN) {
+  config.LEAGUE_JUDGE_TOKEN = randomBytes(32).toString("hex");
+  appendFileSync(envPath, `\nLEAGUE_JUDGE_TOKEN=${config.LEAGUE_JUDGE_TOKEN}\n`);
+}
 // Optional overrides so two checkouts can run their own stacks side by side.
 function readPort(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -64,10 +72,20 @@ const env = {
   RUST_LOCAL_API_PORT: String(ports.api),
   RUST_LOCAL_DB_PORT: String(ports.db),
   RUST_LOCAL_REDIS_PORT: String(ports.redis),
+  ...(league
+    ? {
+        LEAGUE_ENABLED: "true",
+        LEAGUE_JUDGE_URL: "http://league-judge:3031",
+        LEAGUE_DB_MAX_CONNECTIONS: process.env.LEAGUE_DB_MAX_CONNECTIONS || "2",
+        LEAGUE_SETTLE_GRACE_HOURS: process.env.LEAGUE_SETTLE_GRACE_HOURS || "6",
+        LEAGUE_SEASON1_STARTER_LEVEL: process.env.LEAGUE_SEASON1_STARTER_LEVEL || "10",
+      }
+    : {}),
 };
 let child: ChildProcess | null = null;
 let stopping = false;
 const compose = ["compose", "-p", project, "--env-file", envPath, "-f", "compose.rust-local.yaml"];
+if (league) compose.push("--profile", "league");
 
 async function run(command: string, args: string[], extra: NodeJS.ProcessEnv = {}): Promise<void> {
   if (stopping) throw new Error("Stopped");
@@ -118,12 +136,21 @@ process.on("SIGTERM", stop);
 
 async function main(): Promise<void> {
   if (process.argv.includes("--stop")) {
-    await run("docker", [...compose, "stop", "api-rust", "battle-worker", "postgres", "redis"]);
+    await run("docker", [
+      ...compose,
+      "stop",
+      "api-rust",
+      "battle-worker",
+      "postgres",
+      "redis",
+      ...(league ? ["league-judge"] : []),
+    ]);
     return;
   }
   await requireFreeWebPort();
   await run("pnpm", ["build:poke-lounge-battle"]);
   await run("pnpm", ["--filter", "@poke-lounge/battle-worker", "build"]);
+  if (league) await run("pnpm", ["--filter", "@poke-lounge/league-judge", "build"]);
   // The db package is a build-time schema/ROM import tool, not a running server.
   await run("pnpm", ["--filter", "@poke-lounge/db", "build"]);
   await run("docker", [
@@ -164,6 +191,7 @@ async function main(): Promise<void> {
     "--force-recreate",
     "api-rust",
     "battle-worker",
+    ...(league ? ["league-judge"] : []),
   ]);
   console.log(`Rust local game: http://localhost:${ports.web}/ko-KR (compose project ${project})`);
   console.log("Local Rust development uses isolated containers and does not touch production.");
