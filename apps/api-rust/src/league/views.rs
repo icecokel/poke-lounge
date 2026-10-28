@@ -75,7 +75,7 @@ pub fn public_party(composition: &Value) -> Result<Value> {
 
 pub fn validate_claim(claim: &Value) -> Result<()> {
     let valid = || -> Option<()> {
-        if claim["version"] != 1 {
+        if !keys(claim, &["version", "leadSlot", "members"]) || claim["version"] != 1 {
             return None;
         }
         let members = claim["members"].as_array()?;
@@ -85,6 +85,21 @@ pub fn validate_claim(claim: &Value) -> Result<()> {
         let mut slots = std::collections::HashSet::new();
         let mut mons = std::collections::HashSet::new();
         for member in members {
+            if !keys(
+                member,
+                &[
+                    "slotIndex",
+                    "monId",
+                    "speciesId",
+                    "level",
+                    "experience",
+                    "effortValues",
+                    "happiness",
+                    "moveIds",
+                ],
+            ) {
+                return None;
+            }
             let slot = member["slotIndex"].as_u64().filter(|n| *n < 6)?;
             let mon = Uuid::parse_str(member["monId"].as_str()?).ok()?;
             if !slots.insert(slot) || !mons.insert(mon) {
@@ -99,6 +114,19 @@ pub fn validate_claim(claim: &Value) -> Result<()> {
                 member[key].as_u64().filter(|n| (min..=max).contains(n))?;
             }
             let evs = &member["effortValues"];
+            if !keys(
+                evs,
+                &[
+                    "hp",
+                    "attack",
+                    "defense",
+                    "specialAttack",
+                    "specialDefense",
+                    "speed",
+                ],
+            ) {
+                return None;
+            }
             let mut total = 0;
             for key in [
                 "hp",
@@ -137,7 +165,19 @@ pub fn validate_claim(claim: &Value) -> Result<()> {
 
 pub fn validate_submission(s: &Value) -> Result<()> {
     let valid = || -> Option<()> {
-        if s["contractVersion"] != 1 {
+        if !keys(
+            s,
+            &[
+                "contractVersion",
+                "engineVersion",
+                "leadSlot",
+                "startHash",
+                "inputs",
+                "client",
+            ],
+        ) || !keys(&s["client"], &["winner", "turns", "endHash"])
+            || s["contractVersion"] != 1
+        {
             return None;
         }
         s["engineVersion"]
@@ -177,5 +217,11 @@ pub fn validate_submission(s: &Value) -> Result<()> {
     valid().ok_or_else(|| {
         LeagueError::new(422, "LEAGUE_INPUT_REJECTED")
             .detail(json!({"kind":"ILLEGAL_INPUT","at":0}))
+    })
+}
+
+fn keys(value: &Value, expected: &[&str]) -> bool {
+    value.as_object().is_some_and(|o| {
+        o.len() == expected.len() && expected.iter().all(|key| o.contains_key(*key))
     })
 }

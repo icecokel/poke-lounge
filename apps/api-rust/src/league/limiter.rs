@@ -48,7 +48,10 @@ impl Limiter {
             Kind::Match => b.matches = b.matches.saturating_add(1),
             Kind::Read => (),
         }
-        if b.all > 30 || b.entries > 3 || b.matches > 6 {
+        if b.all > 30
+            || (matches!(kind, Kind::Entry) && b.entries > 3)
+            || (matches!(kind, Kind::Match) && b.matches > 6)
+        {
             return Err(LeagueError::new(429, "LEAGUE_RATE_LIMITED"));
         }
         Ok(())

@@ -24,7 +24,10 @@ impl Db {
             let (client, connection) =
                 tokio::time::timeout(Duration::from_secs(2), self.config.connect(NoTls))
                     .await
-                    .map_err(|_| LeagueError::unavailable())??;
+                    .map_err(|_| {
+                        tracing::warn!(event = "league.db_unavailable", reason = "connect_timeout");
+                        LeagueError::unavailable()
+                    })??;
             tokio::spawn(async move {
                 if connection.await.is_err() {
                     tracing::warn!(event = "league.db_unavailable");

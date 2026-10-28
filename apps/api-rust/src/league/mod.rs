@@ -21,6 +21,7 @@ pub struct League {
 impl League {
     pub async fn from_env(database: &tokio_postgres::Config) -> Option<Arc<Self>> {
         if std::env::var("LEAGUE_ENABLED").as_deref() != Ok("true") {
+            tracing::warn!(event = "league.disabled", key = "LEAGUE_ENABLED");
             return None;
         }
         let config = match config::Config::from_env() {

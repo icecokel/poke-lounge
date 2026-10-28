@@ -82,6 +82,7 @@ impl Judge {
                 "ENGINE_VERSION_MISMATCH" => {
                     *self.health.lock().await = None;
                     LeagueError::new(409, "LEAGUE_ENGINE_RETIRED")
+                        .detail(json!({"engineVersion":returned_engine}))
                 }
                 "PARTY_INVALID" => LeagueError::new(422, "LEAGUE_PARTY_INVALID")
                     .detail(json!({"reasons":[body["detail"]]})),

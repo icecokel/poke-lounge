@@ -13,7 +13,7 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Result<Self, &'static str> {
         let judge_url =
-            env::var("LEAGUE_JUDGE_URL").unwrap_or_else(|_| "http://127.0.0.1:3031".into());
+            optional("LEAGUE_JUDGE_URL")?.unwrap_or_else(|| "http://127.0.0.1:3031".into());
         let judge_url = reqwest::Url::parse(&judge_url).map_err(|_| "LEAGUE_JUDGE_URL")?;
         if !matches!(judge_url.scheme(), "http" | "https")
             || judge_url.host_str().is_none()
@@ -38,12 +38,11 @@ impl Config {
         if worker.as_deref() == Some(&token) {
             return Err("LEAGUE_JUDGE_TOKEN");
         }
-        let starts_at = env::var("LEAGUE_SEASON1_STARTS_AT").ok();
+        let starts_at = optional("LEAGUE_SEASON1_STARTS_AT")?;
         if starts_at.as_deref().is_some_and(|s| !rfc3339(s)) {
             return Err("LEAGUE_SEASON1_STARTS_AT");
         }
-        let starters = env::var("LEAGUE_SEASON1_STARTERS")
-            .ok()
+        let starters = optional("LEAGUE_SEASON1_STARTERS")?
             .map(|s| {
                 s.split(',')
                     .map(|v| v.trim().parse::<i16>())
@@ -66,7 +65,7 @@ impl Config {
             judge_url,
             token,
             db_max: number("LEAGUE_DB_MAX_CONNECTIONS", 2, 1, 4)? as usize,
-            grace_hours: number("LEAGUE_SETTLE_GRACE_HOURS", 6, 0, 8760)?,
+            grace_hours: number("LEAGUE_SETTLE_GRACE_HOURS", 6, 0, i32::MAX)?,
             starts_at,
             starters,
             starter_level: number("LEAGUE_SEASON1_STARTER_LEVEL", 10, 1, 100)? as i16,
@@ -92,7 +91,7 @@ fn number(key: &'static str, default: i32, min: i32, max: i32) -> Result<i32, &'
     Ok(value)
 }
 // Validate without opening a DB connection or adding a date dependency.
-fn rfc3339(s: &str) -> bool {
+pub(super) fn rfc3339(s: &str) -> bool {
     let b = s.as_bytes();
     if b.len() < 20
         || !s.is_ascii()
@@ -104,7 +103,14 @@ fn rfc3339(s: &str) -> bool {
     {
         return false;
     }
-    let n = |a: usize, z: usize| s[a..z].parse::<u32>().ok();
+    let n = |a: usize, z: usize| {
+        let value = &s[a..z];
+        value
+            .bytes()
+            .all(|b| b.is_ascii_digit())
+            .then(|| value.parse::<u32>().ok())
+            .flatten()
+    };
     let (Some(y), Some(m), Some(d), Some(h), Some(min), Some(sec)) =
         (n(0, 4), n(5, 7), n(8, 10), n(11, 13), n(14, 16), n(17, 19))
     else {
@@ -144,4 +150,12 @@ fn rfc3339(s: &str) -> bool {
         && b[i + 3] == b':'
         && n(i + 1, i + 3).is_some_and(|n| n <= 23)
         && n(i + 4, i + 6).is_some_and(|n| n <= 59)
+}
+
+fn optional(key: &'static str) -> Result<Option<String>, &'static str> {
+    match env::var(key) {
+        Ok(value) => Ok(Some(value)),
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(_) => Err(key),
+    }
 }

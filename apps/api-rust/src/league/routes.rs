@@ -78,9 +78,10 @@ async fn hall(
     State(state): State<AppState>,
     Extension(l): Extension<Arc<League>>,
     headers: HeaderMap,
-    Query(q): Query<HallQuery>,
+    query: std::result::Result<Query<HallQuery>, axum::extract::rejection::QueryRejection>,
 ) -> Result<Json<Value>> {
     public_limit(&state, &headers, &l).await?;
+    let Query(q) = query.map_err(|_| LeagueError::new(404, "LEAGUE_NOT_FOUND"))?;
     Ok(success(db::retry(|| l.hall_of_fame(q.season_id)).await?))
 }
 async fn me(
@@ -136,10 +137,11 @@ async fn submit(
     State(state): State<AppState>,
     Extension(l): Extension<Arc<League>>,
     headers: HeaderMap,
-    Path((attempt, index)): Path<(Uuid, i16)>,
+    path: std::result::Result<Path<(Uuid, i16)>, axum::extract::rejection::PathRejection>,
     body: std::result::Result<Json<Value>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Json<Value>> {
     let (user, name) = user(&state, &headers, &l, Kind::Match).await?;
+    let Path((attempt, index)) = path.map_err(|_| LeagueError::new(404, "LEAGUE_NOT_FOUND"))?;
     let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_INPUT_REJECTED"))?;
     Ok(success(
         db::retry(|| l.submit_match(user, &name, attempt, index, &body)).await?,
@@ -149,10 +151,11 @@ async fn forfeit(
     State(state): State<AppState>,
     Extension(l): Extension<Arc<League>>,
     headers: HeaderMap,
-    Path(attempt): Path<Uuid>,
+    path: std::result::Result<Path<Uuid>, axum::extract::rejection::PathRejection>,
     body: std::result::Result<Json<Value>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Json<Value>> {
     let (user, _) = user(&state, &headers, &l, Kind::Read).await?;
+    let Path(attempt) = path.map_err(|_| LeagueError::new(404, "LEAGUE_NOT_FOUND"))?;
     let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_INPUT_REJECTED"))?;
     if !body.as_object().is_some_and(|o| o.is_empty()) {
         return Err(LeagueError::new(422, "LEAGUE_INPUT_REJECTED"));

@@ -91,12 +91,14 @@ impl League {
     pub async fn standings(&self) -> Result<Value> {
         let mut slot = self.db.client().await?;
         let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
-        let tx = client
-            .build_transaction()
-            .isolation_level(tokio_postgres::IsolationLevel::RepeatableRead)
-            .start()
-            .await?;
-        let Some(s) = season(&tx).await? else {
+        let tx = client.transaction().await?;
+        let Some(s) = one(
+            &tx,
+            &format!("{SEASON} ORDER BY (settled_at IS NULL) DESC,id DESC LIMIT 1 FOR SHARE"),
+            &[],
+        )
+        .await?
+        else {
             return Ok(json!({"seasonId":null,"rev":0,"entries":[]}));
         };
         let entries = standings::top(&tx, &s)
@@ -115,25 +117,34 @@ impl League {
         Ok(json!({"seasons":seasons}))
     }
     pub async fn me(&self, user: Uuid, name: &str) -> Result<Value> {
-        let slot = self.db.client().await?;
-        let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
-        let Some(s) = season(client).await? else {
+        self.refresh_current(user).await?;
+        let mut slot = self.db.client().await?;
+        let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
+        let tx = client.transaction().await?;
+        let Some(s) = one(
+            &tx,
+            &format!("{SEASON} ORDER BY (settled_at IS NULL) DESC,id DESC LIMIT 1 FOR SHARE"),
+            &[],
+        )
+        .await?
+        else {
             return Ok(json!({"user":{"displayName":name},"run":null,"attempt":null,"best":null}));
         };
         let id = views::integer(&s["id"])? as i32;
         let run = one(
-            client,
-            &format!("{RUN} WHERE season_id=$1 AND user_id=$2 AND status<>'closed'"),
+            &tx,
+            &format!("{RUN} WHERE season_id=$1 AND user_id=$2 AND status<>'closed' FOR SHARE"),
             &[&id, &user],
         )
         .await?;
         let attempt = one(
-            client,
-            &format!("{ATTEMPT} WHERE season_id=$1 AND user_id=$2 AND status='active'"),
+            &tx,
+            &format!("{ATTEMPT} WHERE season_id=$1 AND user_id=$2 AND status='active' FOR SHARE"),
             &[&id, &user],
         )
         .await?;
-        let best = one(client, "SELECT jsonb_build_object('score',score,'bestRank',best_rank,'recordedAtMs',(extract(epoch from recorded_at)*1000)::bigint) AS value FROM poke_lounge_league_record WHERE season_id=$1 AND user_id=$2", &[&id,&user]).await?;
+        let best = one(&tx, "SELECT jsonb_build_object('score',score,'bestRank',best_rank,'recordedAtMs',(extract(epoch from recorded_at)*1000)::bigint) AS value FROM poke_lounge_league_record WHERE season_id=$1 AND user_id=$2", &[&id,&user]).await?;
+        tx.commit().await?;
         Ok(
             json!({"user":{"displayName":name},"run":run.as_ref().map(views::run),"attempt":attempt.as_ref().map(views::summary),"best":best}),
         )
@@ -196,34 +207,34 @@ fn check_run(run: &Value, user: Uuid, season: i32) -> Result<()> {
 }
 impl League {
     async fn entry_by_key(&self, user: Uuid, key: Uuid) -> Result<Option<Value>> {
-        let slot = self.db.client().await?;
-        let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
-        match one(
-            client,
-            &format!("{ATTEMPT} WHERE user_id=$1 AND entry_key=$2"),
+        let mut slot = self.db.client().await?;
+        let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
+        let tx = client.transaction().await?;
+        let a = one(
+            &tx,
+            &format!("{ATTEMPT} WHERE user_id=$1 AND entry_key=$2 FOR SHARE"),
             &[&user, &key],
         )
-        .await?
-        {
-            Some(a) => Ok(Some(attempt_view(client, &a).await?)),
-            None => Ok(None),
-        }
+        .await?;
+        let view = match a {
+            Some(a) => Some(attempt_view(&tx, &a).await?),
+            None => None,
+        };
+        tx.commit().await?;
+        Ok(view)
     }
     pub async fn current_attempt(&self, user: Uuid) -> Result<Option<Value>> {
-        let slot = self.db.client().await?;
-        let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
-        match one(
-            client,
-            &format!(
-                "{ATTEMPT} WHERE user_id=$1 AND status='active' ORDER BY entered_at DESC LIMIT 1"
-            ),
-            &[&user],
-        )
-        .await?
-        {
-            Some(a) => Ok(Some(attempt_view(client, &a).await?)),
-            None => Ok(None),
-        }
+        self.refresh_current(user).await?;
+        let mut slot = self.db.client().await?;
+        let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
+        let tx = client.transaction().await?;
+        let a = one(&tx,&format!("{ATTEMPT} WHERE user_id=$1 AND status='active' ORDER BY entered_at DESC LIMIT 1 FOR SHARE"), &[&user]).await?;
+        let view = match a {
+            Some(a) => Some(attempt_view(&tx, &a).await?),
+            None => None,
+        };
+        tx.commit().await?;
+        Ok(view)
     }
     pub async fn enter_attempt(
         &self,
@@ -376,15 +387,11 @@ impl League {
     }
 }
 
-async fn lock_run<C: GenericClient + Sync>(client: &C, a: &Value) -> Result<()> {
-    let run = views::uuid(&a["run_id"])?;
-    client
-        .query_one(
-            "SELECT id FROM poke_lounge_league_run WHERE id=$1 FOR UPDATE",
-            &[&run],
-        )
-        .await?;
-    Ok(())
+/// T6 entry point: F2 can validate and update badges while retaining this transaction's run lock.
+pub async fn lock_run(client: &tokio_postgres::Transaction<'_>, run: Uuid) -> Result<Value> {
+    one(client, &format!("{RUN} WHERE id=$1 FOR UPDATE"), &[&run])
+        .await?
+        .ok_or_else(|| LeagueError::new(404, "LEAGUE_NOT_FOUND"))
 }
 async fn fail<C: GenericClient + Sync>(client: &C, a: &Value, reason: &str) -> Result<()> {
     let id = views::uuid(&a["id"])?;
@@ -424,16 +431,29 @@ impl League {
         )
         .await
     }
-    async fn reject_submission(&self, a: &Value, index: i16) -> Result<()> {
+    async fn reject_submission(
+        &self,
+        a: &Value,
+        index: i16,
+        inputs_hash: &str,
+    ) -> Result<Option<Value>> {
         let mut slot = self.db.client().await?;
         let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
         let tx = client.transaction().await?;
-        lock_run(&tx, a).await?;
+        let season_id = views::integer(&a["season_id"])? as i32;
+        let season = self::season_id(&tx, season_id, "FOR SHARE").await?;
+        lock_run(&tx, views::uuid(&a["run_id"])?).await?;
         let id = views::uuid(&a["id"])?;
         let user = views::uuid(&a["user_id"])?;
         let a = attempt(&tx, id, user, "FOR UPDATE").await?;
         if a["status"] != "active" || a["current_match"] != index {
-            return Err(LeagueError::new(409, "LEAGUE_ATTEMPT_NOT_ACTIVE"));
+            return Ok(Some(stored_match(&tx, id, index, inputs_hash).await?));
+        }
+        if views::integer(&season["now_ms"])? > views::integer(&season["deadline_ms"])? {
+            tx.rollback().await?;
+            drop(slot);
+            self.expire_attempt(id).await?;
+            return Err(LeagueError::new(410, "LEAGUE_ATTEMPT_EXPIRED"));
         }
         tx.execute("UPDATE poke_lounge_league_attempt SET rejected_submissions=rejected_submissions+1,updated_at=now() WHERE id=$1", &[&id]).await?;
         if views::integer(&a["rejected_submissions"])? >= 4 {
@@ -441,7 +461,7 @@ impl League {
         }
         tx.commit().await?;
         tracing::warn!(event="league.input_rejected",attempt=%id,index);
-        Ok(())
+        Ok(None)
     }
     pub async fn submit_match(
         &self,
@@ -454,16 +474,26 @@ impl League {
         if !(0..5).contains(&index) {
             return Err(LeagueError::new(404, "LEAGUE_NOT_FOUND"));
         }
-        let a = self.read_attempt(id, user).await?;
-        if let Err(e) = views::validate_submission(submission) {
-            self.reject_submission(&a, index).await?;
-            return Err(e);
+        let original = self.read_attempt(id, user).await?;
+        let was_active = original["status"] == "active";
+        let a = self.refresh_attempt(original).await?;
+        if was_active && a["status"] == "expired" {
+            return Err(LeagueError::new(410, "LEAGUE_ATTEMPT_EXPIRED"));
+        }
+        if was_active && a["status"] == "void" {
+            return Err(LeagueError::new(409, "LEAGUE_ENGINE_RETIRED"));
         }
         let inputs_hash = crate::repository::hash_bytes(
             serde_json::to_string(&submission["inputs"])
                 .map_err(|_| LeagueError::corrupt())?
                 .as_bytes(),
         );
+        if let Err(e) = views::validate_submission(submission) {
+            if let Some(result) = self.reject_submission(&a, index, &inputs_hash).await? {
+                return Ok(result);
+            }
+            return Err(e);
+        }
         if a["status"] != "active" || i64::from(index) < views::integer(&a["current_match"])? {
             let slot = self.db.client().await?;
             return stored_match(
@@ -493,7 +523,7 @@ impl League {
                 .map(|r| r.try_get::<_, Value>("q"))
                 .collect::<std::result::Result<Vec<_>, _>>()?;
             if q.len() != index as usize {
-                return Err(LeagueError::corrupt());
+                return stored_match(client, id, index, &inputs_hash).await;
             }
             q
         };
@@ -505,7 +535,19 @@ impl League {
             .ok_or_else(LeagueError::corrupt)?["party"];
         let started = std::time::Instant::now();
         let judged = match self.judge.call(views::text(&a["engine_version"])?,json!({"kind":"judge-match","seed":seed,"matchIndex":index,"carryParty":a["carry_party"],"opponent":opponent,"leadSlot":submission["leadSlot"],"inputs":submission["inputs"],"previousQ":previous_q})).await {
-            Err(e) if e.code == "LEAGUE_INPUT_REJECTED" => { self.reject_submission(&a,index).await?; return Err(e); }, result => result?,
+            Err(e) if e.code == "LEAGUE_INPUT_REJECTED" => {
+                if let Some(result) = self.reject_submission(&a,index,&inputs_hash).await? { return Ok(result); }
+                return Err(e);
+            },
+            Err(e) if e.code == "LEAGUE_ENGINE_RETIRED" => {
+                let engine = views::text(&e.detail["engineVersion"])?;
+                self.void_attempt(id,engine).await?;
+                if self.read_attempt(id,user).await?["status"] == "expired" {
+                    return Err(LeagueError::new(410,"LEAGUE_ATTEMPT_EXPIRED"));
+                }
+                return Err(e);
+            },
+            result => result?,
         };
         let status = views::text(&judged["measure"]["status"])?;
         let turns = views::integer(&judged["measure"]["turns"])?;
@@ -561,10 +603,16 @@ impl League {
             if completed { "FOR UPDATE" } else { "FOR SHARE" },
         )
         .await?;
-        lock_run(&tx, original).await?;
+        lock_run(&tx, views::uuid(&original["run_id"])?).await?;
         let a = attempt(&tx, id, user, "FOR UPDATE").await?;
         if a["status"] != "active" || a["current_match"] != index {
             return stored_match(&tx, id, index, inputs_hash).await;
+        }
+        if views::integer(&season["now_ms"])? > views::integer(&season["deadline_ms"])? {
+            tx.rollback().await?;
+            drop(slot);
+            self.expire_attempt(id).await?;
+            return Err(LeagueError::new(410, "LEAGUE_ATTEMPT_EXPIRED"));
         }
         let mut final_view = None;
         if completed {
@@ -633,7 +681,7 @@ impl League {
         let mut slot = self.db.client().await?;
         let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
         let tx = client.transaction().await?;
-        lock_run(&tx, &original).await?;
+        lock_run(&tx, views::uuid(&original["run_id"])?).await?;
         let a = attempt(&tx, id, user, "FOR UPDATE").await?;
         if a["status"] == "active" {
             fail(&tx, &a, "forfeit").await?;
@@ -643,5 +691,188 @@ impl League {
         let a = attempt(&tx, id, user, "").await?;
         tx.commit().await?;
         Ok(json!({"attempt":views::summary(&a)}))
+    }
+}
+
+/// F6 supplies the next season policy; settlement and creation share one transaction.
+#[allow(
+    dead_code,
+    reason = "F6 adds the season scheduler in the next implementation round"
+)]
+pub struct NextSeason {
+    pub id: i32,
+    pub starts_at: String,
+    pub closes_at: String,
+    pub settle_deadline: String,
+    pub starter_species_ids: Vec<i16>,
+    pub starter_level: i16,
+    pub rules_version: i16,
+    pub engine_version: String,
+    pub roster_version: String,
+    pub npc_seeds: Value,
+    pub badge_npcs: Value,
+}
+impl League {
+    pub async fn expire_attempt(&self, id: Uuid) -> Result<bool> {
+        super::db::retry(|| self.end_attempt(id, None)).await
+    }
+    pub async fn void_attempt(&self, id: Uuid, engine: &str) -> Result<bool> {
+        super::db::retry(|| self.end_attempt(id, Some(engine))).await
+    }
+    async fn end_attempt(&self, id: Uuid, engine: Option<&str>) -> Result<bool> {
+        let mut slot = self.db.client().await?;
+        let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
+        let original = one(client, &format!("{ATTEMPT} WHERE id=$1"), &[&id])
+            .await?
+            .ok_or_else(|| LeagueError::new(404, "LEAGUE_NOT_FOUND"))?;
+        let season_id = views::integer(&original["season_id"])? as i32;
+        let user = views::uuid(&original["user_id"])?;
+        let tx = client.transaction().await?;
+        let s = self::season_id(&tx, season_id, "FOR SHARE").await?;
+        lock_run(&tx, views::uuid(&original["run_id"])?).await?;
+        let a = attempt(&tx, id, user, "FOR UPDATE").await?;
+        if a["status"] != "active" {
+            return Ok(false);
+        }
+        let expired = views::integer(&s["now_ms"])? > views::integer(&s["deadline_ms"])?;
+        let retired = engine.is_some_and(|version| a["engine_version"] != version);
+        if !expired && !retired {
+            return Ok(false);
+        }
+        let status = if expired { "expired" } else { "void" };
+        let reason = if expired {
+            "season_closed"
+        } else {
+            "engine_retired"
+        };
+        tx.execute("UPDATE poke_lounge_league_attempt SET status=$2,fail_reason=$3,finished_at=now(),updated_at=now() WHERE id=$1 AND status='active'", &[&id,&status,&reason]).await?;
+        let run = views::uuid(&a["run_id"])?;
+        tx.execute("UPDATE poke_lounge_league_run SET status='active',badges=CASE WHEN $2 THEN badges ELSE 8 END,updated_at=now() WHERE id=$1 AND status='challenging'", &[&run,&expired]).await?;
+        tx.commit().await?;
+        if expired {
+            tracing::info!(event="league.expired",attempt=%id);
+        } else {
+            tracing::info!(event="league.attempt_voided",attempt=%id,old_version=?a["engine_version"],new_version=engine);
+        }
+        Ok(true)
+    }
+    async fn refresh_attempt(&self, mut a: Value) -> Result<Value> {
+        if a["status"] != "active" {
+            return Ok(a);
+        }
+        let id = views::uuid(&a["id"])?;
+        let user = views::uuid(&a["user_id"])?;
+        self.expire_attempt(id).await?;
+        a = self.read_attempt(id, user).await?;
+        if a["status"] == "active" {
+            let health = self.judge.health().await?;
+            if a["engine_version"] != health.engine {
+                self.void_attempt(id, &health.engine).await?;
+                a = self.read_attempt(id, user).await?;
+            }
+        }
+        Ok(a)
+    }
+    async fn refresh_current(&self, user: Uuid) -> Result<()> {
+        let a = {
+            let slot = self.db.client().await?;
+            one(slot.as_ref().ok_or_else(LeagueError::unavailable)?,&format!("{ATTEMPT} WHERE user_id=$1 AND status='active' ORDER BY entered_at DESC LIMIT 1"), &[&user]).await?
+        };
+        if let Some(a) = a {
+            let updated = self.refresh_attempt(a).await?;
+            if updated["status"] == "expired" {
+                return Err(LeagueError::new(410, "LEAGUE_ATTEMPT_EXPIRED"));
+            }
+            if updated["status"] == "void" {
+                return Err(LeagueError::new(409, "LEAGUE_ENGINE_RETIRED"));
+            }
+        }
+        Ok(())
+    }
+    #[allow(
+        dead_code,
+        reason = "F6 adds the season scheduler in the next implementation round"
+    )]
+    pub async fn settle_season(&self, id: i32, next: &NextSeason) -> Result<bool> {
+        super::db::retry(|| self.settle_once(id, next)).await
+    }
+    #[allow(
+        dead_code,
+        reason = "F6 adds the season scheduler in the next implementation round"
+    )]
+    async fn settle_once(&self, id: i32, next: &NextSeason) -> Result<bool> {
+        if next.id != id.checked_add(1).ok_or_else(LeagueError::corrupt)?
+            || !(3..=6).contains(&next.starter_species_ids.len())
+            || next
+                .starter_species_ids
+                .iter()
+                .any(|s| !(1..=493).contains(s))
+            || !(1..=100).contains(&next.starter_level)
+            || next.rules_version != 1
+            || next.engine_version.is_empty()
+            || next.engine_version.len() > 96
+            || next.roster_version.is_empty()
+            || next.roster_version.len() > 96
+            || views::array(&next.npc_seeds)?.len() != 5
+            || views::array(&next.badge_npcs)?.len() != 8
+        {
+            return Err(LeagueError::corrupt());
+        }
+        let mut starters = next.starter_species_ids.clone();
+        starters.sort_unstable();
+        starters.dedup();
+        if starters.len() != next.starter_species_ids.len()
+            || ![&next.starts_at, &next.closes_at, &next.settle_deadline]
+                .iter()
+                .all(|s| super::config::rfc3339(s))
+        {
+            return Err(LeagueError::corrupt());
+        }
+        let mut orders = views::array(&next.npc_seeds)?
+            .iter()
+            .map(|n| views::integer(&n["order"]))
+            .collect::<Result<Vec<_>>>()?;
+        orders.sort_unstable();
+        if orders != [1, 2, 3, 4, 5] {
+            return Err(LeagueError::corrupt());
+        }
+        let mut slot = self.db.client().await?;
+        let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
+        let tx = client.transaction().await?;
+        let s = self::season_id(&tx, id, "FOR UPDATE").await?;
+        if !s["settled_at"].is_null()
+            || views::integer(&s["now_ms"])? < views::integer(&s["closes_ms"])?
+        {
+            return Ok(false);
+        }
+        let active:i64 = tx.query_one("SELECT count(*) FROM poke_lounge_league_attempt WHERE season_id=$1 AND status='active'", &[&id]).await?.try_get(0)?;
+        if active > 0 && views::integer(&s["now_ms"])? < views::integer(&s["deadline_ms"])? {
+            return Ok(false);
+        }
+        tx.query("SELECT id FROM poke_lounge_league_run WHERE season_id=$1 AND status<>'closed' ORDER BY id FOR UPDATE", &[&id]).await?;
+        tx.query("SELECT id FROM poke_lounge_league_attempt WHERE season_id=$1 AND status='active' ORDER BY id FOR UPDATE", &[&id]).await?;
+        tx.execute("UPDATE poke_lounge_league_attempt SET status='expired',fail_reason='season_closed',finished_at=now(),updated_at=now() WHERE season_id=$1 AND status='active'", &[&id]).await?;
+        for entry in standings::top(&tx, &s).await? {
+            let position = views::integer(&entry.meta["position"])? as i16;
+            let kind = views::text(&entry.meta["kind"])?;
+            let name = views::text(&entry.meta["displayName"])?;
+            let npc = entry.meta["npcKey"].as_str();
+            tx.execute("INSERT INTO poke_lounge_league_hall_of_fame (season_id,position,kind,user_id,npc_key,display_name,score,public_party) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", &[&id,&position,&kind,&entry.user,&npc,&name,&entry.score,&entry.public_party]).await?;
+        }
+        tx.execute("WITH ranked AS (SELECT user_id,row_number() OVER (ORDER BY score DESC,accept_seq ASC) AS position FROM poke_lounge_league_record WHERE season_id=$1) UPDATE poke_lounge_league_record r SET final_rank=ranked.position FROM ranked WHERE r.season_id=$1 AND r.user_id=ranked.user_id", &[&id]).await?;
+        tx.execute("UPDATE poke_lounge_league_run SET status='closed',close_reason='season_end',closed_at=now(),updated_at=now() WHERE season_id=$1 AND status<>'closed'", &[&id]).await?;
+        tx.execute(
+            "UPDATE poke_lounge_league_season SET settled_at=now() WHERE id=$1",
+            &[&id],
+        )
+        .await?;
+        tx.execute("INSERT INTO poke_lounge_league_season (id,starts_at,closes_at,settle_deadline,starter_species_ids,starter_level,rules_version,engine_version,roster_version,npc_seeds,badge_npcs) VALUES ($1,$2::text::timestamptz,$3::text::timestamptz,$4::text::timestamptz,$5,$6,$7,$8,$9,$10,$11)", &[&next.id,&next.starts_at,&next.closes_at,&next.settle_deadline,&next.starter_species_ids,&next.starter_level,&next.rules_version,&next.engine_version,&next.roster_version,&next.npc_seeds,&next.badge_npcs]).await?;
+        tx.commit().await?;
+        tracing::info!(
+            event = "league.season_settled",
+            season = id,
+            expired = active
+        );
+        Ok(true)
     }
 }
