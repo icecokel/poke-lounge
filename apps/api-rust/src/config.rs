@@ -169,7 +169,13 @@ impl Config {
             .dbname(env::var("DB_DATABASE").unwrap_or_else(|_| "poke_lounge".into()))
             .connect_timeout(IO_TIMEOUT)
             .options("-c statement_timeout=3000");
-        let discord = DiscordConfig::from_env(&allowed_origins)?;
+        let discord = match DiscordConfig::from_env(&allowed_origins) {
+            Ok(discord) => discord,
+            Err(error) => {
+                tracing::error!(event = "auth.discord_config_invalid", reason = %error);
+                None
+            }
+        };
         Ok(Self {
             bind,
             redis_url,
