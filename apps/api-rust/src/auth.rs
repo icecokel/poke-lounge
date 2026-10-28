@@ -270,6 +270,16 @@ async fn complete_discord_login(
     Ok(session)
 }
 
+pub async fn current_user(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> AppResult<Option<(uuid::Uuid, String)>> {
+    match session_token(headers) {
+        Some(token) => state.data.session_user(&hash_bytes(token.as_bytes())).await,
+        None => Ok(None),
+    }
+}
+
 pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> AppResult<Json<Value>> {
     let user = match session_token(&headers) {
         Some(token) => {
