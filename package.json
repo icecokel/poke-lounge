@@ -24,6 +24,7 @@
     "poke-lounge:audio:verify": "node scripts/poke-lounge/verify-audio-assets.mjs",
     "check:rust-room-contract": "node scripts/check-rust-room-contract.mjs",
     "check:rust-ts-constants": "node scripts/check-rust-ts-constants.mjs",
+    "check:league-static": "pnpm build:poke-lounge-battle && node scripts/league/check-league-static.mjs",
     "format:check": "prettier --check .",
     "generate:poke-lounge-battle-animations": "pnpm --filter @poke-lounge/web exec tsx ../../scripts/poke-lounge/extract-battle-animations.ts",
     "player:browser": "pnpm --filter @poke-lounge/web exec tsx scripts/player-browser/cli.ts",
