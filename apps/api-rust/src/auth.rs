@@ -78,7 +78,7 @@ pub async fn discord_start(
     let return_to = query
         .return_to
         .filter(|path| is_safe_return_path(path))
-        .unwrap_or_else(|| "/".into());
+        .unwrap_or_else(|| "/league".into());
     let oauth_state = random_hex(32);
     let mut url = reqwest::Url::parse(DISCORD_AUTHORIZE_URL).expect("static URL");
     url.query_pairs_mut()
@@ -138,7 +138,7 @@ pub async fn discord_callback(
     };
     let return_to = read_cookie(&headers, RETURN_COOKIE)
         .filter(|path| is_safe_return_path(path))
-        .unwrap_or("/");
+        .unwrap_or("/league");
     let result = tokio::time::timeout(
         Duration::from_secs(7),
         complete_discord_login(&state, &discord, &headers, &query),
