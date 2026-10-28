@@ -50,6 +50,36 @@ services:
       retries: 30
       start_period: 5s
     stop_grace_period: 15s
+  league-judge:
+    image: node:22-bookworm-slim
+    user: "10001:10001"
+    init: true
+    working_dir: /workspace/apps/league-judge
+    command: [node, dist/main.js]
+    volumes: [".:/workspace:ro"]
+    profiles: ["league"]
+    restart: unless-stopped
+    cpus: "1.0"
+    mem_limit: 512m
+    environment:
+      NODE_ENV: production
+      LEAGUE_JUDGE_HOST: "0.0.0.0"
+      LEAGUE_JUDGE_PORT: "3031"
+      LEAGUE_JUDGE_TOKEN: ${LEAGUE_JUDGE_TOKEN:-}
+      LEAGUE_JUDGE_CONCURRENCY: 1
+      LEAGUE_WEB_ROOT: /workspace/apps/web
+      RELEASE_SHA: ${RELEASE_SHA:-local}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3031/health',{headers:{'x-league-judge-token':process.env.LEAGUE_JUDGE_TOKEN},signal:AbortSignal.timeout(2000)}).then(async r=>{const b=await r.json();process.exit(r.ok&&b.ready&&b.readyWorkers>0?0:1)}).catch(()=>process.exit(1))"
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    stop_grace_period: 15s
   api-rust:
     image: rust:1.98.1-bookworm
     user: "10001:10001"
@@ -75,6 +105,15 @@ services:
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
       DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-}
       AUTH_WEB_ORIGIN: http://localhost:${RUST_LOCAL_WEB_PORT:-3300}
+      LEAGUE_ENABLED: ${LEAGUE_ENABLED:-}
+      LEAGUE_JUDGE_URL: ${LEAGUE_JUDGE_URL:-}
+      LEAGUE_JUDGE_TOKEN: ${LEAGUE_JUDGE_TOKEN:-}
+      LEAGUE_JUDGE_TOKEN_FILE: ${LEAGUE_JUDGE_TOKEN_FILE:-}
+      LEAGUE_DB_MAX_CONNECTIONS: ${LEAGUE_DB_MAX_CONNECTIONS:-}
+      LEAGUE_SETTLE_GRACE_HOURS: ${LEAGUE_SETTLE_GRACE_HOURS:-}
+      LEAGUE_SEASON1_STARTS_AT: ${LEAGUE_SEASON1_STARTS_AT:-}
+      LEAGUE_SEASON1_STARTERS: ${LEAGUE_SEASON1_STARTERS:-}
+      LEAGUE_SEASON1_STARTER_LEVEL: ${LEAGUE_SEASON1_STARTER_LEVEL:-}
       RUST_LOG: info
     depends_on:
       postgres: { condition: service_healthy }
