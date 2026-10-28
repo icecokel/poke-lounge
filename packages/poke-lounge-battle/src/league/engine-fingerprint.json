@@ -1,0 +1,31 @@
+{
+  "revision": 1,
+  "simVersion": "0.10.11",
+  "files": {
+    "src/ai-difficulty.ts": "c27f4cb795e87e04b6ef62c4bbd63a06beabd33e01f6f40bf7d8321077996c45",
+    "src/ai-policy.ts": "38bc802d2c41df02535bd2a19efb166dd7d367abb67a6fcb6eae2a3378b7e917",
+    "src/battle-stat-stages.ts": "aad161586f1720b7d44af8417bafa6e3afc29eb99a4cb91e4a2349dac48b3864",
+    "src/canonical-json.ts": "b89e0678802f56b817c91997e43244f7094c4827f45c8a67424d0a15224733d0",
+    "src/competitive-catalog.generated.ts": "cf695c6ad5846b899e4af1356af1f957c876ad8f27c18bdf598df59d5e725e9c",
+    "src/competitive-ruleset-config.ts": "23f3effa96805d70c9837e8503395044bc55ec8e394780ee7f28216d4c1fc4e4",
+    "src/gen4-battle-math.ts": "d9b9a9c78167385462fbc8a4cd9e3be8b84ad0667bc78fe24afd7e99a8ec88e4",
+    "src/gen4-pokemon-stats.ts": "12add946e5a341e571c245573cb473ae4dc642a49a3aa68627d1a847bde9ceb5",
+    "src/gen4-type-chart.ts": "e5b24b70149177717b0a85467bbed430a7744755b30fe561366ad1cf267e559d",
+    "src/gen4/engine.ts": "fb5826de592cb4068bf6647ba079c849e710b88493427124d965e73e2b2cbfad",
+    "src/gen4/flow.ts": "3d50388884a26287c42a6a46a77a18fe527b07a7e2bcba6a0020e2e781e85a14",
+    "src/gen4/request.ts": "4f3b5b9562f5da3860e84d9a5836da9ab22d5b2731ab957bfd585737a7a446f8",
+    "src/gen4/rom-catalog.generated.ts": "2e964ee57c6aaad58095bb02d91505a6834b244478d80ee509cdf22a1bcede90",
+    "src/gen4/serialization.ts": "3009e6f62925d21152a975ad729c9d6d47a69fbe38f465bb63fec995c348f6ea",
+    "src/gen4/traits.ts": "1a5a73edac0b73819292f55724f12376305db584886f9fbb96205f97ac262f69",
+    "src/league/ai-view.ts": "8352d791e3339f99902e52d641d5f4cd28bdc719b425ae4f397d290a1c04c1ce",
+    "src/league/carry.ts": "dfe3f1960d1912ea3c9e5fbec0ee7a360de6bd08b401028241a0b127352fba1b",
+    "src/league/contract.ts": "03d254eb53716bb23bfe26f41e84f964b361f62c69634a4d098c7f83f87cacee",
+    "src/league/engine-version.ts": "57f1b104de67f6818984a6cb10829a91747631884a9ec5972728b51ba583c5db",
+    "src/league/fraction.ts": "88e4768128b6e1c399a5c78a31b11378fd6f1c08a62172f0d6aec4e01534af84",
+    "src/league/hash.ts": "3542111ffdfe6e68a6d5f09f10e5b463e8425b3590007458ad811bf11979ee4c",
+    "src/league/luck.ts": "d6a94eb551954c274f2732e387635b3035a382b0f4ff5e8c26d06b9b846bd382",
+    "src/league/match.ts": "e2fd4cefb567995936886ee6d219cd53364ae24e1e2e229f5d8b752580cb3b70",
+    "src/league/party.ts": "a6a7179b78d9b61a42a4fb00f3efd2352b5b431a2f8edfac5d771682d1a048e2",
+    "src/league/score.ts": "ef898ca002596cebe8dc45d120b2b74f7109d6c7a0180037346797596e8e1466"
+  }
+}
