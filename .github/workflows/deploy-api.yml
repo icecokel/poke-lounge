@@ -7,6 +7,8 @@ on:
         required: true
       BATTLE_WORKER_TOKEN:
         required: true
+      DISCORD_CLIENT_SECRET:
+        required: false
 
 permissions:
   contents: read
@@ -46,6 +48,17 @@ jobs:
           test -n "$CORS_ORIGINS"
           test -n "$DB_PASSWORD"
           test -n "$BATTLE_WORKER_TOKEN"
+          discord_values=0
+          for name in DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET DISCORD_REDIRECT_URI; do
+            value="${!name}"
+            if [ -n "${value//[[:space:]]/}" ]; then
+              discord_values=$((discord_values + 1))
+            fi
+          done
+          if [ "$discord_values" -ne 0 ] && [ "$discord_values" -ne 3 ]; then
+            echo "DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI must be set together" >&2
+            exit 1
+          fi
           command -v docker
           docker compose version
           docker volume create poke-lounge-runtime-logs >/dev/null
