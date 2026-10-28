@@ -169,7 +169,7 @@ async fn attempt_view<C: GenericClient + Sync>(client: &C, a: &Value) -> Result<
     if !a["challenger_party"].is_object() || views::array(&a["opponents"])?.len() != 5 {
         return Err(LeagueError::corrupt());
     }
-    let rows = client.query("SELECT match_index,measure FROM poke_lounge_league_match WHERE attempt_id=$1 ORDER BY match_index", &[&id]).await?;
+    let rows = client.query("SELECT match_index,measure - '_response' AS measure FROM poke_lounge_league_match WHERE attempt_id=$1 ORDER BY match_index", &[&id]).await?;
     let matches = rows.iter().map(|r| -> Result<Value> { Ok(json!({"index":r.try_get::<_,i16>("match_index")?,"measure":r.try_get::<_,Value>("measure")?})) }).collect::<Result<Vec<_>>>()?;
     let mut view = views::summary(a);
     view["engineVersion"] = a["engine_version"].clone();
@@ -373,5 +373,275 @@ impl League {
         tx.commit().await?;
         tracing::info!(event="league.attempt_entered",attempt=%id);
         Ok(view)
+    }
+}
+
+async fn lock_run<C: GenericClient + Sync>(client: &C, a: &Value) -> Result<()> {
+    let run = views::uuid(&a["run_id"])?;
+    client
+        .query_one(
+            "SELECT id FROM poke_lounge_league_run WHERE id=$1 FOR UPDATE",
+            &[&run],
+        )
+        .await?;
+    Ok(())
+}
+async fn fail<C: GenericClient + Sync>(client: &C, a: &Value, reason: &str) -> Result<()> {
+    let id = views::uuid(&a["id"])?;
+    let run = views::uuid(&a["run_id"])?;
+    client.execute("UPDATE poke_lounge_league_attempt SET status='failed',fail_reason=$2,finished_at=now(),updated_at=now() WHERE id=$1", &[&id,&reason]).await?;
+    client.execute("UPDATE poke_lounge_league_run SET status='active',updated_at=now() WHERE id=$1 AND status='challenging'", &[&run]).await?;
+    Ok(())
+}
+async fn stored_match<C: GenericClient + Sync>(
+    client: &C,
+    id: Uuid,
+    index: i16,
+    hash: &str,
+) -> Result<Value> {
+    let row = client.query_opt("SELECT inputs_hash,measure FROM poke_lounge_league_match WHERE attempt_id=$1 AND match_index=$2", &[&id,&index]).await?.ok_or_else(|| LeagueError::new(409,"LEAGUE_ATTEMPT_NOT_ACTIVE"))?;
+    let previous: String = row.try_get("inputs_hash")?;
+    let measure: Value = row.try_get("measure")?;
+    let response = &measure["_response"];
+    if !response.is_object() {
+        return Err(LeagueError::corrupt());
+    }
+    if previous != hash {
+        return Err(
+            LeagueError::new(409, "LEAGUE_MATCH_ALREADY_JUDGED").detail(json!({"result":response}))
+        );
+    }
+    Ok(response.clone())
+}
+impl League {
+    async fn read_attempt(&self, id: Uuid, user: Uuid) -> Result<Value> {
+        let slot = self.db.client().await?;
+        attempt(
+            slot.as_ref().ok_or_else(LeagueError::unavailable)?,
+            id,
+            user,
+            "",
+        )
+        .await
+    }
+    async fn reject_submission(&self, a: &Value, index: i16) -> Result<()> {
+        let mut slot = self.db.client().await?;
+        let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
+        let tx = client.transaction().await?;
+        lock_run(&tx, a).await?;
+        let id = views::uuid(&a["id"])?;
+        let user = views::uuid(&a["user_id"])?;
+        let a = attempt(&tx, id, user, "FOR UPDATE").await?;
+        if a["status"] != "active" || a["current_match"] != index {
+            return Err(LeagueError::new(409, "LEAGUE_ATTEMPT_NOT_ACTIVE"));
+        }
+        tx.execute("UPDATE poke_lounge_league_attempt SET rejected_submissions=rejected_submissions+1,updated_at=now() WHERE id=$1", &[&id]).await?;
+        if views::integer(&a["rejected_submissions"])? >= 4 {
+            fail(&tx, &a, "rejected_limit").await?;
+        }
+        tx.commit().await?;
+        tracing::warn!(event="league.input_rejected",attempt=%id,index);
+        Ok(())
+    }
+    pub async fn submit_match(
+        &self,
+        user: Uuid,
+        name: &str,
+        id: Uuid,
+        index: i16,
+        submission: &Value,
+    ) -> Result<Value> {
+        if !(0..5).contains(&index) {
+            return Err(LeagueError::new(404, "LEAGUE_NOT_FOUND"));
+        }
+        let a = self.read_attempt(id, user).await?;
+        if let Err(e) = views::validate_submission(submission) {
+            self.reject_submission(&a, index).await?;
+            return Err(e);
+        }
+        let inputs_hash = crate::repository::hash_bytes(
+            serde_json::to_string(&submission["inputs"])
+                .map_err(|_| LeagueError::corrupt())?
+                .as_bytes(),
+        );
+        if a["status"] != "active" || i64::from(index) < views::integer(&a["current_match"])? {
+            let slot = self.db.client().await?;
+            return stored_match(
+                slot.as_ref().ok_or_else(LeagueError::unavailable)?,
+                id,
+                index,
+                &inputs_hash,
+            )
+            .await;
+        }
+        if a["current_match"] != index {
+            return Err(LeagueError::new(409, "LEAGUE_ATTEMPT_NOT_ACTIVE"));
+        }
+        if submission["engineVersion"] != a["engine_version"] {
+            return Err(LeagueError::new(409, "LEAGUE_ENGINE_VERSION_MISMATCH"));
+        }
+        if submission["startHash"] != a["carry_hash"] {
+            return Err(LeagueError::new(409, "LEAGUE_STATE_MISMATCH")
+                .detail(json!({"carryParty":a["carry_party"],"carryHash":a["carry_hash"]})));
+        }
+        let previous_q = {
+            let slot = self.db.client().await?;
+            let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
+            let rows = client.query("SELECT measure->'q' AS q FROM poke_lounge_league_match WHERE attempt_id=$1 ORDER BY match_index", &[&id]).await?;
+            let q = rows
+                .iter()
+                .map(|r| r.try_get::<_, Value>("q"))
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            if q.len() != index as usize {
+                return Err(LeagueError::corrupt());
+            }
+            q
+        };
+        let seed = views::array(&a["match_seeds"])?
+            .get(index as usize)
+            .ok_or_else(LeagueError::corrupt)?;
+        let opponent = &views::array(&a["opponents"])?
+            .get(index as usize)
+            .ok_or_else(LeagueError::corrupt)?["party"];
+        let started = std::time::Instant::now();
+        let judged = match self.judge.call(views::text(&a["engine_version"])?,json!({"kind":"judge-match","seed":seed,"matchIndex":index,"carryParty":a["carry_party"],"opponent":opponent,"leadSlot":submission["leadSlot"],"inputs":submission["inputs"],"previousQ":previous_q})).await {
+            Err(e) if e.code == "LEAGUE_INPUT_REJECTED" => { self.reject_submission(&a,index).await?; return Err(e); }, result => result?,
+        };
+        let status = views::text(&judged["measure"]["status"])?;
+        let turns = views::integer(&judged["measure"]["turns"])?;
+        if !matches!(status, "won" | "lost" | "draw")
+            || turns < 0
+            || !judged["measure"]["q"].is_object()
+        {
+            return Err(LeagueError::corrupt());
+        }
+        if status == "won"
+            && index < 4
+            && (!views::hash(&judged["carryHash"], 16) || !judged["carryParty"].is_object())
+        {
+            return Err(LeagueError::corrupt());
+        }
+        if status == "won"
+            && index == 4
+            && (!(0..=10000).contains(&views::integer(&judged["final"]["score"])?)
+                || !judged["final"]["detail"].is_object())
+        {
+            return Err(LeagueError::corrupt());
+        }
+        let result = self
+            .apply_match(&a, index, submission, &inputs_hash, &judged, name)
+            .await?;
+        tracing::info!(event="league.match_judged",attempt=%id,index,status,turns,duration_ms=started.elapsed().as_millis() as u64);
+        if submission["client"]["endHash"] != judged["measure"]["endHash"] {
+            tracing::warn!(event="league.replay_divergence",attempt=%id,index,client_end_hash=?submission["client"]["endHash"],server_end_hash=?judged["measure"]["endHash"],engine_version=?a["engine_version"]);
+        }
+        Ok(result)
+    }
+    async fn apply_match(
+        &self,
+        original: &Value,
+        index: i16,
+        submission: &Value,
+        inputs_hash: &str,
+        judged: &Value,
+        name: &str,
+    ) -> Result<Value> {
+        let id = views::uuid(&original["id"])?;
+        let user = views::uuid(&original["user_id"])?;
+        let run = views::uuid(&original["run_id"])?;
+        let season_id = views::integer(&original["season_id"])? as i32;
+        let status = views::text(&judged["measure"]["status"])?;
+        let completed = status == "won" && index == 4;
+        let mut slot = self.db.client().await?;
+        let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
+        let tx = client.transaction().await?;
+        let season = self::season_id(
+            &tx,
+            season_id,
+            if completed { "FOR UPDATE" } else { "FOR SHARE" },
+        )
+        .await?;
+        lock_run(&tx, original).await?;
+        let a = attempt(&tx, id, user, "FOR UPDATE").await?;
+        if a["status"] != "active" || a["current_match"] != index {
+            return stored_match(&tx, id, index, inputs_hash).await;
+        }
+        let mut final_view = None;
+        if completed {
+            let score = views::integer(&judged["final"]["score"])? as i32;
+            tx.execute("UPDATE poke_lounge_league_attempt SET status='completed',current_match=5,score=$2,score_detail=$3,finished_at=now(),updated_at=now() WHERE id=$1", &[&id,&score,&judged["final"]["detail"]]).await?;
+            let previous = tx.query_opt("SELECT score FROM poke_lounge_league_record WHERE season_id=$1 AND user_id=$2 FOR UPDATE", &[&season_id,&user]).await?;
+            let recorded = match previous {
+                Some(row) => score > row.try_get::<_, i32>("score")?,
+                None => true,
+            };
+            if recorded {
+                let seq:i64 = tx.query_one("UPDATE poke_lounge_league_season SET accept_seq=accept_seq+1,standings_rev=standings_rev+1 WHERE id=$1 RETURNING accept_seq", &[&season_id]).await?.try_get(0)?;
+                let party = views::public_party(&a["composition"])?;
+                tx.execute("INSERT INTO poke_lounge_league_record (season_id,user_id,attempt_id,score,accept_seq,display_name,composition,public_party,recorded_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now()) ON CONFLICT (season_id,user_id) DO UPDATE SET attempt_id=EXCLUDED.attempt_id,score=EXCLUDED.score,accept_seq=EXCLUDED.accept_seq,display_name=EXCLUDED.display_name,composition=EXCLUDED.composition,public_party=EXCLUDED.public_party,recorded_at=EXCLUDED.recorded_at", &[&season_id,&user,&id,&score,&seq,&name,&a["composition"],&party]).await?;
+            }
+            let top = standings::top(&tx, &season).await?;
+            let mut position = None;
+            for (i, entry) in top.iter().enumerate() {
+                if let Some(player) = entry.user {
+                    let rank = (i + 1) as i16;
+                    tx.execute("UPDATE poke_lounge_league_record SET best_rank=LEAST(COALESCE(best_rank,32767::smallint),$3::smallint) WHERE season_id=$1 AND user_id=$2", &[&season_id,&player,&rank]).await?;
+                    if player == user {
+                        position = Some(rank);
+                    }
+                }
+            }
+            let best:Option<i16> = tx.query_one("SELECT best_rank FROM poke_lounge_league_record WHERE season_id=$1 AND user_id=$2", &[&season_id,&user]).await?.try_get(0)?;
+            tx.execute("UPDATE poke_lounge_league_run SET status='closed',closed_at=now(),close_reason='completed',updated_at=now() WHERE id=$1", &[&run]).await?;
+            final_view = Some(
+                json!({"score":score,"recorded":recorded,"position":position,"bestRank":best,"runClosed":true}),
+            );
+        } else if status == "won" {
+            let next = index + 1;
+            let hash = views::text(&judged["carryHash"])?;
+            tx.execute("UPDATE poke_lounge_league_attempt SET current_match=$2,carry_party=$3,carry_hash=$4,updated_at=now() WHERE id=$1", &[&id,&next,&judged["carryParty"],&hash]).await?;
+        } else {
+            let reason = if status == "draw" && views::integer(&judged["measure"]["turns"])? > 300 {
+                "turn_limit"
+            } else {
+                status
+            };
+            fail(&tx, &a, reason).await?;
+        }
+        let updated = attempt(&tx, id, user, "").await?;
+        let mut response = json!({"measure":judged["measure"],"attempt":views::summary(&updated)});
+        if updated["status"] == "active" {
+            response["next"] = views::current(&updated)?;
+        }
+        if let Some(final_view) = final_view {
+            response["final"] = final_view;
+        }
+        let mut measure = judged["measure"].clone();
+        // Persist the response snapshot so retries keep the original next state and final rank.
+        measure["_response"] = response.clone();
+        let lead = views::integer(&submission["leadSlot"])? as i16;
+        let client_end = views::text(&submission["client"]["endHash"])?;
+        tx.execute("INSERT INTO poke_lounge_league_match (attempt_id,match_index,status,lead_slot,inputs,inputs_hash,measure,client_end_hash) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", &[&id,&index,&status,&lead,&submission["inputs"],&inputs_hash,&measure,&client_end]).await?;
+        tx.commit().await?;
+        if completed {
+            tracing::info!(event="league.attempt_completed",attempt=%id,score=?response["final"]["score"],recorded=?response["final"]["recorded"]);
+        }
+        Ok(response)
+    }
+    pub async fn forfeit(&self, user: Uuid, id: Uuid) -> Result<Value> {
+        let original = self.read_attempt(id, user).await?;
+        let mut slot = self.db.client().await?;
+        let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
+        let tx = client.transaction().await?;
+        lock_run(&tx, &original).await?;
+        let a = attempt(&tx, id, user, "FOR UPDATE").await?;
+        if a["status"] == "active" {
+            fail(&tx, &a, "forfeit").await?;
+        } else if a["fail_reason"] != "forfeit" {
+            return Err(LeagueError::new(409, "LEAGUE_ATTEMPT_NOT_ACTIVE"));
+        }
+        let a = attempt(&tx, id, user, "").await?;
+        tx.commit().await?;
+        Ok(json!({"attempt":views::summary(&a)}))
     }
 }

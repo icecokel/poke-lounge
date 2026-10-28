@@ -134,3 +134,48 @@ pub fn validate_claim(claim: &Value) -> Result<()> {
             .detail(json!({"reasons":["Invalid six-member party claim"]}))
     })
 }
+
+pub fn validate_submission(s: &Value) -> Result<()> {
+    let valid = || -> Option<()> {
+        if s["contractVersion"] != 1 {
+            return None;
+        }
+        s["engineVersion"]
+            .as_str()
+            .filter(|s| !s.is_empty() && s.len() <= 96)?;
+        s["leadSlot"].as_u64().filter(|n| *n < 6)?;
+        if !hash(&s["startHash"], 16) || !hash(&s["client"]["endHash"], 16) {
+            return None;
+        }
+        s["client"]["turns"]
+            .as_u64()
+            .filter(|n| *n <= 9_007_199_254_740_991)?;
+        if !s["client"]["winner"].is_null()
+            && s["client"]["winner"] != 0
+            && s["client"]["winner"] != 1
+        {
+            return None;
+        }
+        let inputs = s["inputs"].as_array()?;
+        if inputs.len() > 1000 {
+            return None;
+        }
+        for input in inputs {
+            let pair = input.as_array()?;
+            if pair.len() != 2 {
+                return None;
+            }
+            let n = pair[1].as_u64()?;
+            match pair[0].as_str()? {
+                "m" if (1..=467).contains(&n) => (),
+                "s" if n < 6 => (),
+                _ => return None,
+            }
+        }
+        Some(())
+    };
+    valid().ok_or_else(|| {
+        LeagueError::new(422, "LEAGUE_INPUT_REJECTED")
+            .detail(json!({"kind":"ILLEGAL_INPUT","at":0}))
+    })
+}

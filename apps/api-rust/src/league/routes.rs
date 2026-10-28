@@ -9,7 +9,7 @@ use crate::{
 };
 use axum::{
     Extension, Json, Router,
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::HeaderMap,
     routing::{get, post},
 };
@@ -27,6 +27,8 @@ pub fn router(league: Arc<League>) -> Router<AppState> {
         .route("/league/v1/me/seasons", get(seasons))
         .route("/league/v1/attempts/current", get(current))
         .route("/league/v1/attempts", post(enter))
+        .route("/league/v1/attempts/{id}/matches/{index}", post(submit))
+        .route("/league/v1/attempts/{id}/forfeit", post(forfeit))
         .layer(Extension(league))
 }
 async fn user(
@@ -128,4 +130,32 @@ async fn enter(
         l.enter_attempt(id, body.run_id, body.entry_key, &body.party)
             .await?,
     ))
+}
+
+async fn submit(
+    State(state): State<AppState>,
+    Extension(l): Extension<Arc<League>>,
+    headers: HeaderMap,
+    Path((attempt, index)): Path<(Uuid, i16)>,
+    body: std::result::Result<Json<Value>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<Value>> {
+    let (user, name) = user(&state, &headers, &l, Kind::Match).await?;
+    let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_INPUT_REJECTED"))?;
+    Ok(success(
+        db::retry(|| l.submit_match(user, &name, attempt, index, &body)).await?,
+    ))
+}
+async fn forfeit(
+    State(state): State<AppState>,
+    Extension(l): Extension<Arc<League>>,
+    headers: HeaderMap,
+    Path(attempt): Path<Uuid>,
+    body: std::result::Result<Json<Value>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<Value>> {
+    let (user, _) = user(&state, &headers, &l, Kind::Read).await?;
+    let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_INPUT_REJECTED"))?;
+    if !body.as_object().is_some_and(|o| o.is_empty()) {
+        return Err(LeagueError::new(422, "LEAGUE_INPUT_REJECTED"));
+    }
+    Ok(success(db::retry(|| l.forfeit(user, attempt)).await?))
 }
