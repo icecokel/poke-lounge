@@ -64,7 +64,7 @@ impl DiscordConfig {
             })
             .ok_or(AppError::Configuration("Invalid DISCORD_REDIRECT_URI"))?;
         let web_origin = match read("AUTH_WEB_ORIGIN") {
-            Some(origin) => origin,
+            Some(origin) => origin.trim().to_owned(),
             None => allowed_origins
                 .first()
                 .and_then(|origin| origin.to_str().ok())

@@ -77,5 +77,13 @@ jobs:
           curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/health/ready" >/dev/null
           curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/poke-lounge/rooms/public" >/dev/null
           curl --fail --silent --show-error "http://127.0.0.1:${WEB_PORT}/ko-KR" >/dev/null
+          if [ -n "${DISCORD_CLIENT_ID//[[:space:]]/}" ] &&
+             [ -n "${DISCORD_CLIENT_SECRET//[[:space:]]/}" ] &&
+             [ -n "${DISCORD_REDIRECT_URI//[[:space:]]/}" ]; then
+            if ! curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${API_PORT}/auth/me" |
+              python3 -c 'import json, sys; sys.exit("discord" not in json.load(sys.stdin)["data"]["providers"])'; then
+              echo "::warning::Discord login could not be verified. Check auth.discord_config_invalid; running containers are left unchanged."
+            fi
+          fi
           docker compose exec -T api sh -c \
             'test -s "$RUST_API_LOG_DIR/api.jsonl" && test "$(stat -c %a "$RUST_API_LOG_DIR/api.jsonl")" = 600 && grep -Fq "$RELEASE_SHA" "$RUST_API_LOG_DIR/api.jsonl"'
