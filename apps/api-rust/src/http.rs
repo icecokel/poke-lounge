@@ -267,11 +267,11 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
         let discord_limit = match request.uri().path() {
             "/auth/discord/start" => {
                 budget.discord_starts += 1;
-                (budget.discord_starts > 20).then_some("discord_starts_per_minute")
+                (budget.discord_starts > 120).then_some("discord_starts_per_minute")
             }
             "/auth/discord/callback" => {
                 budget.discord_callbacks += 1;
-                (budget.discord_callbacks > 20).then_some("discord_callbacks_per_minute")
+                (budget.discord_callbacks > 120).then_some("discord_callbacks_per_minute")
             }
             _ => None,
         };
@@ -293,6 +293,9 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             if !budget.limited_logged {
                 budget.limited_logged = true;
                 tracing::warn!(event = "http.limited", limit, path = %request.uri().path(), count = budget.count, creates = budget.creates, diagnostics = budget.diagnostics);
+            }
+            if discord_limit == Some(limit) {
+                return state.auth.discord_login_failed();
             }
             return AppError::Busy.into_response();
         }

@@ -52,6 +52,15 @@ impl Auth {
     fn secure_cookie(&self) -> bool {
         self.discord.as_ref().is_some_and(|d| d.secure_cookie)
     }
+    pub(crate) fn discord_login_failed(&self) -> Response {
+        let Some(discord) = &self.discord else {
+            return AppError::AccountDisabled.into_response();
+        };
+        redirect(&format!(
+            "{}/league{}",
+            discord.web_origin, LOGIN_FAILED_FRAGMENT
+        ))
+    }
 }
 
 #[derive(Deserialize)]
