@@ -59,6 +59,8 @@ pub struct Budget {
     count: u32,
     creates: u32,
     diagnostics: u32,
+    discord_starts: u32,
+    discord_callbacks: u32,
     limited_logged: bool,
 }
 static CONCURRENCY_LIMIT_LOGGED_S: std::sync::atomic::AtomicU64 =
@@ -246,6 +248,8 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             count: 0,
             creates: 0,
             diagnostics: 0,
+            discord_starts: 0,
+            discord_callbacks: 0,
             limited_logged: false,
         });
         budget.count += 1;
@@ -260,13 +264,30 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
         if request.uri().path() == "/diagnostics/client-errors" {
             budget.diagnostics += 1;
         }
-        if budget.count > 6_000 || budget.creates > 60 || budget.diagnostics > 600 {
+        let discord_limit = match request.uri().path() {
+            "/auth/discord/start" => {
+                budget.discord_starts += 1;
+                (budget.discord_starts > 20).then_some("discord_starts_per_minute")
+            }
+            "/auth/discord/callback" => {
+                budget.discord_callbacks += 1;
+                (budget.discord_callbacks > 20).then_some("discord_callbacks_per_minute")
+            }
+            _ => None,
+        };
+        if budget.count > 6_000
+            || budget.creates > 60
+            || budget.diagnostics > 600
+            || discord_limit.is_some()
+        {
             let limit = if budget.count > 6_000 {
                 "requests_per_minute"
             } else if budget.creates > 60 {
                 "creates_per_minute"
-            } else {
+            } else if budget.diagnostics > 600 {
                 "diagnostics_per_minute"
+            } else {
+                discord_limit.expect("Discord budget exceeded")
             };
             // Once per client per budget window, so a flooding client cannot flood the log.
             if !budget.limited_logged {

@@ -15,6 +15,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{sync::Arc, time::Duration};
 use subtle::ConstantTimeEq;
+use tokio::sync::Semaphore;
 
 const SESSION_COOKIE: &str = "pl_session";
 const STATE_COOKIE: &str = "pl_oauth_state";
@@ -32,11 +33,12 @@ const DISCORD_USER_URL: &str = "https://discord.com/api/users/@me";
 pub struct Auth {
     discord: Option<Arc<DiscordConfig>>,
     client: reqwest::Client,
+    discord_requests: Arc<Semaphore>,
 }
 impl Auth {
     pub fn new(discord: Option<DiscordConfig>) -> AppResult<Self> {
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(3))
             .redirect(reqwest::redirect::Policy::none())
             .user_agent("poke-lounge-api")
             .build()
@@ -44,6 +46,7 @@ impl Auth {
         Ok(Self {
             discord: discord.map(Arc::new),
             client,
+            discord_requests: Arc::new(Semaphore::new(8)),
         })
     }
     fn secure_cookie(&self) -> bool {
@@ -127,7 +130,12 @@ pub async fn discord_callback(
     let return_to = read_cookie(&headers, RETURN_COOKIE)
         .filter(|path| is_safe_return_path(path))
         .unwrap_or("/");
-    let result = complete_discord_login(&state, &discord, &headers, &query).await;
+    let result = tokio::time::timeout(
+        Duration::from_secs(7),
+        complete_discord_login(&state, &discord, &headers, &query),
+    )
+    .await
+    .unwrap_or(Err("timeout"));
     let target = match &result {
         Ok(_) => format!("{}{}", discord.web_origin, return_to),
         Err(reason) => {
@@ -171,10 +179,21 @@ async fn complete_discord_login(
     let expected = read_cookie(headers, STATE_COOKIE).ok_or("missing_state_cookie")?;
     if code.is_empty()
         || code.len() > 256
+        || ![expected, returned_state.as_str()].iter().all(|value| {
+            value.len() == 64
+                && value
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        })
         || !bool::from(returned_state.as_bytes().ct_eq(expected.as_bytes()))
     {
         return Err("state_mismatch");
     }
+    let _permit = state
+        .auth
+        .discord_requests
+        .try_acquire()
+        .map_err(|_| "discord_busy")?;
     let client = &state.auth.client;
     let token: DiscordToken = client
         .post(DISCORD_TOKEN_URL)
