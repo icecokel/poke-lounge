@@ -249,6 +249,14 @@ async fn complete_discord_login(
             tracing::error!(event = "auth.user_upsert_failed", detail = ?error.detail(), db_code = ?error.db_code());
             "user_upsert_failed"
         })?;
+    if let Some(token) = session_token(headers)
+        && let Err(error) = state
+            .data
+            .delete_session(&hash_bytes(token.as_bytes()))
+            .await
+    {
+        tracing::error!(event = "auth.previous_session_delete_failed", detail = ?error.detail(), db_code = ?error.db_code());
+    }
     let session = random_hex(32);
     state
         .data
@@ -258,16 +266,6 @@ async fn complete_discord_login(
             tracing::error!(event = "auth.session_create_failed", detail = ?error.detail(), db_code = ?error.db_code());
             "session_create_failed"
         })?;
-    if let Some(token) = session_token(headers) {
-        state
-            .data
-            .delete_session(&hash_bytes(token.as_bytes()))
-            .await
-            .map_err(|error| {
-                tracing::error!(event = "auth.previous_session_delete_failed", detail = ?error.detail(), db_code = ?error.db_code());
-                "previous_session_delete_failed"
-            })?;
-    }
     tracing::info!(event = "auth.discord_login", user_id = %user_id);
     Ok(session)
 }
