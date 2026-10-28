@@ -11,7 +11,7 @@ use axum::{
     Extension, Json, Router,
     extract::{Query, State},
     http::HeaderMap,
-    routing::get,
+    routing::{get, post},
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -25,6 +25,8 @@ pub fn router(league: Arc<League>) -> Router<AppState> {
         .route("/league/v1/hall-of-fame", get(hall))
         .route("/league/v1/me", get(me))
         .route("/league/v1/me/seasons", get(seasons))
+        .route("/league/v1/attempts/current", get(current))
+        .route("/league/v1/attempts", post(enter))
         .layer(Extension(league))
 }
 async fn user(
@@ -94,4 +96,36 @@ async fn seasons(
 ) -> Result<Json<Value>> {
     let (id, _) = user(&state, &headers, &l, Kind::Read).await?;
     Ok(success(db::retry(|| l.personal_seasons(id)).await?))
+}
+
+async fn current(
+    State(state): State<AppState>,
+    Extension(l): Extension<Arc<League>>,
+    headers: HeaderMap,
+) -> Result<Json<Value>> {
+    let (id, _) = user(&state, &headers, &l, Kind::Read).await?;
+    Ok(success(
+        serde_json::to_value(db::retry(|| l.current_attempt(id)).await?)
+            .map_err(|_| LeagueError::corrupt())?,
+    ))
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Entry {
+    run_id: Uuid,
+    entry_key: Uuid,
+    party: Value,
+}
+async fn enter(
+    State(state): State<AppState>,
+    Extension(l): Extension<Arc<League>>,
+    headers: HeaderMap,
+    body: std::result::Result<Json<Entry>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<Value>> {
+    let (id, _) = user(&state, &headers, &l, Kind::Entry).await?;
+    let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_PARTY_INVALID"))?;
+    Ok(success(
+        l.enter_attempt(id, body.run_id, body.entry_key, &body.party)
+            .await?,
+    ))
 }

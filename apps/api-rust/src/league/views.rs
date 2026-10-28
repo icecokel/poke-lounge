@@ -72,3 +72,65 @@ pub fn public_party(composition: &Value) -> Result<Value> {
     let party = members.iter().map(|m| -> Result<Value> { Ok(json!({"speciesId":integer(&m["speciesId"])?,"level":integer(&m["level"])?.min(50),"moveIds":array(&m["moves"])?.iter().map(|v| integer(&v["moveId"])).collect::<Result<Vec<_>>>()?})) }).collect::<Result<Vec<_>>>()?;
     Ok(json!(party))
 }
+
+pub fn validate_claim(claim: &Value) -> Result<()> {
+    let valid = || -> Option<()> {
+        if claim["version"] != 1 {
+            return None;
+        }
+        let members = claim["members"].as_array()?;
+        if members.len() != 6 {
+            return None;
+        }
+        let mut slots = std::collections::HashSet::new();
+        let mut mons = std::collections::HashSet::new();
+        for member in members {
+            let slot = member["slotIndex"].as_u64().filter(|n| *n < 6)?;
+            let mon = Uuid::parse_str(member["monId"].as_str()?).ok()?;
+            if !slots.insert(slot) || !mons.insert(mon) {
+                return None;
+            }
+            for (key, min, max) in [
+                ("speciesId", 1, 493),
+                ("level", 1, 100),
+                ("happiness", 0, 255),
+                ("experience", 0, 9_007_199_254_740_991),
+            ] {
+                member[key].as_u64().filter(|n| (min..=max).contains(n))?;
+            }
+            let evs = &member["effortValues"];
+            let mut total = 0;
+            for key in [
+                "hp",
+                "attack",
+                "defense",
+                "specialAttack",
+                "specialDefense",
+                "speed",
+            ] {
+                total += evs[key].as_u64().filter(|n| *n <= 255)?;
+            }
+            if total > 510 {
+                return None;
+            }
+            let moves = member["moveIds"].as_array()?;
+            if !(1..=4).contains(&moves.len()) {
+                return None;
+            }
+            let mut ids = std::collections::HashSet::new();
+            for id in moves {
+                if !ids.insert(id.as_u64().filter(|n| (1..=467).contains(n))?) {
+                    return None;
+                }
+            }
+        }
+        if !slots.contains(&claim["leadSlot"].as_u64()?) {
+            return None;
+        }
+        Some(())
+    };
+    valid().ok_or_else(|| {
+        LeagueError::new(422, "LEAGUE_PARTY_INVALID")
+            .detail(json!({"reasons":["Invalid six-member party claim"]}))
+    })
+}
