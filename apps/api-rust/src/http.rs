@@ -75,7 +75,7 @@ fn first_this_second(slot: &std::sync::atomic::AtomicU64) -> bool {
         .map_or(0, |elapsed| elapsed.as_secs());
     slot.swap(now, std::sync::atomic::Ordering::Relaxed) != now
 }
-pub fn router(state: AppState, config: &Config) -> Router {
+pub fn router(state: AppState, config: &Config, league: Router<AppState>) -> Router {
     Router::new()
         .route(
             "/",
@@ -139,6 +139,7 @@ pub fn router(state: AppState, config: &Config) -> Router {
             "/game/poke-lounge/state",
             get(account_disabled).put(account_disabled),
         )
+        .merge(league)
         .fallback(|| async {
             (
                 StatusCode::NOT_FOUND,
