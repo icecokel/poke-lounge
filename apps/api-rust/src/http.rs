@@ -62,6 +62,7 @@ pub struct Budget {
     discord_starts: u32,
     discord_callbacks: u32,
     limited_logged: bool,
+    discord_limited_logged: bool,
 }
 static CONCURRENCY_LIMIT_LOGGED_S: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
@@ -251,6 +252,7 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             discord_starts: 0,
             discord_callbacks: 0,
             limited_logged: false,
+            discord_limited_logged: false,
         });
         budget.count += 1;
         if request.method() == Method::POST
@@ -289,9 +291,14 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             } else {
                 discord_limit.expect("Discord budget exceeded")
             };
+            let limited_logged = if discord_limit == Some(limit) {
+                &mut budget.discord_limited_logged
+            } else {
+                &mut budget.limited_logged
+            };
             // Once per client per budget window, so a flooding client cannot flood the log.
-            if !budget.limited_logged {
-                budget.limited_logged = true;
+            if !*limited_logged {
+                *limited_logged = true;
                 tracing::warn!(event = "http.limited", limit, path = %request.uri().path(), count = budget.count, creates = budget.creates, diagnostics = budget.diagnostics);
             }
             if discord_limit == Some(limit) {
