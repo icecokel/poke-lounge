@@ -33,6 +33,21 @@ function readPort(name: string, fallback: number): number {
     throw new Error(`${name} must be a port between 1024 and 65535`);
   return port;
 }
+// localhost puts the API on the page's site so the Discord login session cookie is sent.
+// Local test mode only accepts a 127.0.0.1 API, so it is unavailable with localhost.
+const apiHost = process.env.RUST_LOCAL_API_HOST || "127.0.0.1";
+if (apiHost !== "localhost" && apiHost !== "127.0.0.1")
+  throw new Error("RUST_LOCAL_API_HOST must be localhost or 127.0.0.1");
+if (process.env.DISCORD_REDIRECT_URI) {
+  try {
+    if (new URL(process.env.DISCORD_REDIRECT_URI).hostname !== apiHost)
+      console.warn(
+        "DISCORD_REDIRECT_URI host differs from RUST_LOCAL_API_HOST; Discord login requires the same host for its state cookie.",
+      );
+  } catch {
+    console.warn("Invalid DISCORD_REDIRECT_URI; the API will disable Discord login.");
+  }
+}
 const project = process.env.RUST_LOCAL_PROJECT || "poke-lounge-rust-local";
 if (!/^[a-z0-9][a-z0-9_-]*$/.test(project))
   throw new Error("RUST_LOCAL_PROJECT must be a lowercase docker compose project name");
@@ -169,7 +184,7 @@ async function main(): Promise<void> {
         String(ports.web),
       ],
       {
-        NEXT_PUBLIC_API_URL: `http://127.0.0.1:${ports.api}`,
+        NEXT_PUBLIC_API_URL: `http://${apiHost}:${ports.api}`,
         LOCAL_TEST_AUTH_TOKEN: randomBytes(32).toString("hex"),
         NEXT_DIST_DIR: ".next-rust-local",
         NEXT_TYPESCRIPT_CONFIG_PATH: "tsconfig.rust-local.json",

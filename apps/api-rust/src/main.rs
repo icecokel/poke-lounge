@@ -1,4 +1,5 @@
 mod actors;
+mod auth;
 mod compute;
 mod config;
 mod data;
@@ -56,7 +57,8 @@ async fn main() -> ExitCode {
 }
 
 async fn run(stage: &mut &'static str) -> AppResult<()> {
-    let config = Config::from_env()?;
+    let mut config = Config::from_env()?;
+    let auth = crate::auth::Auth::new(config.discord.take())?;
     *stage = "listener.bind";
     let listener = tokio::net::TcpListener::bind(config.bind)
         .await
@@ -181,6 +183,7 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
         started: Instant::now(),
         compute,
         data,
+        auth,
         sockets: Arc::new(Semaphore::new(128)),
         pending_sockets: Arc::new(Semaphore::new(socket::PENDING_SOCKET_CAPACITY)),
         pending_by_ip: Arc::new(std::sync::Mutex::new(HashMap::new())),

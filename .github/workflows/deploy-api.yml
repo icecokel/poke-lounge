@@ -7,6 +7,8 @@ on:
         required: true
       BATTLE_WORKER_TOKEN:
         required: true
+      DISCORD_CLIENT_SECRET:
+        required: false
 
 permissions:
   contents: read
@@ -29,6 +31,10 @@ jobs:
       NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
       CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
       RUST_API_TRUSTED_PROXIES: ${{ vars.RUST_API_TRUSTED_PROXIES }}
+      DISCORD_CLIENT_ID: ${{ vars.DISCORD_CLIENT_ID }}
+      DISCORD_REDIRECT_URI: ${{ vars.DISCORD_REDIRECT_URI }}
+      AUTH_WEB_ORIGIN: ${{ vars.AUTH_WEB_ORIGIN }}
+      DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       BATTLE_WORKER_TOKEN: ${{ secrets.BATTLE_WORKER_TOKEN }}
     steps:
@@ -42,6 +48,17 @@ jobs:
           test -n "$CORS_ORIGINS"
           test -n "$DB_PASSWORD"
           test -n "$BATTLE_WORKER_TOKEN"
+          discord_values=0
+          for name in DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET DISCORD_REDIRECT_URI; do
+            value="${!name}"
+            if [ -n "${value//[[:space:]]/}" ]; then
+              discord_values=$((discord_values + 1))
+            fi
+          done
+          if [ "$discord_values" -ne 0 ] && [ "$discord_values" -ne 3 ]; then
+            echo "DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI must be set together" >&2
+            exit 1
+          fi
           command -v docker
           docker compose version
           docker volume create poke-lounge-runtime-logs >/dev/null
@@ -60,5 +77,13 @@ jobs:
           curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/health/ready" >/dev/null
           curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/poke-lounge/rooms/public" >/dev/null
           curl --fail --silent --show-error "http://127.0.0.1:${WEB_PORT}/ko-KR" >/dev/null
+          if [ -n "${DISCORD_CLIENT_ID//[[:space:]]/}" ] &&
+             [ -n "${DISCORD_CLIENT_SECRET//[[:space:]]/}" ] &&
+             [ -n "${DISCORD_REDIRECT_URI//[[:space:]]/}" ]; then
+            if ! curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${API_PORT}/auth/me" |
+              python3 -c 'import json, sys; sys.exit("discord" not in json.load(sys.stdin)["data"]["providers"])'; then
+              echo "::warning::Discord login could not be verified. Check auth.discord_config_invalid; running containers are left unchanged."
+            fi
+          fi
           docker compose exec -T api sh -c \
             'test -s "$RUST_API_LOG_DIR/api.jsonl" && test "$(stat -c %a "$RUST_API_LOG_DIR/api.jsonl")" = 600 && grep -Fq "$RELEASE_SHA" "$RUST_API_LOG_DIR/api.jsonl"'

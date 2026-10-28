@@ -73,3 +73,4 @@ jobs:
     secrets:
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       BATTLE_WORKER_TOKEN: ${{ secrets.BATTLE_WORKER_TOKEN }}
+      DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
