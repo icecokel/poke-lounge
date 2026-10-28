@@ -226,7 +226,12 @@ async fn complete_discord_login(
     if user.id.is_empty() || user.id.len() > 32 || !user.id.bytes().all(|b| b.is_ascii_digit()) {
         return Err("user_id_invalid");
     }
-    let display_name = display_name(user.global_name.as_deref().unwrap_or(&user.username));
+    let display_name = display_name(
+        user.global_name
+            .as_deref()
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or(&user.username),
+    );
     let user_id = state
         .data
         .upsert_identity_user("discord", &user.id, &display_name)
@@ -244,6 +249,16 @@ async fn complete_discord_login(
             tracing::error!(event = "auth.session_create_failed", detail = ?error.detail(), db_code = ?error.db_code());
             "session_create_failed"
         })?;
+    if let Some(token) = session_token(headers) {
+        state
+            .data
+            .delete_session(&hash_bytes(token.as_bytes()))
+            .await
+            .map_err(|error| {
+                tracing::error!(event = "auth.previous_session_delete_failed", detail = ?error.detail(), db_code = ?error.db_code());
+                "previous_session_delete_failed"
+            })?;
+    }
     tracing::info!(event = "auth.discord_login", user_id = %user_id);
     Ok(session)
 }
@@ -269,19 +284,21 @@ pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> AppResult<
     })))
 }
 
-pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> AppResult<Response> {
-    if let Some(token) = session_token(&headers) {
-        state
+pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    if let Some(token) = session_token(&headers)
+        && let Err(error) = state
             .data
             .delete_session(&hash_bytes(token.as_bytes()))
-            .await?;
+            .await
+    {
+        tracing::error!(event = "auth.session_delete_failed", detail = ?error.detail(), db_code = ?error.db_code());
     }
     let mut response = success(Value::Null).into_response();
     set_cookie(
         &mut response,
         &cookie(SESSION_COOKIE, "", "/", 0, state.auth.secure_cookie()),
     );
-    Ok(response)
+    response
 }
 
 fn session_token(headers: &HeaderMap) -> Option<&str> {
