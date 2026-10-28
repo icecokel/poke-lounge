@@ -1,5 +1,6 @@
 "use client";
 
+import { DiscordAccountButton } from "../ui/discord-account-button";
 import { PageReloadButton } from "../ui/page-reload-button";
 import { MoveLearningPanel } from "../runtime/game/ui/move-learning-panel";
 
@@ -1046,6 +1047,7 @@ function MobileSettingsScreen({
           <ChevronRight size={20} aria-hidden="true" />
         </Button>
         <PageReloadButton locale={copy.locale} confirmBeforeReload />
+        <DiscordAccountButton locale={copy.locale} />
         {onOpenHelp ? (
           <Button
             type="button"

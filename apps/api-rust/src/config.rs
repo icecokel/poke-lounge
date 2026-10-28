@@ -25,6 +25,68 @@ pub struct Config {
     pub allowed_origins: Vec<HeaderValue>,
     pub trusted_proxies: Vec<ipnet::IpNet>,
     pub database: tokio_postgres::Config,
+    pub discord: Option<DiscordConfig>,
+}
+pub struct DiscordConfig {
+    pub client_id: String,
+    pub client_secret: String,
+    pub redirect_uri: reqwest::Url,
+    /// Exact web origin the callback returns to; one of the CORS origins.
+    pub web_origin: String,
+    pub secure_cookie: bool,
+}
+impl DiscordConfig {
+    /// All three Discord values unset disables login; a partial set is a deployment mistake.
+    fn from_env(allowed_origins: &[HeaderValue]) -> AppResult<Option<Self>> {
+        let read = |name| env::var(name).ok().filter(|value| !value.trim().is_empty());
+        let (client_id, client_secret, redirect_uri) = match (
+            read("DISCORD_CLIENT_ID"),
+            read("DISCORD_CLIENT_SECRET"),
+            read("DISCORD_REDIRECT_URI"),
+        ) {
+            (None, None, None) => return Ok(None),
+            (Some(id), Some(secret), Some(uri)) => (id, secret, uri),
+            _ => {
+                return Err(AppError::Configuration(
+                    "DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI must be set together",
+                ));
+            }
+        };
+        if !client_id.bytes().all(|b| b.is_ascii_digit()) || client_id.len() > 32 {
+            return Err(AppError::Configuration("Invalid DISCORD_CLIENT_ID"));
+        }
+        let redirect_uri = reqwest::Url::parse(redirect_uri.trim())
+            .ok()
+            .filter(|uri| {
+                matches!(uri.scheme(), "http" | "https")
+                    && uri.path() == "/auth/discord/callback"
+                    && uri.query().is_none()
+            })
+            .ok_or(AppError::Configuration("Invalid DISCORD_REDIRECT_URI"))?;
+        let web_origin = match read("AUTH_WEB_ORIGIN") {
+            Some(origin) => origin,
+            None => allowed_origins
+                .first()
+                .and_then(|origin| origin.to_str().ok())
+                .ok_or(AppError::Configuration("AUTH_WEB_ORIGIN required"))?
+                .to_owned(),
+        };
+        if !allowed_origins
+            .iter()
+            .any(|origin| origin == web_origin.as_str())
+        {
+            return Err(AppError::Configuration(
+                "AUTH_WEB_ORIGIN must be one of CORS_ORIGINS",
+            ));
+        }
+        Ok(Some(Self {
+            client_id,
+            client_secret: client_secret.trim().to_owned(),
+            secure_cookie: redirect_uri.scheme() == "https",
+            redirect_uri,
+            web_origin,
+        }))
+    }
 }
 impl Config {
     pub fn from_env() -> AppResult<Self> {
@@ -107,6 +169,7 @@ impl Config {
             .dbname(env::var("DB_DATABASE").unwrap_or_else(|_| "poke_lounge".into()))
             .connect_timeout(IO_TIMEOUT)
             .options("-c statement_timeout=3000");
+        let discord = DiscordConfig::from_env(&allowed_origins)?;
         Ok(Self {
             bind,
             redis_url,
@@ -115,6 +178,7 @@ impl Config {
             allowed_origins,
             trusted_proxies,
             database,
+            discord,
         })
     }
 }

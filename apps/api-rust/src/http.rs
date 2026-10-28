@@ -43,6 +43,7 @@ pub struct AppState {
     pub rooms: Rooms,
     pub compute: Compute,
     pub data: Data,
+    pub auth: crate::auth::Auth,
     pub shutdown: CancellationToken,
     pub started: Instant,
     pub requests: Arc<Semaphore>,
@@ -124,6 +125,10 @@ pub fn router(state: AppState, config: &Config) -> Router {
             }),
         )
         .route("/poke-lounge/ws", any(crate::socket::upgrade))
+        .route("/auth/discord/start", get(crate::auth::discord_start))
+        .route("/auth/discord/callback", get(crate::auth::discord_callback))
+        .route("/auth/me", get(crate::auth::me))
+        .route("/auth/logout", post(crate::auth::logout))
         .route("/game/ranking", get(ranking))
         .route("/game/result/{id}", get(result))
         .route("/game/result", post(account_disabled))
@@ -160,7 +165,9 @@ pub fn router(state: AppState, config: &Config) -> Router {
                     "x-request-id".parse().expect("static header"),
                     "x-usage-visitor".parse().expect("static header"),
                 ])
-                .expose_headers(["x-request-id".parse().expect("static header")]),
+                .expose_headers(["x-request-id".parse().expect("static header")])
+                // The session cookie rides on credentialed requests from the exact web origins.
+                .allow_credentials(true),
         )
         .layer(middleware::from_fn_with_state(state.clone(), diagnostics))
         .with_state(state)

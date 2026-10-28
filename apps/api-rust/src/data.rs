@@ -98,6 +98,59 @@ impl Data {
         ).await?;
         Ok(())
     }
+    /// Finds or creates the user linked to a provider account and refreshes its display name.
+    pub async fn upsert_identity_user(
+        &self,
+        provider: &str,
+        provider_user_id: &str,
+        display_name: &str,
+    ) -> AppResult<Uuid> {
+        let row = self.client().await?.query_one(r#"
+WITH found AS (
+ SELECT user_id FROM poke_lounge_user_identity WHERE provider=$1 AND provider_user_id=$2
+), created AS (
+ INSERT INTO poke_lounge_user (id, display_name) SELECT $3, $4 WHERE NOT EXISTS (SELECT 1 FROM found) RETURNING id
+), linked AS (
+ INSERT INTO poke_lounge_user_identity (provider, provider_user_id, user_id) SELECT $1, $2, id FROM created RETURNING user_id
+), renamed AS (
+ UPDATE poke_lounge_user SET display_name=$4, updated_at=now() WHERE id IN (SELECT user_id FROM found)
+)
+SELECT user_id FROM found UNION ALL SELECT user_id FROM linked
+"#, &[&provider, &provider_user_id, &Uuid::new_v4(), &display_name]).await?;
+        Ok(row.try_get("user_id")?)
+    }
+    pub async fn create_session(&self, token_hash: &str, user_id: Uuid) -> AppResult<()> {
+        let client = self.client().await?;
+        client
+            .execute(
+                "DELETE FROM poke_lounge_auth_session WHERE expires_at < now()",
+                &[],
+            )
+            .await?;
+        client.execute(
+            "INSERT INTO poke_lounge_auth_session (token_hash, user_id, expires_at) VALUES ($1, $2, now() + interval '30 days')",
+            &[&token_hash, &user_id],
+        ).await?;
+        Ok(())
+    }
+    pub async fn session_user(&self, token_hash: &str) -> AppResult<Option<(Uuid, String)>> {
+        let row = self.client().await?.query_opt(
+            "SELECT u.id, u.display_name FROM poke_lounge_auth_session s JOIN poke_lounge_user u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.expires_at > now()",
+            &[&token_hash],
+        ).await?;
+        row.map(|row| -> AppResult<_> { Ok((row.try_get("id")?, row.try_get("display_name")?)) })
+            .transpose()
+    }
+    pub async fn delete_session(&self, token_hash: &str) -> AppResult<()> {
+        self.client()
+            .await?
+            .execute(
+                "DELETE FROM poke_lounge_auth_session WHERE token_hash = $1",
+                &[&token_hash],
+            )
+            .await?;
+        Ok(())
+    }
     pub async fn ranking(&self, game_type: &str) -> AppResult<Value> {
         if game_type == "POKE_LOUNGE" {
             return Ok(json!([]));

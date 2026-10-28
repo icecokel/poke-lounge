@@ -119,6 +119,11 @@ services:
       DB_DATABASE: ${DB_DATABASE:-poke_lounge}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       RUST_API_TRUSTED_PROXIES: ${RUST_API_TRUSTED_PROXIES:-}
+      # Discord login stays disabled while all three DISCORD_* values are empty.
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-}
+      AUTH_WEB_ORIGIN: ${AUTH_WEB_ORIGIN:-}
       RUST_LOG: info
       RUST_API_LOG_DIR: /var/log/poke-lounge
       RELEASE_SHA: ${RELEASE_SHA:-local}

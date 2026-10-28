@@ -70,6 +70,11 @@ services:
       DB_DATABASE: poke_rust_local
       DB_PASSWORD: ${RUST_LOCAL_DB_PASSWORD:?Set a development database password}
       CORS_ORIGINS: http://localhost:${RUST_LOCAL_WEB_PORT:-3300},http://127.0.0.1:${RUST_LOCAL_WEB_PORT:-3300}
+      # Optional local Discord app. Run with RUST_LOCAL_API_HOST=localhost so the page shares the API site for the session cookie.
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-}
+      AUTH_WEB_ORIGIN: http://localhost:${RUST_LOCAL_WEB_PORT:-3300}
       RUST_LOG: info
     depends_on:
       postgres: { condition: service_healthy }
