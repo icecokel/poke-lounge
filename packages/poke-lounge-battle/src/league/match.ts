@@ -13,6 +13,9 @@ import {
 import { chooseLeagueAiAction } from "./ai-view";
 import { countLuck } from "./luck";
 import { LeaguePartyError, toGen4Party } from "./party";
+import { Fraction } from "./fraction";
+import { leagueHash } from "./hash";
+import { scoreMatch } from "./score";
 
 export interface LeagueMatchRules {
   turnLimit: number;
@@ -222,4 +225,33 @@ export function replayLeagueMatch(
   for (const input of inputs) p = applyPlayerInput(p, input);
   if (p.outcome === null) throw new LeagueInputError("INCOMPLETE_INPUT", inputs.length);
   return p;
+}
+
+export function measureLeagueMatch(p: LeagueMatchProgress): LeagueMatchMeasure {
+  if (p.outcome === null) throw new LeagueInputError("INCOMPLETE_INPUT", p.inputs.length);
+  const members = p.frame.parties[0].members;
+  const survivors = members.filter(member => member.currentHp! > 0);
+  const hpRatio =
+    survivors.length === 0
+      ? new Fraction(0)
+      : survivors
+          .reduce(
+            (sum, member) => sum.add(new Fraction(member.currentHp!, member.maxHp!)),
+            new Fraction(0),
+          )
+          .div(new Fraction(survivors.length));
+  const input = {
+    faintedNew: members.filter(member => member.currentHp === 0).length - p.startFainted,
+    hpRatio: hpRatio.toJSON(),
+    turns: p.frame.turn,
+  };
+  const q = p.outcome === "won" ? scoreMatch(input) : new Fraction(0);
+  return {
+    ...input,
+    status: p.outcome,
+    q: q.toJSON(),
+    qApprox: Number(q.num) / Number(q.den),
+    endHash: leagueHash(p.frame.parties),
+    luck: { ...luckByProgress.get(p)! },
+  };
 }
