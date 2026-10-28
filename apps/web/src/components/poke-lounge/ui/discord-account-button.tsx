@@ -26,34 +26,46 @@ const messages = {
   "ko-KR": {
     login: "디스코드로 로그인",
     logout: (name: string) => `디스코드 로그아웃 (${name})`,
-    title: "디스코드 로그인 화면으로 이동할까요?",
-    description:
-      "로그인을 마치면 이 화면으로 돌아옵니다. 저장 데이터는 삭제하지 않지만 진행 중인 야생전과 선택 화면은 유지되지 않을 수 있습니다. 방에 다시 연결되는 동안에도 대회 시간은 계속 흐릅니다.",
-    cancel: "계속 플레이",
-    confirm: "이동",
-    loginFailed: "디스코드 로그인을 완료하지 못했습니다. 다시 시도해 주세요.",
+    checking: "로그인 상태 확인 중…",
+    signedIn: (name: string) => `로그인됨: ${name}`,
+    signedOut: "로그인하지 않은 상태입니다.",
+    preparing: "리그 준비 중",
+    sessionFailed: "로그인 상태를 확인하지 못했습니다.",
+    title: "디스코드에서 로그아웃할까요?",
+    description: "이 브라우저의 디스코드 계정 세션을 종료합니다.",
+    cancel: "취소",
+    confirm: "로그아웃",
+    loginFailed: "디스코드 로그인을 완료하지 못했습니다. 같은 브라우저에서 다시 시도해 주세요.",
     logoutFailed: "로그아웃하지 못했습니다. 다시 시도해 주세요.",
   },
   "en-US": {
     login: "Log in with Discord",
     logout: (name: string) => `Log out of Discord (${name})`,
-    title: "Go to the Discord login page?",
-    description:
-      "You return to this page after logging in. Saved data is kept, but a wild battle or unfinished selection may not be preserved. Tournament timers continue while reconnecting to the room.",
-    cancel: "Keep playing",
-    confirm: "Continue",
-    loginFailed: "Discord login did not complete. Please try again.",
+    checking: "Checking login status…",
+    signedIn: (name: string) => `Logged in: ${name}`,
+    signedOut: "You are not logged in.",
+    preparing: "League coming soon",
+    sessionFailed: "Could not check login status.",
+    title: "Log out of Discord?",
+    description: "This ends your Discord account session in this browser.",
+    cancel: "Cancel",
+    confirm: "Log out",
+    loginFailed: "Discord login did not complete. Please try again in the same browser.",
     logoutFailed: "Could not log out. Please try again.",
   },
   "ja-JP": {
     login: "Discordでログイン",
     logout: (name: string) => `Discordからログアウト（${name}）`,
-    title: "Discordのログイン画面へ移動しますか？",
-    description:
-      "ログイン後はこの画面に戻ります。保存データは削除しませんが、進行中の野生バトルや選択は保持されない場合があります。部屋へ再接続する間も大会の時間は進みます。",
-    cancel: "プレイを続ける",
-    confirm: "移動",
-    loginFailed: "Discordログインを完了できませんでした。もう一度お試しください。",
+    checking: "ログイン状態を確認中…",
+    signedIn: (name: string) => `ログイン中：${name}`,
+    signedOut: "ログインしていません。",
+    preparing: "リーグ準備中",
+    sessionFailed: "ログイン状態を確認できませんでした。",
+    title: "Discordからログアウトしますか？",
+    description: "このブラウザーのDiscordアカウントセッションを終了します。",
+    cancel: "キャンセル",
+    confirm: "ログアウト",
+    loginFailed: "Discordログインを完了できませんでした。同じブラウザーでもう一度お試しください。",
     logoutFailed: "ログアウトできませんでした。もう一度お試しください。",
   },
 } satisfies Record<
@@ -61,6 +73,11 @@ const messages = {
   {
     login: string;
     logout: (name: string) => string;
+    checking: string;
+    signedIn: (name: string) => string;
+    signedOut: string;
+    preparing: string;
+    sessionFailed: string;
     title: string;
     description: string;
     cancel: string;
@@ -70,13 +87,16 @@ const messages = {
   }
 >;
 
-/** Renders nothing until the API reports Discord login as available. */
+/** Account controls for the league page, separate from multiplayer. */
 export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
   const [session, setSession] = useState<AccountSession | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  const status = useRef<HTMLParagraphElement>(null);
+  const focusAfterLogout = useRef(false);
   const text = messages[locale];
 
   useEffect(
@@ -90,23 +110,44 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
         );
       }
       const controller = new AbortController();
-      fetchAccountSession(controller.signal).then(setSession, function handleRejected() {
-        // Login is optional; an unreachable account API leaves the control hidden.
-      });
+      fetchAccountSession(controller.signal).then(
+        function handleResolved(nextSession) {
+          setSession(nextSession);
+          setLoading(false);
+        },
+        function handleRejected() {
+          if (!controller.signal.aborted) {
+            setLoading(false);
+            setError(current => current ?? text.sessionFailed);
+          }
+        },
+      );
+      const handlePageShow = (event: PageTransitionEvent) => {
+        if (event.persisted) setPending(false);
+      };
+      window.addEventListener("pageshow", handlePageShow);
       return function cleanup() {
         controller.abort();
+        window.removeEventListener("pageshow", handlePageShow);
       };
     },
-    [text.loginFailed],
+    [text],
   );
 
-  if (!session || (!session.discordEnabled && !session.user)) return null;
+  useEffect(() => {
+    if (!pending && focusAfterLogout.current) {
+      (trigger.current ?? status.current)?.focus({ preventScroll: true });
+      focusAfterLogout.current = false;
+    }
+  }, [pending]);
 
   const handleLogin = () => {
     setPending(true);
-    window.location.assign(getDiscordLoginUrl(window.location.pathname + window.location.search));
+    window.location.assign(getDiscordLoginUrl(`/${locale}/league`));
   };
   const handleLogout = () => {
+    if (!session?.user) return;
+    focusAfterLogout.current = true;
     setPending(true);
     setError(null);
     logoutAccount().then(
@@ -123,39 +164,49 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
 
   return (
     <>
-      {session.user ? (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={pending}
-          onClick={handleLogout}
-          data-poke-lounge-setting-action="discord-logout"
-        >
-          <LogOut size={20} aria-hidden="true" />
-          {text.logout(session.user.displayName)}
-        </Button>
-      ) : (
+      <p ref={status} tabIndex={-1} role="status" className="text-muted-foreground break-words">
+        {loading
+          ? text.checking
+          : session
+            ? session.user
+              ? text.signedIn(session.user.displayName)
+              : text.signedOut
+            : text.sessionFailed}
+      </p>
+      {session && !session.discordEnabled ? <p>{text.preparing}</p> : null}
+      {session?.user ? (
         <Button
           ref={trigger}
           type="button"
           variant="outline"
           disabled={pending}
           onClick={() => setConfirmOpen(true)}
-          data-poke-lounge-setting-action="discord-login"
+          className="h-auto min-h-11 w-full whitespace-normal break-words"
+        >
+          <LogOut size={20} aria-hidden="true" />
+          {text.logout(session.user.displayName)}
+        </Button>
+      ) : session?.discordEnabled ? (
+        <Button
+          ref={trigger}
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={handleLogin}
+          className="h-auto min-h-11 w-full whitespace-normal"
         >
           <LogIn size={20} aria-hidden="true" />
           {text.login}
         </Button>
-      )}
+      ) : null}
       {error ? (
-        <p className="text-sm font-bold text-[#864033]" role="alert">
+        <p className="text-destructive text-sm" role="alert">
           {error}
         </p>
       ) : null}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent
-          className="max-h-[calc(100dvh-32px)] overflow-auto rounded-[9px] border-[3px] border-[#304550] bg-[#fffdf0] p-6 text-[#17201a] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1,0_4px_0_#304550] [&_[data-slot=button]]:min-h-11 [&_[data-slot=button]]:rounded-md [&_[data-slot=button]]:border-2 [&_[data-slot=button]]:border-[#607e84] [&_[data-slot=button]]:shadow-[inset_0_0_0_1px_#fffdf0,0_2px_0_#304550]"
-          data-poke-lounge-discord-login-confirm
+          className="max-h-[calc(100dvh-32px)] overflow-auto"
           onCloseAutoFocus={event => {
             event.preventDefault();
             trigger.current?.focus({ preventScroll: true });
@@ -163,13 +214,11 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
         >
           <AlertDialogHeader>
             <AlertDialogTitle>{text.title}</AlertDialogTitle>
-            <AlertDialogDescription className="text-[#405244]">
-              {text.description}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{text.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pending}>{text.cancel}</AlertDialogCancel>
-            <AlertDialogAction disabled={pending} onClick={handleLogin}>
+            <AlertDialogAction disabled={pending} onClick={handleLogout}>
               {text.confirm}
             </AlertDialogAction>
           </AlertDialogFooter>
