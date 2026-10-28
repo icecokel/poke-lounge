@@ -48,6 +48,7 @@ jobs:
           pnpm lint
           pnpm check:rust-room-contract
           pnpm check:rust-ts-constants
+          pnpm check:league-static
           pnpm check:poke-lounge-i18n
           pnpm check:poke-lounge-competitive-catalog
           pnpm check:poke-lounge-battle-resolution
