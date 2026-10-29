@@ -101,7 +101,16 @@ pub fn validate_claim(claim: &Value) -> Result<()> {
                 return None;
             }
             let slot = member["slotIndex"].as_u64().filter(|n| *n < 6)?;
-            let mon = Uuid::parse_str(member["monId"].as_str()?).ok()?;
+            let mon_id = member["monId"].as_str().filter(|id| id.len() == 36)?;
+            let mon = Uuid::parse_str(mon_id).ok()?;
+            // Match the judge's z.uuid(), including its nil and lowercase max exceptions.
+            if !mon.is_nil()
+                && mon_id != "ffffffff-ffff-ffff-ffff-ffffffffffff"
+                && (!(1..=8).contains(&mon.get_version_num())
+                    || mon.get_variant() != uuid::Variant::RFC4122)
+            {
+                return None;
+            }
             if !slots.insert(slot) || !mons.insert(mon) {
                 return None;
             }
