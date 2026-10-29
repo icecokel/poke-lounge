@@ -253,7 +253,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
       code => setNotice(code === "LEAGUE_MINT_LIMIT" ? copy.maxMints : copy.error),
     );
     return () => {
-      void sync.flush(true);
+      void sync.flush(true, true);
       sync.stop();
       stopMints();
     };
