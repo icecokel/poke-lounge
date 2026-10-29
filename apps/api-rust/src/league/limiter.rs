@@ -19,6 +19,9 @@ pub(super) fn first_this_second(slot: &AtomicU64) -> bool {
 #[derive(Clone, Copy)]
 pub enum Kind {
     Read,
+    Growth,
+    Mint,
+    Save,
     Entry,
     Match,
 }
@@ -28,6 +31,7 @@ struct Budget {
     all: u32,
     entries: u32,
     matches: u32,
+    growth: [u32; 4],
 }
 #[derive(Default)]
 pub struct Limiter(Mutex<HashMap<Uuid, Budget>>);
@@ -42,6 +46,7 @@ impl Limiter {
             all: 0,
             entries: 0,
             matches: 0,
+            growth: [0; 4],
         });
         if now.duration_since(b.since) >= Duration::from_secs(60) {
             *b = Budget {
@@ -50,6 +55,7 @@ impl Limiter {
                 all: 0,
                 entries: 0,
                 matches: 0,
+                growth: [0; 4],
             };
         }
         b.touched = now;
@@ -57,9 +63,16 @@ impl Limiter {
         match kind {
             Kind::Entry => b.entries = b.entries.saturating_add(1),
             Kind::Match => b.matches = b.matches.saturating_add(1),
+            Kind::Growth => b.growth[0] = b.growth[0].saturating_add(1),
+            Kind::Mint => b.growth[1] = b.growth[1].saturating_add(1),
+            Kind::Save => b.growth[3] = b.growth[3].saturating_add(1),
             Kind::Read => (),
         }
-        if b.all > 30
+        if b.growth
+            .iter()
+            .zip([6, 12, 8, 4])
+            .any(|(used, max)| *used > max)
+            || b.all > 30
             || (matches!(kind, Kind::Entry) && b.entries > 3)
             || (matches!(kind, Kind::Match) && b.matches > 6)
         {
