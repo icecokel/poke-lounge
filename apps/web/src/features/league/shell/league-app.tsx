@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DiscordAccountButton } from "@/components/poke-lounge/ui/discord-account-button";
 import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
@@ -16,10 +16,14 @@ import {
 import type { LeagueLocale, MeView, StatusView } from "../contract";
 import { getLeagueCopy } from "./copy";
 import { LEAGUE_ENGINE_VERSION } from "@poke-lounge/battle/league/engine-version";
+import { loadLeagueRuntime } from "./load-runtime";
+import { LeagueGrowthScreen } from "../growth/league-growth-screen";
+import { LeagueJudgedBattle } from "../battle/league-judged-battle";
+import type { LeagueRuntime } from "../contract";
 import { LeagueHome } from "./league-home";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
 
-type Screen = "boot" | "closed" | "login" | "home" | "attempt" | "error";
+type Screen = "boot" | "closed" | "login" | "home" | "attempt" | "growth" | "error";
 export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const text = getLeagueCopy(locale);
   const [screen, setScreen] = useState<Screen>("boot");
@@ -28,6 +32,22 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const [standings, setStandings] = useState<StandingsView | null>(null);
   const [attempt, setAttempt] = useState<AttemptView | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const runtimePromise = useRef<Promise<LeagueRuntime> | null>(null);
+  const [runtime, setRuntime] = useState<LeagueRuntime | null>(null);
+  async function openGrowth() {
+    setScreen("boot");
+    try {
+      runtimePromise.current ??= loadLeagueRuntime(locale).catch(error => {
+        runtimePromise.current = null;
+        throw error;
+      });
+      setRuntime(await runtimePromise.current);
+      setScreen("growth");
+    } catch (error) {
+      setError(error);
+      setScreen("error");
+    }
+  }
   const blocked = useRateLimitCooldown(error);
   const [receivedAt, setReceivedAt] = useState(0);
   const boot = useCallback(async () => {
@@ -109,9 +129,18 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
             versionMismatch={
               !!status.engineVersion && status.engineVersion !== LEAGUE_ENGINE_VERSION
             }
-            onGrowth={() => {}}
+            onGrowth={() => void openGrowth()}
             onEntry={() => {}}
             onResume={() => void boot()}
+          />
+        )}
+        {screen === "growth" && runtime && status && me && (
+          <LeagueGrowthScreen
+            runtime={runtime}
+            status={status}
+            me={me}
+            JudgedBattle={LeagueJudgedBattle}
+            onExit={() => void boot()}
           />
         )}
         {screen === "attempt" && attempt && (
