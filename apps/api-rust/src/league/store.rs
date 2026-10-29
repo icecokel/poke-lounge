@@ -742,9 +742,17 @@ impl League {
         let mut slot = self.db.client().await?;
         let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
         let tx = client.transaction().await?;
+        let season_id = views::integer(&original["season_id"])? as i32;
+        let season = self::season_id(&tx, season_id, "FOR SHARE").await?;
         lock_run(&tx, views::uuid(&original["run_id"])?).await?;
         let a = attempt(&tx, id, user, "FOR UPDATE").await?;
         if a["status"] == "active" {
+            if views::integer(&season["now_ms"])? > views::integer(&season["deadline_ms"])? {
+                tx.rollback().await?;
+                drop(slot);
+                self.expire_attempt(id).await?;
+                return Ok(json!({"attempt":views::summary(&self.read_attempt(id, user).await?)}));
+            }
             fail(&tx, &a, "forfeit").await?;
         } else if a["fail_reason"] != "forfeit" {
             return Err(LeagueError::new(409, "LEAGUE_ATTEMPT_NOT_ACTIVE"));
