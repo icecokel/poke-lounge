@@ -52,6 +52,51 @@ function leagueFiles(directory) {
   });
 }
 files.push(...leagueFiles(resolve(source, "league")));
+
+const visited = new Set();
+function visit(path, collected, browser) {
+  if (!browser && relative(source, path).startsWith("league/roster/")) return;
+  if (collected.has(path)) return;
+  collected.add(path);
+  if (!path.endsWith(".ts")) return;
+  const code = read(path);
+  const dependencies = [];
+  for (const match of code.matchAll(
+    /\b(?:import|export)\s+(?!type\b)([\s\S]*?)\s+from\s*["']([^"']+)["']/g,
+  )) {
+    const bindings = match[1].trim();
+    if (
+      bindings.startsWith("{") &&
+      bindings
+        .slice(1, -1)
+        .split(",")
+        .filter(value => value.trim())
+        .every(value => value.trim().startsWith("type "))
+    )
+      continue;
+    dependencies.push(match[2]);
+  }
+  for (const match of code.matchAll(
+    /\b(?:import\s*\(\s*|require\s*\(\s*|import\s*)["']([^"']+)["']/g,
+  ))
+    dependencies.push(match[1]);
+  for (const dependency of dependencies) {
+    if (browser && dependency.startsWith("node:"))
+      fail(`Node value import in browser graph: ${relative(root, path)} -> ${dependency}`);
+    if (!dependency.startsWith(".")) continue;
+    const base = resolve(dirname(path), dependency);
+    const target = [base + ".ts", resolve(base, "index.ts"), base + ".json", base].find(
+      candidate => existsSync(candidate) && !candidate.endsWith(".d.ts"),
+    );
+    if (!target) fail(`Unresolved league import: ${path} -> ${dependency}`);
+    visit(target, collected, browser);
+  }
+}
+for (const file of ["match", "carry", "score", "party", "hash"])
+  visit(resolve(source, `league/${file}.ts`), visited, true);
+const engineSources = new Set();
+for (const file of files) visit(resolve(source, file), engineSources, false);
+files.splice(0, files.length, ...[...engineSources].map(path => relative(source, path)));
 const fingerprint = {
   revision,
   simVersion,
@@ -76,45 +121,6 @@ if (process.argv.includes("--write")) {
   );
 }
 
-const visited = new Set();
-function visit(path) {
-  if (visited.has(path)) return;
-  visited.add(path);
-  const code = read(path);
-  const dependencies = [];
-  for (const match of code.matchAll(
-    /\b(?:import|export)\s+(?!type\b)([\s\S]*?)\s+from\s*["']([^"']+)["']/g,
-  )) {
-    const bindings = match[1].trim();
-    if (
-      bindings.startsWith("{") &&
-      bindings
-        .slice(1, -1)
-        .split(",")
-        .filter(value => value.trim())
-        .every(value => value.trim().startsWith("type "))
-    )
-      continue;
-    dependencies.push(match[2]);
-  }
-  for (const match of code.matchAll(
-    /\b(?:import\s*\(\s*|require\s*\(\s*|import\s*)["']([^"']+)["']/g,
-  ))
-    dependencies.push(match[1]);
-  for (const dependency of dependencies) {
-    if (dependency.startsWith("node:"))
-      fail(`Node value import in browser graph: ${relative(root, path)} -> ${dependency}`);
-    if (!dependency.startsWith(".")) continue;
-    const base = resolve(dirname(path), dependency);
-    const target = [base + ".ts", resolve(base, "index.ts"), base + ".json", base].find(
-      candidate => existsSync(candidate) && !candidate.endsWith(".d.ts"),
-    );
-    if (!target) fail(`Unresolved browser import: ${path} -> ${dependency}`);
-    if (target.endsWith(".ts")) visit(target);
-  }
-}
-for (const file of ["match", "carry", "score", "party", "hash"])
-  visit(resolve(source, `league/${file}.ts`));
 const contract = read(resolve(source, "league/contract.ts"));
 for (const [name, value] of [
   ["LEVEL_CAP", 50],
