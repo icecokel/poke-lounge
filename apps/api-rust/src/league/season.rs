@@ -5,13 +5,14 @@ use super::{
 };
 use serde_json::{Value, json};
 use std::{
-    sync::Arc,
+    sync::{Arc, OnceLock},
     time::{Duration, Instant},
 };
 use tokio::time::MissedTickBehavior;
 
 pub fn spawn(league: &Arc<League>) {
     let pool = starter_pool();
+    let _ = dev_minutes();
     let league = Arc::clone(league);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(60));
@@ -242,4 +243,39 @@ fn select_starters(pool: &[i16], previous: &[i16], seed: i64) -> (Vec<i16>, bool
     candidates.truncate(3);
     candidates.sort_unstable();
     (candidates, excluded)
+}
+
+pub(super) fn dev_minutes() -> Option<i32> {
+    static MINUTES: OnceLock<Option<i32>> = OnceLock::new();
+    *MINUTES.get_or_init(|| {
+        let raw = match std::env::var("LEAGUE_DEV_SEASON_MINUTES") {
+            Ok(raw) if raw.trim().is_empty() => return None,
+            Ok(raw) => raw,
+            Err(std::env::VarError::NotPresent) => return None,
+            Err(_) => {
+                tracing::warn!(event = "league.dev_season_invalid", reason = "encoding");
+                return None;
+            }
+        };
+        match raw.trim().parse::<i32>() {
+            Ok(minutes) if (10..=10080).contains(&minutes) => {
+                tracing::warn!(event = "league.dev_season_override", minutes);
+                Some(minutes)
+            }
+            _ => {
+                tracing::warn!(
+                    event = "league.dev_season_invalid",
+                    reason = "integer_or_range"
+                );
+                None
+            }
+        }
+    })
+}
+
+pub(super) fn timing(grace_hours: i32) -> (i32, i32, i32) {
+    match dev_minutes() {
+        Some(minutes) => (minutes, (minutes / 10).max(1), (minutes / 10).max(1)),
+        None => (27 * 24 * 60 + 18 * 60, 6 * 60, grace_hours * 60),
+    }
 }

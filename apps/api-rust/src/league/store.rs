@@ -45,7 +45,8 @@ impl League {
         let (Some(starts), Some(starters)) = (&self.config.starts_at, &self.config.starters) else {
             return Ok(());
         };
-        {
+        let (length, _, grace) = super::season::timing(self.config.grace_hours);
+        if super::season::dev_minutes().is_none() {
             let slot = self.db.client().await?;
             let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
             let aligned: bool = client.query_one("SELECT extract(isodow FROM ($1::text::timestamptz AT TIME ZONE 'Asia/Seoul')) = 1 AND ($1::text::timestamptz AT TIME ZONE 'Asia/Seoul')::time = time '00:00'", &[starts]).await?.try_get(0)?;
@@ -79,7 +80,7 @@ impl League {
         }
         let mut slot = self.db.client().await?;
         let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
-        client.execute("INSERT INTO poke_lounge_league_season (id,starts_at,closes_at,settle_deadline,starter_species_ids,starter_level,rules_version,engine_version,roster_version,npc_seeds,badge_npcs) SELECT 1,$1::text::timestamptz,$1::text::timestamptz+interval '27 days 18 hours',$1::text::timestamptz+interval '27 days 18 hours'+make_interval(hours=>$2),$3,$4,$5,$6,$7,$8,$9 WHERE NOT EXISTS (SELECT 1 FROM poke_lounge_league_season) ON CONFLICT DO NOTHING", &[starts,&self.config.grace_hours,starters,&self.config.starter_level,&self.config.rules_version,&health.engine,&health.roster,&roster["npcSeeds"],&roster["badgeNpcs"]]).await?;
+        client.execute("INSERT INTO poke_lounge_league_season (id,starts_at,closes_at,settle_deadline,starter_species_ids,starter_level,rules_version,engine_version,roster_version,npc_seeds,badge_npcs) SELECT 1,$1::text::timestamptz,$1::text::timestamptz+make_interval(mins=>$10),$1::text::timestamptz+make_interval(mins=>$10)+make_interval(mins=>$2),$3,$4,$5,$6,$7,$8,$9 WHERE NOT EXISTS (SELECT 1 FROM poke_lounge_league_season) ON CONFLICT DO NOTHING", &[starts,&grace,starters,&self.config.starter_level,&self.config.rules_version,&health.engine,&health.roster,&roster["npcSeeds"],&roster["badgeNpcs"],&length]).await?;
         Ok(())
     }
     pub async fn status(&self) -> Result<Value> {
@@ -952,7 +953,8 @@ impl League {
             &[&id],
         )
         .await?;
-        let created = tx.query_one("INSERT INTO poke_lounge_league_season (id,starts_at,closes_at,settle_deadline,starter_species_ids,starter_level,rules_version,engine_version,roster_version,npc_seeds,badge_npcs,starter_source,starter_seed) SELECT $1,GREATEST(p.closes_at+interval '6 hours',now()),p.closes_at+interval '6 hours'+interval '27 days 18 hours',p.closes_at+interval '6 hours'+interval '27 days 18 hours'+make_interval(hours=>$2),$3,$4,$5,$6,$7,$8,$9,$10,$11 FROM poke_lounge_league_season p WHERE p.id=$12 RETURNING (extract(epoch FROM starts_at)*1000)::bigint AS starts_ms,(extract(epoch FROM closes_at)*1000)::bigint AS closes_ms,starts_at>now() AS scheduled", &[&next_id,&self.config.grace_hours,&next.starter_species_ids,&next.starter_level,&next.rules_version,&next.engine_version,&next.roster_version,&next.npc_seeds,&next.badge_npcs,&source,&seed,&id]).await?;
+        let (length, gap, grace) = super::season::timing(self.config.grace_hours);
+        let created = tx.query_one("INSERT INTO poke_lounge_league_season (id,starts_at,closes_at,settle_deadline,starter_species_ids,starter_level,rules_version,engine_version,roster_version,npc_seeds,badge_npcs,starter_source,starter_seed) SELECT $1,GREATEST(p.closes_at+make_interval(mins=>$13),now()),p.closes_at+make_interval(mins=>$13)+make_interval(mins=>$14),p.closes_at+make_interval(mins=>$13)+make_interval(mins=>$14)+make_interval(mins=>$2),$3,$4,$5,$6,$7,$8,$9,$10,$11 FROM poke_lounge_league_season p WHERE p.id=$12 RETURNING (extract(epoch FROM starts_at)*1000)::bigint AS starts_ms,(extract(epoch FROM closes_at)*1000)::bigint AS closes_ms,starts_at>now() AS scheduled", &[&next_id,&grace,&next.starter_species_ids,&next.starter_level,&next.rules_version,&next.engine_version,&next.roster_version,&next.npc_seeds,&next.badge_npcs,&source,&seed,&id,&gap,&length]).await?;
         tx.commit().await?;
         tracing::info!(
             event = "league.season_settled",
