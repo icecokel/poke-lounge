@@ -281,12 +281,29 @@ impl League {
     ) -> Result<Value> {
         let result = super::db::retry(|| self.enter_once(user, run, key, claim)).await;
         match result {
+            Err(e) if e.code == "LEAGUE_RUN_NOT_ACTIVE" || e.code == "LEAGUE_BADGES_REQUIRED" => {
+                if let Some(existing) = self.entry_by_key(user, key).await? {
+                    return Ok(existing);
+                }
+                if let Some(a) = self
+                    .current_attempt(user)
+                    .await?
+                    .filter(|a| a["status"] == "active")
+                {
+                    return Err(LeagueError::new(409, "LEAGUE_ATTEMPT_ACTIVE")
+                        .detail(json!({"attemptId":a["id"]})));
+                }
+                Err(e)
+            }
             Err(e) if e.constraint.as_deref() == Some("UQ_poke_lounge_league_attempt_entry") => {
                 self.entry_by_key(user, key)
                     .await?
                     .ok_or_else(LeagueError::unavailable)
             }
             Err(e) if e.constraint.as_deref() == Some("UQ_poke_lounge_league_attempt_active") => {
+                if let Some(existing) = self.entry_by_key(user, key).await? {
+                    return Ok(existing);
+                }
                 Err(LeagueError::new(409, "LEAGUE_ATTEMPT_ACTIVE").detail(
                     json!({"attemptId":self.current_attempt(user).await?.map(|a| a["id"].clone())}),
                 ))
