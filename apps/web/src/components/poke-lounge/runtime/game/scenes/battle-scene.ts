@@ -404,6 +404,11 @@ const COMMANDS: Array<{ label: (typeof BATTLE_COMMAND_LABELS)[number]; command: 
 ];
 
 export interface BattleControllerOptions {
+  experiencePolicy?: {
+    experienceMultiplier: number;
+    sharePartyExperience: boolean;
+    partyExperienceRatio: number;
+  };
   battleUiStore: BattleUiStore;
   gameStateStore?: GameStateStore;
   keyboard: RuntimeKeyboard;
@@ -1321,17 +1326,22 @@ export class BattleController {
     if (isWildBattleSceneData(data)) {
       const localPlayer = this.gameStateStore.getCurrentLocalPlayer();
 
+      // The factory type lists room presets; its runtime accepts numeric league policies.
       return createWildBattleState({
         encounter: data.encounter,
-        experienceMultiplier: getExperienceMultiplier(
-          this.gameStateStore.getState().round.preparationDurationMs,
-        ),
-        sharePartyExperience: sharesPartyExperience(
-          this.gameStateStore.getState().round.preparationDurationMs,
-        ),
-        partyExperienceRatio: getPartyExperienceRatio(
-          this.gameStateStore.getState().round.preparationDurationMs,
-        ),
+        experienceMultiplier:
+          (this.options.experiencePolicy?.experienceMultiplier as Parameters<
+            typeof createWildBattleState
+          >[0]["experienceMultiplier"]) ??
+          getExperienceMultiplier(this.gameStateStore.getState().round.preparationDurationMs),
+        sharePartyExperience:
+          this.options.experiencePolicy?.sharePartyExperience ??
+          sharesPartyExperience(this.gameStateStore.getState().round.preparationDurationMs),
+        partyExperienceRatio:
+          (this.options.experiencePolicy?.partyExperienceRatio as Parameters<
+            typeof createWildBattleState
+          >[0]["partyExperienceRatio"]) ??
+          getPartyExperienceRatio(this.gameStateStore.getState().round.preparationDurationMs),
         playerPokemon:
           localPlayer.party.find(function findItem(slot) {
             return slot.slotIndex === localPlayer.activePartySlotIndex;

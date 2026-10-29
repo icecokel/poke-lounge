@@ -27,6 +27,11 @@ export interface PokeLoungeGameResult {
 }
 
 export interface PokeLoungeGameOptions {
+  battleExperiencePolicy?: {
+    experienceMultiplier: number;
+    sharePartyExperience: boolean;
+    partyExperienceRatio: number;
+  };
   runtimeAssets: PokeLoungeRuntimeAssets;
   initialScene?: InitialGameScene;
   battleUiStore: BattleUiStore;
@@ -95,6 +100,7 @@ export function createPokeLoungeGame(
     worldUiStore: options.worldUiStore,
   });
   const battleController = new BattleController({
+    experiencePolicy: options.battleExperiencePolicy,
     battleUiStore: options.battleUiStore,
     gameStateStore,
     keyboard,
