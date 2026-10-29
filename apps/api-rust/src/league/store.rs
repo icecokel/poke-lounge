@@ -784,17 +784,12 @@ impl League {
     }
 }
 
-#[allow(dead_code, reason = "F6 scheduler is added in the next commit")]
 pub enum StarterSource {
     Plan,
     Pool { seed: i64 },
 }
 
 /// F6 supplies the next season policy; settlement and creation share one transaction.
-#[allow(
-    dead_code,
-    reason = "F6 adds the season scheduler in the next implementation round"
-)]
 pub struct NextSeason {
     pub starter_species_ids: Vec<i16>,
     pub starter_level: i16,
@@ -876,17 +871,9 @@ impl League {
         }
         Ok(())
     }
-    #[allow(
-        dead_code,
-        reason = "F6 adds the season scheduler in the next implementation round"
-    )]
     pub async fn settle_season(&self, id: i32, next: &NextSeason) -> Result<bool> {
         super::db::retry(|| self.settle_once(id, next)).await
     }
-    #[allow(
-        dead_code,
-        reason = "F6 adds the season scheduler in the next implementation round"
-    )]
     async fn settle_once(&self, id: i32, next: &NextSeason) -> Result<bool> {
         let next_id = id.checked_add(1).ok_or_else(LeagueError::corrupt)?;
         if !(3..=6).contains(&next.starter_species_ids.len())
