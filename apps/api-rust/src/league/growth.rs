@@ -31,6 +31,8 @@ pub fn routes() -> Router<AppState> {
         .route("/league/v1/runs", post(start))
         .route("/league/v1/runs/{id}/save", get(load).put(save))
         .route("/league/v1/runs/{id}/mints", post(mint))
+        .route("/league/v1/runs/{id}/badge-battles", post(badge_start))
+        .route("/league/v1/badge-battles/{id}/result", post(badge_result))
 }
 async fn user(state: &AppState, headers: &HeaderMap, l: &League, kind: Kind) -> Result<Uuid> {
     let (id, _) = current_user(state, headers)
@@ -139,4 +141,37 @@ async fn mint(
     Ok(success(
         db::retry(|| l.growth_mint(user, id, b.species_id, b.level, b.request_key)).await?,
     ))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BadgeStart {
+    party: Value,
+    request_key: Uuid,
+}
+async fn badge_start(
+    State(state): State<AppState>,
+    Extension(l): Extension<Arc<League>>,
+    headers: HeaderMap,
+    id: std::result::Result<Path<Uuid>, PathRejection>,
+    input: std::result::Result<Json<BadgeStart>, JsonRejection>,
+) -> Result<Json<Value>> {
+    let user = user(&state, &headers, &l, Kind::Badge).await?;
+    let id = path(id)?;
+    let b = body(input, "LEAGUE_PARTY_INVALID")?;
+    Ok(success(
+        db::retry(|| l.growth_badge_start(user, id, b.request_key, &b.party)).await?,
+    ))
+}
+async fn badge_result(
+    State(state): State<AppState>,
+    Extension(l): Extension<Arc<League>>,
+    headers: HeaderMap,
+    id: std::result::Result<Path<Uuid>, PathRejection>,
+    input: std::result::Result<Json<Value>, JsonRejection>,
+) -> Result<Json<Value>> {
+    let user = user(&state, &headers, &l, Kind::Badge).await?;
+    let id = path(id)?;
+    let b = body(input, "LEAGUE_INPUT_REJECTED")?;
+    Ok(success(l.growth_badge_result(user, id, &b).await?))
 }

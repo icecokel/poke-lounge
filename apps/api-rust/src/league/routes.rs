@@ -151,6 +151,7 @@ async fn enter(
 ) -> Result<Json<Value>> {
     let (id, _) = user(&state, &headers, &l, Kind::Entry).await?;
     let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_PARTY_INVALID"))?;
+    db::retry(|| l.growth_check_entry(id, body.run_id, body.entry_key, &body.party)).await?;
     Ok(success(
         l.enter_attempt(id, body.run_id, body.entry_key, &body.party)
             .await?,
