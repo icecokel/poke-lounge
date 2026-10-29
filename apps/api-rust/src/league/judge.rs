@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
 
-const RETRYABLE_JUDGE_CODES: &[&str] = &["JUDGE_UNAVAILABLE", "PARTY_CHECK_UNAVAILABLE"];
+const RETRYABLE_JUDGE_CODES: &[&str] = &["JUDGE_UNAVAILABLE"];
 
 #[derive(Clone)]
 pub struct Health {
@@ -145,6 +145,7 @@ impl Judge {
                         .detail(json!({"kind":code,"at":body["detail"]["at"]}))
                 }
                 "ROSTER_NOT_READY" => LeagueError::new(503, "LEAGUE_ROSTER_NOT_READY"),
+                "PARTY_CHECK_UNAVAILABLE" => unavailable(),
                 code if RETRYABLE_JUDGE_CODES.contains(&code) => unavailable(),
                 _ => judge_failed(),
             };
