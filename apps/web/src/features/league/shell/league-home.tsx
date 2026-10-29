@@ -89,13 +89,16 @@ export function LeagueHome({
             <p>
               {formatKst(season.startsAtMs, locale)} → {formatKst(season.closesAtMs, locale)}
             </p>
-            {phase === "closing" && (
+            {(phase === "open" || phase === "closing") && (
               <p>
+                {phase === "closing" && (
+                  <>{leagueText(locale, "마감됨", "Closed", "入場締切")} — </>
+                )}
                 {leagueText(
                   locale,
-                  "마감됨 — 진행 중 도전 인정 기한",
-                  "Closed — active challenges accepted until",
-                  "入場締切 — 進行中の挑戦の受付期限",
+                  "진행 중 도전 인정 기한",
+                  "active challenges accepted until",
+                  "進行中の挑戦の受付期限",
                 )}{" "}
                 {formatKst(season.settleDeadlineMs, locale)}
               </p>
