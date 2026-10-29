@@ -88,6 +88,14 @@ async fn run_started<C: GenericClient + Sync>(c: &C, r: &Value) -> Result<Value>
         .ok_or_else(LeagueError::corrupt)?;
     Ok(json!({"run":views::run(r),"starter":public_mon(&starter),"growth":growth(r)}))
 }
+fn badge_start_error(error: LeagueError) -> LeagueError {
+    if error.code == "LEAGUE_ENGINE_RETIRED" {
+        LeagueError::new(503, "LEAGUE_JUDGE_UNAVAILABLE")
+    } else {
+        error
+    }
+}
+
 impl League {
     async fn mint_values(
         &self,
@@ -531,11 +539,12 @@ impl League {
         validate_badge_claim(claim)?;
         let checked = self
             .check_growth_party(&r, &s, claim, "badge", &records)
-            .await?;
+            .await
+            .map_err(badge_start_error)?;
         let index = views::integer(&r["badges"])? as i16;
         let npc = &s["badge_npcs"][index as usize];
         let health = self.judge.health().await?;
-        let prepared=self.judge.call(&health.engine,json!({"kind":"prepare-badge","badgeIndex":index,"claim":claim,"mons":records,"npc":npc})).await?;
+        let prepared=self.judge.call(&health.engine,json!({"kind":"prepare-badge","badgeIndex":index,"claim":claim,"mons":records,"npc":npc})).await.map_err(badge_start_error)?;
         if !views::hash(&prepared["carryHash"], 16)
             || !prepared["composition"].is_object()
             || !prepared["challengerParty"].is_object()

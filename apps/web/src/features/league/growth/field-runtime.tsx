@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { getPokeLoungeCopy } from "@/components/poke-lounge/poke-lounge-copy";
 import { createPokeLoungeGame } from "@/components/poke-lounge/runtime/game/create-poke-lounge-game";
-import { createBattleUiStore } from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
+import type { BattleUiStore } from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
 import { BattleScreen } from "@/components/poke-lounge/runtime/game/battle/battle-screen";
 import { WorldScreen } from "@/components/poke-lounge/runtime/game/world/world-screen";
 import { createWorldFrameStore } from "@/components/poke-lounge/runtime/game/world/world-frame-store";
@@ -26,6 +26,7 @@ import { createLeagueOfflineRoom } from "./offline-room";
 export function LeagueFieldRuntime({
   runtime,
   store,
+  battleStore,
   expMultiplierPermille,
   model: injectedModel,
   challenger,
@@ -33,6 +34,7 @@ export function LeagueFieldRuntime({
 }: {
   runtime: LeagueRuntime;
   store: GameStateStore;
+  battleStore: BattleUiStore;
   expMultiplierPermille: number;
   model?: WorldMapModel;
   challenger?: { hint: string; onInteract(): void };
@@ -47,10 +49,10 @@ export function LeagueFieldRuntime({
       frame,
       world: createWorldRuntime(model, frame),
       ui: createWorldUiStore(),
-      battle: createBattleUiStore(),
+      battle: battleStore,
       atlas: createWorldPlayerAtlasModel(runtime.runtimeAssets.playerAtlas.data),
     };
-  }, [runtime, injectedModel]);
+  }, [runtime, injectedModel, battleStore]);
   const snapshot = useSyncExternalStore(
     resources.battle.subscribe,
     resources.battle.getSnapshot,

@@ -24,15 +24,27 @@ export function NicknameForm({
           const result = await setLeagueNickname(value);
           onSaved(result.nickname);
         } catch (error) {
-          setError(
+          const detail = error instanceof LeagueApiError ? error.detail : undefined;
+          const fields =
+            detail && typeof detail === "object" ? (detail as Record<string, unknown>) : {};
+          const message =
             error instanceof LeagueApiError
               ? error.code === "LEAGUE_NICKNAME_TAKEN"
                 ? copy.nicknameTaken
                 : error.code === "LEAGUE_NICKNAME_COOLDOWN"
                   ? copy.nicknameCooldown
                   : copy.nicknameInvalid
-              : copy.nicknameNetwork,
-          );
+              : copy.nicknameNetwork;
+          const when =
+            typeof fields.changeableAtMs === "number" && Number.isFinite(fields.changeableAtMs)
+              ? new Date(fields.changeableAtMs).toLocaleString()
+              : "";
+          const reasons = Array.isArray(fields.reasons)
+            ? fields.reasons
+                .filter((reason): reason is string => typeof reason === "string")
+                .join(", ")
+            : "";
+          setError([message, when, reasons].filter(Boolean).join(" · "));
         } finally {
           setPending(false);
         }

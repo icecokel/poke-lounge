@@ -34,6 +34,10 @@ import { NicknameForm } from "./nickname-form";
 import { StarterSelect } from "./starter-select";
 import { LeagueFieldRuntime } from "./field-runtime";
 import { GrowthHud } from "./growth-hud";
+import {
+  createBattleUiStore,
+  type BattleUiStore,
+} from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
 import { createWorldMapModel } from "@/components/poke-lounge/runtime/game/world/world-map-model";
 import { localizeTrainerName } from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
 import { BadgeFlow, BadgeMoveLearning } from "./badge-flow";
@@ -44,6 +48,7 @@ import { growthCopy } from "./copy";
 export interface GrowthSession {
   storage: LeagueSaveStorage;
   store: GameStateStore;
+  battle: BattleUiStore;
 }
 function initialSave(
   result: GrowthStart,
@@ -153,12 +158,15 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
     image.src = GYM_SPRITES[gym.npcKey]!;
   }, [gym]);
   const closed = useCallback(() => {
-    cleanLeagueSaves(null);
     exitRef.current("run-changed");
   }, []);
   const activate = useCallback((save: LeagueSaveEnvelope) => {
     const storage = createLeagueSaveStorage(save);
-    setSession({ storage, store: createGameStateStore({ storage }) });
+    setSession({
+      storage,
+      store: createGameStateStore({ storage }),
+      battle: createBattleUiStore(),
+    });
   }, []);
   const runId = run?.id;
   const seasonId = status.season?.id;
@@ -225,17 +233,22 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
     copy.saveInvalid,
   ]);
   useEffect(() => {
-    if (!session) return;
+    if (!session || conflict) return;
+    let stopMints = () => {};
     const sync = startServerSaveSync(
       session.storage,
       setSaving,
-      remote => setConflict({ local: structuredClone(session.storage.getEnvelope()), remote }),
+      remote => {
+        stopMints();
+        setConflict({ local: structuredClone(session.storage.getEnvelope()), remote });
+      },
       closed,
     );
-    const stopMints = startLeagueMintQueue(
+    stopMints = startLeagueMintQueue(
       session.store,
       session.storage,
       runtime.runtimeAssets,
+      session.battle,
       closed,
       code => setNotice(code === "LEAGUE_MINT_LIMIT" ? copy.maxMints : copy.error),
     );
@@ -244,7 +257,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
       sync.stop();
       stopMints();
     };
-  }, [session, runtime, closed, copy.maxMints, copy.error]);
+  }, [session, runtime, closed, conflict, copy.maxMints, copy.error]);
   function chooseSave(save: LeagueSaveEnvelope) {
     if (!conflict) return;
     const selected = {
@@ -348,6 +361,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         model={model}
         challenger={challenger}
         store={session.store}
+        battleStore={session.battle}
         expMultiplierPermille={session.storage.getEnvelope().league.growth.expMultiplierPermille}
         onExit={() => onExit("home")}
       />

@@ -54,7 +54,7 @@ export function startServerSaveSync(
   }
   async function flush(keepalive = false) {
     if (stopped || paused || busy || !storage.getEnvelope().dirty) return;
-    if (!keepalive && Date.now() - lastUpload < 30000) {
+    if (Date.now() - lastUpload < 30000) {
       schedule();
       return;
     }
@@ -78,7 +78,11 @@ export function startServerSaveSync(
       if (!stopped) onStatus("saved");
     } catch (error) {
       if (stopped) return;
-      if (error instanceof LeagueApiError && error.code === "LEAGUE_RUN_NOT_ACTIVE") {
+      if (error instanceof LeagueApiError && error.code === "LEAGUE_SAVE_TOO_LARGE") {
+        onStatus("too-large");
+      } else if (error instanceof LeagueApiError && error.code === "LEAGUE_SAVE_KEEPALIVE_LIMIT") {
+        onStatus("local");
+      } else if (error instanceof LeagueApiError && error.code === "LEAGUE_RUN_NOT_ACTIVE") {
         paused = true;
         onRunClosed();
       } else if (error instanceof LeagueApiError && error.code === "LEAGUE_SAVE_CONFLICT") {

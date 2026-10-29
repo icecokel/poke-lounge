@@ -1,8 +1,12 @@
 import type {
   GameStateStorage,
   LocalPlayersSaveState,
+  PlayerPokemon,
 } from "@/features/poke-lounge/contracts/game-state";
 import { sanitizeLocalPlayersSaveState } from "@/components/poke-lounge/runtime/game/state/poke-lounge-save-snapshot";
+import { normalizeGen4Traits } from "@poke-lounge/battle/gen4/traits";
+import { GEN4_STATUSES } from "@poke-lounge/battle/gen4/types";
+import { isRecord } from "@/lib/is-record";
 import type { LeagueGrowthView } from "../contract";
 
 export interface LeagueSaveEnvelope {
@@ -44,6 +48,64 @@ function storages(): Storage[] {
   }
   return result;
 }
+function sanitizeLeagueGame(value: unknown): LocalPlayersSaveState | null {
+  if (!isRecord(value) || !isRecord(value.playersById)) return null;
+  // The shared legacy sanitizer supports fewer statuses and omits Gen4 traits.
+  const compatiblePokemon = (pokemon: unknown) =>
+    isRecord(pokemon) && GEN4_STATUSES.includes(pokemon.status as PlayerPokemon["status"] & string)
+      ? { ...pokemon, status: "normal" }
+      : pokemon;
+  const playersById = Object.fromEntries(
+    Object.entries(value.playersById).map(([id, player]) => [
+      id,
+      isRecord(player)
+        ? {
+            ...player,
+            party: Array.isArray(player.party)
+              ? player.party.map(slot =>
+                  isRecord(slot) ? { ...slot, pokemon: compatiblePokemon(slot.pokemon) } : slot,
+                )
+              : player.party,
+            pokemonBox: Array.isArray(player.pokemonBox)
+              ? player.pokemonBox.map(compatiblePokemon)
+              : player.pokemonBox,
+          }
+        : player,
+    ]),
+  );
+  const game = sanitizeLocalPlayersSaveState({ ...value, playersById });
+  if (!game) return null;
+  const original = value as unknown as LocalPlayersSaveState;
+  const restore = (pokemon: PlayerPokemon, source: PlayerPokemon): PlayerPokemon => ({
+    ...pokemon,
+    ...normalizeGen4Traits(pokemon.speciesId, {
+      natureId: source.natureId,
+      abilityId: source.abilityId,
+      heldItemId: source.heldItemId,
+      effortValues: source.effortValues,
+      happiness: source.happiness,
+      statusTurns: Number.isFinite(source.statusTurns) ? source.statusTurns : undefined,
+    }),
+    ...(source.status === undefined ? {} : { status: source.status }),
+    ...Object.fromEntries(
+      ["attack", "defense", "speed"].flatMap(key => {
+        const stat = source[key as "attack" | "defense" | "speed"];
+        return Number.isSafeInteger(stat) && stat! >= 0 ? [[key, stat]] : [];
+      }),
+    ),
+  });
+  for (const [id, player] of Object.entries(game.playersById)) {
+    const source = original.playersById[id]!;
+    player.party = player.party.map((slot, i) => ({
+      ...slot,
+      pokemon: slot.pokemon ? restore(slot.pokemon, source.party[i]!.pokemon!) : null,
+    }));
+    player.pokemonBox = player.pokemonBox.map((pokemon, i) =>
+      restore(pokemon, source.pokemonBox[i]!),
+    );
+  }
+  return game;
+}
 export function parseLeagueSave(
   value: unknown,
   runId: string,
@@ -51,7 +113,7 @@ export function parseLeagueSave(
 ): LeagueSaveEnvelope | null {
   if (!value || typeof value !== "object") return null;
   const save = value as LeagueSaveEnvelope;
-  const game = sanitizeLocalPlayersSaveState(save.game);
+  const game = sanitizeLeagueGame(save.game);
   if (
     save.version !== 1 ||
     save.runId !== runId ||
@@ -140,7 +202,7 @@ export function createLeagueSaveStorage(initial: LeagueSaveEnvelope): LeagueSave
     getEnvelope: () => save,
     loadLocalPlayers: () => save.game,
     saveLocalPlayers(game) {
-      const clean = sanitizeLocalPlayersSaveState(game);
+      const clean = sanitizeLeagueGame(game);
       if (!clean) return;
       const next = checkpointSignature(clean);
       save = { ...save, game: clean };

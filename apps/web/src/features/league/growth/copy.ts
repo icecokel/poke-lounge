@@ -18,6 +18,8 @@ const ko = {
   saved: "저장됨",
   local: "로컬 저장",
   saveError: "서버 저장 실패",
+  saveTooLarge:
+    "세이브가 서버 저장 한도를 넘었습니다. 이 기기의 진행은 유지됩니다. 다른 기기에서 이어하기 전에 다시 저장하세요.",
   conflict: "세이브 충돌",
   localSave: "이 기기",
   serverSave: "서버 세이브",
@@ -64,6 +66,8 @@ const en: typeof ko = {
   saved: "Saved",
   local: "Saved locally",
   saveError: "Server save failed",
+  saveTooLarge:
+    "Save exceeds the server limit. Progress is kept on this device. Save again before continuing on another device.",
   conflict: "Save conflict",
   localSave: "This device",
   serverSave: "Server save",
@@ -110,6 +114,8 @@ const ja: typeof ko = {
   saved: "保存済み",
   local: "端末に保存済み",
   saveError: "サーバー保存失敗",
+  saveTooLarge:
+    "セーブがサーバーの上限を超えました。この端末の進行は保持されます。別の端末で続ける前に再保存してください。",
   conflict: "セーブの競合",
   localSave: "この端末",
   serverSave: "サーバー",

@@ -70,14 +70,16 @@ impl Limiter {
             Kind::Save => b.growth[3] = b.growth[3].saturating_add(1),
             Kind::Read => (),
         }
-        if b.growth
-            .iter()
-            .zip([6, 12, 8, 4])
-            .any(|(used, max)| *used > max)
-            || b.all > 30
-            || (matches!(kind, Kind::Entry) && b.entries > 3)
-            || (matches!(kind, Kind::Match) && b.matches > 6)
-        {
+        let over_kind_limit = match kind {
+            Kind::Growth => b.growth[0] > 6,
+            Kind::Mint => b.growth[1] > 12,
+            Kind::Badge => b.growth[2] > 8,
+            Kind::Save => b.growth[3] > 4,
+            Kind::Entry => b.entries > 3,
+            Kind::Match => b.matches > 6,
+            Kind::Read => false,
+        };
+        if over_kind_limit || b.all > 30 {
             return Err(LeagueError::new(429, "LEAGUE_RATE_LIMITED"));
         }
         Ok(())

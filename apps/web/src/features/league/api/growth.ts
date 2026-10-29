@@ -8,6 +8,7 @@ import type {
 } from "@poke-lounge/battle/league/contract";
 import type { LeagueGrowthView, RunView } from "../contract";
 import type { LeagueSaveEnvelope } from "../growth/league-save";
+import { encodeLeagueSave, decodeLeagueSave } from "../growth/save-codec";
 import { leagueRequest } from "./core";
 export interface GrowthStart {
   run: RunView;
@@ -40,8 +41,12 @@ export interface BadgeSubmission {
 }
 export const startLeagueGrowth = (starterSpeciesId: number, requestKey: string) =>
   leagueRequest<GrowthStart>("/runs", { method: "POST", body: { starterSpeciesId, requestKey } });
-export const loadLeagueSave = (runId: string) => leagueRequest<GrowthSave>(`/runs/${runId}/save`);
-export const uploadLeagueSave = (
+export async function loadLeagueSave(runId: string): Promise<GrowthSave> {
+  const result = await leagueRequest<GrowthSave>(`/runs/${runId}/save`);
+  if (result.save) result.save.data = await decodeLeagueSave(result.save.data);
+  return result;
+}
+export const uploadLeagueSave = async (
   runId: string,
   baseRev: number,
   data: LeagueSaveEnvelope,
@@ -49,7 +54,7 @@ export const uploadLeagueSave = (
 ) =>
   leagueRequest<{ rev: number; savedAtMs: number }>(`/runs/${runId}/save`, {
     method: "PUT",
-    body: { baseRev, data },
+    body: { baseRev, data: await encodeLeagueSave(data, baseRev, keepalive) },
     keepalive,
   });
 export const mintLeagueCapture = (

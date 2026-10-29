@@ -8,7 +8,10 @@ import {
   type LeagueMatchProgress,
 } from "@poke-lounge/battle/league/match";
 import { leagueTrainerExperience } from "@poke-lounge/battle/league/growth/experience";
-import { getRuntimeGrowthExperienceTable } from "@poke-lounge/battle/adventure/data/game-data-json";
+import {
+  getRuntimeGrowthExperienceTable,
+  getRuntimePokemonSpeciesGrowthRate,
+} from "@poke-lounge/battle/adventure/data/game-data-json";
 import {
   localizeMoveName,
   localizePokemonName,
@@ -84,15 +87,16 @@ function applyBadgeGrowth(
     const pokemon = slot.pokemon;
     const final = end.members.find(m => m.slotIndex === slot.slotIndex);
     if (!pokemon || !final) return slot;
+    const growthRate =
+      pokemon.growthRate ?? getRuntimePokemonSpeciesGrowthRate(pokemon.speciesId) ?? 0;
     const gain = applyExperienceGain({
       currentExperience: pokemon.experience ?? 0,
       currentLevel: pokemon.level,
-      growthRate: pokemon.growthRate ?? 0,
+      growthRate,
       gainedExperience: gainBySlot.get(slot.slotIndex) ?? 0,
     });
     if (gain.level === 100)
-      gain.experience =
-        getRuntimeGrowthExperienceTable(pokemon.growthRate ?? 0)[100] ?? gain.experience;
+      gain.experience = getRuntimeGrowthExperienceTable(growthRate)[100] ?? gain.experience;
     const after = {
       ...pokemon,
       ...gain,

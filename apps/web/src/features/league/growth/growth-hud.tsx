@@ -30,13 +30,15 @@ export function GrowthHud({
         </span>
       )}
       <span>
-        {status === "saved"
-          ? copy.saved
-          : status === "saving"
-            ? copy.saving
-            : status === "error"
-              ? copy.saveError
-              : copy.local}
+        {status === "too-large"
+          ? copy.saveTooLarge
+          : status === "saved"
+            ? copy.saved
+            : status === "saving"
+              ? copy.saving
+              : status === "error"
+                ? copy.saveError
+                : copy.local}
       </span>
       <span>
         {copy.pending} {save.league.pendingMints.length}

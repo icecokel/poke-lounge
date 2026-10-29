@@ -14,12 +14,15 @@ import { getIndividualValueKey } from "@poke-lounge/battle/adventure/battle/indi
 import { evolvedGen4Ability } from "@poke-lounge/battle/gen4/traits";
 import { LeagueApiError } from "../api/core";
 import { mintLeagueCapture } from "../api/growth";
-import type { LeagueSaveStorage } from "./league-save";
+import type { BattleUiStore } from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
+import type { LeagueMintedMon } from "@poke-lounge/battle/league/contract";
+import type { LeagueSaveEnvelope, LeagueSaveStorage } from "./league-save";
 
 export function startLeagueMintQueue(
   store: GameStateStore,
   storage: LeagueSaveStorage,
   assets: PokeLoungeRuntimeAssets,
+  battle: BattleUiStore,
   onRunClosed: () => void,
   onError: (code: string) => void,
 ) {
@@ -27,9 +30,13 @@ export function startLeagueMintQueue(
   let busy = false;
   let changing = false;
   let retry = 0;
+  let completed: {
+    pending: LeagueSaveEnvelope["league"]["pendingMints"][number];
+    mon: LeagueMintedMon;
+  } | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   function observe() {
-    if (stopped || changing) return;
+    if (stopped || changing || battle.getSnapshot().presentation) return;
     const player = store.getCurrentLocalPlayer();
     const league = storage.getEnvelope().league;
     const newcomers = [
@@ -75,17 +82,22 @@ export function startLeagueMintQueue(
     if (!busy && !timer && retry <= 5) void process();
   }
   async function process() {
-    const pending = storage.getEnvelope().league.pendingMints[0];
-    if (stopped || busy || !pending) return;
+    const pending = completed?.pending ?? storage.getEnvelope().league.pendingMints[0];
+    if (stopped || busy || !pending || battle.getSnapshot().presentation) return;
     busy = true;
     try {
-      const mon = await mintLeagueCapture(
-        storage.getEnvelope().runId,
-        pending.speciesId,
-        pending.level,
-        pending.requestKey,
-      );
+      const mon =
+        completed?.mon ??
+        (await mintLeagueCapture(
+          storage.getEnvelope().runId,
+          pending.speciesId,
+          pending.level,
+          pending.requestKey,
+        ));
       if (stopped) return;
+      completed = { pending, mon };
+      // Battle settlement rewrites the whole party before clearing its presentation.
+      if (battle.getSnapshot().presentation) return;
       changing = true;
       const player = store.getCurrentLocalPlayer();
       const replace = (pokemon: PlayerPokemon): PlayerPokemon => {
@@ -150,6 +162,7 @@ export function startLeagueMintQueue(
       storage.replace(nextSave, true);
       store.upsertLocalPlayer(nextPlayer);
       changing = false;
+      completed = null;
       retry = 0;
     } catch (error) {
       if (stopped) return;
@@ -186,6 +199,7 @@ export function startLeagueMintQueue(
       void process();
   }
   const unsubscribe = store.subscribe(observe);
+  const unsubscribeBattle = battle.subscribe(observe);
   const online = () => {
     retry = 0;
     if (timer) clearTimeout(timer);
@@ -198,6 +212,7 @@ export function startLeagueMintQueue(
     stopped = true;
     if (timer) clearTimeout(timer);
     unsubscribe();
+    unsubscribeBattle();
     window.removeEventListener("online", online);
   };
 }
