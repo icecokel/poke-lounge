@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { LeagueEntryLink } from "@/features/league/entry-link/league-entry-link";
 import { ChevronRight } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
@@ -56,6 +57,7 @@ export function TrainerNameEntry({
       <header className={styles.brand}>
         <span>POKE LOUNGE</span>
         <div className="flex items-center gap-2">
+          <LeagueEntryLink locale={copy.locale} />
           {showForm ? (
             <EntryLanguageSelector
               copy={copy}
