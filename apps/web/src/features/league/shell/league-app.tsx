@@ -15,6 +15,9 @@ import {
 } from "../api/league";
 import type { LeagueLocale, MeView, StatusView } from "../contract";
 import { getLeagueCopy } from "./copy";
+import { LEAGUE_ENGINE_VERSION } from "@poke-lounge/battle/league/engine-version";
+import { LeagueHome } from "./league-home";
+import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
 
 type Screen = "boot" | "closed" | "login" | "home" | "attempt" | "error";
 export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
@@ -24,7 +27,9 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const [me, setMe] = useState<MeView | null>(null);
   const [standings, setStandings] = useState<StandingsView | null>(null);
   const [attempt, setAttempt] = useState<AttemptView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const blocked = useRateLimitCooldown(error);
+  const [receivedAt, setReceivedAt] = useState(0);
   const boot = useCallback(async () => {
     setScreen("boot");
     setError(null);
@@ -32,11 +37,12 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
     try {
       nextStatus = await getStatus();
       setStatus(nextStatus);
+      setReceivedAt(performance.now());
     } catch (error) {
       if (!(error instanceof LeagueApiError) || error.status === 404 || error.status === 0) {
         setScreen("closed");
       } else {
-        setError(error.code);
+        setError(error);
         setScreen("error");
       }
       return;
@@ -51,7 +57,11 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       setStandings(nextStandings);
       if (nextMe.attempt?.status === "active") {
         const current = await getCurrentAttempt();
-        if (current?.id === nextMe.attempt.id) {
+        if (
+          current?.id === nextMe.attempt.id &&
+          current.engineVersion === LEAGUE_ENGINE_VERSION &&
+          (!nextStatus.engineVersion || nextStatus.engineVersion === LEAGUE_ENGINE_VERSION)
+        ) {
           setAttempt(current);
           setScreen("attempt");
           return;
@@ -61,7 +71,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
     } catch (error) {
       if (error instanceof LeagueApiError && error.status === 401) setScreen("login");
       else {
-        setError(error instanceof Error ? error.message : "NETWORK");
+        setError(error);
         setScreen("error");
       }
     }
@@ -83,14 +93,26 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         {screen === "login" && <DiscordAccountButton locale={locale} />}
         {screen === "error" && (
           <>
-            <p role="alert">{error}</p>
-            <Button onClick={() => void boot()}>{text.retry}</Button>
+            <p role="alert">{leagueErrorMessage(error, locale)}</p>
+            <Button disabled={blocked} onClick={() => void boot()}>
+              {text.retry}
+            </Button>
           </>
         )}
         {screen === "home" && status && me && standings && (
-          <p>
-            {me.user.nickname ?? text.unnamed} · {text.badges} {me.run?.badges ?? 0}/8
-          </p>
+          <LeagueHome
+            locale={locale}
+            status={status}
+            receivedAt={receivedAt}
+            me={me}
+            standings={standings}
+            versionMismatch={
+              !!status.engineVersion && status.engineVersion !== LEAGUE_ENGINE_VERSION
+            }
+            onGrowth={() => {}}
+            onEntry={() => {}}
+            onResume={() => void boot()}
+          />
         )}
         {screen === "attempt" && attempt && (
           <p>
