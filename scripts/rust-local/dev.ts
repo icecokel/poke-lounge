@@ -65,6 +65,12 @@ const ports = {
   db: readPort("RUST_LOCAL_DB_PORT", 35432),
   redis: readPort("RUST_LOCAL_REDIS_PORT", 36379),
 };
+// Local default: the current KST week starts on Monday at midnight.
+const localSeasonStart = new Date(Date.now() + 9 * 60 * 60 * 1000);
+localSeasonStart.setUTCHours(0, 0, 0, 0);
+localSeasonStart.setUTCDate(
+  localSeasonStart.getUTCDate() - ((localSeasonStart.getUTCDay() + 6) % 7),
+);
 const env = {
   ...process.env,
   ...config,
@@ -78,9 +84,13 @@ const env = {
         LEAGUE_JUDGE_URL: "http://league-judge:3031",
         LEAGUE_DB_MAX_CONNECTIONS: process.env.LEAGUE_DB_MAX_CONNECTIONS || "2",
         LEAGUE_SETTLE_GRACE_HOURS: process.env.LEAGUE_SETTLE_GRACE_HOURS || "6",
+        LEAGUE_SEASON1_STARTS_AT:
+          process.env.LEAGUE_SEASON1_STARTS_AT ||
+          new Date(localSeasonStart.getTime() - 9 * 60 * 60 * 1000).toISOString(),
+        LEAGUE_SEASON1_STARTERS: process.env.LEAGUE_SEASON1_STARTERS || "152,155,158",
         LEAGUE_SEASON1_STARTER_LEVEL: process.env.LEAGUE_SEASON1_STARTER_LEVEL || "10",
       }
-    : {}),
+    : { LEAGUE_ENABLED: "false" }),
 };
 let child: ChildProcess | null = null;
 let stopping = false;
