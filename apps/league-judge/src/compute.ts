@@ -36,6 +36,7 @@ parentPort.on("message", (input: JudgeRequest) => {
   let advances: number | undefined;
   let outcome: string | undefined;
   let result: JudgeResponse;
+  let errorClass: string | undefined;
   try {
     const validated = requestSchema.safeParse(input);
     if (!validated.success)
@@ -73,6 +74,19 @@ parentPort.on("message", (input: JudgeRequest) => {
       }
     }
   } catch (error) {
+    errorClass =
+      error instanceof LeaguePartyError
+        ? "LeaguePartyError"
+        : error instanceof LeagueInputError
+          ? "LeagueInputError"
+          : error instanceof LeaguePlausibilityError
+            ? "LeaguePlausibilityError"
+            : error instanceof Error &&
+                ["Error", "TypeError", "RangeError", "SyntaxError", "LeagueRosterError"].includes(
+                  error.name,
+                )
+              ? error.name
+              : "UnknownError";
     let code: LeagueJudgeErrorCode = "ENGINE_STALL";
     let detail: unknown = null;
     if (error instanceof LeaguePartyError) {
@@ -91,9 +105,11 @@ parentPort.on("message", (input: JudgeRequest) => {
       (error.message === "ROSTER_NOT_READY" || error.message === "ROSTER_SOURCE_INVALID")
     )
       code = error.message;
+    if (error instanceof Error && error.name === "LeagueRosterError")
+      code = "ROSTER_SOURCE_INVALID";
     result = { ...envelope, ok: false, code, detail };
   }
-  parentPort!.postMessage({ result, advances, outcome } satisfies WorkerMessage);
+  parentPort!.postMessage({ result, advances, outcome, errorClass } satisfies WorkerMessage);
 });
 parentPort.postMessage({
   ready: true,

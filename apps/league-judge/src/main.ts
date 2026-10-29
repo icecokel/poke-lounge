@@ -9,6 +9,7 @@ import {
   JOB_TIMEOUT_MS,
   MAX_BODY_BYTES,
   MAX_QUEUE,
+  QUEUE_TIMEOUT_MS,
   requestSchema,
   type JudgeRequest,
   type JudgeResponse,
@@ -33,7 +34,8 @@ let inFlight = 0;
 type Pending = {
   input: JudgeRequest;
   response: ServerResponse;
-  started: number;
+  queuedAt: number;
+  started: number | null;
   timer: ReturnType<typeof setTimeout>;
 };
 type Slot = { worker: Worker; ready: boolean; restarting: boolean; pending: Pending | null };
@@ -73,7 +75,8 @@ function unavailable(pending: Pending, reason: string): void {
     requestId: pending.input.requestId,
     op: pending.input.op.kind,
     code: reason,
-    durationMs: Date.now() - pending.started,
+    durationMs: pending.started === null ? 0 : Date.now() - pending.started,
+    queueMs: (pending.started ?? Date.now()) - pending.queuedAt,
   });
 }
 function dispatch(): void {
@@ -82,6 +85,9 @@ function dispatch(): void {
     if (!slot.ready || slot.restarting || slot.pending) continue;
     const pending = waiting.shift();
     if (!pending) return;
+    clearTimeout(pending.timer);
+    pending.started = Date.now();
+    pending.timer = setTimeout(() => restart(slot, "execution-timeout"), JOB_TIMEOUT_MS);
     slot.pending = pending;
     slot.worker.postMessage(pending.input);
   }
@@ -93,29 +99,20 @@ function finish(slot: Slot, message: Extract<WorkerMessage, { result: JudgeRespo
   clearTimeout(pending.timer);
   inFlight--;
   const result = message.result;
-  const status = result.ok
-    ? 200
-    : result.code === "PARTY_CHECK_UNAVAILABLE" || result.code === "ROSTER_NOT_READY"
-      ? 503
-      : result.code === "ENGINE_VERSION_MISMATCH"
-        ? 409
-        : result.code === "ENGINE_STALL" ||
-            result.code === "INVALID_REQUEST" ||
-            result.code === "ROSTER_SOURCE_INVALID"
-          ? 500
-          : 422;
-  json(pending.response, status, result);
-  const durationMs = Date.now() - pending.started;
+  json(pending.response, 200, result);
+  const durationMs = Date.now() - pending.started!;
   const fields = {
     requestId: pending.input.requestId,
     op: pending.input.op.kind,
     durationMs,
+    queueMs: pending.started! - pending.queuedAt,
+    errorClass: message.errorClass,
     advances: message.advances,
     outcome: message.outcome,
     ...(result.ok ? {} : { code: result.code }),
   };
   log(
-    result.ok ? "info" : status >= 500 ? "error" : "warn",
+    result.ok ? "info" : result.code === "ENGINE_STALL" ? "error" : "warn",
     result.ok ? "league.judge.op" : "league.judge.failed",
     fields,
   );
@@ -221,19 +218,19 @@ async function receive(request: IncomingMessage, response: ServerResponse): Prom
       bytes += buffer.length;
       if (bytes > MAX_BODY_BYTES) {
         response.setHeader("connection", "close");
-        json(response, 413, failure(undefined, "INVALID_REQUEST"));
+        json(response, 200, failure(undefined, "INVALID_REQUEST"));
         return;
       }
       chunks.push(buffer);
     }
     const parsed = requestSchema.safeParse(JSON.parse(Buffer.concat(chunks).toString("utf8")));
     if (!parsed.success) {
-      json(response, 400, failure(undefined, "INVALID_REQUEST"));
+      json(response, 200, failure(undefined, "INVALID_REQUEST"));
       return;
     }
     const input: JudgeRequest = parsed.data;
     if (input.engineVersion !== LEAGUE_ENGINE_VERSION) {
-      json(response, 409, failure(input, "ENGINE_VERSION_MISMATCH"));
+      json(response, 200, failure(input, "ENGINE_VERSION_MISMATCH"));
       return;
     }
     if (draining || waiting.length >= MAX_QUEUE) {
@@ -243,25 +240,21 @@ async function receive(request: IncomingMessage, response: ServerResponse): Prom
     const pending: Pending = {
       input,
       response,
-      started: Date.now(),
+      queuedAt: Date.now(),
+      started: null,
       timer: setTimeout(() => {
-        const slot = slots.find(candidate => candidate.pending === pending);
-        if (slot) {
-          restart(slot, "execution-timeout");
-          return;
-        }
         const index = waiting.indexOf(pending);
         if (index >= 0) {
           waiting.splice(index, 1);
           unavailable(pending, "queue-timeout");
         }
-      }, JOB_TIMEOUT_MS),
+      }, QUEUE_TIMEOUT_MS),
     };
     waiting.push(pending);
     queued = true;
     dispatch();
   } catch {
-    json(response, 400, failure(undefined, "INVALID_REQUEST"));
+    json(response, 200, failure(undefined, "INVALID_REQUEST"));
   } finally {
     if (!queued) inFlight--;
   }
@@ -269,7 +262,7 @@ async function receive(request: IncomingMessage, response: ServerResponse): Prom
 const server = createServer((request, response) => {
   void receive(request, response).catch(() => {
     log("error", "league.judge.failed", { code: "receive-failed" });
-    json(response, 500, failure(undefined, "ENGINE_STALL"));
+    json(response, 503, failure(undefined, "JUDGE_UNAVAILABLE"));
   });
 });
 server.on("clientError", (_error, socket) => {
