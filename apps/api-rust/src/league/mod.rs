@@ -1,9 +1,11 @@
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod growth;
 pub mod judge;
 pub mod limiter;
 mod routes;
+pub mod season;
 pub mod standings;
 pub mod store;
 pub mod views;
@@ -39,13 +41,15 @@ impl League {
                 return None;
             }
         };
-        Some(Arc::new(Self {
+        let league = Arc::new(Self {
             judge,
             db: db::Db::new(database.clone(), config.db_max),
             config,
             limiter: limiter::Limiter::default(),
             requests: Semaphore::new(8),
-        }))
+        });
+        season::spawn(&league);
+        Some(league)
     }
 }
 pub fn router(league: Option<Arc<League>>) -> Router<AppState> {
