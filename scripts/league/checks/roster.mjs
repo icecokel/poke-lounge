@@ -303,7 +303,21 @@ function checkComposition(composition, trainer, rows, levels) {
     assert(Number.isInteger(m.level) && m.level >= 1 && m.level <= 50);
     assert.equal(m.heldItemId, row.heldItemId);
     assert(m.heldItemId === 0 || GEN4_ROM_ITEMS[m.heldItemId]);
-    assert.equal(m.abilityId, species.abilities[0]);
+    const override = row.genderAbilityOverride ?? 0;
+    const abilityOverride = override >> 4;
+    const genderOverride = override & 0xf;
+    assert([0, 1, 2].includes(abilityOverride));
+    assert([0, 1, 2].includes(genderOverride));
+    const abilitySlot = abilityOverride === 2 ? 1 : 0;
+    assert(
+      species.abilities[abilitySlot],
+      `ROM trainer ${trainer.trainerId}/${slot}: ability slot ${abilitySlot + 1} missing`,
+    );
+    assert.equal(
+      m.abilityId,
+      species.abilities[abilitySlot],
+      `ROM trainer ${trainer.trainerId}/${slot}: +0x01 ability slot mismatch`,
+    );
     assert(species.abilities.includes(m.abilityId) && m.abilityId >= 1 && m.abilityId <= 123);
     assert.equal(
       m.gender,
@@ -313,7 +327,13 @@ function checkComposition(composition, trainer, rows, levels) {
           ? "female"
           : species.genderRatio === 0
             ? "male"
-            : trainer.gender,
+            : genderOverride === 1
+              ? "male"
+              : genderOverride === 2
+                ? "female"
+                : species.genderRatio > (trainer.gender === "female" ? 0x78 : 0x88)
+                  ? "female"
+                  : "male",
     );
     assert.equal(m.natureId, 0);
     assert.equal(m.happiness, 70);

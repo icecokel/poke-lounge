@@ -8,7 +8,8 @@ export interface RomTrainerMember {
   readonly moveIds: readonly number[];
   readonly heldItemId: number;
   readonly difficulty: number;
-  readonly genderAbilityOverride: number; // ROM +0x01 원값. 의미 미확인, 템플릿에는 쓰지 않는다.
+  // ROM +0x01: pret TrainerMonSpecies 정의. 상위 4비트 1/2=특성 슬롯, 하위 1/2=수컷/암컷 강제, 0=기본값.
+  readonly genderAbilityOverride: number;
 }
 
 export interface RomTrainer {

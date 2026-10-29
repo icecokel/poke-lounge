@@ -48,7 +48,12 @@ export function npcComposition(
     leadSlot: 0,
     members: [...trainer.members, ...extra].map((member, slotIndex) => {
       const species = GEN4_ROM_SPECIES[member.speciesId];
-      const abilityId = species?.abilities[0];
+      const override = "genderAbilityOverride" in member ? member.genderAbilityOverride : 0;
+      const abilitySlot = override >> 4 === 2 ? 1 : 0;
+      const abilityId = species?.abilities[abilitySlot] ?? species?.abilities[0];
+      const genderOverride = override & 0xf;
+      // pret trainer_data.c: 50:50은 트레이너 성별, 그 밖은 종족의 다수 성별.
+      const pidGender = trainer.gender === "female" ? 0x78 : 0x88;
       const difficulty = "difficulty" in member ? member.difficulty : trainer.members[0].difficulty;
       const level = options.levelOf?.(slotIndex, member.level) ?? member.level;
       const moveIds = member.moveIds.filter(moveId => moveId !== 0);
@@ -84,7 +89,13 @@ export function npcComposition(
               ? "female"
               : species.genderRatio === 0
                 ? "male"
-                : trainer.gender,
+                : genderOverride === 1
+                  ? "male"
+                  : genderOverride === 2
+                    ? "female"
+                    : species.genderRatio > pidGender
+                      ? "female"
+                      : "male",
         happiness: 70,
         individualValues: statValues(Math.floor((difficulty * 31) / 255)),
         effortValues: statValues(0),
