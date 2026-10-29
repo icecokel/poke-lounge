@@ -9,6 +9,7 @@ const messages = {
   closed: ["리그가 열려 있지 않습니다", "The league is not open.", "リーグは開催されていません。"],
   firstScreen: ["첫 화면으로", "Back to start", "最初の画面へ"],
   home: ["홈으로", "League home", "ホームへ"],
+  account: ["계정 / 로그아웃", "Account / log out", "アカウント / ログアウト"],
   retry: ["다시 시도", "Try again", "再試行"],
   refresh: ["새로 고침", "Refresh", "再読み込み"],
   cancel: ["취소", "Cancel", "キャンセル"],

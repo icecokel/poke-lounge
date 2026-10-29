@@ -18,7 +18,6 @@ import { leagueHash } from "@poke-lounge/battle/league/hash";
 import { LeagueApiError, withLeagueRetry } from "../api/core";
 import {
   getCurrentAttempt,
-  getMe,
   submitMatch,
   forfeitAttempt,
   type AttemptView,
@@ -47,8 +46,8 @@ export function AttemptFlow({
   const text = getLeagueCopy(locale);
   const [attempt, setAttempt] = useState(initial);
   const [phase, setPhase] = useState<
-    "battle" | "submitting" | "result" | "final" | "failed" | "error"
-  >("battle");
+    "battle" | "submitting" | "result" | "final" | "failed" | "ended" | "error"
+  >(initial.status === "active" && initial.current ? "battle" : "ended");
   const [error, setError] = useState<unknown>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -99,14 +98,16 @@ export function AttemptFlow({
         ),
       );
     } else if (next?.status === "active") {
-      onHome(new LeagueApiError(409, "LEAGUE_ENGINE_VERSION_MISMATCH", undefined, false));
+      onHome(
+        next.engineVersion !== LEAGUE_ENGINE_VERSION
+          ? new LeagueApiError(409, "LEAGUE_ENGINE_VERSION_MISMATCH", undefined, false)
+          : undefined,
+      );
     } else {
-      // The current endpoint omits failed attempts; /me supplies the terminal summary.
-      const me = await getMe();
-      if (me.attempt?.id === initial.id && me.attempt.status === "failed") {
-        setAttempt(previous => ({ ...previous, ...me.attempt! }));
-        setPhase("failed");
-      } else onHome();
+      // Failed attempts are omitted by both current and /me; do not infer a reason.
+      setPending(null);
+      setError(null);
+      setPhase("ended");
     }
   }, [initial.id, onHome]);
   useEffect(() => {
@@ -186,6 +187,7 @@ export function AttemptFlow({
         setRestart(n => n + 1);
         setPhase("battle");
       } else if (code === "LEAGUE_INPUT_REJECTED") {
+        setPending(null);
         rejected.current += 1;
         setNotice(
           `${leagueErrorMessage(error, locale)} ${leagueText(locale, "이 화면의 거절 횟수", "Rejections on this page", "この画面での拒否回数")}: ${rejected.current}/5`,
@@ -247,6 +249,21 @@ export function AttemptFlow({
       const result = await withLeagueRetry(() => forfeitAttempt(attempt.id), {
         onRetry: (_, error) => setError(error),
       });
+      if (result.attempt.status !== "failed") {
+        onHome(
+          new LeagueApiError(
+            result.attempt.status === "expired" ? 410 : 409,
+            result.attempt.status === "expired"
+              ? "LEAGUE_ATTEMPT_EXPIRED"
+              : result.attempt.status === "void"
+                ? "LEAGUE_ENGINE_RETIRED"
+                : "LEAGUE_ATTEMPT_NOT_ACTIVE",
+            undefined,
+            false,
+          ),
+        );
+        return;
+      }
       setAttempt(previous => ({ ...previous, ...result.attempt }));
       setPhase("failed");
       setError(null);
@@ -298,7 +315,7 @@ export function AttemptFlow({
       {phase === "submitting" && (
         <p role="status">
           {error
-            ? leagueErrorMessage(error, locale)
+            ? leagueErrorMessage(error, locale, true)
             : leagueText(
                 locale,
                 "서버 판정을 기다리는 중…",
@@ -315,6 +332,27 @@ export function AttemptFlow({
           {pending && canResubmit && (
             <Button disabled={blocked} onClick={() => void send(pending)}>
               {leagueText(locale, "다시 제출", "Resubmit", "再送信")}
+            </Button>
+          )}
+          {!pending && canResubmit && (
+            <Button
+              disabled={blocked}
+              onClick={async () => {
+                if (sending.current) return;
+                sending.current = true;
+                setError(null);
+                setPhase("submitting");
+                try {
+                  await refreshAttempt();
+                } catch (error) {
+                  setError(error);
+                  setPhase("error");
+                } finally {
+                  sending.current = false;
+                }
+              }}
+            >
+              {leagueText(locale, "다시 불러오기", "Reload challenge", "挑戦を再読み込み")}
             </Button>
           )}
           <Button variant="outline" disabled={blocked} onClick={() => onHome()}>
@@ -357,6 +395,19 @@ export function AttemptFlow({
       {phase === "failed" && (
         <FailedResult locale={locale} attempt={attempt} onHome={() => onHome()} />
       )}
+      {phase === "ended" && (
+        <>
+          <p role="status">
+            {leagueText(
+              locale,
+              "진행 중인 도전이 없습니다. 도전이 종료되었으며 정확한 종료 사유는 조회할 수 없습니다. 홈에서 현재 성장 상태를 확인하세요.",
+              "There is no active challenge. It has ended, but the exact reason is unavailable. Check your current training status at home.",
+              "進行中の挑戦はありません。挑戦は終了しましたが、正確な終了理由は確認できません。ホームで現在の育成状態を確認してください。",
+            )}
+          </p>
+          <Button onClick={() => onHome()}>{text.home}</Button>
+        </>
+      )}
       <AlertDialog
         open={confirmForfeit}
         onOpenChange={open => {
@@ -382,7 +433,7 @@ export function AttemptFlow({
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {error != null && <p role="alert">{leagueErrorMessage(error, locale)}</p>}
+          {error != null && <p role="alert">{leagueErrorMessage(error, locale, forfeiting)}</p>}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={forfeiting}>{text.cancel}</AlertDialogCancel>
             <AlertDialogAction

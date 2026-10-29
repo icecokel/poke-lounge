@@ -27,10 +27,12 @@ import { LeagueGrowthScreen } from "../growth/league-growth-screen";
 import { LeagueJudgedBattle } from "../battle/league-judged-battle";
 import { EntryScreen } from "../attempt/entry-screen";
 import { AttemptFlow } from "../attempt/attempt-flow";
+import { clearEntryKey } from "../attempt/entry-key";
 import { LeagueHome } from "./league-home";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
 
-type Screen = "boot" | "closed" | "login" | "home" | "entry" | "attempt" | "growth" | "error";
+type Screen =
+  "boot" | "closed" | "login" | "account" | "home" | "entry" | "attempt" | "growth" | "error";
 export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const text = getLeagueCopy(locale);
   const [screen, setScreen] = useState<Screen>("boot");
@@ -82,12 +84,13 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         if (resume && nextMe.attempt?.status === "active") {
           const current = await getCurrentAttempt();
           if (current?.id === nextMe.attempt.id && current.status === "active") {
+            if (nextMe.run) clearEntryKey(nextMe.run.id);
             if (current.engineVersion !== LEAGUE_ENGINE_VERSION) {
               if (current.engineVersion === nextStatus.engineVersion) setAttemptNeedsRefresh(true);
               else setMe(await getMe());
             } else if (
-              !nextStatus.engineVersion ||
-              nextStatus.engineVersion === LEAGUE_ENGINE_VERSION
+              current.current &&
+              (!nextStatus.engineVersion || nextStatus.engineVersion === LEAGUE_ENGINE_VERSION)
             ) {
               setRuntime(await ensureRuntime());
               setAttempt(current);
@@ -140,6 +143,10 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
     }
   }
   function entered(next: AttemptView) {
+    if (next.status !== "active" || !next.current) {
+      home(new LeagueApiError(409, "LEAGUE_ATTEMPT_NOT_ACTIVE", undefined, false));
+      return;
+    }
     if (next.engineVersion !== LEAGUE_ENGINE_VERSION) {
       home(new LeagueApiError(409, "LEAGUE_ENGINE_VERSION_MISMATCH", undefined, false));
       return;
@@ -169,7 +176,8 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       {notice && <p role="status">{notice}</p>}
       {screen === "boot" && <p role="status">{text.loading}</p>}
       {screen === "closed" && <p>{text.closed}</p>}
-      {screen === "login" && <DiscordAccountButton locale={locale} />}
+      {(screen === "login" || screen === "account") && <DiscordAccountButton locale={locale} />}
+      {screen === "account" && <Button onClick={() => home()}>{text.home}</Button>}
       {screen === "error" && (
         <>
           <p role="alert">{leagueErrorMessage(error, locale)}</p>
@@ -182,17 +190,22 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         </>
       )}
       {screen === "home" && status && me && standings && (
-        <LeagueHome
-          locale={locale}
-          status={status}
-          receivedAt={receivedAt}
-          me={me}
-          standings={standings}
-          versionMismatch={mismatch}
-          onGrowth={() => void open("growth")}
-          onEntry={() => void open("entry")}
-          onResume={() => void boot()}
-        />
+        <>
+          <Button variant="outline" onClick={() => setScreen("account")}>
+            {text.account}
+          </Button>
+          <LeagueHome
+            locale={locale}
+            status={status}
+            receivedAt={receivedAt}
+            me={me}
+            standings={standings}
+            versionMismatch={mismatch}
+            onGrowth={() => void open("growth")}
+            onEntry={() => void open("entry")}
+            onResume={() => void boot()}
+          />
+        </>
       )}
       {screen === "growth" && runtime && status && me && (
         <LeagueGrowthScreen

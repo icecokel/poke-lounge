@@ -152,7 +152,7 @@ export function EntryScreen({
           "バッグ・持ち物なし · 試合間で半分回復 · ひんしは維持 · 一度負けると終了",
         )}
       </p>
-      {error != null && <p role="alert">{leagueErrorMessage(error, locale)}</p>}
+      {error != null && <p role="alert">{leagueErrorMessage(error, locale, pending)}</p>}
       <div className="flex flex-wrap gap-3">
         <Button disabled={!claim.ok || pending || blocked} onClick={() => setConfirm(true)}>
           {pending ? text.loading : text.enter}
@@ -179,7 +179,7 @@ export function EntryScreen({
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {error != null && <p role="alert">{leagueErrorMessage(error, locale)}</p>}
+          {error != null && <p role="alert">{leagueErrorMessage(error, locale, pending)}</p>}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pending}>{text.cancel}</AlertDialogCancel>
             <AlertDialogAction

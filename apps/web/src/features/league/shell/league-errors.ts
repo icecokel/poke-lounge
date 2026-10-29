@@ -8,16 +8,20 @@ export function errorDetail(error: unknown): Record<string, unknown> {
     ? (error.detail as Record<string, unknown>)
     : {};
 }
-export function leagueErrorMessage(error: unknown, locale: LeagueLocale): string {
+export function leagueErrorMessage(error: unknown, locale: LeagueLocale, retrying = false): string {
   const text = getLeagueCopy(locale);
   const code = error instanceof LeagueApiError ? error.code : "NETWORK";
   switch (code) {
     case "LEAGUE_JUDGE_UNAVAILABLE":
       return leagueText(
         locale,
-        "판정 서버가 바쁩니다. 다시 시도 중…",
-        "The judge is busy. Retrying…",
-        "判定サーバーが混雑しています。再試行中…",
+        retrying
+          ? "판정 서버가 바쁩니다. 다시 시도 중…"
+          : "판정 서버가 바쁩니다. 다시 시도해 주세요.",
+        retrying ? "The judge is busy. Retrying…" : "The judge is busy. Please try again.",
+        retrying
+          ? "判定サーバーが混雑しています。再試行中…"
+          : "判定サーバーが混雑しています。再試行してください。",
       );
     case "NETWORK":
     case "LEAGUE_BUSY":
@@ -84,9 +88,9 @@ export function leagueErrorMessage(error: unknown, locale: LeagueLocale): string
     case "LEAGUE_INPUT_REJECTED":
       return leagueText(
         locale,
-        "제출이 거절되었습니다. 경기를 처음부터 다시 합니다(5회 거절 시 도전 종료).",
-        "Submission rejected. Restart the match (five rejections end the challenge).",
-        "送信が拒否されました。試合を最初から再開します（5回で挑戦終了）。",
+        "제출이 거절되었습니다. 도전 상태를 다시 확인합니다(5회 거절 시 도전 종료).",
+        "Submission rejected. Checking challenge status (five rejections end the challenge).",
+        "送信が拒否されました。挑戦の状態を再確認します（5回で挑戦終了）。",
       );
     case "LEAGUE_ATTEMPT_ACTIVE":
       return text.resume;
