@@ -27,6 +27,7 @@ export interface PokeLoungeGameResult {
 }
 
 export interface PokeLoungeGameOptions {
+  fieldChallenger?: { hint: string; onInteract(): void };
   battleExperiencePolicy?: {
     experienceMultiplier: number;
     sharePartyExperience: boolean;
@@ -84,6 +85,7 @@ export function createPokeLoungeGame(
   }
 
   const worldController = new WorldController(gameStateStore, multiplayerRoom, {
+    fieldChallenger: options.fieldChallenger,
     competitiveRoundsEnabled: options.competitiveRoundsEnabled,
     roundDurationMs: options.roundDurationMs,
     keyboard,
