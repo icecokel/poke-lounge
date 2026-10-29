@@ -40,6 +40,7 @@ export interface LeagueMatchProgress {
   readonly inputs: readonly LeagueInput[];
   readonly advances: number;
   readonly startFainted: number;
+  readonly luck: LeagueMatchMeasure["luck"];
   readonly outcome: null | "won" | "lost" | "draw";
   readonly drawReason: null | "engine" | "turn_limit";
   readonly steps: readonly Gen4Step[];
@@ -53,9 +54,6 @@ export class LeagueInputError extends Error {
     super(kind);
   }
 }
-
-// Retain counters, not the full presentation history, across immutable progress objects.
-const luckByProgress = new WeakMap<LeagueMatchProgress, LeagueMatchMeasure["luck"]>();
 
 function needsPlayer(frame: Gen4Frame): boolean {
   const request = frame.requests[0];
@@ -83,23 +81,21 @@ function advance(
     : frame.turn > p.init.rules.turnLimit
       ? "draw"
       : null;
-  const next: LeagueMatchProgress = {
+  const delta = countLuck(frame.steps);
+  return {
     ...p,
     frame,
     advances: p.advances + 1,
     outcome,
     drawReason: outcome === "draw" ? (frame.ended ? "engine" : "turn_limit") : null,
     steps: [...p.steps, ...frame.steps],
+    luck: {
+      critsFor: p.luck.critsFor + delta.critsFor,
+      critsAgainst: p.luck.critsAgainst + delta.critsAgainst,
+      missesFor: p.luck.missesFor + delta.missesFor,
+      missesAgainst: p.luck.missesAgainst + delta.missesAgainst,
+    },
   };
-  const before = luckByProgress.get(p)!;
-  const delta = countLuck(frame.steps);
-  luckByProgress.set(next, {
-    critsFor: before.critsFor + delta.critsFor,
-    critsAgainst: before.critsAgainst + delta.critsAgainst,
-    missesFor: before.missesFor + delta.missesFor,
-    missesAgainst: before.missesAgainst + delta.missesAgainst,
-  });
-  return next;
 }
 
 function autoProgress(p: LeagueMatchProgress): LeagueMatchProgress {
@@ -153,6 +149,18 @@ export function startLeagueMatch(init: LeagueMatchInit): LeagueMatchProgress {
       return init.seed[seedIndex++]! / 65536;
     },
   );
+  // sim 0.10.11 resets pokemonLeft after onBegin; repair its saved start state without removing slots.
+  const snapshot = JSON.parse(frame.session.snapshot) as { sides: { pokemonLeft: number }[] };
+  if (
+    !Array.isArray(snapshot.sides) ||
+    snapshot.sides.length !== 2 ||
+    !snapshot.sides.every(side => Number.isInteger(side.pokemonLeft))
+  )
+    throw new Error("ENGINE_STALL");
+  snapshot.sides.forEach((side, index) => {
+    side.pokemonLeft = frame.parties[index]!.members.filter(member => member.currentHp! > 0).length;
+  });
+  frame.session = { ...frame.session, snapshot: JSON.stringify(snapshot) };
   if (frame.escapedBy !== undefined) throw new Error("ENGINE_STALL");
   const outcome = frame.ended
     ? frame.winner === 0
@@ -167,11 +175,11 @@ export function startLeagueMatch(init: LeagueMatchInit): LeagueMatchProgress {
     inputs: [],
     advances: 0,
     startFainted: init.challenger.members.filter(member => member.currentHp === 0).length,
+    luck: countLuck(frame.steps),
     outcome,
     drawReason: outcome === "draw" ? "engine" : null,
     steps: frame.steps,
   };
-  luckByProgress.set(p, countLuck(frame.steps));
   return autoProgress(p);
 }
 
@@ -213,10 +221,8 @@ export function applyPlayerInput(p: LeagueMatchProgress, input: LeagueInput): Le
     throw new LeagueInputError("ILLEGAL_INPUT", at);
   }
   const ready = { ...p, steps: [] };
-  luckByProgress.set(ready, luckByProgress.get(p)!);
   const advanced = advance(ready, action, chooseLeagueAiAction(p.frame));
   const recorded = { ...advanced, inputs: [...p.inputs, [input[0], input[1]] as LeagueInput] };
-  luckByProgress.set(recorded, luckByProgress.get(advanced)!);
   return autoProgress(recorded);
 }
 
@@ -255,6 +261,6 @@ export function measureLeagueMatch(p: LeagueMatchProgress): LeagueMatchMeasure {
     q: q.toJSON(),
     qApprox: Number(q.num) / Number(q.den),
     endHash: leagueHash(p.frame.parties),
-    luck: { ...luckByProgress.get(p)! },
+    luck: { ...p.luck },
   };
 }
