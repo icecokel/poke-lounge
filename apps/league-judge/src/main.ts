@@ -10,6 +10,7 @@ import {
   MAX_BODY_BYTES,
   MAX_QUEUE,
   QUEUE_TIMEOUT_MS,
+  requestEnvelopeSchema,
   requestSchema,
   type JudgeRequest,
   type JudgeResponse,
@@ -57,7 +58,7 @@ function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
   response.end(JSON.stringify(body));
 }
-function failure(input: JudgeRequest | undefined, code: string): unknown {
+function failure(input: Pick<JudgeRequest, "requestId"> | undefined, code: string): unknown {
   return {
     protocol: LEAGUE_JUDGE_PROTOCOL,
     requestId: input?.requestId,
@@ -223,9 +224,11 @@ async function receive(request: IncomingMessage, response: ServerResponse): Prom
       }
       chunks.push(buffer);
     }
-    const parsed = requestSchema.safeParse(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+    const body: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    const parsed = requestSchema.safeParse(body);
     if (!parsed.success) {
-      json(response, 200, failure(undefined, "INVALID_REQUEST"));
+      const envelope = requestEnvelopeSchema.safeParse(body);
+      json(response, 200, failure(envelope.success ? envelope.data : undefined, "INVALID_REQUEST"));
       return;
     }
     const input: JudgeRequest = parsed.data;

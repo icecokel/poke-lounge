@@ -175,6 +175,9 @@ export const requestSchema = z.strictObject({
       .refine(op => op.previousQ.length === op.matchIndex),
   ]),
 });
+export const requestEnvelopeSchema = requestSchema
+  .pick({ protocol: true, requestId: true })
+  .strip();
 export interface JudgeRequest {
   protocol: typeof LEAGUE_JUDGE_PROTOCOL;
   requestId: string;
