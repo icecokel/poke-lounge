@@ -281,7 +281,12 @@ impl League {
     ) -> Result<Value> {
         let result = super::db::retry(|| self.enter_once(user, run, key, claim)).await;
         match result {
-            Err(e) if e.code == "LEAGUE_RUN_NOT_ACTIVE" || e.code == "LEAGUE_BADGES_REQUIRED" => {
+            Err(e)
+                if matches!(
+                    e.code,
+                    "LEAGUE_RUN_NOT_ACTIVE" | "LEAGUE_BADGES_REQUIRED" | "LEAGUE_ATTEMPT_ACTIVE"
+                ) =>
+            {
                 if let Some(existing) = self.entry_by_key(user, key).await? {
                     return Ok(existing);
                 }

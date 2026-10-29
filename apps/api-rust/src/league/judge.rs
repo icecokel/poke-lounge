@@ -84,7 +84,10 @@ impl Judge {
         }
         let returned_engine = version(&body["engineVersion"])?;
         if body["ok"] == false {
-            let code = body["code"].as_str().unwrap_or("");
+            let code = body["code"]
+                .as_str()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(unavailable)?;
             let mut error = match code {
                 "ENGINE_VERSION_MISMATCH" => {
                     *self.health.lock().await = None;
