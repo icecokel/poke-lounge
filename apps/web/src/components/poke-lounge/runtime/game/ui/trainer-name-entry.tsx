@@ -57,7 +57,7 @@ export function TrainerNameEntry({
       <header className={styles.brand}>
         <span>POKE LOUNGE</span>
         <div className="flex items-center gap-2">
-          <LeagueEntryLink locale={copy.locale} />
+          <LeagueEntryLink locale={copy.locale} disabled={pending} />
           {showForm ? (
             <EntryLanguageSelector
               copy={copy}

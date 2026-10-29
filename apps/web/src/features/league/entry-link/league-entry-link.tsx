@@ -6,7 +6,13 @@ import { getApiBaseUrl } from "@/lib/constants";
 const CACHE_KEY = "poke-lounge-league:v1:status-probe";
 const CACHE_MS = 10 * 60 * 1000;
 
-export function LeagueEntryLink({ locale }: { locale: "ko-KR" | "en-US" | "ja-JP" }) {
+export function LeagueEntryLink({
+  locale,
+  disabled = false,
+}: {
+  locale: "ko-KR" | "en-US" | "ja-JP";
+  disabled?: boolean;
+}) {
   const [enabled, setEnabled] = useState(false);
   useEffect(() => {
     try {
@@ -73,7 +79,9 @@ export function LeagueEntryLink({ locale }: { locale: "ko-KR" | "en-US" | "ja-JP
   if (!enabled) return null;
   return (
     <a
-      href={`/${locale}/league`}
+      href={disabled ? undefined : `/${locale}/league`}
+      aria-disabled={disabled || undefined}
+      tabIndex={disabled ? -1 : undefined}
       className="inline-flex min-h-8 items-center rounded border border-[var(--pl-color-ink)] px-2 text-sm font-bold text-[var(--pl-color-ink)] hover:bg-[var(--pl-color-gold-soft)] focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       {locale === "ko-KR" ? "리그" : locale === "ja-JP" ? "リーグ" : "League"}
