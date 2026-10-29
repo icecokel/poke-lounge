@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DiscordAccountButton } from "@/components/poke-lounge/ui/discord-account-button";
 import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
@@ -14,7 +14,13 @@ import {
   type AttemptView,
   type StandingsView,
 } from "../api/league";
-import type { LeagueLocale, LeagueRuntime, MeView, StatusView } from "../contract";
+import type {
+  LeagueLocale,
+  LeagueRuntime,
+  LeagueJudgedBattleProps,
+  MeView,
+  StatusView,
+} from "../contract";
 import { getLeagueCopy } from "./copy";
 import { loadLeagueRuntime } from "./load-runtime";
 import { LeagueGrowthScreen } from "../growth/league-growth-screen";
@@ -117,7 +123,12 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
     [boot, locale],
   );
   async function open(target: "growth" | "entry") {
-    if (status?.engineVersion && status.engineVersion !== LEAGUE_ENGINE_VERSION) return;
+    if (
+      target === "entry" &&
+      status?.engineVersion &&
+      status.engineVersion !== LEAGUE_ENGINE_VERSION
+    )
+      return;
     setScreen("boot");
     setNotice(null);
     try {
@@ -139,6 +150,20 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const mismatch =
     attemptNeedsRefresh ||
     (!!status?.engineVersion && status.engineVersion !== LEAGUE_ENGINE_VERSION);
+  const JudgedBattle = useMemo(() => {
+    if (!mismatch) return LeagueJudgedBattle;
+    return function VersionBlockedBattle({ onAbort }: LeagueJudgedBattleProps) {
+      return (
+        <div className="grid gap-3" role="alert">
+          <p>{text.version}</p>
+          <Button onClick={() => window.location.reload()}>{text.refresh}</Button>
+          <Button variant="outline" onClick={onAbort}>
+            {text.cancel}
+          </Button>
+        </div>
+      );
+    };
+  }, [mismatch, text.version, text.refresh, text.cancel]);
   return (
     <div className="grid gap-6">
       {notice && <p role="status">{notice}</p>}
@@ -174,7 +199,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
           runtime={runtime}
           status={status}
           me={me}
-          JudgedBattle={LeagueJudgedBattle}
+          JudgedBattle={JudgedBattle}
           onExit={() => home()}
         />
       )}

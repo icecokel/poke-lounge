@@ -109,6 +109,9 @@ export function EntryScreen({
           "LEAGUE_RUN_NOT_ACTIVE",
           "LEAGUE_BADGES_REQUIRED",
           "LEAGUE_ENGINE_RETIRED",
+          "LEAGUE_ENGINE_VERSION_MISMATCH",
+          "LEAGUE_PARTY_INVALID",
+          "LEAGUE_PARTY_IMPLAUSIBLE",
         ].includes(error.code)
       )
         onHome(error);

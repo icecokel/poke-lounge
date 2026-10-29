@@ -119,10 +119,7 @@ export function LeagueHome({
         </p>
         <div className="flex flex-wrap gap-3">
           {me.run?.status !== "challenging" && (
-            <Button
-              disabled={versionMismatch || (!activeRun && phase !== "open")}
-              onClick={onGrowth}
-            >
+            <Button disabled={!activeRun && phase !== "open"} onClick={onGrowth}>
               {activeRun ? text.continueGrowth : text.grow}
             </Button>
           )}

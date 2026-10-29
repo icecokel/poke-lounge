@@ -13,7 +13,11 @@ import { getLeagueCopy, leagueText } from "../shell/copy";
 
 export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
   const { runtime, init, opponent, matchLabel, mode } = props;
-  const [lead, setLead] = useState<number | null>(null);
+  const [selection, setSelection] = useState<{
+    leadSlot: number;
+    init: LeagueJudgedBattleProps["init"];
+    opponentName: string;
+  } | null>(null);
   const [error, setError] = useState(false);
   const [desktop, setDesktop] = useState(false);
   const [store] = useState(createBattleUiStore);
@@ -29,7 +33,7 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
     return () => media.removeEventListener("change", update);
   }, []);
   useEffect(() => {
-    if (lead === null) return;
+    if (!selection) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
@@ -38,9 +42,9 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
     let controller: ReturnType<typeof createJudgedBattleController> | undefined;
     try {
       controller = createJudgedBattleController({
-        init: { ...init, leadSlot: lead },
+        init: { ...selection.init, leadSlot: selection.leadSlot },
         store,
-        opponentName: opponent.displayName,
+        opponentName: selection.opponentName,
         onFinished: result => callbacks.current.onFinished(result),
         onError: () => setError(true),
       });
@@ -51,7 +55,7 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
       controller?.dispose();
       window.removeEventListener("beforeunload", warn);
     };
-  }, [init, lead, opponent.displayName, store]);
+  }, [selection, store]);
   if (error)
     return (
       <div role="alert" className="grid gap-3">
@@ -66,14 +70,14 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
         <Button
           onClick={() => {
             setError(false);
-            setLead(null);
+            setSelection(null);
           }}
         >
           {text.retry}
         </Button>
       </div>
     );
-  if (lead === null)
+  if (!selection)
     return (
       <LeadPicker
         locale={runtime.locale}
@@ -81,7 +85,7 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
         opponent={init.opponent}
         opponentName={opponent.displayName}
         matchLabel={matchLabel}
-        onChoose={setLead}
+        onChoose={leadSlot => setSelection({ leadSlot, init, opponentName: opponent.displayName })}
         onAbort={() => callbacks.current.onAbort()}
         mode={mode}
       />

@@ -44,7 +44,8 @@ export function FinalResult({
             )}
       </p>
       <p>
-        {text.rank}: {final.position ?? text.outside} · {text.best}: {final.bestRank ?? "—"}
+        {text.rank}: {final.position ?? text.outside} ·{" "}
+        {leagueText(locale, "최고 순위", "Best rank", "最高順位")}: {final.bestRank ?? "—"}
       </p>
       {final.runClosed && (
         <p>

@@ -259,7 +259,18 @@ export function AttemptFlow({
           setError(error);
           setPhase("error");
         }
-      } else if (error instanceof LeagueApiError && error.status === 401) onHome(error);
+      } else if (
+        error instanceof LeagueApiError &&
+        [
+          "LEAGUE_UNAUTHORIZED",
+          "LEAGUE_ATTEMPT_EXPIRED",
+          "LEAGUE_ENGINE_RETIRED",
+          "LEAGUE_ATTEMPT_NOT_ACTIVE",
+          "LEAGUE_NOT_FOUND",
+          "LEAGUE_ENGINE_VERSION_MISMATCH",
+        ].includes(error.code)
+      )
+        onHome(error);
     } finally {
       sending.current = false;
       setForfeiting(false);
