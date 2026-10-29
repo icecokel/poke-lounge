@@ -114,6 +114,9 @@ services:
       LEAGUE_SEASON1_STARTS_AT:
       LEAGUE_SEASON1_STARTERS:
       LEAGUE_SEASON1_STARTER_LEVEL:
+      LEAGUE_EXP_MULTIPLIER:
+      LEAGUE_STARTER_POOL:
+      LEAGUE_DEV_SEASON_MINUTES:
       RUST_LOG: info
     depends_on:
       postgres: { condition: service_healthy }

@@ -42,7 +42,7 @@ const files = [
 ];
 function leagueFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    if (entry.name === "roster") return [];
+    if (entry.name === "roster" || entry.name === "growth") return [];
     const path = resolve(directory, entry.name);
     return entry.isDirectory()
       ? leagueFiles(path)
@@ -55,7 +55,7 @@ files.push(...leagueFiles(resolve(source, "league")));
 
 const visited = new Set();
 function visit(path, collected, browser) {
-  if (!browser && relative(source, path).startsWith("league/roster/")) return;
+  if (!browser && /^league\/(roster|growth)\//.test(relative(source, path))) return;
   if (collected.has(path)) return;
   collected.add(path);
   if (!path.endsWith(".ts")) return;
