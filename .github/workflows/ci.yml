@@ -75,3 +75,4 @@ jobs:
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       BATTLE_WORKER_TOKEN: ${{ secrets.BATTLE_WORKER_TOKEN }}
       DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
+      LEAGUE_JUDGE_TOKEN: ${{ secrets.LEAGUE_JUDGE_TOKEN }}

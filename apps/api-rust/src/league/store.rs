@@ -41,10 +41,33 @@ async fn now<C: GenericClient + Sync>(client: &C) -> Result<i64> {
         .try_get(0)?)
 }
 impl League {
-    async fn bootstrap(&self) -> Result<()> {
+    pub(super) async fn bootstrap(&self) -> Result<()> {
         let (Some(starts), Some(starters)) = (&self.config.starts_at, &self.config.starters) else {
             return Ok(());
         };
+        let (length, _, grace) = super::season::timing(self.config.grace_hours);
+        if super::season::dev_minutes().is_none() {
+            let slot = self.db.client().await?;
+            let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
+            let aligned: bool = client.query_one("SELECT extract(isodow FROM ($1::text::timestamptz AT TIME ZONE 'Asia/Seoul')) = 1 AND ($1::text::timestamptz AT TIME ZONE 'Asia/Seoul')::time = time '00:00'", &[starts]).await?.try_get(0)?;
+            if !aligned {
+                use std::sync::atomic::{AtomicU64, Ordering};
+                use std::time::{SystemTime, UNIX_EPOCH};
+                static LAST_WARNING: AtomicU64 = AtomicU64::new(0);
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map_or(0, |elapsed| elapsed.as_secs());
+                if LAST_WARNING
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |last| {
+                        (now.saturating_sub(last) >= 600).then_some(now)
+                    })
+                    .is_ok()
+                {
+                    tracing::warn!(event = "league.season1_misaligned");
+                }
+                return Ok(());
+            }
+        }
         let health = self.judge.health().await?;
         let roster = match self
             .judge
@@ -70,7 +93,7 @@ impl League {
         }
         let mut slot = self.db.client().await?;
         let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
-        client.execute("INSERT INTO poke_lounge_league_season (id,starts_at,closes_at,settle_deadline,starter_species_ids,starter_level,rules_version,engine_version,roster_version,npc_seeds,badge_npcs) SELECT 1,$1::text::timestamptz,$1::text::timestamptz+interval '28 days',$1::text::timestamptz+interval '28 days'+make_interval(hours=>$2),$3,$4,$5,$6,$7,$8,$9 WHERE NOT EXISTS (SELECT 1 FROM poke_lounge_league_season) ON CONFLICT DO NOTHING", &[starts,&self.config.grace_hours,starters,&self.config.starter_level,&self.config.rules_version,&health.engine,&health.roster,&roster["npcSeeds"],&roster["badgeNpcs"]]).await?;
+        client.execute("INSERT INTO poke_lounge_league_season (id,starts_at,closes_at,settle_deadline,starter_species_ids,starter_level,rules_version,engine_version,roster_version,npc_seeds,badge_npcs) SELECT 1,$1::text::timestamptz,$1::text::timestamptz+make_interval(mins=>$10),$1::text::timestamptz+make_interval(mins=>$10)+make_interval(mins=>$2),$3,$4,$5,$6,$7,$8,$9 WHERE NOT EXISTS (SELECT 1 FROM poke_lounge_league_season) ON CONFLICT DO NOTHING", &[starts,&grace,starters,&self.config.starter_level,&self.config.rules_version,&health.engine,&health.roster,&roster["npcSeeds"],&roster["badgeNpcs"],&length]).await?;
         Ok(())
     }
     pub async fn status(&self) -> Result<Value> {
@@ -775,18 +798,16 @@ impl League {
     }
 }
 
+pub enum StarterSource {
+    Plan,
+    Pool { seed: i64 },
+}
+
 /// F6 supplies the next season policy; settlement and creation share one transaction.
-#[allow(
-    dead_code,
-    reason = "F6 adds the season scheduler in the next implementation round"
-)]
 pub struct NextSeason {
-    pub id: i32,
-    pub starts_at: String,
-    pub closes_at: String,
-    pub settle_deadline: String,
     pub starter_species_ids: Vec<i16>,
     pub starter_level: i16,
+    pub starter_source: StarterSource,
     pub rules_version: i16,
     pub engine_version: String,
     pub roster_version: String,
@@ -864,20 +885,12 @@ impl League {
         }
         Ok(())
     }
-    #[allow(
-        dead_code,
-        reason = "F6 adds the season scheduler in the next implementation round"
-    )]
     pub async fn settle_season(&self, id: i32, next: &NextSeason) -> Result<bool> {
         super::db::retry(|| self.settle_once(id, next)).await
     }
-    #[allow(
-        dead_code,
-        reason = "F6 adds the season scheduler in the next implementation round"
-    )]
     async fn settle_once(&self, id: i32, next: &NextSeason) -> Result<bool> {
-        if next.id != id.checked_add(1).ok_or_else(LeagueError::corrupt)?
-            || !(3..=6).contains(&next.starter_species_ids.len())
+        let next_id = id.checked_add(1).ok_or_else(LeagueError::corrupt)?;
+        if !(3..=6).contains(&next.starter_species_ids.len())
             || next
                 .starter_species_ids
                 .iter()
@@ -896,11 +909,7 @@ impl League {
         let mut starters = next.starter_species_ids.clone();
         starters.sort_unstable();
         starters.dedup();
-        if starters.len() != next.starter_species_ids.len()
-            || ![&next.starts_at, &next.closes_at, &next.settle_deadline]
-                .iter()
-                .all(|s| super::config::rfc3339(s))
-        {
+        if starters.len() != next.starter_species_ids.len() {
             return Err(LeagueError::corrupt());
         }
         let mut orders = views::array(&next.npc_seeds)?
@@ -920,6 +929,22 @@ impl League {
         {
             return Ok(false);
         }
+        // Serialize plan writers too: a plan committed before this lock always wins.
+        tx.batch_execute("LOCK TABLE poke_lounge_league_season_plan IN SHARE MODE")
+            .await?;
+        let plan = tx.query_opt("SELECT starter_species_ids,starter_level FROM poke_lounge_league_season_plan WHERE season_id=$1", &[&next_id]).await?;
+        let (source, seed) = match (&next.starter_source, plan) {
+            (StarterSource::Plan, Some(plan)) => {
+                let ids: Vec<i16> = plan.try_get(0)?;
+                let level: i16 = plan.try_get(1)?;
+                if ids != next.starter_species_ids || level != next.starter_level {
+                    return Ok(false);
+                }
+                ("plan", None)
+            }
+            (StarterSource::Pool { seed }, None) => ("pool", Some(*seed)),
+            _ => return Ok(false),
+        };
         let active:i64 = tx.query_one("SELECT count(*) FROM poke_lounge_league_attempt WHERE season_id=$1 AND status='active'", &[&id]).await?.try_get(0)?;
         if active > 0 && views::integer(&s["now_ms"])? < views::integer(&s["deadline_ms"])? {
             return Ok(false);
@@ -941,12 +966,25 @@ impl League {
             &[&id],
         )
         .await?;
-        tx.execute("INSERT INTO poke_lounge_league_season (id,starts_at,closes_at,settle_deadline,starter_species_ids,starter_level,rules_version,engine_version,roster_version,npc_seeds,badge_npcs) VALUES ($1,$2::text::timestamptz,$3::text::timestamptz,$4::text::timestamptz,$5,$6,$7,$8,$9,$10,$11)", &[&next.id,&next.starts_at,&next.closes_at,&next.settle_deadline,&next.starter_species_ids,&next.starter_level,&next.rules_version,&next.engine_version,&next.roster_version,&next.npc_seeds,&next.badge_npcs]).await?;
+        let (length, gap, grace) = super::season::timing(self.config.grace_hours);
+        let created = tx.query_one("INSERT INTO poke_lounge_league_season (id,starts_at,closes_at,settle_deadline,starter_species_ids,starter_level,rules_version,engine_version,roster_version,npc_seeds,badge_npcs,starter_source,starter_seed) SELECT $1,GREATEST(p.closes_at+make_interval(mins=>$13),now()),p.closes_at+make_interval(mins=>$13)+make_interval(mins=>$14),p.closes_at+make_interval(mins=>$13)+make_interval(mins=>$14)+make_interval(mins=>$2),$3,$4,$5,$6,$7,$8,$9,$10,$11 FROM poke_lounge_league_season p WHERE p.id=$12 RETURNING (extract(epoch FROM starts_at)*1000)::bigint AS starts_ms,(extract(epoch FROM closes_at)*1000)::bigint AS closes_ms,starts_at>now() AS scheduled", &[&next_id,&grace,&next.starter_species_ids,&next.starter_level,&next.rules_version,&next.engine_version,&next.roster_version,&next.npc_seeds,&next.badge_npcs,&source,&seed,&id,&gap,&length]).await?;
         tx.commit().await?;
         tracing::info!(
             event = "league.season_settled",
             season = id,
             expired = active
+        );
+        tracing::info!(
+            event = "league.season_created",
+            id = next_id,
+            starts_ms = created.try_get::<_, i64>("starts_ms")?,
+            closes_ms = created.try_get::<_, i64>("closes_ms")?,
+            phase = if created.try_get::<_, bool>("scheduled")? {
+                "scheduled"
+            } else {
+                "open"
+            },
+            starter_source = source,
         );
         Ok(true)
     }
