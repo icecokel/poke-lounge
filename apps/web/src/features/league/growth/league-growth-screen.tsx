@@ -182,6 +182,11 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
       if (cancelled) return;
       const local = readLeagueSave(runId, account.user.id);
       const result = reconcileLeagueSave(local, remote.save, runId, account.user.id);
+      for (const save of [result.save, result.conflict])
+        if (save) {
+          save.league.badges = remote.run.badges;
+          save.league.growth = remote.growth;
+        }
       if (result.save && result.conflict) {
         setConflict({ local: result.save, remote: result.conflict });
         return;
@@ -232,13 +237,14 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
       session.storage,
       runtime.runtimeAssets,
       closed,
+      code => setNotice(code === "LEAGUE_MINT_LIMIT" ? copy.maxMints : copy.error),
     );
     return () => {
       void sync.flush(true);
       sync.stop();
       stopMints();
     };
-  }, [session, runtime, closed]);
+  }, [session, runtime, closed, copy.maxMints, copy.error]);
   function chooseSave(save: LeagueSaveEnvelope) {
     if (!conflict) return;
     const selected = {

@@ -39,8 +39,28 @@ pub async fn set_nickname(league: &League, user: Uuid, nickname: &str) -> Result
     let key = nickname.to_ascii_lowercase();
     let slot = league.db.client().await?;
     let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
-    let reserved: bool = client.query_one("SELECT EXISTS (SELECT 1 FROM poke_lounge_league_season s, LATERAL jsonb_array_elements(s.npc_seeds || s.badge_npcs) npc WHERE lower(npc->>'displayName')=$1)", &[&key]).await?.try_get(0)?;
-    if reserved || ["npc", "운영자", "관리자", "admin", "system"].contains(&key.as_str()) {
+    if [
+        "목호",
+        "카렌",
+        "시바",
+        "독수",
+        "일목",
+        "비상",
+        "호일",
+        "꼭두",
+        "유빈",
+        "사도",
+        "규리",
+        "류옹",
+        "이향",
+        "npc",
+        "운영자",
+        "관리자",
+        "admin",
+        "system",
+    ]
+    .contains(&key.as_str())
+    {
         reasons.push("RESERVED");
     }
     if !reasons.is_empty() {

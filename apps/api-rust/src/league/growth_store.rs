@@ -230,7 +230,14 @@ impl League {
                 .detail(existing.unwrap_or_else(|| json!({"rev":0,"savedAtMs":null}))));
         }
         let result=tx.query_opt("INSERT INTO poke_lounge_league_run_save (run_id,rev,data,size_bytes) VALUES ($1,1,$3,$4) ON CONFLICT (run_id) DO UPDATE SET rev=poke_lounge_league_run_save.rev+1,data=$3,size_bytes=$4,saved_at=now() WHERE poke_lounge_league_run_save.rev=$2 RETURNING rev,(extract(epoch from saved_at)*1000)::bigint AS saved", &[&id,&base,&data,&(size as i32)]).await?;
-        let row = result.ok_or_else(|| LeagueError::new(409, "LEAGUE_SAVE_CONFLICT"))?;
+        let row = match result {
+            Some(row) => row,
+            None => {
+                let current=one(&tx,"SELECT jsonb_build_object('rev',rev,'savedAtMs',(extract(epoch from saved_at)*1000)::bigint) AS value FROM poke_lounge_league_run_save WHERE run_id=$1", &[&id]).await?;
+                return Err(LeagueError::new(409, "LEAGUE_SAVE_CONFLICT")
+                    .detail(current.unwrap_or(Value::Null)));
+            }
+        };
         let rev: i32 = row.try_get("rev")?;
         let saved: i64 = row.try_get("saved")?;
         tx.commit().await?;

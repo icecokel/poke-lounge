@@ -115,7 +115,7 @@ export function cleanLeagueSaves(currentRunId: string | null): void {
 export interface LeagueSaveStorage extends GameStateStorage {
   getEnvelope(): LeagueSaveEnvelope;
   updateLeague(update: (league: LeagueSaveEnvelope["league"]) => void): void;
-  replace(save: LeagueSaveEnvelope): void;
+  replace(save: LeagueSaveEnvelope, checkpoint?: boolean): void;
   acknowledge(rev: number, uploadedRevision: number): void;
   subscribe(listener: (checkpoint: boolean) => void): () => void;
 }
@@ -156,10 +156,10 @@ export function createLeagueSaveStorage(initial: LeagueSaveEnvelope): LeagueSave
       save = { ...save, league };
       publish(true);
     },
-    replace(next) {
+    replace(next, checkpoint = false) {
       save = structuredClone(next);
       signature = checkpointSignature(save.game);
-      publish(false, false);
+      publish(checkpoint, false);
     },
     acknowledge(rev, uploadedRevision) {
       save = { ...save, serverRev: rev, dirty: save.rev !== uploadedRevision };

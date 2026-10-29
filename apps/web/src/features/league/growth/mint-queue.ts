@@ -1,3 +1,7 @@
+import {
+  getRuntimeGrowthExperienceTable,
+  getRuntimePokemonSpeciesGrowthRate,
+} from "@poke-lounge/battle/adventure/data/game-data-json";
 import type { GameStateStore, PlayerPokemon } from "@/features/poke-lounge/contracts/game-state";
 import type { PokeLoungeRuntimeAssets } from "@/components/poke-lounge/runtime/game/assets/poke-lounge-runtime-assets";
 import {
@@ -17,6 +21,7 @@ export function startLeagueMintQueue(
   storage: LeagueSaveStorage,
   assets: PokeLoungeRuntimeAssets,
   onRunClosed: () => void,
+  onError: (code: string) => void,
 ) {
   let stopped = false;
   let busy = false;
@@ -51,8 +56,21 @@ export function startLeagueMintQueue(
             createdAtMs: Date.now(),
           });
       });
-    if (player.inventory.pokeball !== 99)
-      store.upsertLocalPlayer({ ...player, inventory: { pokeball: 99 } });
+    let capped = false;
+    const cap = (pokemon: PlayerPokemon) => {
+      const maximum = getRuntimeGrowthExperienceTable(
+        pokemon.growthRate ?? getRuntimePokemonSpeciesGrowthRate(pokemon.speciesId) ?? 0,
+      )[100];
+      if (pokemon.level === 100 && maximum !== undefined && pokemon.experience !== maximum) {
+        capped = true;
+        return { ...pokemon, experience: maximum };
+      }
+      return pokemon;
+    };
+    const party = player.party.map(s => ({ ...s, pokemon: s.pokemon ? cap(s.pokemon) : null }));
+    const pokemonBox = player.pokemonBox.map(cap);
+    if (capped || player.inventory.pokeball !== 99)
+      store.upsertLocalPlayer({ ...player, party, pokemonBox, inventory: { pokeball: 99 } });
     changing = false;
     if (!busy && !timer && retry <= 5) void process();
   }
@@ -112,18 +130,25 @@ export function startLeagueMintQueue(
       }));
       const pokemonBox = player.pokemonBox.map(replace);
       const newKey = getIndividualValueKey(mon.individualValues);
-      storage.updateLeague(l => {
-        l.monIds[newKey] = mon.monId;
-        l.pendingMints = l.pendingMints.filter(m => m.requestKey !== pending.requestKey);
-      });
-      store.upsertLocalPlayer({
+      const nextPlayer = {
         ...player,
         party,
         pokemonBox,
         deferredMoveLearnings: player.deferredMoveLearnings?.map(l =>
           l.pokemonKey === pending.localKey ? { ...l, pokemonKey: newKey } : l,
         ),
-      });
+      };
+      const nextSave = structuredClone(storage.getEnvelope());
+      nextSave.game.playersById[player.playerId] = nextPlayer;
+      nextSave.league.monIds[newKey] = mon.monId;
+      nextSave.league.pendingMints = nextSave.league.pendingMints.filter(
+        m => m.requestKey !== pending.requestKey,
+      );
+      nextSave.rev++;
+      nextSave.dirty = true;
+      nextSave.savedAtMs = Date.now();
+      storage.replace(nextSave, true);
+      store.upsertLocalPlayer(nextPlayer);
       changing = false;
       retry = 0;
     } catch (error) {
@@ -150,6 +175,7 @@ export function startLeagueMintQueue(
             1000 * 2 ** (retry - 1),
           );
       } else {
+        onError(error.code);
         retry = 6;
       }
     } finally {

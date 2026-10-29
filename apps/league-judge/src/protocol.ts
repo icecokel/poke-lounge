@@ -211,7 +211,7 @@ export const requestSchema = z.strictObject({
       kind: z.literal("check-party"),
       purpose: z.enum(["badge", "entry"]),
       claim: growthClaim,
-      mons: z.array(mintRecord).max(400),
+      mons: z.array(mintRecord).max(401),
       run: runContext,
       checkpoint,
       nowMs: integer(0, Number.MAX_SAFE_INTEGER),
@@ -220,7 +220,7 @@ export const requestSchema = z.strictObject({
       kind: z.literal("prepare-badge"),
       badgeIndex: integer(0, 7),
       claim: growthClaim,
-      mons: z.array(mintRecord).max(400),
+      mons: z.array(mintRecord).max(401),
       npc: z.strictObject({
         npcKey: z.string().min(1).max(100),
         displayName: z.string().min(1).max(100),

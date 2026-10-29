@@ -142,7 +142,12 @@ function applyBadgeGrowth(
       },
     };
   });
-  session.store.upsertLocalPlayer({ ...player, party, deferredMoveLearnings: pending });
+  session.store.upsertLocalPlayer({
+    ...player,
+    party,
+    activePartySlotIndex: end.activeSlotIndex,
+    deferredMoveLearnings: pending,
+  });
 }
 export function BadgeFlow({
   session,

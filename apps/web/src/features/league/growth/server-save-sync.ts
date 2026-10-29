@@ -1,6 +1,11 @@
 import { LeagueApiError } from "../api/core";
 import { loadLeagueSave, uploadLeagueSave } from "../api/growth";
-import { parseLeagueSave, type LeagueSaveEnvelope, type LeagueSaveStorage } from "./league-save";
+import {
+  readLeagueSave,
+  parseLeagueSave,
+  type LeagueSaveEnvelope,
+  type LeagueSaveStorage,
+} from "./league-save";
 
 export function reconcileLeagueSave(
   local: LeagueSaveEnvelope | null,
@@ -15,7 +20,7 @@ export function reconcileLeagueSave(
     server.dirty = false;
   }
   if (!local) return { save: server, conflict: null };
-  if (!server || !remote) return { save: local, conflict: null };
+  if (!server || !remote) return { save: { ...local, serverRev: 0, dirty: true }, conflict: null };
   if (local.serverRev === remote.rev) return { save: local, conflict: null };
   return local.dirty ? { save: local, conflict: server } : { save: server, conflict: null };
 }
@@ -30,6 +35,23 @@ export function startServerSaveSync(
   let busy = false;
   let stopped = false;
   let paused = false;
+  let conflicting = false;
+  async function readConflict() {
+    try {
+      const snapshot = storage.getEnvelope();
+      const remote = await loadLeagueSave(snapshot.runId);
+      if (stopped) return;
+      const data =
+        remote.save && parseLeagueSave(remote.save.data, snapshot.runId, snapshot.userId);
+      if (data && remote.save) {
+        data.serverRev = remote.save.rev;
+        data.dirty = false;
+        onConflict(data);
+      } else onStatus("error");
+    } catch {
+      if (!stopped) onStatus("error");
+    }
+  }
   async function flush(keepalive = false) {
     if (stopped || paused || busy || !storage.getEnvelope().dirty) return;
     if (!keepalive && Date.now() - lastUpload < 30000) {
@@ -47,9 +69,13 @@ export function startServerSaveSync(
         snapshot,
         keepalive,
       );
-      if (stopped) return;
+      if (
+        stopped &&
+        readLeagueSave(snapshot.runId, snapshot.userId)?.rev !== storage.getEnvelope().rev
+      )
+        return;
       storage.acknowledge(result.rev, snapshot.rev);
-      onStatus("saved");
+      if (!stopped) onStatus("saved");
     } catch (error) {
       if (stopped) return;
       if (error instanceof LeagueApiError && error.code === "LEAGUE_RUN_NOT_ACTIVE") {
@@ -57,19 +83,8 @@ export function startServerSaveSync(
         onRunClosed();
       } else if (error instanceof LeagueApiError && error.code === "LEAGUE_SAVE_CONFLICT") {
         paused = true;
-        try {
-          const remote = await loadLeagueSave(snapshot.runId);
-          if (stopped) return;
-          const data =
-            remote.save && parseLeagueSave(remote.save.data, snapshot.runId, snapshot.userId);
-          if (data && remote.save) {
-            data.serverRev = remote.save.rev;
-            data.dirty = false;
-            onConflict(data);
-          } else onStatus("error");
-        } catch {
-          onStatus("error");
-        }
+        conflicting = true;
+        await readConflict();
       } else {
         if (error instanceof LeagueApiError && error.code === "LEAGUE_SAVE_INVALID") paused = true;
         onStatus("error");
@@ -92,7 +107,8 @@ export function startServerSaveSync(
   };
   document.addEventListener("visibilitychange", hidden);
   const online = () => {
-    if (!paused) schedule();
+    if (conflicting) void readConflict();
+    else if (!paused) schedule();
   };
   window.addEventListener("online", online);
   if (storage.getEnvelope().dirty) schedule();
