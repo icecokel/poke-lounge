@@ -65,7 +65,7 @@ impl Config {
             judge_url,
             token,
             db_max: number("LEAGUE_DB_MAX_CONNECTIONS", 2, 1, 4)? as usize,
-            grace_hours: number("LEAGUE_SETTLE_GRACE_HOURS", 6, 0, i32::MAX)?,
+            grace_hours: number("LEAGUE_SETTLE_GRACE_HOURS", 6, 0, 720)?,
             starts_at,
             starters,
             starter_level: number("LEAGUE_SEASON1_STARTER_LEVEL", 10, 1, 100)? as i16,
@@ -73,17 +73,22 @@ impl Config {
         })
     }
 }
-fn secret(key: &str, file: &str) -> Option<String> {
-    env::var(key)
+fn secret(key: &'static str, file: &'static str) -> Option<String> {
+    optional(key)
         .ok()
-        .or_else(|| env::var(file).ok().and_then(|p| fs::read_to_string(p).ok()))
+        .flatten()
+        .or_else(|| {
+            optional(file)
+                .ok()
+                .flatten()
+                .and_then(|p| fs::read_to_string(p).ok())
+        })
         .map(|s| s.trim().to_owned())
 }
 fn number(key: &'static str, default: i32, min: i32, max: i32) -> Result<i32, &'static str> {
-    let value = match env::var(key) {
-        Ok(v) => v.parse().map_err(|_| key)?,
-        Err(env::VarError::NotPresent) => default,
-        Err(_) => return Err(key),
+    let value = match optional(key)? {
+        Some(v) => v.parse().map_err(|_| key)?,
+        None => default,
     };
     if !(min..=max).contains(&value) {
         return Err(key);
@@ -154,6 +159,7 @@ pub(super) fn rfc3339(s: &str) -> bool {
 
 fn optional(key: &'static str) -> Result<Option<String>, &'static str> {
     match env::var(key) {
+        Ok(value) if value.trim().is_empty() => Ok(None),
         Ok(value) => Ok(Some(value)),
         Err(env::VarError::NotPresent) => Ok(None),
         Err(_) => Err(key),
