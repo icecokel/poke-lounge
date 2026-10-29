@@ -1,5 +1,5 @@
 {
-  "revision": 3,
+  "revision": 4,
   "simVersion": "0.10.11",
   "files": {
     "src/ai-difficulty.ts": "c27f4cb795e87e04b6ef62c4bbd63a06beabd33e01f6f40bf7d8321077996c45",
@@ -18,9 +18,9 @@
     "src/gen4/serialization.ts": "3009e6f62925d21152a975ad729c9d6d47a69fbe38f465bb63fec995c348f6ea",
     "src/gen4/traits.ts": "1a5a73edac0b73819292f55724f12376305db584886f9fbb96205f97ac262f69",
     "src/league/ai-view.ts": "8352d791e3339f99902e52d641d5f4cd28bdc719b425ae4f397d290a1c04c1ce",
-    "src/league/carry.ts": "dfe3f1960d1912ea3c9e5fbec0ee7a360de6bd08b401028241a0b127352fba1b",
+    "src/league/carry.ts": "1310c533ed44d2cfe5dec63aa318e2d3eb618a1deb5d67404917bb2f1653b822",
     "src/league/contract.ts": "03d254eb53716bb23bfe26f41e84f964b361f62c69634a4d098c7f83f87cacee",
-    "src/league/engine-version.ts": "0111d84c0bf08bccc4008dcf32fd59a2e6c216f4fb0892642aac625c85f55442",
+    "src/league/engine-version.ts": "90cd600469bbbf97760802a11d0e4e33c37f8316ed1a9551d0fb133f5c3cdd50",
     "src/league/entry.ts": "32b3c6d4a31f6d93162fd5e3fb51ee988b6400ab479df1059935a1c6e99465b9",
     "src/league/fraction.ts": "88e4768128b6e1c399a5c78a31b11378fd6f1c08a62172f0d6aec4e01534af84",
     "src/league/hash.ts": "3542111ffdfe6e68a6d5f09f10e5b463e8425b3590007458ad811bf11979ee4c",

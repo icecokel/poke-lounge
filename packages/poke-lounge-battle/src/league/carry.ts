@@ -20,7 +20,10 @@ export function recoverBetweenMatches(
         final.currentHp < 0 ||
         final.currentHp > member.maxHp ||
         final.moves.length !== member.moves.length ||
-        final.moves.some((move, index) => move.moveId !== member.moves[index]!.moveId)
+        final.moves.some(
+          (move, index) =>
+            move.moveId !== member.moves[index]!.moveId && member.moves[index]!.moveId !== 166,
+        )
       )
         throw new Error("Carry member changed");
       const alive = final.currentHp > 0;
@@ -32,7 +35,9 @@ export function recoverBetweenMatches(
         currentHp: alive ? final.currentHp + Math.ceil((member.maxHp - final.currentHp) / 2) : 0,
         status: alive ? ("normal" as const) : ("fainted" as const),
         moves: member.moves.map((move, index) => {
-          const pp = final.moves[index]!.pp;
+          // Successful Sketch consumes its one PP; copied-move PP must never carry into that slot.
+          const pp =
+            move.moveId === 166 && final.moves[index]!.moveId !== 166 ? 0 : final.moves[index]!.pp;
           if (!Number.isInteger(pp) || pp < 0 || pp > move.maxPp)
             throw new Error("Carry PP changed");
           return { ...move, pp: alive ? pp + Math.ceil((move.maxPp - pp) / 2) : pp };
