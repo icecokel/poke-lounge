@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
 import {
   createDefaultLocalPlayer,
@@ -34,6 +34,11 @@ import { NicknameForm } from "./nickname-form";
 import { StarterSelect } from "./starter-select";
 import { LeagueFieldRuntime } from "./field-runtime";
 import { GrowthHud } from "./growth-hud";
+import { createWorldMapModel } from "@/components/poke-lounge/runtime/game/world/world-map-model";
+import { localizeTrainerName } from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
+import { BadgeFlow, BadgeMoveLearning } from "./badge-flow";
+import { nextGym, withGymNpc, GYM_SPRITES } from "./gym-npc";
+import { GymChallengePanel } from "./gym-challenge-panel";
 import { growthCopy } from "./copy";
 
 export interface GrowthSession {
@@ -45,7 +50,7 @@ function initialSave(
   userId: string,
   seasonId: number,
   nickname: string,
-  props: LeagueGrowthScreenProps,
+  runtime: LeagueGrowthScreenProps["runtime"],
 ): LeagueSaveEnvelope {
   const mon = result.starter;
   const growthRate = getRuntimePokemonSpeciesGrowthRate(mon.speciesId) ?? 0;
@@ -61,10 +66,10 @@ function initialSave(
   };
   const battle = createStoredBattlePokemon({
     pokemon: starter,
-    personalRecords: props.runtime.runtimeAssets.json.get(
+    personalRecords: runtime.runtimeAssets.json.get(
       "romPersonalData",
     ) as RomPersonalRecordCollection,
-    moveRecords: props.runtime.runtimeAssets.json.get(
+    moveRecords: runtime.runtimeAssets.json.get(
       "romRefinedBattleRecords",
     ) as RomRefinedMoveCollection,
   });
@@ -105,6 +110,8 @@ function initialSave(
 export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
   const { runtime, status, me, onExit } = props;
   const copy = growthCopy(runtime.locale);
+  const exitRef = useRef(onExit);
+  exitRef.current = onExit;
   const [nickname, setNickname] = useState(me.user.nickname ?? null);
   const [session, setSession] = useState<GrowthSession | null>(null);
   const [error, setError] = useState("");
@@ -115,29 +122,60 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
     local: LeagueSaveEnvelope;
     remote: LeagueSaveEnvelope;
   } | null>(null);
+  const [stage, setStage] = useState<"field" | "gym" | "badge">("field");
   const [created, setCreated] = useState<GrowthStart | null>(null);
   const run = created?.run ?? me.run;
+  const subscribeSave = useCallback(
+    (listener: () => void) => session?.storage.subscribe(listener) ?? (() => {}),
+    [session],
+  );
+  const getSave = useCallback(() => session?.storage.getEnvelope() ?? null, [session]);
+  const envelope = useSyncExternalStore(subscribeSave, getSave, getSave);
+  const badges = envelope?.league.badges ?? run?.badges ?? 0;
+  const gym = useMemo(() => nextGym(badges), [badges]);
+  const model = useMemo(
+    () => withGymNpc(createWorldMapModel(runtime.runtimeAssets.tilemap), gym),
+    [runtime, gym],
+  );
+  const challenger = useMemo(
+    () =>
+      gym
+        ? {
+            hint: `${copy.gym} ${localizeTrainerName(gym.displayName, runtime.locale)}`,
+            onInteract: () => setStage("gym"),
+          }
+        : undefined,
+    [gym, copy, runtime.locale],
+  );
+  useEffect(() => {
+    if (!gym) return;
+    const image = new Image();
+    image.src = GYM_SPRITES[gym.npcKey]!;
+  }, [gym]);
   const closed = useCallback(() => {
     cleanLeagueSaves(null);
-    onExit("run-changed");
-  }, [onExit]);
+    exitRef.current("run-changed");
+  }, []);
   const activate = useCallback((save: LeagueSaveEnvelope) => {
     const storage = createLeagueSaveStorage(save);
     setSession({ storage, store: createGameStateStore({ storage }) });
   }, []);
+  const runId = run?.id;
+  const seasonId = status.season?.id;
+  useEffect(() => {
+    cleanLeagueSaves(runId ?? null);
+  }, [runId]);
   useEffect(() => {
     let cancelled = false;
     setError("");
-    if (!run || !nickname || !status.season) return;
-    const runId = run.id;
-    const seasonId = status.season.id;
+    if (!runId || !nickname || seasonId === undefined) return;
     void (async () => {
       const account = await fetchAccountSession();
       if (!account.user) throw new Error("UNAUTHORIZED");
       if (cancelled) return;
       cleanLeagueSaves(runId);
       if (created) {
-        activate(initialSave(created, account.user.id, seasonId, nickname, props));
+        activate(initialSave(created, account.user.id, seasonId, nickname, runtime));
         return;
       }
       const remote = await loadLeagueSave(runId);
@@ -155,7 +193,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
           account.user.id,
           seasonId,
           nickname,
-          props,
+          runtime,
         );
       if (!result.save) setNotice(copy.noSave);
       save.league.badges = remote.run.badges;
@@ -169,9 +207,18 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
     return () => {
       cancelled = true;
     };
-    // Runtime and account stay fixed for this growth screen mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [run?.id, nickname, retry, created, activate, closed]);
+  }, [
+    runId,
+    seasonId,
+    nickname,
+    retry,
+    created,
+    activate,
+    closed,
+    runtime,
+    copy.noSave,
+    copy.saveInvalid,
+  ]);
   useEffect(() => {
     if (!session) return;
     const sync = startServerSaveSync(
@@ -252,6 +299,34 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
       </div>
     );
   if (!session) return <p role="status">{copy.loading}</p>;
+  if (stage === "field" && session.store.getCurrentLocalPlayer().deferredMoveLearnings?.length)
+    return <BadgeMoveLearning session={session} copy={copy} runtime={runtime} />;
+  if (stage === "badge")
+    return (
+      <BadgeFlow
+        session={session}
+        runtime={runtime}
+        JudgedBattle={props.JudgedBattle}
+        copy={copy}
+        onRunClosed={closed}
+        onBack={() => setStage("field")}
+        onDone={message => {
+          setNotice(message);
+          setStage("field");
+        }}
+      />
+    );
+  if (stage === "gym" && gym)
+    return (
+      <GymChallengePanel
+        gym={gym}
+        badges={badges}
+        copy={copy}
+        locale={runtime.locale}
+        onChallenge={() => setStage("badge")}
+        onBack={() => setStage("field")}
+      />
+    );
   return (
     <section className="space-y-3">
       {notice && <p role="status">{notice}</p>}
@@ -259,10 +334,13 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         storage={session.storage}
         copy={copy}
         status={saving}
+        nextGym={gym ? localizeTrainerName(gym.displayName, runtime.locale) : undefined}
         onExit={() => onExit("home")}
       />
       <LeagueFieldRuntime
         runtime={runtime}
+        model={model}
+        challenger={challenger}
         store={session.store}
         expMultiplierPermille={session.storage.getEnvelope().league.growth.expMultiplierPermille}
         onExit={() => onExit("home")}

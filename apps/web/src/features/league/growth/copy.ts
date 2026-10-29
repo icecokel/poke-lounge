@@ -1,5 +1,6 @@
 import type { LeagueLocale } from "../contract";
 const ko = {
+  skip: "배우지 않기",
   nickname: "리그 닉네임",
   nicknameHelp: "2~12자 · 한글, 영문, 숫자, 일본어, _",
   confirm: "확인",
@@ -45,6 +46,7 @@ const ko = {
   moves: "기술",
 };
 const en: typeof ko = {
+  skip: "Skip learning",
   nickname: "League nickname",
   nicknameHelp: "2–12 characters · Korean, Latin, digits, Japanese, _",
   confirm: "Confirm",
@@ -90,6 +92,7 @@ const en: typeof ko = {
   moves: "Moves",
 };
 const ja: typeof ko = {
+  skip: "覚えない",
   nickname: "リーグのニックネーム",
   nicknameHelp: "2〜12文字 · 韓国語、英字、数字、日本語、_",
   confirm: "決定",
