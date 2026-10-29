@@ -145,7 +145,7 @@ impl Judge {
                         .detail(json!({"kind":code,"at":body["detail"]["at"]}))
                 }
                 "ROSTER_NOT_READY" => LeagueError::new(503, "LEAGUE_ROSTER_NOT_READY"),
-                "PARTY_CHECK_UNAVAILABLE" => unavailable(),
+                "PARTY_CHECK_UNAVAILABLE" => judge_failed(),
                 code if RETRYABLE_JUDGE_CODES.contains(&code) => unavailable(),
                 _ => judge_failed(),
             };
