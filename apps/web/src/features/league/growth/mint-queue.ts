@@ -1,0 +1,218 @@
+import {
+  getRuntimeGrowthExperienceTable,
+  getRuntimePokemonSpeciesGrowthRate,
+} from "@poke-lounge/battle/adventure/data/game-data-json";
+import type { GameStateStore, PlayerPokemon } from "@/features/poke-lounge/contracts/game-state";
+import type { PokeLoungeRuntimeAssets } from "@/components/poke-lounge/runtime/game/assets/poke-lounge-runtime-assets";
+import {
+  createStoredBattlePokemon,
+  type RomPersonalRecordCollection,
+  type RomRefinedMoveCollection,
+} from "@poke-lounge/battle/adventure/battle/wild-battle-factory";
+import { getPokemonIdentityKey } from "@/features/poke-lounge/domain/player/player-helpers";
+import { getIndividualValueKey } from "@poke-lounge/battle/adventure/battle/individual-values";
+import { evolvedGen4Ability } from "@poke-lounge/battle/gen4/traits";
+import { LeagueApiError } from "../api/core";
+import { mintLeagueCapture } from "../api/growth";
+import type { BattleUiStore } from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
+import type { LeagueMintedMon } from "@poke-lounge/battle/league/contract";
+import type { LeagueSaveEnvelope, LeagueSaveStorage } from "./league-save";
+
+export function startLeagueMintQueue(
+  store: GameStateStore,
+  storage: LeagueSaveStorage,
+  assets: PokeLoungeRuntimeAssets,
+  battle: BattleUiStore,
+  onRunClosed: () => void,
+  onError: (code: string) => void,
+) {
+  let stopped = false;
+  let busy = false;
+  let changing = false;
+  let retry = 0;
+  let completed: {
+    pending: LeagueSaveEnvelope["league"]["pendingMints"][number];
+    mon: LeagueMintedMon;
+  } | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  function observe() {
+    if (stopped || changing || battle.getSnapshot().presentation) return;
+    const player = store.getCurrentLocalPlayer();
+    const league = storage.getEnvelope().league;
+    const newcomers = [
+      ...player.party.flatMap(s => (s.pokemon ? [s.pokemon] : [])),
+      ...player.pokemonBox,
+    ].filter(p => {
+      const key = getPokemonIdentityKey(p);
+      return (
+        key &&
+        !league.monIds[key] &&
+        !league.pendingMints.some(m => m.localKey === key) &&
+        !league.rejectedMints.includes(key)
+      );
+    });
+    changing = true;
+    if (newcomers.length)
+      storage.updateLeague(l => {
+        for (const p of newcomers)
+          l.pendingMints.push({
+            localKey: getPokemonIdentityKey(p)!,
+            speciesId: p.speciesId,
+            level: p.level,
+            requestKey: crypto.randomUUID(),
+            createdAtMs: Date.now(),
+          });
+      });
+    let capped = false;
+    const cap = (pokemon: PlayerPokemon) => {
+      const maximum = getRuntimeGrowthExperienceTable(
+        pokemon.growthRate ?? getRuntimePokemonSpeciesGrowthRate(pokemon.speciesId) ?? 0,
+      )[100];
+      if (pokemon.level === 100 && maximum !== undefined && pokemon.experience !== maximum) {
+        capped = true;
+        return { ...pokemon, experience: maximum };
+      }
+      return pokemon;
+    };
+    const party = player.party.map(s => ({ ...s, pokemon: s.pokemon ? cap(s.pokemon) : null }));
+    const pokemonBox = player.pokemonBox.map(cap);
+    if (capped || player.inventory.pokeball !== 99)
+      store.upsertLocalPlayer({ ...player, party, pokemonBox, inventory: { pokeball: 99 } });
+    changing = false;
+    if (!busy && !timer && retry <= 5) void process();
+  }
+  async function process() {
+    const pending = completed?.pending ?? storage.getEnvelope().league.pendingMints[0];
+    if (stopped || busy || !pending || battle.getSnapshot().presentation) return;
+    busy = true;
+    try {
+      const mon =
+        completed?.mon ??
+        (await mintLeagueCapture(
+          storage.getEnvelope().runId,
+          pending.speciesId,
+          pending.level,
+          pending.requestKey,
+        ));
+      if (stopped) return;
+      completed = { pending, mon };
+      // Battle settlement rewrites the whole party before clearing its presentation.
+      if (battle.getSnapshot().presentation) return;
+      changing = true;
+      const player = store.getCurrentLocalPlayer();
+      const replace = (pokemon: PlayerPokemon): PlayerPokemon => {
+        if (getPokemonIdentityKey(pokemon) !== pending.localKey) return pokemon;
+        const next = createStoredBattlePokemon({
+          pokemon: {
+            ...pokemon,
+            ...mon,
+            speciesId: pokemon.speciesId,
+            level: pokemon.level,
+            abilityId: evolvedGen4Ability(mon.speciesId, pokemon.speciesId, mon.abilityId),
+            currentHp: undefined,
+          },
+          personalRecords: assets.json.get("romPersonalData") as RomPersonalRecordCollection,
+          moveRecords: assets.json.get("romRefinedBattleRecords") as RomRefinedMoveCollection,
+        });
+        const hp = pokemon.currentHp ?? pokemon.maxHp ?? next.maxHp;
+        const oldMax = pokemon.maxHp ?? next.maxHp;
+        const currentHp =
+          hp <= 0
+            ? 0
+            : Math.max(
+                1,
+                Math.min(next.maxHp, Math.round((hp * next.maxHp) / Math.max(1, oldMax))),
+              );
+        return {
+          ...pokemon,
+          ...mon,
+          speciesId: pokemon.speciesId,
+          level: pokemon.level,
+          abilityId: next.abilityId,
+          maxHp: next.maxHp,
+          currentHp,
+          attack: next.attack,
+          defense: next.defense,
+          speed: next.speed,
+        };
+      };
+      const party = player.party.map(s => ({
+        ...s,
+        pokemon: s.pokemon ? replace(s.pokemon) : null,
+      }));
+      const pokemonBox = player.pokemonBox.map(replace);
+      const newKey = getIndividualValueKey(mon.individualValues);
+      const nextPlayer = {
+        ...player,
+        party,
+        pokemonBox,
+        deferredMoveLearnings: player.deferredMoveLearnings?.map(l =>
+          l.pokemonKey === pending.localKey ? { ...l, pokemonKey: newKey } : l,
+        ),
+      };
+      const nextSave = structuredClone(storage.getEnvelope());
+      nextSave.game.playersById[player.playerId] = nextPlayer;
+      nextSave.league.monIds[newKey] = mon.monId;
+      nextSave.league.pendingMints = nextSave.league.pendingMints.filter(
+        m => m.requestKey !== pending.requestKey,
+      );
+      nextSave.rev++;
+      nextSave.dirty = true;
+      nextSave.savedAtMs = Date.now();
+      storage.replace(nextSave, true);
+      store.upsertLocalPlayer(nextPlayer);
+      changing = false;
+      completed = null;
+      retry = 0;
+    } catch (error) {
+      if (stopped) return;
+      if (error instanceof LeagueApiError && error.code === "LEAGUE_RUN_NOT_ACTIVE") {
+        stopped = true;
+        onRunClosed();
+        return;
+      }
+      if (error instanceof LeagueApiError && error.code === "LEAGUE_MINT_REJECTED") {
+        storage.updateLeague(l => {
+          l.rejectedMints.push(pending.localKey);
+          l.pendingMints = l.pendingMints.filter(m => m.requestKey !== pending.requestKey);
+        });
+        retry = 0;
+      } else if (!(error instanceof LeagueApiError) || error.retryable || error.status === 429) {
+        retry++;
+        if (retry <= 5)
+          timer = setTimeout(
+            () => {
+              timer = undefined;
+              void process();
+            },
+            1000 * 2 ** (retry - 1),
+          );
+      } else {
+        onError(error.code);
+        retry = 6;
+      }
+    } finally {
+      busy = false;
+      changing = false;
+    }
+    if (!stopped && !timer && retry === 0 && storage.getEnvelope().league.pendingMints.length)
+      void process();
+  }
+  const unsubscribe = store.subscribe(observe);
+  const unsubscribeBattle = battle.subscribe(observe);
+  const online = () => {
+    retry = 0;
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+    observe();
+  };
+  window.addEventListener("online", online);
+  observe();
+  return () => {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+    unsubscribe();
+    unsubscribeBattle();
+    window.removeEventListener("online", online);
+  };
+}

@@ -1,6 +1,7 @@
 use std::{env, fs};
 
 pub struct Config {
+    pub exp_multiplier_permille: i32,
     pub judge_url: reqwest::Url,
     pub token: String,
     pub db_max: usize,
@@ -61,7 +62,21 @@ impl Config {
                 return Err("LEAGUE_SEASON1_STARTERS");
             }
         }
+        let exp_multiplier_permille = match optional("LEAGUE_EXP_MULTIPLIER").ok().flatten() {
+            None => 1500,
+            Some(value) => match value.trim().parse::<f64>() {
+                Ok(n) if n.is_finite() && (1.0..=20.0).contains(&n) => (n * 1000.0).round() as i32,
+                _ => {
+                    tracing::warn!(
+                        event = "league.growth_config_invalid",
+                        key = "LEAGUE_EXP_MULTIPLIER"
+                    );
+                    1500
+                }
+            },
+        };
         Ok(Self {
+            exp_multiplier_permille,
             judge_url,
             token,
             db_max: number("LEAGUE_DB_MAX_CONNECTIONS", 2, 1, 4)? as usize,

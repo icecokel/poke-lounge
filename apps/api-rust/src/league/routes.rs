@@ -109,7 +109,12 @@ async fn me(
     headers: HeaderMap,
 ) -> Result<Json<Value>> {
     let (id, name) = user(&state, &headers, &l, Kind::Read).await?;
-    Ok(success(db::retry(|| l.me(id, &name)).await?))
+    let profile = super::growth::profile::get(&l, id).await?;
+    let name = profile["nickname"].as_str().unwrap_or(&name);
+    let mut data = db::retry(|| l.me(id, name)).await?;
+    data["user"]["nickname"] = profile["nickname"].clone();
+    data["user"]["nicknameChangeableAtMs"] = profile["changeableAtMs"].clone();
+    Ok(success(data))
 }
 async fn seasons(
     State(state): State<AppState>,
@@ -146,6 +151,7 @@ async fn enter(
 ) -> Result<Json<Value>> {
     let (id, _) = user(&state, &headers, &l, Kind::Entry).await?;
     let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_PARTY_INVALID"))?;
+    db::retry(|| l.growth_check_entry(id, body.run_id, body.entry_key, &body.party)).await?;
     Ok(success(
         l.enter_attempt(id, body.run_id, body.entry_key, &body.party)
             .await?,
@@ -162,6 +168,7 @@ async fn submit(
     let (user, name) = user(&state, &headers, &l, Kind::Match).await?;
     let Path((attempt, index)) = path.map_err(|_| LeagueError::new(404, "LEAGUE_NOT_FOUND"))?;
     let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_INPUT_REJECTED"))?;
+    let name = super::growth::profile::display_name(&l, user, &name).await?;
     Ok(success(
         l.submit_match(user, &name, attempt, index, &body).await?,
     ))

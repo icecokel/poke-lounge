@@ -1,3 +1,5 @@
+import { getLeagueGrowthData } from "./growth/data";
+import { checkLeaguePartyContextFree } from "./growth/plausibility";
 import type { LeagueMintedMon, LeaguePartyClaim } from "./contract";
 
 export class LeaguePlausibilityError extends Error {
@@ -7,8 +9,11 @@ export class LeaguePlausibilityError extends Error {
 }
 
 export function assertLeaguePartyPlausible(
-  _claim: LeaguePartyClaim,
-  _mons: readonly LeagueMintedMon[],
+  claim: LeaguePartyClaim,
+  mons: readonly LeagueMintedMon[],
 ): void {
-  throw new LeaguePlausibilityError(["NOT_IMPLEMENTED"]);
+  const data = getLeagueGrowthData();
+  if (!data) throw new LeaguePlausibilityError(["NOT_IMPLEMENTED"]);
+  const reasons = checkLeaguePartyContextFree(claim, mons, data);
+  if (reasons.length) throw new LeaguePlausibilityError(reasons);
 }

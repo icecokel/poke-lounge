@@ -1,3 +1,8 @@
+import { getLeagueGrowthData } from "@poke-lounge/battle/league/growth/data";
+import { checkLeagueParty } from "@poke-lounge/battle/league/growth/plausibility";
+import { mintLeagueMon } from "@poke-lounge/battle/league/growth/mint";
+import { prepareBadge, judgeBadge } from "@poke-lounge/battle/league/badge";
+import { loadGrowthData } from "./growth-data";
 import { parentPort } from "node:worker_threads";
 import {
   LEAGUE_JUDGE_PROTOCOL,
@@ -45,7 +50,19 @@ parentPort.on("message", (input: JudgeRequest) => {
       result = { ...envelope, ok: false, code: "ENGINE_VERSION_MISMATCH", detail: null };
     else {
       const op = validated.data.op;
-      if (op.kind === "season-roster") result = { ...envelope, ok: true, data: seasonRoster() };
+      if (op.kind === "mint" || op.kind === "check-party") {
+        const data = getLeagueGrowthData();
+        if (!data) throw new LeaguePlausibilityError(["DATA_UNAVAILABLE"]);
+        result = {
+          ...envelope,
+          ok: true,
+          data: op.kind === "mint" ? mintLeagueMon(op, data) : checkLeagueParty(op, data),
+        };
+      } else if (op.kind === "prepare-badge")
+        result = { ...envelope, ok: true, data: prepareBadge(op) };
+      else if (op.kind === "judge-badge") result = { ...envelope, ok: true, data: judgeBadge(op) };
+      else if (op.kind === "season-roster")
+        result = { ...envelope, ok: true, data: seasonRoster() };
       else if (op.kind === "prepare-entry")
         result = { ...envelope, ok: true, data: prepareEntry(op.claim, op.mons, op.opponents) };
       else {
@@ -96,9 +113,10 @@ parentPort.on("message", (input: JudgeRequest) => {
       code = error.kind;
       detail = { at: error.at };
     } else if (error instanceof LeaguePlausibilityError) {
-      code = error.reasons.includes("NOT_IMPLEMENTED")
-        ? "PARTY_CHECK_UNAVAILABLE"
-        : "PARTY_IMPLAUSIBLE";
+      code =
+        error.reasons.includes("NOT_IMPLEMENTED") || error.reasons.includes("DATA_UNAVAILABLE")
+          ? "PARTY_CHECK_UNAVAILABLE"
+          : "PARTY_IMPLAUSIBLE";
       detail = { reasons: error.reasons };
     } else if (
       error instanceof Error &&
@@ -111,7 +129,9 @@ parentPort.on("message", (input: JudgeRequest) => {
   }
   parentPort!.postMessage({ result, advances, outcome, errorClass } satisfies WorkerMessage);
 });
-parentPort.postMessage({
-  ready: true,
-  engineVersion: LEAGUE_ENGINE_VERSION,
-} satisfies WorkerMessage);
+void loadGrowthData().then(() =>
+  parentPort!.postMessage({
+    ready: true,
+    engineVersion: LEAGUE_ENGINE_VERSION,
+  } satisfies WorkerMessage),
+);
