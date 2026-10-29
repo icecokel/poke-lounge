@@ -23,9 +23,21 @@ for (const path of files(source)) {
   const name = relative(source, path).replaceAll("\\", "/");
   const text = readFileSync(path, "utf8");
   const targets = imports(text);
-  for (const target of targets.filter(target => target.startsWith("@/features/league/"))) {
+  for (const target of targets) {
+    const resolved = target.startsWith("@/")
+      ? resolve(source, target.slice(2))
+      : target.startsWith(".")
+        ? resolve(dirname(path), target)
+        : null;
+    if (!resolved) continue;
+    const imported = relative(source, resolved).replaceAll("\\", "/");
+    if (imported !== "features/league" && !imported.startsWith(leaguePrefix)) continue;
     if (name.startsWith(leaguePrefix) || name.startsWith("app/[locale]/league/")) continue;
-    if (name === trainer && target === "@/features/league/entry-link/league-entry-link") continue;
+    if (
+      name === trainer &&
+      /^features\/league\/entry-link\/league-entry-link(?:\.[jt]sx?)?$/.test(imported)
+    )
+      continue;
     errors.push(`${name}: league import is outside the allowed boundary (${target})`);
   }
   if (name === entryLink) {
