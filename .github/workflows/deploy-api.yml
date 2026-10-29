@@ -41,6 +41,7 @@ jobs:
       BATTLE_WORKER_TOKEN: ${{ secrets.BATTLE_WORKER_TOKEN }}
       COMPOSE_PROFILES: ${{ vars.COMPOSE_PROFILES }}
       LEAGUE_ENABLED: ${{ vars.LEAGUE_ENABLED }}
+      LEAGUE_JUDGE_URL: ${{ vars.LEAGUE_JUDGE_URL || 'http://league-judge:3031' }}
       LEAGUE_JUDGE_TOKEN: ${{ secrets.LEAGUE_JUDGE_TOKEN }}
       LEAGUE_SEASON1_STARTS_AT: ${{ vars.LEAGUE_SEASON1_STARTS_AT }}
       LEAGUE_SEASON1_STARTERS: ${{ vars.LEAGUE_SEASON1_STARTERS }}
@@ -80,7 +81,16 @@ jobs:
         run: bash scripts/deploy/archive-poke-lounge-logs.sh
 
       - name: Deploy Docker Compose stack
+        env:
+          COMPOSE_PROFILES: ""
         run: docker compose up --build --detach --remove-orphans --wait --wait-timeout 180
+
+      - name: Start league judge
+        if: env.LEAGUE_ENABLED == 'true'
+        run: |
+          if ! docker compose --profile league up --detach --wait --wait-timeout 180 league-judge; then
+            echo "::warning::League judge could not be started. Check judge configuration and logs; multiplayer health verification will still run."
+          fi
 
       - name: Verify health
         run: |

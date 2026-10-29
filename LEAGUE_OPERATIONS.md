@@ -23,13 +23,14 @@ GitHub 배포 설정 순서:
 1. Secret `LEAGUE_JUDGE_TOKEN`을 설정한다. ASCII 32~256자이며 `BATTLE_WORKER_TOKEN`과 달라야 한다.
 2. Variables `LEAGUE_SEASON1_STARTS_AT`, `LEAGUE_SEASON1_STARTERS`(중복 없는 종족 번호 3~6종), `LEAGUE_SEASON1_STARTER_LEVEL=10`을 설정한다. 시즌 1은 후보 풀로 대신 만들지 않는다.
 3. `LEAGUE_STARTER_POOL`(중복 없는 종족 번호 3~60종), `LEAGUE_SETTLE_GRACE_HOURS=6`, `LEAGUE_EXP_MULTIPLIER=1.5`를 설정한다.
-4. `COMPOSE_PROFILES=league`, `LEAGUE_ENABLED=true`를 설정하고 정상 main 배포 절차를 실행한다.
-5. 기존 `/health`·`/health/ready`·멀티플레이 화면을 확인한다. `/league/v1/status`가 200인지, `enabled: true`와 시즌 시각이 있는지 확인한다. 리그 첫 화면 링크의 표시와 실제 진입은 브라우저로 확인한다. 배포의 리그 확인 실패는 경고만 남기므로 배포 성공만으로 활성화를 판단하지 않는다.
+4. `LEAGUE_JUDGE_URL`은 API가 별도 판정 컨테이너에 연결하는 주소다. 배포 기본값은 `http://league-judge:3031`이며 다른 주소를 쓸 때만 같은 이름의 Variable을 설정한다. `COMPOSE_PROFILES=league`, `LEAGUE_ENABLED=true`를 설정하고 정상 main 배포 절차를 실행한다.
+5. 배포는 profile을 비워 기존 멀티플레이 스택을 먼저 기동·대기한 뒤, `LEAGUE_ENABLED=true`일 때 판정 서비스만 별도 기동·대기한다. 판정 서비스 기동 실패는 경고만 남기고 기존 API·웹 health와 로그 확인을 계속 수행한다. 기존 `/health`·`/health/ready`·멀티플레이 화면을 확인한다. `/league/v1/status`가 200인지, `enabled: true`와 시즌 시각이 있는지 확인한다. 실패 시 `league.judge_failed`·`league.season_tick_failed`와 URL·토큰 설정을 확인한다. 리그 첫 화면 링크의 표시와 실제 진입은 브라우저로 확인한다. 배포 성공만으로 리그 활성화를 판단하지 않는다.
 
-끄기: `LEAGUE_ENABLED`와 `COMPOSE_PROFILES`를 비우고 배포한다. 리그 값이 비면 기존 서비스 목록·배포 명령은 그대로다. 프로필 서비스가 `--remove-orphans`로 제거되는지는 미확인이다. 운영 스택의 담당자가 정확한 compose 디렉터리·프로젝트를 확인한 후 다음 명령으로 판정 컨테이너를 수동 중지한다.
+끄기: `LEAGUE_ENABLED`와 `COMPOSE_PROFILES`를 비우고 배포한다. 리그 값이 비면 기존 서비스 목록·배포 명령은 그대로다. 프로필 서비스가 `--remove-orphans`로 제거되는지는 미확인이다. 운영 스택의 담당자가 다음 조회의 프로젝트·서비스 라벨과 컨테이너 이름을 확인한 뒤 일치하는 판정 컨테이너만 수동 중지한다. 이 명령은 compose 환경값 보간을 거치지 않는다.
 
 ```sh
-COMPOSE_PROJECT_NAME=poke-lounge-prod docker compose --profile league stop league-judge
+docker ps --filter label=com.docker.compose.project=poke-lounge-prod --filter label=com.docker.compose.service=league-judge --format '{{.Names}}\t{{.Labels}}'
+docker stop poke-lounge-prod-league-judge-1
 ```
 
 끄기 후 리그 경로의 404와 진입 링크 숨김, 기존 게임 정상 진행을 확인한다. 로컬 확인에서 `poke-lounge-prod`를 사용하지 않는다.
@@ -51,7 +52,7 @@ COMPOSE_PROJECT_NAME=poke-lounge-prod docker compose --profile league stop leagu
 
 ## 3. 다음 시즌 스타터 입력
 
-마감 72시간 전까지 다음 시즌 계획을 넣는다. 종족 1~~493, 3~~6종, 중복 없음, 레벨 1~100(기본 10). 진화 전 단계 종족을 권장한다. 후보 풀은 배포 변수 `LEAGUE_STARTER_POOL`의 쉼표 목록이다. 풀 변경은 재배포가 필요하며 정산 직후 반영을 권장한다. 계획이 있으면 풀보다 우선한다. 무효 계획은 풀로 우회하지 않고 수정 때까지 정산을 기다린다.
+마감 72시간 전까지 다음 시즌 계획을 넣는다. 종족 1–493, 3–6종, 중복 없음, 레벨 1~100(기본 10). 진화 전 단계 종족을 권장한다. 후보 풀은 배포 변수 `LEAGUE_STARTER_POOL`의 쉼표 목록이다. 풀 변경은 재배포가 필요하며 정산 직후 반영을 권장한다. 계획이 있으면 풀보다 우선한다. 무효 계획은 풀로 우회하지 않고 수정 때까지 정산을 기다린다.
 
 먼저 조회한다. 아래 `next_season`은 현재 정산 안 된 시즌 + 1이다.
 
@@ -271,7 +272,7 @@ SELECT * FROM poke_lounge_league_audit WHERE season_id = :season ORDER BY id DES
 
 ## 8. 닉네임 강제 변경
 
-NFC로 정규화한 2~~12자 이름을 정한다. 허용 문자: 한글 완성형, ASCII 영문·숫자, 히라가나 U+3041~~3096, 가타카나 U+30A1~~30FA·U+30FC, `_`. 공백·자모·결합 문자는 불가하다. NPC·관장 이름과 `NPC`, `운영자`, `관리자`, `admin`, `system`은 예약어다. 비교 키는 ASCII A~~Z만 a~z로 바꾼다. 과거 기록·명예의 전당 이름은 바꾸지 않는다.
+NFC로 정규화한 2–12자 이름을 정한다. 허용 문자: 한글 완성형, ASCII 영문·숫자, 히라가나 U+3041–U+3096, 가타카나 U+30A1–U+30FA·U+30FC, `_`. 공백·자모·결합 문자는 불가하다. NPC·관장 이름과 `NPC`, `운영자`, `관리자`, `admin`, `system`은 예약어다. 비교 키는 ASCII A–Z만 a–z로 바꾼다. 과거 기록·명예의 전당 이름은 바꾸지 않는다.
 
 ```sql
 \set nickname '새트레이너'
@@ -312,7 +313,7 @@ SELECT * FROM poke_lounge_league_profile WHERE user_id = :'user'::uuid;
 - 정산 정지: 계획 없음+풀 없음(`league.season_plan_missing`), 무효 계획(`league.season_plan_invalid`), 판정 장애, 도전 대기(`league.settle_waiting`)를 구분한다. 계획 추가나 판정 복구 후 다음 60초 틱에 재시도한다. 잠금 충돌은 한 번 재시도하며 트랜잭션은 부분 반영되지 않는다.
 - 장시간 중단: 재기동 첫 틱에서 정산한다. 다음 시즌은 정산 시각과 예정 시각 중 늦은 시각에 시작하고 마감은 달력을 유지한다. 정상 캘린더보다 27일 18시간 이상 늦으면 다음 시즌 마감이 시작보다 앞서 CHECK가 실패할 수 있다.
 
-마지막 경우만 아래 `season_manual` 절차로 미정산 시즌의 기준 마감을 운영자가 새 일요일 18:00으로 재설정한다. 다음 시작은 그 뒤 월요일 00:00이다. 즉시 만들기 위해 잘못된 시각을 넣거나 T5 일부를 수동 실행하지 않는다. 이 조치로 기존 도전 대기 기한도 바뀌므로 실행 전 대상 도전을 검토하고 사유에 기록한다. 계획을 먼저 준비하며, 적용 후 정산은 정상 T5가 수행한다. 운영 설정의 grace가 6이 아니면 SQL의 6시간 대기 기한도 그 설정에 맞춘다.
+마지막 경우만 아래 `season_manual` 절차로 미정산 시즌의 기준 마감을 운영자가 이미 지난 일요일 18:00으로 재설정한다. 다음 예정 시작은 그 뒤 월요일 00:00이며 실제 시작은 정산 완료까지 미룬다. 복구 마감은 현재 이하이고 다음 시즌 마감은 현재보다 뒤여야 한다. 미래 마감을 넣어 끝난 시즌을 다시 열거나 T5 일부를 수동 실행하지 않는다. 이 조치로 기존 도전 대기 기한도 바뀌므로 실행 전 대상 도전을 검토하고 사유에 기록한다. 계획을 먼저 준비하며, 적용 후 정산은 정상 T5가 수행한다. 운영 설정의 grace가 6이 아니면 SQL의 6시간 대기 기한도 그 설정에 맞춘다.
 
 ```sql
 \set recovery_close '2026-11-29T18:00:00+09:00'
@@ -326,6 +327,10 @@ DO $$ BEGIN
     extract(isodow FROM closes AT TIME ZONE 'Asia/Seoul') <> 7
     OR (closes AT TIME ZONE 'Asia/Seoul')::time <> time '18:00') THEN
     RAISE EXCEPTION '복구 마감은 KST 일요일 18:00이어야 함';
+  END IF;
+  IF EXISTS (SELECT 1 FROM league_recovery WHERE closes > now()
+    OR closes + interval '6 hours' + interval '27 days 18 hours' <= now()) THEN
+    RAISE EXCEPTION '복구 마감은 현재 이하이고 다음 시즌 마감은 현재보다 뒤여야 함';
   END IF;
 END $$;
 INSERT INTO poke_lounge_league_audit (operator, action, season_id, reason, before)

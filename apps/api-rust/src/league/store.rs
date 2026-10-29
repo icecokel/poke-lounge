@@ -51,7 +51,20 @@ impl League {
             let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
             let aligned: bool = client.query_one("SELECT extract(isodow FROM ($1::text::timestamptz AT TIME ZONE 'Asia/Seoul')) = 1 AND ($1::text::timestamptz AT TIME ZONE 'Asia/Seoul')::time = time '00:00'", &[starts]).await?.try_get(0)?;
             if !aligned {
-                tracing::warn!(event = "league.season1_misaligned");
+                use std::sync::atomic::{AtomicU64, Ordering};
+                use std::time::{SystemTime, UNIX_EPOCH};
+                static LAST_WARNING: AtomicU64 = AtomicU64::new(0);
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map_or(0, |elapsed| elapsed.as_secs());
+                if LAST_WARNING
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |last| {
+                        (now.saturating_sub(last) >= 600).then_some(now)
+                    })
+                    .is_ok()
+                {
+                    tracing::warn!(event = "league.season1_misaligned");
+                }
                 return Ok(());
             }
         }

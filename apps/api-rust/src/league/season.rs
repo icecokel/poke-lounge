@@ -18,9 +18,20 @@ pub fn spawn(league: &Arc<League>) {
         let mut interval = tokio::time::interval(Duration::from_secs(60));
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         let (mut missing, mut waiting, mut no_pool) = (None, None, None);
+        let (mut invalid, mut judge_unavailable, mut failed) = (None, None, None);
         loop {
             interval.tick().await;
-            if let Err(error) = tick(&league, &pool, &mut missing, &mut waiting, &mut no_pool).await
+            if let Err(error) = tick(
+                &league,
+                &pool,
+                &mut missing,
+                &mut waiting,
+                &mut no_pool,
+                &mut invalid,
+                &mut judge_unavailable,
+            )
+            .await
+                && due(&mut failed, 600)
             {
                 tracing::warn!(event = "league.season_tick_failed", code = error.code);
             }
@@ -76,6 +87,8 @@ async fn tick(
     missing: &mut Option<Instant>,
     waiting: &mut Option<Instant>,
     no_pool: &mut Option<Instant>,
+    invalid: &mut Option<Instant>,
+    judge_unavailable: &mut Option<Instant>,
 ) -> Result<()> {
     let snapshot = {
         let slot = league.db.client().await?;
@@ -130,11 +143,13 @@ async fn tick(
     }
     let (starters, level, source, excluded_previous) = if let Some(plan) = plan {
         let Some((ids, level)) = valid_plan(&plan) else {
-            tracing::warn!(
-                event = "league.season_plan_invalid",
-                next_id,
-                reason = "starters_or_level"
-            );
+            if due(invalid, 600) {
+                tracing::warn!(
+                    event = "league.season_plan_invalid",
+                    next_id,
+                    reason = "starters_or_level"
+                );
+            }
             return Ok(());
         };
         (ids, level, StarterSource::Plan, false)
@@ -185,11 +200,14 @@ async fn tick(
         Ok(next) => next,
         Err(error) => {
             if error.code != "LEAGUE_CORRUPT" {
-                tracing::warn!(
-                    event = "league.settle_judge_unavailable",
-                    season = id,
-                    code = error.code
-                );
+                if due(judge_unavailable, 600) {
+                    tracing::warn!(
+                        event = "league.settle_judge_unavailable",
+                        season = id,
+                        code = error.code
+                    );
+                }
+                return Ok(());
             }
             return Err(error);
         }
