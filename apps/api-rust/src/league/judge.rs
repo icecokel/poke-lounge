@@ -34,29 +34,35 @@ impl Judge {
         })
     }
     pub async fn health(&self) -> Result<Health> {
-        let mut cache = self.health.try_lock().map_err(|_| unavailable())?;
-        if let Some((at, value)) = &*cache
-            && at.elapsed() < Duration::from_secs(60)
-        {
-            return Ok(value.clone());
-        }
-        let _permit = self.permits.try_acquire().map_err(|_| unavailable())?;
-        let response = self
-            .client
-            .get(self.base.join("health").map_err(|_| unavailable())?)
-            .header("x-league-judge-token", &self.token)
-            .send()
-            .await
-            .map_err(|_| unavailable())?;
-        let body = read(response).await?;
-        let engine = version(&body["engineVersion"])?;
-        let roster = version(&body["rosterVersion"])?;
-        if body["ready"] != true {
-            return Err(unavailable());
-        }
-        let health = Health { engine, roster };
-        *cache = Some((Instant::now(), health.clone()));
-        Ok(health)
+        tokio::time::timeout(Duration::from_secs(1), async {
+            let mut cache = self.health.lock().await;
+            if let Some((at, value)) = &*cache
+                && at.elapsed() < Duration::from_secs(60)
+            {
+                return Ok(value.clone());
+            }
+            let response = self
+                .client
+                .get(self.base.join("health").map_err(|_| unavailable())?)
+                .header("x-league-judge-token", &self.token)
+                .send()
+                .await
+                .map_err(|_| unavailable())?;
+            if !response.status().is_success() {
+                return Err(unavailable());
+            }
+            let body = read(response).await?;
+            let engine = version(&body["engineVersion"])?;
+            let roster = version(&body["rosterVersion"])?;
+            if body["ready"] != true {
+                return Err(unavailable());
+            }
+            let health = Health { engine, roster };
+            *cache = Some((Instant::now(), health.clone()));
+            Ok(health)
+        })
+        .await
+        .map_err(|_| unavailable())?
     }
     pub async fn call(&self, engine: &str, op: Value) -> Result<Value> {
         let _permit = self.permits.try_acquire().map_err(|_| unavailable())?;
@@ -71,6 +77,7 @@ impl Judge {
             .send()
             .await
             .map_err(|_| unavailable())?;
+        let success = response.status().is_success();
         let body = read(response).await?;
         if body["protocol"] != "league-judge/1" || body["requestId"] != id {
             return Err(unavailable());
@@ -93,17 +100,37 @@ impl Judge {
                         .detail(json!({"kind":code,"at":body["detail"]["at"]}))
                 }
                 "ROSTER_NOT_READY" => LeagueError::new(503, "LEAGUE_ROSTER_NOT_READY"),
-                "PARTY_CHECK_UNAVAILABLE" | "ROSTER_SOURCE_INVALID" => unavailable(),
+                "PARTY_CHECK_UNAVAILABLE" => unavailable(),
                 _ => LeagueError::new(500, "LEAGUE_JUDGE_FAILED"),
             };
             if returned_engine != engine && code != "ENGINE_VERSION_MISMATCH" {
                 error = unavailable();
             }
             // Only log the validated category, never arbitrary judge detail.
-            tracing::warn!(event = "league.judge_failed", code = error.code);
+            let category = match code {
+                "ENGINE_VERSION_MISMATCH"
+                | "PARTY_INVALID"
+                | "PARTY_IMPLAUSIBLE"
+                | "ILLEGAL_INPUT"
+                | "INCOMPLETE_INPUT"
+                | "TRAILING_INPUT"
+                | "TOO_LONG"
+                | "ROSTER_NOT_READY"
+                | "PARTY_CHECK_UNAVAILABLE"
+                | "ROSTER_SOURCE_INVALID"
+                | "INVALID_REQUEST"
+                | "ENGINE_STALL" => code,
+                _ => "UNKNOWN",
+            };
+            tracing::warn!(
+                event = "league.judge_failed",
+                code = category,
+                mapped_code = error.code
+            );
             return Err(error);
         }
-        if returned_engine != engine || body["ok"] != true || !body["data"].is_object() {
+        if !success || returned_engine != engine || body["ok"] != true || !body["data"].is_object()
+        {
             return Err(unavailable());
         }
         Ok(body["data"].clone())
@@ -120,8 +147,7 @@ fn version(value: &Value) -> Result<String> {
     Ok(text.to_owned())
 }
 async fn read(mut response: reqwest::Response) -> Result<Value> {
-    if response.status().is_server_error()
-        || response.status().is_redirection()
+    if response.status().is_redirection()
         || response.content_length().is_some_and(|n| n > 1024 * 1024)
     {
         return Err(unavailable());
