@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const battle = resolve(root, "packages/poke-lounge-battle");
 const source = resolve(battle, "src");
+const ts = createRequire(resolve(battle, "package.json"))("typescript");
 const read = path => readFileSync(path, "utf8");
 const fail = message => {
   throw new Error(message);
@@ -40,16 +42,32 @@ const files = [
   "competitive-catalog.generated.ts",
   "gen4/rom-catalog.generated.ts",
 ];
-function leagueFiles(directory) {
+function leagueFiles(directory, fingerprintOnly = true) {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    if (entry.name === "roster" || entry.name === "growth") return [];
     const path = resolve(directory, entry.name);
+    if (fingerprintOnly && /^league\/(roster|growth)$/.test(relative(source, path))) return [];
     return entry.isDirectory()
-      ? leagueFiles(path)
+      ? leagueFiles(path, fingerprintOnly)
       : entry.name.endsWith(".ts")
         ? [relative(source, path)]
         : [];
   });
+}
+for (const file of leagueFiles(resolve(source, "league"), false)) {
+  const parsed = ts.createSourceFile(
+    file,
+    read(resolve(source, file)),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  function checkBigInt(node) {
+    if (ts.isBigIntLiteral(node))
+      fail(
+        `BigInt literal in web-importable league source: ${file}. Use BigInt(...) for ES2017 compatibility.`,
+      );
+    ts.forEachChild(node, checkBigInt);
+  }
+  checkBigInt(parsed);
 }
 files.push(...leagueFiles(resolve(source, "league")));
 
@@ -89,6 +107,12 @@ function visit(path, collected, browser) {
       candidate => existsSync(candidate) && !candidate.endsWith(".d.ts"),
     );
     if (!target) fail(`Unresolved league import: ${path} -> ${dependency}`);
+    if (
+      !browser &&
+      /^league\/growth\//.test(relative(source, target)) &&
+      relative(source, path) !== "league/plausibility.ts"
+    )
+      fail(`Unfingerprinted growth value import: ${relative(source, path)} -> ${dependency}`);
     visit(target, collected, browser);
   }
 }

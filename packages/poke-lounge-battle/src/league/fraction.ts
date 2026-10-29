@@ -1,5 +1,8 @@
 import type { LeagueFraction } from "./contract";
 
+const ZERO = BigInt(0);
+const TWO = BigInt(2);
+
 export class Fraction {
   readonly num: bigint;
   readonly den: bigint;
@@ -7,14 +10,14 @@ export class Fraction {
   constructor(num: bigint | number, den: bigint | number = 1) {
     let n = BigInt(num),
       d = BigInt(den);
-    if (d === 0n) throw new RangeError("Zero denominator");
-    if (d < 0n) {
+    if (d === ZERO) throw new RangeError("Zero denominator");
+    if (d < ZERO) {
       n = -n;
       d = -d;
     }
-    let a = n < 0n ? -n : n,
+    let a = n < ZERO ? -n : n,
       b = d;
-    while (b !== 0n) {
+    while (b !== ZERO) {
       const remainder = a % b;
       a = b;
       b = remainder;
@@ -34,11 +37,11 @@ export class Fraction {
   }
   compare(other: Fraction): number {
     const difference = this.num * other.den - other.num * this.den;
-    return difference < 0n ? -1 : difference > 0n ? 1 : 0;
+    return difference < ZERO ? -1 : difference > ZERO ? 1 : 0;
   }
   roundHalfUp(): bigint {
-    if (this.num < 0n) throw new RangeError("roundHalfUp requires a nonnegative value");
-    return (2n * this.num + this.den) / (2n * this.den);
+    if (this.num < ZERO) throw new RangeError("roundHalfUp requires a nonnegative value");
+    return (TWO * this.num + this.den) / (TWO * this.den);
   }
   toJSON(): LeagueFraction {
     return { num: String(this.num), den: String(this.den) };

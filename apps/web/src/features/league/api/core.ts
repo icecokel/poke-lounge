@@ -15,6 +15,7 @@ export const LEAGUE_RETRYABLE_CODES: ReadonlySet<string> = new Set([
   "LEAGUE_JUDGE_UNAVAILABLE",
   "LEAGUE_BUSY",
   "LEAGUE_UNAVAILABLE",
+  "BACKEND_UNAVAILABLE",
   "NETWORK",
 ]);
 
@@ -35,7 +36,7 @@ export async function leagueRequest<T>(
       method: init?.method ?? "GET",
       credentials: "include",
       cache: "no-store",
-      headers: init?.body ? { "content-type": "application/json" } : undefined,
+      headers: body !== undefined ? { "content-type": "application/json" } : undefined,
       body,
       signal: init?.signal,
       keepalive: init?.keepalive,
@@ -62,10 +63,14 @@ export async function leagueRequest<T>(
       "code" in envelope &&
       typeof envelope.code === "string"
     ) {
+      const { success, statusCode, code, message, detail, ...rest } = envelope as Record<
+        string,
+        unknown
+      >;
       throw new LeagueApiError(
         envelope.statusCode,
         envelope.code,
-        "detail" in envelope ? envelope.detail : undefined,
+        detail ?? (Object.keys(rest).length ? rest : undefined),
         LEAGUE_RETRYABLE_CODES.has(envelope.code),
       );
     }
