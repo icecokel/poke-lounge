@@ -1,3 +1,4 @@
+import { loadGrowthData } from "./growth-data";
 import { parentPort } from "node:worker_threads";
 import {
   LEAGUE_JUDGE_PROTOCOL,
@@ -111,7 +112,9 @@ parentPort.on("message", (input: JudgeRequest) => {
   }
   parentPort!.postMessage({ result, advances, outcome, errorClass } satisfies WorkerMessage);
 });
-parentPort.postMessage({
-  ready: true,
-  engineVersion: LEAGUE_ENGINE_VERSION,
-} satisfies WorkerMessage);
+void loadGrowthData().then(() =>
+  parentPort!.postMessage({
+    ready: true,
+    engineVersion: LEAGUE_ENGINE_VERSION,
+  } satisfies WorkerMessage),
+);
