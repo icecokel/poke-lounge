@@ -1,7 +1,7 @@
 use super::{
     League, db,
     error::{LeagueError, Result},
-    limiter::Kind,
+    limiter::{Kind, first_this_second},
 };
 use crate::{
     auth::current_user,
@@ -17,8 +17,10 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::Value;
-use std::sync::Arc;
+use std::sync::{Arc, atomic::AtomicU64};
 use uuid::Uuid;
+
+static BUSY_LOGGED_S: AtomicU64 = AtomicU64::new(0);
 
 pub fn router(league: Arc<League>) -> Router<AppState> {
     Router::new()
@@ -36,6 +38,13 @@ pub fn router(league: Arc<League>) -> Router<AppState> {
 }
 async fn limit(State(league): State<Arc<League>>, request: Request, next: Next) -> Response {
     let Ok(_permit) = league.requests.try_acquire() else {
+        if first_this_second(&BUSY_LOGGED_S) {
+            tracing::warn!(
+                event = "league.limited",
+                limit = "concurrent_requests",
+                code = "LEAGUE_BUSY"
+            );
+        }
         return LeagueError::new(503, "LEAGUE_BUSY").into_response();
     };
     next.run(request).await

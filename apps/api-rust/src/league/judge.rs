@@ -1,13 +1,18 @@
 use super::{
     config::Config,
     error::{LeagueError, Result},
+    limiter::first_this_second,
 };
 use serde_json::{Value, json};
-use std::time::{Duration, Instant};
+use std::{
+    sync::atomic::AtomicU64,
+    time::{Duration, Instant},
+};
 use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
 
 const RETRYABLE_JUDGE_CODES: &[&str] = &["JUDGE_UNAVAILABLE"];
+static HEALTH_FAILURE_LOGGED_S: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone)]
 pub struct Health {
@@ -49,10 +54,10 @@ impl Judge {
                 .header("x-league-judge-token", &self.token)
                 .send()
                 .await
-                .map_err(|_| failed(None, "", "connection_failed", unavailable()))?;
+                .map_err(|_| health_failed(None, "", "connection_failed", unavailable()))?;
             let status = response.status().as_u16();
             if status == 401 {
-                return Err(failed(
+                return Err(health_failed(
                     Some(status),
                     "UNAUTHORIZED",
                     "authentication_failed",
@@ -60,24 +65,34 @@ impl Judge {
                 ));
             }
             if !response.status().is_success() {
-                return Err(failed(Some(status), "", "health_status", unavailable()));
+                return Err(health_failed(
+                    Some(status),
+                    "",
+                    "health_status",
+                    unavailable(),
+                ));
             }
             let body = read(response)
                 .await
-                .map_err(|reason| failed(Some(status), "", reason, unavailable()))?;
+                .map_err(|reason| health_failed(Some(status), "", reason, unavailable()))?;
             let engine = version(&body["engineVersion"])
-                .map_err(|e| failed(Some(status), "", "invalid_engine_version", e))?;
+                .map_err(|e| health_failed(Some(status), "", "invalid_engine_version", e))?;
             let roster = version(&body["rosterVersion"])
-                .map_err(|e| failed(Some(status), "", "invalid_roster_version", e))?;
+                .map_err(|e| health_failed(Some(status), "", "invalid_roster_version", e))?;
             if body["ready"] != true {
-                return Err(failed(Some(status), "", "health_not_ready", unavailable()));
+                return Err(health_failed(
+                    Some(status),
+                    "",
+                    "health_not_ready",
+                    unavailable(),
+                ));
             }
             let health = Health { engine, roster };
             *cache = Some((Instant::now(), health.clone()));
             Ok(health)
         })
         .await
-        .map_err(|_| failed(None, "", "health_timeout", unavailable()))?
+        .map_err(|_| health_failed(None, "", "health_timeout", unavailable()))?
     }
     pub async fn call(&self, engine: &str, op: Value) -> Result<Value> {
         let _permit = self.permits.try_acquire().map_err(|_| unavailable())?;
@@ -171,6 +186,18 @@ fn unavailable() -> LeagueError {
 }
 fn judge_failed() -> LeagueError {
     LeagueError::new(500, "LEAGUE_JUDGE_FAILED")
+}
+fn health_failed(
+    status: Option<u16>,
+    code: &str,
+    reason: &'static str,
+    error: LeagueError,
+) -> LeagueError {
+    if first_this_second(&HEALTH_FAILURE_LOGGED_S) {
+        failed(status, code, reason, error)
+    } else {
+        error
+    }
 }
 fn failed(
     status: Option<u16>,

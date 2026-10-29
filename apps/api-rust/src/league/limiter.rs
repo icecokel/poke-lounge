@@ -1,10 +1,21 @@
 use super::error::{LeagueError, Result};
 use std::{
     collections::HashMap,
-    sync::Mutex,
-    time::{Duration, Instant},
+    sync::{
+        Mutex,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use uuid::Uuid;
+
+pub(super) fn first_this_second(slot: &AtomicU64) -> bool {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs());
+    slot.fetch_max(now, Ordering::Relaxed) < now
+}
+
 #[derive(Clone, Copy)]
 pub enum Kind {
     Read,
