@@ -383,7 +383,14 @@ impl League {
                 &health.engine,
                 json!({"kind":"prepare-entry","claim":claim,"mons":mons,"opponents":opponents}),
             )
-            .await?;
+            .await
+            .map_err(|e| {
+                if e.code == "LEAGUE_ENGINE_RETIRED" {
+                    LeagueError::new(503, "LEAGUE_JUDGE_UNAVAILABLE")
+                } else {
+                    e
+                }
+            })?;
         if !views::hash(&prepared["carryHash"], 16)
             || !prepared["composition"].is_object()
             || !prepared["challengerParty"].is_object()
