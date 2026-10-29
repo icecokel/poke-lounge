@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
 import { getPokeLoungeCopy } from "@/components/poke-lounge/poke-lounge-copy";
 import { createPokeLoungeGame } from "@/components/poke-lounge/runtime/game/create-poke-lounge-game";
 import type { BattleUiStore } from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
@@ -30,6 +30,7 @@ export function LeagueFieldRuntime({
   expMultiplierPermille,
   model: injectedModel,
   challenger,
+  stopRef,
   onExit,
 }: {
   runtime: LeagueRuntime;
@@ -38,6 +39,7 @@ export function LeagueFieldRuntime({
   expMultiplierPermille: number;
   model?: WorldMapModel;
   challenger?: { hint: string; onInteract(): void };
+  stopRef: RefObject<(() => void) | null>;
   onExit(): void;
 }) {
   const mount = useRef<HTMLDivElement>(null);
@@ -76,11 +78,14 @@ export function LeagueFieldRuntime({
       battleUiStore: resources.battle,
     });
     mount.current.focus();
-    return () => {
+    const stop = () => {
       game.destroy();
       resetVirtualGamepad();
+      if (stopRef.current === stop) stopRef.current = null;
     };
-  }, [runtime, store, resources, expMultiplierPermille, challenger]);
+    stopRef.current = stop;
+    return stop;
+  }, [runtime, store, resources, expMultiplierPermille, challenger, stopRef]);
   const copy = getPokeLoungeCopy(runtime.locale);
   const controls: Array<[VirtualGamepadButton, string]> = [
     ["up", "↑"],
