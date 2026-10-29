@@ -21,7 +21,7 @@ export const NPC_SEEDS = [
   { npcKey: "will", displayName: "일목", className: "사천왕", order: 5, trainerId: 245 },
 ] as const;
 
-export const LEAGUE_ROSTER_VERSION = "roster1:99652fef0203";
+export const LEAGUE_ROSTER_VERSION = "roster1:5f45bd699d57";
 
 export function npcSeedCompositions(): LeagueNpcSeed[] {
   return NPC_SEEDS.map(({ trainerId, ...meta }) => {

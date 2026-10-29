@@ -288,6 +288,68 @@ assert.deepEqual(GYM_LEVEL_PLANS["curve-v1"], [
   [44, 44, 44, 46],
 ]);
 
+// pret src_trainer_data.c:133-262의 분류 표. 구현의 PID 표·계산 함수를 공유하지 않는다.
+const pretTrainerGenders = {
+  66: "MALE",
+  67: "FEMALE",
+  70: "FEMALE",
+  72: "MALE",
+  73: "MALE",
+  74: "FEMALE",
+  75: "MALE",
+  76: "FEMALE",
+  86: "MALE",
+  87: "FEMALE",
+  88: "FEMALE",
+  89: "DOUBLE",
+  112: "DOUBLE",
+};
+function genderFromPersonality(species, personality) {
+  switch (species.genderRatio) {
+    case 255:
+      return "genderless";
+    case 254:
+      return "female";
+    case 0:
+      return "male";
+    default:
+      return (personality & 0xff) < species.genderRatio ? "female" : "male";
+  }
+}
+
+// pret CreateNPCTrainerParty / TrMon_OverridePidGender 의사코드를 별도로 옮긴다.
+// 실제 ROM 기대 행만 순서대로 계산하며 npcComposition과 보충 행은 입력으로 쓰지 않는다.
+const pretOriginals = new Map();
+for (const [id, [, trainerClass, , , rows]] of Object.entries(expectedRom)) {
+  assert(Object.hasOwn(pretTrainerGenders, trainerClass));
+  let pid = pretTrainerGenders[trainerClass] === "FEMALE" ? 0x78 : 0x88;
+  pretOriginals.set(
+    Number(id),
+    rows.map(([speciesId, , , , overrideParam], slot) => {
+      const species = GEN4_ROM_SPECIES[speciesId];
+      const genderOverride = overrideParam & 0xf;
+      const abilityOverride = (overrideParam & 0xf0) >> 4;
+      assert([0, 1, 2].includes(genderOverride));
+      assert([0, 1, 2].includes(abilityOverride));
+      if (overrideParam !== 0) {
+        if (genderOverride !== 0) {
+          pid = species.genderRatio;
+          if (genderOverride === 1) pid += 2;
+          else pid -= 2;
+        }
+        if (abilityOverride === 1) pid &= ~1;
+        else if (abilityOverride === 2) pid |= 1;
+      }
+      if (abilityOverride === 2) {
+        assert(species.abilities[1], `ROM trainer ${id}/${slot}: forced ability slot 2 missing`);
+      }
+      let abilityId = species.abilities[0];
+      if ((pid & 1) !== 0 && species.abilities[1]) abilityId = species.abilities[1];
+      return { abilityId, gender: genderFromPersonality(species, pid) };
+    }),
+  );
+}
+
 // 구성은 정적 로스터 데이터로만 검사한다. 전투 엔진·AI·게임 상태를 실행하지 않는다.
 function checkComposition(composition, trainer, rows, levels) {
   assert.equal(composition.version, 1);
@@ -303,37 +365,20 @@ function checkComposition(composition, trainer, rows, levels) {
     assert(Number.isInteger(m.level) && m.level >= 1 && m.level <= 50);
     assert.equal(m.heldItemId, row.heldItemId);
     assert(m.heldItemId === 0 || GEN4_ROM_ITEMS[m.heldItemId]);
-    const override = row.genderAbilityOverride ?? 0;
-    const abilityOverride = override >> 4;
-    const genderOverride = override & 0xf;
-    assert([0, 1, 2].includes(abilityOverride));
-    assert([0, 1, 2].includes(genderOverride));
-    const abilitySlot = abilityOverride === 2 ? 1 : 0;
-    assert(
-      species.abilities[abilitySlot],
-      `ROM trainer ${trainer.trainerId}/${slot}: ability slot ${abilitySlot + 1} missing`,
-    );
+    const expected = pretOriginals.get(trainer.trainerId)[slot] ?? {
+      abilityId: species.abilities[0],
+      gender: genderFromPersonality(species, trainer.gender === "female" ? 0x78 : 0x88),
+    };
     assert.equal(
       m.abilityId,
-      species.abilities[abilitySlot],
-      `ROM trainer ${trainer.trainerId}/${slot}: +0x01 ability slot mismatch`,
+      expected.abilityId,
+      `ROM trainer ${trainer.trainerId}/${slot}: pret party PID ability mismatch`,
     );
     assert(species.abilities.includes(m.abilityId) && m.abilityId >= 1 && m.abilityId <= 123);
     assert.equal(
       m.gender,
-      species.genderRatio === 255
-        ? "genderless"
-        : species.genderRatio === 254
-          ? "female"
-          : species.genderRatio === 0
-            ? "male"
-            : genderOverride === 1
-              ? "male"
-              : genderOverride === 2
-                ? "female"
-                : species.genderRatio > (trainer.gender === "female" ? 0x78 : 0x88)
-                  ? "female"
-                  : "male",
+      expected.gender,
+      `ROM trainer ${trainer.trainerId}/${slot}: pret party PID gender mismatch`,
     );
     assert.equal(m.natureId, 0);
     assert.equal(m.happiness, 70);
@@ -406,6 +451,18 @@ for (const plan of Object.keys(GYM_LEVEL_PLANS)) {
   });
 }
 const badgeNpcs = badgeNpcCompositions();
+// 리뷰에서 확인한 실제 원본 개체의 기대값도 고정해 계산식과 함께 회귀를 막는다.
+assert.equal(npcSeeds.find(s => s.npcKey === "karen").composition.members[4].abilityId, 18);
+assert.equal(npcSeeds.find(s => s.npcKey === "koga").composition.members[1].abilityId, 110);
+for (const slot of [0, 1, 2]) {
+  assert.equal(
+    badgeNpcs.find(b => b.npcKey === "bugsy").composition.members[slot].gender,
+    "female",
+  );
+}
+for (const slot of [0, 2, 3, 4]) {
+  assert.equal(npcSeeds.find(s => s.npcKey === "will").composition.members[slot].gender, "female");
+}
 const expectedVersion = `roster1:${createHash("sha256").update(canonicalize({ npcSeeds, badgeNpcs })).digest("hex").slice(0, 12)}`;
 assert.equal(
   LEAGUE_ROSTER_VERSION,

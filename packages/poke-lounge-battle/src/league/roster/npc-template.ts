@@ -4,7 +4,7 @@ import {
 } from "../../competitive-catalog.generated";
 import { GEN4_ROM_ITEMS, GEN4_ROM_SPECIES } from "../../gen4/rom-catalog.generated";
 import type { LeagueComposition, LeagueStatValues } from "../contract";
-import type { RomTrainer } from "./rom-trainers";
+import { ROM_TRAINER_PID_GENDERS, type RomTrainer } from "./rom-trainers";
 import type { SupplementMember } from "./supplements";
 
 export class LeagueRosterError extends Error {
@@ -34,11 +34,13 @@ export function npcComposition(
   extra: readonly SupplementMember[] = [],
   options: NpcTemplateOptions = {},
 ): LeagueComposition {
+  let pidGender = ROM_TRAINER_PID_GENDERS[trainer.trainerClass];
   if (
     trainer.partyCount !== trainer.members.length ||
     trainer.members.length === 0 ||
     trainer.members.length + extra.length > 6 ||
-    (trainer.gender !== "male" && trainer.gender !== "female")
+    (trainer.gender !== "male" && trainer.gender !== "female") ||
+    pidGender === undefined
   ) {
     throw new LeagueRosterError(`Invalid trainer: ${trainer.trainerId}`);
   }
@@ -48,17 +50,27 @@ export function npcComposition(
     leadSlot: 0,
     members: [...trainer.members, ...extra].map((member, slotIndex) => {
       const species = GEN4_ROM_SPECIES[member.speciesId];
-      const override = "genderAbilityOverride" in member ? member.genderAbilityOverride : 0;
-      const abilitySlot = override >> 4 === 2 ? 1 : 0;
-      const abilityId = species?.abilities[abilitySlot] ?? species?.abilities[0];
-      const genderOverride = override & 0xf;
-      // pret trainer_data.c: 50:50은 트레이너 성별, 그 밖은 종족의 다수 성별.
-      const pidGender = trainer.gender === "female" ? 0x78 : 0x88;
+      if (!species) {
+        throw new LeagueRosterError(`Invalid member: ${trainer.trainerId}/${slotIndex}`);
+      }
+      const isOriginal = "genderAbilityOverride" in member;
+      if (isOriginal && member.genderAbilityOverride !== 0) {
+        const genderOverride = member.genderAbilityOverride & 0xf;
+        if (genderOverride !== 0) {
+          pidGender = species.genderRatio + (genderOverride === 1 ? 2 : -2);
+        }
+        const abilityOverride = member.genderAbilityOverride >> 4;
+        if (abilityOverride === 1) pidGender &= ~1;
+        else if (abilityOverride === 2) pidGender |= 1;
+      }
+      // pret는 원본 멤버 사이에 PID를 유지한다. 보충은 기존 기본값을 독립적으로 쓴다.
+      const memberPid = isOriginal ? pidGender : trainer.gender === "female" ? 0x78 : 0x88;
+      const abilitySlot = isOriginal ? memberPid & 1 : 0;
+      const abilityId = species.abilities[abilitySlot] ?? species.abilities[0];
       const difficulty = "difficulty" in member ? member.difficulty : trainer.members[0].difficulty;
       const level = options.levelOf?.(slotIndex, member.level) ?? member.level;
       const moveIds = member.moveIds.filter(moveId => moveId !== 0);
       if (
-        !species ||
         !COMPETITIVE_SPECIES_CATALOG[member.speciesId] ||
         !abilityId ||
         !Number.isInteger(difficulty) ||
@@ -89,13 +101,9 @@ export function npcComposition(
               ? "female"
               : species.genderRatio === 0
                 ? "male"
-                : genderOverride === 1
-                  ? "male"
-                  : genderOverride === 2
-                    ? "female"
-                    : species.genderRatio > pidGender
-                      ? "female"
-                      : "male",
+                : species.genderRatio > (memberPid & 0xff)
+                  ? "female"
+                  : "male",
         happiness: 70,
         individualValues: statValues(Math.floor((difficulty * 31) / 255)),
         effortValues: statValues(0),
