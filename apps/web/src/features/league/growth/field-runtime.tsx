@@ -102,6 +102,7 @@ export function LeagueFieldRuntime({
           <WorldScreen
             atlas={resources.atlas}
             competitiveRoundsEnabled={false}
+            showRankScoreHud={false}
             frameStore={resources.frame}
             gameStateStore={store}
             model={resources.model}
