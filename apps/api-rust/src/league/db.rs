@@ -15,11 +15,17 @@ impl Db {
         }
     }
     pub async fn client(&self) -> Result<OwnedMutexGuard<Option<Client>>> {
-        let mut slot = self
+        let waiting = self
             .slots
             .iter()
-            .find_map(|slot| slot.clone().try_lock_owned().ok())
-            .ok_or_else(LeagueError::unavailable)?;
+            .map(|slot| Box::pin(slot.clone().lock_owned()));
+        let (mut slot, _, pending) = tokio::time::timeout(
+            Duration::from_secs(1),
+            futures_util::future::select_all(waiting),
+        )
+        .await
+        .map_err(|_| LeagueError::unavailable())?;
+        drop(pending);
         if slot.as_ref().is_none_or(Client::is_closed) {
             let (client, connection) =
                 tokio::time::timeout(Duration::from_secs(2), self.config.connect(NoTls))
