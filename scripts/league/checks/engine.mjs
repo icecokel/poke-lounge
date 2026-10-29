@@ -116,7 +116,16 @@ function visit(path, collected, browser) {
     visit(target, collected, browser);
   }
 }
-for (const file of ["match", "carry", "score", "party", "hash"])
+for (const file of [
+  "match",
+  "carry",
+  "score",
+  "party",
+  "hash",
+  "growth/contract",
+  "growth/experience",
+  "growth/chain",
+])
   visit(resolve(source, `league/${file}.ts`), visited, true);
 const engineSources = new Set();
 for (const file of files) visit(resolve(source, file), engineSources, false);

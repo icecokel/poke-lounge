@@ -1,3 +1,10 @@
+import type {
+  LeagueGrowthJudgeOp,
+  LeagueMintResult,
+  LeagueCheckPartyResult,
+  LeaguePrepareBadgeResult,
+  LeagueJudgeBadgeResult,
+} from "@poke-lounge/battle/league/growth/contract";
 import { z } from "zod";
 import {
   LEAGUE_JUDGE_PROTOCOL,
@@ -147,12 +154,88 @@ const fraction = z
       return false;
     }
   });
+const growthView = z.strictObject({
+  rulesVersion: z.literal(1),
+  expMultiplierPermille: integer(1000, 20000),
+});
+const checkpoint = z.strictObject({
+  version: z.literal(1),
+  growth: growthView,
+  mons: z.record(
+    z.uuid(),
+    z.strictObject({
+      speciesId: species,
+      level,
+      experience: integer(0, Number.MAX_SAFE_INTEGER),
+      effortValues: evs,
+      atMs: integer(0, Number.MAX_SAFE_INTEGER),
+    }),
+  ),
+});
+const runContext = z.strictObject({
+  starterLevel: level,
+  createdAtMs: integer(0, Number.MAX_SAFE_INTEGER),
+});
+const growthClaim = z.strictObject({
+  ...claim.shape,
+  members: z.array(claim.shape.members.element).min(1).max(6),
+});
+const mintRecord = mon.extend({
+  origin: z.enum(["starter", "capture"]),
+  mintedAtMs: integer(0, Number.MAX_SAFE_INTEGER),
+});
+const badgeParty = z
+  .strictObject({ ...battleParty.shape, members: z.array(battleMember).min(1).max(6) })
+  .refine(p => new Set(p.members.map(m => m.slotIndex)).size === p.members.length);
+const seed = z.tuple([integer(0, 65535), integer(0, 65535), integer(0, 65535), integer(0, 65535)]);
+const inputs = z
+  .array(z.union([z.tuple([z.literal("m"), moveId]), z.tuple([z.literal("s"), slot])]))
+  .max(LEAGUE_MAX_INPUTS_PER_MATCH);
 export const requestSchema = z.strictObject({
   protocol: z.literal(LEAGUE_JUDGE_PROTOCOL),
   requestId: z.uuid(),
   engineVersion: z.string().max(96),
   op: z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("season-roster") }),
+    z.strictObject({
+      kind: z.literal("mint"),
+      origin: z.enum(["starter", "capture"]),
+      speciesId: species,
+      level,
+      random: z.string().regex(/^[0-9a-f]{64}$/i),
+      run: runContext,
+      checkpoint,
+      nowMs: integer(0, Number.MAX_SAFE_INTEGER),
+    }),
+    z.strictObject({
+      kind: z.literal("check-party"),
+      purpose: z.enum(["badge", "entry"]),
+      claim: growthClaim,
+      mons: z.array(mintRecord).max(400),
+      run: runContext,
+      checkpoint,
+      nowMs: integer(0, Number.MAX_SAFE_INTEGER),
+    }),
+    z.strictObject({
+      kind: z.literal("prepare-badge"),
+      badgeIndex: integer(0, 7),
+      claim: growthClaim,
+      mons: z.array(mintRecord).max(400),
+      npc: z.strictObject({
+        npcKey: z.string().min(1).max(100),
+        displayName: z.string().min(1).max(100),
+        badgeIndex: integer(0, 7),
+        composition,
+      }),
+    }),
+    z.strictObject({
+      kind: z.literal("judge-badge"),
+      seed,
+      challengerParty: badgeParty,
+      npcParty: badgeParty,
+      leadSlot: slot,
+      inputs,
+    }),
     z.strictObject({
       kind: z.literal("prepare-entry"),
       claim,
@@ -182,14 +265,24 @@ export interface JudgeRequest {
   protocol: typeof LEAGUE_JUDGE_PROTOCOL;
   requestId: string;
   engineVersion: string;
-  op: LeagueJudgeOp;
+  op: LeagueJudgeOp | LeagueGrowthJudgeOp;
 }
 export type JudgeResponse = {
   protocol: typeof LEAGUE_JUDGE_PROTOCOL;
   requestId: string;
   engineVersion: string;
 } & (
-  | { ok: true; data: LeagueSeasonRoster | LeaguePrepareEntryResult | LeagueJudgeMatchResult }
+  | {
+      ok: true;
+      data:
+        | LeagueSeasonRoster
+        | LeaguePrepareEntryResult
+        | LeagueJudgeMatchResult
+        | LeagueMintResult
+        | LeagueCheckPartyResult
+        | LeaguePrepareBadgeResult
+        | LeagueJudgeBadgeResult;
+    }
   | { ok: false; code: LeagueJudgeErrorCode; detail: unknown }
 );
 export type WorkerMessage =
