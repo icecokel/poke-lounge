@@ -7,6 +7,8 @@ use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
 
+const RETRYABLE_JUDGE_CODES: &[&str] = &["JUDGE_UNAVAILABLE", "PARTY_CHECK_UNAVAILABLE"];
+
 #[derive(Clone)]
 pub struct Health {
     pub engine: String,
@@ -47,22 +49,35 @@ impl Judge {
                 .header("x-league-judge-token", &self.token)
                 .send()
                 .await
-                .map_err(|_| unavailable())?;
-            if !response.status().is_success() {
-                return Err(unavailable());
+                .map_err(|_| failed(None, "", "connection_failed", unavailable()))?;
+            let status = response.status().as_u16();
+            if status == 401 {
+                return Err(failed(
+                    Some(status),
+                    "UNAUTHORIZED",
+                    "authentication_failed",
+                    judge_failed(),
+                ));
             }
-            let body = read(response).await?;
-            let engine = version(&body["engineVersion"])?;
-            let roster = version(&body["rosterVersion"])?;
+            if !response.status().is_success() {
+                return Err(failed(Some(status), "", "health_status", unavailable()));
+            }
+            let body = read(response)
+                .await
+                .map_err(|reason| failed(Some(status), "", reason, unavailable()))?;
+            let engine = version(&body["engineVersion"])
+                .map_err(|e| failed(Some(status), "", "invalid_engine_version", e))?;
+            let roster = version(&body["rosterVersion"])
+                .map_err(|e| failed(Some(status), "", "invalid_roster_version", e))?;
             if body["ready"] != true {
-                return Err(unavailable());
+                return Err(failed(Some(status), "", "health_not_ready", unavailable()));
             }
             let health = Health { engine, roster };
             *cache = Some((Instant::now(), health.clone()));
             Ok(health)
         })
         .await
-        .map_err(|_| unavailable())?
+        .map_err(|_| failed(None, "", "health_timeout", unavailable()))?
     }
     pub async fn call(&self, engine: &str, op: Value) -> Result<Value> {
         let _permit = self.permits.try_acquire().map_err(|_| unavailable())?;
@@ -76,19 +91,46 @@ impl Judge {
             )
             .send()
             .await
-            .map_err(|_| unavailable())?;
-        let success = response.status().is_success();
-        let body = read(response).await?;
-        if body["protocol"] != "league-judge/1" || body["requestId"] != id {
-            return Err(unavailable());
+            .map_err(|_| failed(None, "", "connection_failed", unavailable()))?;
+        let status = response.status().as_u16();
+        if status == 401 {
+            return Err(failed(
+                Some(status),
+                "UNAUTHORIZED",
+                "authentication_failed",
+                judge_failed(),
+            ));
         }
-        let returned_engine = version(&body["engineVersion"])?;
+        let body = read(response)
+            .await
+            .map_err(|reason| failed(Some(status), "", reason, unavailable()))?;
+        if body["protocol"] != "league-judge/1" {
+            return Err(failed(Some(status), "", "protocol_mismatch", unavailable()));
+        }
+        if body["requestId"] != id {
+            return Err(failed(
+                Some(status),
+                "",
+                "request_id_mismatch",
+                unavailable(),
+            ));
+        }
+        let returned_engine = version(&body["engineVersion"])
+            .map_err(|e| failed(Some(status), "", "invalid_engine_version", e))?;
         if body["ok"] == false {
             let code = body["code"]
                 .as_str()
                 .filter(|s| !s.is_empty())
-                .ok_or_else(unavailable)?;
-            let mut error = match code {
+                .ok_or_else(|| failed(Some(status), "", "missing_code", unavailable()))?;
+            if returned_engine != engine && code != "ENGINE_VERSION_MISMATCH" {
+                return Err(failed(
+                    Some(status),
+                    code,
+                    "engine_version_mismatch",
+                    unavailable(),
+                ));
+            }
+            let error = match code {
                 "ENGINE_VERSION_MISMATCH" => {
                     *self.health.lock().await = None;
                     LeagueError::new(409, "LEAGUE_ENGINE_RETIRED")
@@ -103,44 +145,64 @@ impl Judge {
                         .detail(json!({"kind":code,"at":body["detail"]["at"]}))
                 }
                 "ROSTER_NOT_READY" => LeagueError::new(503, "LEAGUE_ROSTER_NOT_READY"),
-                "PARTY_CHECK_UNAVAILABLE" => unavailable(),
-                _ => LeagueError::new(500, "LEAGUE_JUDGE_FAILED"),
+                code if RETRYABLE_JUDGE_CODES.contains(&code) => unavailable(),
+                _ => judge_failed(),
             };
-            if returned_engine != engine && code != "ENGINE_VERSION_MISMATCH" {
-                error = unavailable();
-            }
-            // Only log the validated category, never arbitrary judge detail.
-            let category = match code {
-                "ENGINE_VERSION_MISMATCH"
-                | "PARTY_INVALID"
-                | "PARTY_IMPLAUSIBLE"
-                | "ILLEGAL_INPUT"
-                | "INCOMPLETE_INPUT"
-                | "TRAILING_INPUT"
-                | "TOO_LONG"
-                | "ROSTER_NOT_READY"
-                | "PARTY_CHECK_UNAVAILABLE"
-                | "ROSTER_SOURCE_INVALID"
-                | "INVALID_REQUEST"
-                | "ENGINE_STALL" => code,
-                _ => "UNKNOWN",
-            };
-            tracing::warn!(
-                event = "league.judge_failed",
-                code = category,
-                mapped_code = error.code
-            );
-            return Err(error);
+            return Err(failed(Some(status), code, "judge_error", error));
         }
-        if !success || returned_engine != engine || body["ok"] != true || !body["data"].is_object()
+        if !(200..300).contains(&status)
+            || returned_engine != engine
+            || body["ok"] != true
+            || !body["data"].is_object()
         {
-            return Err(unavailable());
+            return Err(failed(
+                Some(status),
+                "",
+                "invalid_success_response",
+                unavailable(),
+            ));
         }
         Ok(body["data"].clone())
     }
 }
 fn unavailable() -> LeagueError {
     LeagueError::new(503, "LEAGUE_JUDGE_UNAVAILABLE")
+}
+fn judge_failed() -> LeagueError {
+    LeagueError::new(500, "LEAGUE_JUDGE_FAILED")
+}
+fn failed(
+    status: Option<u16>,
+    code: &str,
+    reason: &'static str,
+    error: LeagueError,
+) -> LeagueError {
+    // Only log known categories, never arbitrary judge code, detail or response data.
+    let category = match code {
+        "ENGINE_VERSION_MISMATCH"
+        | "PARTY_INVALID"
+        | "PARTY_IMPLAUSIBLE"
+        | "ILLEGAL_INPUT"
+        | "INCOMPLETE_INPUT"
+        | "TRAILING_INPUT"
+        | "TOO_LONG"
+        | "ROSTER_NOT_READY"
+        | "PARTY_CHECK_UNAVAILABLE"
+        | "ROSTER_SOURCE_INVALID"
+        | "INVALID_REQUEST"
+        | "ENGINE_STALL"
+        | "JUDGE_UNAVAILABLE"
+        | "UNAUTHORIZED" => code,
+        _ => "UNKNOWN",
+    };
+    tracing::warn!(
+        event = "league.judge_failed",
+        http_status = status,
+        code = category,
+        reason,
+        mapped_code = error.code
+    );
+    error
 }
 fn version(value: &Value) -> Result<String> {
     let text = value
@@ -149,18 +211,19 @@ fn version(value: &Value) -> Result<String> {
         .ok_or_else(unavailable)?;
     Ok(text.to_owned())
 }
-async fn read(mut response: reqwest::Response) -> Result<Value> {
-    if response.status().is_redirection()
-        || response.content_length().is_some_and(|n| n > 1024 * 1024)
-    {
-        return Err(unavailable());
+async fn read(mut response: reqwest::Response) -> std::result::Result<Value, &'static str> {
+    if response.status().is_redirection() {
+        return Err("redirect_rejected");
+    }
+    if response.content_length().is_some_and(|n| n > 1024 * 1024) {
+        return Err("response_too_large");
     }
     let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(|_| unavailable())? {
+    while let Some(chunk) = response.chunk().await.map_err(|_| "response_read_failed")? {
         if bytes.len() + chunk.len() > 1024 * 1024 {
-            return Err(unavailable());
+            return Err("response_too_large");
         }
         bytes.extend_from_slice(&chunk);
     }
-    serde_json::from_slice(&bytes).map_err(|_| unavailable())
+    serde_json::from_slice(&bytes).map_err(|_| "invalid_json")
 }
