@@ -144,7 +144,7 @@ async fn submit(
     let Path((attempt, index)) = path.map_err(|_| LeagueError::new(404, "LEAGUE_NOT_FOUND"))?;
     let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_INPUT_REJECTED"))?;
     Ok(success(
-        db::retry(|| l.submit_match(user, &name, attempt, index, &body)).await?,
+        l.submit_match(user, &name, attempt, index, &body).await?,
     ))
 }
 async fn forfeit(

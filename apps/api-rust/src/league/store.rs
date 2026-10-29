@@ -458,16 +458,17 @@ async fn stored_match<C: GenericClient + Sync>(
     client: &C,
     id: Uuid,
     index: i16,
+    lead: i16,
     hash: &str,
 ) -> Result<Value> {
-    let row = client.query_opt("SELECT inputs_hash,measure FROM poke_lounge_league_match WHERE attempt_id=$1 AND match_index=$2", &[&id,&index]).await?.ok_or_else(|| LeagueError::new(409,"LEAGUE_ATTEMPT_NOT_ACTIVE"))?;
+    let row = client.query_opt("SELECT inputs_hash,lead_slot,measure FROM poke_lounge_league_match WHERE attempt_id=$1 AND match_index=$2", &[&id,&index]).await?.ok_or_else(|| LeagueError::new(409,"LEAGUE_ATTEMPT_NOT_ACTIVE"))?;
     let previous: String = row.try_get("inputs_hash")?;
     let measure: Value = row.try_get("measure")?;
     let response = &measure["_response"];
     if !response.is_object() {
         return Err(LeagueError::corrupt());
     }
-    if previous != hash {
+    if previous != hash || row.try_get::<_, i16>("lead_slot")? != lead {
         return Err(
             LeagueError::new(409, "LEAGUE_MATCH_ALREADY_JUDGED").detail(json!({"result":response}))
         );
@@ -489,6 +490,7 @@ impl League {
         &self,
         a: &Value,
         index: i16,
+        lead: i16,
         inputs_hash: &str,
     ) -> Result<Option<Value>> {
         let mut slot = self.db.client().await?;
@@ -501,7 +503,7 @@ impl League {
         let user = views::uuid(&a["user_id"])?;
         let a = attempt(&tx, id, user, "FOR UPDATE").await?;
         if a["status"] != "active" || a["current_match"] != index {
-            return Ok(Some(stored_match(&tx, id, index, inputs_hash).await?));
+            return Ok(Some(stored_match(&tx, id, index, lead, inputs_hash).await?));
         }
         if views::integer(&season["now_ms"])? > views::integer(&season["deadline_ms"])? {
             tx.rollback().await?;
@@ -537,23 +539,20 @@ impl League {
         if was_active && a["status"] == "void" {
             return Err(LeagueError::new(409, "LEAGUE_ENGINE_RETIRED"));
         }
+        views::validate_submission(submission)?;
+        let lead = views::integer(&submission["leadSlot"])? as i16;
         let inputs_hash = crate::repository::hash_bytes(
             serde_json::to_string(&submission["inputs"])
                 .map_err(|_| LeagueError::corrupt())?
                 .as_bytes(),
         );
-        if let Err(e) = views::validate_submission(submission) {
-            if let Some(result) = self.reject_submission(&a, index, &inputs_hash).await? {
-                return Ok(result);
-            }
-            return Err(e);
-        }
         if a["status"] != "active" || i64::from(index) < views::integer(&a["current_match"])? {
             let slot = self.db.client().await?;
             return stored_match(
                 slot.as_ref().ok_or_else(LeagueError::unavailable)?,
                 id,
                 index,
+                lead,
                 &inputs_hash,
             )
             .await;
@@ -577,7 +576,7 @@ impl League {
                 .map(|r| r.try_get::<_, Value>("q"))
                 .collect::<std::result::Result<Vec<_>, _>>()?;
             if q.len() != index as usize {
-                return stored_match(client, id, index, &inputs_hash).await;
+                return stored_match(client, id, index, lead, &inputs_hash).await;
             }
             q
         };
@@ -590,7 +589,7 @@ impl League {
         let started = std::time::Instant::now();
         let judged = match self.judge.call(views::text(&a["engine_version"])?,json!({"kind":"judge-match","seed":seed,"matchIndex":index,"carryParty":a["carry_party"],"opponent":opponent,"leadSlot":submission["leadSlot"],"inputs":submission["inputs"],"previousQ":previous_q})).await {
             Err(e) if e.code == "LEAGUE_INPUT_REJECTED" => {
-                if let Some(result) = self.reject_submission(&a,index,&inputs_hash).await? { return Ok(result); }
+                if let Some(result) = super::db::retry(|| self.reject_submission(&a,index,lead,&inputs_hash)).await? { return Ok(result); }
                 return Err(e);
             },
             Err(e) if e.code == "LEAGUE_ENGINE_RETIRED" => {
@@ -624,9 +623,10 @@ impl League {
         {
             return Err(LeagueError::corrupt());
         }
-        let result = self
-            .apply_match(&a, index, submission, &inputs_hash, &judged, name)
-            .await?;
+        let result = super::db::retry(|| {
+            self.apply_match(&a, index, submission, &inputs_hash, &judged, name)
+        })
+        .await?;
         tracing::info!(event="league.match_judged",attempt=%id,index,status,turns,duration_ms=started.elapsed().as_millis() as u64);
         if submission["client"]["endHash"] != judged["measure"]["endHash"] {
             tracing::warn!(event="league.replay_divergence",attempt=%id,index,client_end_hash=?submission["client"]["endHash"],server_end_hash=?judged["measure"]["endHash"],engine_version=?a["engine_version"]);
@@ -660,7 +660,14 @@ impl League {
         lock_run(&tx, views::uuid(&original["run_id"])?).await?;
         let a = attempt(&tx, id, user, "FOR UPDATE").await?;
         if a["status"] != "active" || a["current_match"] != index {
-            return stored_match(&tx, id, index, inputs_hash).await;
+            return stored_match(
+                &tx,
+                id,
+                index,
+                views::integer(&submission["leadSlot"])? as i16,
+                inputs_hash,
+            )
+            .await;
         }
         if views::integer(&season["now_ms"])? > views::integer(&season["deadline_ms"])? {
             tx.rollback().await?;
