@@ -11,12 +11,14 @@ pub mod views;
 use crate::http::AppState;
 use axum::Router;
 use std::sync::Arc;
+use tokio::sync::Semaphore;
 
 pub struct League {
     pub config: config::Config,
     pub judge: judge::Judge,
     pub db: db::Db,
     pub limiter: limiter::Limiter,
+    requests: Semaphore,
 }
 impl League {
     pub async fn from_env(database: &tokio_postgres::Config) -> Option<Arc<Self>> {
@@ -42,6 +44,7 @@ impl League {
             db: db::Db::new(database.clone(), config.db_max),
             config,
             limiter: limiter::Limiter::default(),
+            requests: Semaphore::new(8),
         }))
     }
 }

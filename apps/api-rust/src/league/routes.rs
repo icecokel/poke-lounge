@@ -9,8 +9,10 @@ use crate::{
 };
 use axum::{
     Extension, Json, Router,
-    extract::{Path, Query, State},
+    extract::{Path, Query, Request, State},
     http::HeaderMap,
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{get, post},
 };
 use serde::Deserialize;
@@ -29,7 +31,14 @@ pub fn router(league: Arc<League>) -> Router<AppState> {
         .route("/league/v1/attempts", post(enter))
         .route("/league/v1/attempts/{id}/matches/{index}", post(submit))
         .route("/league/v1/attempts/{id}/forfeit", post(forfeit))
+        .route_layer(middleware::from_fn_with_state(league.clone(), limit))
         .layer(Extension(league))
+}
+async fn limit(State(league): State<Arc<League>>, request: Request, next: Next) -> Response {
+    let Ok(_permit) = league.requests.try_acquire() else {
+        return LeagueError::new(503, "LEAGUE_BUSY").into_response();
+    };
+    next.run(request).await
 }
 async fn user(
     state: &AppState,
