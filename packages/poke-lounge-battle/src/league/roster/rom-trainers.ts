@@ -8,7 +8,8 @@ export interface RomTrainerMember {
   readonly moveIds: readonly number[];
   readonly heldItemId: number;
   readonly difficulty: number;
-  readonly genderAbilityOverride: number; // ROM +0x01 원값. 의미 미확인, 템플릿에는 쓰지 않는다.
+  // ROM +0x01: 상위 1/2=특성 슬롯, 하위 1/2=성별 강제. 0은 트레이너 내 이전 PID 유지.
+  readonly genderAbilityOverride: number;
 }
 
 export interface RomTrainer {
@@ -20,6 +21,23 @@ export interface RomTrainer {
   readonly partyCount: number;
   readonly members: readonly RomTrainerMember[];
 }
+
+// pret sTrainerGenders 기준 초기 PID. 화면용 gender와 다르며 DOUBLE은 남성과 같다.
+export const ROM_TRAINER_PID_GENDERS: Readonly<Record<number, number>> = {
+  66: 0x88,
+  67: 0x78,
+  70: 0x78,
+  72: 0x88,
+  73: 0x88,
+  74: 0x78,
+  75: 0x88,
+  76: 0x78,
+  86: 0x88,
+  87: 0x78,
+  88: 0x78,
+  89: 0x88,
+  112: 0x88,
+};
 
 export const ROM_TRAINERS = {
   "244": {
