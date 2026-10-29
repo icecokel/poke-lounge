@@ -80,9 +80,10 @@ export function LeagueEntryLink({
   return (
     <a
       href={disabled ? undefined : `/${locale}/league`}
+      role="link"
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : undefined}
-      className="inline-flex min-h-8 items-center rounded border border-[var(--pl-color-ink)] px-2 text-sm font-bold text-[var(--pl-color-ink)] hover:bg-[var(--pl-color-gold-soft)] focus-visible:outline-2 focus-visible:outline-offset-2"
+      className="inline-flex min-h-8 items-center rounded border border-[var(--pl-color-ink)] px-2 text-sm font-bold text-[var(--pl-color-ink)] hover:bg-[var(--pl-color-gold-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 aria-disabled:pointer-events-none aria-disabled:opacity-50"
     >
       {locale === "ko-KR" ? "리그" : locale === "ja-JP" ? "リーグ" : "League"}
     </a>

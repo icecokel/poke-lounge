@@ -29,6 +29,7 @@ import { EntryScreen } from "../attempt/entry-screen";
 import { AttemptFlow } from "../attempt/attempt-flow";
 import { clearEntryKey } from "../attempt/entry-key";
 import { LeagueHome } from "./league-home";
+import { LeagueAccountScreen } from "./league-account-screen";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
 
 type Screen =
@@ -176,8 +177,10 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       {notice && <p role="status">{notice}</p>}
       {screen === "boot" && <p role="status">{text.loading}</p>}
       {screen === "closed" && <p>{text.closed}</p>}
-      {(screen === "login" || screen === "account") && <DiscordAccountButton locale={locale} />}
-      {screen === "account" && <Button onClick={() => home()}>{text.home}</Button>}
+      {screen === "login" && <DiscordAccountButton locale={locale} />}
+      {screen === "account" && me && (
+        <LeagueAccountScreen locale={locale} displayName={me.user.displayName} onHome={home} />
+      )}
       {screen === "error" && (
         <>
           <p role="alert">{leagueErrorMessage(error, locale)}</p>

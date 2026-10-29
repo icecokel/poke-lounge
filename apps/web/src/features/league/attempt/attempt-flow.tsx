@@ -46,7 +46,7 @@ export function AttemptFlow({
   const text = getLeagueCopy(locale);
   const [attempt, setAttempt] = useState(initial);
   const [phase, setPhase] = useState<
-    "battle" | "submitting" | "result" | "final" | "failed" | "ended" | "error"
+    "battle" | "submitting" | "loading" | "result" | "final" | "failed" | "ended" | "error"
   >(initial.status === "active" && initial.current ? "battle" : "ended");
   const [error, setError] = useState<unknown>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -86,6 +86,7 @@ export function AttemptFlow({
       setAttempt(next);
       setPending(null);
       setResponse(null);
+      setError(null);
       setRestart(n => n + 1);
       setPhase("battle");
     } else if (next?.status === "void" || next?.status === "expired") {
@@ -324,6 +325,7 @@ export function AttemptFlow({
               )}
         </p>
       )}
+      {phase === "loading" && <p role="status">{text.loading}</p>}
       {error != null && phase !== "submitting" && (
         <p role="alert">{leagueErrorMessage(error, locale)}</p>
       )}
@@ -341,7 +343,7 @@ export function AttemptFlow({
                 if (sending.current) return;
                 sending.current = true;
                 setError(null);
-                setPhase("submitting");
+                setPhase("loading");
                 try {
                   await refreshAttempt();
                 } catch (error) {

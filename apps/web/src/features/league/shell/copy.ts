@@ -10,6 +10,23 @@ const messages = {
   firstScreen: ["첫 화면으로", "Back to start", "最初の画面へ"],
   home: ["홈으로", "League home", "ホームへ"],
   account: ["계정 / 로그아웃", "Account / log out", "アカウント / ログアウト"],
+  logout: ["로그아웃", "Log out", "ログアウト"],
+  logoutTitle: [
+    "디스코드에서 로그아웃할까요?",
+    "Log out of Discord?",
+    "Discordからログアウトしますか？",
+  ],
+  logoutDescription: [
+    "이 브라우저의 디스코드 계정 세션을 종료합니다.",
+    "This ends your Discord account session in this browser.",
+    "このブラウザーのDiscordアカウントセッションを終了します。",
+  ],
+  loggingOut: ["로그아웃 중…", "Logging out…", "ログアウト中…"],
+  logoutFailed: [
+    "로그아웃하지 못했습니다. 다시 시도해 주세요.",
+    "Could not log out. Please try again.",
+    "ログアウトできませんでした。もう一度お試しください。",
+  ],
   retry: ["다시 시도", "Try again", "再試行"],
   refresh: ["새로 고침", "Refresh", "再読み込み"],
   cancel: ["취소", "Cancel", "キャンセル"],
