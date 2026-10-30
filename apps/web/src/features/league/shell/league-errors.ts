@@ -74,6 +74,27 @@ export function leagueErrorMessage(error: unknown, locale: LeagueLocale, retryin
       return `${leagueText(locale, "파티 확인 실패", "Party validation failed", "パーティ確認失敗")} · ${JSON.stringify(errorDetail(error).reasons ?? [])}`;
     case "LEAGUE_ENGINE_VERSION_MISMATCH":
       return text.version;
+    case "LEAGUE_TEST_MODE_MISMATCH":
+      return leagueText(
+        locale,
+        "테스트 모드 설정이 서버와 판정 서비스 또는 시즌 기록과 맞지 않습니다. 테스트 모드 스택을 새 프로젝트 이름으로 다시 띄워 주세요.",
+        "Test mode settings differ between the server, judge, or season records. Restart the test mode stack with a new project name.",
+        "テストモード設定がサーバー、判定サービス、またはシーズン記録と一致しません。新しいプロジェクト名でテストモードを再起動してください。",
+      );
+    case "LEAGUE_TEST_ACCOUNT_INVALID":
+      return leagueText(
+        locale,
+        "테스트 계정 번호가 올바르지 않습니다",
+        "The test account number is invalid.",
+        "テストアカウント番号が正しくありません。",
+      );
+    case "LEAGUE_TEST_LOGIN_UNAVAILABLE":
+      return leagueText(
+        locale,
+        "웹 서버에 테스트 로그인 설정이 없습니다(pnpm dev:rust --league-test로 다시 실행)",
+        "Test login is not configured on the web server (restart with pnpm dev:rust --league-test).",
+        "ウェブサーバーにテストログイン設定がありません（pnpm dev:rust --league-testで再起動）。",
+      );
     case "LEAGUE_ENGINE_RETIRED":
       return text.retired;
     case "LEAGUE_ATTEMPT_EXPIRED":

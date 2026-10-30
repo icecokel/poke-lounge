@@ -6,6 +6,7 @@ import { DiscordAccountButton } from "@/components/poke-lounge/ui/discord-accoun
 import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
 import { sameLeagueEngine } from "../test-mode/engine";
 import { LeagueTestModeBanner } from "../test-mode/banner";
+import { LeagueTestLoginPanel } from "../test-mode/login-panel";
 import { LeagueApiError } from "../api/core";
 import {
   getCurrentAttempt,
@@ -194,7 +195,12 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       {notice && <p role="status">{notice}</p>}
       {screen === "boot" && <p role="status">{text.loading}</p>}
       {screen === "closed" && <p>{text.closed}</p>}
-      {screen === "login" && <DiscordAccountButton locale={locale} />}
+      {screen === "login" && (
+        <>
+          <DiscordAccountButton locale={locale} />
+          <LeagueTestLoginPanel locale={locale} test={status?.test} onLogin={() => boot()} />
+        </>
+      )}
       {screen === "account" && me && (
         <LeagueAccountScreen locale={locale} displayName={me.user.displayName} onHome={home} />
       )}
