@@ -1,8 +1,19 @@
 use super::League;
 use super::config::Config;
-use crate::http::AppState;
-use axum::Router;
+use super::error::{LeagueError, Result as LeagueResult};
+use crate::{
+    http::{AppState, success},
+    repository::hash_bytes,
+};
+use axum::{
+    Extension, Json, Router, extract::rejection::JsonRejection, http::HeaderMap, routing::post,
+};
+use rand::RngCore;
+use serde::Deserialize;
+use serde_json::{Value, json};
 use std::{env, sync::Arc};
+use subtle::ConstantTimeEq;
+use uuid::Uuid;
 
 pub struct TestConfig {
     pub starter_level: Option<i16>,
@@ -136,6 +147,85 @@ fn local_only() -> Result<(), &'static str> {
     Ok(())
 }
 
-pub fn routes(_league: &Arc<League>) -> Router<AppState> {
-    Router::new()
+pub fn routes(league: &Arc<League>) -> Router<AppState> {
+    if league
+        .config
+        .test
+        .as_ref()
+        .is_some_and(|t| t.login_token.is_some())
+    {
+        Router::new().route("/league/v1/test/login", post(login))
+    } else {
+        Router::new()
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Login {
+    account: i16,
+    previous: Option<String>,
+}
+
+async fn login(
+    Extension(league): Extension<Arc<League>>,
+    headers: HeaderMap,
+    body: std::result::Result<Json<Login>, JsonRejection>,
+) -> LeagueResult<Json<Value>> {
+    let test = league.config.test.as_ref();
+    let token = test.and_then(|t| t.login_token.as_deref());
+    let supplied = headers.get("x-league-test-token").map(|v| v.as_bytes());
+    let (Some(test), Some(token), Some(supplied)) = (test, token, supplied) else {
+        return Err(LeagueError::new(404, "LEAGUE_NOT_FOUND"));
+    };
+    if !bool::from(supplied.ct_eq(token.as_bytes())) {
+        return Err(LeagueError::new(404, "LEAGUE_NOT_FOUND"));
+    }
+    let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_TEST_ACCOUNT_INVALID"))?;
+    if !(1..=test.accounts).contains(&body.account)
+        || body
+            .previous
+            .as_ref()
+            .is_some_and(|value| value.len() != 64 || !value.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
+        return Err(LeagueError::new(422, "LEAGUE_TEST_ACCOUNT_INVALID"));
+    }
+    let id = Uuid::parse_str(&format!(
+        "7e570000-0000-4000-8000-0000000000{:02}",
+        body.account
+    ))
+    .expect("validated test account");
+    let name = format!("Test {}", body.account);
+    let mut random = [0u8; 32];
+    rand::rng().fill_bytes(&mut random);
+    let session: String = random.iter().map(|b| format!("{b:02x}")).collect();
+    let session_hash = hash_bytes(session.as_bytes());
+    let mut slot = league.db.client().await?;
+    let tx = slot
+        .as_mut()
+        .ok_or_else(LeagueError::unavailable)?
+        .transaction()
+        .await?;
+    tx.execute(
+        "INSERT INTO poke_lounge_user (id, display_name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = now()",
+        &[&id, &name],
+    ).await?;
+    if let Some(previous) = body.previous {
+        tx.execute(
+            "DELETE FROM poke_lounge_auth_session WHERE token_hash = $1",
+            &[&hash_bytes(previous.as_bytes())],
+        )
+        .await?;
+    }
+    tx.execute(
+        "INSERT INTO poke_lounge_auth_session (token_hash, user_id, expires_at) VALUES ($1, $2, now() + interval '30 days')",
+        &[&session_hash, &id],
+    ).await?;
+    tx.commit().await?;
+    tracing::info!(event = "league.test_login", account = body.account);
+    Ok(success(json!({
+        "sessionToken":session,
+        "maxAgeS":2_592_000,
+        "user":{"id":id,"displayName":name},
+    })))
 }
