@@ -272,7 +272,32 @@ for (const path of files(resolve(root, "scripts"))) {
     errors.push(`${name(path)}: only rust-local/dev.ts may mention ${match[0]}`);
 }
 
+// 9. Test mode palette utilities must exist in the reset global theme.
+const themeColors = new Set();
+const themeSource = read(resolve(root, "apps/web/src/app/globals.css")).replace(
+  /\/\*[\s\S]*?\*\//g,
+  "",
+);
+for (const theme of themeSource.matchAll(/@theme\b[^\{]*\{([^}]+)\}/g)) {
+  for (const [, color, value] of theme[1].matchAll(/--color-(\*|[\w-]+)\s*:\s*([^;]+);/g)) {
+    if (value.trim() === "initial") {
+      if (color === "*") themeColors.clear();
+      else themeColors.delete(color);
+    } else {
+      themeColors.add(color);
+    }
+  }
+}
+for (const path of files(resolve(root, "apps/web/src/features/league/test-mode"))) {
+  for (const match of read(path).matchAll(
+    /(?<![\w-])(?:border-[xytrblse]|divide-[xy]|ring-offset|outline-offset|text-shadow|bg|text|border|divide|outline|ring|shadow|decoration|placeholder|accent|caret|fill|stroke|from|via|to)-([\w-]+)(?:\/(?:\[[^\]]+\]|[\d.]+))?!?(?![\w/-])/g,
+  )) {
+    if (/^(?:[a-z]+(?:-[a-z]+)*-\d+|black|white)$/.test(match[1]) && !themeColors.has(match[1]))
+      errors.push(`${name(path)}: ${match[0]} uses an undefined @theme color`);
+  }
+}
+
 if (errors.length) throw new Error(`League test mode boundary violations:\n${errors.join("\n")}`);
 console.log(
-  "League test mode static checks passed (rules 1–8; judge/login guards apply when added).",
+  "League test mode static checks passed (rules 1–9; judge/login guards apply when added).",
 );

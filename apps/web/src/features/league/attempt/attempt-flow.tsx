@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { LEAGUE_MATCH_RULES, measureLeagueMatch } from "@poke-lounge/battle/league/match";
-import { LEAGUE_ENGINE_VERSION } from "@poke-lounge/battle/league/engine-version";
+import { sameLeagueEngine } from "../test-mode/engine";
 import { leagueHash } from "@poke-lounge/battle/league/hash";
 import { LeagueApiError, withLeagueRetry } from "../api/core";
 import {
@@ -80,7 +80,7 @@ export function AttemptFlow({
       next?.id === initial.id &&
       next.status === "active" &&
       next.current &&
-      next.engineVersion === LEAGUE_ENGINE_VERSION
+      sameLeagueEngine(next.engineVersion)
     ) {
       if (leagueHash(next.current.carryParty) !== next.current.carryHash)
         throw new LeagueApiError(500, "LEAGUE_CORRUPT", undefined, false);
@@ -101,7 +101,7 @@ export function AttemptFlow({
       );
     } else if (next?.status === "active") {
       onHome(
-        next.engineVersion !== LEAGUE_ENGINE_VERSION
+        !sameLeagueEngine(next.engineVersion)
           ? new LeagueApiError(409, "LEAGUE_ENGINE_VERSION_MISMATCH", undefined, false)
           : undefined,
       );
