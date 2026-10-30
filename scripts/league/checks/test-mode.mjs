@@ -53,7 +53,7 @@ const production = new Set(
       composeFile.test(file) ||
       file.startsWith("Dockerfile") ||
       file === "package.json" ||
-      /^apps\/[^/]+\/\.env\.example$/.test(name(path)) ||
+      /^apps\/[^/]+\/\.env[^/]*$/.test(name(path)) ||
       /^apps\/web\/next\.config\.[^/]+$/.test(name(path)) ||
       /^\.github\/workflows\/[^/]+\.ya?ml$/.test(name(path))
     );
@@ -96,6 +96,7 @@ const pending = configurationFiles
   .filter(path => composeFile.test(basename(path)))
   .map(path => ({ path, base: dirname(path), standalone: true }));
 const visited = new Set();
+const composeProjects = [];
 for (const { path, base, standalone } of pending) {
   const key = `${realpathSync(path)}\0${base}`;
   if (visited.has(key)) continue;
@@ -117,6 +118,7 @@ for (const { path, base, standalone } of pending) {
   )
     continue;
   visited.add(key);
+  if (standalone) composeProjects.push(path);
   for (const entry of list(compose?.include)) {
     const targets = list(typeof entry === "string" ? entry : entry?.path);
     if (!targets.length) {
@@ -132,21 +134,57 @@ for (const { path, base, standalone } of pending) {
         ? dirname(includes[0])
         : reference(path, entry.project_directory, "include.project_directory", base, true);
     if (!projectDirectory) continue;
-    envFiles(path, entry?.env_file, projectDirectory);
+    envFiles(path, entry?.env_file, base);
     for (const include of includes) pending.push({ path: include, base: projectDirectory });
   }
   for (const service of Object.values(compose?.services ?? {})) {
     envFiles(path, service?.env_file, base);
     if (service?.extends?.file !== undefined) {
       const extended = reference(path, service.extends.file, "extends.file", base);
-      if (extended) pending.push({ path: extended, base });
-    }
-    if (service?.build?.dockerfile !== undefined) {
-      const context = reference(path, service.build.context ?? ".", "build.context", base, true);
-      if (context) reference(path, service.build.dockerfile, "build.dockerfile", context);
+      if (extended) pending.push({ path: extended, base: dirname(extended) });
     }
   }
 }
+// Compose resolves inheritance, include path lists, and tags before choosing build files.
+if (!errors.length)
+  for (const path of composeProjects) {
+    const projectFiles = [path];
+    if (/^(?:docker-)?compose\.override\.ya?ml$/.test(basename(path))) {
+      const base = ["compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"]
+        .map(file => resolve(dirname(path), file))
+        .find(file => composeProjects.includes(file));
+      if (base) projectFiles.unshift(base);
+    }
+    let compose;
+    try {
+      compose = JSON.parse(
+        execFileSync(
+          "docker",
+          [
+            "compose",
+            ...projectFiles.flatMap(file => ["-f", file]),
+            "config",
+            "--format",
+            "json",
+            "--no-interpolate",
+            "--no-env-resolution",
+            "--no-consistency",
+          ],
+          { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 10000 },
+        ),
+      );
+    } catch {
+      errors.push(`${name(path)}: Docker Compose config failed; Docker Compose is required`);
+      continue;
+    }
+    for (const service of Object.values(compose.services ?? {})) {
+      envFiles(path, service.env_file);
+      if (!service.build) continue;
+      const context = reference(path, service.build.context, "build.context", root, true);
+      if (context && service.build.dockerfile_inline === undefined)
+        reference(path, service.build.dockerfile ?? "Dockerfile", "build.dockerfile", context);
+    }
+  }
 for (const path of production) {
   for (const match of read(path).matchAll(setting))
     errors.push(`${name(path)}: production setting ${match[0]} is forbidden`);

@@ -8,7 +8,7 @@ function optional(key: string): string | undefined {
 
 function integer(key: string, fallback: number, min: number, max: number): number {
   const raw = optional(key);
-  const value = raw === undefined ? fallback : /^\+?\d+$/.test(raw) ? Number(raw) : NaN;
+  const value = raw === undefined ? fallback : /^\d+$/.test(raw) ? Number(raw) : NaN;
   if (!Number.isInteger(value) || value < min || value > max) throw new Error(key);
   return value;
 }

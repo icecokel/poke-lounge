@@ -37,7 +37,7 @@ docker stop poke-lounge-prod-league-judge-1
 
 끄기 후 리그 경로의 404와 진입 링크 숨김, 기존 게임 정상 진행을 확인한다. 로컬 확인에서 `poke-lounge-prod`를 사용하지 않는다.
 
-테스트 모드는 운영 배포에 없다. 운영 `/league`에 "테스트 모드" 표시줄이나 테스트 계정 버튼이 보이거나, `docker logs`로 확인한 API 로그에 `league.test_mode_on`·`league.test_mode_mismatch`가 있으면 `LEAGUE_ENABLED`를 비워 재배포하고 원인을 확인한다. 테스트 스택에서 운영 스택을 건드리지 않는다.
+테스트 모드는 운영 배포에 없다. 운영 `/league`에 "테스트 모드" 표시줄이나 테스트 계정 버튼이 보이거나, `docker logs`로 확인한 API·판정 서비스(`poke-lounge-prod-league-judge-1`) 로그에 `league.test_mode_on`·`league.test_mode_mismatch` 또는 `league.judge.failed`의 `code: test-mode-config`가 있으면 `LEAGUE_ENABLED`를 비워 재배포하고 원인을 확인한다. 테스트 스택에서 운영 스택을 건드리지 않는다.
 
 ## 2. 시즌 일정
 
