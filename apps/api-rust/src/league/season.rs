@@ -18,7 +18,8 @@ pub fn spawn(league: &Arc<League>) {
         let mut interval = tokio::time::interval(Duration::from_secs(60));
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         let (mut missing, mut waiting, mut no_pool) = (None, None, None);
-        let (mut invalid, mut judge_unavailable, mut failed) = (None, None, None);
+        let (mut invalid, mut judge_unavailable) = (None, None);
+        let mut failed: Option<(Instant, &'static str)> = None;
         loop {
             interval.tick().await;
             if let Err(error) = tick(
@@ -31,8 +32,11 @@ pub fn spawn(league: &Arc<League>) {
                 &mut judge_unavailable,
             )
             .await
-                && due(&mut failed, 600)
+                && failed.is_none_or(|(at, code)| {
+                    code != error.code || at.elapsed() >= Duration::from_secs(600)
+                })
             {
+                failed = Some((Instant::now(), error.code));
                 tracing::warn!(event = "league.season_tick_failed", code = error.code);
             }
         }
