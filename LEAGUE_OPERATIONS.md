@@ -23,10 +23,12 @@ GitHub 배포 설정 순서:
 1. Secret `LEAGUE_JUDGE_TOKEN`을 설정한다. ASCII 32~256자이며 `BATTLE_WORKER_TOKEN`과 달라야 한다.
 2. Variables `LEAGUE_SEASON1_STARTS_AT`, `LEAGUE_SEASON1_STARTERS`(중복 없는 종족 번호 3~6종), `LEAGUE_SEASON1_STARTER_LEVEL=10`을 설정한다. 시즌 1은 후보 풀로 대신 만들지 않는다.
 3. `LEAGUE_STARTER_POOL`(중복 없는 종족 번호 3~60종), `LEAGUE_SETTLE_GRACE_HOURS=6`, `LEAGUE_EXP_MULTIPLIER=1.5`를 설정한다.
-4. `LEAGUE_JUDGE_URL`은 API가 별도 판정 컨테이너에 연결하는 주소다. 배포 기본값은 `http://league-judge:3031`이며 다른 주소를 쓸 때만 같은 이름의 Variable을 설정한다. `COMPOSE_PROFILES=league`, `LEAGUE_ENABLED=true`를 설정하고 정상 main 배포 절차를 실행한다.
+4. `LEAGUE_JUDGE_URL`은 API가 별도 판정 컨테이너에 연결하는 주소다. 배포 기본값은 `http://league-judge:3031`이며 다른 주소를 쓸 때만 같은 이름의 Variable을 설정한다. `LEAGUE_ENABLED=true`를 설정하고 정상 main 배포 절차를 실행한다. `COMPOSE_PROFILES`는 배포 결과에 영향이 없으며 판정 서비스 기동은 `LEAGUE_ENABLED=true`가 결정한다.
 5. 배포는 profile을 비워 기존 멀티플레이 스택을 먼저 기동·대기한 뒤, `LEAGUE_ENABLED=true`일 때 판정 서비스만 별도 기동·대기한다. 판정 서비스 기동 실패는 경고만 남기고 기존 API·웹 health와 로그 확인을 계속 수행한다. 기존 `/health`·`/health/ready`·멀티플레이 화면을 확인한다. `/league/v1/status`가 200인지, `enabled: true`와 시즌 시각이 있는지 확인한다. 실패 시 `league.judge_failed`·`league.season_tick_failed`와 URL·토큰 설정을 확인한다. 리그 첫 화면 링크의 표시와 실제 진입은 브라우저로 확인한다. 배포 성공만으로 리그 활성화를 판단하지 않는다.
 
-끄기: `LEAGUE_ENABLED`와 `COMPOSE_PROFILES`를 비우고 배포한다. 리그 값이 비면 기존 서비스 목록·배포 명령은 그대로다. 프로필 서비스가 `--remove-orphans`로 제거되는지는 미확인이다. 운영 스택의 담당자가 다음 조회의 프로젝트·서비스 라벨과 컨테이너 이름을 확인한 뒤 일치하는 판정 컨테이너만 수동 중지한다. 이 명령은 compose 환경값 보간을 거치지 않는다.
+참고: `LEAGUE_ENABLED=True`처럼 대소문자가 다르면 GitHub 조건식은 판정 컨테이너를 기동하지만 Rust는 정확히 `true`만 받아 리그는 꺼진 채로 남으므로 소문자 `true`를 사용한다.
+
+끄기: `LEAGUE_ENABLED`를 비우고 배포한다. `COMPOSE_PROFILES`를 비울 필요는 없으며 이 값은 판정 서비스 기동 여부를 결정하지 않는다. 리그 값이 비면 기존 서비스 목록·배포 명령은 그대로다. 프로필 서비스가 `--remove-orphans`로 제거되는지는 미확인이다. 운영 스택의 담당자가 다음 조회의 프로젝트·서비스 라벨과 컨테이너 이름을 확인한 뒤 일치하는 판정 컨테이너만 수동 중지한다. 이 명령은 compose 환경값 보간을 거치지 않는다.
 
 ```sh
 docker ps --filter label=com.docker.compose.project=poke-lounge-prod --filter label=com.docker.compose.service=league-judge --format '{{.Names}}\t{{.Labels}}'
