@@ -1,6 +1,8 @@
+use super::test_mode::TestConfig;
 use std::{env, fs};
 
 pub struct Config {
+    pub test: Option<TestConfig>,
     pub exp_multiplier_permille: i32,
     pub judge_url: reqwest::Url,
     pub token: String,
@@ -75,7 +77,8 @@ impl Config {
                 }
             },
         };
-        Ok(Self {
+        let test = TestConfig::from_env()?;
+        let config = Self {
             exp_multiplier_permille,
             judge_url,
             token,
@@ -83,9 +86,23 @@ impl Config {
             grace_hours: number("LEAGUE_SETTLE_GRACE_HOURS", 6, 0, 720)?,
             starts_at,
             starters,
-            starter_level: number("LEAGUE_SEASON1_STARTER_LEVEL", 10, 1, 100)? as i16,
+            starter_level: test
+                .as_ref()
+                .and_then(|t| t.starter_level)
+                .unwrap_or(number("LEAGUE_SEASON1_STARTER_LEVEL", 10, 1, 100)? as i16),
             rules_version: number("LEAGUE_RULES_VERSION", 1, 1, 1)? as i16,
-        })
+            test,
+        };
+        if let Some(test) = &config.test {
+            tracing::warn!(
+                event = "league.test_mode_on",
+                marker = %test.marker(),
+                accounts = test.accounts,
+                login = test.login_token.is_some(),
+                badges_required = config.badges_required(),
+            );
+        }
+        Ok(config)
     }
 }
 fn secret(key: &'static str, file: &'static str) -> Option<String> {

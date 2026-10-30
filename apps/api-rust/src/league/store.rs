@@ -69,6 +69,7 @@ impl League {
             }
         }
         let health = self.judge.health().await?;
+        super::test_mode::check_engine(&self.config, &health.engine, "bootstrap")?;
         let roster = match self
             .judge
             .call(&health.engine, json!({"kind":"season-roster"}))
@@ -105,9 +106,15 @@ impl League {
             self.bootstrap().await?;
         }
         let engine = self.judge.health().await.ok().map(|h| h.engine);
+        if let Some(engine) = &engine {
+            super::test_mode::check_engine(&self.config, engine, "status")?;
+        }
         let slot = self.db.client().await?;
         let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
         let season = season(client).await?;
+        if let Some(season) = &season {
+            super::test_mode::check_season(&self.config, views::text(&season["engine_version"])?)?;
+        }
         let engine = engine.or_else(|| {
             season
                 .as_ref()?
@@ -115,9 +122,11 @@ impl League {
                 .as_str()
                 .map(str::to_owned)
         });
-        Ok(
-            json!({"enabled":true,"contractVersion":1,"engineVersion":engine,"rulesVersion":self.config.rules_version,"nowMs":now(client).await?,"season":season.as_ref().map(views::season).transpose()?}),
-        )
+        let mut status = json!({"enabled":true,"contractVersion":1,"engineVersion":engine,"rulesVersion":self.config.rules_version,"nowMs":now(client).await?,"season":season.as_ref().map(views::season).transpose()?});
+        if let Some(test) = &self.config.test {
+            status["test"] = test.view();
+        }
+        Ok(status)
     }
     pub async fn standings(&self) -> Result<Value> {
         let mut slot = self.db.client().await?;
@@ -236,14 +245,14 @@ async fn attempt_view<C: GenericClient + Sync>(client: &C, a: &Value) -> Result<
     }
     Ok(view)
 }
-fn check_run(run: &Value, user: Uuid, season: i32) -> Result<()> {
+fn check_run(run: &Value, user: Uuid, season: i32, required: i16) -> Result<()> {
     if views::uuid(&run["user_id"])? != user
         || views::integer(&run["season_id"])? != i64::from(season)
         || run["status"] != "active"
     {
         return Err(LeagueError::new(409, "LEAGUE_RUN_NOT_ACTIVE"));
     }
-    if run["badges"] != 8 {
+    if views::integer(&run["badges"])? < i64::from(required) {
         return Err(LeagueError::new(409, "LEAGUE_BADGES_REQUIRED"));
     }
     Ok(())
@@ -367,7 +376,7 @@ impl League {
             )
             .await?
             .ok_or_else(|| LeagueError::new(409, "LEAGUE_RUN_NOT_ACTIVE"))?;
-            check_run(&run, user, season_id)?;
+            check_run(&run, user, season_id, self.config.badges_required())?;
             if let Some(a) = one(
                 client,
                 &format!("{ATTEMPT} WHERE season_id=$1 AND user_id=$2 AND status='active'"),
@@ -400,6 +409,7 @@ impl League {
             (s, opponents, mons)
         };
         let health = self.judge.health().await?;
+        super::test_mode::check_engine(&self.config, &health.engine, "enter_attempt")?;
         let prepared = self
             .judge
             .call(
@@ -461,7 +471,7 @@ impl League {
                 LeagueError::new(409, "LEAGUE_ATTEMPT_ACTIVE").detail(json!({"attemptId":a["id"]}))
             );
         }
-        check_run(&run, user, season_id)?;
+        check_run(&run, user, season_id, self.config.badges_required())?;
         let rules = views::integer(&s["rules_version"])? as i16;
         let rev = views::integer(&s["standings_rev"])?;
         let engine = &health.engine;

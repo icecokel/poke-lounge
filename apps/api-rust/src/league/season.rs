@@ -181,6 +181,7 @@ async fn tick(
     };
     let prepared = async {
         let health = league.judge.health().await?;
+        super::test_mode::check_engine(&league.config, &health.engine, "next_season")?;
         let roster = league
             .judge
             .call(&health.engine, json!({"kind":"season-roster"}))
