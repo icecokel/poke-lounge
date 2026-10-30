@@ -18,7 +18,7 @@ export function GrowthHud({
   const save = useSyncExternalStore(storage.subscribe, storage.getEnvelope, storage.getEnvelope);
   return (
     <div
-      className="flex flex-wrap items-center gap-3 rounded border border-slate-600 p-3 text-sm"
+      className="flex flex-wrap items-center gap-3 rounded border border-gray-300 p-3 text-sm"
       aria-live="polite"
     >
       <span>

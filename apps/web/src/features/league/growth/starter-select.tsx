@@ -32,7 +32,7 @@ export function StarterSelect({
         {season.starterSpeciesIds.map(id => (
           <button
             key={id}
-            className="rounded border px-4 py-3 aria-pressed:bg-slate-600"
+            className="rounded border px-4 py-3 aria-pressed:border-black aria-pressed:bg-yellow-100"
             aria-pressed={selected === id}
             disabled={pending}
             onClick={() => setSelected(id)}

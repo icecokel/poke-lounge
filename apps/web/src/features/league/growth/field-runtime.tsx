@@ -127,7 +127,7 @@ export function LeagueFieldRuntime({
           <button
             key={button}
             aria-label={button}
-            className="size-12 touch-none rounded border border-slate-500 bg-slate-800"
+            className="size-12 touch-none rounded border border-gray-300 bg-white"
             onPointerDown={e => {
               e.preventDefault();
               e.currentTarget.setPointerCapture(e.pointerId);
