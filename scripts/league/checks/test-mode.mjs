@@ -161,7 +161,23 @@ for (const path of files(resolve(root, "scripts"))) {
     errors.push(`${name(path)}: only rust-local/dev.ts may mention ${match[0]}`);
 }
 
+// 9. Test mode palette utilities must exist in the reset global theme.
+const themeColors = new Set(
+  [...read(resolve(root, "apps/web/src/app/globals.css")).matchAll(/@theme\b[^\{]*\{([^}]+)\}/g)]
+    .flatMap(theme => [...theme[1].matchAll(/--color-([\w-]+):\s*([^;]+);/g)])
+    .filter(([, , value]) => value.trim() !== "initial")
+    .map(([, color]) => color),
+);
+for (const path of files(resolve(root, "apps/web/src/features/league/test-mode"))) {
+  for (const match of read(path).matchAll(
+    /\b(?:bg|text|border|divide|outline|ring|shadow|decoration|accent|caret|fill|stroke|from|via|to)-([a-z]+(?:-[a-z]+)*-\d{2,3}|black|white)\b/g,
+  )) {
+    if (!themeColors.has(match[1]))
+      errors.push(`${name(path)}: ${match[0]} uses an undefined @theme color`);
+  }
+}
+
 if (errors.length) throw new Error(`League test mode boundary violations:\n${errors.join("\n")}`);
 console.log(
-  "League test mode static checks passed (rules 1–8; judge/login guards apply when added).",
+  "League test mode static checks passed (rules 1–9; judge/login guards apply when added).",
 );

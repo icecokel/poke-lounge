@@ -14,7 +14,7 @@ export function LeagueTestModeBanner({
   return (
     <div
       role="status"
-      className="sticky top-0 z-50 grid gap-1 rounded-lg border-2 border-amber-700 bg-amber-100 p-3 text-sm text-amber-950 dark:border-amber-400 dark:bg-amber-950 dark:text-amber-100"
+      className="sticky top-0 z-50 grid gap-1 rounded-lg border-2 border-yellow-600 bg-yellow-100 p-3 text-sm text-black dark:border-yellow-500 dark:bg-gray-900 dark:text-yellow-100"
     >
       <p className="font-bold">{test ? text.warning : text.serverMismatch}</p>
       {test && (
