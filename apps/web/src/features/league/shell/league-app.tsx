@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DiscordAccountButton } from "@/components/poke-lounge/ui/discord-account-button";
 import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
 import { sameLeagueEngine } from "../test-mode/engine";
+import { LeagueTestModeBanner } from "../test-mode/banner";
 import { LeagueApiError } from "../api/core";
 import {
   getCurrentAttempt,
@@ -189,6 +190,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   }, [mismatch, text.version, text.refresh, text.cancel]);
   return (
     <div className="grid gap-6">
+      <LeagueTestModeBanner locale={locale} test={status?.test} />
       {notice && <p role="status">{notice}</p>}
       {screen === "boot" && <p role="status">{text.loading}</p>}
       {screen === "closed" && <p>{text.closed}</p>}
