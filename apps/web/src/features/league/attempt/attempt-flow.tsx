@@ -26,6 +26,7 @@ import {
 } from "../api/league";
 import type { LeagueBattleParty, LeagueJudgedBattleProps, LeagueRuntime } from "../contract";
 import { LeagueJudgedBattle } from "../battle/league-judged-battle";
+import { leagueRoleLabel } from "../records/role";
 import { MatchResult } from "./match-result";
 import { FailedResult, FinalResult } from "./final-result";
 import { getLeagueCopy, leagueText } from "../shell/copy";
@@ -307,7 +308,10 @@ export function AttemptFlow({
           mode="league"
           runtime={runtime}
           init={init}
-          opponent={opponent.meta}
+          opponent={{
+            displayName: opponent.meta.displayName,
+            className: leagueRoleLabel(opponent.meta.position, opponent.meta.kind, locale),
+          }}
           matchLabel={`${current!.index + 1} / 5`}
           onFinished={finished}
           onAbort={() => setConfirmForfeit(true)}
