@@ -272,7 +272,7 @@ for (const path of files(resolve(root, "scripts"))) {
     errors.push(`${name(path)}: only rust-local/dev.ts may mention ${match[0]}`);
 }
 
-// 9. Test mode palette utilities must exist in the reset global theme.
+// 9. All league palette utilities must exist in the reset global theme.
 const themeColors = new Set();
 const themeSource = read(resolve(root, "apps/web/src/app/globals.css")).replace(
   /\/\*[\s\S]*?\*\//g,
@@ -288,7 +288,7 @@ for (const theme of themeSource.matchAll(/@theme\b[^\{]*\{([^}]+)\}/g)) {
     }
   }
 }
-for (const path of files(resolve(root, "apps/web/src/features/league/test-mode"))) {
+for (const path of files(resolve(root, "apps/web/src/features/league"))) {
   for (const match of read(path).matchAll(
     /(?<![\w-])(?:border-[xytrblse]|divide-[xy]|ring-offset|outline-offset|text-shadow|bg|text|border|divide|outline|ring|shadow|decoration|placeholder|accent|caret|fill|stroke|from|via|to)-([\w-]+)(?:\/(?:\[[^\]]+\]|[\d.]+))?!?(?![\w/-])/g,
   )) {
