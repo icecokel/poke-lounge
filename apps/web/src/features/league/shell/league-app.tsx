@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DiscordAccountButton } from "@/components/poke-lounge/ui/discord-account-button";
 import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
-import { LEAGUE_ENGINE_VERSION } from "@poke-lounge/battle/league/engine-version";
+import { sameLeagueEngine } from "../test-mode/engine";
 import { LeagueApiError } from "../api/core";
 import {
   getCurrentAttempt,
@@ -106,12 +106,12 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
           const current = await getCurrentAttempt();
           if (current?.id === nextMe.attempt.id && current.status === "active") {
             if (nextMe.run) clearEntryKey(nextMe.run.id);
-            if (current.engineVersion !== LEAGUE_ENGINE_VERSION) {
+            if (!sameLeagueEngine(current.engineVersion)) {
               if (current.engineVersion === nextStatus.engineVersion) setAttemptNeedsRefresh(true);
               else setMe(await getMe());
             } else if (
               current.current &&
-              (!nextStatus.engineVersion || nextStatus.engineVersion === LEAGUE_ENGINE_VERSION)
+              (!nextStatus.engineVersion || sameLeagueEngine(nextStatus.engineVersion))
             ) {
               setRuntime(await ensureRuntime());
               setAttempt(current);
@@ -147,11 +147,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
     [boot, locale, showLogin],
   );
   async function open(target: "growth" | "entry") {
-    if (
-      target === "entry" &&
-      status?.engineVersion &&
-      status.engineVersion !== LEAGUE_ENGINE_VERSION
-    )
+    if (target === "entry" && status?.engineVersion && !sameLeagueEngine(status.engineVersion))
       return;
     setScreen("boot");
     setNotice(null);
@@ -168,7 +164,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       home(new LeagueApiError(409, "LEAGUE_ATTEMPT_NOT_ACTIVE", undefined, false));
       return;
     }
-    if (next.engineVersion !== LEAGUE_ENGINE_VERSION) {
+    if (!sameLeagueEngine(next.engineVersion)) {
       home(new LeagueApiError(409, "LEAGUE_ENGINE_VERSION_MISMATCH", undefined, false));
       return;
     }
@@ -176,8 +172,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
     setScreen("attempt");
   }
   const mismatch =
-    attemptNeedsRefresh ||
-    (!!status?.engineVersion && status.engineVersion !== LEAGUE_ENGINE_VERSION);
+    attemptNeedsRefresh || (!!status?.engineVersion && !sameLeagueEngine(status.engineVersion));
   const JudgedBattle = useMemo(() => {
     if (!mismatch) return LeagueJudgedBattle;
     return function VersionBlockedBattle({ onAbort }: LeagueJudgedBattleProps) {
