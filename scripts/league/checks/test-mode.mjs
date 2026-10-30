@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,8 +8,15 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const self = fileURLToPath(import.meta.url);
 // Reuse @eslint/eslintrc's declared YAML dependency without adding a package.
 const webRequire = createRequire(resolve(root, "apps/web/package.json"));
-const { load: parseYaml } = createRequire(webRequire.resolve("@eslint/eslintrc/package.json"))(
-  "js-yaml",
+const {
+  load: parseYaml,
+  Type,
+  DEFAULT_SCHEMA,
+} = createRequire(webRequire.resolve("@eslint/eslintrc/package.json"))("js-yaml");
+const composeSchema = DEFAULT_SCHEMA.extend(
+  ["!reset", "!override"].flatMap(tag =>
+    ["scalar", "sequence", "mapping"].map(kind => new Type(tag, { kind })),
+  ),
 );
 const setting =
   /\b(?:LEAGUE_TEST_[A-Z_]+|NEXT_PUBLIC_LEAGUE_TEST_MODE|LEAGUE_DEV_SEASON_MINUTES)\b/g;
@@ -46,34 +53,138 @@ const production = new Set(
       composeFile.test(file) ||
       file.startsWith("Dockerfile") ||
       file === "package.json" ||
-      /^apps\/[^/]+\/\.env\.example$/.test(name(path)) ||
+      /^apps\/[^/]+\/\.env[^/]*$/.test(name(path)) ||
       /^apps\/web\/next\.config\.[^/]+$/.test(name(path)) ||
       /^\.github\/workflows\/[^/]+\.ya?ml$/.test(name(path))
     );
   }),
 );
-for (const path of configurationFiles.filter(path => composeFile.test(basename(path)))) {
-  const compose = parseYaml(read(path));
+const list = value => (value == null ? [] : Array.isArray(value) ? value : [value]);
+const outside = path => {
+  const localPath = relative(realpathSync(root), path);
+  return isAbsolute(localPath) || localPath === ".." || localPath.startsWith("../");
+};
+function reference(source, target, key, base = dirname(source), directory = false) {
+  if (typeof target !== "string" || !target || target.includes("$")) {
+    errors.push(
+      `${name(source)}: ${key} requires a literal ${directory ? "directory" : "file"} path`,
+    );
+    return null;
+  }
+  const path = resolve(base, target);
+  if (outside(path) || (existsSync(path) && outside(realpathSync(path)))) {
+    errors.push(`${name(source)}: ${key} must stay inside the repository`);
+  } else if (!existsSync(path)) {
+    errors.push(`${name(source)}: ${key} ${name(path)} is missing`);
+  } else if (directory ? !statSync(path).isDirectory() : !statSync(path).isFile()) {
+    errors.push(
+      `${name(source)}: ${key} ${name(path)} is not a ${directory ? "directory" : "file"}`,
+    );
+  } else {
+    if (!directory) production.add(path);
+    return path;
+  }
+  return null;
+}
+function envFiles(source, entries, base) {
+  for (const entry of list(entries))
+    reference(source, typeof entry === "string" ? entry : entry?.path, "env_file", base);
+}
+
+// Follow production references even when their names or Git ignore rules would exempt them.
+const pending = configurationFiles
+  .filter(path => composeFile.test(basename(path)))
+  .map(path => ({ path, base: dirname(path), standalone: true }));
+const visited = new Set();
+const composeProjects = [];
+for (const { path, base, standalone } of pending) {
+  const key = `${realpathSync(path)}\0${base}`;
+  if (visited.has(key)) continue;
+  let compose;
+  try {
+    compose = parseYaml(read(path), { schema: composeSchema });
+  } catch (error) {
+    errors.push(`${name(path)}: YAML 해석 실패: ${error.message.split("\n")[0]}`);
+    continue;
+  }
+  // Preserve the existing local-only compatibility alias, never an operational reference to it.
+  if (
+    standalone &&
+    name(path) === "compose.rust.yaml" &&
+    Object.keys(compose ?? {}).length === 1 &&
+    Array.isArray(compose.include) &&
+    compose.include.length === 1 &&
+    compose.include[0] === "compose.rust-local.yaml"
+  )
+    continue;
+  visited.add(key);
+  if (standalone) composeProjects.push(path);
+  for (const entry of list(compose?.include)) {
+    const targets = list(typeof entry === "string" ? entry : entry?.path);
+    if (!targets.length) {
+      errors.push(`${name(path)}: include requires a literal file path`);
+      continue;
+    }
+    const includes = targets
+      .map(target => reference(path, target, "include", base))
+      .filter(Boolean);
+    if (!includes.length) continue;
+    const projectDirectory =
+      entry?.project_directory === undefined
+        ? dirname(includes[0])
+        : reference(path, entry.project_directory, "include.project_directory", base, true);
+    if (!projectDirectory) continue;
+    envFiles(path, entry?.env_file, base);
+    for (const include of includes) pending.push({ path: include, base: projectDirectory });
+  }
   for (const service of Object.values(compose?.services ?? {})) {
-    const entries = service?.env_file;
-    for (const entry of entries == null ? [] : Array.isArray(entries) ? entries : [entries]) {
-      const target = typeof entry === "string" ? entry : entry?.path;
-      if (typeof target !== "string" || !target || target.includes("$")) {
-        errors.push(`${name(path)}: env_file requires a literal file path`);
-        continue;
-      }
-      const envPath = resolve(dirname(path), target);
-      const localPath = relative(root, envPath);
-      if (isAbsolute(localPath) || localPath === ".." || localPath.startsWith("../")) {
-        errors.push(`${name(path)}: env_file must stay inside the repository`);
-      } else if (!existsSync(envPath)) {
-        errors.push(`${name(path)}: env_file ${name(envPath)} is missing`);
-      } else {
-        production.add(envPath);
-      }
+    envFiles(path, service?.env_file, base);
+    if (service?.extends?.file !== undefined) {
+      const extended = reference(path, service.extends.file, "extends.file", base);
+      if (extended) pending.push({ path: extended, base: dirname(extended) });
     }
   }
 }
+// Compose resolves inheritance, include path lists, and tags before choosing build files.
+if (!errors.length)
+  for (const path of composeProjects) {
+    const projectFiles = [path];
+    if (/^(?:docker-)?compose\.override\.ya?ml$/.test(basename(path))) {
+      const base = ["compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"]
+        .map(file => resolve(dirname(path), file))
+        .find(file => composeProjects.includes(file));
+      if (base) projectFiles.unshift(base);
+    }
+    let compose;
+    try {
+      compose = JSON.parse(
+        execFileSync(
+          "docker",
+          [
+            "compose",
+            ...projectFiles.flatMap(file => ["-f", file]),
+            "config",
+            "--format",
+            "json",
+            "--no-interpolate",
+            "--no-env-resolution",
+            "--no-consistency",
+          ],
+          { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 10000 },
+        ),
+      );
+    } catch {
+      errors.push(`${name(path)}: Docker Compose config failed; Docker Compose is required`);
+      continue;
+    }
+    for (const service of Object.values(compose.services ?? {})) {
+      envFiles(path, service.env_file);
+      if (!service.build) continue;
+      const context = reference(path, service.build.context, "build.context", root, true);
+      if (context && service.build.dockerfile_inline === undefined)
+        reference(path, service.build.dockerfile ?? "Dockerfile", "build.dockerfile", context);
+    }
+  }
 for (const path of production) {
   for (const match of read(path).matchAll(setting))
     errors.push(`${name(path)}: production setting ${match[0]} is forbidden`);
