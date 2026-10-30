@@ -59,8 +59,10 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const [runtime, setRuntime] = useState<LeagueRuntime | null>(null);
   const blocked = useRateLimitCooldown(error);
   const recordsCache = useRef<RecordsCache>({});
+  const recordsUserId = useRef<string | null>(null);
   const showLogin = useCallback(() => {
     recordsCache.current = {};
+    recordsUserId.current = null;
     setScreen("login");
   }, []);
   const ensureRuntime = useCallback(() => {
@@ -90,10 +92,13 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         return;
       }
       try {
-        if (!(await fetchAccountSession()).user) {
+        const { user } = await fetchAccountSession();
+        if (!user) {
           showLogin();
           return;
         }
+        if (recordsUserId.current !== user.id) recordsCache.current = {};
+        recordsUserId.current = user.id;
         const [nextMe, nextStandings] = await Promise.all([getMe(), getStandings()]);
         setMe(nextMe);
         setStandings(nextStandings);
@@ -223,7 +228,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
             onEntry={() => void open("entry")}
             onResume={() => void boot()}
             onRecords={() => setScreen("records")}
-            onRefresh={home}
+            onRefresh={() => home()}
           />
         </>
       )}

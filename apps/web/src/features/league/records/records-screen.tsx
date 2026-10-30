@@ -43,7 +43,7 @@ async function readMine() {
   if (!Array.isArray(value?.seasons)) throw corruptResponse();
   return value;
 }
-function mustLeave(error: unknown) {
+function mustLeave(error: unknown): error is LeagueApiError {
   return error instanceof LeagueApiError && (error.status === 401 || error.status === 404);
 }
 
@@ -102,7 +102,7 @@ export function RecordsScreen({
       if (disposed) return;
       for (const result of [hallResult, mineResult]) {
         if (result.status === "rejected" && mustLeave(result.reason)) {
-          onHome(result.reason);
+          onHome(result.reason.status === 404 ? undefined : result.reason);
           return;
         }
       }
@@ -151,7 +151,7 @@ export function RecordsScreen({
       }
     } catch (error) {
       if (!live.current) return;
-      if (mustLeave(error)) onHome(error);
+      if (mustLeave(error)) onHome(error.status === 404 ? undefined : error);
       else if (target === "hall") setHallError(error);
       else setMineError(error);
     } finally {
@@ -193,7 +193,7 @@ export function RecordsScreen({
             id={`${id}-${value}-tab`}
             role="tab"
             aria-selected={tab === value}
-            aria-controls={`${id}-${value}-panel`}
+            aria-controls={tab === value ? `${id}-${value}-panel` : undefined}
             tabIndex={tab === value ? 0 : -1}
             variant={tab === value ? "default" : "outline"}
             onClick={() => setTab(value)}
