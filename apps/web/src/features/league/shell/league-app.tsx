@@ -223,6 +223,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
             onEntry={() => void open("entry")}
             onResume={() => void boot()}
             onRecords={() => setScreen("records")}
+            onRefresh={home}
           />
         </>
       )}
