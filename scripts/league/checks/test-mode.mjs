@@ -1,9 +1,16 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { createRequire } from "node:module";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const self = fileURLToPath(import.meta.url);
+// Reuse @eslint/eslintrc's declared YAML dependency without adding a package.
+const webRequire = createRequire(resolve(root, "apps/web/package.json"));
+const { load: parseYaml } = createRequire(webRequire.resolve("@eslint/eslintrc/package.json"))(
+  "js-yaml",
+);
 const setting =
   /\b(?:LEAGUE_TEST_[A-Z_]+|NEXT_PUBLIC_LEAGUE_TEST_MODE|LEAGUE_DEV_SEASON_MINUTES)\b/g;
 const errors = [];
@@ -20,17 +27,53 @@ function reject(path, pattern, reason) {
 }
 
 // 1. Production configuration must never carry local test settings.
-const production = [
-  resolve(root, "compose.yaml"),
-  resolve(root, "Dockerfile"),
-  ...readdirSync(resolve(root, ".github/workflows"))
-    .filter(file => file.endsWith(".yml"))
-    .map(file => resolve(root, ".github/workflows", file)),
-  ...readdirSync(resolve(root, "apps"), { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => resolve(root, "apps", entry.name, ".env.example"))
-    .filter(existsSync),
-];
+const configurationFiles = execFileSync(
+  "git",
+  ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+  { cwd: root, encoding: "utf8" },
+)
+  .split("\0")
+  .filter(Boolean)
+  .filter(file => file !== "compose.rust-local.yaml" && !file.startsWith("scripts/rust-local/"))
+  .map(file => resolve(root, file))
+  .filter(existsSync);
+// Includes all eight default/override names Compose can discover without -f.
+const composeFile = /^(?:docker-)?compose(?:[.-].*)?\.ya?ml$/;
+const production = new Set(
+  configurationFiles.filter(path => {
+    const file = basename(path);
+    return (
+      composeFile.test(file) ||
+      file.startsWith("Dockerfile") ||
+      file === "package.json" ||
+      /^apps\/[^/]+\/\.env\.example$/.test(name(path)) ||
+      /^apps\/web\/next\.config\.[^/]+$/.test(name(path)) ||
+      /^\.github\/workflows\/[^/]+\.ya?ml$/.test(name(path))
+    );
+  }),
+);
+for (const path of configurationFiles.filter(path => composeFile.test(basename(path)))) {
+  const compose = parseYaml(read(path));
+  for (const service of Object.values(compose?.services ?? {})) {
+    const entries = service?.env_file;
+    for (const entry of entries == null ? [] : Array.isArray(entries) ? entries : [entries]) {
+      const target = typeof entry === "string" ? entry : entry?.path;
+      if (typeof target !== "string" || !target || target.includes("$")) {
+        errors.push(`${name(path)}: env_file requires a literal file path`);
+        continue;
+      }
+      const envPath = resolve(dirname(path), target);
+      const localPath = relative(root, envPath);
+      if (isAbsolute(localPath) || localPath === ".." || localPath.startsWith("../")) {
+        errors.push(`${name(path)}: env_file must stay inside the repository`);
+      } else if (!existsSync(envPath)) {
+        errors.push(`${name(path)}: env_file ${name(envPath)} is missing`);
+      } else {
+        production.add(envPath);
+      }
+    }
+  }
+}
 for (const path of production) {
   for (const match of read(path).matchAll(setting))
     errors.push(`${name(path)}: production setting ${match[0]} is forbidden`);
@@ -111,15 +154,11 @@ if (existsSync(loginRoute)) {
   );
 }
 
-// 7. Only the local launcher may assign these settings in scripts.
+// 7. Only the local launcher may mention these settings in scripts.
 for (const path of files(resolve(root, "scripts"))) {
   if (path === self || name(path) === "scripts/rust-local/dev.ts") continue;
-  const code = read(path);
-  for (const match of code.matchAll(setting)) {
-    const rest = code.slice(match.index + match[0].length);
-    if (/^["'`]?\s*\]?\s*(?:=(?!=)|:)/.test(rest))
-      errors.push(`${name(path)}: only rust-local/dev.ts may assign ${match[0]}`);
-  }
+  for (const match of read(path).matchAll(setting))
+    errors.push(`${name(path)}: only rust-local/dev.ts may mention ${match[0]}`);
 }
 
 if (errors.length) throw new Error(`League test mode boundary violations:\n${errors.join("\n")}`);
