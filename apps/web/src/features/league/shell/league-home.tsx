@@ -18,6 +18,7 @@ export function LeagueHome({
   onGrowth,
   onEntry,
   onResume,
+  onRecords,
 }: {
   locale: LeagueLocale;
   status: StatusView;
@@ -28,6 +29,7 @@ export function LeagueHome({
   onGrowth(): void;
   onEntry(): void;
   onResume(): void;
+  onRecords(): void;
 }) {
   const text = getLeagueCopy(locale);
   const [elapsed, setElapsed] = useState(0);
@@ -152,7 +154,12 @@ export function LeagueHome({
         )}
       </section>
       <section className="grid gap-3">
-        <h2 className="text-lg font-bold">{text.standings}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">{text.standings}</h2>
+          <Button variant="outline" onClick={onRecords}>
+            {text.records}
+          </Button>
+        </div>
         <ol className="grid gap-3">
           {standings.entries.slice(0, 5).map(entry => (
             <li

@@ -48,6 +48,7 @@ const messages = {
     "シーズン最高得点 / 最高順位",
   ],
   standings: ["상위 5", "Top five", "上位5人"],
+  records: ["순위·기록", "Standings & records", "順位・記録"],
   score: ["점수", "Score", "得点"],
   rank: ["순위", "Rank", "順位"],
   outside: ["순위 밖", "Outside top five", "ランク外"],
