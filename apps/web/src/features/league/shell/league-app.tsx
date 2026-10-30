@@ -255,7 +255,13 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         />
       )}
       {screen === "entry" && runtime && me?.run && (
-        <EntryScreen runtime={runtime} runId={me.run.id} onEntered={entered} onHome={home} />
+        <EntryScreen
+          runtime={runtime}
+          runId={me.run.id}
+          badgesToConsume={me.run.badges ?? status?.test?.badgesRequired ?? 8}
+          onEntered={entered}
+          onHome={home}
+        />
       )}
       {screen === "attempt" && attempt && runtime && (
         <AttemptFlow key={attempt.id} runtime={runtime} initial={attempt} onHome={home} />

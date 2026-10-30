@@ -24,11 +24,13 @@ import { PokemonIcon, speciesName, moveName } from "../battle/lead-picker";
 export function EntryScreen({
   runtime,
   runId,
+  badgesToConsume,
   onEntered,
   onHome,
 }: {
   runtime: LeagueRuntime;
   runId: string;
+  badgesToConsume: number;
   onEntered(attempt: AttemptView): void;
   onHome(error?: unknown): void;
 }) {
@@ -173,9 +175,9 @@ export function EntryScreen({
             <AlertDialogDescription>
               {leagueText(
                 locale,
-                "입장하면 배지 8개가 사라집니다. 지면 기록 없이 끝나고 성장은 유지됩니다.",
-                "Entering consumes all eight badges. A loss ends the challenge without a record; training is kept.",
-                "入場するとバッジ8個が消費されます。負けると記録なしで終了し、育成は維持されます。",
+                `입장하면 배지 ${badgesToConsume}개가 사라집니다. 지면 기록 없이 끝나고 성장은 유지됩니다.`,
+                `Entering consumes ${badgesToConsume === 8 ? "all eight" : badgesToConsume} ${badgesToConsume === 1 ? "badge" : "badges"}. A loss ends the challenge without a record; training is kept.`,
+                `入場するとバッジ${badgesToConsume}個が消費されます。負けると記録なしで終了し、育成は維持されます。`,
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
