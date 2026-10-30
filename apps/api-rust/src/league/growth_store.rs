@@ -546,6 +546,7 @@ impl League {
         let index = views::integer(&r["badges"])? as i16;
         let npc = &s["badge_npcs"][index as usize];
         let health = self.judge.health().await?;
+        crate::league::test_mode::check_engine(&self.config, &health.engine, "growth_badge_start")?;
         let prepared=self.judge.call(&health.engine,json!({"kind":"prepare-badge","badgeIndex":index,"claim":claim,"mons":records,"npc":npc})).await.map_err(badge_start_error)?;
         if !views::hash(&prepared["carryHash"], 16)
             || !prepared["composition"].is_object()

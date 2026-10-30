@@ -85,12 +85,46 @@ impl TestConfig {
             self.opponent_level_drop,
         )
     }
+
+    pub fn view(&self) -> Value {
+        json!({
+            "marker":self.marker(),
+            "starterLevel":self.starter_level,
+            "badgesRequired":self.badges_required,
+            "opponentLevelDrop":self.opponent_level_drop,
+            "accounts":self.accounts,
+            "login":self.login_token.is_some(),
+        })
+    }
 }
 
 impl Config {
     pub fn badges_required(&self) -> i16 {
         self.test.as_ref().map_or(8, |t| t.badges_required)
     }
+}
+
+pub fn check_engine(config: &Config, engine: &str, location: &'static str) -> LeagueResult<()> {
+    let matches = config.test.as_ref().map_or_else(
+        || !engine.contains("+test."),
+        |test| engine.ends_with(&test.marker()),
+    );
+    if !matches {
+        return Err(mismatch(location));
+    }
+    Ok(())
+}
+
+pub fn check_season(config: &Config, engine: &str) -> LeagueResult<()> {
+    if config.test.is_some() != engine.contains("+test.") {
+        return Err(mismatch("status.season"));
+    }
+    Ok(())
+}
+
+fn mismatch(location: &'static str) -> LeagueError {
+    tracing::warn!(event = "league.test_mode_mismatch", r#where = location);
+    LeagueError::new(409, "LEAGUE_TEST_MODE_MISMATCH")
 }
 
 fn optional(key: &'static str) -> Result<Option<String>, &'static str> {

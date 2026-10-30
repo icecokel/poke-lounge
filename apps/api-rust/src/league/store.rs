@@ -69,6 +69,7 @@ impl League {
             }
         }
         let health = self.judge.health().await?;
+        super::test_mode::check_engine(&self.config, &health.engine, "bootstrap")?;
         let roster = match self
             .judge
             .call(&health.engine, json!({"kind":"season-roster"}))
@@ -105,9 +106,15 @@ impl League {
             self.bootstrap().await?;
         }
         let engine = self.judge.health().await.ok().map(|h| h.engine);
+        if let Some(engine) = &engine {
+            super::test_mode::check_engine(&self.config, engine, "status")?;
+        }
         let slot = self.db.client().await?;
         let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
         let season = season(client).await?;
+        if let Some(season) = &season {
+            super::test_mode::check_season(&self.config, views::text(&season["engine_version"])?)?;
+        }
         let engine = engine.or_else(|| {
             season
                 .as_ref()?
@@ -115,9 +122,11 @@ impl League {
                 .as_str()
                 .map(str::to_owned)
         });
-        Ok(
-            json!({"enabled":true,"contractVersion":1,"engineVersion":engine,"rulesVersion":self.config.rules_version,"nowMs":now(client).await?,"season":season.as_ref().map(views::season).transpose()?}),
-        )
+        let mut status = json!({"enabled":true,"contractVersion":1,"engineVersion":engine,"rulesVersion":self.config.rules_version,"nowMs":now(client).await?,"season":season.as_ref().map(views::season).transpose()?});
+        if let Some(test) = &self.config.test {
+            status["test"] = test.view();
+        }
+        Ok(status)
     }
     pub async fn standings(&self) -> Result<Value> {
         let mut slot = self.db.client().await?;
@@ -400,6 +409,7 @@ impl League {
             (s, opponents, mons)
         };
         let health = self.judge.health().await?;
+        super::test_mode::check_engine(&self.config, &health.engine, "enter_attempt")?;
         let prepared = self
             .judge
             .call(
