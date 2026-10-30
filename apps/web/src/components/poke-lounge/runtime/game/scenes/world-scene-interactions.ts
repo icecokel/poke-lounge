@@ -92,6 +92,7 @@ export interface WorldSceneInteractionsDependencies {
   /** True while the room still accepts party changes for the coming tournament. */
   canOfferDeferredMoveLearning(): boolean;
   startSoloChallenge(): void;
+  getSoloChallengerHint?(): string | undefined;
   playNurseHealingEffect(nursePosition: WorldScenePlayerPosition, onComplete: () => void): void;
   isBattleIntroPlaying(): boolean;
   renderPartyHud(): void;
@@ -867,7 +868,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       this.dependencies.canStartSoloChallenge() &&
       this.isPlayerNearSoloChallenger(playerPosition)
     ) {
-      return `${interactionKey} · 솔로 챌린지`;
+      return `${interactionKey} · ${this.dependencies.getSoloChallengerHint?.() ?? "솔로 챌린지"}`;
     }
 
     return "";

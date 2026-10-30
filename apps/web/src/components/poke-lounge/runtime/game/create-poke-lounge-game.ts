@@ -27,6 +27,12 @@ export interface PokeLoungeGameResult {
 }
 
 export interface PokeLoungeGameOptions {
+  fieldChallenger?: { hint: string; onInteract(): void };
+  battleExperiencePolicy?: {
+    experienceMultiplier: number;
+    sharePartyExperience: boolean;
+    partyExperienceRatio: number;
+  };
   runtimeAssets: PokeLoungeRuntimeAssets;
   initialScene?: InitialGameScene;
   battleUiStore: BattleUiStore;
@@ -79,6 +85,7 @@ export function createPokeLoungeGame(
   }
 
   const worldController = new WorldController(gameStateStore, multiplayerRoom, {
+    fieldChallenger: options.fieldChallenger,
     competitiveRoundsEnabled: options.competitiveRoundsEnabled,
     roundDurationMs: options.roundDurationMs,
     keyboard,
@@ -95,6 +102,7 @@ export function createPokeLoungeGame(
     worldUiStore: options.worldUiStore,
   });
   const battleController = new BattleController({
+    experiencePolicy: options.battleExperiencePolicy,
     battleUiStore: options.battleUiStore,
     gameStateStore,
     keyboard,

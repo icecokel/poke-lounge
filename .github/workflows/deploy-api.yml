@@ -7,6 +7,10 @@ on:
         required: true
       BATTLE_WORKER_TOKEN:
         required: true
+      DISCORD_CLIENT_SECRET:
+        required: false
+      LEAGUE_JUDGE_TOKEN:
+        required: false
 
 permissions:
   contents: read
@@ -29,8 +33,22 @@ jobs:
       NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
       CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
       RUST_API_TRUSTED_PROXIES: ${{ vars.RUST_API_TRUSTED_PROXIES }}
+      DISCORD_CLIENT_ID: ${{ vars.DISCORD_CLIENT_ID }}
+      DISCORD_REDIRECT_URI: ${{ vars.DISCORD_REDIRECT_URI }}
+      AUTH_WEB_ORIGIN: ${{ vars.AUTH_WEB_ORIGIN }}
+      DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       BATTLE_WORKER_TOKEN: ${{ secrets.BATTLE_WORKER_TOKEN }}
+      COMPOSE_PROFILES: ${{ vars.COMPOSE_PROFILES }}
+      LEAGUE_ENABLED: ${{ vars.LEAGUE_ENABLED }}
+      LEAGUE_JUDGE_URL: ${{ vars.LEAGUE_JUDGE_URL || 'http://league-judge:3031' }}
+      LEAGUE_JUDGE_TOKEN: ${{ secrets.LEAGUE_JUDGE_TOKEN }}
+      LEAGUE_SEASON1_STARTS_AT: ${{ vars.LEAGUE_SEASON1_STARTS_AT }}
+      LEAGUE_SEASON1_STARTERS: ${{ vars.LEAGUE_SEASON1_STARTERS }}
+      LEAGUE_SEASON1_STARTER_LEVEL: ${{ vars.LEAGUE_SEASON1_STARTER_LEVEL }}
+      LEAGUE_SETTLE_GRACE_HOURS: ${{ vars.LEAGUE_SETTLE_GRACE_HOURS }}
+      LEAGUE_EXP_MULTIPLIER: ${{ vars.LEAGUE_EXP_MULTIPLIER }}
+      LEAGUE_STARTER_POOL: ${{ vars.LEAGUE_STARTER_POOL }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,6 +60,17 @@ jobs:
           test -n "$CORS_ORIGINS"
           test -n "$DB_PASSWORD"
           test -n "$BATTLE_WORKER_TOKEN"
+          discord_values=0
+          for name in DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET DISCORD_REDIRECT_URI; do
+            value="${!name}"
+            if [ -n "${value//[[:space:]]/}" ]; then
+              discord_values=$((discord_values + 1))
+            fi
+          done
+          if [ "$discord_values" -ne 0 ] && [ "$discord_values" -ne 3 ]; then
+            echo "DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI must be set together" >&2
+            exit 1
+          fi
           command -v docker
           docker compose version
           docker volume create poke-lounge-runtime-logs >/dev/null
@@ -52,7 +81,16 @@ jobs:
         run: bash scripts/deploy/archive-poke-lounge-logs.sh
 
       - name: Deploy Docker Compose stack
+        env:
+          COMPOSE_PROFILES: ""
         run: docker compose up --build --detach --remove-orphans --wait --wait-timeout 180
+
+      - name: Start league judge
+        if: env.LEAGUE_ENABLED == 'true'
+        run: |
+          if ! docker compose --profile league up --detach --wait --wait-timeout 180 league-judge; then
+            echo "::warning::League judge could not be started. Check judge configuration and logs; multiplayer health verification will still run."
+          fi
 
       - name: Verify health
         run: |
@@ -60,5 +98,18 @@ jobs:
           curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/health/ready" >/dev/null
           curl --fail --silent --show-error "http://127.0.0.1:${API_PORT}/poke-lounge/rooms/public" >/dev/null
           curl --fail --silent --show-error "http://127.0.0.1:${WEB_PORT}/ko-KR" >/dev/null
+          if [ -n "${DISCORD_CLIENT_ID//[[:space:]]/}" ] &&
+             [ -n "${DISCORD_CLIENT_SECRET//[[:space:]]/}" ] &&
+             [ -n "${DISCORD_REDIRECT_URI//[[:space:]]/}" ]; then
+            if ! curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${API_PORT}/auth/me" |
+              python3 -c 'import json, sys; sys.exit("discord" not in json.load(sys.stdin)["data"]["providers"])'; then
+              echo "::warning::Discord login could not be verified. Check auth.discord_config_invalid; running containers are left unchanged."
+            fi
+          fi
+          if [ "$LEAGUE_ENABLED" = "true" ]; then
+            if ! status=$(curl --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' "http://127.0.0.1:${API_PORT}/league/v1/status") || [ "$status" != "200" ]; then
+              echo "::warning::League status could not be verified. Check league.disabled and league.season_tick_failed; multiplayer deployment remains successful."
+            fi
+          fi
           docker compose exec -T api sh -c \
             'test -s "$RUST_API_LOG_DIR/api.jsonl" && test "$(stat -c %a "$RUST_API_LOG_DIR/api.jsonl")" = 600 && grep -Fq "$RELEASE_SHA" "$RUST_API_LOG_DIR/api.jsonl"'

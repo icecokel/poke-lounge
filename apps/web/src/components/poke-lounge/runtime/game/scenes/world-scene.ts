@@ -88,6 +88,7 @@ export interface WorldSceneCreateData {
 }
 
 export interface WorldSceneOptions {
+  fieldChallenger?: { hint: string; onInteract(): void };
   competitiveRoundsEnabled?: boolean;
   roundDurationMs?: number;
   keyboard: RuntimeKeyboard;
@@ -217,7 +218,11 @@ export class WorldController {
           return isBattleReadyPartySlot(slot);
         }),
       canOfferDeferredMoveLearning: () => this.canOfferDeferredMoveLearning(),
-      startSoloChallenge: () => this.startSoloChallenge(),
+      startSoloChallenge: () =>
+        this.options.fieldChallenger
+          ? this.options.fieldChallenger.onInteract()
+          : this.startSoloChallenge(),
+      getSoloChallengerHint: () => this.options.fieldChallenger?.hint,
       playNurseHealingEffect: (nursePosition, onComplete) =>
         this.playNurseHealingEffect(nursePosition, onComplete),
       isBattleIntroPlaying: () => this.encounters.isBattleIntroPlaying(),

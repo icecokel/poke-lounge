@@ -1,10 +1,12 @@
 mod actors;
+mod auth;
 mod compute;
 mod config;
 mod data;
 mod domain;
 mod error;
 mod http;
+mod league;
 mod logging;
 mod repository;
 mod socket;
@@ -56,7 +58,8 @@ async fn main() -> ExitCode {
 }
 
 async fn run(stage: &mut &'static str) -> AppResult<()> {
-    let config = Config::from_env()?;
+    let mut config = Config::from_env()?;
+    let auth = crate::auth::Auth::new(config.discord.take())?;
     *stage = "listener.bind";
     let listener = tokio::net::TcpListener::bind(config.bind)
         .await
@@ -70,6 +73,7 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
     compute.ready().await?;
     *stage = "database.connect";
     let data = crate::data::Data::connect(config.database.clone()).await?;
+    let league = crate::league::League::from_env(&config.database).await;
     *stage = "owner.acquire";
     repository.acquire().await?;
     let shutdown = CancellationToken::new();
@@ -181,6 +185,7 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
         started: Instant::now(),
         compute,
         data,
+        auth,
         sockets: Arc::new(Semaphore::new(128)),
         pending_sockets: Arc::new(Semaphore::new(socket::PENDING_SOCKET_CAPACITY)),
         pending_by_ip: Arc::new(std::sync::Mutex::new(HashMap::new())),
@@ -190,7 +195,7 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
         requests: Arc::new(Semaphore::new(64)),
         release: logging::release(),
     };
-    let router = http::router(state, &config);
+    let router = http::router(state, &config, crate::league::router(league));
     *stage = "serving";
     tracing::info!(event = "backend.started", bind = %config.bind, protocol = "rust-game-v2", release = %logging::release());
     let server = axum::serve(

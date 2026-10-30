@@ -98,6 +98,36 @@ services:
       start_interval: 2s
     stop_grace_period: 15s
 
+  league-judge:
+    <<: *node-app
+    profiles: ["league"]
+    restart: unless-stopped
+    command: ["pnpm", "--filter", "@poke-lounge/league-judge", "start"]
+    cpus: "1.0"
+    mem_limit: 512m
+    environment:
+      NODE_ENV: production
+      LEAGUE_JUDGE_HOST: 0.0.0.0
+      LEAGUE_JUDGE_PORT: 3031
+      LEAGUE_JUDGE_TOKEN: ${LEAGUE_JUDGE_TOKEN:-}
+      LEAGUE_JUDGE_CONCURRENCY: 1
+      LEAGUE_WEB_ROOT: /app/apps/web
+      RELEASE_SHA: ${RELEASE_SHA:-local}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3031/health',{headers:{'x-league-judge-token':process.env.LEAGUE_JUDGE_TOKEN},signal:AbortSignal.timeout(2000)}).then(async response=>{const body=await response.json();process.exit(response.ok&&body.ready&&body.readyWorkers>0?0:1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+    stop_grace_period: 15s
+
   api:
     image: poke-lounge-api-rust:local
     build:
@@ -119,6 +149,22 @@ services:
       DB_DATABASE: ${DB_DATABASE:-poke_lounge}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       RUST_API_TRUSTED_PROXIES: ${RUST_API_TRUSTED_PROXIES:-}
+      # Discord login stays disabled while all three DISCORD_* values are empty.
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-}
+      AUTH_WEB_ORIGIN: ${AUTH_WEB_ORIGIN:-}
+      LEAGUE_ENABLED:
+      LEAGUE_JUDGE_URL:
+      LEAGUE_JUDGE_TOKEN:
+      LEAGUE_JUDGE_TOKEN_FILE:
+      LEAGUE_DB_MAX_CONNECTIONS:
+      LEAGUE_SETTLE_GRACE_HOURS:
+      LEAGUE_SEASON1_STARTS_AT:
+      LEAGUE_SEASON1_STARTERS:
+      LEAGUE_SEASON1_STARTER_LEVEL:
+      LEAGUE_EXP_MULTIPLIER:
+      LEAGUE_STARTER_POOL:
       RUST_LOG: info
       RUST_API_LOG_DIR: /var/log/poke-lounge
       RELEASE_SHA: ${RELEASE_SHA:-local}

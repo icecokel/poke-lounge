@@ -43,6 +43,7 @@ pub struct AppState {
     pub rooms: Rooms,
     pub compute: Compute,
     pub data: Data,
+    pub auth: crate::auth::Auth,
     pub shutdown: CancellationToken,
     pub started: Instant,
     pub requests: Arc<Semaphore>,
@@ -58,7 +59,10 @@ pub struct Budget {
     count: u32,
     creates: u32,
     diagnostics: u32,
+    discord_starts: u32,
+    discord_callbacks: u32,
     limited_logged: bool,
+    discord_limited_logged: bool,
 }
 static CONCURRENCY_LIMIT_LOGGED_S: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
@@ -71,7 +75,7 @@ fn first_this_second(slot: &std::sync::atomic::AtomicU64) -> bool {
         .map_or(0, |elapsed| elapsed.as_secs());
     slot.swap(now, std::sync::atomic::Ordering::Relaxed) != now
 }
-pub fn router(state: AppState, config: &Config) -> Router {
+pub fn router(state: AppState, config: &Config, league: Router<AppState>) -> Router {
     Router::new()
         .route(
             "/",
@@ -124,6 +128,10 @@ pub fn router(state: AppState, config: &Config) -> Router {
             }),
         )
         .route("/poke-lounge/ws", any(crate::socket::upgrade))
+        .route("/auth/discord/start", get(crate::auth::discord_start))
+        .route("/auth/discord/callback", get(crate::auth::discord_callback))
+        .route("/auth/me", get(crate::auth::me))
+        .route("/auth/logout", post(crate::auth::logout))
         .route("/game/ranking", get(ranking))
         .route("/game/result/{id}", get(result))
         .route("/game/result", post(account_disabled))
@@ -131,6 +139,7 @@ pub fn router(state: AppState, config: &Config) -> Router {
             "/game/poke-lounge/state",
             get(account_disabled).put(account_disabled),
         )
+        .merge(league)
         .fallback(|| async {
             (
                 StatusCode::NOT_FOUND,
@@ -160,7 +169,9 @@ pub fn router(state: AppState, config: &Config) -> Router {
                     "x-request-id".parse().expect("static header"),
                     "x-usage-visitor".parse().expect("static header"),
                 ])
-                .expose_headers(["x-request-id".parse().expect("static header")]),
+                .expose_headers(["x-request-id".parse().expect("static header")])
+                // The session cookie rides on credentialed requests from the exact web origins.
+                .allow_credentials(true),
         )
         .layer(middleware::from_fn_with_state(state.clone(), diagnostics))
         .with_state(state)
@@ -239,7 +250,10 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             count: 0,
             creates: 0,
             diagnostics: 0,
+            discord_starts: 0,
+            discord_callbacks: 0,
             limited_logged: false,
+            discord_limited_logged: false,
         });
         budget.count += 1;
         if request.method() == Method::POST
@@ -253,18 +267,43 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
         if request.uri().path() == "/diagnostics/client-errors" {
             budget.diagnostics += 1;
         }
-        if budget.count > 6_000 || budget.creates > 60 || budget.diagnostics > 600 {
+        let discord_limit = match request.uri().path() {
+            "/auth/discord/start" => {
+                budget.discord_starts += 1;
+                (budget.discord_starts > 120).then_some("discord_starts_per_minute")
+            }
+            "/auth/discord/callback" => {
+                budget.discord_callbacks += 1;
+                (budget.discord_callbacks > 120).then_some("discord_callbacks_per_minute")
+            }
+            _ => None,
+        };
+        if budget.count > 6_000
+            || budget.creates > 60
+            || budget.diagnostics > 600
+            || discord_limit.is_some()
+        {
             let limit = if budget.count > 6_000 {
                 "requests_per_minute"
             } else if budget.creates > 60 {
                 "creates_per_minute"
-            } else {
+            } else if budget.diagnostics > 600 {
                 "diagnostics_per_minute"
+            } else {
+                discord_limit.expect("Discord budget exceeded")
+            };
+            let limited_logged = if discord_limit == Some(limit) {
+                &mut budget.discord_limited_logged
+            } else {
+                &mut budget.limited_logged
             };
             // Once per client per budget window, so a flooding client cannot flood the log.
-            if !budget.limited_logged {
-                budget.limited_logged = true;
+            if !*limited_logged {
+                *limited_logged = true;
                 tracing::warn!(event = "http.limited", limit, path = %request.uri().path(), count = budget.count, creates = budget.creates, diagnostics = budget.diagnostics);
+            }
+            if discord_limit == Some(limit) {
+                return state.auth.discord_login_failed();
             }
             return AppError::Busy.into_response();
         }

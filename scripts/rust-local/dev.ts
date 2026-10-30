@@ -1,12 +1,13 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createServer } from "node:net";
 
 const root = resolve(__dirname, "../..");
 const out = resolve(root, "output/rust-local");
 const envPath = resolve(out, "local.env");
+const league = process.argv.includes("--league");
 mkdirSync(out, { recursive: true });
 if (!existsSync(envPath)) {
   writeFileSync(
@@ -18,12 +19,19 @@ if (!existsSync(envPath)) {
 const config: Record<string, string> = {};
 for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
   if (!line.trim() || line.startsWith("#")) continue;
-  const match = /^(RUST_LOCAL_DB_PASSWORD|BATTLE_WORKER_TOKEN)=([a-f0-9]{32,128})$/.exec(line);
+  const match =
+    /^(RUST_LOCAL_DB_PASSWORD|BATTLE_WORKER_TOKEN|LEAGUE_JUDGE_TOKEN)=([a-f0-9]{32,128})$/.exec(
+      line,
+    );
   if (!match) throw new Error("Invalid private local.env; expected generated hexadecimal values");
   config[match[1]!] = match[2]!;
 }
 if (!config.RUST_LOCAL_DB_PASSWORD || !config.BATTLE_WORKER_TOKEN)
   throw new Error("Incomplete local secrets");
+if (league && !config.LEAGUE_JUDGE_TOKEN) {
+  config.LEAGUE_JUDGE_TOKEN = randomBytes(32).toString("hex");
+  appendFileSync(envPath, `\nLEAGUE_JUDGE_TOKEN=${config.LEAGUE_JUDGE_TOKEN}\n`);
+}
 // Optional overrides so two checkouts can run their own stacks side by side.
 function readPort(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -32,6 +40,21 @@ function readPort(name: string, fallback: number): number {
   if (!Number.isInteger(port) || port < 1024 || port > 65535)
     throw new Error(`${name} must be a port between 1024 and 65535`);
   return port;
+}
+// localhost puts the API on the page's site so the Discord login session cookie is sent.
+// Local test mode only accepts a 127.0.0.1 API, so it is unavailable with localhost.
+const apiHost = process.env.RUST_LOCAL_API_HOST || "127.0.0.1";
+if (apiHost !== "localhost" && apiHost !== "127.0.0.1")
+  throw new Error("RUST_LOCAL_API_HOST must be localhost or 127.0.0.1");
+if (process.env.DISCORD_REDIRECT_URI) {
+  try {
+    if (new URL(process.env.DISCORD_REDIRECT_URI).hostname !== apiHost)
+      console.warn(
+        "DISCORD_REDIRECT_URI host differs from RUST_LOCAL_API_HOST; Discord login requires the same host for its state cookie.",
+      );
+  } catch {
+    console.warn("Invalid DISCORD_REDIRECT_URI; the API will disable Discord login.");
+  }
 }
 const project = process.env.RUST_LOCAL_PROJECT || "poke-lounge-rust-local";
 if (!/^[a-z0-9][a-z0-9_-]*$/.test(project))
@@ -42,6 +65,12 @@ const ports = {
   db: readPort("RUST_LOCAL_DB_PORT", 35432),
   redis: readPort("RUST_LOCAL_REDIS_PORT", 36379),
 };
+// Local default: the current KST week starts on Monday at midnight.
+const localSeasonStart = new Date(Date.now() + 9 * 60 * 60 * 1000);
+localSeasonStart.setUTCHours(0, 0, 0, 0);
+localSeasonStart.setUTCDate(
+  localSeasonStart.getUTCDate() - ((localSeasonStart.getUTCDay() + 6) % 7),
+);
 const env = {
   ...process.env,
   ...config,
@@ -49,10 +78,24 @@ const env = {
   RUST_LOCAL_API_PORT: String(ports.api),
   RUST_LOCAL_DB_PORT: String(ports.db),
   RUST_LOCAL_REDIS_PORT: String(ports.redis),
+  ...(league
+    ? {
+        LEAGUE_ENABLED: "true",
+        LEAGUE_JUDGE_URL: "http://league-judge:3031",
+        LEAGUE_DB_MAX_CONNECTIONS: process.env.LEAGUE_DB_MAX_CONNECTIONS || "2",
+        LEAGUE_SETTLE_GRACE_HOURS: process.env.LEAGUE_SETTLE_GRACE_HOURS || "6",
+        LEAGUE_SEASON1_STARTS_AT:
+          process.env.LEAGUE_SEASON1_STARTS_AT ||
+          new Date(localSeasonStart.getTime() - 9 * 60 * 60 * 1000).toISOString(),
+        LEAGUE_SEASON1_STARTERS: process.env.LEAGUE_SEASON1_STARTERS || "152,155,158",
+        LEAGUE_SEASON1_STARTER_LEVEL: process.env.LEAGUE_SEASON1_STARTER_LEVEL || "10",
+      }
+    : { LEAGUE_ENABLED: "false" }),
 };
 let child: ChildProcess | null = null;
 let stopping = false;
 const compose = ["compose", "-p", project, "--env-file", envPath, "-f", "compose.rust-local.yaml"];
+if (league) compose.push("--profile", "league");
 
 async function run(command: string, args: string[], extra: NodeJS.ProcessEnv = {}): Promise<void> {
   if (stopping) throw new Error("Stopped");
@@ -103,12 +146,21 @@ process.on("SIGTERM", stop);
 
 async function main(): Promise<void> {
   if (process.argv.includes("--stop")) {
-    await run("docker", [...compose, "stop", "api-rust", "battle-worker", "postgres", "redis"]);
+    await run("docker", [
+      ...compose,
+      "stop",
+      "api-rust",
+      "battle-worker",
+      "postgres",
+      "redis",
+      ...(league ? ["league-judge"] : []),
+    ]);
     return;
   }
   await requireFreeWebPort();
   await run("pnpm", ["build:poke-lounge-battle"]);
   await run("pnpm", ["--filter", "@poke-lounge/battle-worker", "build"]);
+  if (league) await run("pnpm", ["--filter", "@poke-lounge/league-judge", "build"]);
   // The db package is a build-time schema/ROM import tool, not a running server.
   await run("pnpm", ["--filter", "@poke-lounge/db", "build"]);
   await run("docker", [
@@ -149,6 +201,7 @@ async function main(): Promise<void> {
     "--force-recreate",
     "api-rust",
     "battle-worker",
+    ...(league ? ["league-judge"] : []),
   ]);
   console.log(`Rust local game: http://localhost:${ports.web}/ko-KR (compose project ${project})`);
   console.log("Local Rust development uses isolated containers and does not touch production.");
@@ -169,7 +222,7 @@ async function main(): Promise<void> {
         String(ports.web),
       ],
       {
-        NEXT_PUBLIC_API_URL: `http://127.0.0.1:${ports.api}`,
+        NEXT_PUBLIC_API_URL: `http://${apiHost}:${ports.api}`,
         LOCAL_TEST_AUTH_TOKEN: randomBytes(32).toString("hex"),
         NEXT_DIST_DIR: ".next-rust-local",
         NEXT_TYPESCRIPT_CONFIG_PATH: "tsconfig.rust-local.json",
