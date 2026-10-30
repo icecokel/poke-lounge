@@ -18,6 +18,8 @@ export function LeagueHome({
   onGrowth,
   onEntry,
   onResume,
+  onRecords,
+  onRefresh,
 }: {
   locale: LeagueLocale;
   status: StatusView;
@@ -28,6 +30,8 @@ export function LeagueHome({
   onGrowth(): void;
   onEntry(): void;
   onResume(): void;
+  onRecords(): void;
+  onRefresh(): void;
 }) {
   const text = getLeagueCopy(locale);
   const [elapsed, setElapsed] = useState(0);
@@ -51,9 +55,10 @@ export function LeagueHome({
             : "closing";
   const target =
     season &&
-    (phase === "scheduled"
+    // Keep the received phase's countdown at zero until the player reloads.
+    (season.phase === "scheduled"
       ? season.startsAtMs
-      : phase === "open"
+      : season.phase === "open"
         ? season.closesAtMs
         : season.settleDeadlineMs);
   const seconds = target ? Math.max(0, Math.ceil((target - now) / 1000)) : 0;
@@ -104,10 +109,27 @@ export function LeagueHome({
               </p>
             )}
             {phase !== "settled" && (
-              <p role="timer">
-                {leagueText(locale, "남은 시간", "Time left", "残り時間")}{" "}
-                {Math.floor(seconds / 3600)}h {Math.floor(seconds / 60) % 60}m {seconds % 60}s
-              </p>
+              <>
+                <p role="timer">
+                  {leagueText(locale, "남은 시간", "Time left", "残り時間")}{" "}
+                  {Math.floor(seconds / 3600)}h {Math.floor(seconds / 60) % 60}m {seconds % 60}s
+                </p>
+                {seconds === 0 && (
+                  <div className="grid gap-2">
+                    <p role="status">
+                      {leagueText(
+                        locale,
+                        `${season.phase === "scheduled" ? "시작" : season.phase === "open" ? "마감" : "정산"} 시각이 지났습니다. 새 상태를 확인하려면 다시 불러오세요`,
+                        `The ${season.phase === "scheduled" ? "start" : season.phase === "open" ? "entry closing" : "settlement"} time has passed. Reload to check the latest status.`,
+                        `${season.phase === "scheduled" ? "開始" : season.phase === "open" ? "締切" : "集計"}時刻を過ぎました。最新の状態を確認するには再読み込みしてください。`,
+                      )}
+                    </p>
+                    <Button variant="outline" onClick={onRefresh}>
+                      {leagueText(locale, "다시 불러오기", "Reload", "再読み込み")}
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -152,7 +174,12 @@ export function LeagueHome({
         )}
       </section>
       <section className="grid gap-3">
-        <h2 className="text-lg font-bold">{text.standings}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">{text.standings}</h2>
+          <Button variant="outline" onClick={onRecords}>
+            {text.records}
+          </Button>
+        </div>
         <ol className="grid gap-3">
           {standings.entries.slice(0, 5).map(entry => (
             <li

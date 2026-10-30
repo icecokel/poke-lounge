@@ -31,9 +31,19 @@ import { clearEntryKey } from "../attempt/entry-key";
 import { LeagueHome } from "./league-home";
 import { LeagueAccountScreen } from "./league-account-screen";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
+import { RecordsScreen, type RecordsCache } from "../records/records-screen";
 
 type Screen =
-  "boot" | "closed" | "login" | "account" | "home" | "entry" | "attempt" | "growth" | "error";
+  | "boot"
+  | "closed"
+  | "login"
+  | "account"
+  | "home"
+  | "records"
+  | "entry"
+  | "attempt"
+  | "growth"
+  | "error";
 export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const text = getLeagueCopy(locale);
   const [screen, setScreen] = useState<Screen>("boot");
@@ -48,6 +58,13 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const runtimePromise = useRef<Promise<LeagueRuntime> | null>(null);
   const [runtime, setRuntime] = useState<LeagueRuntime | null>(null);
   const blocked = useRateLimitCooldown(error);
+  const recordsCache = useRef<RecordsCache>({});
+  const recordsUserId = useRef<string | null>(null);
+  const showLogin = useCallback(() => {
+    recordsCache.current = {};
+    recordsUserId.current = null;
+    setScreen("login");
+  }, []);
   const ensureRuntime = useCallback(() => {
     runtimePromise.current ??= loadLeagueRuntime(locale).catch(error => {
       runtimePromise.current = null;
@@ -75,10 +92,13 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         return;
       }
       try {
-        if (!(await fetchAccountSession()).user) {
-          setScreen("login");
+        const { user } = await fetchAccountSession();
+        if (!user) {
+          showLogin();
           return;
         }
+        if (recordsUserId.current !== user.id) recordsCache.current = {};
+        recordsUserId.current = user.id;
         const [nextMe, nextStandings] = await Promise.all([getMe(), getStandings()]);
         setMe(nextMe);
         setStandings(nextStandings);
@@ -102,14 +122,14 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         }
         setScreen("home");
       } catch (error) {
-        if (error instanceof LeagueApiError && error.status === 401) setScreen("login");
+        if (error instanceof LeagueApiError && error.status === 401) showLogin();
         else {
           setError(error);
           setScreen("error");
         }
       }
     },
-    [ensureRuntime],
+    [ensureRuntime, showLogin],
   );
   useEffect(() => {
     void boot();
@@ -119,12 +139,12 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       if (error) setNotice(leagueErrorMessage(error, locale));
       else setNotice(null);
       if (error instanceof LeagueApiError && error.status === 401) {
-        setScreen("login");
+        showLogin();
         return;
       }
       void boot(false);
     },
-    [boot, locale],
+    [boot, locale, showLogin],
   );
   async function open(target: "growth" | "entry") {
     if (
@@ -207,8 +227,20 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
             onGrowth={() => void open("growth")}
             onEntry={() => void open("entry")}
             onResume={() => void boot()}
+            onRecords={() => setScreen("records")}
+            onRefresh={() => home()}
           />
         </>
+      )}
+      {screen === "records" && status && me && standings && (
+        <RecordsScreen
+          locale={locale}
+          status={status}
+          me={me}
+          standings={standings}
+          cache={recordsCache}
+          onHome={home}
+        />
       )}
       {screen === "growth" && runtime && status && me && (
         <LeagueGrowthScreen
