@@ -278,7 +278,7 @@ async function main(): Promise<void> {
     else console.warn("next-env.d.ts contains external edits; preserved without overwriting.");
   }
   console.log(
-    "Frontend stopped. Local containers/data remain; use pnpm dev:rust:stop to stop them without deleting volumes.",
+    `Frontend stopped. Local containers/data remain; use pnpm dev:rust:stop${leagueTest ? " -- --league-test" : ""} to stop them without deleting volumes.`,
   );
 }
 void main().catch(error => {
