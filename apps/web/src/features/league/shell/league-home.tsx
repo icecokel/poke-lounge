@@ -64,8 +64,13 @@ export function LeagueHome({
   const seconds = target ? Math.max(0, Math.ceil((target - now) / 1000)) : 0;
   const activeAttempt = me.attempt?.status === "active";
   const activeRun = me.run?.status === "active";
+  const requiredBadges = status.test?.badgesRequired ?? 8;
   const canEnter =
-    activeRun && me.run?.badges === 8 && phase === "open" && !activeAttempt && !versionMismatch;
+    activeRun &&
+    (me.run?.badges ?? 0) >= requiredBadges &&
+    phase === "open" &&
+    !activeAttempt &&
+    !versionMismatch;
   const phaseLabel =
     phase === "open"
       ? leagueText(locale, "진행 중", "Open", "開催中")
@@ -166,9 +171,9 @@ export function LeagueHome({
                 ? text.closed
                 : leagueText(
                     locale,
-                    `배지 8개가 필요합니다(현재 ${me.run?.badges ?? 0})`,
-                    `Eight badges required (currently ${me.run?.badges ?? 0}).`,
-                    `バッジ8個が必要です（現在${me.run?.badges ?? 0}個）。`,
+                    `배지 ${requiredBadges}개가 필요합니다(현재 ${me.run?.badges ?? 0})`,
+                    `${requiredBadges === 8 ? "Eight" : requiredBadges} badges required (currently ${me.run?.badges ?? 0}).`,
+                    `バッジ${requiredBadges}個が必要です（現在${me.run?.badges ?? 0}個）。`,
                   )}
           </p>
         )}
