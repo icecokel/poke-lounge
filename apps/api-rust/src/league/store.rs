@@ -236,14 +236,14 @@ async fn attempt_view<C: GenericClient + Sync>(client: &C, a: &Value) -> Result<
     }
     Ok(view)
 }
-fn check_run(run: &Value, user: Uuid, season: i32) -> Result<()> {
+fn check_run(run: &Value, user: Uuid, season: i32, required: i16) -> Result<()> {
     if views::uuid(&run["user_id"])? != user
         || views::integer(&run["season_id"])? != i64::from(season)
         || run["status"] != "active"
     {
         return Err(LeagueError::new(409, "LEAGUE_RUN_NOT_ACTIVE"));
     }
-    if run["badges"] != 8 {
+    if views::integer(&run["badges"])? < i64::from(required) {
         return Err(LeagueError::new(409, "LEAGUE_BADGES_REQUIRED"));
     }
     Ok(())
@@ -367,7 +367,7 @@ impl League {
             )
             .await?
             .ok_or_else(|| LeagueError::new(409, "LEAGUE_RUN_NOT_ACTIVE"))?;
-            check_run(&run, user, season_id)?;
+            check_run(&run, user, season_id, self.config.badges_required())?;
             if let Some(a) = one(
                 client,
                 &format!("{ATTEMPT} WHERE season_id=$1 AND user_id=$2 AND status='active'"),
@@ -461,7 +461,7 @@ impl League {
                 LeagueError::new(409, "LEAGUE_ATTEMPT_ACTIVE").detail(json!({"attemptId":a["id"]}))
             );
         }
-        check_run(&run, user, season_id)?;
+        check_run(&run, user, season_id, self.config.badges_required())?;
         let rules = views::integer(&s["rules_version"])? as i16;
         let rev = views::integer(&s["standings_rev"])?;
         let engine = &health.engine;

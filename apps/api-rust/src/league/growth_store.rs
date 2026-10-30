@@ -496,7 +496,9 @@ impl League {
             else {
                 return Ok(());
             };
-            if r["status"] != "active" || r["badges"] != 8 {
+            if r["status"] != "active"
+                || views::integer(&r["badges"])? < i64::from(self.config.badges_required())
+            {
                 return Ok(());
             }
             let s = season(c, views::integer(&r["season_id"])? as i32, "").await?;
