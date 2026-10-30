@@ -34,6 +34,7 @@ import styles from "./world-screen.module.css";
 export function WorldScreen({
   atlas,
   competitiveRoundsEnabled,
+  showRankScoreHud = true,
   onPreparationReady,
   frameStore,
   gameStateStore,
@@ -46,6 +47,7 @@ export function WorldScreen({
 }: {
   atlas: WorldPlayerAtlasModel;
   competitiveRoundsEnabled: boolean;
+  showRankScoreHud?: boolean;
   onPreparationReady?: (roundIndex: number) => Promise<void>;
   frameStore: WorldFrameStore;
   gameStateStore: GameStateStore;
@@ -189,6 +191,7 @@ export function WorldScreen({
       <WorldUiLayer
         copy={copy}
         competitiveRoundsEnabled={competitiveRoundsEnabled}
+        showRankScoreHud={showRankScoreHud}
         desktop={desktop}
         gameStateStore={gameStateStore}
         onResultLobby={onResultLobby}

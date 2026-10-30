@@ -119,6 +119,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
   exitRef.current = onExit;
   const [nickname, setNickname] = useState(me.user.nickname ?? null);
   const [session, setSession] = useState<GrowthSession | null>(null);
+  const stopFieldRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState("local");
@@ -253,7 +254,9 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
       code => setNotice(code === "LEAGUE_MINT_LIMIT" ? copy.maxMints : copy.error),
     );
     return () => {
-      void sync.flush(true);
+      // Field shutdown persists the last position before the final upload snapshots the save.
+      stopFieldRef.current?.();
+      void sync.flush(true, true);
       sync.stop();
       stopMints();
     };
@@ -360,6 +363,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         runtime={runtime}
         model={model}
         challenger={challenger}
+        stopRef={stopFieldRef}
         store={session.store}
         battleStore={session.battle}
         expMultiplierPermille={session.storage.getEnvelope().league.growth.expMultiplierPermille}
