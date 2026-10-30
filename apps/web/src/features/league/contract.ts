@@ -26,6 +26,14 @@ export interface SeasonView {
   starterSpeciesIds: number[];
   starterLevel: number;
 }
+export interface LeagueTestModeView {
+  marker: string;
+  starterLevel: number | null; // null = 테스트 대체 없음
+  badgesRequired: number; // 0..8
+  opponentLevelDrop: number; // 0..49
+  accounts: number; // 1..8
+  login: boolean; // Rust에 로그인 토큰이 있음
+}
 export interface StatusView {
   enabled: true;
   contractVersion: number;
@@ -33,6 +41,7 @@ export interface StatusView {
   rulesVersion: number;
   nowMs: number;
   season: SeasonView | null;
+  test?: LeagueTestModeView;
 }
 export interface RunView {
   id: string;
