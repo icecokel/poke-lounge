@@ -9,7 +9,7 @@ import {
   type LeagueJudgeErrorCode,
   type LeagueJudgeMatchResult,
 } from "@poke-lounge/battle/league/contract";
-import { LEAGUE_ENGINE_VERSION } from "@poke-lounge/battle/league/engine-version";
+import { JUDGE_ENGINE_VERSION, weakenOpponents } from "./test-mode";
 import { seasonRoster } from "@poke-lounge/battle/league/roster/index";
 import { prepareEntry } from "@poke-lounge/battle/league/entry";
 import { LeaguePartyError } from "@poke-lounge/battle/league/party";
@@ -36,7 +36,7 @@ parentPort.on("message", (input: JudgeRequest) => {
   const envelope = {
     protocol: LEAGUE_JUDGE_PROTOCOL,
     requestId: input.requestId,
-    engineVersion: LEAGUE_ENGINE_VERSION,
+    engineVersion: JUDGE_ENGINE_VERSION,
   } as const;
   let advances: number | undefined;
   let outcome: string | undefined;
@@ -46,7 +46,7 @@ parentPort.on("message", (input: JudgeRequest) => {
     const validated = requestSchema.safeParse(input);
     if (!validated.success)
       result = { ...envelope, ok: false, code: "INVALID_REQUEST", detail: null };
-    else if (input.engineVersion !== LEAGUE_ENGINE_VERSION)
+    else if (input.engineVersion !== JUDGE_ENGINE_VERSION)
       result = { ...envelope, ok: false, code: "ENGINE_VERSION_MISMATCH", detail: null };
     else {
       const op = validated.data.op;
@@ -64,7 +64,11 @@ parentPort.on("message", (input: JudgeRequest) => {
       else if (op.kind === "season-roster")
         result = { ...envelope, ok: true, data: seasonRoster() };
       else if (op.kind === "prepare-entry")
-        result = { ...envelope, ok: true, data: prepareEntry(op.claim, op.mons, op.opponents) };
+        result = {
+          ...envelope,
+          ok: true,
+          data: prepareEntry(op.claim, op.mons, weakenOpponents(op.opponents)),
+        };
       else {
         const p = replayLeagueMatch(
           {
@@ -132,6 +136,6 @@ parentPort.on("message", (input: JudgeRequest) => {
 void loadGrowthData().then(() =>
   parentPort!.postMessage({
     ready: true,
-    engineVersion: LEAGUE_ENGINE_VERSION,
+    engineVersion: JUDGE_ENGINE_VERSION,
   } satisfies WorkerMessage),
 );
