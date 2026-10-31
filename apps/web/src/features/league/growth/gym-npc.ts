@@ -12,6 +12,16 @@ export const GYM_SPRITES: Record<string, string> = {
   pryce: "/assets/poke-lounge/textures/a_0_8_1_0152/gsleader7_5.png",
   clair: "/assets/poke-lounge/textures/a_0_8_1_0153/gsleader8_5.png",
 };
+// ROM-order preview: neutral, left step, neutral, right step in each direction.
+export const GYM_WALK_FRAMES = {
+  back: [1, 2, 3, 4],
+  front: [5, 6, 7, 8],
+  left: [9, 10, 11, 12],
+  right: [13, 14, 15, 16],
+} as const;
+export function gymFrameUrl(npcKey: string, frame: number): string {
+  return GYM_SPRITES[npcKey]!.replace("_5.png", `_${frame}.png`);
+}
 export function nextGym(badges: number): LeagueBadgeNpc | null {
   return badgeNpcCompositions()[badges] ?? null;
 }
