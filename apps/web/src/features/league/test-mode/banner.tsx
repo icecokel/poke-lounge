@@ -23,6 +23,7 @@ export function LeagueTestModeBanner({
           {text.badges} {test.badgesRequired}
           {text.badgeUnit} · {text.opponents}{" "}
           {test.opponentLevelDrop === 0 ? "0" : `−${test.opponentLevelDrop}`} · {test.marker}
+          {TEST_BUILD && <> · {text.gymRoamShort}</>}
         </p>
       )}
     </div>
