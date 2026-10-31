@@ -93,6 +93,8 @@ export interface WorldSceneInteractionsDependencies {
   canOfferDeferredMoveLearning(): boolean;
   startSoloChallenge(): void;
   getSoloChallengerHint?(): string | undefined;
+  getSoloChallengerPosition?(): WorldScenePlayerPosition | null | undefined;
+  consumeSoloChallengerContact?(): boolean;
   playNurseHealingEffect(nursePosition: WorldScenePlayerPosition, onComplete: () => void): void;
   isBattleIntroPlaying(): boolean;
   renderPartyHud(): void;
@@ -616,7 +618,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
     if (this.openDeferredMoveLearning()) return true;
 
-    this.handleFieldInteractionInput();
+    if (this.handleFieldInteractionInput()) return true;
 
     return this.inventoryOpen || this.pcBoxOpen || this.mobileWorldView === "party";
   }
@@ -702,20 +704,28 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     }
   }
 
-  private handleFieldInteractionInput(): void {
+  private handleFieldInteractionInput(): boolean {
     this.updateFieldGuidance();
+    if (
+      this.dependencies.canStartSoloChallenge() &&
+      this.dependencies.consumeSoloChallengerContact?.()
+    ) {
+      this.dependencies.startSoloChallenge();
+      return true;
+    }
     if (consumeVirtualGamepadPress("bag") || this.dependencies.keyboard.consume("KeyI")) {
-      return;
+      return false;
     }
     if (consumeVirtualGamepadPress("help") || this.dependencies.keyboard.consume("KeyH")) {
       playBattleConfirmSound();
       this.openShortcutGuide();
-      return;
+      return false;
     }
     if (consumeVirtualGamepadPress("confirm") || this.isConfirmJustDown()) {
       playBattleConfirmSound();
       this.handleConfirmInteraction();
     }
+    return false;
   }
 
   private handleShortcutGuideKeyboardInput(): void {
@@ -888,16 +898,10 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   }
 
   private isPlayerNearSoloChallenger(playerPosition: WorldScenePlayerPosition): boolean {
-    if (!this.soloChallengerPosition) {
-      return false;
-    }
-
-    return (
-      Math.hypot(
-        playerPosition.x - this.soloChallengerPosition.x,
-        playerPosition.y - this.soloChallengerPosition.y,
-      ) <= 56
-    );
+    const dynamic = this.dependencies.getSoloChallengerPosition?.();
+    const target = dynamic === undefined ? this.soloChallengerPosition : dynamic;
+    if (!target) return false;
+    return Math.hypot(playerPosition.x - target.x, playerPosition.y - target.y) <= 56;
   }
 
   private isPlayerNearNurse(playerPosition: WorldScenePlayerPosition): boolean {
