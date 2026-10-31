@@ -41,9 +41,15 @@ import {
 import { createWorldMapModel } from "@/components/poke-lounge/runtime/game/world/world-map-model";
 import { localizeTrainerName } from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
 import { BadgeFlow, BadgeMoveLearning } from "./badge-flow";
-import { nextGym, withGymNpc, GYM_SPRITES } from "./gym-npc";
+import { nextGym, withGymNpc, gymFrameUrl } from "./gym-npc";
+import { createGymRoam, gymRoamTiming } from "./gym-roam";
 import { GymChallengePanel } from "./gym-challenge-panel";
 import { growthCopy } from "./copy";
+
+let preloadedGymFrames: HTMLImageElement[] = [];
+const absentGym = { visible: false, appearance: 0 };
+const subscribeAbsentGym = () => () => {};
+const getAbsentGym = () => absentGym;
 
 export interface GrowthSession {
   storage: LeagueSaveStorage;
@@ -139,24 +145,32 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
   const envelope = useSyncExternalStore(subscribeSave, getSave, getSave);
   const badges = envelope?.league.badges ?? run?.badges ?? 0;
   const gym = useMemo(() => nextGym(badges), [badges]);
-  const model = useMemo(
-    () => withGymNpc(createWorldMapModel(runtime.runtimeAssets.tilemap), gym),
-    [runtime, gym],
-  );
-  const challenger = useMemo(
-    () =>
-      gym
-        ? {
-            hint: `${copy.gym} ${localizeTrainerName(gym.displayName, runtime.locale)}`,
-            onInteract: () => setStage("gym"),
-          }
-        : undefined,
-    [gym, copy, runtime.locale],
+  const timing = gymRoamTiming(status);
+  const hint = gym ? `${copy.gym} ${localizeTrainerName(gym.displayName, runtime.locale)}` : "";
+  const onInteract = useCallback(() => {
+    setStage("gym");
+    queueMicrotask(() => stopFieldRef.current?.());
+  }, []);
+  const { model, roam } = useMemo(() => {
+    const base = createWorldMapModel(runtime.runtimeAssets.tilemap);
+    if (!gym) return { model: base, roam: null };
+    const roam = createGymRoam({ model: base, gym, timing, hint, onInteract });
+    return { model: withGymNpc(base, roam.npc), roam };
+  }, [runtime, gym, timing, hint, onInteract]);
+  const gymSnapshot = useSyncExternalStore(
+    roam?.subscribe ?? subscribeAbsentGym,
+    roam?.getSnapshot ?? getAbsentGym,
+    roam?.getSnapshot ?? getAbsentGym,
   );
   useEffect(() => {
-    if (!gym) return;
-    const image = new Image();
-    image.src = GYM_SPRITES[gym.npcKey]!;
+    preloadedGymFrames = gym
+      ? Array.from({ length: 16 }, (_, index) => {
+          const image = new Image();
+          image.src = gymFrameUrl(gym.npcKey, index + 1);
+          return image;
+        })
+      : [];
+    for (const image of preloadedGymFrames) void image.decode().catch(() => {});
   }, [gym]);
   const closed = useCallback(() => {
     exitRef.current("run-changed");
@@ -333,6 +347,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         onRunClosed={closed}
         onBack={() => setStage("field")}
         onDone={message => {
+          if (session.storage.getEnvelope().league.badges === badges) roam?.endAppearance();
           setNotice(message);
           setStage("field");
         }}
@@ -357,12 +372,14 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         copy={copy}
         status={saving}
         nextGym={gym ? localizeTrainerName(gym.displayName, runtime.locale) : undefined}
+        gymPresent={gymSnapshot.visible}
         onExit={() => onExit("home")}
       />
       <LeagueFieldRuntime
         runtime={runtime}
         model={model}
-        challenger={challenger}
+        challenger={roam?.challenger}
+        roam={roam ?? undefined}
         stopRef={stopFieldRef}
         store={session.store}
         battleStore={session.battle}

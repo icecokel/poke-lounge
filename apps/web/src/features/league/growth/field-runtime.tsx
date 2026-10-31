@@ -13,6 +13,7 @@ import {
   type WorldMapModel,
 } from "@/components/poke-lounge/runtime/game/world/world-map-model";
 import { createWorldRuntime } from "@/components/poke-lounge/runtime/game/world/world-runtime";
+import { worldPlayerCollides } from "@/components/poke-lounge/runtime/game/world/world-runtime-motion";
 import {
   pressVirtualGamepadButton,
   releaseVirtualGamepadButton,
@@ -23,6 +24,9 @@ import type { GameStateStore } from "@/features/poke-lounge/contracts/game-state
 import { leagueWildExperiencePolicy } from "@poke-lounge/battle/league/growth/experience";
 import type { LeagueRuntime } from "../contract";
 import { createLeagueOfflineRoom } from "./offline-room";
+import type { FieldChallengerOption } from "@/components/poke-lounge/runtime/game/scenes/world-scene";
+import type { GymRoam } from "./gym-roam";
+import { GymRoamToast } from "./gym-roam-toast";
 export function LeagueFieldRuntime({
   runtime,
   store,
@@ -30,6 +34,7 @@ export function LeagueFieldRuntime({
   expMultiplierPermille,
   model: injectedModel,
   challenger,
+  roam,
   stopRef,
   onExit,
 }: {
@@ -38,7 +43,8 @@ export function LeagueFieldRuntime({
   battleStore: BattleUiStore;
   expMultiplierPermille: number;
   model?: WorldMapModel;
-  challenger?: { hint: string; onInteract(): void };
+  challenger?: FieldChallengerOption;
+  roam?: GymRoam;
   stopRef: RefObject<(() => void) | null>;
   onExit(): void;
 }) {
@@ -77,15 +83,49 @@ export function LeagueFieldRuntime({
       worldUiStore: resources.ui,
       battleUiStore: resources.battle,
     });
+    const detach = roam?.attach({
+      world: resources.world,
+      frame: resources.frame,
+      mount: mount.current,
+    });
     mount.current.focus();
+    let stopped = false;
     const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      detach?.();
+      if (roam) {
+        // Destroy persists rounded coordinates; validate them against the stopped NPC too.
+        const position = resources.world.readLocalPlayer().position;
+        const rounded = { x: Math.round(position.x), y: Math.round(position.y) };
+        const limit = Math.max(resources.model.widthInPixels, resources.model.heightInPixels);
+        for (let radius = 0; radius <= limit; radius++) {
+          const candidates = [];
+          for (let dx = -radius; dx <= radius; dx++) {
+            for (let dy = -radius; dy <= radius; dy++) {
+              if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue;
+              candidates.push({ x: rounded.x + dx, y: rounded.y + dy });
+            }
+          }
+          candidates.sort(
+            (a, b) =>
+              Math.hypot(a.x - position.x, a.y - position.y) -
+              Math.hypot(b.x - position.x, b.y - position.y),
+          );
+          const safe = candidates.find(point => !worldPlayerCollides(point, resources.model));
+          if (!safe) continue;
+          resources.world.setLocalPosition(safe, resources.frame.read().camera);
+          break;
+        }
+      }
       game.destroy();
       resetVirtualGamepad();
       if (stopRef.current === stop) stopRef.current = null;
     };
     stopRef.current = stop;
     return stop;
-  }, [runtime, store, resources, expMultiplierPermille, challenger, stopRef]);
+  }, [runtime, store, resources, expMultiplierPermille, challenger, roam, stopRef]);
+  useEffect(() => roam?.setFieldActive(!battle), [roam, battle]);
   const copy = getPokeLoungeCopy(runtime.locale);
   const controls: Array<[VirtualGamepadButton, string]> = [
     ["up", "↑"],
@@ -118,6 +158,7 @@ export function LeagueFieldRuntime({
             uiStore={resources.ui}
           />
         </div>
+        {!battle && roam && <GymRoamToast roam={roam} locale={runtime.locale} />}
         {battle && (
           <BattleScreen copy={copy} desktop gameStateStore={store} uiStore={resources.battle} />
         )}

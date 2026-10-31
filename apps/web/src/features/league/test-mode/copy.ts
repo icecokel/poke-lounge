@@ -16,6 +16,7 @@ const messages = {
   badges: ["입장 배지", "Entry badges", "入場バッジ"],
   badgeUnit: ["개", "", "個"],
   opponents: ["리그 상대 레벨", "League opponent levels", "リーグの相手レベル"],
+  gymRoamShort: ["관장 출현 단축", "Gym Leader appearance shortened", "ジムリーダー出現短縮"],
   accounts: [
     "테스트 계정(로컬 전용)",
     "Test accounts (local only)",

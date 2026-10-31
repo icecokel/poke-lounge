@@ -87,8 +87,16 @@ export interface WorldSceneCreateData {
   completedCompetitiveBattle?: CompetitiveBattleLaunchKey;
 }
 
+export interface FieldChallengerOption {
+  hint: string;
+  onInteract(): void;
+  /** undefined keeps the fixed NPC position; null means absent. */
+  getPosition?(): { x: number; y: number } | null;
+  consumeContact?(): boolean;
+}
+
 export interface WorldSceneOptions {
-  fieldChallenger?: { hint: string; onInteract(): void };
+  fieldChallenger?: FieldChallengerOption;
   competitiveRoundsEnabled?: boolean;
   roundDurationMs?: number;
   keyboard: RuntimeKeyboard;
@@ -223,6 +231,8 @@ export class WorldController {
           ? this.options.fieldChallenger.onInteract()
           : this.startSoloChallenge(),
       getSoloChallengerHint: () => this.options.fieldChallenger?.hint,
+      getSoloChallengerPosition: () => this.options.fieldChallenger?.getPosition?.(),
+      consumeSoloChallengerContact: () => this.options.fieldChallenger?.consumeContact?.() ?? false,
       playNurseHealingEffect: (nursePosition, onComplete) =>
         this.playNurseHealingEffect(nursePosition, onComplete),
       isBattleIntroPlaying: () => this.encounters.isBattleIntroPlaying(),

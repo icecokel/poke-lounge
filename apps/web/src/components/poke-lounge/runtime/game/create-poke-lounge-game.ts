@@ -11,7 +11,11 @@ import type { GameViewportDisplaySize } from "./game-viewport";
 import { createLocalPreviewRoom, type MultiplayerRoom } from "./network/local-preview-room";
 import { RuntimeKeyboard } from "./runtime-input";
 import { BattleController } from "./scenes/battle-scene";
-import { WorldController, type WorldSceneCreateData } from "./scenes/world-scene";
+import {
+  WorldController,
+  type FieldChallengerOption,
+  type WorldSceneCreateData,
+} from "./scenes/world-scene";
 import { getDefaultGameStateStore } from "./state/default-game-state-store";
 import type { GameStateStore } from "./state/game-state-store";
 import type { RoomLobbyRuntimeState } from "./ui/room-lobby-screen";
@@ -27,7 +31,7 @@ export interface PokeLoungeGameResult {
 }
 
 export interface PokeLoungeGameOptions {
-  fieldChallenger?: { hint: string; onInteract(): void };
+  fieldChallenger?: FieldChallengerOption;
   battleExperiencePolicy?: {
     experienceMultiplier: number;
     sharePartyExperience: boolean;
