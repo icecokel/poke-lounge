@@ -23,6 +23,9 @@ import type { GameStateStore } from "@/features/poke-lounge/contracts/game-state
 import { leagueWildExperiencePolicy } from "@poke-lounge/battle/league/growth/experience";
 import type { LeagueRuntime } from "../contract";
 import { createLeagueOfflineRoom } from "./offline-room";
+import type { FieldChallengerOption } from "@/components/poke-lounge/runtime/game/scenes/world-scene";
+import type { GymRoam } from "./gym-roam";
+import { GymRoamToast } from "./gym-roam-toast";
 export function LeagueFieldRuntime({
   runtime,
   store,
@@ -30,6 +33,7 @@ export function LeagueFieldRuntime({
   expMultiplierPermille,
   model: injectedModel,
   challenger,
+  roam,
   stopRef,
   onExit,
 }: {
@@ -38,7 +42,8 @@ export function LeagueFieldRuntime({
   battleStore: BattleUiStore;
   expMultiplierPermille: number;
   model?: WorldMapModel;
-  challenger?: { hint: string; onInteract(): void };
+  challenger?: FieldChallengerOption;
+  roam?: GymRoam;
   stopRef: RefObject<(() => void) | null>;
   onExit(): void;
 }) {
@@ -77,15 +82,25 @@ export function LeagueFieldRuntime({
       worldUiStore: resources.ui,
       battleUiStore: resources.battle,
     });
+    const detach = roam?.attach({
+      world: resources.world,
+      frame: resources.frame,
+      mount: mount.current,
+    });
     mount.current.focus();
+    let stopped = false;
     const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      detach?.();
       game.destroy();
       resetVirtualGamepad();
       if (stopRef.current === stop) stopRef.current = null;
     };
     stopRef.current = stop;
     return stop;
-  }, [runtime, store, resources, expMultiplierPermille, challenger, stopRef]);
+  }, [runtime, store, resources, expMultiplierPermille, challenger, roam, stopRef]);
+  useEffect(() => roam?.setFieldActive(!battle), [roam, battle]);
   const copy = getPokeLoungeCopy(runtime.locale);
   const controls: Array<[VirtualGamepadButton, string]> = [
     ["up", "↑"],
@@ -118,6 +133,7 @@ export function LeagueFieldRuntime({
             uiStore={resources.ui}
           />
         </div>
+        {!battle && roam && <GymRoamToast roam={roam} locale={runtime.locale} />}
         {battle && (
           <BattleScreen copy={copy} desktop gameStateStore={store} uiStore={resources.battle} />
         )}
