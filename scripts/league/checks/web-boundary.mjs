@@ -81,19 +81,95 @@ for (const path of files(source)) {
   if (/\b(?:getDefaultGameStateStore|createLocalPreviewRoom)\b/.test(text))
     errors.push(`${name}: multiplayer default stores and preview rooms are forbidden`);
 }
-// League updates this one NPC image directly; keep its rendering contract explicit.
-const npcRenderer = readFileSync(
-  resolve(source, "components/poke-lounge/runtime/game/world/world-screen.tsx"),
-  "utf8",
+// Compare complete AST nodes: suffix operations and stale comments must not pass.
+const printer = ts.createPrinter({ removeComments: true });
+function parse(path, text = readFileSync(path, "utf8")) {
+  return ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true);
+}
+function findNode(node, predicate) {
+  if (!node) return undefined;
+  if (predicate(node)) return node;
+  return ts.forEachChild(node, child => findNode(child, predicate));
+}
+function namedFunction(tree, name) {
+  return tree.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
+}
+function checkNode(actual, expected, label) {
+  const print = node => printer.printNode(ts.EmitHint.Unspecified, node, node.getSourceFile());
+  if (!actual || print(actual) !== print(expected))
+    errors.push(`${label}: gym-roam NPC contract changed`);
+}
+function checkExpression(actual, expected, label) {
+  const tree = parse("contract.tsx", `const value = ${expected};`);
+  checkNode(actual, tree.statements[0].declarationList.declarations[0].initializer, label);
+}
+const rendererPath = resolve(source, "components/poke-lounge/runtime/game/world/world-screen.tsx");
+const actor = namedFunction(parse(rendererPath), "NpcActor");
+const image = findNode(
+  actor?.body,
+  node => ts.isJsxSelfClosingElement(node) && node.tagName.getText() === "img",
 );
-for (const contract of [
-  "data-world-npc={npc.name}",
-  "src={npc.imageUrl}",
-  "left: npc.x - config.displaySize.width / 2",
-  "top: npc.y - config.displaySize.height",
+if (image?.attributes.properties.some(ts.isJsxSpreadAttribute))
+  errors.push("NpcActor.img: spread attributes can override the gym-roam NPC contract");
+for (const [name, expected] of [
+  ["data-world-npc", "npc.name"],
+  ["src", "npc.imageUrl"],
+  [
+    "style",
+    `{
+    height: config.displaySize.height,
+    left: npc.x - config.displaySize.width / 2,
+    top: npc.y - config.displaySize.height,
+    width: config.displaySize.width,
+  }`,
+  ],
 ]) {
-  if (!npcRenderer.includes(contract))
-    errors.push(`world-screen.tsx: gym-roam NPC rendering contract changed (${contract})`);
+  const attributes = image?.attributes.properties.filter(
+    node => ts.isJsxAttribute(node) && node.name.getText() === name,
+  );
+  const initializer = attributes?.length === 1 ? attributes[0].initializer : undefined;
+  checkExpression(
+    initializer && ts.isJsxExpression(initializer) ? initializer.expression : undefined,
+    expected,
+    `NpcActor.img.${name}`,
+  );
+}
+for (const [path, name, body] of [
+  [
+    "packages/poke-lounge-battle/src/adventure/world/world-runtime-motion.ts",
+    "getNpcHitbox",
+    `{
+    const config = FIELD_MAP.npcs[npc.name];
+    const scaleX = config.displaySize.width / 32;
+    const scaleY = config.displaySize.height / 32;
+    const spriteLeft = npc.x - config.displaySize.width / 2;
+    const spriteTop = npc.y - config.displaySize.height;
+    const left = spriteLeft + config.hitbox.offsetX * scaleX;
+    const top = spriteTop + config.hitbox.offsetY * scaleY;
+    return {
+      bottom: top + config.hitbox.height * scaleY,
+      left,
+      right: left + config.hitbox.width * scaleX,
+      top,
+    };
+  }`,
+  ],
+  [
+    "apps/web/src/features/league/growth/gym-roam.ts",
+    "gymHitbox",
+    `{
+    const { displaySize, hitbox } = FIELD_MAP.npcs.soloChallenger;
+    const scaleX = displaySize.width / 32;
+    const scaleY = displaySize.height / 32;
+    const left = position.x - displaySize.width / 2 + hitbox.offsetX * scaleX;
+    const top = position.y - displaySize.height + hitbox.offsetY * scaleY;
+    return { left, top, right: left + hitbox.width * scaleX, bottom: top + hitbox.height * scaleY };
+  }`,
+  ],
+]) {
+  const actual = namedFunction(parse(resolve(root, path)), name)?.body;
+  const expected = parse("contract.ts", `function contract() ${body}`).statements[0].body;
+  checkNode(actual, expected, `${path}:${name}`);
 }
 for (let leader = 1; leader <= 8; leader++) {
   for (let frame = 1; frame <= 16; frame++) {
@@ -103,5 +179,5 @@ for (let leader = 1; leader <= 8; leader++) {
 }
 if (errors.length) throw new Error(`League web boundary violations:\n${errors.join("\n")}`);
 console.log(
-  "League web boundary: imports, storage, explicit stores, challenger opt-in, NPC rendering, and 128 gym frames verified.",
+  "League web boundary: imports, storage, explicit stores, challenger opt-in, NPC rendering/hitboxes, and 128 gym frames verified.",
 );

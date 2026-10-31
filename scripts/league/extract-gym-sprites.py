@@ -31,11 +31,16 @@ def extract(path, preview):
             if image.size != (32, 32):
                 raise ValueError(f"Unexpected sprite size: {image.size}")
             destination = ROOT / f"apps/web/public/assets/poke-lounge/textures/a_0_8_1_{member:04d}/gsleader{leader}_{frame}.png"
-            if frame == 5:
+            unchanged = False
+            if destination.exists():
                 with Image.open(destination) as existing:
-                    if existing.convert("RGBA").tobytes() != image.tobytes():
-                        raise ValueError(f"Existing front frame differs: {destination}")
-            else:
+                    unchanged = (
+                        existing.size == image.size
+                        and existing.convert("RGBA").tobytes() == image.tobytes()
+                    )
+            if frame == 5 and not unchanged:
+                raise ValueError(f"Existing front frame differs: {destination}")
+            if not unchanged:
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 image.save(destination, optimize=True)
             if sheet is not None:
