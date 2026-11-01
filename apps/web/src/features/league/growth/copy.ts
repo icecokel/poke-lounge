@@ -1,4 +1,8 @@
 import type { LeagueLocale } from "../contract";
+export function subjectParticle(name: string): string {
+  const code = name.charCodeAt(name.length - 1);
+  return code >= 0xac00 && code <= 0xd7a3 ? ((code - 0xac00) % 28 !== 0 ? "이" : "가") : "이(가)";
+}
 const ko = {
   skip: "배우지 않기",
   nickname: "리그 닉네임",
@@ -12,6 +16,8 @@ const ko = {
   error: "서버 오류",
   badges: "배지",
   gym: "관장",
+  gymAppeared: (name: string) => `관장 ${name}${subjectParticle(name)} 나타났다!`,
+  gymPresent: "· 출현 중",
   gymPokemonCount: (count: number) => `관장 포켓몬 ${count}마리`,
   pending: "발급 대기",
   rejected: "확인 실패",
@@ -61,6 +67,8 @@ const en: typeof ko = {
   error: "Server error",
   badges: "Badges",
   gym: "Gym Leader",
+  gymAppeared: (name: string) => `Gym Leader ${name} has appeared!`,
+  gymPresent: "· Roaming",
   gymPokemonCount: (count: number) => `Leader's Pokémon: ${count}`,
   pending: "Awaiting issue",
   rejected: "Verification failed",
@@ -110,6 +118,8 @@ const ja: typeof ko = {
   error: "サーバーエラー",
   badges: "バッジ",
   gym: "ジムリーダー",
+  gymAppeared: (name: string) => `ジムリーダーの ${name}が あらわれた!`,
+  gymPresent: "· しゅつげんちゅう",
   gymPokemonCount: (count: number) => `ジムリーダーのポケモン ${count}匹`,
   pending: "発行待ち",
   rejected: "確認失敗",

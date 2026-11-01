@@ -7,12 +7,14 @@ export function GrowthHud({
   copy,
   status,
   nextGym,
+  gymPresent,
   onExit,
 }: {
   storage: LeagueSaveStorage;
   copy: GrowthCopy;
   status: string;
   nextGym?: string;
+  gymPresent?: boolean;
   onExit(): void;
 }) {
   const save = useSyncExternalStore(storage.subscribe, storage.getEnvelope, storage.getEnvelope);
@@ -26,7 +28,7 @@ export function GrowthHud({
       </span>
       {nextGym && (
         <span>
-          {copy.gym} {nextGym}
+          {copy.gym} {nextGym} {gymPresent && copy.gymPresent}
         </span>
       )}
       <span>
