@@ -35,6 +35,7 @@ import type { FieldChallengerOption } from "@/components/poke-lounge/runtime/gam
 import type { GymRoam } from "./gym-roam";
 import { GymRoamToast } from "./gym-roam-toast";
 import { MOBILE_GAME_VIEWPORT_SIZE } from "@/components/poke-lounge/runtime/game/game-viewport";
+import { createLeagueWorldUiView, LEAGUE_NURSE_MESSAGE_MS } from "./world-ui-view";
 import type { LeagueFieldLayout } from "./field-layout";
 import {
   LeagueMobileFieldShell,
@@ -71,11 +72,13 @@ export function LeagueFieldRuntime({
   const resources = useMemo(() => {
     const model = injectedModel ?? createWorldMapModel(runtime.runtimeAssets.tilemap);
     const frame = createWorldFrameStore();
+    const ui = createWorldUiStore();
     return {
       model,
       frame,
       world: createWorldRuntime(model, frame),
-      ui: createWorldUiStore(),
+      ui,
+      uiView: createLeagueWorldUiView(ui, LEAGUE_NURSE_MESSAGE_MS),
       battle: battleStore,
       atlas: createWorldPlayerAtlasModel(runtime.runtimeAssets.playerAtlas.data),
     };
@@ -172,7 +175,7 @@ export function LeagueFieldRuntime({
               desktop={false}
               onResultLobby={onExit}
               onResultNewGame={onExit}
-              uiStore={resources.ui}
+              uiStore={resources.uiView}
             />
           </div>
           {battle && (
@@ -215,7 +218,7 @@ export function LeagueFieldRuntime({
             desktop
             onResultLobby={onExit}
             onResultNewGame={onExit}
-            uiStore={resources.ui}
+            uiStore={resources.uiView}
           />
         </div>
         {!battle && roam && <GymRoamToast roam={roam} locale={runtime.locale} />}
