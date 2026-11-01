@@ -1,5 +1,12 @@
 "use client";
-import { useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+  type RefObject,
+  type ReactNode,
+} from "react";
 import { getPokeLoungeCopy } from "@/components/poke-lounge/poke-lounge-copy";
 import { createPokeLoungeGame } from "@/components/poke-lounge/runtime/game/create-poke-lounge-game";
 import type { BattleUiStore } from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
@@ -27,8 +34,18 @@ import { createLeagueOfflineRoom } from "./offline-room";
 import type { FieldChallengerOption } from "@/components/poke-lounge/runtime/game/scenes/world-scene";
 import type { GymRoam } from "./gym-roam";
 import { GymRoamToast } from "./gym-roam-toast";
+import { MOBILE_GAME_VIEWPORT_SIZE } from "@/components/poke-lounge/runtime/game/game-viewport";
+import type { LeagueFieldLayout } from "./field-layout";
+import {
+  LeagueMobileFieldShell,
+  MOBILE_FRAME,
+  LeagueMobileDock,
+  LeagueMobileWorldTask,
+} from "./mobile-field-shell";
 export function LeagueFieldRuntime({
   runtime,
+  layout,
+  status,
   store,
   battleStore,
   expMultiplierPermille,
@@ -39,6 +56,8 @@ export function LeagueFieldRuntime({
   onExit,
 }: {
   runtime: LeagueRuntime;
+  layout: LeagueFieldLayout;
+  status?: ReactNode;
   store: GameStateStore;
   battleStore: BattleUiStore;
   expMultiplierPermille: number;
@@ -72,6 +91,7 @@ export function LeagueFieldRuntime({
     resetVirtualGamepad();
     const game = createPokeLoungeGame(mount.current, {
       runtimeAssets: runtime.runtimeAssets,
+      ...(layout === "mobile" ? { viewportSize: MOBILE_GAME_VIEWPORT_SIZE } : {}),
       gameStateStore: store,
       multiplayerRoom: createLeagueOfflineRoom(),
       competitiveRoundsEnabled: false,
@@ -124,7 +144,7 @@ export function LeagueFieldRuntime({
     };
     stopRef.current = stop;
     return stop;
-  }, [runtime, store, resources, expMultiplierPermille, challenger, roam, stopRef]);
+  }, [runtime, store, resources, expMultiplierPermille, challenger, roam, stopRef, layout]);
   useEffect(() => roam?.setFieldActive(!battle), [roam, battle]);
   const copy = getPokeLoungeCopy(runtime.locale);
   const controls: Array<[VirtualGamepadButton, string]> = [
@@ -135,6 +155,46 @@ export function LeagueFieldRuntime({
     ["confirm", "A"],
     ["back", "B"],
   ];
+  if (layout === "mobile")
+    return (
+      <LeagueMobileFieldShell>
+        {status}
+        <div ref={mount} tabIndex={0} className={MOBILE_FRAME} data-poke-lounge-league-field>
+          <div className={battle ? "hidden" : "absolute inset-0"}>
+            <WorldScreen
+              atlas={resources.atlas}
+              competitiveRoundsEnabled={false}
+              showRankScoreHud={false}
+              frameStore={resources.frame}
+              gameStateStore={store}
+              model={resources.model}
+              copy={copy}
+              desktop={false}
+              onResultLobby={onExit}
+              onResultNewGame={onExit}
+              uiStore={resources.ui}
+            />
+          </div>
+          {battle && (
+            <BattleScreen
+              copy={copy}
+              desktop={false}
+              gameStateStore={store}
+              uiStore={resources.battle}
+            />
+          )}
+        </div>
+        <LeagueMobileDock
+          battle={battle}
+          battleStore={resources.battle}
+          copy={copy}
+          uiStore={resources.ui}
+        >
+          {!battle && roam && <GymRoamToast roam={roam} locale={runtime.locale} placement="dock" />}
+        </LeagueMobileDock>
+        <LeagueMobileWorldTask battle={battle} copy={copy} uiStore={resources.ui} store={store} />
+      </LeagueMobileFieldShell>
+    );
   return (
     <div>
       <div

@@ -5,7 +5,15 @@ import { growthCopy } from "./copy";
 import type { GymRoam } from "./gym-roam";
 import { localizeGymName } from "./gym-name";
 
-export function GymRoamToast({ roam, locale }: { roam: GymRoam; locale: LeagueLocale }) {
+export function GymRoamToast({
+  roam,
+  locale,
+  placement = "field",
+}: {
+  roam: GymRoam;
+  locale: LeagueLocale;
+  placement?: "field" | "dock";
+}) {
   const { visible, appearance } = useSyncExternalStore(
     roam.subscribe,
     roam.getSnapshot,
@@ -25,7 +33,11 @@ export function GymRoamToast({ roam, locale }: { roam: GymRoam; locale: LeagueLo
   return (
     <div
       role="status"
-      className="pointer-events-none absolute top-2 left-1/2 z-40 -translate-x-1/2 rounded border-2 border-gray-700 bg-white px-3 py-2 text-center text-sm font-bold text-gray-900 shadow"
+      className={
+        placement === "dock"
+          ? "pointer-events-none absolute inset-x-2 top-1.5 z-10 rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]"
+          : "pointer-events-none absolute top-2 left-1/2 z-40 -translate-x-1/2 rounded border-2 border-gray-700 bg-white px-3 py-2 text-center text-sm font-bold text-gray-900 shadow"
+      }
     >
       {growthCopy(locale).gymAppeared(localizeGymName(roam.npc.displayName, locale))}
     </div>

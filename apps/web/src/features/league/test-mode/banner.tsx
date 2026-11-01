@@ -29,3 +29,25 @@ export function LeagueTestModeBanner({
     </div>
   );
 }
+
+export function LeagueTestModeChip({
+  locale,
+  test,
+}: {
+  locale: LeagueLocale;
+  test?: LeagueTestModeView;
+}) {
+  if (!test && !TEST_BUILD) return null;
+  const text = getTestModeCopy(locale);
+  return (
+    <span className="rounded-[5px] border-2 border-[#987638] bg-[#fff1a8] px-1.5 text-[11px] font-black text-[#17231c]">
+      {test ? (
+        <>
+          {text.modeLabel} {test.marker}
+        </>
+      ) : (
+        text.serverMismatch
+      )}
+    </span>
+  );
+}
