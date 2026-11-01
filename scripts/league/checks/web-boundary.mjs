@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, relative, resolve } from "node:path";
@@ -10,6 +12,9 @@ const leaguePrefix = "features/league/";
 const entryLink = `${leaguePrefix}entry-link/league-entry-link.tsx`;
 const trainer = "components/poke-lounge/runtime/game/ui/trainer-name-entry.tsx";
 const errors = [];
+const mobileShell = "features/league/growth/mobile-field-shell.tsx";
+const sharedMobileShell = "components/poke-lounge/mobile/mobile-game-shell.tsx";
+const shellOwners = new Set(["components/poke-lounge/poke-lounge-game.tsx", mobileShell]);
 const challengerBridges = new Set([
   "components/poke-lounge/runtime/game/create-poke-lounge-game.ts",
   "components/poke-lounge/runtime/game/scenes/world-scene.ts",
@@ -51,6 +56,30 @@ for (const path of files(source)) {
       visit(tree);
     }
   }
+  const tree = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true);
+  function checkMobileBoundary(node) {
+    if (ts.isJsxAttribute(node)) {
+      const attribute = node.name.getText();
+      if (
+        (attribute === "data-poke-lounge-mobile-shell" ||
+          (attribute === "data-testid" &&
+            node.initializer &&
+            ts.isStringLiteral(node.initializer) &&
+            node.initializer.text === "poke-lounge-page")) &&
+        !shellOwners.has(name)
+      )
+        errors.push(`${name}: mobile shell markers are restricted to the two field shells`);
+    }
+    if (
+      name.startsWith(leaguePrefix) &&
+      name !== mobileShell &&
+      ts.isImportSpecifier(node) &&
+      (node.propertyName ?? node.name).text === "MobileExploreDeck"
+    )
+      errors.push(`${name}: only the league mobile field shell may import MobileExploreDeck`);
+    ts.forEachChild(node, checkMobileBoundary);
+  }
+  checkMobileBoundary(tree);
   const targets = imports(text);
   for (const target of targets) {
     const resolved = target.startsWith("@/")
@@ -177,7 +206,66 @@ for (let leader = 1; leader <= 8; leader++) {
     if (!existsSync(resolve(root, asset))) errors.push(`${asset}: gym walking frame is missing`);
   }
 }
+// Fingerprint the b23fd1b shared sources, normalizing only the approved export.
+// This also works in CI's shallow checkout, without fetching the baseline commit.
+const protectedPaths = [
+  "apps/web/src/components",
+  "apps/web/src/app",
+  "apps/web/src/features/poke-lounge",
+  "packages",
+];
+const protectedFiles = [
+  ...new Set(
+    execFileSync(
+      "git",
+      ["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", ...protectedPaths],
+      { cwd: root, encoding: "utf8" },
+    )
+      .split("\0")
+      .filter(Boolean),
+  ),
+].sort();
+const sharedHash = createHash("sha256");
+for (const name of protectedFiles) {
+  let content = readFileSync(resolve(root, name));
+  if (name === `apps/web/src/${sharedMobileShell}`) {
+    const text = content.toString("utf8");
+    if ((text.match(/export function MobileExploreDeck\(/g) ?? []).length !== 1)
+      errors.push(`${name}: MobileExploreDeck must have exactly the approved export`);
+    content = Buffer.from(
+      text.replace("export function MobileExploreDeck(", "function MobileExploreDeck("),
+    );
+  }
+  sharedHash.update(name).update("\0").update(content).update("\0");
+}
+if (sharedHash.digest("hex") !== "79b9d151f78273ccad718861b1b3bfdc23cbf0b3f6b5ffd57c01512f5ce28185")
+  errors.push(
+    "shared sources differ from b23fd1b beyond the MobileExploreDeck export; review the multiplayer boundary",
+  );
+for (const [name, selector] of [
+  ["components/poke-lounge/mobile/mobile-task-screen.tsx", "[data-testid='poke-lounge-page']"],
+  [
+    "components/poke-lounge/runtime/game/ui/mobile-ui-capability.ts",
+    "[data-poke-lounge-mobile-shell='true']",
+  ],
+  ["components/poke-lounge/mobile/mobile-play-layout-binding.ts", "[data-poke-lounge-play-status]"],
+]) {
+  const tree = parse(resolve(source, name));
+  if (!findNode(tree, node => ts.isStringLiteral(node) && node.text === selector))
+    errors.push(`${name}: league mobile shell DOM contract changed (${selector})`);
+}
+const layoutBinding = parse(
+  resolve(source, "components/poke-lounge/mobile/mobile-play-layout-binding.ts"),
+);
+if (
+  !findNode(
+    layoutBinding,
+    node =>
+      ts.isPropertyAccessExpression(node) && node.getText() === "page.dataset.pokeLoungePlayLayout",
+  )
+)
+  errors.push("mobile-play-layout-binding.ts: league play layout flag contract changed");
 if (errors.length) throw new Error(`League web boundary violations:\n${errors.join("\n")}`);
 console.log(
-  "League web boundary: imports, storage, explicit stores, challenger opt-in, NPC rendering/hitboxes, and 128 gym frames verified.",
+  "League web boundary: imports, storage, explicit stores, challenger opt-in, NPC rendering/hitboxes, 128 gym frames, mobile shell contracts, and the export-only shared diff verified.",
 );
