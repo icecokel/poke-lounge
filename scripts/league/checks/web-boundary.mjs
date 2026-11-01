@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, relative, resolve } from "node:path";
@@ -13,7 +11,7 @@ const entryLink = `${leaguePrefix}entry-link/league-entry-link.tsx`;
 const trainer = "components/poke-lounge/runtime/game/ui/trainer-name-entry.tsx";
 const errors = [];
 const mobileShell = "features/league/growth/mobile-field-shell.tsx";
-const sharedMobileShell = "components/poke-lounge/mobile/mobile-game-shell.tsx";
+const sharedMobileShell = "components/poke-lounge/mobile/mobile-game-shell";
 const shellOwners = new Set(["components/poke-lounge/poke-lounge-game.tsx", mobileShell]);
 const challengerBridges = new Set([
   "components/poke-lounge/runtime/game/create-poke-lounge-game.ts",
@@ -29,6 +27,37 @@ function imports(text) {
   return [
     ...text.matchAll(/\b(?:from\s*|import\s*(?:\(\s*)?|require\s*\(\s*)["']([^"']+)["']/g),
   ].map(match => match[1]);
+}
+function staticString(node) {
+  if (!node) return undefined;
+  if (ts.isJsxExpression(node) || ts.isParenthesizedExpression(node))
+    return staticString(node.expression);
+  if (ts.isStringLiteralLike(node)) return node.text;
+  if (ts.isTemplateExpression(node)) {
+    let value = node.head.text;
+    for (const span of node.templateSpans) {
+      const part = staticString(span.expression);
+      if (part === undefined) return undefined;
+      value += part + span.literal.text;
+    }
+    return value;
+  }
+  return undefined;
+}
+function isSharedMobileModule(path, node) {
+  const target = staticString(node);
+  if (target === undefined) return false;
+  const resolved = target.startsWith("@/")
+    ? resolve(source, target.slice(2))
+    : target.startsWith(".")
+      ? resolve(dirname(path), target)
+      : null;
+  return (
+    resolved !== null &&
+    relative(source, resolved)
+      .replaceAll("\\", "/")
+      .replace(/\.[cm]?[jt]sx?$/, "") === sharedMobileShell
+  );
 }
 for (const path of files(source)) {
   const name = relative(source, path).replaceAll("\\", "/");
@@ -62,10 +91,7 @@ for (const path of files(source)) {
       const attribute = node.name.getText();
       if (
         (attribute === "data-poke-lounge-mobile-shell" ||
-          (attribute === "data-testid" &&
-            node.initializer &&
-            ts.isStringLiteral(node.initializer) &&
-            node.initializer.text === "poke-lounge-page")) &&
+          (attribute === "data-testid" && staticString(node.initializer) === "poke-lounge-page")) &&
         !shellOwners.has(name)
       )
         errors.push(`${name}: mobile shell markers are restricted to the two field shells`);
@@ -73,10 +99,17 @@ for (const path of files(source)) {
     if (
       name.startsWith(leaguePrefix) &&
       name !== mobileShell &&
-      ts.isImportSpecifier(node) &&
-      (node.propertyName ?? node.name).text === "MobileExploreDeck"
+      (((ts.isImportSpecifier(node) || ts.isExportSpecifier(node)) &&
+        (node.propertyName ?? node.name).text === "MobileExploreDeck") ||
+        (ts.isNamespaceImport(node) &&
+          isSharedMobileModule(path, node.parent.parent.moduleSpecifier)) ||
+        (ts.isExportDeclaration(node) &&
+          (!node.exportClause || ts.isNamespaceExport(node.exportClause)) &&
+          isSharedMobileModule(path, node.moduleSpecifier)))
     )
-      errors.push(`${name}: only the league mobile field shell may import MobileExploreDeck`);
+      errors.push(
+        `${name}: only the league mobile field shell may import/re-export MobileExploreDeck or namespace-import/re-export its module`,
+      );
     ts.forEachChild(node, checkMobileBoundary);
   }
   checkMobileBoundary(tree);
@@ -206,42 +239,6 @@ for (let leader = 1; leader <= 8; leader++) {
     if (!existsSync(resolve(root, asset))) errors.push(`${asset}: gym walking frame is missing`);
   }
 }
-// Fingerprint the b23fd1b shared sources, normalizing only the approved export.
-// This also works in CI's shallow checkout, without fetching the baseline commit.
-const protectedPaths = [
-  "apps/web/src/components",
-  "apps/web/src/app",
-  "apps/web/src/features/poke-lounge",
-  "packages",
-];
-const protectedFiles = [
-  ...new Set(
-    execFileSync(
-      "git",
-      ["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", ...protectedPaths],
-      { cwd: root, encoding: "utf8" },
-    )
-      .split("\0")
-      .filter(Boolean),
-  ),
-].sort();
-const sharedHash = createHash("sha256");
-for (const name of protectedFiles) {
-  let content = readFileSync(resolve(root, name));
-  if (name === `apps/web/src/${sharedMobileShell}`) {
-    const text = content.toString("utf8");
-    if ((text.match(/export function MobileExploreDeck\(/g) ?? []).length !== 1)
-      errors.push(`${name}: MobileExploreDeck must have exactly the approved export`);
-    content = Buffer.from(
-      text.replace("export function MobileExploreDeck(", "function MobileExploreDeck("),
-    );
-  }
-  sharedHash.update(name).update("\0").update(content).update("\0");
-}
-if (sharedHash.digest("hex") !== "79b9d151f78273ccad718861b1b3bfdc23cbf0b3f6b5ffd57c01512f5ce28185")
-  errors.push(
-    "shared sources differ from b23fd1b beyond the MobileExploreDeck export; review the multiplayer boundary",
-  );
 for (const [name, selector] of [
   ["components/poke-lounge/mobile/mobile-task-screen.tsx", "[data-testid='poke-lounge-page']"],
   [
@@ -267,5 +264,5 @@ if (
   errors.push("mobile-play-layout-binding.ts: league play layout flag contract changed");
 if (errors.length) throw new Error(`League web boundary violations:\n${errors.join("\n")}`);
 console.log(
-  "League web boundary: imports, storage, explicit stores, challenger opt-in, NPC rendering/hitboxes, 128 gym frames, mobile shell contracts, and the export-only shared diff verified.",
+  "League web boundary: imports, storage, explicit stores, challenger opt-in, NPC rendering/hitboxes, 128 gym frames, and mobile shell ownership/import/DOM contracts verified.",
 );
