@@ -29,3 +29,33 @@ export function LeagueTestModeBanner({
     </div>
   );
 }
+
+export function LeagueTestModeChip({
+  locale,
+  test,
+  compact = false,
+}: {
+  locale: LeagueLocale;
+  test?: LeagueTestModeView;
+  compact?: boolean;
+}) {
+  if (!test && !TEST_BUILD) return null;
+  const text = getTestModeCopy(locale);
+  return (
+    <span
+      title={test ? `${text.modeLabel} ${test.marker}` : text.serverMismatch}
+      className={`rounded-[5px] border-2 border-[#987638] bg-[#fff1a8] px-1.5 text-[11px] font-black text-[#17231c] ${compact && test ? "[@media(max-height:540px)]:shrink-0" : ""}`}
+    >
+      {test ? (
+        <>
+          <span className={compact ? "[@media(max-height:540px)]:sr-only" : undefined}>
+            {text.modeLabel}{" "}
+          </span>
+          {test.marker}
+        </>
+      ) : (
+        text.serverMismatch
+      )}
+    </span>
+  );
+}

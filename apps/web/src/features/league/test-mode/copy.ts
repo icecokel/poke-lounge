@@ -1,6 +1,7 @@
 import type { LeagueLocale } from "../contract";
 
 const messages = {
+  modeLabel: ["테스트 모드", "Test mode", "テストモード"],
   warning: [
     "테스트 모드 — 로컬 설정값으로 바꾼 규칙입니다. 운영 조건 확인이 아닙니다.",
     "Test mode — rules use local settings. This does not verify production conditions.",

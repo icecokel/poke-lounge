@@ -10,6 +10,9 @@ const leaguePrefix = "features/league/";
 const entryLink = `${leaguePrefix}entry-link/league-entry-link.tsx`;
 const trainer = "components/poke-lounge/runtime/game/ui/trainer-name-entry.tsx";
 const errors = [];
+const mobileShell = "features/league/growth/mobile-field-shell.tsx";
+const sharedMobileShell = "components/poke-lounge/mobile/mobile-game-shell";
+const shellOwners = new Set(["components/poke-lounge/poke-lounge-game.tsx", mobileShell]);
 const challengerBridges = new Set([
   "components/poke-lounge/runtime/game/create-poke-lounge-game.ts",
   "components/poke-lounge/runtime/game/scenes/world-scene.ts",
@@ -24,6 +27,37 @@ function imports(text) {
   return [
     ...text.matchAll(/\b(?:from\s*|import\s*(?:\(\s*)?|require\s*\(\s*)["']([^"']+)["']/g),
   ].map(match => match[1]);
+}
+function staticString(node) {
+  if (!node) return undefined;
+  if (ts.isJsxExpression(node) || ts.isParenthesizedExpression(node))
+    return staticString(node.expression);
+  if (ts.isStringLiteralLike(node)) return node.text;
+  if (ts.isTemplateExpression(node)) {
+    let value = node.head.text;
+    for (const span of node.templateSpans) {
+      const part = staticString(span.expression);
+      if (part === undefined) return undefined;
+      value += part + span.literal.text;
+    }
+    return value;
+  }
+  return undefined;
+}
+function isSharedMobileModule(path, node) {
+  const target = staticString(node);
+  if (target === undefined) return false;
+  const resolved = target.startsWith("@/")
+    ? resolve(source, target.slice(2))
+    : target.startsWith(".")
+      ? resolve(dirname(path), target)
+      : null;
+  return (
+    resolved !== null &&
+    relative(source, resolved)
+      .replaceAll("\\", "/")
+      .replace(/\.[cm]?[jt]sx?$/, "") === sharedMobileShell
+  );
 }
 for (const path of files(source)) {
   const name = relative(source, path).replaceAll("\\", "/");
@@ -51,6 +85,34 @@ for (const path of files(source)) {
       visit(tree);
     }
   }
+  const tree = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true);
+  function checkMobileBoundary(node) {
+    if (ts.isJsxAttribute(node)) {
+      const attribute = node.name.getText();
+      if (
+        (attribute === "data-poke-lounge-mobile-shell" ||
+          (attribute === "data-testid" && staticString(node.initializer) === "poke-lounge-page")) &&
+        !shellOwners.has(name)
+      )
+        errors.push(`${name}: mobile shell markers are restricted to the two field shells`);
+    }
+    if (
+      name.startsWith(leaguePrefix) &&
+      name !== mobileShell &&
+      (((ts.isImportSpecifier(node) || ts.isExportSpecifier(node)) &&
+        (node.propertyName ?? node.name).text === "MobileExploreDeck") ||
+        (ts.isNamespaceImport(node) &&
+          isSharedMobileModule(path, node.parent.parent.moduleSpecifier)) ||
+        (ts.isExportDeclaration(node) &&
+          (!node.exportClause || ts.isNamespaceExport(node.exportClause)) &&
+          isSharedMobileModule(path, node.moduleSpecifier)))
+    )
+      errors.push(
+        `${name}: only the league mobile field shell may import/re-export MobileExploreDeck or namespace-import/re-export its module`,
+      );
+    ts.forEachChild(node, checkMobileBoundary);
+  }
+  checkMobileBoundary(tree);
   const targets = imports(text);
   for (const target of targets) {
     const resolved = target.startsWith("@/")
@@ -177,7 +239,30 @@ for (let leader = 1; leader <= 8; leader++) {
     if (!existsSync(resolve(root, asset))) errors.push(`${asset}: gym walking frame is missing`);
   }
 }
+for (const [name, selector] of [
+  ["components/poke-lounge/mobile/mobile-task-screen.tsx", "[data-testid='poke-lounge-page']"],
+  [
+    "components/poke-lounge/runtime/game/ui/mobile-ui-capability.ts",
+    "[data-poke-lounge-mobile-shell='true']",
+  ],
+  ["components/poke-lounge/mobile/mobile-play-layout-binding.ts", "[data-poke-lounge-play-status]"],
+]) {
+  const tree = parse(resolve(source, name));
+  if (!findNode(tree, node => ts.isStringLiteral(node) && node.text === selector))
+    errors.push(`${name}: league mobile shell DOM contract changed (${selector})`);
+}
+const layoutBinding = parse(
+  resolve(source, "components/poke-lounge/mobile/mobile-play-layout-binding.ts"),
+);
+if (
+  !findNode(
+    layoutBinding,
+    node =>
+      ts.isPropertyAccessExpression(node) && node.getText() === "page.dataset.pokeLoungePlayLayout",
+  )
+)
+  errors.push("mobile-play-layout-binding.ts: league play layout flag contract changed");
 if (errors.length) throw new Error(`League web boundary violations:\n${errors.join("\n")}`);
 console.log(
-  "League web boundary: imports, storage, explicit stores, challenger opt-in, NPC rendering/hitboxes, and 128 gym frames verified.",
+  "League web boundary: imports, storage, explicit stores, challenger opt-in, NPC rendering/hitboxes, 128 gym frames, and mobile shell ownership/import/DOM contracts verified.",
 );

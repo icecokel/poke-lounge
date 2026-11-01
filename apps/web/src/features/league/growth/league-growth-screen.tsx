@@ -33,7 +33,8 @@ import { startLeagueMintQueue } from "./mint-queue";
 import { NicknameForm } from "./nickname-form";
 import { StarterSelect } from "./starter-select";
 import { LeagueFieldRuntime } from "./field-runtime";
-import { GrowthHud } from "./growth-hud";
+import { useLeagueFieldLayout } from "./field-layout";
+import { GrowthHud, GrowthMobileStatus } from "./growth-hud";
 import {
   createBattleUiStore,
   type BattleUiStore,
@@ -125,6 +126,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
   exitRef.current = onExit;
   const [nickname, setNickname] = useState(me.user.nickname ?? null);
   const [session, setSession] = useState<GrowthSession | null>(null);
+  const layout = useLeagueFieldLayout(session?.battle);
   const stopFieldRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -364,6 +366,36 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         onBack={() => setStage("field")}
       />
     );
+  if (layout === "mobile")
+    return (
+      <LeagueFieldRuntime
+        key="mobile"
+        layout="mobile"
+        runtime={runtime}
+        model={model}
+        challenger={roam?.challenger}
+        roam={roam ?? undefined}
+        stopRef={stopFieldRef}
+        store={session.store}
+        battleStore={session.battle}
+        expMultiplierPermille={session.storage.getEnvelope().league.growth.expMultiplierPermille}
+        onExit={() => onExit("home")}
+        status={
+          <GrowthMobileStatus
+            storage={session.storage}
+            copy={copy}
+            status={saving}
+            nextGym={gym ? localizeGymName(gym.displayName, runtime.locale) : undefined}
+            gymPresent={gymSnapshot.visible}
+            onExit={() => onExit("home")}
+            locale={runtime.locale}
+            test={status.test}
+            notice={notice}
+            onDismissNotice={() => setNotice("")}
+          />
+        }
+      />
+    );
   return (
     <section className="space-y-3">
       {notice && <p role="status">{notice}</p>}
@@ -376,6 +408,8 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         onExit={() => onExit("home")}
       />
       <LeagueFieldRuntime
+        key="desktop"
+        layout="desktop"
         runtime={runtime}
         model={model}
         challenger={roam?.challenger}
