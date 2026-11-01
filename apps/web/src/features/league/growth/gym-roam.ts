@@ -17,7 +17,8 @@ export interface GymRoamTiming {
   firstHiddenMs: [number, number];
   hiddenMs: [number, number];
   visibleMs: number;
-  leaveGraceMs: number;
+  approachDistancePx: number;
+  resumeDelayMs: number;
   stepPxPerSec: number;
   frameMs: number;
   legTiles: [number, number];
@@ -29,7 +30,8 @@ export const GYM_ROAM_TIMING: GymRoamTiming = {
   firstHiddenMs: [30_000, 90_000],
   hiddenMs: [90_000, 180_000],
   visibleMs: 180_000,
-  leaveGraceMs: 30_000,
+  approachDistancePx: 96,
+  resumeDelayMs: 1_500,
   stepPxPerSec: 64,
   frameMs: 150,
   legTiles: [1, 3],
@@ -149,6 +151,7 @@ export function createGymRoam({
   let previousMs: number | null = null;
   let hiddenUntilMs: number | null = null;
   let visibleMs = 0;
+  let resumeMs = 0;
   let idleMs = 0;
   let animationMs = 0;
   let facing: PlayerFacing = "front";
@@ -219,9 +222,22 @@ export function createGymRoam({
     idleMs = randomMs(timing.idleMs);
     animationMs = 0;
   }
-  function move(elapsedMs: number) {
+  function playerOffset() {
+    const player = attached!.world.readLocalPlayer().position;
+    return {
+      x: player.x - npc.x,
+      y: player.y - (npc.y - FIELD_MAP.npcs.soloChallenger.displaySize.height / 2),
+    };
+  }
+  function move(elapsedMs: number, waiting: boolean) {
     let moving = false;
-    if (!walk) {
+    if (waiting && walk) {
+      walk.remaining = 1;
+      const current = tilePosition(tile);
+      // A queued next tile has not started yet; only finish a step already in progress.
+      if (npc.x === current.x && npc.y === current.y) rest();
+    }
+    if (!walk && !waiting) {
       idleMs -= elapsedMs;
       if (idleMs <= 0) {
         const choices = DIRECTIONS.filter(direction =>
@@ -264,6 +280,19 @@ export function createGymRoam({
         }
       }
     }
+    if (waiting && !walk) {
+      idleMs = 0;
+      moving = false;
+      const offset = playerOffset();
+      facing =
+        Math.abs(offset.x) > Math.abs(offset.y)
+          ? offset.x < 0
+            ? "left"
+            : "right"
+          : offset.y < 0
+            ? "back"
+            : "front";
+    }
     const frames = GYM_WALK_FRAMES[facing];
     npc.imageUrl = gymFrameUrl(
       gym.npcKey,
@@ -294,6 +323,7 @@ export function createGymRoam({
     npc.imageUrl = GYM_SPRITES[gym.npcKey]!;
     facing = "front";
     visibleMs = 0;
+    resumeMs = 0;
     armed = true;
     rest();
     publish(true);
@@ -304,6 +334,7 @@ export function createGymRoam({
     touching = false;
     armed = false;
     walk = null;
+    resumeMs = 0;
     hiddenUntilMs = performance.now() + randomMs(timing.hiddenMs);
     if (snapshot.visible) publish(false);
     paint();
@@ -315,16 +346,14 @@ export function createGymRoam({
     previousMs = nowMs;
     if (!snapshot.visible) {
       if (hiddenUntilMs !== null && nowMs >= hiddenUntilMs) appear();
-    } else if (!fallback) {
-      visibleMs += elapsedMs;
-      const player = attached.world.readLocalPlayer().position;
-      if (
-        visibleMs >= timing.visibleMs &&
-        (Math.hypot(npc.x - player.x, npc.y - player.y) > 96 ||
-          visibleMs - timing.visibleMs >= timing.leaveGraceMs)
-      )
-        endAppearance();
-      else move(elapsedMs);
+    } else {
+      const offset = playerOffset();
+      const nearby = Math.hypot(offset.x, offset.y) <= timing.approachDistancePx;
+      resumeMs = nearby ? timing.resumeDelayMs : Math.max(0, resumeMs - elapsedMs);
+      const waiting = nearby || resumeMs > 0;
+      if (!fallback && !waiting) visibleMs += elapsedMs;
+      if (!fallback && !waiting && visibleMs >= timing.visibleMs) endAppearance();
+      else if (!fallback || waiting) move(elapsedMs, waiting);
     }
     refreshContact();
     paint();

@@ -39,7 +39,7 @@ import {
   type BattleUiStore,
 } from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
 import { createWorldMapModel } from "@/components/poke-lounge/runtime/game/world/world-map-model";
-import { localizeTrainerName } from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
+import { localizeGymName } from "./gym-name";
 import { BadgeFlow, BadgeMoveLearning } from "./badge-flow";
 import { nextGym, withGymNpc, gymFrameUrl } from "./gym-npc";
 import { createGymRoam, gymRoamTiming } from "./gym-roam";
@@ -146,7 +146,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
   const badges = envelope?.league.badges ?? run?.badges ?? 0;
   const gym = useMemo(() => nextGym(badges), [badges]);
   const timing = gymRoamTiming(status);
-  const hint = gym ? `${copy.gym} ${localizeTrainerName(gym.displayName, runtime.locale)}` : "";
+  const hint = gym ? `${copy.gym} ${localizeGymName(gym.displayName, runtime.locale)}` : "";
   const onInteract = useCallback(() => {
     setStage("gym");
     queueMicrotask(() => stopFieldRef.current?.());
@@ -371,7 +371,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         storage={session.storage}
         copy={copy}
         status={saving}
-        nextGym={gym ? localizeTrainerName(gym.displayName, runtime.locale) : undefined}
+        nextGym={gym ? localizeGymName(gym.displayName, runtime.locale) : undefined}
         gymPresent={gymSnapshot.visible}
         onExit={() => onExit("home")}
       />
