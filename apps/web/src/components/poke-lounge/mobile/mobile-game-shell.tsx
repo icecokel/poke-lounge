@@ -271,7 +271,7 @@ export function MobileGameShell({
   );
 }
 
-function MobileExploreDeck({
+export function MobileExploreDeck({
   activePokemon,
   copy,
   input,
