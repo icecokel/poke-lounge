@@ -6,10 +6,16 @@ import type {
   WorldUiSnapshot,
   WorldUiStore,
 } from "@/components/poke-lounge/runtime/game/world/world-ui-store";
+import { localizeRuntimeText } from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
+import type { LeagueLocale } from "../contract";
 
 export const LEAGUE_NURSE_MESSAGE_MS = NURSE_HEAL_DURATION_MS + FIELD_AREA_ANNOUNCEMENT_DURATION_MS;
 
-export function createLeagueWorldUiView(base: WorldUiStore, hideAfterMs: number): WorldUiStore {
+export function createLeagueWorldUiView(
+  base: WorldUiStore,
+  hideAfterMs: number,
+  locale: LeagueLocale,
+): WorldUiStore {
   const listeners = new Set<() => void>();
   let unsubscribe: (() => void) | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -52,7 +58,20 @@ export function createLeagueWorldUiView(base: WorldUiStore, hideAfterMs: number)
       if (snapshot !== cachedSource || hidden !== cachedHidden) {
         cachedSource = snapshot;
         cachedHidden = hidden;
-        cachedView = hidden ? { ...snapshot, nurseMessage: null } : snapshot;
+        // Gym hints are already localized, so the shared action matcher cannot translate the key.
+        const interactionPrompt =
+          snapshot.interactionPrompt?.replace(
+            /^대화 · /,
+            `${localizeRuntimeText("대화", locale)} · `,
+          ) ?? null;
+        cachedView =
+          hidden || interactionPrompt !== snapshot.interactionPrompt
+            ? {
+                ...snapshot,
+                interactionPrompt,
+                nurseMessage: hidden ? null : snapshot.nurseMessage,
+              }
+            : snapshot;
       }
       return cachedView;
     },

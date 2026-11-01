@@ -78,7 +78,7 @@ export function LeagueFieldRuntime({
       frame,
       world: createWorldRuntime(model, frame),
       ui,
-      uiView: createLeagueWorldUiView(ui, LEAGUE_NURSE_MESSAGE_MS),
+      uiView: createLeagueWorldUiView(ui, LEAGUE_NURSE_MESSAGE_MS, runtime.locale),
       battle: battleStore,
       atlas: createWorldPlayerAtlasModel(runtime.runtimeAssets.playerAtlas.data),
     };
