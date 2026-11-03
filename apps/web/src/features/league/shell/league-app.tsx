@@ -31,6 +31,7 @@ import { EntryScreen } from "../attempt/entry-screen";
 import { AttemptFlow } from "../attempt/attempt-flow";
 import { clearEntryKey } from "../attempt/entry-key";
 import { LeagueHome } from "./league-home";
+import { LeagueDemoToast } from "./league-demo-toast";
 import { LeagueAccountScreen } from "./league-account-screen";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
 import { RecordsScreen, type RecordsCache } from "../records/records-screen";
@@ -192,6 +193,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   return (
     <div className="grid gap-6">
       <LeagueTestModeBanner locale={locale} test={status?.test} />
+      <LeagueDemoToast locale={locale} />
       {notice && <p role="status">{notice}</p>}
       {screen === "boot" && <p role="status">{text.loading}</p>}
       {screen === "closed" && <p>{text.closed}</p>}
