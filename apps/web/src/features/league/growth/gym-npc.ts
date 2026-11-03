@@ -1,4 +1,7 @@
-import type { WorldMapModel } from "@/components/poke-lounge/runtime/game/world/world-map-model";
+import type {
+  WorldMapModel,
+  WorldMapNpcModel,
+} from "@/components/poke-lounge/runtime/game/world/world-map-model";
 import { badgeNpcCompositions } from "@poke-lounge/battle/league/roster/index";
 import type { LeagueBadgeNpc } from "@poke-lounge/battle/league/contract";
 export const GYM_NPC_POSITION = { x: 560, y: 464 };
@@ -12,25 +15,19 @@ export const GYM_SPRITES: Record<string, string> = {
   pryce: "/assets/poke-lounge/textures/a_0_8_1_0152/gsleader7_5.png",
   clair: "/assets/poke-lounge/textures/a_0_8_1_0153/gsleader8_5.png",
 };
+// ROM-order preview: neutral, left step, neutral, right step in each direction.
+export const GYM_WALK_FRAMES = {
+  back: [1, 2, 3, 4],
+  front: [5, 6, 7, 8],
+  left: [9, 10, 11, 12],
+  right: [13, 14, 15, 16],
+} as const;
+export function gymFrameUrl(npcKey: string, frame: number): string {
+  return GYM_SPRITES[npcKey]!.replace("_5.png", `_${frame}.png`);
+}
 export function nextGym(badges: number): LeagueBadgeNpc | null {
   return badgeNpcCompositions()[badges] ?? null;
 }
-export function withGymNpc(model: WorldMapModel, gym: LeagueBadgeNpc | null): WorldMapModel {
-  return {
-    ...model,
-    npcs: [
-      ...model.npcs,
-      ...(gym
-        ? [
-            {
-              name: "soloChallenger" as const,
-              role: "gymLeader",
-              displayName: gym.displayName,
-              imageUrl: GYM_SPRITES[gym.npcKey]!,
-              ...GYM_NPC_POSITION,
-            },
-          ]
-        : []),
-    ],
-  };
+export function withGymNpc(model: WorldMapModel, npc: WorldMapNpcModel): WorldMapModel {
+  return { ...model, npcs: [...model.npcs, npc] };
 }

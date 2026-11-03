@@ -55,7 +55,7 @@ export function NicknameForm({
       </label>
       <input
         id="league-nickname"
-        className="rounded border border-slate-500 bg-slate-900 px-3 py-2"
+        className="rounded border border-gray-300 bg-white px-3 py-2"
         value={value}
         onChange={e => setValue(e.target.value)}
         autoComplete="off"

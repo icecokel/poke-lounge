@@ -33,17 +33,24 @@ import { startLeagueMintQueue } from "./mint-queue";
 import { NicknameForm } from "./nickname-form";
 import { StarterSelect } from "./starter-select";
 import { LeagueFieldRuntime } from "./field-runtime";
-import { GrowthHud } from "./growth-hud";
+import { useLeagueFieldLayout } from "./field-layout";
+import { GrowthHud, GrowthMobileStatus } from "./growth-hud";
 import {
   createBattleUiStore,
   type BattleUiStore,
 } from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
 import { createWorldMapModel } from "@/components/poke-lounge/runtime/game/world/world-map-model";
-import { localizeTrainerName } from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
+import { localizeGymName } from "./gym-name";
 import { BadgeFlow, BadgeMoveLearning } from "./badge-flow";
-import { nextGym, withGymNpc, GYM_SPRITES } from "./gym-npc";
+import { nextGym, withGymNpc, gymFrameUrl } from "./gym-npc";
+import { createGymRoam, gymRoamTiming } from "./gym-roam";
 import { GymChallengePanel } from "./gym-challenge-panel";
 import { growthCopy } from "./copy";
+
+let preloadedGymFrames: HTMLImageElement[] = [];
+const absentGym = { visible: false, appearance: 0 };
+const subscribeAbsentGym = () => () => {};
+const getAbsentGym = () => absentGym;
 
 export interface GrowthSession {
   storage: LeagueSaveStorage;
@@ -119,6 +126,8 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
   exitRef.current = onExit;
   const [nickname, setNickname] = useState(me.user.nickname ?? null);
   const [session, setSession] = useState<GrowthSession | null>(null);
+  const layout = useLeagueFieldLayout(session?.battle);
+  const stopFieldRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState("local");
@@ -138,24 +147,32 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
   const envelope = useSyncExternalStore(subscribeSave, getSave, getSave);
   const badges = envelope?.league.badges ?? run?.badges ?? 0;
   const gym = useMemo(() => nextGym(badges), [badges]);
-  const model = useMemo(
-    () => withGymNpc(createWorldMapModel(runtime.runtimeAssets.tilemap), gym),
-    [runtime, gym],
-  );
-  const challenger = useMemo(
-    () =>
-      gym
-        ? {
-            hint: `${copy.gym} ${localizeTrainerName(gym.displayName, runtime.locale)}`,
-            onInteract: () => setStage("gym"),
-          }
-        : undefined,
-    [gym, copy, runtime.locale],
+  const timing = gymRoamTiming(status);
+  const hint = gym ? `${copy.gym} ${localizeGymName(gym.displayName, runtime.locale)}` : "";
+  const onInteract = useCallback(() => {
+    setStage("gym");
+    queueMicrotask(() => stopFieldRef.current?.());
+  }, []);
+  const { model, roam } = useMemo(() => {
+    const base = createWorldMapModel(runtime.runtimeAssets.tilemap);
+    if (!gym) return { model: base, roam: null };
+    const roam = createGymRoam({ model: base, gym, timing, hint, onInteract });
+    return { model: withGymNpc(base, roam.npc), roam };
+  }, [runtime, gym, timing, hint, onInteract]);
+  const gymSnapshot = useSyncExternalStore(
+    roam?.subscribe ?? subscribeAbsentGym,
+    roam?.getSnapshot ?? getAbsentGym,
+    roam?.getSnapshot ?? getAbsentGym,
   );
   useEffect(() => {
-    if (!gym) return;
-    const image = new Image();
-    image.src = GYM_SPRITES[gym.npcKey]!;
+    preloadedGymFrames = gym
+      ? Array.from({ length: 16 }, (_, index) => {
+          const image = new Image();
+          image.src = gymFrameUrl(gym.npcKey, index + 1);
+          return image;
+        })
+      : [];
+    for (const image of preloadedGymFrames) void image.decode().catch(() => {});
   }, [gym]);
   const closed = useCallback(() => {
     exitRef.current("run-changed");
@@ -253,7 +270,9 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
       code => setNotice(code === "LEAGUE_MINT_LIMIT" ? copy.maxMints : copy.error),
     );
     return () => {
-      void sync.flush(true);
+      // Field shutdown persists the last position before the final upload snapshots the save.
+      stopFieldRef.current?.();
+      void sync.flush(true, true);
       sync.stop();
       stopMints();
     };
@@ -330,6 +349,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         onRunClosed={closed}
         onBack={() => setStage("field")}
         onDone={message => {
+          if (session.storage.getEnvelope().league.badges === badges) roam?.endAppearance();
           setNotice(message);
           setStage("field");
         }}
@@ -346,6 +366,36 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         onBack={() => setStage("field")}
       />
     );
+  if (layout === "mobile")
+    return (
+      <LeagueFieldRuntime
+        key="mobile"
+        layout="mobile"
+        runtime={runtime}
+        model={model}
+        challenger={roam?.challenger}
+        roam={roam ?? undefined}
+        stopRef={stopFieldRef}
+        store={session.store}
+        battleStore={session.battle}
+        expMultiplierPermille={session.storage.getEnvelope().league.growth.expMultiplierPermille}
+        onExit={() => onExit("home")}
+        status={
+          <GrowthMobileStatus
+            storage={session.storage}
+            copy={copy}
+            status={saving}
+            nextGym={gym ? localizeGymName(gym.displayName, runtime.locale) : undefined}
+            gymPresent={gymSnapshot.visible}
+            onExit={() => onExit("home")}
+            locale={runtime.locale}
+            test={status.test}
+            notice={notice}
+            onDismissNotice={() => setNotice("")}
+          />
+        }
+      />
+    );
   return (
     <section className="space-y-3">
       {notice && <p role="status">{notice}</p>}
@@ -353,13 +403,18 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         storage={session.storage}
         copy={copy}
         status={saving}
-        nextGym={gym ? localizeTrainerName(gym.displayName, runtime.locale) : undefined}
+        nextGym={gym ? localizeGymName(gym.displayName, runtime.locale) : undefined}
+        gymPresent={gymSnapshot.visible}
         onExit={() => onExit("home")}
       />
       <LeagueFieldRuntime
+        key="desktop"
+        layout="desktop"
         runtime={runtime}
         model={model}
-        challenger={challenger}
+        challenger={roam?.challenger}
+        roam={roam ?? undefined}
+        stopRef={stopFieldRef}
         store={session.store}
         battleStore={session.battle}
         expMultiplierPermille={session.storage.getEnvelope().league.growth.expMultiplierPermille}

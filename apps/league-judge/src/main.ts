@@ -3,7 +3,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { resolve } from "node:path";
 import { Worker } from "node:worker_threads";
 import { LEAGUE_JUDGE_PROTOCOL } from "@poke-lounge/battle/league/contract";
-import { LEAGUE_ENGINE_VERSION } from "@poke-lounge/battle/league/engine-version";
+import { JUDGE_ENGINE_VERSION, JUDGE_TEST_MODE, TEST_MODE_WORKER_ENV } from "./test-mode";
 import { LEAGUE_ROSTER_VERSION } from "@poke-lounge/battle/league/roster/index";
 import {
   JOB_TIMEOUT_MS,
@@ -30,6 +30,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535)
 const release = /^[a-f0-9]{40}$/i.test(process.env.RELEASE_SHA ?? "")
   ? process.env.RELEASE_SHA
   : "local";
+if (JUDGE_TEST_MODE) log("warn", "league.test_mode_on", { ...JUDGE_TEST_MODE });
 let draining = false;
 let inFlight = 0;
 type Pending = {
@@ -62,7 +63,7 @@ function failure(input: Pick<JudgeRequest, "requestId"> | undefined, code: strin
   return {
     protocol: LEAGUE_JUDGE_PROTOCOL,
     requestId: input?.requestId,
-    engineVersion: LEAGUE_ENGINE_VERSION,
+    engineVersion: JUDGE_ENGINE_VERSION,
     ok: false,
     code,
     detail: null,
@@ -145,11 +146,15 @@ function restart(slot: Slot, reason: string): void {
 function makeWorker(slot: Slot): Worker {
   const worker = new Worker(resolve(__dirname, "compute.js"), {
     resourceLimits: { maxOldGenerationSizeMb: 256, maxYoungGenerationSizeMb: 32 },
-    env: { NODE_ENV: "production", LEAGUE_WEB_ROOT: process.env.LEAGUE_WEB_ROOT ?? "../web" },
+    env: {
+      NODE_ENV: "production",
+      LEAGUE_WEB_ROOT: process.env.LEAGUE_WEB_ROOT ?? "../web",
+      ...TEST_MODE_WORKER_ENV,
+    },
   });
   worker.on("message", (message: WorkerMessage) => {
     if ("ready" in message) {
-      if (message.engineVersion !== LEAGUE_ENGINE_VERSION) {
+      if (message.engineVersion !== JUDGE_ENGINE_VERSION) {
         restart(slot, "worker-version-mismatch");
         return;
       }
@@ -158,7 +163,7 @@ function makeWorker(slot: Slot): Worker {
     } else if (
       !slot.pending ||
       message.result.requestId !== slot.pending.input.requestId ||
-      message.result.engineVersion !== LEAGUE_ENGINE_VERSION ||
+      message.result.engineVersion !== JUDGE_ENGINE_VERSION ||
       message.result.protocol !== LEAGUE_JUDGE_PROTOCOL
     )
       restart(slot, "worker-protocol-mismatch");
@@ -194,7 +199,7 @@ async function receive(request: IncomingMessage, response: ServerResponse): Prom
     const ready = !draining && readyWorkers > 0;
     json(response, ready ? 200 : 503, {
       ready,
-      engineVersion: LEAGUE_ENGINE_VERSION,
+      engineVersion: JUDGE_ENGINE_VERSION,
       rosterVersion: LEAGUE_ROSTER_VERSION,
       readyWorkers,
       queue: waiting.length,
@@ -232,7 +237,7 @@ async function receive(request: IncomingMessage, response: ServerResponse): Prom
       return;
     }
     const input: JudgeRequest = parsed.data;
-    if (input.engineVersion !== LEAGUE_ENGINE_VERSION) {
+    if (input.engineVersion !== JUDGE_ENGINE_VERSION) {
       json(response, 200, failure(input, "ENGINE_VERSION_MISMATCH"));
       return;
     }
@@ -283,7 +288,7 @@ server.maxConnections = 32;
 server.listen(port, process.env.LEAGUE_JUDGE_HOST ?? "127.0.0.1", () =>
   log("info", "league.judge.started", {
     workers: concurrency,
-    engineVersion: LEAGUE_ENGINE_VERSION,
+    engineVersion: JUDGE_ENGINE_VERSION,
   }),
 );
 function stop(): void {

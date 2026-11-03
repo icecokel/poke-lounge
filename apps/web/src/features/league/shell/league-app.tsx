@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DiscordAccountButton } from "@/components/poke-lounge/ui/discord-account-button";
 import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
-import { LEAGUE_ENGINE_VERSION } from "@poke-lounge/battle/league/engine-version";
+import { sameLeagueEngine } from "../test-mode/engine";
+import { LeagueTestModeBanner } from "../test-mode/banner";
+import { LeagueTestLoginPanel } from "../test-mode/login-panel";
 import { LeagueApiError } from "../api/core";
 import {
   getCurrentAttempt,
@@ -29,11 +31,22 @@ import { EntryScreen } from "../attempt/entry-screen";
 import { AttemptFlow } from "../attempt/attempt-flow";
 import { clearEntryKey } from "../attempt/entry-key";
 import { LeagueHome } from "./league-home";
+import { LeagueDemoToast } from "./league-demo-toast";
 import { LeagueAccountScreen } from "./league-account-screen";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
+import { RecordsScreen, type RecordsCache } from "../records/records-screen";
 
 type Screen =
-  "boot" | "closed" | "login" | "account" | "home" | "entry" | "attempt" | "growth" | "error";
+  | "boot"
+  | "closed"
+  | "login"
+  | "account"
+  | "home"
+  | "records"
+  | "entry"
+  | "attempt"
+  | "growth"
+  | "error";
 export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const text = getLeagueCopy(locale);
   const [screen, setScreen] = useState<Screen>("boot");
@@ -48,6 +61,13 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const runtimePromise = useRef<Promise<LeagueRuntime> | null>(null);
   const [runtime, setRuntime] = useState<LeagueRuntime | null>(null);
   const blocked = useRateLimitCooldown(error);
+  const recordsCache = useRef<RecordsCache>({});
+  const recordsUserId = useRef<string | null>(null);
+  const showLogin = useCallback(() => {
+    recordsCache.current = {};
+    recordsUserId.current = null;
+    setScreen("login");
+  }, []);
   const ensureRuntime = useCallback(() => {
     runtimePromise.current ??= loadLeagueRuntime(locale).catch(error => {
       runtimePromise.current = null;
@@ -75,10 +95,13 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         return;
       }
       try {
-        if (!(await fetchAccountSession()).user) {
-          setScreen("login");
+        const { user } = await fetchAccountSession();
+        if (!user) {
+          showLogin();
           return;
         }
+        if (recordsUserId.current !== user.id) recordsCache.current = {};
+        recordsUserId.current = user.id;
         const [nextMe, nextStandings] = await Promise.all([getMe(), getStandings()]);
         setMe(nextMe);
         setStandings(nextStandings);
@@ -86,12 +109,12 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
           const current = await getCurrentAttempt();
           if (current?.id === nextMe.attempt.id && current.status === "active") {
             if (nextMe.run) clearEntryKey(nextMe.run.id);
-            if (current.engineVersion !== LEAGUE_ENGINE_VERSION) {
+            if (!sameLeagueEngine(current.engineVersion)) {
               if (current.engineVersion === nextStatus.engineVersion) setAttemptNeedsRefresh(true);
               else setMe(await getMe());
             } else if (
               current.current &&
-              (!nextStatus.engineVersion || nextStatus.engineVersion === LEAGUE_ENGINE_VERSION)
+              (!nextStatus.engineVersion || sameLeagueEngine(nextStatus.engineVersion))
             ) {
               setRuntime(await ensureRuntime());
               setAttempt(current);
@@ -102,14 +125,14 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         }
         setScreen("home");
       } catch (error) {
-        if (error instanceof LeagueApiError && error.status === 401) setScreen("login");
+        if (error instanceof LeagueApiError && error.status === 401) showLogin();
         else {
           setError(error);
           setScreen("error");
         }
       }
     },
-    [ensureRuntime],
+    [ensureRuntime, showLogin],
   );
   useEffect(() => {
     void boot();
@@ -119,19 +142,15 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       if (error) setNotice(leagueErrorMessage(error, locale));
       else setNotice(null);
       if (error instanceof LeagueApiError && error.status === 401) {
-        setScreen("login");
+        showLogin();
         return;
       }
       void boot(false);
     },
-    [boot, locale],
+    [boot, locale, showLogin],
   );
   async function open(target: "growth" | "entry") {
-    if (
-      target === "entry" &&
-      status?.engineVersion &&
-      status.engineVersion !== LEAGUE_ENGINE_VERSION
-    )
+    if (target === "entry" && status?.engineVersion && !sameLeagueEngine(status.engineVersion))
       return;
     setScreen("boot");
     setNotice(null);
@@ -148,7 +167,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       home(new LeagueApiError(409, "LEAGUE_ATTEMPT_NOT_ACTIVE", undefined, false));
       return;
     }
-    if (next.engineVersion !== LEAGUE_ENGINE_VERSION) {
+    if (!sameLeagueEngine(next.engineVersion)) {
       home(new LeagueApiError(409, "LEAGUE_ENGINE_VERSION_MISMATCH", undefined, false));
       return;
     }
@@ -156,8 +175,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
     setScreen("attempt");
   }
   const mismatch =
-    attemptNeedsRefresh ||
-    (!!status?.engineVersion && status.engineVersion !== LEAGUE_ENGINE_VERSION);
+    attemptNeedsRefresh || (!!status?.engineVersion && !sameLeagueEngine(status.engineVersion));
   const JudgedBattle = useMemo(() => {
     if (!mismatch) return LeagueJudgedBattle;
     return function VersionBlockedBattle({ onAbort }: LeagueJudgedBattleProps) {
@@ -174,10 +192,17 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   }, [mismatch, text.version, text.refresh, text.cancel]);
   return (
     <div className="grid gap-6">
+      <LeagueTestModeBanner locale={locale} test={status?.test} />
+      <LeagueDemoToast locale={locale} />
       {notice && <p role="status">{notice}</p>}
       {screen === "boot" && <p role="status">{text.loading}</p>}
       {screen === "closed" && <p>{text.closed}</p>}
-      {screen === "login" && <DiscordAccountButton locale={locale} />}
+      {screen === "login" && (
+        <>
+          <DiscordAccountButton locale={locale} />
+          <LeagueTestLoginPanel locale={locale} test={status?.test} onLogin={() => boot()} />
+        </>
+      )}
       {screen === "account" && me && (
         <LeagueAccountScreen locale={locale} displayName={me.user.displayName} onHome={home} />
       )}
@@ -207,8 +232,20 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
             onGrowth={() => void open("growth")}
             onEntry={() => void open("entry")}
             onResume={() => void boot()}
+            onRecords={() => setScreen("records")}
+            onRefresh={() => home()}
           />
         </>
+      )}
+      {screen === "records" && status && me && standings && (
+        <RecordsScreen
+          locale={locale}
+          status={status}
+          me={me}
+          standings={standings}
+          cache={recordsCache}
+          onHome={home}
+        />
       )}
       {screen === "growth" && runtime && status && me && (
         <LeagueGrowthScreen
@@ -220,7 +257,13 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         />
       )}
       {screen === "entry" && runtime && me?.run && (
-        <EntryScreen runtime={runtime} runId={me.run.id} onEntered={entered} onHome={home} />
+        <EntryScreen
+          runtime={runtime}
+          runId={me.run.id}
+          badgesToConsume={me.run.badges ?? status?.test?.badgesRequired ?? 8}
+          onEntered={entered}
+          onHome={home}
+        />
       )}
       {screen === "attempt" && attempt && runtime && (
         <AttemptFlow key={attempt.id} runtime={runtime} initial={attempt} onHome={home} />

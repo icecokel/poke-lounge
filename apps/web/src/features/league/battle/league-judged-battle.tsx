@@ -84,6 +84,7 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
         party={init.challenger}
         opponent={init.opponent}
         opponentName={opponent.displayName}
+        opponentClassName={opponent.className}
         matchLabel={matchLabel}
         onChoose={leadSlot => setSelection({ leadSlot, init, opponentName: opponent.displayName })}
         onAbort={() => callbacks.current.onAbort()}
@@ -93,7 +94,8 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
   return (
     <div className="poke-lounge-runtime grid gap-3">
       <h2 className="font-bold">
-        {matchLabel} · {opponent.displayName}
+        {matchLabel} · {opponent.className && `${opponent.className} `}
+        {opponent.displayName}
       </h2>
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg">
         <BattleScreen copy={copy} desktop={desktop} uiStore={store} />

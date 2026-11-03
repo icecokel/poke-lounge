@@ -8,6 +8,7 @@ mod routes;
 pub mod season;
 pub mod standings;
 pub mod store;
+pub mod test_mode;
 pub mod views;
 
 use crate::http::AppState;

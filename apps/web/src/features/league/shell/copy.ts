@@ -6,6 +6,12 @@ export function leagueText(locale: LeagueLocale, ko: string, en: string, ja: str
 const messages = {
   title: ["리그", "League", "リーグ"],
   loading: ["불러오는 중…", "Loading…", "読み込み中…"],
+  demo: [
+    "리그 모드는 데모 버전입니다. 진행 상황과 기록이 예고 없이 초기화될 수 있어요.",
+    "League mode is a demo. Progress and records may be reset without notice.",
+    "リーグモードはデモ版です。進行状況と記録は予告なく初期化されることがあります。",
+  ],
+  demoClose: ["안내 닫기", "Dismiss notice", "お知らせを閉じる"],
   closed: ["리그가 열려 있지 않습니다", "The league is not open.", "リーグは開催されていません。"],
   firstScreen: ["첫 화면으로", "Back to start", "最初の画面へ"],
   home: ["홈으로", "League home", "ホームへ"],
@@ -48,6 +54,7 @@ const messages = {
     "シーズン最高得点 / 最高順位",
   ],
   standings: ["상위 5", "Top five", "上位5人"],
+  records: ["순위·기록", "Standings & records", "順位・記録"],
   score: ["점수", "Score", "得点"],
   rank: ["순위", "Rank", "順位"],
   outside: ["순위 밖", "Outside top five", "ランク外"],

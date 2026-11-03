@@ -41,6 +41,7 @@ export function LeadPicker({
   party,
   opponent,
   opponentName,
+  opponentClassName,
   matchLabel,
   onChoose,
   onAbort,
@@ -50,6 +51,7 @@ export function LeadPicker({
   party: LeagueBattleParty;
   opponent: LeagueBattleParty;
   opponentName: string;
+  opponentClassName?: string;
   matchLabel?: string;
   onChoose(slot: number): void;
   onAbort(): void;
@@ -61,7 +63,8 @@ export function LeadPicker({
   return (
     <div className="grid gap-5">
       <h2 className="text-xl font-bold">
-        {matchLabel} · {opponentName}
+        {matchLabel} · {opponentClassName && `${opponentClassName} `}
+        {opponentName}
       </h2>
       <details className="rounded-lg border p-3" open>
         <summary>{leagueText(locale, "상대 파티", "Opponent party", "相手のパーティ")}</summary>

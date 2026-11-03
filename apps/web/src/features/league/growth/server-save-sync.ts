@@ -1,3 +1,4 @@
+import { canonicalize } from "@poke-lounge/battle/canonical-json";
 import { LeagueApiError } from "../api/core";
 import { loadLeagueSave, uploadLeagueSave } from "../api/growth";
 import {
@@ -6,6 +7,16 @@ import {
   type LeagueSaveEnvelope,
   type LeagueSaveStorage,
 } from "./league-save";
+
+function saveContent(save: LeagueSaveEnvelope): string {
+  const normalized = parseLeagueSave(save, save.runId, save.userId);
+  if (!normalized) throw new Error("LEAGUE_SAVE_INVALID");
+  const { version, runId, seasonId, userId, game, league } = normalized;
+  // Compare persisted content, ignoring sync metadata, undefined fields and JSON object key order.
+  return canonicalize(
+    JSON.parse(JSON.stringify({ version, runId, seasonId, userId, game, league })),
+  );
+}
 
 export function reconcileLeagueSave(
   local: LeagueSaveEnvelope | null,
@@ -21,6 +32,8 @@ export function reconcileLeagueSave(
   }
   if (!local) return { save: server, conflict: null };
   if (!server || !remote) return { save: { ...local, serverRev: 0, dirty: true }, conflict: null };
+  if (saveContent(local) === saveContent(server))
+    return { save: { ...local, serverRev: remote.rev, dirty: false }, conflict: null };
   if (local.serverRev === remote.rev) return { save: local, conflict: null };
   return local.dirty ? { save: local, conflict: server } : { save: server, conflict: null };
 }
@@ -36,6 +49,7 @@ export function startServerSaveSync(
   let stopped = false;
   let paused = false;
   let conflicting = false;
+  let exitRequested = false;
   async function readConflict() {
     try {
       const snapshot = storage.getEnvelope();
@@ -46,15 +60,25 @@ export function startServerSaveSync(
       if (data && remote.save) {
         data.serverRev = remote.save.rev;
         data.dirty = false;
-        onConflict(data);
+        const current = storage.getEnvelope();
+        if (saveContent(current) === saveContent(data)) {
+          storage.acknowledge(remote.save.rev, current.rev);
+          paused = false;
+          conflicting = false;
+          onStatus("saved");
+        } else onConflict(data);
       } else onStatus("error");
     } catch {
       if (!stopped) onStatus("error");
     }
   }
-  async function flush(keepalive = false) {
-    if (stopped || paused || busy || !storage.getEnvelope().dirty) return;
-    if (Date.now() - lastUpload < 30000) {
+  async function flush(keepalive = false, force = false) {
+    if ((stopped && !force) || paused || !storage.getEnvelope().dirty) return;
+    if (busy) {
+      exitRequested ||= force;
+      return;
+    }
+    if (!force && Date.now() - lastUpload < 30000) {
       schedule();
       return;
     }
@@ -95,7 +119,10 @@ export function startServerSaveSync(
       }
     } finally {
       busy = false;
-      if (!stopped && !paused && storage.getEnvelope().dirty) schedule();
+      if (exitRequested) {
+        exitRequested = false;
+        void flush(true, true);
+      } else if (!stopped && !paused && storage.getEnvelope().dirty) schedule();
     }
   }
   function schedule() {
@@ -110,6 +137,8 @@ export function startServerSaveSync(
     if (document.visibilityState === "hidden") void flush(true);
   };
   document.addEventListener("visibilitychange", hidden);
+  const exiting = () => void flush(true, true);
+  window.addEventListener("pagehide", exiting);
   const online = () => {
     if (conflicting) void readConflict();
     else if (!paused) schedule();
@@ -127,6 +156,7 @@ export function startServerSaveSync(
       if (timer) clearTimeout(timer);
       unsubscribe();
       document.removeEventListener("visibilitychange", hidden);
+      window.removeEventListener("pagehide", exiting);
       window.removeEventListener("online", online);
     },
   };

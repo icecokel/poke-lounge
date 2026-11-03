@@ -69,6 +69,10 @@ services:
       LEAGUE_JUDGE_CONCURRENCY: 1
       LEAGUE_WEB_ROOT: /workspace/apps/web
       RELEASE_SHA: ${RELEASE_SHA:-local}
+      LEAGUE_TEST_MODE:
+      LEAGUE_TEST_STARTER_LEVEL:
+      LEAGUE_TEST_BADGES_REQUIRED:
+      LEAGUE_TEST_OPPONENT_LEVEL_DROP:
     healthcheck:
       test:
         - CMD
@@ -117,6 +121,12 @@ services:
       LEAGUE_EXP_MULTIPLIER:
       LEAGUE_STARTER_POOL:
       LEAGUE_DEV_SEASON_MINUTES:
+      LEAGUE_TEST_MODE:
+      LEAGUE_TEST_LOGIN_TOKEN:
+      LEAGUE_TEST_ACCOUNTS:
+      LEAGUE_TEST_STARTER_LEVEL:
+      LEAGUE_TEST_BADGES_REQUIRED:
+      LEAGUE_TEST_OPPONENT_LEVEL_DROP:
       RUST_LOG: info
     depends_on:
       postgres: { condition: service_healthy }

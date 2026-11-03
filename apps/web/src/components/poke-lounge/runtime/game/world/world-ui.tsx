@@ -33,6 +33,7 @@ import {
 export function WorldUiLayer({
   copy,
   competitiveRoundsEnabled,
+  showRankScoreHud = true,
   desktop,
   gameStateStore,
   onResultLobby,
@@ -41,6 +42,7 @@ export function WorldUiLayer({
 }: {
   copy: PokeLoungeCopy;
   competitiveRoundsEnabled: boolean;
+  showRankScoreHud?: boolean;
   desktop: boolean;
   gameStateStore: GameStateStore;
   onResultLobby(): void;
@@ -72,6 +74,7 @@ export function WorldUiLayer({
         copy={copy}
         desktop={desktop}
         competitiveRoundsEnabled={competitiveRoundsEnabled}
+        showRankScoreHud={showRankScoreHud}
         gameStateStore={gameStateStore}
         ui={ui}
         uiStore={uiStore}
@@ -93,6 +96,7 @@ export function WorldHud({
   copy,
   desktop,
   competitiveRoundsEnabled,
+  showRankScoreHud = true,
   gameStateStore,
   ui,
   uiStore,
@@ -100,6 +104,7 @@ export function WorldHud({
   copy: PokeLoungeCopy;
   desktop: boolean;
   competitiveRoundsEnabled: boolean;
+  showRankScoreHud?: boolean;
   gameStateStore: GameStateStore;
   ui: WorldUiSnapshot;
   uiStore: WorldUiStore;
@@ -115,7 +120,7 @@ export function WorldHud({
 
   return (
     <div className="pointer-events-none absolute inset-0" data-poke-lounge-world-hud="true">
-      {desktop ? (
+      {desktop && showRankScoreHud ? (
         <>
           <RankScoreHud
             copy={copy}

@@ -18,6 +18,8 @@ export function LeagueHome({
   onGrowth,
   onEntry,
   onResume,
+  onRecords,
+  onRefresh,
 }: {
   locale: LeagueLocale;
   status: StatusView;
@@ -28,6 +30,8 @@ export function LeagueHome({
   onGrowth(): void;
   onEntry(): void;
   onResume(): void;
+  onRecords(): void;
+  onRefresh(): void;
 }) {
   const text = getLeagueCopy(locale);
   const [elapsed, setElapsed] = useState(0);
@@ -51,16 +55,22 @@ export function LeagueHome({
             : "closing";
   const target =
     season &&
-    (phase === "scheduled"
+    // Keep the received phase's countdown at zero until the player reloads.
+    (season.phase === "scheduled"
       ? season.startsAtMs
-      : phase === "open"
+      : season.phase === "open"
         ? season.closesAtMs
         : season.settleDeadlineMs);
   const seconds = target ? Math.max(0, Math.ceil((target - now) / 1000)) : 0;
   const activeAttempt = me.attempt?.status === "active";
   const activeRun = me.run?.status === "active";
+  const requiredBadges = status.test?.badgesRequired ?? 8;
   const canEnter =
-    activeRun && me.run?.badges === 8 && phase === "open" && !activeAttempt && !versionMismatch;
+    activeRun &&
+    (me.run?.badges ?? 0) >= requiredBadges &&
+    phase === "open" &&
+    !activeAttempt &&
+    !versionMismatch;
   const phaseLabel =
     phase === "open"
       ? leagueText(locale, "진행 중", "Open", "開催中")
@@ -89,22 +99,42 @@ export function LeagueHome({
             <p>
               {formatKst(season.startsAtMs, locale)} → {formatKst(season.closesAtMs, locale)}
             </p>
-            {phase === "closing" && (
+            {(phase === "open" || phase === "closing") && (
               <p>
+                {phase === "closing" && (
+                  <>{leagueText(locale, "마감됨", "Closed", "入場締切")} — </>
+                )}
                 {leagueText(
                   locale,
-                  "마감됨 — 진행 중 도전 인정 기한",
-                  "Closed — active challenges accepted until",
-                  "入場締切 — 進行中の挑戦の受付期限",
+                  "진행 중 도전 인정 기한",
+                  "active challenges accepted until",
+                  "進行中の挑戦の受付期限",
                 )}{" "}
                 {formatKst(season.settleDeadlineMs, locale)}
               </p>
             )}
             {phase !== "settled" && (
-              <p role="timer">
-                {leagueText(locale, "남은 시간", "Time left", "残り時間")}{" "}
-                {Math.floor(seconds / 3600)}h {Math.floor(seconds / 60) % 60}m {seconds % 60}s
-              </p>
+              <>
+                <p role="timer">
+                  {leagueText(locale, "남은 시간", "Time left", "残り時間")}{" "}
+                  {Math.floor(seconds / 3600)}h {Math.floor(seconds / 60) % 60}m {seconds % 60}s
+                </p>
+                {seconds === 0 && (
+                  <div className="grid gap-2">
+                    <p role="status">
+                      {leagueText(
+                        locale,
+                        `${season.phase === "scheduled" ? "시작" : season.phase === "open" ? "마감" : "정산"} 시각이 지났습니다. 새 상태를 확인하려면 다시 불러오세요`,
+                        `The ${season.phase === "scheduled" ? "start" : season.phase === "open" ? "entry closing" : "settlement"} time has passed. Reload to check the latest status.`,
+                        `${season.phase === "scheduled" ? "開始" : season.phase === "open" ? "締切" : "集計"}時刻を過ぎました。最新の状態を確認するには再読み込みしてください。`,
+                      )}
+                    </p>
+                    <Button variant="outline" onClick={onRefresh}>
+                      {leagueText(locale, "다시 불러오기", "Reload", "再読み込み")}
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -141,15 +171,20 @@ export function LeagueHome({
                 ? text.closed
                 : leagueText(
                     locale,
-                    `배지 8개가 필요합니다(현재 ${me.run?.badges ?? 0})`,
-                    `Eight badges required (currently ${me.run?.badges ?? 0}).`,
-                    `バッジ8個が必要です（現在${me.run?.badges ?? 0}個）。`,
+                    `배지 ${requiredBadges}개가 필요합니다(현재 ${me.run?.badges ?? 0})`,
+                    `${requiredBadges === 8 ? "Eight" : requiredBadges} badges required (currently ${me.run?.badges ?? 0}).`,
+                    `バッジ${requiredBadges}個が必要です（現在${me.run?.badges ?? 0}個）。`,
                   )}
           </p>
         )}
       </section>
       <section className="grid gap-3">
-        <h2 className="text-lg font-bold">{text.standings}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">{text.standings}</h2>
+          <Button variant="outline" onClick={onRecords}>
+            {text.records}
+          </Button>
+        </div>
         <ol className="grid gap-3">
           {standings.entries.slice(0, 5).map(entry => (
             <li

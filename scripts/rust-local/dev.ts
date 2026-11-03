@@ -7,7 +7,8 @@ import { createServer } from "node:net";
 const root = resolve(__dirname, "../..");
 const out = resolve(root, "output/rust-local");
 const envPath = resolve(out, "local.env");
-const league = process.argv.includes("--league");
+const leagueTest = process.argv.includes("--league-test");
+const league = leagueTest || process.argv.includes("--league");
 mkdirSync(out, { recursive: true });
 if (!existsSync(envPath)) {
   writeFileSync(
@@ -43,9 +44,13 @@ function readPort(name: string, fallback: number): number {
 }
 // localhost puts the API on the page's site so the Discord login session cookie is sent.
 // Local test mode only accepts a 127.0.0.1 API, so it is unavailable with localhost.
-const apiHost = process.env.RUST_LOCAL_API_HOST || "127.0.0.1";
+const apiHost = process.env.RUST_LOCAL_API_HOST || (leagueTest ? "localhost" : "127.0.0.1");
 if (apiHost !== "localhost" && apiHost !== "127.0.0.1")
   throw new Error("RUST_LOCAL_API_HOST must be localhost or 127.0.0.1");
+if (leagueTest && apiHost !== "localhost")
+  throw new Error(
+    "리그 테스트 로그인은 localhost 쿠키를 씁니다. RUST_LOCAL_API_HOST=localhost로 실행하세요.",
+  );
 if (process.env.DISCORD_REDIRECT_URI) {
   try {
     if (new URL(process.env.DISCORD_REDIRECT_URI).hostname !== apiHost)
@@ -56,9 +61,13 @@ if (process.env.DISCORD_REDIRECT_URI) {
     console.warn("Invalid DISCORD_REDIRECT_URI; the API will disable Discord login.");
   }
 }
-const project = process.env.RUST_LOCAL_PROJECT || "poke-lounge-rust-local";
+const project =
+  process.env.RUST_LOCAL_PROJECT ||
+  (leagueTest ? "poke-lounge-rust-local-ltest" : "poke-lounge-rust-local");
 if (!/^[a-z0-9][a-z0-9_-]*$/.test(project))
   throw new Error("RUST_LOCAL_PROJECT must be a lowercase docker compose project name");
+if (leagueTest !== project.endsWith("-ltest"))
+  throw new Error("RUST_LOCAL_PROJECT must end in -ltest exactly when --league-test is used");
 const ports = {
   web: readPort("RUST_LOCAL_WEB_PORT", 3300),
   api: readPort("RUST_LOCAL_API_PORT", 3011),
@@ -71,7 +80,7 @@ localSeasonStart.setUTCHours(0, 0, 0, 0);
 localSeasonStart.setUTCDate(
   localSeasonStart.getUTCDate() - ((localSeasonStart.getUTCDay() + 6) % 7),
 );
-const env = {
+const env: NodeJS.ProcessEnv = {
   ...process.env,
   ...config,
   RUST_LOCAL_WEB_PORT: String(ports.web),
@@ -92,6 +101,15 @@ const env = {
       }
     : { LEAGUE_ENABLED: "false" }),
 };
+delete env.NEXT_PUBLIC_LEAGUE_TEST_MODE;
+if (leagueTest) {
+  env.LEAGUE_TEST_MODE = "true";
+  env.LEAGUE_TEST_LOGIN_TOKEN = randomBytes(32).toString("hex");
+} else {
+  for (const key of Object.keys(env)) {
+    if (key.startsWith("LEAGUE_TEST_")) delete env[key];
+  }
+}
 let child: ChildProcess | null = null;
 let stopping = false;
 const compose = ["compose", "-p", project, "--env-file", envPath, "-f", "compose.rust-local.yaml"];
@@ -205,6 +223,17 @@ async function main(): Promise<void> {
   ]);
   console.log(`Rust local game: http://localhost:${ports.web}/ko-KR (compose project ${project})`);
   console.log("Local Rust development uses isolated containers and does not touch production.");
+  if (leagueTest) {
+    const starter = env.LEAGUE_TEST_STARTER_LEVEL?.trim()
+      ? Number(env.LEAGUE_TEST_STARTER_LEVEL)
+      : "-";
+    const badges = Number(env.LEAGUE_TEST_BADGES_REQUIRED?.trim() || "8");
+    const drop = Number(env.LEAGUE_TEST_OPPONENT_LEVEL_DROP?.trim() || "0");
+    const accounts = Number(env.LEAGUE_TEST_ACCOUNTS?.trim() || "4");
+    console.log(
+      `League test mode: +test.s${starter}.b${badges}.d${drop} (accounts ${accounts}) — http://localhost:${ports.web}/ko-KR/league`,
+    );
+  }
   const nextEnvPath = resolve(root, "apps/web/next-env.d.ts");
   const originalNextEnv = readFileSync(nextEnvPath, "utf8");
   try {
@@ -227,6 +256,7 @@ async function main(): Promise<void> {
         NEXT_DIST_DIR: ".next-rust-local",
         NEXT_TYPESCRIPT_CONFIG_PATH: "tsconfig.rust-local.json",
         NEXT_TELEMETRY_DISABLED: "1",
+        ...(leagueTest ? { NEXT_PUBLIC_LEAGUE_TEST_MODE: "1" } : {}),
       },
     );
   } finally {
@@ -248,7 +278,7 @@ async function main(): Promise<void> {
     else console.warn("next-env.d.ts contains external edits; preserved without overwriting.");
   }
   console.log(
-    "Frontend stopped. Local containers/data remain; use pnpm dev:rust:stop to stop them without deleting volumes.",
+    `Frontend stopped. Local containers/data remain; use pnpm dev:rust:stop${leagueTest ? " -- --league-test" : ""} to stop them without deleting volumes.`,
   );
 }
 void main().catch(error => {
