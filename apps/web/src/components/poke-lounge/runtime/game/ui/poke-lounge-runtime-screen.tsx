@@ -111,6 +111,10 @@ function RoomEntryScreen({
       )
     );
   });
+  // A language switch or a create-room link means the player is already past the purpose question.
+  const [friendsChosen, setFriendsChosen] = useState(
+    () => Boolean(languageDraft?.profile) || Boolean(state.openCreateRoom),
+  );
   const [entryStep, setEntryStep] = useState<"profile" | "rooms">(
     state.openCreateRoom && !languageDraft ? "rooms" : "profile",
   );
@@ -400,6 +404,8 @@ function RoomEntryScreen({
             pending={pending}
             message={message}
             showForm={!state.localTestMode?.active}
+            friendsChosen={friendsChosen}
+            onFriendsChosenChange={setFriendsChosen}
             onNameChange={name => {
               setDisplayName(name);
               setMessage("");

@@ -220,3 +220,20 @@
     animation: none;
   }
 }
+
+.choice .cursor::before {
+  content: "";
+}
+
+.choice:hover .cursor::before,
+.choice:focus-visible .cursor::before {
+  content: "▶";
+}
+
+.back.back {
+  justify-self: start;
+  min-height: 40px;
+  padding: 6px 12px 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+}

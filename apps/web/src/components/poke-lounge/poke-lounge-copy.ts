@@ -210,6 +210,13 @@ export interface PokeLoungeCopy {
     guideTitle: string;
     guideGreeting: string;
     guideNameQuestion: string;
+    guidePurposeQuestion: string;
+    purposeLabel: string;
+    purposeFriends: string;
+    purposeLeague: string;
+    guideFriendsReply: string;
+    guideLeagueReply: string;
+    purposeBack: string;
     customName: string;
     multiplayerNameLabel: string;
     multiplayerNameDescription: string;
@@ -507,6 +514,13 @@ const KOREAN_COPY: PokeLoungeCopy = {
     guideTitle: "라운지 안내원",
     guideGreeting: "반가워! 포케 라운지에 온 걸 환영해.",
     guideNameQuestion: "너를 뭐라고 부르면 될까?",
+    guidePurposeQuestion: "오늘은 뭘 하러 왔니?",
+    purposeLabel: "온 목적",
+    purposeFriends: "친구들이랑 같이 놀러 왔어요",
+    purposeLeague: "리그에 도전하러 왔어요",
+    guideFriendsReply: "친구들이랑 왔구나! 같이 신나게 놀아 보자.",
+    guideLeagueReply: "리그 도전자구나! 접수처로 안내해 줄게.",
+    purposeBack: "처음으로",
     customName: "직접 입력",
     multiplayerNameLabel: "트레이너 닉네임",
     multiplayerNameDescription: "같은 월드의 친구에게 표시됩니다. 최대 12자",
@@ -814,6 +828,13 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     guideTitle: "Lounge guide",
     guideGreeting: "Hi there! Welcome to Poke Lounge.",
     guideNameQuestion: "What should I call you?",
+    guidePurposeQuestion: "What brings you here today?",
+    purposeLabel: "Why you came",
+    purposeFriends: "I came to play with friends",
+    purposeLeague: "I came to take on the League",
+    guideFriendsReply: "Here with friends? Let's have some fun!",
+    guideLeagueReply: "A League challenger! Let me show you to the front desk.",
+    purposeBack: "Back",
     customName: "Type my own",
     multiplayerNameLabel: "Trainer nickname",
     multiplayerNameDescription: "Shown to friends in the same world. Up to 12 characters.",
@@ -1123,6 +1144,13 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     guideTitle: "ラウンジ案内人",
     guideGreeting: "ようこそ！ポケラウンジへ。",
     guideNameQuestion: "きみの名前を教えてくれる？",
+    guidePurposeQuestion: "今日は何をしに来たの？",
+    purposeLabel: "来た目的",
+    purposeFriends: "友だちと遊びに来た",
+    purposeLeague: "リーグに挑戦しに来た",
+    guideFriendsReply: "友だちと一緒なんだね！思いきり遊ぼう。",
+    guideLeagueReply: "リーグの挑戦者だね！受付まで案内するよ。",
+    purposeBack: "最初に戻る",
     customName: "自分で入力",
     multiplayerNameLabel: "トレーナーニックネーム",
     multiplayerNameDescription: "同じワールドの友達に表示されます。最大12文字です。",
