@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { useLeagueAvailability } from "@/features/league/entry-link/use-league-availability";
+import { useLeagueAvailability } from "@/features/league/entry-link/league-entry-link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
