@@ -165,6 +165,8 @@ services:
       LEAGUE_SEASON1_STARTER_LEVEL:
       LEAGUE_EXP_MULTIPLIER:
       LEAGUE_STARTER_POOL:
+      LEAGUE_AGENT_LOGIN_TOKEN:
+      LEAGUE_AGENT_ACCOUNTS:
       RUST_LOG: info
       RUST_API_LOG_DIR: /var/log/poke-lounge
       RELEASE_SHA: ${RELEASE_SHA:-local}

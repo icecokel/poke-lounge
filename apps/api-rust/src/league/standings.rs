@@ -23,7 +23,11 @@ impl Standing {
 }
 pub async fn top<C: GenericClient + Sync>(client: &C, season: &Value) -> Result<Vec<Standing>> {
     let id = views::integer(&season["id"])? as i32;
-    let rows = client.query("SELECT user_id,display_name,score,public_party,composition FROM poke_lounge_league_record WHERE season_id=$1 ORDER BY score DESC,accept_seq ASC LIMIT 5", &[&id]).await?;
+    let sql = format!(
+        "SELECT user_id,display_name,score,public_party,composition FROM poke_lounge_league_record WHERE season_id=$1 AND {} ORDER BY score DESC,accept_seq ASC LIMIT 5",
+        super::agent::NOT_AGENT
+    );
+    let rows = client.query(&sql, &[&id]).await?;
     let mut entries = Vec::new();
     for row in rows {
         let name: String = row.try_get("display_name")?;

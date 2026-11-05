@@ -730,7 +730,9 @@ impl League {
                 None => true,
             };
             if recorded {
-                let seq:i64 = tx.query_one("UPDATE poke_lounge_league_season SET accept_seq=accept_seq+1,standings_rev=standings_rev+1 WHERE id=$1 RETURNING accept_seq", &[&season_id]).await?.try_get(0)?;
+                // Agent records never reach the standings, so they must not make entering players retry.
+                let ranked = !super::agent::is_agent(user);
+                let seq:i64 = tx.query_one("UPDATE poke_lounge_league_season SET accept_seq=accept_seq+1,standings_rev=standings_rev+CASE WHEN $2 THEN 1 ELSE 0 END WHERE id=$1 RETURNING accept_seq", &[&season_id,&ranked]).await?.try_get(0)?;
                 let party = views::public_party(&a["composition"])?;
                 tx.execute("INSERT INTO poke_lounge_league_record (season_id,user_id,attempt_id,score,accept_seq,display_name,composition,public_party,recorded_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now()) ON CONFLICT (season_id,user_id) DO UPDATE SET attempt_id=EXCLUDED.attempt_id,score=EXCLUDED.score,accept_seq=EXCLUDED.accept_seq,display_name=EXCLUDED.display_name,composition=EXCLUDED.composition,public_party=EXCLUDED.public_party,recorded_at=EXCLUDED.recorded_at", &[&season_id,&user,&id,&score,&seq,&name,&a["composition"],&party]).await?;
             }
@@ -969,7 +971,11 @@ impl League {
             let npc = entry.meta["npcKey"].as_str();
             tx.execute("INSERT INTO poke_lounge_league_hall_of_fame (season_id,position,kind,user_id,npc_key,display_name,score,public_party) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)", &[&id,&position,&kind,&entry.user,&npc,&name,&entry.score,&entry.public_party]).await?;
         }
-        tx.execute("WITH ranked AS (SELECT user_id,row_number() OVER (ORDER BY score DESC,accept_seq ASC) AS position FROM poke_lounge_league_record WHERE season_id=$1) UPDATE poke_lounge_league_record r SET final_rank=ranked.position FROM ranked WHERE r.season_id=$1 AND r.user_id=ranked.user_id", &[&id]).await?;
+        let ranked = format!(
+            "WITH ranked AS (SELECT user_id,row_number() OVER (ORDER BY score DESC,accept_seq ASC) AS position FROM poke_lounge_league_record WHERE season_id=$1 AND {}) UPDATE poke_lounge_league_record r SET final_rank=ranked.position FROM ranked WHERE r.season_id=$1 AND r.user_id=ranked.user_id",
+            super::agent::NOT_AGENT
+        );
+        tx.execute(&ranked, &[&id]).await?;
         tx.execute("UPDATE poke_lounge_league_run SET status='closed',close_reason='season_end',closed_at=now(),updated_at=now() WHERE season_id=$1 AND status<>'closed'", &[&id]).await?;
         tx.execute(
             "UPDATE poke_lounge_league_season SET settled_at=now() WHERE id=$1",

@@ -35,6 +35,7 @@ pub fn router(league: Arc<League>) -> Router<AppState> {
         .route("/league/v1/attempts/{id}/forfeit", post(forfeit))
         .merge(super::growth::routes())
         .merge(super::test_mode::routes(&league))
+        .merge(super::agent::routes(&league))
         .route_layer(middleware::from_fn_with_state(league.clone(), limit))
         .layer(Extension(league))
 }
