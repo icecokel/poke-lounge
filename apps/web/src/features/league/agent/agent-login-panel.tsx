@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Button } from "@/components/ui/button";
+import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
+import styles from "../shell/league-frame.module.css";
 import type { LeagueLocale } from "../contract";
 import { LeagueApiError, leagueRequest } from "../api/core";
 
@@ -81,32 +82,22 @@ export function LeagueAgentLoginPanel({
   }
 
   return (
-    <form
-      className="grid gap-3 rounded-lg border p-4"
-      aria-label={text.title}
-      onSubmit={event => void submit(event)}
-    >
-      <h2 className="font-bold">{text.title}</h2>
-      <p className="text-muted-foreground text-sm">{text.note}</p>
-      <label className="grid gap-1">
+    <form className={styles.panel} aria-label={text.title} onSubmit={event => void submit(event)}>
+      <h2 className={styles.panelTitle}>{text.title}</h2>
+      <p className={styles.meta}>{text.note}</p>
+      <label className={styles.field}>
         <span>{text.token}</span>
         <input
           type="password"
           autoComplete="off"
-          className="rounded-md border px-3 py-2"
           value={token}
           disabled={busy}
           onChange={event => setToken(event.target.value)}
         />
       </label>
-      <label className="grid gap-1">
+      <label className={styles.field}>
         <span>{text.account}</span>
-        <select
-          className="rounded-md border px-3 py-2"
-          value={account}
-          disabled={busy}
-          onChange={event => setAccount(event.target.value)}
-        >
+        <select value={account} disabled={busy} onChange={event => setAccount(event.target.value)}>
           {Array.from({ length: 8 }, (_, index) => String(index + 1)).map(value => (
             <option key={value} value={value}>
               {value}
@@ -114,11 +105,23 @@ export function LeagueAgentLoginPanel({
           ))}
         </select>
       </label>
-      <Button type="submit" disabled={busy || token.trim().length < 32}>
+      <PixelButton
+        type="submit"
+        className={styles.primary}
+        disabled={busy || token.trim().length < 32}
+      >
         {text.submit}
-      </Button>
-      {busy && <p role="status">{text.loggingIn}</p>}
-      {error && <p role="alert">{error}</p>}
+      </PixelButton>
+      {busy && (
+        <p role="status" className={styles.meta}>
+          {text.loggingIn}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className={styles.message}>
+          {error}
+        </p>
+      )}
     </form>
   );
 }

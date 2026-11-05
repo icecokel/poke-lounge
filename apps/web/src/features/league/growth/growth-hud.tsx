@@ -34,7 +34,7 @@ export function GrowthHud({
   const save = useSyncExternalStore(storage.subscribe, storage.getEnvelope, storage.getEnvelope);
   return (
     <div
-      className="flex flex-wrap items-center gap-3 rounded border border-gray-300 p-3 text-sm"
+      className="flex flex-wrap items-center gap-3 rounded-[var(--pl-panel-radius)] border-[3px] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface-raised)] px-3 py-2 text-sm font-bold shadow-[0_3px_0_rgb(36_49_59_/_72%)]"
       aria-live="polite"
     >
       <span>
@@ -54,7 +54,10 @@ export function GrowthHud({
           {copy.rejected} {save.league.rejectedMints.length} · {copy.mintError}
         </span>
       )}
-      <button className="ml-auto rounded border px-3 py-2" onClick={onExit}>
+      <button
+        className="ml-auto min-h-9 rounded-[4px] border-2 border-[var(--pl-color-ink)] bg-[var(--pl-color-surface-raised)] px-3 font-black shadow-[0_3px_0_var(--pl-color-ink)] hover:bg-[var(--pl-color-gold-soft)] active:translate-y-[2px] active:shadow-[0_1px_0_var(--pl-color-ink)]"
+        onClick={onExit}
+      >
         {copy.home}
       </button>
     </div>

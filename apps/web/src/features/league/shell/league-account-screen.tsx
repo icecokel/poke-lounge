@@ -2,7 +2,9 @@
 
 import { useRef, useState } from "react";
 import { logoutAccount } from "@/components/poke-lounge/runtime/game/network/account-session";
-import { Button } from "@/components/ui/button";
+import { ChevronRight } from "lucide-react";
+import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
+import styles from "./league-frame.module.css";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,8 +53,12 @@ export function LeagueAccountScreen({
 
   return (
     <>
-      <p className="break-words">{displayName}</p>
-      {failed && <p role="alert">{text.logoutFailed}</p>}
+      <p className={styles.panelTitle}>{displayName}</p>
+      {failed && (
+        <p role="alert" className={styles.message}>
+          {text.logoutFailed}
+        </p>
+      )}
       <AlertDialog
         open={confirmOpen}
         onOpenChange={open => {
@@ -60,9 +66,9 @@ export function LeagueAccountScreen({
         }}
       >
         <AlertDialogTrigger asChild>
-          <Button variant="outline" disabled={pending}>
+          <PixelButton className={styles.secondary} disabled={pending}>
             {text.logout}
-          </Button>
+          </PixelButton>
         </AlertDialogTrigger>
         <AlertDialogContent className="max-h-[calc(100dvh-32px)] overflow-auto">
           <AlertDialogHeader>
@@ -84,14 +90,16 @@ export function LeagueAccountScreen({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <Button
+      <PixelButton
+        className={styles.primary}
         disabled={pending}
         onClick={() => {
           if (!inFlight.current) onHome();
         }}
       >
         {text.home}
-      </Button>
+        <ChevronRight size={18} aria-hidden="true" />
+      </PixelButton>
     </>
   );
 }

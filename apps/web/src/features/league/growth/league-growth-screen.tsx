@@ -290,7 +290,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
   }
   if (conflict)
     return (
-      <section className="space-y-4">
+      <section className="space-y-4 px-[14px]">
         <h2>{copy.conflict}</h2>
         <p>{copy.conflictHelp}</p>
         {(
@@ -309,8 +309,8 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         ))}
       </section>
     );
-  if (!nickname) return <NicknameForm copy={copy} onSaved={setNickname} />;
-  if (!status.season) return <p>{copy.noSeason}</p>;
+  if (!nickname) return <NicknameForm copy={copy} locale={runtime.locale} onSaved={setNickname} />;
+  if (!status.season) return <p className="px-[14px]">{copy.noSeason}</p>;
   if (!run)
     return (
       <StarterSelect
@@ -323,7 +323,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
     );
   if (error)
     return (
-      <div role="alert">
+      <div role="alert" className="px-[14px]">
         {error}
         <button
           onClick={() => {
@@ -336,35 +336,48 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
         <button onClick={() => onExit("home")}>{copy.home}</button>
       </div>
     );
-  if (!session) return <p role="status">{copy.loading}</p>;
+  if (!session)
+    return (
+      <p role="status" className="px-[14px]">
+        {copy.loading}
+      </p>
+    );
   if (stage === "field" && session.store.getCurrentLocalPlayer().deferredMoveLearnings?.length)
-    return <BadgeMoveLearning session={session} copy={copy} runtime={runtime} />;
+    return (
+      <div className="px-[14px] pt-[14px]" data-league-wide>
+        <BadgeMoveLearning session={session} copy={copy} runtime={runtime} />
+      </div>
+    );
   if (stage === "badge")
     return (
-      <BadgeFlow
-        session={session}
-        runtime={runtime}
-        JudgedBattle={props.JudgedBattle}
-        copy={copy}
-        onRunClosed={closed}
-        onBack={() => setStage("field")}
-        onDone={message => {
-          if (session.storage.getEnvelope().league.badges === badges) roam?.endAppearance();
-          setNotice(message);
-          setStage("field");
-        }}
-      />
+      <div className="px-[14px] pt-[14px]" data-league-wide>
+        <BadgeFlow
+          session={session}
+          runtime={runtime}
+          JudgedBattle={props.JudgedBattle}
+          copy={copy}
+          onRunClosed={closed}
+          onBack={() => setStage("field")}
+          onDone={message => {
+            if (session.storage.getEnvelope().league.badges === badges) roam?.endAppearance();
+            setNotice(message);
+            setStage("field");
+          }}
+        />
+      </div>
     );
   if (stage === "gym" && gym)
     return (
-      <GymChallengePanel
-        gym={gym}
-        badges={badges}
-        copy={copy}
-        locale={runtime.locale}
-        onChallenge={() => setStage("badge")}
-        onBack={() => setStage("field")}
-      />
+      <div className="px-[14px] pt-[14px]" data-league-wide>
+        <GymChallengePanel
+          gym={gym}
+          badges={badges}
+          copy={copy}
+          locale={runtime.locale}
+          onChallenge={() => setStage("badge")}
+          onBack={() => setStage("field")}
+        />
+      </div>
     );
   if (layout === "mobile")
     return (
@@ -397,7 +410,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
       />
     );
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 px-[14px] pt-[14px]" data-league-wide>
       {notice && <p role="status">{notice}</p>}
       <GrowthHud
         storage={session.storage}

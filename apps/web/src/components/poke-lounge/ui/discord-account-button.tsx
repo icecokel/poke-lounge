@@ -181,7 +181,7 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
           variant="outline"
           disabled={pending}
           onClick={() => setConfirmOpen(true)}
-          className="h-auto min-h-11 w-full whitespace-normal break-words"
+          className="h-auto min-h-12 w-full bg-[var(--pl-color-surface-raised)] whitespace-normal break-words rounded-[4px] border-2 border-[var(--pl-color-ink)] font-black text-[var(--pl-color-ink)] shadow-[0_3px_0_var(--pl-color-ink)] font-[inherit] hover:bg-[var(--pl-color-gold-soft)] active:translate-y-[2px] active:shadow-[0_1px_0_var(--pl-color-ink)]"
         >
           <LogOut size={20} aria-hidden="true" />
           {text.logout(session.user.displayName)}
@@ -193,7 +193,7 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
           variant="outline"
           disabled={pending}
           onClick={handleLogin}
-          className="h-auto min-h-11 w-full whitespace-normal"
+          className="h-auto min-h-12 w-full bg-[var(--pl-color-gold)] whitespace-normal rounded-[4px] border-2 border-[var(--pl-color-ink)] font-black text-[var(--pl-color-ink)] shadow-[0_3px_0_var(--pl-color-ink)] font-[inherit] hover:bg-[var(--pl-color-gold-soft)] active:translate-y-[2px] active:shadow-[0_1px_0_var(--pl-color-ink)]"
         >
           <LogIn size={20} aria-hidden="true" />
           {text.login}

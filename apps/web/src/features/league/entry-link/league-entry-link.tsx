@@ -6,32 +6,37 @@ import { getApiBaseUrl } from "@/lib/constants";
 const CACHE_KEY = "poke-lounge-league:v1:status-probe";
 const CACHE_MS = 10 * 60 * 1000;
 
-export function LeagueEntryLink({
-  locale,
-  disabled = false,
-}: {
-  locale: "ko-KR" | "en-US" | "ja-JP";
-  disabled?: boolean;
-}) {
-  const [enabled, setEnabled] = useState(false);
+function readCache(): boolean | null {
+  try {
+    const cached: unknown = JSON.parse(sessionStorage.getItem(CACHE_KEY) ?? "null");
+    if (
+      cached &&
+      typeof cached === "object" &&
+      "ok" in cached &&
+      typeof cached.ok === "boolean" &&
+      "atMs" in cached &&
+      typeof cached.atMs === "number" &&
+      Date.now() - cached.atMs >= 0 &&
+      Date.now() - cached.atMs < CACHE_MS
+    )
+      return cached.ok;
+  } catch {
+    /* The probe also works without session storage. */
+  }
+  return null;
+}
+
+/**
+ * Whether the league is open on this server. `null` while the anonymous status probe runs
+ * (at most 3 seconds); a failed probe counts as closed so the game entry never waits on it.
+ */
+export function useLeagueAvailability(): boolean | null {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
   useEffect(() => {
-    try {
-      const cached: unknown = JSON.parse(sessionStorage.getItem(CACHE_KEY) ?? "null");
-      if (
-        cached &&
-        typeof cached === "object" &&
-        "ok" in cached &&
-        typeof cached.ok === "boolean" &&
-        "atMs" in cached &&
-        typeof cached.atMs === "number" &&
-        Date.now() - cached.atMs >= 0 &&
-        Date.now() - cached.atMs < CACHE_MS
-      ) {
-        setEnabled(cached.ok);
-        return;
-      }
-    } catch {
-      /* The probe also works without session storage. */
+    const cached = readCache();
+    if (cached !== null) {
+      setEnabled(cached);
+      return;
     }
     let live = true;
     const controller = new AbortController();
@@ -76,16 +81,5 @@ export function LeagueEntryLink({
       window.clearTimeout(timeout);
     };
   }, []);
-  if (!enabled) return null;
-  return (
-    <a
-      href={disabled ? undefined : `/${locale}/league`}
-      role="link"
-      aria-disabled={disabled || undefined}
-      tabIndex={disabled ? -1 : undefined}
-      className="inline-flex min-h-8 items-center rounded border border-[var(--pl-color-ink)] px-2 text-sm font-bold text-[var(--pl-color-ink)] hover:bg-[var(--pl-color-gold-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 aria-disabled:pointer-events-none aria-disabled:opacity-50"
-    >
-      {locale === "ko-KR" ? "리그" : locale === "ja-JP" ? "リーグ" : "League"}
-    </a>
-  );
+  return enabled;
 }

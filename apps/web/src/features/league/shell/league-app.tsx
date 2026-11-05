@@ -34,6 +34,11 @@ import { clearEntryKey } from "../attempt/entry-key";
 import { LeagueHome } from "./league-home";
 import { LeagueDemoToast } from "./league-demo-toast";
 import { LeagueAccountScreen } from "./league-account-screen";
+import { LeagueGuide } from "./league-guide";
+import { getGuideCopy } from "./guide-copy";
+import frame from "./league-frame.module.css";
+import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
+import { ChevronLeft } from "lucide-react";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
 import { RecordsScreen, type RecordsCache } from "../records/records-screen";
 
@@ -50,6 +55,7 @@ type Screen =
   | "error";
 export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const text = getLeagueCopy(locale);
+  const guideText = getGuideCopy(locale);
   const [screen, setScreen] = useState<Screen>("boot");
   const [status, setStatus] = useState<StatusView | null>(null);
   const [me, setMe] = useState<MeView | null>(null);
@@ -191,39 +197,91 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       );
     };
   }, [mismatch, text.version, text.refresh, text.cancel]);
+  // The growth screen widens itself (via :has) only once the field is showing.
+  const wide = screen === "attempt" || screen === "entry" || screen === "records";
+  const guide = (line: string, lead?: string) => (
+    <LeagueGuide locale={locale} lead={lead} line={line} />
+  );
   return (
-    <div className="grid gap-6">
+    <div className={wide ? `${frame.frame} ${frame.wide}` : frame.frame}>
+      <header className={frame.brand}>
+        <h1>
+          POKE LOUNGE <span>{text.title}</span>
+        </h1>
+        <a href={`/${locale}/game/poke-lounge`} className={frame.backLink}>
+          <ChevronLeft size={16} aria-hidden="true" />
+          {text.firstScreen}
+        </a>
+      </header>
       <LeagueTestModeBanner locale={locale} test={status?.test} />
       <LeagueDemoToast locale={locale} />
-      {notice && <p role="status">{notice}</p>}
-      {screen === "boot" && <p role="status">{text.loading}</p>}
-      {screen === "closed" && <p>{text.closed}</p>}
-      {screen === "login" && (
-        <>
-          <DiscordAccountButton locale={locale} />
-          <LeagueTestLoginPanel locale={locale} test={status?.test} onLogin={() => boot()} />
-          <LeagueAgentLoginPanel locale={locale} onLogin={() => void boot()} />
-        </>
-      )}
-      {screen === "account" && me && (
-        <LeagueAccountScreen locale={locale} displayName={me.user.displayName} onHome={home} />
-      )}
-      {screen === "error" && (
-        <>
-          <p role="alert">{leagueErrorMessage(error, locale)}</p>
-          <Button disabled={blocked} onClick={() => void boot()}>
-            {text.retry}
-          </Button>
-          <Button variant="outline" onClick={() => window.location.reload()}>
-            {text.refresh}
-          </Button>
-        </>
-      )}
-      {screen === "home" && status && me && standings && (
-        <>
-          <Button variant="outline" onClick={() => setScreen("account")}>
-            {text.account}
-          </Button>
+      <div className={frame.body}>
+        {screen === "boot" && (
+          <>
+            {guide(guideText.opening)}
+            <p role="status" className={`${frame.content} ${frame.meta}`}>
+              {text.loading}
+            </p>
+          </>
+        )}
+        {screen === "closed" && guide(guideText.closed)}
+        {notice && (
+          <p role="status" className={`${frame.content} ${frame.meta}`}>
+            {notice}
+          </p>
+        )}
+        {screen === "login" && (
+          <>
+            {guide(guideText.register, guideText.welcome)}
+            <div className={frame.content}>
+              <div className={frame.panel}>
+                <p className={frame.meta}>{guideText.discordWhy}</p>
+                <DiscordAccountButton locale={locale} />
+              </div>
+              <LeagueTestLoginPanel locale={locale} test={status?.test} onLogin={() => boot()} />
+              <LeagueAgentLoginPanel locale={locale} onLogin={() => void boot()} />
+            </div>
+          </>
+        )}
+        {screen === "account" && me && (
+          <>
+            {guide(guideText.account)}
+            <div className={frame.content}>
+              <div className={frame.panel}>
+                <LeagueAccountScreen
+                  locale={locale}
+                  displayName={me.user.displayName}
+                  onHome={home}
+                />
+              </div>
+            </div>
+          </>
+        )}
+        {screen === "error" && (
+          <>
+            {guide(guideText.trouble)}
+            <div className={frame.content}>
+              <div className={frame.panel}>
+                <p role="alert" className={frame.message}>
+                  {leagueErrorMessage(error, locale)}
+                </p>
+                <div className={frame.actions}>
+                  <PixelButton
+                    className={frame.primary}
+                    disabled={blocked}
+                    onClick={() => void boot()}
+                  >
+                    {text.retry}
+                  </PixelButton>
+                  <PixelButton className={frame.secondary} onClick={() => window.location.reload()}>
+                    {text.refresh}
+                  </PixelButton>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+        {screen === "home" && status && me && standings && (
           <LeagueHome
             locale={locale}
             status={status}
@@ -236,40 +294,47 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
             onResume={() => void boot()}
             onRecords={() => setScreen("records")}
             onRefresh={() => home()}
+            onAccount={() => setScreen("account")}
           />
-        </>
-      )}
-      {screen === "records" && status && me && standings && (
-        <RecordsScreen
-          locale={locale}
-          status={status}
-          me={me}
-          standings={standings}
-          cache={recordsCache}
-          onHome={home}
-        />
-      )}
-      {screen === "growth" && runtime && status && me && (
-        <LeagueGrowthScreen
-          runtime={runtime}
-          status={status}
-          me={me}
-          JudgedBattle={JudgedBattle}
-          onExit={() => home()}
-        />
-      )}
-      {screen === "entry" && runtime && me?.run && (
-        <EntryScreen
-          runtime={runtime}
-          runId={me.run.id}
-          badgesToConsume={me.run.badges ?? status?.test?.badgesRequired ?? 8}
-          onEntered={entered}
-          onHome={home}
-        />
-      )}
-      {screen === "attempt" && attempt && runtime && (
-        <AttemptFlow key={attempt.id} runtime={runtime} initial={attempt} onHome={home} />
-      )}
+        )}
+        {screen === "records" && status && me && standings && (
+          <div className={frame.content}>
+            <RecordsScreen
+              locale={locale}
+              status={status}
+              me={me}
+              standings={standings}
+              cache={recordsCache}
+              onHome={home}
+            />
+          </div>
+        )}
+        {screen === "growth" && runtime && status && me && (
+          <LeagueGrowthScreen
+            runtime={runtime}
+            status={status}
+            me={me}
+            JudgedBattle={JudgedBattle}
+            onExit={() => home()}
+          />
+        )}
+        {screen === "entry" && runtime && me?.run && (
+          <div className={frame.content}>
+            <EntryScreen
+              runtime={runtime}
+              runId={me.run.id}
+              badgesToConsume={me.run.badges ?? status?.test?.badgesRequired ?? 8}
+              onEntered={entered}
+              onHome={home}
+            />
+          </div>
+        )}
+        {screen === "attempt" && attempt && runtime && (
+          <div className={frame.content}>
+            <AttemptFlow key={attempt.id} runtime={runtime} initial={attempt} onHome={home} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
