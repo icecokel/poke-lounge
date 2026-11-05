@@ -37,7 +37,7 @@ docker stop poke-lounge-prod-league-judge-1
 
 끄기 후 리그 경로의 404와 진입 링크 숨김, 기존 게임 정상 진행을 확인한다. 로컬 확인에서 `poke-lounge-prod`를 사용하지 않는다.
 
-테스트 모드는 운영 배포에 없다. 운영 `/league`에 "테스트 모드" 표시줄이나 테스트 계정 버튼이 보이거나, `docker logs`로 확인한 API·판정 서비스(`poke-lounge-prod-league-judge-1`) 로그에 `league.test_mode_on`·`league.test_mode_mismatch` 또는 `league.judge.failed`의 `code: test-mode-config`가 있으면 `LEAGUE_ENABLED`를 비워 재배포하고 원인을 확인한다. 테스트 스택에서 운영 스택을 건드리지 않는다.
+테스트 모드는 운영 배포에 없다. 운영 테스트 계정([12장](#12-운영-테스트-계정))은 테스트 모드와 별개이며 규칙을 바꾸지 않는다. 운영 `/league`에 "테스트 모드" 표시줄이나 테스트 계정 버튼이 보이거나, `docker logs`로 확인한 API·판정 서비스(`poke-lounge-prod-league-judge-1`) 로그에 `league.test_mode_on`·`league.test_mode_mismatch` 또는 `league.judge.failed`의 `code: test-mode-config`가 있으면 `LEAGUE_ENABLED`를 비워 재배포하고 원인을 확인한다. 테스트 스택에서 운영 스택을 건드리지 않는다.
 
 ## 2. 시즌 일정
 
@@ -374,4 +374,69 @@ WHERE v.run_id = r.id AND r.season_id = s.id AND s.id = :season
 COMMIT;
 SELECT count(*) FROM poke_lounge_league_run_save v JOIN poke_lounge_league_run r ON r.id = v.run_id
 WHERE r.season_id = :season;
+```
+
+## 11. 데모 기록 초기화
+
+데모로 연 리그를 정식 시즌 전에 처음 상태로 되돌린다. 시즌·성장·발급·배지전·도전·경기·기록·명예의 전당을 모두 지우고 시즌 1부터 다시 만든다. 닉네임(`poke_lounge_league_profile`), 다음 시즌 스타터 계획(`poke_lounge_league_season_plan`), 감사 표, 계정·세션은 남긴다. 기존 멀티플레이 표·Redis는 건드리지 않는다.
+
+1. GitHub Variable `LEAGUE_ENABLED`를 비우고 main 배포를 다시 실행한다. [1장 끄기](#1-활성화비활성화)대로 판정 컨테이너도 중지한다. `/league/v1/status`가 404인지 확인한다. 리그가 켜진 채로 지우면 시즌 갱신이 동시에 돌 수 있다.
+2. 운영 DB에서 아래를 실행한다. 지우기 전 건수를 감사 표에 남긴다.
+
+```sql
+\set ON_ERROR_STOP on
+\set operator '담당자'
+\set reason '데모 종료, 정식 시즌 전 초기화'
+SELECT (SELECT count(*) FROM poke_lounge_league_season) AS seasons,
+       (SELECT count(*) FROM poke_lounge_league_run) AS runs,
+       (SELECT count(*) FROM poke_lounge_league_attempt) AS attempts,
+       (SELECT count(*) FROM poke_lounge_league_record) AS records,
+       (SELECT count(*) FROM poke_lounge_league_hall_of_fame) AS hall;
+BEGIN;
+INSERT INTO poke_lounge_league_audit (operator, action, reason, before)
+SELECT :'operator', 'demo_reset', :'reason', jsonb_build_object(
+  'seasons', (SELECT jsonb_agg(to_jsonb(s) - 'npc_seeds' - 'badge_npcs') FROM poke_lounge_league_season s),
+  'runs', (SELECT count(*) FROM poke_lounge_league_run),
+  'attempts', (SELECT count(*) FROM poke_lounge_league_attempt),
+  'records', (SELECT jsonb_agg(jsonb_build_object('season', season_id, 'user', user_id, 'name', display_name, 'score', score)) FROM poke_lounge_league_record),
+  'hall', (SELECT count(*) FROM poke_lounge_league_hall_of_fame));
+TRUNCATE poke_lounge_league_hall_of_fame, poke_lounge_league_record, poke_lounge_league_match,
+  poke_lounge_league_attempt, poke_lounge_league_badge_battle, poke_lounge_league_mon,
+  poke_lounge_league_run_save, poke_lounge_league_run, poke_lounge_league_season;
+COMMIT;
+SELECT count(*) FROM poke_lounge_league_season;
+SELECT season_id, starter_species_ids FROM poke_lounge_league_season_plan ORDER BY season_id;
+```
+
+3. 마지막 조회에서 시즌이 0건인지 확인한다. 남은 스타터 계획이 정식 시즌 2부터 쓸 값인지 확인하고, 아니면 [3장](#3-다음-시즌-스타터-입력)대로 고친다.
+4. `LEAGUE_SEASON1_STARTS_AT`을 정식 시작 시각(월요일 00:00 KST)으로, 필요하면 `LEAGUE_SEASON1_STARTERS`도 바꾼다. `LEAGUE_ENABLED=true`로 되돌리고 main 배포를 다시 실행한다. 리그가 켜지면 서버가 비어 있는 시즌 표에 시즌 1을 새로 만든다.
+5. `/league/v1/status`의 `season.id`가 1이고 시작 시각·스타터가 새 값인지 확인한다. 브라우저로 리그에 들어가 스타터 선택부터 새로 시작되는지 확인한다. 데모 때 브라우저에 남은 리그 세이브는 서버에 없는 진행이므로 이어지지 않는다.
+
+데모 종료 공지 토스트(`apps/web/src/features/league/shell/league-demo-toast.tsx`)는 정식 시즌을 열 때 별도 PR로 제거한다.
+
+## 12. 운영 테스트 계정
+
+에이전트가 운영 리그를 실제 플레이어처럼 확인할 때 쓰는 계정이다. 디스코드 없이 고정 계정 최대 8개(`Agent 1`~`Agent 8`)로 로그인한다. 규칙·스타터·배지 수는 일반 플레이어와 같다. 이 계정의 기록은 본인 화면에는 보이지만 순위·사천왕·챔피언 등록·명예의 전당·최종 순위에 들어가지 않는다. 완주해도 다른 플레이어의 입장을 다시 시도하게 만들지 않는다. 계정 ID는 `a9e70000-0000-4000-8000-0000000000NN`(NN=계정 번호)이다.
+
+켜기:
+
+1. 토큰을 만들어 GitHub Secret `LEAGUE_AGENT_LOGIN_TOKEN`에 넣고, 같은 값을 운영자 PC의 Git 제외 경로에 보관한다. 토큰은 영문·숫자·`_`·`-` 32~128자다.
+
+```sh
+openssl rand -hex 32 | tr -d '\n' | tee output/league-agent-token.secret | gh secret set LEAGUE_AGENT_LOGIN_TOKEN
+```
+
+2. 계정 수를 바꾸려면 Variable `LEAGUE_AGENT_ACCOUNTS`(1~8, 기본 4)를 설정한다. main 배포를 다시 실행한다. API 로그에 `league.agent_login_on`이 남는다. 값이 잘못되면 `league.agent_login_invalid`만 남고 테스트 계정 로그인이 꺼진다. 리그 자체는 계속 동작한다.
+
+사용:
+
+1. `https://poke-lounge.icecoke.kr/ko-KR/league?agent`를 연다. 로그인 전 화면에만 "운영 테스트 계정" 입력란이 보인다. 주소에 `?agent`가 없으면 보이지 않는다.
+2. 토큰 파일 내용을 입력하고 계정 번호를 고른 뒤 로그인한다. 여러 에이전트가 동시에 테스트하면 계정 번호를 겹치지 않게 나눈다. `agent-browser --session <이름>`도 서로 다르게 쓴다.
+3. 토큰이 틀리거나 기능이 꺼져 있으면 서버는 404를 돌려주고 `league.agent_login_rejected`를 남긴다.
+
+끄기: Secret `LEAGUE_AGENT_LOGIN_TOKEN`을 지우고 main 배포를 다시 실행한다. 토큰이 새었으면 새 값으로 바꿔 재배포한다. 기존 테스트 계정 세션을 바로 끊으려면 다음을 실행한다.
+
+```sql
+DELETE FROM poke_lounge_auth_session
+WHERE user_id BETWEEN 'a9e70000-0000-4000-8000-000000000000' AND 'a9e70000-0000-4000-8000-0000000000ff';
 ```

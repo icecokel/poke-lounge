@@ -7,6 +7,7 @@ import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/netwo
 import { sameLeagueEngine } from "../test-mode/engine";
 import { LeagueTestModeBanner } from "../test-mode/banner";
 import { LeagueTestLoginPanel } from "../test-mode/login-panel";
+import { LeagueAgentLoginPanel } from "../agent/agent-login-panel";
 import { LeagueApiError } from "../api/core";
 import {
   getCurrentAttempt,
@@ -201,6 +202,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         <>
           <DiscordAccountButton locale={locale} />
           <LeagueTestLoginPanel locale={locale} test={status?.test} onLogin={() => boot()} />
+          <LeagueAgentLoginPanel locale={locale} onLogin={() => void boot()} />
         </>
       )}
       {screen === "account" && me && (

@@ -1,8 +1,9 @@
-use super::test_mode::TestConfig;
+use super::{agent::AgentConfig, test_mode::TestConfig};
 use std::{env, fs};
 
 pub struct Config {
     pub test: Option<TestConfig>,
+    pub agent: Option<AgentConfig>,
     pub exp_multiplier_permille: i32,
     pub judge_url: reqwest::Url,
     pub token: String,
@@ -91,6 +92,7 @@ impl Config {
                 .and_then(|t| t.starter_level)
                 .unwrap_or(number("LEAGUE_SEASON1_STARTER_LEVEL", 10, 1, 100)? as i16),
             rules_version: number("LEAGUE_RULES_VERSION", 1, 1, 1)? as i16,
+            agent: AgentConfig::from_env(),
             test,
         };
         if let Some(test) = &config.test {

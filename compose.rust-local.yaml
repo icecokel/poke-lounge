@@ -127,6 +127,8 @@ services:
       LEAGUE_TEST_STARTER_LEVEL:
       LEAGUE_TEST_BADGES_REQUIRED:
       LEAGUE_TEST_OPPONENT_LEVEL_DROP:
+      LEAGUE_AGENT_LOGIN_TOKEN:
+      LEAGUE_AGENT_ACCOUNTS:
       RUST_LOG: info
     depends_on:
       postgres: { condition: service_healthy }

@@ -318,6 +318,21 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Respon
     response
 }
 
+pub(crate) fn previous_session_token(headers: &HeaderMap) -> Option<&str> {
+    session_token(headers)
+}
+pub(crate) fn set_session_cookie(state: &AppState, response: &mut Response, session: &str) {
+    set_cookie(
+        response,
+        &cookie(
+            SESSION_COOKIE,
+            session,
+            "/",
+            SESSION_MAX_AGE_S,
+            state.auth.secure_cookie(),
+        ),
+    );
+}
 fn session_token(headers: &HeaderMap) -> Option<&str> {
     read_cookie(headers, SESSION_COOKIE)
         .filter(|token| token.len() == 64 && token.bytes().all(|b| b.is_ascii_hexdigit()))
