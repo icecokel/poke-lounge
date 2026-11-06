@@ -29,8 +29,12 @@ const finite = (value: number, fallback = 0) =>
   Number.isFinite(value) ? Math.max(0, value) : fallback;
 
 export function calculateMobilePlayLayout(input: MobilePlayLayoutInput): MobilePlayLayout {
-  const width = Math.min(MOBILE_APP_MAX_WIDTH, finite(input.width));
   const height = finite(input.height);
+  const availableWidth = finite(input.width);
+  const width =
+    height <= 540 && availableWidth >= 600
+      ? availableWidth
+      : Math.min(MOBILE_APP_MAX_WIDTH, availableWidth);
   const statusHeight = Math.min(height, finite(input.statusHeight, 56));
   const gap = Math.min(8, Math.max(0, (height - statusHeight) / 4));
   const bodyHeight = Math.max(0, height - statusHeight - gap);
@@ -74,7 +78,7 @@ export function calculateMobilePlayLayout(input: MobilePlayLayoutInput): MobileP
     frameWidth: stackedFrameWidth,
     frameHeight,
     controllerWidth: stackWidth,
-    controllerHeight: Math.max(0, stackBodyHeight - frameHeight),
+    controllerHeight: Math.min(preferredController, Math.max(0, stackBodyHeight - frameHeight)),
     statusHeight,
     gap,
   };

@@ -1022,6 +1022,17 @@ function MobileSettingsScreen({
       backLabel={copy.settingsClose}
       onBack={onClose}
       returnFocusSelector={lobby ? "[data-poke-lounge-mobile-menu='true']" : "#game-root"}
+      footer={
+        <button
+          type="button"
+          className="min-h-14 w-full touch-manipulation rounded-lg border-2 border-[#543e38] bg-[linear-gradient(#ac5748_50%,#864033_50%)] px-3 py-2 font-bold text-white shadow-[var(--hg-button)] focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3 disabled:cursor-default disabled:border-[#8d9c98] disabled:bg-[#d8e0d6] disabled:text-[#536164]"
+          onClick={onExit}
+          data-poke-lounge-mobile-game-exit="true"
+          data-room-leave={roomLeaveLabel ? "true" : undefined}
+        >
+          {roomLeaveLabel ?? copy.settingsExit}
+        </button>
+      }
     >
       <div className="grid gap-3 [&>button]:h-auto [&>button]:min-h-14 [&>button]:whitespace-normal [&>button]:text-base">
         <button
@@ -1096,15 +1107,6 @@ function MobileSettingsScreen({
             {hydrationRetryLabel}
           </Button>
         ) : null}
-        <button
-          type="button"
-          className="min-h-14 w-full touch-manipulation rounded-lg border-2 border-[#543e38] bg-[linear-gradient(#ac5748_50%,#864033_50%)] px-3 py-2 font-bold text-white shadow-[var(--hg-button)] focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3 disabled:cursor-default disabled:border-[#8d9c98] disabled:bg-[#d8e0d6] disabled:text-[#536164]"
-          onClick={onExit}
-          data-poke-lounge-mobile-game-exit="true"
-          data-room-leave={roomLeaveLabel ? "true" : undefined}
-        >
-          {roomLeaveLabel ?? copy.settingsExit}
-        </button>
       </div>
     </MobileTaskScreen>
   );
@@ -1278,6 +1280,7 @@ function MobileWorldTask({
             />
           ))}
         </div>
+        {state.screen === "party" ? <p>{text.partyHelp}</p> : null}
         <MobileWorldMessage message={state.message} />
       </>
     );
@@ -1295,6 +1298,7 @@ function MobileWorldTask({
     <MobileTaskScreen
       title={state.title}
       name={`world-${state.screen}`}
+      compact={state.screen === "party"}
       className="[&_button]:min-h-14 [&_button_span]:text-base [&_button_span]:whitespace-normal [&_button_small]:text-sm [&_p]:text-sm [&_p]:whitespace-pre-line [&_li]:bg-[#fffef5] [&_li_b]:text-base [&_li_span]:text-sm"
       backLabel={copy.mobile.back}
       onBack={state.screen === "inventory-move-replace" ? undefined : goBack}
