@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { DiscordAccountButton } from "@/components/poke-lounge/ui/discord-account-button";
 import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
 import { sameLeagueEngine } from "../test-mode/engine";
@@ -38,7 +37,7 @@ import { LeagueGuide } from "./league-guide";
 import { getGuideCopy } from "./guide-copy";
 import frame from "./league-frame.module.css";
 import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
-import { ChevronLeft } from "lucide-react";
+import { RoomMenuHeader } from "@/components/poke-lounge/ui/room-menu-header";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
 import { RecordsScreen, type RecordsCache } from "../records/records-screen";
 
@@ -196,44 +195,44 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
     if (!mismatch) return LeagueJudgedBattle;
     return function VersionBlockedBattle({ onAbort }: LeagueJudgedBattleProps) {
       return (
-        <div className="grid gap-3" role="alert">
+        <div className={frame.panel} role="alert">
           <p>{text.version}</p>
-          <Button onClick={() => window.location.reload()}>{text.refresh}</Button>
-          <Button variant="outline" onClick={onAbort}>
+          <PixelButton className={frame.primary} onClick={() => window.location.reload()}>
+            {text.refresh}
+          </PixelButton>
+          <PixelButton className={frame.secondary} onClick={onAbort}>
             {text.cancel}
-          </Button>
+          </PixelButton>
         </div>
       );
     };
   }, [mismatch, text.version, text.refresh, text.cancel]);
   // The growth screen widens itself (via :has) only once the field is showing.
-  const wide = screen === "attempt" || screen === "entry" || screen === "records";
-  const guide = (line: string, lead?: string) => (
-    <LeagueGuide locale={locale} lead={lead} line={line} />
-  );
+  const wide = screen === "attempt" || screen === "entry";
   return (
     <div className={wide ? `${frame.frame} ${frame.wide}` : frame.frame}>
-      <header className={frame.brand}>
-        <h1>
-          POKE LOUNGE <span>{text.title}</span>
-        </h1>
-        <a href={`/${locale}/game/poke-lounge`} className={frame.backLink}>
-          <ChevronLeft size={16} aria-hidden="true" />
-          {text.firstScreen}
-        </a>
-      </header>
+      <RoomMenuHeader locale={locale} className={frame.header}>
+        <a href={`/${locale}/game/poke-lounge`}>{text.firstScreen}</a>
+      </RoomMenuHeader>
       <LeagueTestModeBanner locale={locale} test={status?.test} />
       <div ref={screenBody} className={frame.body}>
         <LeagueDemoToast locale={locale} />
         {screen === "boot" && (
-          <>
-            {guide(guideText.opening)}
-            <p role="status" className={`${frame.content} ${frame.meta}`}>
-              {text.loading}
-            </p>
-          </>
+          <div className={frame.content}>
+            <section className={`${frame.panel} ${frame.menuPanel}`} role="status">
+              <h2 className={frame.panelTitle}>{text.title}</h2>
+              <p className={frame.meta}>{text.loading}</p>
+            </section>
+          </div>
         )}
-        {screen === "closed" && guide(guideText.closed)}
+        {screen === "closed" && (
+          <div className={frame.content}>
+            <section className={`${frame.panel} ${frame.menuPanel}`}>
+              <h2 className={frame.panelTitle}>{text.title}</h2>
+              <p className={frame.meta}>{guideText.closed}</p>
+            </section>
+          </div>
+        )}
         {notice && (
           <p role="status" className={`${frame.content} ${frame.meta}`}>
             {notice}
@@ -241,7 +240,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         )}
         {screen === "login" && (
           <>
-            {guide(guideText.register, guideText.welcome)}
+            <LeagueGuide locale={locale} lead={guideText.welcome} line={guideText.register} />
             <div className={frame.content}>
               <div className={frame.panel}>
                 <p className={frame.meta}>{guideText.discordWhy}</p>
@@ -254,9 +253,8 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         )}
         {screen === "account" && me && (
           <>
-            {guide(guideText.account)}
             <div className={frame.content}>
-              <div className={frame.panel}>
+              <div className={`${frame.panel} ${frame.menuPanel}`}>
                 <LeagueAccountScreen
                   locale={locale}
                   displayName={me.user.displayName}
@@ -268,9 +266,9 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         )}
         {screen === "error" && (
           <>
-            {guide(guideText.trouble)}
             <div className={frame.content}>
-              <div className={frame.panel}>
+              <div className={`${frame.panel} ${frame.menuPanel}`}>
+                <h2 className={frame.panelTitle}>{guideText.trouble}</h2>
                 <p role="alert" className={frame.message}>
                   {leagueErrorMessage(error, locale)}
                 </p>

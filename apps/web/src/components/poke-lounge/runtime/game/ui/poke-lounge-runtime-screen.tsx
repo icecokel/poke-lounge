@@ -1,7 +1,8 @@
 import styles from "./room-entry-layout.module.css";
 import { FanNoticeToast, TrainerNameEntry } from "./trainer-name-entry";
 import { PixelButton } from "../../../ui/poke-lounge-ui-primitives";
-import { PageReloadButton } from "../../../ui/page-reload-button";
+import { RoomMenuHeader } from "../../../ui/room-menu-header";
+import menu from "../../../ui/room-menu.module.css";
 import { RoomLobbyScreen } from "./room-lobby-view";
 import { RoomCodeCopyButton } from "./room-code-copy-button";
 import { DirectMultiplayerEntryScreen } from "./room-invitation-screen";
@@ -393,7 +394,7 @@ function RoomEntryScreen({
         className={
           entryStep === "profile"
             ? "grid w-full max-w-[480px] gap-4 [@media(orientation:landscape)_and_(max-height:500px)]:max-w-[820px]"
-            : "grid w-full max-w-[820px] gap-4 overflow-auto rounded-xl border-[3px] border-[#17231c] bg-[#f8fbf0] p-4 shadow-[0_8px_0_#17231c] [&_button]:min-h-11 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:bg-[#fffdf0] [&_button]:px-3 [&_button]:font-black [&_button]:text-[#17201a] [&_button]:shadow-[0_3px_0_#17231c] [&_button:active]:translate-y-0.5 [&_button:active]:shadow-[0_1px_0_#17231c] [&_button:disabled]:cursor-default [&_button:disabled]:opacity-55 [&_input]:min-h-10 [&_input]:w-full [&_input]:rounded-md [&_input]:border-2 [&_input]:border-[#17231c] [&_input]:bg-[#fffef3] [&_input]:px-3 [&_input]:text-[#17201a] [&_input]:outline-none [&_input:focus-visible]:ring-2 [&_input:focus-visible]:ring-[#2f6b78]"
+            : `${menu.frame} grid w-full max-w-[820px] gap-4 overflow-auto p-4 [&_button]:min-h-11 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:bg-[#fffdf0] [&_button]:px-3 [&_button]:font-black [&_button]:text-[#17201a] [&_button]:shadow-[0_3px_0_#17231c] [&_button:active]:translate-y-0.5 [&_button:active]:shadow-[0_1px_0_#17231c] [&_button:disabled]:cursor-default [&_button:disabled]:opacity-55 [&_input]:min-h-10 [&_input]:w-full [&_input]:rounded-md [&_input]:border-2 [&_input]:border-[#17231c] [&_input]:bg-[#fffef3] [&_input]:px-3 [&_input]:text-[#17201a] [&_input]:outline-none [&_input:focus-visible]:ring-2 [&_input:focus-visible]:ring-[#2f6b78]`
         }
       >
         {entryStep === "profile" ? (
@@ -415,26 +416,11 @@ function RoomEntryScreen({
             onSubmit={handleContinueToRoomSelection}
           />
         ) : (
-          <header className="grid gap-3 border-b-2 border-[#8a958b] pb-4">
-            <div className="flex items-center gap-3 text-xs font-black tracking-[0.14em] text-[#b88b20]">
-              <span
-                className="relative size-8 rounded-full border-[3px] border-[#fffdf0] bg-[linear-gradient(to_bottom,#f4cf58_0_44%,#24313b_44%_56%,#fffdf0_56%_100%)] shadow-[0_2px_0_rgb(0_0_0_/_24%)] after:absolute after:top-1/2 after:left-1/2 after:size-2.5 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:border-2 after:border-[#fffdf0] after:bg-[#24313b] after:content-['']"
-                aria-hidden="true"
-              />
-              <span>POKE LOUNGE</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="min-w-0 flex-1"
-                disabled={pending}
-                onClick={handleBackToProfile}
-              >
-                {copy.roomEntry.roomSetupBack}
-              </button>
-              <PageReloadButton locale={copy.locale} disabled={pending} iconOnly />
-            </div>
-          </header>
+          <RoomMenuHeader locale={copy.locale} disabled={pending}>
+            <button type="button" disabled={pending} onClick={handleBackToProfile}>
+              {copy.roomEntry.roomSetupBack}
+            </button>
+          </RoomMenuHeader>
         )}
 
         {entryStep === "profile" && state.localTestMode ? (
@@ -543,7 +529,7 @@ function RoomEntryScreen({
                 id="poke-lounge-room-create-panel"
                 role="tabpanel"
                 aria-labelledby="poke-lounge-room-create-tab"
-                className="grid gap-3 rounded-lg border-2 border-[#7d6741] bg-[#fff8dc] p-3 shadow-[0_4px_0_#7d6741]"
+                className={`${menu.panel} grid gap-3 p-3`}
                 onSubmit={handleCreateRoom}
                 data-room-entry-create-panel
               >

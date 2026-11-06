@@ -1,4 +1,4 @@
-import { PixelPanel } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
+import menu from "@/components/poke-lounge/ui/room-menu.module.css";
 import type { StandingEntry } from "../api/league";
 import type { LeagueLocale } from "../contract";
 import { PokemonIcon, speciesName, moveName } from "../battle/lead-picker";
@@ -19,7 +19,7 @@ export function PartyCard({
 }) {
   const text = getLeagueCopy(locale);
   return (
-    <PixelPanel className="grid min-w-0 gap-3 p-4">
+    <section className={`${menu.panel} grid min-w-0 gap-3 p-3`}>
       <h3 className="flex flex-wrap items-center gap-2 font-bold [overflow-wrap:anywhere]">
         <span>
           {entry.position}. {entry.displayName}
@@ -54,6 +54,6 @@ export function PartyCard({
           </li>
         ))}
       </ul>
-    </PixelPanel>
+    </section>
   );
 }

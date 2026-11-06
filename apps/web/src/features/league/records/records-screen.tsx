@@ -182,12 +182,12 @@ export function RecordsScreen({
   return (
     <div className={styles.records}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-bold">{text.records}</h2>
+        <h2 className={styles.panelTitle}>{text.records}</h2>
         <PixelButton className={styles.small} onClick={() => onHome()}>
           {text.home}
         </PixelButton>
       </div>
-      <div role="tablist" aria-label={text.records} className="flex flex-wrap gap-2">
+      <div role="tablist" aria-label={text.records} className={styles.tabs}>
         {tabs.map((value, index) => (
           <PixelButton
             key={value}
@@ -223,7 +223,7 @@ export function RecordsScreen({
         id={`${id}-${tab}-panel`}
         aria-labelledby={`${id}-${tab}-tab`}
         tabIndex={0}
-        className={styles.recordsPanel}
+        className={`${styles.panel} ${styles.recordsPanel}`}
       >
         {tab === "standings" ? (
           !validEntries(standings.entries) ? (

@@ -1,20 +1,17 @@
 "use client";
 import { useRef, useState } from "react";
 import { getRuntimePokemonSpeciesSummary } from "@poke-lounge/battle/adventure/data/game-data-json";
-import { localizePokemonName } from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
 import type { LeagueLocale, SeasonView } from "../contract";
 import { startLeagueGrowth, type GrowthStart } from "../api/growth";
 import { LeagueApiError } from "../api/core";
-import { Check, ChevronRight } from "lucide-react";
-import { getBattlePokemonAssets } from "@/components/poke-lounge/runtime/game/battle/battle-pokemon-assets";
-import { Button } from "@/components/ui/button";
-import { MobilePokemonThumbnail } from "@/components/poke-lounge/mobile/mobile-selection-cards";
+import { getGen4TypeName } from "@poke-lounge/battle/adventure/battle/battle-rom-data";
+import { localizeTypeName } from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
+import { getPokeLoungeCopy } from "@/components/poke-lounge/poke-lounge-copy";
+import type { StarterPokemon } from "@/components/poke-lounge/runtime/types";
+import { StarterSelectionPanel } from "@/components/poke-lounge/runtime/game/ui/starter-selection-panel";
 import starterStyles from "@/components/poke-lounge/runtime/game/ui/starter-selection-layout.module.css";
-import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
-import { LeagueGuide } from "../shell/league-guide";
-import { getGuideCopy } from "../shell/guide-copy";
-import styles from "../shell/league-frame.module.css";
 import type { GrowthCopy } from "./copy";
+import { getLeagueCopy } from "../shell/copy";
 export function StarterSelect({
   season,
   locale,
@@ -32,73 +29,54 @@ export function StarterSelect({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const request = useRef<{ species: number; key: string } | null>(null);
-  const guide = getGuideCopy(locale);
+  const starters: StarterPokemon[] = season.starterSpeciesIds.map(speciesId => {
+    const species = getRuntimePokemonSpeciesSummary(speciesId);
+    const name = species?.name ?? `#${speciesId}`;
+    return {
+      id: String(speciesId),
+      speciesId,
+      name,
+      displayName: name,
+      type: localizeTypeName(getGen4TypeName(species?.typeIds[0] ?? 0), "en-US"),
+      assetPath: `/assets/pokemon/front/${speciesId}.png`,
+    };
+  });
   return (
-    <>
-      <LeagueGuide locale={locale} lead={guide.starterLead} line={guide.starterLine} />
-      <div className={styles.content}>
-        <div className={styles.starters} role="group" aria-label={copy.starter}>
-          {season.starterSpeciesIds.map(id => {
-            const sprite = getBattlePokemonAssets(id).front;
-            return (
-              <Button
-                key={id}
-                type="button"
-                className={`group ${starterStyles.card}`}
-                aria-pressed={selected === id}
-                disabled={pending}
-                onClick={() => setSelected(id)}
-              >
-                <span
-                  className="invisible absolute top-[3px] right-[3px] grid size-[17px] place-items-center rounded-full bg-[#315d4b] text-[#fffdf0] group-aria-pressed:visible"
-                  aria-hidden="true"
-                >
-                  <Check size={12} strokeWidth={3} />
-                </span>
-                <span aria-hidden="true">
-                  <MobilePokemonThumbnail sprite={sprite} />
-                </span>
-                <strong className="text-sm leading-[1.35]">
-                  {localizePokemonName(
-                    getRuntimePokemonSpeciesSummary(id)?.name ?? `#${id}`,
-                    locale,
-                  )}
-                </strong>
-                <small className="rounded border border-[#58614e] px-1.5 py-0.5 text-[11px] leading-[1.3]">
-                  Lv.{season.starterLevel}
-                </small>
-              </Button>
-            );
-          })}
-        </div>
-        {error && (
-          <p role="alert" className={styles.message}>
-            {error}
-          </p>
-        )}
-        <PixelButton
-          className={styles.primary}
-          disabled={pending || season.phase !== "open"}
-          onClick={async () => {
-            if (request.current?.species !== selected)
-              request.current = { species: selected, key: crypto.randomUUID() };
-            setPending(true);
-            setError("");
-            try {
-              onStarted(await startLeagueGrowth(selected, request.current.key));
-            } catch (error) {
-              if (error instanceof LeagueApiError && error.code === "LEAGUE_RUN_EXISTS")
-                onRunChanged();
-              else setError(copy.error);
-            } finally {
-              setPending(false);
-            }
-          }}
-        >
-          {pending ? copy.loading : copy.start}
-          <ChevronRight size={18} aria-hidden="true" />
-        </PixelButton>
-      </div>
-    </>
+    <section className={starterStyles.leagueScreen} data-screen="league-starter-selection">
+      <StarterSelectionPanel
+        copy={getPokeLoungeCopy(locale)}
+        starters={starters}
+        selected={starters.find(starter => starter.speciesId === selected) ?? null}
+        headerAction={
+          <a
+            href={`/${locale}/game/poke-lounge`}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-md border-2 border-[#d8e6bf] px-2 text-xs font-black text-[#fffdf0] focus-visible:outline-3 focus-visible:outline-offset-2"
+          >
+            {getLeagueCopy(locale).firstScreen}
+          </a>
+        }
+        level={season.starterLevel}
+        confirming={pending}
+        disabled={season.phase !== "open"}
+        error={error}
+        confirmLabel={copy.start}
+        onChoose={starter => setSelected(starter.speciesId)}
+        onConfirm={async () => {
+          if (request.current?.species !== selected)
+            request.current = { species: selected, key: crypto.randomUUID() };
+          setPending(true);
+          setError("");
+          try {
+            onStarted(await startLeagueGrowth(selected, request.current.key));
+          } catch (error) {
+            if (error instanceof LeagueApiError && error.code === "LEAGUE_RUN_EXISTS")
+              onRunChanged();
+            else setError(copy.error);
+          } finally {
+            setPending(false);
+          }
+        }}
+      />
+    </section>
   );
 }

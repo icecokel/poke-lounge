@@ -89,26 +89,32 @@ export function LeagueAgentLoginPanel({
     >
       <h2 className={styles.panelTitle}>{text.title}</h2>
       <p className={styles.meta}>{text.note}</p>
-      <label className={styles.field}>
-        <span>{text.token}</span>
-        <input
-          type="password"
-          autoComplete="off"
-          value={token}
-          disabled={busy}
-          onChange={event => setToken(event.target.value)}
-        />
-      </label>
-      <label className={styles.field}>
-        <span>{text.account}</span>
-        <select value={account} disabled={busy} onChange={event => setAccount(event.target.value)}>
-          {Array.from({ length: 8 }, (_, index) => String(index + 1)).map(value => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className={styles.agentFields}>
+        <label className={styles.field}>
+          <span>{text.token}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={token}
+            disabled={busy}
+            onChange={event => setToken(event.target.value)}
+          />
+        </label>
+        <label className={styles.field}>
+          <span>{text.account}</span>
+          <select
+            value={account}
+            disabled={busy}
+            onChange={event => setAccount(event.target.value)}
+          >
+            {Array.from({ length: 8 }, (_, index) => String(index + 1)).map(value => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <PixelButton
         type="submit"
         className={styles.primary}

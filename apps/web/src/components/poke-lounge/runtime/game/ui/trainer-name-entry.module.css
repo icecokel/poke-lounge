@@ -331,7 +331,19 @@
   }
 }
 
+.dialogButtons button {
+  min-height: 44px;
+  height: auto;
+  border: 2px solid var(--pl-color-ink);
+  border-radius: 4px;
+  background: var(--pl-color-surface-raised);
+  color: var(--pl-color-ink);
+  font-weight: 900;
+  box-shadow: 0 3px 0 var(--pl-color-ink);
+}
+
 .dialog {
+  composes: dialogButtons;
   position: fixed !important;
   top: auto !important;
   right: auto !important;
@@ -357,19 +369,18 @@
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
-.dialog button {
-  min-height: 44px;
-  height: auto;
-  border: 2px solid var(--pl-color-ink);
-  border-radius: 4px;
-  background: var(--pl-color-surface-raised);
-  color: var(--pl-color-ink);
-  font-weight: 900;
-  box-shadow: 0 3px 0 var(--pl-color-ink);
-}
 .dialog button:last-child {
   background: var(--pl-color-gold);
 }
 .dialog p {
   color: var(--pl-color-ink-muted);
+}
+
+.dialogButtons button.danger {
+  background: var(--pl-color-danger);
+  color: var(--pl-color-surface-raised);
+}
+
+.dialogButtons button.danger:hover {
+  background: #a83d35;
 }

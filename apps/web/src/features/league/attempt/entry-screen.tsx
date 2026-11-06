@@ -125,8 +125,8 @@ export function EntryScreen({
     }
   }
   return (
-    <div className="grid gap-4">
-      <h2 className="text-xl font-bold">{text.enter}</h2>
+    <div className={styles.panel}>
+      <h2 className={styles.panelTitle}>{text.enter}</h2>
       {reason && <p role="alert">{reason}</p>}
       {claim.ok && (
         <ul className="grid gap-3 sm:grid-cols-2">
@@ -159,9 +159,9 @@ export function EntryScreen({
         )}
       </p>
       {error != null && <p role="alert">{leagueErrorMessage(error, locale, pending)}</p>}
-      <div className="flex flex-wrap gap-3">
+      <div className={styles.actions}>
         <PixelButton
-          className={styles.secondary}
+          className={styles.primary}
           disabled={!claim.ok || pending || blocked}
           onClick={() => setConfirm(true)}
         >
@@ -193,6 +193,8 @@ export function EntryScreen({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pending}>{text.cancel}</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
+              className={styles.danger}
               disabled={pending || blocked}
               onClick={event => {
                 event.preventDefault();
