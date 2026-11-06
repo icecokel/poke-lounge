@@ -1,5 +1,6 @@
 "use client";
 
+import styles from "./starter-selection-layout.module.css";
 import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronRight } from "lucide-react";
@@ -95,7 +96,7 @@ export function StarterSelectionScreen({
       aria-labelledby={`${id}-title`}
     >
       <div
-        className="grid h-full min-h-0 min-w-0 w-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto_auto] overflow-hidden rounded-lg border-[3px] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] shadow-[0_4px_0_#17251c]"
+        className={`${styles.panel} grid h-full min-h-0 min-w-0 w-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto_auto] overflow-hidden rounded-lg border-[3px] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] shadow-[0_4px_0_#17251c]`}
         data-starter-panel="true"
       >
         <header className="flex items-center justify-between gap-3 border-b-[3px] border-[var(--pl-color-ink)] bg-[var(--pl-color-johto-deep)] px-3 py-2.5 text-[#fffdf0]">
@@ -128,7 +129,7 @@ export function StarterSelectionScreen({
           </div>
           <div
             ref={gridRef}
-            className="grid min-h-0 min-w-0 flex-1 grid-cols-3 auto-rows-[minmax(112px,1fr)] content-start gap-2 overflow-y-auto overscroll-contain p-1 [scroll-padding:4px]"
+            className={`${styles.options} grid min-h-0 min-w-0 flex-1 grid-cols-3 gap-2 overflow-y-auto overscroll-contain p-1 [scroll-padding:4px]`}
             data-starter-options="true"
             role="group"
             aria-label={copy.game.starterOptionsLabel}
@@ -137,7 +138,7 @@ export function StarterSelectionScreen({
               <Button
                 key={starter.id}
                 type="button"
-                className="group relative flex h-auto min-h-28 min-w-0 touch-manipulation flex-col items-center justify-center gap-1 whitespace-normal rounded-md border-2 border-[#72846a] bg-[#fffdf0] px-1 py-2 text-[#24313b] shadow-[0_3px_0_#adba9f] hover:border-[#315d4b] hover:bg-[#fff1c4] aria-pressed:border-[#315d4b] aria-pressed:bg-[#fff1a8] aria-pressed:shadow-[inset_0_0_0_2px_#f4cf58,0_3px_0_#315d4b] focus-visible:border-[#315d4b] focus-visible:ring-0 focus-visible:outline-3 focus-visible:outline-[#2f6b78] focus-visible:outline-offset-2 disabled:cursor-default"
+                className={`group ${styles.card}`}
                 aria-pressed={starter.id === selected?.id}
                 aria-label={
                   starter.hidden

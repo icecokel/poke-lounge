@@ -430,21 +430,24 @@ export function WorldNoticeLayer({
 
   return (
     <div className="pointer-events-none absolute inset-0" aria-live="polite">
-      {ui.areaAnnouncement ? (
-        <div className="absolute top-[78px] left-1/2 -translate-x-1/2 rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black whitespace-pre-line text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">
-          {ui.areaAnnouncement}
-        </div>
-      ) : null}
-      {ui.nurseMessage ? (
-        <div className="absolute bottom-[74px] left-1/2 -translate-x-1/2 rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black whitespace-pre-line text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">
-          {ui.nurseMessage}
-        </div>
-      ) : null}
-      {ui.interactionPrompt ? (
-        <div className="absolute bottom-11 left-1/2 -translate-x-1/2 text-center text-xs leading-[1.25] font-black whitespace-pre-line text-[#fff9dd] [text-shadow:-2px_-2px_#263238,2px_-2px_#263238,-2px_2px_#263238,2px_2px_#263238]">
-          {ui.interactionPrompt}
-        </div>
-      ) : null}
+      {/* Keep concurrent notices in one bounded flow, including the interaction hint. */}
+      <div className="pointer-events-auto absolute top-2 left-1/2 flex max-h-[calc(100%-16px)] w-[calc(100%-16px)] max-w-sm -translate-x-1/2 flex-col items-center gap-2 overflow-y-auto overscroll-contain break-keep [overflow-wrap:anywhere] [&>div]:shrink-0">
+        {ui.areaAnnouncement ? (
+          <div className="justify-self-center rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black whitespace-pre-line text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">
+            {ui.areaAnnouncement}
+          </div>
+        ) : null}
+        {ui.nurseMessage ? (
+          <div className="justify-self-center rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black whitespace-pre-line text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">
+            {ui.nurseMessage}
+          </div>
+        ) : null}
+        {ui.interactionPrompt ? (
+          <div className="w-full text-center text-xs leading-[1.25] font-black whitespace-pre-line text-[#fff9dd] [text-shadow:-2px_-2px_#263238,2px_-2px_#263238,-2px_2px_#263238,2px_2px_#263238]">
+            {ui.interactionPrompt}
+          </div>
+        ) : null}
+      </div>
       {ui.nurseHealing.active ? <NurseHealingEffect key={ui.nurseHealing.effectCount} /> : null}
       {ui.tournamentAnnouncement && tournamentProjection ? (
         <TournamentBracketPanel

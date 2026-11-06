@@ -36,6 +36,8 @@ const COPY = {
     summary: "현재 게임",
     chooseAgain: "다시 선택",
     details: "상세",
+    partyHelp:
+      "파티 카드는 선두 포켓몬을 바꾸는 메뉴입니다. 선두는 이미 선택되어 있습니다. 별도의 상세 화면은 제공하지 않습니다.",
   },
   "en-US": {
     selected: "Selected",
@@ -72,6 +74,8 @@ const COPY = {
     summary: "Current game",
     chooseAgain: "Choose again",
     details: "Details",
+    partyHelp:
+      "Choose a party card to change the lead Pokémon. The lead is already selected. A separate details screen is not available.",
   },
   "ja-JP": {
     selected: "選択中",
@@ -108,6 +112,8 @@ const COPY = {
     summary: "現在のゲーム",
     chooseAgain: "選び直す",
     details: "詳細",
+    partyHelp:
+      "手持ちのカードで先頭のポケモンを変更します。先頭は選択済みです。個別の詳細画面はありません。",
   },
 };
 export function getMobileUiCopy(locale: string) {

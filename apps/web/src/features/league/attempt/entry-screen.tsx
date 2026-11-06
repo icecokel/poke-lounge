@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
+import styles from "../shell/league-frame.module.css";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -130,7 +131,10 @@ export function EntryScreen({
       {claim.ok && (
         <ul className="grid gap-3 sm:grid-cols-2">
           {claim.preview.map(mon => (
-            <li className="flex items-center gap-3 rounded-lg border p-3" key={mon.slotIndex}>
+            <li
+              className="flex items-center gap-3 rounded-[var(--pl-panel-radius)] border-[3px] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface-raised)] p-3 shadow-[var(--pl-panel-shadow)]"
+              key={mon.slotIndex}
+            >
               <PokemonIcon speciesId={mon.speciesId} />
               <div>
                 <strong>{speciesName(mon.speciesId, locale)}</strong>
@@ -156,12 +160,16 @@ export function EntryScreen({
       </p>
       {error != null && <p role="alert">{leagueErrorMessage(error, locale, pending)}</p>}
       <div className="flex flex-wrap gap-3">
-        <Button disabled={!claim.ok || pending || blocked} onClick={() => setConfirm(true)}>
+        <PixelButton
+          className={styles.secondary}
+          disabled={!claim.ok || pending || blocked}
+          onClick={() => setConfirm(true)}
+        >
           {pending ? text.loading : text.enter}
-        </Button>
-        <Button variant="outline" disabled={pending} onClick={() => onHome()}>
+        </PixelButton>
+        <PixelButton className={styles.secondary} disabled={pending} onClick={() => onHome()}>
           {text.home}
-        </Button>
+        </PixelButton>
       </div>
       <AlertDialog
         open={confirm}
@@ -169,7 +177,7 @@ export function EntryScreen({
           if (!pending) setConfirm(open);
         }}
       >
-        <AlertDialogContent className="max-h-[calc(100dvh-32px)] overflow-auto">
+        <AlertDialogContent className={styles.dialog}>
           <AlertDialogHeader>
             <AlertDialogTitle>{text.enter}</AlertDialogTitle>
             <AlertDialogDescription>

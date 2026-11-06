@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PixelButton, PixelPanel } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
+import styles from "./league-frame.module.css";
 import type { LeagueLocale } from "../contract";
 import { getLeagueCopy } from "./copy";
 
@@ -16,20 +18,16 @@ export function LeagueDemoToast({ locale }: { locale: LeagueLocale }) {
   }, []);
   if (!visible) return null;
   return (
-    <div
-      role="status"
-      data-league-demo-toast="true"
-      className="fixed top-3 left-1/2 z-[60] flex w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 items-start gap-3 rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-sm leading-[1.4] font-bold text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1,0_4px_0_#17251c]"
-    >
+    <PixelPanel role="status" data-league-demo-toast="true" className={styles.demoToast}>
       <p className="min-w-0 flex-1">{text.demo}</p>
-      <button
+      <PixelButton
         type="button"
-        className="shrink-0 rounded px-1 text-base leading-none font-black hover:bg-[#e6eedb] focus-visible:outline-2 focus-visible:outline-[#2f6b78]"
+        className={styles.demoClose}
         aria-label={text.demoClose}
         onClick={() => setVisible(false)}
       >
         ×
-      </button>
-    </div>
+      </PixelButton>
+    </PixelPanel>
   );
 }

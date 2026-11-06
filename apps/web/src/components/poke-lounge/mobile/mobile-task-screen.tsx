@@ -40,6 +40,7 @@ export interface MobileTaskScreenProps {
   backLabel: string;
   returnFocusSelector?: string;
   className?: string;
+  compact?: boolean;
 }
 
 export function MobileTaskScreen({
@@ -52,6 +53,7 @@ export function MobileTaskScreen({
   backLabel,
   returnFocusSelector,
   className = "",
+  compact = false,
 }: MobileTaskScreenProps) {
   const [target, setTarget] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
@@ -138,6 +140,8 @@ export function MobileTaskScreen({
       ref={ref}
       className={cn(
         "absolute z-[100] flex min-h-0 min-w-0 flex-col overflow-hidden isolate rounded-[10px] border-[3px] border-[var(--hg-ink)] bg-[#edf3e5] [background-image:var(--hg-stripes)] text-base leading-[1.45] text-[var(--hg-ink)] shadow-[var(--hg-frame)] [inset:var(--poke-lounge-mobile-letterbox-top,0px)_env(safe-area-inset-right,0px)_var(--poke-lounge-mobile-letterbox-bottom,0px)_env(safe-area-inset-left,0px)]",
+        "break-keep [overflow-wrap:anywhere]",
+        compact && "!top-1/2 !bottom-auto max-h-[calc(100%-32px)] -translate-y-1/2",
         taskTone,
         className,
       )}
@@ -178,6 +182,9 @@ export function MobileTaskScreen({
       <div
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-[max(16px,env(safe-area-inset-left))] py-3 [scroll-padding-block:12px] [&>*+*]:mt-3"
         data-poke-lounge-task-body="true"
+        tabIndex={0}
+        role="region"
+        aria-labelledby={titleId}
       >
         {children}
       </div>

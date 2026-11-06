@@ -70,7 +70,7 @@ export function LeagueAccountScreen({
             {text.logout}
           </PixelButton>
         </AlertDialogTrigger>
-        <AlertDialogContent className="max-h-[calc(100dvh-32px)] overflow-auto">
+        <AlertDialogContent className={styles.dialog}>
           <AlertDialogHeader>
             <AlertDialogTitle>{text.logoutTitle}</AlertDialogTitle>
             <AlertDialogDescription>{text.logoutDescription}</AlertDialogDescription>

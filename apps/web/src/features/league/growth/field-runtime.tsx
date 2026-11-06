@@ -21,12 +21,7 @@ import {
 } from "@/components/poke-lounge/runtime/game/world/world-map-model";
 import { createWorldRuntime } from "@/components/poke-lounge/runtime/game/world/world-runtime";
 import { worldPlayerCollides } from "@/components/poke-lounge/runtime/game/world/world-runtime-motion";
-import {
-  pressVirtualGamepadButton,
-  releaseVirtualGamepadButton,
-  resetVirtualGamepad,
-  type VirtualGamepadButton,
-} from "@/components/poke-lounge/runtime/game/input/virtual-gamepad";
+import { resetVirtualGamepad } from "@/components/poke-lounge/runtime/game/input/virtual-gamepad";
 import type { GameStateStore } from "@/features/poke-lounge/contracts/game-state";
 import { leagueWildExperiencePolicy } from "@poke-lounge/battle/league/growth/experience";
 import type { LeagueRuntime } from "../contract";
@@ -36,7 +31,6 @@ import type { GymRoam } from "./gym-roam";
 import { GymRoamToast } from "./gym-roam-toast";
 import { MOBILE_GAME_VIEWPORT_SIZE } from "@/components/poke-lounge/runtime/game/game-viewport";
 import { createLeagueWorldUiView, LEAGUE_NURSE_MESSAGE_MS } from "./world-ui-view";
-import type { LeagueFieldLayout } from "./field-layout";
 import {
   LeagueMobileFieldShell,
   MOBILE_FRAME,
@@ -45,7 +39,6 @@ import {
 } from "./mobile-field-shell";
 export function LeagueFieldRuntime({
   runtime,
-  layout,
   status,
   store,
   battleStore,
@@ -57,7 +50,6 @@ export function LeagueFieldRuntime({
   onExit,
 }: {
   runtime: LeagueRuntime;
-  layout: LeagueFieldLayout;
   status?: ReactNode;
   store: GameStateStore;
   battleStore: BattleUiStore;
@@ -94,7 +86,7 @@ export function LeagueFieldRuntime({
     resetVirtualGamepad();
     const game = createPokeLoungeGame(mount.current, {
       runtimeAssets: runtime.runtimeAssets,
-      ...(layout === "mobile" ? { viewportSize: MOBILE_GAME_VIEWPORT_SIZE } : {}),
+      viewportSize: MOBILE_GAME_VIEWPORT_SIZE,
       gameStateStore: store,
       multiplayerRoom: createLeagueOfflineRoom(),
       competitiveRoundsEnabled: false,
@@ -147,65 +139,13 @@ export function LeagueFieldRuntime({
     };
     stopRef.current = stop;
     return stop;
-  }, [runtime, store, resources, expMultiplierPermille, challenger, roam, stopRef, layout]);
+  }, [runtime, store, resources, expMultiplierPermille, challenger, roam, stopRef]);
   useEffect(() => roam?.setFieldActive(!battle), [roam, battle]);
   const copy = getPokeLoungeCopy(runtime.locale);
-  const controls: Array<[VirtualGamepadButton, string]> = [
-    ["up", "↑"],
-    ["left", "←"],
-    ["down", "↓"],
-    ["right", "→"],
-    ["confirm", "A"],
-    ["back", "B"],
-  ];
-  if (layout === "mobile")
-    return (
-      <LeagueMobileFieldShell>
-        {status}
-        <div ref={mount} tabIndex={0} className={MOBILE_FRAME} data-poke-lounge-league-field>
-          <div className={battle ? "hidden" : "absolute inset-0"}>
-            <WorldScreen
-              atlas={resources.atlas}
-              competitiveRoundsEnabled={false}
-              showRankScoreHud={false}
-              frameStore={resources.frame}
-              gameStateStore={store}
-              model={resources.model}
-              copy={copy}
-              desktop={false}
-              onResultLobby={onExit}
-              onResultNewGame={onExit}
-              uiStore={resources.uiView}
-            />
-          </div>
-          {battle && (
-            <BattleScreen
-              copy={copy}
-              desktop={false}
-              gameStateStore={store}
-              uiStore={resources.battle}
-            />
-          )}
-        </div>
-        <LeagueMobileDock
-          battle={battle}
-          battleStore={resources.battle}
-          copy={copy}
-          uiStore={resources.ui}
-        >
-          {!battle && roam && <GymRoamToast roam={roam} locale={runtime.locale} placement="dock" />}
-        </LeagueMobileDock>
-        <LeagueMobileWorldTask battle={battle} copy={copy} uiStore={resources.ui} store={store} />
-      </LeagueMobileFieldShell>
-    );
   return (
-    <div>
-      <div
-        ref={mount}
-        tabIndex={0}
-        className="relative h-[min(65vh,600px)] min-h-80 overflow-hidden rounded bg-black outline-none"
-        data-poke-lounge-league-field
-      >
+    <LeagueMobileFieldShell>
+      {status}
+      <div ref={mount} tabIndex={0} className={MOBILE_FRAME} data-poke-lounge-league-field>
         <div className={battle ? "hidden" : "absolute inset-0"}>
           <WorldScreen
             atlas={resources.atlas}
@@ -215,36 +155,30 @@ export function LeagueFieldRuntime({
             gameStateStore={store}
             model={resources.model}
             copy={copy}
-            desktop
+            desktop={false}
             onResultLobby={onExit}
             onResultNewGame={onExit}
             uiStore={resources.uiView}
           />
         </div>
-        {!battle && roam && <GymRoamToast roam={roam} locale={runtime.locale} />}
         {battle && (
-          <BattleScreen copy={copy} desktop gameStateStore={store} uiStore={resources.battle} />
+          <BattleScreen
+            copy={copy}
+            desktop={false}
+            gameStateStore={store}
+            uiStore={resources.battle}
+          />
         )}
       </div>
-      <div className="flex justify-center gap-2 py-3">
-        {controls.map(([button, label]) => (
-          <button
-            key={button}
-            aria-label={button}
-            className="size-12 touch-none rounded border border-gray-300 bg-white"
-            onPointerDown={e => {
-              e.preventDefault();
-              e.currentTarget.setPointerCapture(e.pointerId);
-              pressVirtualGamepadButton(button);
-            }}
-            onPointerUp={() => releaseVirtualGamepadButton(button)}
-            onPointerCancel={() => releaseVirtualGamepadButton(button)}
-            onLostPointerCapture={() => releaseVirtualGamepadButton(button)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
+      <LeagueMobileDock
+        battle={battle}
+        battleStore={resources.battle}
+        copy={copy}
+        uiStore={resources.ui}
+      >
+        {!battle && roam && <GymRoamToast roam={roam} locale={runtime.locale} placement="dock" />}
+      </LeagueMobileDock>
+      <LeagueMobileWorldTask battle={battle} copy={copy} uiStore={resources.ui} store={store} />
+    </LeagueMobileFieldShell>
   );
 }

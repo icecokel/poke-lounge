@@ -1,6 +1,11 @@
 .introduction {
+  display: flex;
+  min-height: calc(100dvh - 32px);
+  flex-direction: column;
   width: 100%;
   overflow: hidden;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   border: 3px solid var(--pl-color-ink);
   border-radius: var(--pl-panel-radius);
   background: var(--pl-color-surface);
@@ -24,9 +29,10 @@
 .scene {
   position: relative;
   display: grid;
-  height: 180px;
+  min-height: 180px;
+  flex: 1;
   justify-items: center;
-  align-content: end;
+  align-content: center;
   overflow: hidden;
   border-block: 2px solid var(--pl-color-shadow);
   background: var(--pl-color-gold-soft);
@@ -41,8 +47,8 @@
 
 .guide {
   position: relative;
-  width: 170px;
-  height: 170px;
+  width: clamp(170px, 36dvh, 320px);
+  height: clamp(170px, 36dvh, 320px);
   object-fit: contain;
   image-rendering: pixelated;
 }
@@ -93,8 +99,18 @@
 
 .form {
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 12px;
+  margin-top: auto;
   padding: 16px;
+}
+
+.form > :not(.back):not(.submit) {
+  grid-column: 1 / -1;
+}
+
+.submit:first-of-type {
+  grid-column: 1 / -1;
 }
 
 .nameArea {
@@ -206,7 +222,7 @@
 
 @media (min-width: 640px) {
   .scene {
-    height: 252px;
+    min-height: 252px;
   }
   .guide {
     width: 240px;
@@ -232,7 +248,7 @@
 
 .back.back {
   justify-self: start;
-  min-height: 40px;
+  min-height: 44px;
   padding: 6px 12px 6px 8px;
   font-family: inherit;
   font-size: 13px;
@@ -241,4 +257,119 @@
 /* When no choices follow (probing, league reply), keep the box inside the panel. */
 .dialogue:last-child {
   margin-bottom: 12px;
+}
+
+@media (max-height: 700px) {
+  .brand {
+    padding: 4px 12px;
+  }
+  .scene {
+    min-height: 96px;
+    flex: 1;
+  }
+  .introduction:has(form) .guide {
+    width: 96px;
+    height: 96px;
+  }
+  .dialogue {
+    margin: 8px 8px 0;
+    padding: 10px 14px;
+  }
+  .form {
+    gap: 8px;
+    padding: 12px;
+  }
+  .nameArea {
+    gap: 8px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .introduction {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    min-height: calc(100dvh - 32px);
+  }
+  .brand {
+    grid-column: 1 / -1;
+  }
+  .scene {
+    grid-column: 1;
+    grid-row: 2 / 4;
+    min-height: 0;
+  }
+  .guide {
+    width: 144px;
+    height: 144px;
+  }
+  .guideLabel {
+    right: 8px;
+  }
+  .dialogue {
+    grid-column: 2;
+    margin: 8px 8px 0;
+  }
+  .dialogue h1,
+  .dialogue h2 {
+    font-size: 18px;
+  }
+  .form {
+    grid-column: 2;
+    margin-top: 0;
+    align-content: end;
+  }
+  .names {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .names button {
+    white-space: normal;
+    padding: 6px;
+  }
+  .names:has(.choice) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dialog {
+  position: fixed !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  z-index: 1100 !important;
+  width: min(100vw, 480px) !important;
+  max-width: 480px !important;
+  max-height: min(72dvh, 560px);
+  translate: -50% 0 !important;
+  transform: none !important;
+  overflow: auto;
+  border: 3px solid #304550;
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--pl-color-surface-raised);
+  padding: 20px 18px;
+  color: var(--pl-color-ink);
+  box-shadow:
+    inset 0 0 0 2px #fffdf0,
+    inset 0 0 0 4px #a8bcb1;
+  font-family: var(--pl-font-game);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.dialog button {
+  min-height: 44px;
+  height: auto;
+  border: 2px solid var(--pl-color-ink);
+  border-radius: 4px;
+  background: var(--pl-color-surface-raised);
+  color: var(--pl-color-ink);
+  font-weight: 900;
+  box-shadow: 0 3px 0 var(--pl-color-ink);
+}
+.dialog button:last-child {
+  background: var(--pl-color-gold);
+}
+.dialog p {
+  color: var(--pl-color-ink-muted);
 }

@@ -1,3 +1,5 @@
+import { MobileTaskScreen } from "@/components/poke-lounge/mobile/mobile-task-screen";
+import { PixelPanel, PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
 import type { LeagueBadgeNpc } from "@poke-lounge/battle/league/contract";
 import { localizeGymName } from "./gym-name";
 import type { LeagueLocale } from "../contract";
@@ -18,21 +20,23 @@ export function GymChallengePanel({
   onBack(): void;
 }) {
   return (
-    <section className="space-y-4 rounded border border-gray-300 p-6">
-      <h2>
-        {copy.gym} {localizeGymName(gym.displayName, locale)}
-      </h2>
-      <p>
-        {copy.badges} {badges}/8 · {copy.gymPokemonCount(gym.composition.members.length)}
-      </p>
-      <div className="flex gap-3">
-        <button className="rounded border px-4 py-2" onClick={onChallenge}>
+    <MobileTaskScreen
+      title={`${copy.gym} ${localizeGymName(gym.displayName, locale)}`}
+      name="gym-challenge"
+      className="[&>[data-poke-lounge-task-body]]:grid [&>[data-poke-lounge-task-body]]:items-center"
+      backLabel={copy.back}
+      onBack={onBack}
+      footer={
+        <PixelButton className="min-h-14 w-full" onClick={onChallenge}>
           {copy.challenge}
-        </button>
-        <button className="rounded border px-4 py-2" onClick={onBack}>
-          {copy.back}
-        </button>
-      </div>
-    </section>
+        </PixelButton>
+      }
+    >
+      <PixelPanel className="flex min-h-40 items-center justify-center p-4 text-center">
+        <p>
+          {copy.badges} {badges}/8 · {copy.gymPokemonCount(gym.composition.members.length)}
+        </p>
+      </PixelPanel>
+    </MobileTaskScreen>
   );
 }

@@ -1,3 +1,4 @@
+import { PixelPanel } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
 import type { StandingEntry } from "../api/league";
 import type { LeagueLocale } from "../contract";
 import { PokemonIcon, speciesName, moveName } from "../battle/lead-picker";
@@ -18,7 +19,7 @@ export function PartyCard({
 }) {
   const text = getLeagueCopy(locale);
   return (
-    <article className="grid min-w-0 gap-3 rounded-lg border p-4">
+    <PixelPanel className="grid min-w-0 gap-3 p-4">
       <h3 className="flex flex-wrap items-center gap-2 font-bold [overflow-wrap:anywhere]">
         <span>
           {entry.position}. {entry.displayName}
@@ -39,13 +40,20 @@ export function PartyCard({
               </p>
               {namesReady && (
                 <p className="text-sm">
-                  {member.moveIds.map(id => moveName(id, locale)).join(" · ") || "—"}
+                  {member.moveIds.length
+                    ? member.moveIds.map((id, index) => (
+                        <span key={id} className="inline-block">
+                          {index > 0 ? " · " : ""}
+                          {moveName(id, locale)}
+                        </span>
+                      ))
+                    : "—"}
                 </p>
               )}
             </div>
           </li>
         ))}
       </ul>
-    </article>
+    </PixelPanel>
   );
 }
