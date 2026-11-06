@@ -469,16 +469,17 @@
   gap: 6px;
 }
 
+/* Like the multiplayer room menu: the panel hugs its content and the main action
+   follows it, instead of stretching to the screen bottom and leaving an empty middle. */
 .menuPanel {
   display: flex;
-  flex: 1;
   min-height: 0;
   flex-direction: column;
   gap: 14px;
 }
 
 .menuFooter.menuFooter {
-  margin-top: auto;
+  margin-top: 4px;
 }
 
 .nicknameForm {
@@ -658,4 +659,10 @@
   .frame:has([data-screen="league-starter-selection"]) {
     max-width: none;
   }
+}
+
+/* Screen titles receive programmatic focus on navigation; they are not controls,
+   so they should not show a focus ring. */
+.frame [tabindex="-1"]:focus {
+  outline: none;
 }
