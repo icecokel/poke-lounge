@@ -33,8 +33,7 @@ import { startLeagueMintQueue } from "./mint-queue";
 import { NicknameForm } from "./nickname-form";
 import { StarterSelect } from "./starter-select";
 import { LeagueFieldRuntime } from "./field-runtime";
-import { useLeagueFieldLayout } from "./field-layout";
-import { GrowthHud, GrowthMobileStatus } from "./growth-hud";
+import { GrowthMobileStatus } from "./growth-hud";
 import {
   createBattleUiStore,
   type BattleUiStore,
@@ -44,6 +43,7 @@ import { localizeGymName } from "./gym-name";
 import { BadgeFlow, BadgeMoveLearning } from "./badge-flow";
 import { nextGym, withGymNpc, gymFrameUrl } from "./gym-npc";
 import { createGymRoam, gymRoamTiming } from "./gym-roam";
+import { LeagueMobileFieldShell } from "./mobile-field-shell";
 import { GymChallengePanel } from "./gym-challenge-panel";
 import { growthCopy } from "./copy";
 
@@ -126,7 +126,6 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
   exitRef.current = onExit;
   const [nickname, setNickname] = useState(me.user.nickname ?? null);
   const [session, setSession] = useState<GrowthSession | null>(null);
-  const layout = useLeagueFieldLayout(session?.battle);
   const stopFieldRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -368,7 +367,7 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
     );
   if (stage === "gym" && gym)
     return (
-      <div className="px-[14px] pt-[14px]" data-league-wide>
+      <LeagueMobileFieldShell playing={false}>
         <GymChallengePanel
           gym={gym}
           badges={badges}
@@ -377,62 +376,33 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
           onChallenge={() => setStage("badge")}
           onBack={() => setStage("field")}
         />
-      </div>
-    );
-  if (layout === "mobile")
-    return (
-      <LeagueFieldRuntime
-        key="mobile"
-        layout="mobile"
-        runtime={runtime}
-        model={model}
-        challenger={roam?.challenger}
-        roam={roam ?? undefined}
-        stopRef={stopFieldRef}
-        store={session.store}
-        battleStore={session.battle}
-        expMultiplierPermille={session.storage.getEnvelope().league.growth.expMultiplierPermille}
-        onExit={() => onExit("home")}
-        status={
-          <GrowthMobileStatus
-            storage={session.storage}
-            copy={copy}
-            status={saving}
-            nextGym={gym ? localizeGymName(gym.displayName, runtime.locale) : undefined}
-            gymPresent={gymSnapshot.visible}
-            onExit={() => onExit("home")}
-            locale={runtime.locale}
-            test={status.test}
-            notice={notice}
-            onDismissNotice={() => setNotice("")}
-          />
-        }
-      />
+      </LeagueMobileFieldShell>
     );
   return (
-    <section className="space-y-3 px-[14px] pt-[14px]" data-league-wide>
-      {notice && <p role="status">{notice}</p>}
-      <GrowthHud
-        storage={session.storage}
-        copy={copy}
-        status={saving}
-        nextGym={gym ? localizeGymName(gym.displayName, runtime.locale) : undefined}
-        gymPresent={gymSnapshot.visible}
-        onExit={() => onExit("home")}
-      />
-      <LeagueFieldRuntime
-        key="desktop"
-        layout="desktop"
-        runtime={runtime}
-        model={model}
-        challenger={roam?.challenger}
-        roam={roam ?? undefined}
-        stopRef={stopFieldRef}
-        store={session.store}
-        battleStore={session.battle}
-        expMultiplierPermille={session.storage.getEnvelope().league.growth.expMultiplierPermille}
-        onExit={() => onExit("home")}
-      />
-    </section>
+    <LeagueFieldRuntime
+      runtime={runtime}
+      model={model}
+      challenger={roam?.challenger}
+      roam={roam ?? undefined}
+      stopRef={stopFieldRef}
+      store={session.store}
+      battleStore={session.battle}
+      expMultiplierPermille={session.storage.getEnvelope().league.growth.expMultiplierPermille}
+      onExit={() => onExit("home")}
+      status={
+        <GrowthMobileStatus
+          storage={session.storage}
+          copy={copy}
+          status={saving}
+          nextGym={gym ? localizeGymName(gym.displayName, runtime.locale) : undefined}
+          gymPresent={gymSnapshot.visible}
+          onExit={() => onExit("home")}
+          locale={runtime.locale}
+          test={status.test}
+          notice={notice}
+          onDismissNotice={() => setNotice("")}
+        />
+      }
+    />
   );
 }

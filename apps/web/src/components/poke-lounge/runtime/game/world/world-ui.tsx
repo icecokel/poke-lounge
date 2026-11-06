@@ -430,18 +430,20 @@ export function WorldNoticeLayer({
 
   return (
     <div className="pointer-events-none absolute inset-0" aria-live="polite">
-      {ui.areaAnnouncement ? (
-        <div className="absolute top-[78px] left-1/2 -translate-x-1/2 rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black whitespace-pre-line text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">
-          {ui.areaAnnouncement}
-        </div>
-      ) : null}
-      {ui.nurseMessage ? (
-        <div className="absolute bottom-[74px] left-1/2 -translate-x-1/2 rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black whitespace-pre-line text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">
-          {ui.nurseMessage}
-        </div>
-      ) : null}
+      <div className="absolute top-2 left-1/2 grid w-[calc(100%-16px)] max-w-sm -translate-x-1/2 gap-2 break-keep [overflow-wrap:anywhere]">
+        {ui.areaAnnouncement ? (
+          <div className="justify-self-center rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black whitespace-pre-line text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">
+            {ui.areaAnnouncement}
+          </div>
+        ) : null}
+        {ui.nurseMessage ? (
+          <div className="justify-self-center rounded-[7px] border-[3px] border-[#304550] bg-[#fffdf0] px-3 py-2 text-center text-sm leading-[1.25] font-black whitespace-pre-line text-[#304550] shadow-[inset_0_0_0_2px_#fffdf0,inset_0_0_0_4px_#a8bcb1]">
+            {ui.nurseMessage}
+          </div>
+        ) : null}
+      </div>
       {ui.interactionPrompt ? (
-        <div className="absolute bottom-11 left-1/2 -translate-x-1/2 text-center text-xs leading-[1.25] font-black whitespace-pre-line text-[#fff9dd] [text-shadow:-2px_-2px_#263238,2px_-2px_#263238,-2px_2px_#263238,2px_2px_#263238]">
+        <div className="absolute bottom-2 left-1/2 w-[calc(100%-16px)] -translate-x-1/2 text-center break-keep [overflow-wrap:anywhere] text-xs leading-[1.25] font-black whitespace-pre-line text-[#fff9dd] [text-shadow:-2px_-2px_#263238,2px_-2px_#263238,-2px_2px_#263238,2px_2px_#263238]">
           {ui.interactionPrompt}
         </div>
       ) : null}

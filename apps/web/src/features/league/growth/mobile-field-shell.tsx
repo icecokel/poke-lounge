@@ -16,13 +16,26 @@ import type { MobileWorldUiAction } from "@/components/poke-lounge/runtime/game/
 import type { PokeLoungeCopy } from "@/components/poke-lounge/poke-lounge-copy";
 import type { GameStateStore } from "@/features/poke-lounge/contracts/game-state";
 
-// Playing shell classes from poke-lounge-game.tsx:1110-1125, with league stacking.
-const MOBILE_SHELL =
-  "fixed z-[60] grid min-h-0 w-[var(--poke-lounge-mobile-app-width)] overflow-clip overscroll-none bg-[#17201a] text-[var(--pl-color-ink)] [--poke-lounge-container-width:100vw] [--poke-lounge-container-height:100dvh] [--poke-lounge-mobile-app-width:min(var(--poke-lounge-container-width),480px)] [--poke-lounge-mobile-letterbox-bottom:max(16px,env(safe-area-inset-bottom,0px))] [--poke-lounge-mobile-letterbox-top:max(16px,env(safe-area-inset-top,0px))] [--rom-screen-background:var(--pl-color-ink)] [container-name:poke-viewport] [container-type:size] [font-family:var(--pl-font-game)] top-[var(--poke-lounge-viewport-top,0px)] left-[calc(var(--poke-lounge-viewport-left,0px)+max(0px,(var(--poke-lounge-container-width)-480px)/2))] h-[var(--poke-lounge-container-height)] content-stretch items-stretch justify-center pt-[var(--poke-lounge-mobile-letterbox-top)] pr-[env(safe-area-inset-right,0px)] pb-[var(--poke-lounge-mobile-letterbox-bottom)] pl-[env(safe-area-inset-left,0px)] min-[769px]:[--poke-lounge-mobile-app-height:min(var(--poke-lounge-container-height),calc(var(--poke-lounge-mobile-app-width)*16/9))] min-[769px]:top-[calc(var(--poke-lounge-viewport-top,0px)+max(0px,(var(--poke-lounge-container-height)-var(--poke-lounge-mobile-app-height))/2))] min-[769px]:h-[var(--poke-lounge-mobile-app-height)] grid-cols-[minmax(0,var(--poke-lounge-layout-width,100%))] grid-rows-[auto_var(--poke-lounge-layout-frame-height,40%)_minmax(0,1fr)] gap-[var(--poke-lounge-layout-gap,8px)] data-[poke-lounge-responsive-layout=split]:grid-cols-[var(--poke-lounge-layout-frame-width)_var(--poke-lounge-layout-controller-width)] data-[poke-lounge-responsive-layout=split]:grid-rows-[auto_minmax(0,1fr)] [&>[data-poke-lounge-play-status]]:col-[1/-1] [&>[data-poke-lounge-play-status]]:row-start-1 [&>[data-poke-lounge-play-status]]:w-full [&>[data-poke-lounge-mobile-control-dock]]:col-start-1 [&>[data-poke-lounge-mobile-control-dock]]:row-start-3 [&>[data-poke-lounge-mobile-control-dock]]:h-full [&>[data-poke-lounge-mobile-control-dock]]:w-full [&>[data-poke-lounge-mobile-control-dock]]:min-h-0 [&>[data-poke-lounge-mobile-control-dock]]:min-w-0 data-[poke-lounge-responsive-layout=split]:[&>[data-poke-lounge-mobile-control-dock]]:col-start-2 data-[poke-lounge-responsive-layout=split]:[&>[data-poke-lounge-mobile-control-dock]]:row-start-2 data-[poke-lounge-responsive-layout=split]:[&>[data-poke-lounge-mobile-control-dock]]:border-l-2 data-[poke-lounge-responsive-layout=split]:[&>[data-poke-lounge-mobile-control-dock]]:border-t-0";
+import { cn } from "@/lib/utils";
+import {
+  MOBILE_SHELL_BASE,
+  MOBILE_SHELL_POSITION,
+  MOBILE_SHELL_CONTENT,
+  MOBILE_SHELL_DESKTOP,
+  MOBILE_PLAY_GRID,
+  MOBILE_PLAY_CHILDREN,
+} from "@/components/poke-lounge/mobile/mobile-play-shell";
+
 export const MOBILE_FRAME =
   "relative col-start-1 row-start-2 h-[var(--poke-lounge-layout-frame-height,100%)] w-[var(--poke-lounge-layout-frame-width,100%)] max-h-full max-w-full aspect-[4/3] self-center justify-self-center overflow-hidden bg-[var(--rom-screen-background)] outline-none";
 
-export function LeagueMobileFieldShell({ children }: { children: ReactNode }) {
+export function LeagueMobileFieldShell({
+  children,
+  playing = true,
+}: {
+  children: ReactNode;
+  playing?: boolean;
+}) {
   const shell = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (!shell.current) return;
@@ -32,16 +45,27 @@ export function LeagueMobileFieldShell({ children }: { children: ReactNode }) {
     return () => binding.dispose();
   }, []);
   return (
-    <div
-      ref={shell}
-      className={MOBILE_SHELL}
-      data-testid="poke-lounge-page"
-      data-poke-lounge-mobile-shell="true"
-      data-poke-lounge-play-layout="true"
-      data-poke-lounge-league-mobile-field="true"
-    >
-      {children}
-    </div>
+    <>
+      <div className="fixed inset-0 z-[59] bg-[#17201a]" aria-hidden="true" />
+      <div
+        ref={shell}
+        className={cn(
+          MOBILE_SHELL_BASE,
+          MOBILE_SHELL_POSITION,
+          MOBILE_SHELL_CONTENT,
+          MOBILE_SHELL_DESKTOP,
+          MOBILE_PLAY_GRID,
+          MOBILE_PLAY_CHILDREN,
+          "z-[60]",
+        )}
+        data-testid="poke-lounge-page"
+        data-poke-lounge-mobile-shell="true"
+        data-poke-lounge-play-layout={playing ? "true" : undefined}
+        data-poke-lounge-league-mobile-field="true"
+      >
+        {children}
+      </div>
+    </>
   );
 }
 

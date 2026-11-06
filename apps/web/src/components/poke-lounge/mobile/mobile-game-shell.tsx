@@ -1278,6 +1278,7 @@ function MobileWorldTask({
             />
           ))}
         </div>
+        {state.screen === "party" ? <p>{text.partyHelp}</p> : null}
         <MobileWorldMessage message={state.message} />
       </>
     );
@@ -1295,6 +1296,7 @@ function MobileWorldTask({
     <MobileTaskScreen
       title={state.title}
       name={`world-${state.screen}`}
+      compact={state.screen === "party"}
       className="[&_button]:min-h-14 [&_button_span]:text-base [&_button_span]:whitespace-normal [&_button_small]:text-sm [&_p]:text-sm [&_p]:whitespace-pre-line [&_li]:bg-[#fffef5] [&_li_b]:text-base [&_li_span]:text-sm"
       backLabel={copy.mobile.back}
       onBack={state.screen === "inventory-move-replace" ? undefined : goBack}
