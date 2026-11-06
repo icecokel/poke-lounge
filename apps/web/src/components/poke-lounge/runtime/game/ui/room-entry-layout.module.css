@@ -52,6 +52,21 @@
     grid-column: 1 / 3;
     grid-row: 3;
   }
+  .entry
+    [data-room-entry-create-panel]:has([data-room-entry-public-create])
+    > [id="starter-mode-description"] {
+    grid-row: 2 / 4;
+  }
+  .entry
+    [data-room-entry-create-panel]:has([data-room-entry-public-create])
+    > [data-room-entry-visibility-description] {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .entry [data-room-entry-create-panel] > [data-room-entry-public-create] {
+    grid-row: 2 / 4;
+    align-self: end;
+  }
   .entry [data-room-entry-private-join] {
     grid-template-columns: 170px minmax(0, 1fr);
     align-items: center;
