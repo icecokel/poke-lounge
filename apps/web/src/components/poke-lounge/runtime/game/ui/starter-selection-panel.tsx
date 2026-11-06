@@ -7,6 +7,7 @@ import {
   useState,
   type KeyboardEvent,
   type RefObject,
+  type ReactNode,
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronRight } from "lucide-react";
@@ -27,6 +28,7 @@ export function StarterSelectionPanel({
   confirmLabel,
   level,
   gridRef,
+  headerAction,
   onChoose,
   onConfirm,
   onNavigate,
@@ -40,6 +42,7 @@ export function StarterSelectionPanel({
   confirmLabel: string;
   level?: number;
   gridRef?: RefObject<HTMLDivElement | null>;
+  headerAction?: ReactNode;
   onChoose(starter: StarterPokemon): void;
   onConfirm(): void;
   onNavigate?(event: KeyboardEvent<HTMLButtonElement>, index: number): void;
@@ -71,10 +74,12 @@ export function StarterSelectionPanel({
             {copy.game.starterTitle}
           </h1>
         </div>
-        <span
-          className="relative size-6 shrink-0 rounded-full border-[3px] border-[#d8e6bf] bg-[linear-gradient(transparent_43%,#d8e6bf_43%,#d8e6bf_56%,transparent_56%)] after:absolute after:inset-[5px] after:rounded-full after:border-2 after:border-[#d8e6bf] after:bg-[#315d4b] after:content-['']"
-          aria-hidden="true"
-        />
+        {headerAction ?? (
+          <span
+            className="relative size-6 shrink-0 rounded-full border-[3px] border-[#d8e6bf] bg-[linear-gradient(transparent_43%,#d8e6bf_43%,#d8e6bf_56%,transparent_56%)] after:absolute after:inset-[5px] after:rounded-full after:border-2 after:border-[#d8e6bf] after:bg-[#315d4b] after:content-['']"
+            aria-hidden="true"
+          />
+        )}
       </header>
 
       <section

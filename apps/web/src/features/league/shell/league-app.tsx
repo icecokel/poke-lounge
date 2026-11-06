@@ -37,7 +37,7 @@ import { LeagueGuide } from "./league-guide";
 import { getGuideCopy } from "./guide-copy";
 import frame from "./league-frame.module.css";
 import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
-import { PageReloadButton } from "@/components/poke-lounge/ui/page-reload-button";
+import { RoomMenuHeader } from "@/components/poke-lounge/ui/room-menu-header";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
 import { RecordsScreen, type RecordsCache } from "../records/records-screen";
 
@@ -211,18 +211,9 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const wide = screen === "attempt" || screen === "entry";
   return (
     <div className={wide ? `${frame.frame} ${frame.wide}` : frame.frame}>
-      <header className={frame.brand}>
-        <h1>
-          <span className={frame.logo} aria-hidden="true" />
-          POKE LOUNGE
-        </h1>
-        <div className={frame.toolbar}>
-          <a href={`/${locale}/game/poke-lounge`} className={frame.backLink}>
-            {text.firstScreen}
-          </a>
-          <PageReloadButton locale={locale} iconOnly />
-        </div>
-      </header>
+      <RoomMenuHeader locale={locale} className={frame.header}>
+        <a href={`/${locale}/game/poke-lounge`}>{text.firstScreen}</a>
+      </RoomMenuHeader>
       <LeagueTestModeBanner locale={locale} test={status?.test} />
       <div ref={screenBody} className={frame.body}>
         <LeagueDemoToast locale={locale} />

@@ -7,6 +7,7 @@
 }
 
 .frame {
+  composes: frame from "../../../components/poke-lounge/ui/room-menu.module.css";
   /* Re-tone shadcn pieces used deeper in league screens to the game palette. */
   --background: var(--pl-color-surface-raised);
   --foreground: var(--pl-color-ink);
@@ -27,7 +28,7 @@
   --ring: var(--pl-color-focus);
 
   width: 100%;
-  max-width: 480px;
+  max-width: 456px;
   display: flex;
   min-height: calc(100dvh - 24px);
   flex-direction: column;
@@ -35,11 +36,7 @@
   overflow-wrap: anywhere;
   margin: 0 auto;
   overflow: hidden;
-  border: 3px solid var(--pl-color-ink);
-  border-radius: var(--pl-panel-radius);
-  background: var(--pl-color-surface);
   color: var(--pl-color-ink);
-  box-shadow: var(--pl-panel-shadow);
   font-family: var(--pl-font-game);
   animation: arrive 240ms ease-out both;
 }
@@ -48,93 +45,8 @@
   max-width: 896px;
 }
 
-.brand {
-  display: grid;
-  gap: 12px;
+.header {
   margin: 16px 16px 0;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #8a958b;
-}
-
-.brand h1 {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-  color: #b88b20;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-}
-
-.logo {
-  position: relative;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border: 3px solid #fffdf0;
-  border-radius: 50%;
-  background: linear-gradient(to bottom, #f4cf58 0 44%, #24313b 44% 56%, #fffdf0 56% 100%);
-  box-shadow: 0 2px 0 rgb(0 0 0 / 24%);
-}
-
-.logo::after {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  translate: -50% -50%;
-  border: 2px solid #fffdf0;
-  border-radius: 50%;
-  background: #24313b;
-  content: "";
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.backLink,
-.toolbar > button {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 12px;
-  border: 2px solid #17231c;
-  border-radius: 6px;
-  background: #fffdf0;
-  box-shadow: 0 3px 0 #17231c;
-  color: #17201a;
-  font-size: 14px;
-  font-weight: 900;
-  text-decoration: none;
-}
-
-.backLink {
-  flex: 1;
-  min-width: 0;
-}
-
-.toolbar > button {
-  width: 44px;
-}
-
-.backLink:hover {
-  background: var(--pl-color-gold-soft);
-}
-
-.backLink:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 var(--pl-color-ink);
-}
-
-.backLink:focus-visible {
-  outline: 3px solid var(--pl-color-focus);
-  outline-offset: 2px;
 }
 
 .body {
@@ -161,14 +73,21 @@
 .body:has(> .dialogue):not(:has(.agentLogin)) > .content {
   flex: 0;
 }
-.scene.compact {
-  min-height: 112px;
-  flex: 0;
+.portrait {
+  position: absolute;
+  inset: 38px 0 34px;
 }
-.compact img {
-  width: 104px;
-  height: 104px;
+
+.portrait img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 320px;
+  max-height: 320px;
+  margin: auto;
 }
+
 .dialogue {
   margin: 0 14px;
 }
@@ -182,15 +101,10 @@
 
 /* Pixel panel for league information blocks. */
 .panel {
+  composes: panel from "../../../components/poke-lounge/ui/room-menu.module.css";
   display: grid;
-  gap: 10px;
-  padding: 14px;
-  border: 3px solid var(--pl-color-ink);
-  border-radius: var(--pl-panel-radius);
-  background: linear-gradient(180deg, var(--pl-color-surface-raised), var(--pl-color-surface));
-  box-shadow:
-    0 4px 0 rgb(36 49 59 / 72%),
-    inset 0 0 0 2px rgb(255 255 255 / 58%);
+  gap: 12px;
+  padding: 12px;
 }
 
 .panelTitle {
@@ -488,11 +402,6 @@
     grid-row: 1 / 3;
     min-height: 0;
   }
-  .scene.compact {
-    min-height: 0;
-    /* Keep the guide in the first viewport even when the home content is long. */
-    max-height: calc(100dvh - 96px);
-  }
   .dialogue {
     grid-column: 2;
     margin: 8px 12px 0 0;
@@ -555,14 +464,6 @@
   align-content: stretch;
 }
 
-@media (max-height: 700px) {
-  .body:has([id="league-nickname"]) > .scene img,
-  .body:has(.starters) > .scene img {
-    width: 96px;
-    height: 96px;
-  }
-}
-
 .menuIntro {
   display: grid;
   gap: 6px;
@@ -581,14 +482,10 @@
 }
 
 .nicknameForm {
+  composes: panel;
   display: flex;
   flex-direction: column;
   margin: 0 14px;
-  padding: 14px;
-  border: 3px solid var(--pl-color-ink);
-  border-radius: var(--pl-panel-radius);
-  background: var(--pl-color-surface-raised);
-  box-shadow: var(--pl-panel-shadow);
 }
 
 .nicknameForm > button {
@@ -627,10 +524,21 @@
 }
 
 @media (max-height: 700px) {
-  .brand {
-    gap: 8px;
-    margin-top: 10px;
-    padding-bottom: 10px;
+  .page {
+    padding: 8px;
+  }
+  .frame {
+    min-height: calc(100dvh - 16px);
+  }
+  .header {
+    margin: 10px 10px 0;
+  }
+  .content {
+    padding-inline: 10px;
+  }
+  .panel {
+    gap: 6px;
+    padding: 8px;
   }
   .body {
     gap: 10px;
@@ -639,17 +547,9 @@
   .body:has(> .scene):not(:has(.agentLogin)) > .scene {
     min-height: 70px;
   }
-  .body:has(> .scene):not(:has(.agentLogin)) > .scene img {
-    width: 96px;
-    height: 96px;
-  }
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
-  .brand {
-    grid-template-columns: 1fr minmax(240px, 1fr);
-    align-items: center;
-  }
   .body > .demoToast {
     grid-column: 1 / -1;
     font-size: 12px;
@@ -702,5 +602,51 @@
   }
   .nicknameForm > button {
     align-self: end;
+  }
+}
+
+.frame:has([data-screen="league-starter-selection"]) > header {
+  display: none;
+}
+
+.frame:has([data-screen="league-starter-selection"]) {
+  border: 0;
+  background: var(--pl-color-johto-deep);
+  box-shadow: none;
+}
+
+.body:has([data-screen="league-starter-selection"]) {
+  padding: 0;
+}
+
+.body [data-screen="league-starter-selection"] {
+  margin: 0;
+}
+
+.body [data-screen="league-starter-selection"] > [data-starter-panel] {
+  min-height: calc(100dvh - 24px);
+}
+
+.body:has([data-screen="league-starter-selection"]) > .demoToast {
+  order: 1;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .body:has(> .demoToast) .menuIntro {
+    display: flex;
+    align-items: baseline;
+  }
+  .body:has(> .demoToast) [aria-labelledby="league-trainer-card"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding: 8px;
+  }
+  .body:has(> .demoToast) [aria-labelledby="league-trainer-card"] > :not(.actions) {
+    grid-column: 1;
+  }
+  .body:has(> .demoToast) [aria-labelledby="league-trainer-card"] > .actions {
+    grid-column: 2;
+    grid-row: 1 / 5;
+    grid-template-columns: 1fr;
+    align-content: center;
   }
 }
