@@ -8,7 +8,6 @@ import type { LeagueLocale, MeView, StatusView } from "../contract";
 import type { StandingsView } from "../api/league";
 import { getLeagueCopy, leagueText } from "./copy";
 import { formatKst } from "./kst";
-import { LeagueGuide } from "./league-guide";
 import styles from "./league-frame.module.css";
 
 export function LeagueHome({
@@ -163,8 +162,11 @@ export function LeagueHome({
   );
   return (
     <>
-      <LeagueGuide locale={locale} lead={lead} line={line} compact />
       <div className={styles.content}>
+        <header className={styles.menuIntro}>
+          <h2 className={styles.panelTitle}>{lead}</h2>
+          <p className={styles.meta}>{line}</p>
+        </header>
         {versionMismatch && (
           <div role="alert" className={styles.panel}>
             <p className={styles.message}>{text.version}</p>

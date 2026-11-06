@@ -53,7 +53,8 @@ export function LeagueAccountScreen({
 
   return (
     <>
-      <p className={styles.panelTitle}>{displayName}</p>
+      <h2 className={styles.panelTitle}>{text.account}</h2>
+      <p className={styles.meta}>{displayName}</p>
       {failed && (
         <p role="alert" className={styles.message}>
           {text.logoutFailed}
@@ -79,6 +80,8 @@ export function LeagueAccountScreen({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pending}>{text.cancel}</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
+              className={styles.danger}
               disabled={pending}
               onClick={event => {
                 event.preventDefault();
@@ -91,7 +94,7 @@ export function LeagueAccountScreen({
         </AlertDialogContent>
       </AlertDialog>
       <PixelButton
-        className={styles.primary}
+        className={`${styles.primary} ${styles.menuFooter}`}
         disabled={pending}
         onClick={() => {
           if (!inFlight.current) onHome();

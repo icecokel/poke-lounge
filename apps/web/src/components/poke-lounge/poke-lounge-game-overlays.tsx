@@ -1,5 +1,6 @@
 import { localizeRuntimeText } from "./runtime/game/i18n/runtime-game-localization";
 import { Button } from "@/components/ui/button";
+import dialogStyles from "./runtime/game/ui/trainer-name-entry.module.css";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -260,7 +261,10 @@ export function PokeLoungeDecisionDialogs({
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={Boolean(leaveRequest)} onOpenChange={onLeaveOpenChange}>
-        <AlertDialogContent className={dialogClassName} data-poke-lounge-leave-dialog="true">
+        <AlertDialogContent
+          className={`${dialogClassName} ${dialogStyles.dialogButtons}`}
+          data-poke-lounge-leave-dialog="true"
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>{leaveRequest?.title ?? copy.leaveTitle}</AlertDialogTitle>
             <AlertDialogDescription>
@@ -269,7 +273,11 @@ export function PokeLoungeDecisionDialogs({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{copy.leaveContinue}</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={leaveRequest?.confirm}>
+            <AlertDialogAction
+              variant="destructive"
+              className={dialogStyles.danger}
+              onClick={leaveRequest?.confirm}
+            >
               {copy.leaveConfirm}
             </AlertDialogAction>
           </AlertDialogFooter>

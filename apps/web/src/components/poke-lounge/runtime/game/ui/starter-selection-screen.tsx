@@ -1,6 +1,7 @@
 "use client";
 
 import { StarterSelectionPanel } from "./starter-selection-panel";
+import styles from "./starter-selection-layout.module.css";
 import { useRef, useState, type KeyboardEvent } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import type { StarterPokemon } from "../../types";
@@ -80,10 +81,7 @@ export function StarterSelectionScreen({
   };
 
   return (
-    <section
-      className="absolute inset-0 grid min-h-0 min-w-0 place-items-stretch overflow-hidden bg-[var(--pl-color-johto-deep)] p-3 font-[var(--pl-font-game)] text-[var(--pl-color-ink)]"
-      data-screen="starter-selection"
-    >
+    <section className={`${styles.screen} absolute inset-0`} data-screen="starter-selection">
       <StarterSelectionPanel
         copy={copy}
         starters={starters}

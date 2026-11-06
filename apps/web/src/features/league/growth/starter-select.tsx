@@ -11,6 +11,7 @@ import type { StarterPokemon } from "@/components/poke-lounge/runtime/types";
 import { StarterSelectionPanel } from "@/components/poke-lounge/runtime/game/ui/starter-selection-panel";
 import starterStyles from "@/components/poke-lounge/runtime/game/ui/starter-selection-layout.module.css";
 import type { GrowthCopy } from "./copy";
+import { getLeagueCopy } from "../shell/copy";
 export function StarterSelect({
   season,
   locale,
@@ -46,6 +47,14 @@ export function StarterSelect({
         copy={getPokeLoungeCopy(locale)}
         starters={starters}
         selected={starters.find(starter => starter.speciesId === selected) ?? null}
+        headerAction={
+          <a
+            href={`/${locale}/game/poke-lounge`}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-md border-2 border-[#d8e6bf] px-2 text-xs font-black text-[#fffdf0] focus-visible:outline-3 focus-visible:outline-offset-2"
+          >
+            {getLeagueCopy(locale).firstScreen}
+          </a>
+        }
         level={season.starterLevel}
         confirming={pending}
         disabled={season.phase !== "open"}
