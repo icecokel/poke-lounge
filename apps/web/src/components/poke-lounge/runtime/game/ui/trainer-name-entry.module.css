@@ -237,3 +237,8 @@
   font-family: inherit;
   font-size: 13px;
 }
+
+/* When no choices follow (probing, league reply), keep the box inside the panel. */
+.dialogue:last-child {
+  margin-bottom: 12px;
+}
