@@ -50,12 +50,11 @@ export function NicknameForm({
               typeof fields.changeableAtMs === "number" && Number.isFinite(fields.changeableAtMs)
                 ? new Date(fields.changeableAtMs).toLocaleString()
                 : "";
-            const reasons = Array.isArray(fields.reasons)
-              ? fields.reasons
-                  .filter((reason): reason is string => typeof reason === "string")
-                  .join(", ")
-              : "";
-            setError([message, when, reasons].filter(Boolean).join(" · "));
+            setError(
+              [message, when, message === copy.nicknameInvalid ? copy.nicknameHelp : ""]
+                .filter(Boolean)
+                .join(" · "),
+            );
           } finally {
             setPending(false);
           }

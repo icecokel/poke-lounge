@@ -1,5 +1,7 @@
 "use client";
 
+import styles from "./room-lobby-layout.module.css";
+
 import {
   Bot,
   Check,
@@ -140,7 +142,9 @@ export function RoomLobbyScreen({
       }}
       onKeyUp={event => event.stopPropagation()}
     >
-      <div className="grid h-full min-h-0 min-w-0 w-full grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] overflow-hidden rounded-[10px] border-[3px] border-[#304550] bg-[#edf3e5] shadow-[inset_0_0_0_2px_#fffdf0,0_4px_0_#304550]">
+      <div
+        className={`${styles.panel} grid h-full min-h-0 min-w-0 w-full grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] overflow-hidden rounded-[10px] border-[3px] border-[#304550] bg-[#edf3e5] shadow-[inset_0_0_0_2px_#fffdf0,0_4px_0_#304550]`}
+      >
         <header className="flex items-center gap-[9px] bg-[linear-gradient(#c0dce7_50%,#e2edf0_50%)] px-3 pt-2 pb-[5px] shadow-[inset_0_2px_0_#fffdf0]">
           <span
             className="grid size-10 shrink-0 place-items-center rounded-lg border-2 border-[#4e7484] bg-[#fffdf0] text-[#467e9b] shadow-[inset_0_0_0_2px_#d5e5e6]"

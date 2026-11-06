@@ -5,8 +5,11 @@ import { localizePokemonName } from "@/components/poke-lounge/runtime/game/i18n/
 import type { LeagueLocale, SeasonView } from "../contract";
 import { startLeagueGrowth, type GrowthStart } from "../api/growth";
 import { LeagueApiError } from "../api/core";
-import { ChevronRight } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { getBattlePokemonAssets } from "@/components/poke-lounge/runtime/game/battle/battle-pokemon-assets";
+import { Button } from "@/components/ui/button";
+import { MobilePokemonThumbnail } from "@/components/poke-lounge/mobile/mobile-selection-cards";
+import starterStyles from "@/components/poke-lounge/runtime/game/ui/starter-selection-layout.module.css";
 import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
 import { LeagueGuide } from "../shell/league-guide";
 import { getGuideCopy } from "../shell/guide-copy";
@@ -37,29 +40,34 @@ export function StarterSelect({
         <div className={styles.starters} role="group" aria-label={copy.starter}>
           {season.starterSpeciesIds.map(id => {
             const sprite = getBattlePokemonAssets(id).front;
-            const columns = sprite.columns ?? 16,
-              rows = sprite.rows ?? 16;
             return (
-              <PixelButton
+              <Button
                 key={id}
-                className={styles.starter}
-                selected={selected === id}
+                type="button"
+                className={`group ${starterStyles.card}`}
                 aria-pressed={selected === id}
                 disabled={pending}
                 onClick={() => setSelected(id)}
               >
                 <span
+                  className="invisible absolute top-[3px] right-[3px] grid size-[17px] place-items-center rounded-full bg-[#315d4b] text-[#fffdf0] group-aria-pressed:visible"
                   aria-hidden="true"
-                  className={styles.sprite}
-                  style={{
-                    backgroundImage: `url(${sprite.path})`,
-                    backgroundSize: `${columns * 100}% ${rows * 100}%`,
-                    backgroundPosition: `${((sprite.frame % columns) / (columns - 1)) * 100}% ${(Math.floor(sprite.frame / columns) / (rows - 1)) * 100}%`,
-                  }}
-                />
-                {localizePokemonName(getRuntimePokemonSpeciesSummary(id)?.name ?? `#${id}`, locale)}
-                <small>Lv.{season.starterLevel}</small>
-              </PixelButton>
+                >
+                  <Check size={12} strokeWidth={3} />
+                </span>
+                <span aria-hidden="true">
+                  <MobilePokemonThumbnail sprite={sprite} />
+                </span>
+                <strong className="text-sm leading-[1.35]">
+                  {localizePokemonName(
+                    getRuntimePokemonSpeciesSummary(id)?.name ?? `#${id}`,
+                    locale,
+                  )}
+                </strong>
+                <small className="rounded border border-[#58614e] px-1.5 py-0.5 text-[11px] leading-[1.3]">
+                  Lv.{season.starterLevel}
+                </small>
+              </Button>
             );
           })}
         </div>
