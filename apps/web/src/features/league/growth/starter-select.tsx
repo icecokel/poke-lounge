@@ -5,7 +5,6 @@ import type { LeagueLocale, SeasonView } from "../contract";
 import { startLeagueGrowth, type GrowthStart } from "../api/growth";
 import { LeagueApiError } from "../api/core";
 import { getGen4TypeName } from "@poke-lounge/battle/adventure/battle/battle-rom-data";
-import { getBattlePokemonAssets } from "@/components/poke-lounge/runtime/game/battle/battle-pokemon-assets";
 import { localizeTypeName } from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
 import { getPokeLoungeCopy } from "@/components/poke-lounge/poke-lounge-copy";
 import type { StarterPokemon } from "@/components/poke-lounge/runtime/types";
@@ -31,7 +30,6 @@ export function StarterSelect({
   const request = useRef<{ species: number; key: string } | null>(null);
   const starters: StarterPokemon[] = season.starterSpeciesIds.map(speciesId => {
     const species = getRuntimePokemonSpeciesSummary(speciesId);
-    const sprite = getBattlePokemonAssets(speciesId).front;
     const name = species?.name ?? `#${speciesId}`;
     return {
       id: String(speciesId),
@@ -39,8 +37,7 @@ export function StarterSelect({
       name,
       displayName: name,
       type: localizeTypeName(getGen4TypeName(species?.typeIds[0] ?? 0), "en-US"),
-      assetPath: sprite.path,
-      sprite,
+      assetPath: `/assets/pokemon/front/${speciesId}.png`,
     };
   });
   return (
