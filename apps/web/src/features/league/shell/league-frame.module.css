@@ -470,6 +470,8 @@
   }
   .scene.compact {
     min-height: 0;
+    /* Keep the guide in the first viewport even when the home content is long. */
+    max-height: calc(100dvh - 96px);
   }
   .dialogue {
     grid-column: 2;
