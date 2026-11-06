@@ -182,6 +182,9 @@ export function MobileTaskScreen({
       <div
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-[max(16px,env(safe-area-inset-left))] py-3 [scroll-padding-block:12px] [&>*+*]:mt-3"
         data-poke-lounge-task-body="true"
+        tabIndex={0}
+        role="region"
+        aria-labelledby={titleId}
       >
         {children}
       </div>
