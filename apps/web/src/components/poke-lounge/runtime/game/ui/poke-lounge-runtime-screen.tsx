@@ -682,10 +682,11 @@ function RoomEntryScreen({
                 {roomVisibility === "private" ? (
                   <LabeledField
                     id="poke-lounge-private-room-code"
+                    className={styles.privateCode}
                     label={copy.roomEntry.temporaryPasswordLabel}
                     description={copy.roomEntry.temporaryPasswordDescription}
                   >
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 [&_button]:w-auto [&_button]:min-w-20">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 [&_button]:w-auto [&_button]:min-w-20">
                       <input
                         id="poke-lounge-private-room-code"
                         type="text"
@@ -710,11 +711,11 @@ function RoomEntryScreen({
                         copy={copy.roomEntry}
                         disabled={pending}
                       />
-                    </div>
-                    <div className="flex justify-end">
                       <button
                         type="button"
-                        className="min-h-9! border-0! bg-transparent! px-1! text-xs underline underline-offset-4 shadow-none!"
+                        className="flex min-h-11! min-w-11! items-center justify-center border-0! bg-transparent! px-1! shadow-none!"
+                        aria-label={copy.roomEntry.temporaryPasswordGenerate}
+                        title={copy.roomEntry.temporaryPasswordGenerate}
                         disabled={pending}
                         onClick={function handleClick() {
                           setPrivateRoomCode(createTemporaryPassword());
@@ -722,7 +723,7 @@ function RoomEntryScreen({
                         }}
                         data-room-entry-temporary-password-generate
                       >
-                        {copy.roomEntry.temporaryPasswordGenerate}
+                        <RefreshCw className="size-5" aria-hidden="true" />
                       </button>
                     </div>
                   </LabeledField>

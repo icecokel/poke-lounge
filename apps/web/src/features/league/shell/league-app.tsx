@@ -214,8 +214,8 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         </a>
       </header>
       <LeagueTestModeBanner locale={locale} test={status?.test} />
-      <LeagueDemoToast locale={locale} />
       <div className={frame.body}>
+        <LeagueDemoToast locale={locale} />
         {screen === "boot" && (
           <>
             {guide(guideText.opening)}

@@ -2,6 +2,15 @@
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
+.entry [data-room-entry-create-panel]:has([data-room-entry-multiplayer-submit]) > p {
+  order: 3;
+}
+.privateCode {
+  order: 1;
+}
+.entry [data-room-entry-create-panel] > [data-room-entry-multiplayer-submit] {
+  order: 2;
+}
 @media (max-height: 700px) {
   .entry:has([data-room-entry-room-step]) {
     padding: 8px;
@@ -66,6 +75,32 @@
   .entry [data-room-entry-create-panel] > [data-room-entry-public-create] {
     grid-row: 2 / 4;
     align-self: end;
+  }
+  .entry
+    [data-room-entry-create-panel]:has([data-room-entry-multiplayer-submit])
+    > [id="starter-mode-description"] {
+    grid-column: 1;
+    grid-row: 2 / 5;
+  }
+  .entry [data-room-entry-create-panel] > .privateCode {
+    grid-column: 2;
+    grid-row: 2 / 5;
+  }
+  .entry [data-room-entry-create-panel] > [data-room-entry-multiplayer-submit] {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .entry
+    [data-room-entry-create-panel]:has([data-room-entry-multiplayer-submit])
+    > [data-room-entry-visibility-description] {
+    grid-column: 3;
+    grid-row: 3;
+  }
+  .entry
+    [data-room-entry-create-panel]:has([data-room-entry-multiplayer-submit])
+    > [data-room-entry-round-duration-description] {
+    grid-column: 3;
+    grid-row: 4;
   }
   .entry [data-room-entry-private-join] {
     grid-template-columns: 170px minmax(0, 1fr);
