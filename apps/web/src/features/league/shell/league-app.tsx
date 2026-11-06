@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DiscordAccountButton } from "@/components/poke-lounge/ui/discord-account-button";
 import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
@@ -70,6 +70,15 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const blocked = useRateLimitCooldown(error);
   const recordsCache = useRef<RecordsCache>({});
   const recordsUserId = useRef<string | null>(null);
+  const screenBody = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    const heading = screenBody.current?.querySelector<HTMLElement>("h1, h2");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
+  }, [screen]);
   const showLogin = useCallback(() => {
     recordsCache.current = {};
     recordsUserId.current = null;
@@ -214,7 +223,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         </a>
       </header>
       <LeagueTestModeBanner locale={locale} test={status?.test} />
-      <div className={frame.body}>
+      <div ref={screenBody} className={frame.body}>
         <LeagueDemoToast locale={locale} />
         {screen === "boot" && (
           <>
