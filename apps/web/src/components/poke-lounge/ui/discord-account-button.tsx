@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import styles from "../runtime/game/ui/trainer-name-entry.module.css";
 import { Button } from "@/components/ui/button";
 import type { PokeLoungeLocale } from "../poke-lounge-copy";
 import {
@@ -206,7 +207,7 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
       ) : null}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent
-          className="max-h-[calc(100dvh-32px)] overflow-auto"
+          className={styles.dialog}
           onCloseAutoFocus={event => {
             event.preventDefault();
             trigger.current?.focus({ preventScroll: true });

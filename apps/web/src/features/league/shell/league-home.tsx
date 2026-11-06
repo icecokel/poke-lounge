@@ -196,8 +196,13 @@ export function LeagueHome({
             ))}
           </div>
           <p className={styles.meta}>
-            {text.badges} {badges}/8 · {text.best}: {me.best?.score ?? "—"} /{" "}
-            {me.best?.bestRank ?? "—"}
+            <span className="inline-block">
+              {text.badges} {badges}/8
+            </span>
+            {" · "}
+            <span className="inline-block">
+              {text.best}: {me.best?.score ?? "—"} / {me.best?.bestRank ?? "—"}
+            </span>
           </p>
           <div className={styles.actions}>
             {canEnter ? (
@@ -254,7 +259,9 @@ export function LeagueHome({
                 </div>
               )}
               <p className={styles.meta}>
-                {formatKst(season.startsAtMs, locale)} → {formatKst(season.closesAtMs, locale)}
+                <span className="inline-block">{formatKst(season.startsAtMs, locale)}</span>
+                {" → "}
+                <span className="inline-block">{formatKst(season.closesAtMs, locale)}</span>
                 {(phase === "open" || phase === "closing") && (
                   <>
                     <br />
@@ -267,7 +274,9 @@ export function LeagueHome({
                       "active challenges accepted until",
                       "進行中の挑戦の受付期限",
                     )}{" "}
-                    {formatKst(season.settleDeadlineMs, locale)}
+                    <span className="inline-block">
+                      {formatKst(season.settleDeadlineMs, locale)}
+                    </span>
                   </>
                 )}
               </p>

@@ -82,7 +82,11 @@ export function LeagueAgentLoginPanel({
   }
 
   return (
-    <form className={styles.panel} aria-label={text.title} onSubmit={event => void submit(event)}>
+    <form
+      className={`${styles.panel} ${styles.agentLogin}`}
+      aria-label={text.title}
+      onSubmit={event => void submit(event)}
+    >
       <h2 className={styles.panelTitle}>{text.title}</h2>
       <p className={styles.meta}>{text.note}</p>
       <label className={styles.field}>

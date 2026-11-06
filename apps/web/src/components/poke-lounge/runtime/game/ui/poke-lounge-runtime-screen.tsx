@@ -1,3 +1,4 @@
+import styles from "./room-entry-layout.module.css";
 import { FanNoticeToast, TrainerNameEntry } from "./trainer-name-entry";
 import { PixelButton } from "../../../ui/poke-lounge-ui-primitives";
 import { PageReloadButton } from "../../../ui/page-reload-button";
@@ -381,7 +382,7 @@ function RoomEntryScreen({
 
   return (
     <section
-      className="grid min-h-full w-full place-items-center overflow-auto bg-[var(--rom-screen-background)] p-3 text-[#17201a]"
+      className={`${styles.entry} grid min-h-full w-full place-items-center overflow-auto bg-[var(--rom-screen-background)] p-3 text-[#17201a]`}
       data-room-entry-screen="true"
       data-local-test-mode-active={state.localTestMode?.active || undefined}
     >
@@ -391,8 +392,8 @@ function RoomEntryScreen({
       <div
         className={
           entryStep === "profile"
-            ? "grid w-full max-w-[480px] gap-4"
-            : "grid w-full max-w-[820px] gap-4 overflow-auto rounded-xl border-[3px] border-[#17231c] bg-[#f8fbf0] p-4 shadow-[0_8px_0_#17231c] [&_button]:min-h-10 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:bg-[#fffdf0] [&_button]:px-3 [&_button]:font-black [&_button]:text-[#17201a] [&_button]:shadow-[0_3px_0_#17231c] [&_button:active]:translate-y-0.5 [&_button:active]:shadow-[0_1px_0_#17231c] [&_button:disabled]:cursor-default [&_button:disabled]:opacity-55 [&_input]:min-h-10 [&_input]:w-full [&_input]:rounded-md [&_input]:border-2 [&_input]:border-[#17231c] [&_input]:bg-[#fffef3] [&_input]:px-3 [&_input]:text-[#17201a] [&_input]:outline-none [&_input:focus-visible]:ring-2 [&_input:focus-visible]:ring-[#2f6b78]"
+            ? "grid w-full max-w-[480px] gap-4 [@media(orientation:landscape)_and_(max-height:500px)]:max-w-[820px]"
+            : "grid w-full max-w-[820px] gap-4 overflow-auto rounded-xl border-[3px] border-[#17231c] bg-[#f8fbf0] p-4 shadow-[0_8px_0_#17231c] [&_button]:min-h-11 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:bg-[#fffdf0] [&_button]:px-3 [&_button]:font-black [&_button]:text-[#17201a] [&_button]:shadow-[0_3px_0_#17231c] [&_button:active]:translate-y-0.5 [&_button:active]:shadow-[0_1px_0_#17231c] [&_button:disabled]:cursor-default [&_button:disabled]:opacity-55 [&_input]:min-h-10 [&_input]:w-full [&_input]:rounded-md [&_input]:border-2 [&_input]:border-[#17231c] [&_input]:bg-[#fffef3] [&_input]:px-3 [&_input]:text-[#17201a] [&_input]:outline-none [&_input:focus-visible]:ring-2 [&_input:focus-visible]:ring-[#2f6b78]"
         }
       >
         {entryStep === "profile" ? (
@@ -681,10 +682,11 @@ function RoomEntryScreen({
                 {roomVisibility === "private" ? (
                   <LabeledField
                     id="poke-lounge-private-room-code"
+                    className={styles.privateCode}
                     label={copy.roomEntry.temporaryPasswordLabel}
                     description={copy.roomEntry.temporaryPasswordDescription}
                   >
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 [&_button]:w-auto [&_button]:min-w-20">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 [&_button]:w-auto [&_button]:min-w-20">
                       <input
                         id="poke-lounge-private-room-code"
                         type="text"
@@ -709,11 +711,11 @@ function RoomEntryScreen({
                         copy={copy.roomEntry}
                         disabled={pending}
                       />
-                    </div>
-                    <div className="flex justify-end">
                       <button
                         type="button"
-                        className="min-h-9! border-0! bg-transparent! px-1! text-xs underline underline-offset-4 shadow-none!"
+                        className="flex min-h-11! min-w-11! items-center justify-center border-0! bg-transparent! px-1! shadow-none!"
+                        aria-label={copy.roomEntry.temporaryPasswordGenerate}
+                        title={copy.roomEntry.temporaryPasswordGenerate}
                         disabled={pending}
                         onClick={function handleClick() {
                           setPrivateRoomCode(createTemporaryPassword());
@@ -721,7 +723,7 @@ function RoomEntryScreen({
                         }}
                         data-room-entry-temporary-password-generate
                       >
-                        {copy.roomEntry.temporaryPasswordGenerate}
+                        <RefreshCw className="size-5" aria-hidden="true" />
                       </button>
                     </div>
                   </LabeledField>

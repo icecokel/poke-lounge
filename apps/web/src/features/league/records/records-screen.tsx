@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type MutableRefObject } from "react";
-import { Button } from "@/components/ui/button";
+import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
+import styles from "../shell/league-frame.module.css";
 import { LeagueApiError } from "../api/core";
 import {
   getHallOfFame,
@@ -179,23 +180,24 @@ export function RecordsScreen({
   const pending = tab === "hall" ? hallPending : minePending;
   const blocked = tab === "hall" ? hallBlocked : mineBlocked;
   return (
-    <div className="grid min-w-0 gap-5">
+    <div className={styles.records}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold">{text.records}</h2>
-        <Button variant="outline" onClick={() => onHome()}>
+        <PixelButton className={styles.small} onClick={() => onHome()}>
           {text.home}
-        </Button>
+        </PixelButton>
       </div>
       <div role="tablist" aria-label={text.records} className="flex flex-wrap gap-2">
         {tabs.map((value, index) => (
-          <Button
+          <PixelButton
             key={value}
             id={`${id}-${value}-tab`}
             role="tab"
             aria-selected={tab === value}
             aria-controls={tab === value ? `${id}-${value}-panel` : undefined}
             tabIndex={tab === value ? 0 : -1}
-            variant={tab === value ? "default" : "outline"}
+            selected={tab === value}
+            className={styles.small}
             onClick={() => setTab(value)}
             onKeyDown={event => {
               let next = index;
@@ -212,7 +214,7 @@ export function RecordsScreen({
             }}
           >
             {copy[value]}
-          </Button>
+          </PixelButton>
         ))}
       </div>
       {namesFailed && <p role="status">{copy.namesFailed}</p>}
@@ -221,13 +223,13 @@ export function RecordsScreen({
         id={`${id}-${tab}-panel`}
         aria-labelledby={`${id}-${tab}-tab`}
         tabIndex={0}
-        className="grid min-w-0 gap-3"
+        className={styles.recordsPanel}
       >
         {tab === "standings" ? (
           !validEntries(standings.entries) ? (
             <p role="alert">{leagueErrorMessage(corruptResponse(), locale)}</p>
           ) : standings.entries.length === 0 ? (
-            <p>{copy.noSeason}</p>
+            <p className={styles.empty}>{copy.noSeason}</p>
           ) : (
             <>
               <h3 className="font-bold">
@@ -254,25 +256,25 @@ export function RecordsScreen({
             {error != null && (
               <div className="grid gap-2" role="alert">
                 <p>{leagueErrorMessage(error, locale)}</p>
-                <Button disabled={pending || blocked} onClick={() => void reload(tab)}>
+                <PixelButton
+                  className={styles.secondary}
+                  disabled={pending || blocked}
+                  onClick={() => void reload(tab)}
+                >
                   {copy.reload}
-                </Button>
+                </PixelButton>
               </div>
             )}
             {tab === "hall" &&
               hall &&
               (hall.seasons.length === 0 ? (
-                <p>{copy.noHall}</p>
+                <p className={styles.empty}>{copy.noHall}</p>
               ) : (
                 [...hall.seasons]
                   .sort((a, b) => b.seasonId - a.seasonId)
                   .map((season, index) => (
-                    <details
-                      key={season.seasonId}
-                      open={index === 0}
-                      className="min-w-0 rounded-lg border p-3"
-                    >
-                      <summary className="cursor-pointer font-bold">
+                    <details key={season.seasonId} open={index === 0} className={styles.panel}>
+                      <summary className="min-h-11 cursor-pointer content-center font-bold">
                         {copy.season} {season.seasonId}
                       </summary>
                       <div className="mt-3 grid gap-3">
@@ -291,7 +293,7 @@ export function RecordsScreen({
             {tab === "mine" &&
               mine &&
               (seasons.length === 0 ? (
-                <p>{copy.noRecords}</p>
+                <p className={styles.empty}>{copy.noRecords}</p>
               ) : (
                 <table className="w-full table-fixed text-left text-sm [overflow-wrap:anywhere]">
                   <thead>
