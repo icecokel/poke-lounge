@@ -514,13 +514,8 @@
   box-shadow: none;
 }
 
-.dialog button.danger {
-  background: var(--pl-color-danger);
-  color: var(--pl-color-surface-raised);
-}
-
-.dialog button.danger:hover {
-  background: #a83d35;
+.danger {
+  composes: danger from "../../../components/poke-lounge/runtime/game/ui/trainer-name-entry.module.css";
 }
 
 @media (max-height: 700px) {
@@ -609,8 +604,16 @@
   display: none;
 }
 
+.page:has([data-screen="league-starter-selection"]) {
+  padding: 16px 0;
+  background: #17201a;
+}
+
 .frame:has([data-screen="league-starter-selection"]) {
+  max-width: 480px;
+  min-height: calc(100dvh - 32px);
   border: 0;
+  border-radius: 0;
   background: var(--pl-color-johto-deep);
   box-shadow: none;
 }
@@ -624,7 +627,7 @@
 }
 
 .body [data-screen="league-starter-selection"] > [data-starter-panel] {
-  min-height: calc(100dvh - 24px);
+  min-height: calc(100dvh - 56px);
 }
 
 .body:has([data-screen="league-starter-selection"]) > .demoToast {
@@ -648,5 +651,11 @@
     grid-row: 1 / 5;
     grid-template-columns: 1fr;
     align-content: center;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .frame:has([data-screen="league-starter-selection"]) {
+    max-width: none;
   }
 }

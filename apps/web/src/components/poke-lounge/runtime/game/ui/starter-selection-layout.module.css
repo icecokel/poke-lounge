@@ -1,3 +1,15 @@
+.screen {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: stretch;
+  overflow: hidden;
+  background: var(--pl-color-johto-deep);
+  padding: 12px;
+  color: var(--pl-color-ink);
+  font-family: var(--pl-font-game);
+}
+
 .card.card {
   position: relative;
   display: flex;
@@ -94,6 +106,7 @@
 }
 
 .leagueScreen {
+  composes: screen;
   display: grid;
   flex: 1;
   min-width: 0;
