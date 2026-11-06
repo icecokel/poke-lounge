@@ -5,7 +5,6 @@ import { LeagueApiError } from "../api/core";
 import { ChevronRight } from "lucide-react";
 import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
 import type { LeagueLocale } from "../contract";
-import { LeagueGuide } from "../shell/league-guide";
 import { getGuideCopy } from "../shell/guide-copy";
 import styles from "../shell/league-frame.module.css";
 import type { GrowthCopy } from "./copy";
@@ -24,9 +23,8 @@ export function NicknameForm({
   const guide = getGuideCopy(locale);
   return (
     <>
-      <LeagueGuide locale={locale} lead={guide.nicknameLead} line={guide.nicknameLine} />
       <form
-        className={styles.content}
+        className={`${styles.content} ${styles.nicknameForm}`}
         onSubmit={async e => {
           e.preventDefault();
           setPending(true);
@@ -60,6 +58,10 @@ export function NicknameForm({
           }
         }}
       >
+        <header className={styles.menuIntro}>
+          <h2 className={styles.panelTitle}>{guide.nicknameLine}</h2>
+          <p className={styles.meta}>{guide.nicknameLead}</p>
+        </header>
         <div className={styles.field}>
           <label htmlFor="league-nickname">{copy.nickname}</label>
           <input

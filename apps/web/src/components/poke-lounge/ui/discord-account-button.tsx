@@ -219,7 +219,12 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pending}>{text.cancel}</AlertDialogCancel>
-            <AlertDialogAction disabled={pending} onClick={handleLogout}>
+            <AlertDialogAction
+              variant="destructive"
+              className="bg-[var(--pl-color-danger)]! text-[var(--pl-color-surface-raised)]! hover:bg-[#a83d35]!"
+              disabled={pending}
+              onClick={handleLogout}
+            >
               {text.confirm}
             </AlertDialogAction>
           </AlertDialogFooter>
