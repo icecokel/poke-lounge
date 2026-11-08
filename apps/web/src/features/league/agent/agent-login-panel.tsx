@@ -37,12 +37,23 @@ function copy(locale: LeagueLocale) {
   ) as Record<keyof typeof messages, string>;
 }
 
-/** Shown only on `/league?agent`; the server token is the actual gate. */
+export function agentLoginErrorMessage(error: unknown, locale: LeagueLocale): string {
+  const text = copy(locale);
+  return error instanceof LeagueApiError && error.status === 404
+    ? text.rejected
+    : error instanceof LeagueApiError && error.code === "LEAGUE_AGENT_ACCOUNT_INVALID"
+      ? text.invalidAccount
+      : text.failed;
+}
+
+/** Shown on `/league?agent` or after a failed login link; the server token is the actual gate. */
 export function LeagueAgentLoginPanel({
   locale,
+  forceVisible = false,
   onLogin,
 }: {
   locale: LeagueLocale;
+  forceVisible?: boolean;
   onLogin(): void;
 }) {
   const text = copy(locale);
@@ -53,22 +64,8 @@ export function LeagueAgentLoginPanel({
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     setVisible(new URLSearchParams(window.location.search).has("agent"));
-    // Browser agents often refuse to type into password fields, so `#t=<token>&a=<n>`
-    // prefills the form. The fragment never reaches the server; drop it from the
-    // address bar right away so it does not linger in screenshots or history.
-    const hash = new URLSearchParams(window.location.hash.slice(1));
-    const prefill = hash.get("t");
-    if (prefill === null) return;
-    if (/^[A-Za-z0-9_-]{32,128}$/.test(prefill)) setToken(prefill);
-    const slot = hash.get("a");
-    if (slot && /^[1-8]$/.test(slot)) setAccount(slot);
-    window.history.replaceState(
-      window.history.state,
-      "",
-      window.location.pathname + window.location.search,
-    );
   }, []);
-  if (!visible) return null;
+  if (!visible && !forceVisible) return null;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -83,13 +80,7 @@ export function LeagueAgentLoginPanel({
       setToken("");
       onLogin();
     } catch (error) {
-      setError(
-        error instanceof LeagueApiError && error.status === 404
-          ? text.rejected
-          : error instanceof LeagueApiError && error.code === "LEAGUE_AGENT_ACCOUNT_INVALID"
-            ? text.invalidAccount
-            : text.failed,
-      );
+      setError(agentLoginErrorMessage(error, locale));
     } finally {
       setBusy(false);
     }

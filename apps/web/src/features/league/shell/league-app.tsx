@@ -6,7 +6,8 @@ import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/netwo
 import { sameLeagueEngine } from "../test-mode/engine";
 import { LeagueTestModeBanner } from "../test-mode/banner";
 import { LeagueTestLoginPanel } from "../test-mode/login-panel";
-import { LeagueAgentLoginPanel } from "../agent/agent-login-panel";
+import { agentLoginErrorMessage, LeagueAgentLoginPanel } from "../agent/agent-login-panel";
+import { consumeAgentLoginLink, hasAgentLoginLink } from "../agent/agent-auto-login";
 import { LeagueApiError } from "../api/core";
 import {
   getCurrentAttempt,
@@ -62,6 +63,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const [attempt, setAttempt] = useState<AttemptView | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [agentLinkFailed, setAgentLinkFailed] = useState(false);
   const [receivedAt, setReceivedAt] = useState(0);
   const [attemptNeedsRefresh, setAttemptNeedsRefresh] = useState(false);
   const runtimePromise = useRef<Promise<LeagueRuntime> | null>(null);
@@ -110,6 +112,11 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         return;
       }
       try {
+        const linkError = await consumeAgentLoginLink();
+        if (linkError) {
+          setAgentLinkFailed(true);
+          setNotice(agentLoginErrorMessage(linkError, locale));
+        }
         const { user } = await fetchAccountSession();
         if (!user) {
           showLogin();
@@ -147,10 +154,18 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         }
       }
     },
-    [ensureRuntime, showLogin],
+    [ensureRuntime, locale, showLogin],
   );
   useEffect(() => {
     void boot();
+  }, [boot]);
+  useEffect(() => {
+    // Opening a login link in a tab already on this page changes only the fragment.
+    const onHashChange = () => {
+      if (hasAgentLoginLink()) void boot();
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
   }, [boot]);
   const home = useCallback(
     (error?: unknown) => {
@@ -247,7 +262,11 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
                 <DiscordAccountButton locale={locale} />
               </div>
               <LeagueTestLoginPanel locale={locale} test={status?.test} onLogin={() => boot()} />
-              <LeagueAgentLoginPanel locale={locale} onLogin={() => void boot()} />
+              <LeagueAgentLoginPanel
+                locale={locale}
+                forceVisible={agentLinkFailed}
+                onLogin={() => void boot()}
+              />
             </div>
           </>
         )}
