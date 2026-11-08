@@ -53,6 +53,20 @@ export function LeagueAgentLoginPanel({
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     setVisible(new URLSearchParams(window.location.search).has("agent"));
+    // Browser agents often refuse to type into password fields, so `#t=<token>&a=<n>`
+    // prefills the form. The fragment never reaches the server; drop it from the
+    // address bar right away so it does not linger in screenshots or history.
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const prefill = hash.get("t");
+    if (prefill === null) return;
+    if (/^[A-Za-z0-9_-]{32,128}$/.test(prefill)) setToken(prefill);
+    const slot = hash.get("a");
+    if (slot && /^[1-8]$/.test(slot)) setAccount(slot);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + window.location.search,
+    );
   }, []);
   if (!visible) return null;
 
