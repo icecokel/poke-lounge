@@ -431,7 +431,7 @@ openssl rand -hex 32 | tr -d '\n' | tee output/league-agent-token.secret | gh se
 사용:
 
 1. `https://poke-lounge.icecoke.kr/ko-KR/league?agent`를 연다. 로그인 전 화면에만 "운영 테스트 계정" 입력란이 보인다. 주소에 `?agent`가 없으면 보이지 않는다.
-2. 토큰 파일 내용을 입력하고 계정 번호를 고른 뒤 로그인한다. 비밀번호 칸에 입력하지 못하는 브라우저 에이전트는 `https://poke-lounge.icecoke.kr/ko-KR/league?agent#t=<토큰>&a=<계정 번호>`를 열면 토큰과 계정이 미리 채워지고, 로그인 버튼만 누르면 된다. `#` 뒤는 서버로 전송되지 않으며 채운 뒤 주소창에서 지워진다. 여러 에이전트가 동시에 테스트하면 계정 번호를 겹치지 않게 나눈다. `agent-browser --session <이름>`도 서로 다르게 쓴다.
+2. 토큰 파일 내용을 입력하고 계정 번호를 고른 뒤 로그인한다. `https://poke-lounge.icecoke.kr/ko-KR/league#t=<토큰>&a=<계정 번호>`를 열면 입력 없이 바로 그 테스트 계정으로 로그인된다. 다른 계정으로 로그인된 브라우저라면 주소의 계정으로 바뀐다. `#` 뒤는 서버로 전송되지 않으며 로그인 요청 전에 주소창에서 지워진다. 이 주소를 가진 사람은 누구나 로그인할 수 있으므로 토큰처럼 다루고, 외부에 준 뒤에는 토큰을 교체한다. 여러 에이전트가 동시에 테스트하면 계정 번호를 겹치지 않게 나눈다. `agent-browser --session <이름>`도 서로 다르게 쓴다.
 3. 토큰이 틀리거나 기능이 꺼져 있으면 서버는 404를 돌려주고 `league.agent_login_rejected`를 남긴다.
 
 끄기: Secret `LEAGUE_AGENT_LOGIN_TOKEN`을 지우고 main 배포를 다시 실행한다. 토큰이 새었으면 새 값으로 바꿔 재배포한다. 기존 테스트 계정 세션을 바로 끊으려면 다음을 실행한다.
