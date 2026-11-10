@@ -766,47 +766,21 @@ impl Room {
                     {
                         pending.previous_levels.clone()
                     } else {
-                        completed.pack.state["playersById"][player]["team"]
-                            .as_array()
-                            .ok_or(AppError::ComputeUnavailable)?
-                            .iter()
-                            .map(|member| {
-                                Ok((
-                                    member["slotIndex"]
-                                        .as_u64()
-                                        .ok_or(AppError::ComputeUnavailable)?
-                                        .to_string(),
-                                    member["previousLevel"]
-                                        .as_u64()
-                                        .ok_or(AppError::ComputeUnavailable)?,
-                                ))
-                            })
-                            .collect::<AppResult<BTreeMap<_, _>>>()?
+                        previous_levels(&completed.pack.state["playersById"][player]["team"])?
                     };
                     let current = self.parties.get(player).ok_or(AppError::PartyLocked)?;
-                    let mut roster = current.roster.clone();
                     let value = compute.run(self.room_instance_id, self.storage_version,
                         json!({"kind":"complete-progression","party":current.competitive_party,"proposed":party,"previousLevels":previous_levels})).await?;
-                    let merged = compute
-                        .run(
-                            self.room_instance_id,
-                            self.storage_version,
-                            json!({"kind":"accept-party","party":value,"roster":roster,"nowMs":now,"trusted":true}),
+                    let roster = self
+                        .merge_trusted_roster(
+                            compute,
+                            player,
+                            &value,
+                            current.roster.clone(),
+                            now,
+                            "progression",
                         )
-                        .await
-                        .and_then(|accepted| {
-                            accepted
-                                .get("roster")
-                                .filter(|roster| roster.is_object())
-                                .cloned()
-                                .ok_or(AppError::ComputeUnavailable)
-                        });
-                    match merged {
-                        Ok(merged) => roster = merged,
-                        Err(error) => {
-                            tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player, stage = "progression", code = error.code(), error = %error, detail = ?error.detail())
-                        }
-                    }
+                        .await;
                     self.parties.insert(
                         player.into(),
                         Party {
@@ -857,12 +831,12 @@ impl Room {
                 let value = accepted
                     .get("party")
                     .filter(|party| party.is_object())
-                    .ok_or(AppError::ComputeUnavailable)?
+                    .ok_or(AppError::ComputeInvalid("accepted_party"))?
                     .clone();
                 let roster = accepted
                     .get("roster")
                     .filter(|roster| roster.is_object())
-                    .ok_or(AppError::ComputeUnavailable)?
+                    .ok_or(AppError::ComputeInvalid("accepted_roster"))?
                     .clone();
                 if self
                     .parties
@@ -949,7 +923,7 @@ impl Room {
         let display_name = (0..AI_DISPLAY_NAMES.len())
             .map(|offset| AI_DISPLAY_NAMES[(start_index + offset) % AI_DISPLAY_NAMES.len()])
             .find(|name| !self.participants.iter().any(|p| p.display_name == *name))
-            .ok_or(AppError::Invalid("AI display name pool exhausted"))?;
+            .ok_or(AppError::Internal("AI display name pool exhausted"))?;
         self.participants.push(Participant {
             player_id: id.clone(),
             display_name: display_name.to_owned(),
@@ -1100,10 +1074,9 @@ impl Room {
         {
             let participants = self.bracket.as_ref().unwrap().participants.clone();
             for p in &participants {
-                let party = self
-                    .parties
-                    .get(&p.player_id)
-                    .ok_or(AppError::Invalid("Party is not ready"))?;
+                let party = self.parties.get(&p.player_id).ok_or(AppError::Internal(
+                    "bracket entrant has no party at tournament start",
+                ))?;
                 let normalized=compute.run(self.room_instance_id,self.storage_version,json!({"kind":"normalize-party","party":party.competitive_party,"restore":true})).await?;
                 self.parties.insert(
                     p.player_id.clone(),
@@ -1233,7 +1206,7 @@ impl Room {
                     self.parties
                         .get(id)
                         .map(|p| json!({"playerId":id,"party":p.competitive_party}))
-                        .ok_or(AppError::Invalid("Missing competitive party"))
+                        .ok_or(AppError::Internal("bracket entrant has no competitive party"))
                 })
                 .collect::<AppResult<Vec<_>>>()
                 .inspect_err(|_| {
@@ -1302,7 +1275,7 @@ impl Room {
         if pack.state["terminal"].is_null() && pack.state["turn"].as_u64().unwrap_or(0) <= m.turn()
         {
             tracing::error!(event = "match.resolve_stalled", room_instance_id = %self.room_instance_id, match_id = %id, turn = m.turn(), returned_turn = %pack.state["turn"]);
-            return Err(AppError::ComputeUnavailable);
+            return Err(AppError::ComputeInvalid("resolve_stalled"));
         }
         let m = self.matches.get_mut(&id).ok_or(AppError::ActionConflict)?;
         m.pack = pack;
@@ -1343,24 +1316,24 @@ impl Room {
         for player in &m.players {
             let mut party = pack.state["tournamentRewardParties"][player].clone();
             if party.is_null() {
-                return Err(AppError::ComputeUnavailable);
+                return Err(AppError::ComputeInvalid("reward_party_missing"));
             }
             let original = &self
                 .parties
                 .get(player)
-                .ok_or(AppError::ComputeUnavailable)?
+                .ok_or(AppError::Internal("finished match player has no party"))?
                 .competitive_party;
             party["activeSlotIndex"] = original["activeSlotIndex"].clone();
             for member in party["members"]
                 .as_array_mut()
-                .ok_or(AppError::ComputeUnavailable)?
+                .ok_or(AppError::ComputeInvalid("reward_party_members"))?
             {
                 let old = original["members"]
                     .as_array()
-                    .ok_or(AppError::ComputeUnavailable)?
+                    .ok_or(AppError::Internal("stored party has no member list"))?
                     .iter()
                     .find(|old| old["slotIndex"] == member["slotIndex"])
-                    .ok_or(AppError::ComputeUnavailable)?;
+                    .ok_or(AppError::ComputeInvalid("reward_party_slot"))?;
                 // Tournament matches already restore parties; experience must not consume persistent held items.
                 member["heldItemId"] = old["heldItemId"].clone();
             }
@@ -1370,26 +1343,9 @@ impl Room {
                 .map(|p| p.roster.clone())
                 .unwrap_or(Value::Null);
             if !ai_players.contains(player) {
-                let merged = compute
-                    .run(
-                        self.room_instance_id,
-                        self.storage_version,
-                        json!({"kind":"accept-party","party":party,"roster":roster,"nowMs":now,"trusted":true}),
-                    )
-                    .await
-                    .and_then(|accepted| {
-                        accepted
-                            .get("roster")
-                            .filter(|roster| roster.is_object())
-                            .cloned()
-                            .ok_or(AppError::ComputeUnavailable)
-                    });
-                match merged {
-                    Ok(merged) => roster = merged,
-                    Err(error) => {
-                        tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player, stage = "tournament_reward", code = error.code(), error = %error, detail = ?error.detail())
-                    }
-                }
+                roster = self
+                    .merge_trusted_roster(compute, player, &party, roster, now, "tournament_reward")
+                    .await;
             }
             self.parties.insert(
                 player.clone(),
@@ -1400,28 +1356,15 @@ impl Room {
                 },
             );
             self.adventures.remove(player);
-            let team = pack.state["playersById"][player]["team"]
-                .as_array()
-                .ok_or(AppError::ComputeUnavailable)?;
+            let team = &pack.state["playersById"][player]["team"];
             if !ai_players.contains(player)
                 && team
+                    .as_array()
+                    .ok_or(AppError::ComputeInvalid("settled_team"))?
                     .iter()
                     .any(|member| member["experienceGained"].as_u64().unwrap_or(0) > 0)
             {
-                let previous_levels = team
-                    .iter()
-                    .map(|member| {
-                        Ok((
-                            member["slotIndex"]
-                                .as_u64()
-                                .ok_or(AppError::ComputeUnavailable)?
-                                .to_string(),
-                            member["previousLevel"]
-                                .as_u64()
-                                .ok_or(AppError::ComputeUnavailable)?,
-                        ))
-                    })
-                    .collect::<AppResult<BTreeMap<_, _>>>()?;
+                let previous_levels = previous_levels(team)?;
                 self.pending_progressions.insert(
                     player.clone(),
                     PendingProgression {
@@ -1436,14 +1379,14 @@ impl Room {
         m.pack = pack;
         let winner = m.pack.state["terminal"]["winnerPlayerId"]
             .as_str()
-            .ok_or(AppError::ComputeUnavailable)?
+            .ok_or(AppError::ComputeInvalid("terminal_winner"))?
             .to_owned();
         let reason = m.pack.state["terminal"]["reason"]
             .as_str()
-            .ok_or(AppError::ComputeUnavailable)?
+            .ok_or(AppError::ComputeInvalid("terminal_reason"))?
             .to_owned();
         if !m.players.contains(&winner) || !TERMINAL_REASONS.contains(&reason.as_str()) {
-            return Err(AppError::ComputeUnavailable);
+            return Err(AppError::ComputeInvalid("terminal_outcome"));
         }
         m.pack.compact_terminal_state();
         self.revision += 1;
@@ -1451,10 +1394,9 @@ impl Room {
         m.terminal_event_id = Some(Uuid::new_v4());
         m.terminal_room_revision = Some(self.revision);
         m.progression_ends_at_ms = Some(now + TOURNAMENT_MOVE_CHOICE_WAIT_MAX_MS);
-        let bracket = self
-            .bracket
-            .as_mut()
-            .ok_or(AppError::Invalid("Missing bracket"))?;
+        let bracket = self.bracket.as_mut().ok_or(AppError::Internal(
+            "tournament match finished without a bracket",
+        ))?;
         bracket.record(&m.bracket_match_id, &winner, &reason, now)?;
         if bracket.status == "completed" {
             for (player, score) in bracket.scores()? {
@@ -1522,6 +1464,39 @@ impl Room {
             }
         }
         Ok(())
+    }
+    /// Folds a server-produced party into the player's roster. A failed merge keeps the previous
+    /// roster: the party itself is already authoritative.
+    async fn merge_trusted_roster(
+        &self,
+        compute: &Compute,
+        player: &str,
+        party: &Value,
+        roster: Value,
+        now: u64,
+        stage: &'static str,
+    ) -> Value {
+        let merged = compute
+            .run(
+                self.room_instance_id,
+                self.storage_version,
+                json!({"kind":"accept-party","party":party,"roster":roster,"nowMs":now,"trusted":true}),
+            )
+            .await
+            .and_then(|accepted| {
+                accepted
+                    .get("roster")
+                    .filter(|roster| roster.is_object())
+                    .cloned()
+                    .ok_or(AppError::ComputeInvalid("accepted_roster"))
+            });
+        match merged {
+            Ok(merged) => merged,
+            Err(error) => {
+                tracing::warn!(event = "room.roster_merge_failed", room_instance_id = %self.room_instance_id, player_id = %player, stage, code = error.code(), error = %error, detail = ?error.detail());
+                roster
+            }
+        }
     }
     pub async fn step_ai(&mut self, now: u64, compute: &Compute) -> AppResult<()> {
         if self.terminal() || self.status == Status::Waiting || now < self.last_ai_step_ms + 250 {
@@ -1717,6 +1692,25 @@ impl Room {
             json!({"map":FIELD_MAP_KEY,"x":ROUND_SPAWN_BASE_X+(i%ROUND_SPAWN_COLUMNS)*ROUND_SPAWN_STEP,"y":ROUND_SPAWN_BASE_Y+if starting{ROUND_SPAWN_START_Y_OFFSET}else{0}+(i/ROUND_SPAWN_COLUMNS)*ROUND_SPAWN_STEP,"facing":if starting{"front"}else{"back"}}),
         )
     }
+}
+
+/// Slot index to pre-match level for every member of a settled engine team.
+fn previous_levels(team: &Value) -> AppResult<BTreeMap<String, u64>> {
+    team.as_array()
+        .ok_or(AppError::ComputeInvalid("settled_team"))?
+        .iter()
+        .map(|member| {
+            Ok((
+                member["slotIndex"]
+                    .as_u64()
+                    .ok_or(AppError::ComputeInvalid("settled_team_slot_index"))?
+                    .to_string(),
+                member["previousLevel"]
+                    .as_u64()
+                    .ok_or(AppError::ComputeInvalid("settled_team_previous_level"))?,
+            ))
+        })
+        .collect()
 }
 
 fn is_ai_only_match(participants: &[Participant], battle: &Match) -> bool {

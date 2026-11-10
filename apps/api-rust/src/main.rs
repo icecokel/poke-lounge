@@ -45,12 +45,8 @@ async fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             // Display only the safe wrapper, not Redis connection credentials in source errors.
-            let storage = error.storage_error();
-            tracing::error!(event = "backend.exit", error = %error, stage,
+            error::log_with_storage!(error, error, event = "backend.exit", error = %error, stage,
                 uptime_ms = started.elapsed().as_millis() as u64,
-                storage_kind = ?storage.map(redis::RedisError::kind),
-                storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
-                storage_timeout = ?storage.map(redis::RedisError::is_timeout),
                 release = %logging::release());
             ExitCode::FAILURE
         }
@@ -110,12 +106,9 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
                             }
                             Err(error) => {
                                 failures += 1;
-                                let storage = error.storage_error();
-                                tracing::warn!(event = "backend.owner_renew_failed", failures, reason = %error,
+                                error::log_with_storage!(warn, error, event = "backend.owner_renew_failed",
+                                    failures, reason = %error,
                                     elapsed_ms = started.elapsed().as_millis() as u64,
-                                    storage_kind = ?storage.map(redis::RedisError::kind),
-                                    storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
-                                    storage_timeout = ?storage.map(redis::RedisError::is_timeout),
                                     release = %logging::release());
                                 if last_renewed.elapsed() >= OWNER_STOP_AFTER {
                                     tracing::error!(event = "backend.owner_lost", failures, release = %logging::release(),
@@ -158,12 +151,9 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
                     _ = timer.tick() => {
                         let started = Instant::now();
                         if let Err(error) = rooms.restore().await {
-                            let storage = error.storage_error();
-                            tracing::warn!(event = "backend.recovery_failed", reason = %error,
+                            error::log_with_storage!(warn, error, event = "backend.recovery_failed",
+                                reason = %error,
                                 elapsed_ms = started.elapsed().as_millis() as u64,
-                                storage_kind = ?storage.map(redis::RedisError::kind),
-                                storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
-                                storage_timeout = ?storage.map(redis::RedisError::is_timeout),
                                 release = %logging::release());
                         }
                     }

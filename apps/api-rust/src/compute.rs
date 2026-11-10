@@ -202,10 +202,10 @@ impl Compute {
                 return Err(if invalid {
                     (AppError::ComputeRejected(reason.to_owned()), "rejected")
                 } else {
-                    (AppError::ComputeUnavailable, "worker_failed")
+                    (AppError::ComputeFailed, "worker_failed")
                 });
             }
-            body.get("data").cloned().ok_or((AppError::ComputeUnavailable, "data_missing"))
+            body.get("data").cloned().ok_or((AppError::ComputeInvalid("data_missing"), "data_missing"))
         }.await;
         let duration_ms = started.elapsed().as_millis() as u64;
         match result {
@@ -238,7 +238,7 @@ impl Compute {
             .map_err(|error| {
             tracing::error!(event = "compute.battle_invalid", room_instance_id = %id, revision,
                     operation = %kind, check = "shape", detail = %error);
-            AppError::Corrupt(error)
+            AppError::ComputeInvalid("battle_shape")
         })?;
         let failed_check = if result.state["participantIds"] != json!(players) {
             Some("state_participants")
@@ -262,7 +262,7 @@ impl Compute {
         if let Some(check) = failed_check {
             tracing::error!(event = "compute.battle_invalid", room_instance_id = %id, revision,
                 operation = %kind, check);
-            return Err(AppError::ComputeUnavailable);
+            return Err(AppError::ComputeInvalid(check));
         }
         Ok(result)
     }
@@ -281,6 +281,7 @@ impl Compute {
             }
             bytes.extend_from_slice(&chunk);
         }
-        serde_json::from_slice(&bytes).map_err(|error| (AppError::from(error), "json_parse"))
+        // A non-JSON body is a proxy or crash page, not stored data: report it as a compute outage.
+        serde_json::from_slice(&bytes).map_err(|_| (AppError::ComputeUnavailable, "json_parse"))
     }
 }

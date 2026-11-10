@@ -84,7 +84,7 @@ pub struct Bracket {
 impl Bracket {
     pub fn new(participants: Vec<Entrant>, index: u8) -> AppResult<Self> {
         if !(2..=MAX_PARTICIPANTS).contains(&participants.len()) {
-            return Err(AppError::Invalid("Invalid tournament participant count"));
+            return Err(AppError::Internal("Invalid tournament participant count"));
         }
         let order: &[usize] = if participants.len() <= 2 {
             &SEED_ORDER_2
@@ -122,23 +122,23 @@ impl Bracket {
     }
     pub fn record(&mut self, id: &str, winner: &str, reason: &str, now: u64) -> AppResult<()> {
         if self.status == "completed" {
-            return Err(AppError::Invalid("Tournament already completed"));
+            return Err(AppError::Internal("Tournament already completed"));
         }
         let round = self
             .current_round
             .as_mut()
-            .ok_or(AppError::Invalid("Missing active bracket"))?;
+            .ok_or(AppError::Internal("Missing active bracket"))?;
         let m = round
             .matches
             .iter_mut()
             .find(|m| m.match_id == id && m.status == "ready")
-            .ok_or(AppError::Invalid("Match is not ready"))?;
+            .ok_or(AppError::Internal("Match is not ready"))?;
         let loser = if m.participant_a.player_id == winner {
             &m.participant_b
         } else if m.participant_b.player_id == winner {
             &m.participant_a
         } else {
-            return Err(AppError::Invalid("Winner is not a participant"));
+            return Err(AppError::Internal("Winner is not a participant"));
         };
         self.eliminations.push(Elimination {
             player_id: loser.player_id.clone(),
@@ -165,7 +165,7 @@ impl Bracket {
                         .iter()
                         .find(|m| &m.match_id == match_id)
                         .and_then(|m| m.winner_player_id.as_ref())
-                        .ok_or(AppError::Invalid("Missing match winner"))?;
+                        .ok_or(AppError::Internal("Missing match winner"))?;
                     self.participants
                         .iter()
                         .find(|p| &p.player_id == winner)
@@ -177,7 +177,7 @@ impl Bracket {
                     .find(|b| &b.bye_id == bye_id)
                     .map(|b| b.entrant.clone()),
             }
-            .ok_or(AppError::Invalid("Missing bracket entrant"))?;
+            .ok_or(AppError::Internal("Missing bracket entrant"))?;
             entrants.push(Some(entrant));
         }
         let next_round = round.round_number + 1;
@@ -195,7 +195,7 @@ impl Bracket {
         let champion = self
             .champion_player_id
             .clone()
-            .ok_or(AppError::Invalid("Tournament is unfinished"))?;
+            .ok_or(AppError::Internal("Tournament is unfinished"))?;
         let mut scores = vec![(champion, 100)];
         let mut rounds = self
             .eliminations
@@ -256,7 +256,7 @@ fn make_round(game: u8, number: usize, entrants: Vec<Option<Entrant>>) -> AppRes
                 });
                 round.slots.push(Slot::Bye { bye_id: id });
             }
-            _ => return Err(AppError::Invalid("Empty bracket slot")),
+            _ => return Err(AppError::Internal("Empty bracket slot")),
         }
     }
     Ok(round)
