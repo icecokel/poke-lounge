@@ -50,7 +50,10 @@ import { MobilePlayStatus, MobileGameSummary } from "./mobile-play-status";
 import { getMobileUiCopy } from "./mobile-ui-copy";
 import { getRoomLobbyCopy } from "../runtime/game/ui/room-lobby-copy";
 import type { GameStateStore } from "../runtime/game/state/game-state-store";
-import { localizeMobileWorldUiState } from "../runtime/game/i18n/runtime-game-localization";
+import {
+  localizeMobileWorldUiState,
+  getPokemonStatusLabel,
+} from "../runtime/game/i18n/runtime-game-localization";
 
 type MobileScene = "battle" | "world" | null;
 
@@ -295,7 +298,11 @@ export function MobileExploreDeck({
         >
           <strong>{activePokemon.name}</strong>
           <span>
-            {formatMobileHp(activePokemon.currentHp, activePokemon.maxHp, activePokemon.status)}
+            {formatMobileHp(
+              activePokemon.currentHp,
+              activePokemon.maxHp,
+              getPokemonStatusLabel(activePokemon.status, copy.locale),
+            )}
           </span>
         </div>
       ) : null}
@@ -538,7 +545,7 @@ export function MobileWorldScreen({
     content = <MobileInventoryItemList copy={copy} onAction={onAction} state={state} />;
     footer = <MobileWorldSceneFooter copy={copy} onBack={back} />;
   } else if (state.screen === "inventory-party") {
-    content = <MobileInventoryPartyTarget onAction={onAction} state={state} />;
+    content = <MobileInventoryPartyTarget copy={copy} onAction={onAction} state={state} />;
     footer = <MobileWorldSceneFooter copy={copy} onBack={back} />;
   } else if (state.screen === "inventory-move-replace") {
     content = <MobileInventoryMoveReplacement copy={copy} onAction={onAction} state={state} />;
@@ -658,9 +665,11 @@ export function MobileInventoryItemList({
 }
 
 export function MobileInventoryPartyTarget({
+  copy,
   onAction,
   state,
 }: {
+  copy: PokeLoungeCopy;
   onAction(action: MobileWorldUiAction): void;
   state: MobileWorldUiState;
 }) {
@@ -687,7 +696,13 @@ export function MobileInventoryPartyTarget({
                 }}
               >
                 <span>{pokemon.name}</span>
-                <small>{formatMobileHp(pokemon.currentHp, pokemon.maxHp, pokemon.status)}</small>
+                <small>
+                  {formatMobileHp(
+                    pokemon.currentHp,
+                    pokemon.maxHp,
+                    getPokemonStatusLabel(pokemon.status, copy.locale),
+                  )}
+                </small>
               </button>
             );
           })}
@@ -973,15 +988,13 @@ function MobileWorldMessage({ message }: { message: string }) {
 function formatMobileHp(
   currentHp: number | null,
   maxHp: number | null,
-  status: string | null,
+  statusLabel: string | null,
 ): string {
   if (currentHp === null || maxHp === null) {
     return "- / -";
   }
 
-  const statusLabel = status && status !== "normal" ? ` · ${status}` : "";
-
-  return `${currentHp}/${maxHp}${statusLabel}`;
+  return `${currentHp}/${maxHp}${statusLabel ? ` · ${statusLabel}` : ""}`;
 }
 
 function MobileSettingsScreen({

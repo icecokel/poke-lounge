@@ -27,6 +27,7 @@ import { primePokeLoungeAudio } from "../audio/poke-lounge-audio";
 import {
   localizeBattlePresentationState,
   localizeMobileBattleUiState,
+  getPokemonStatusLabel,
   localizeRuntimeText,
 } from "../i18n/runtime-game-localization";
 import type { GameStateStore } from "../state/game-state-store";
@@ -776,9 +777,7 @@ export function BattlePartyPanel({
               {!pokemon.isEmpty ? (
                 <small>
                   Lv.{pokemon.level} · HP {pokemon.currentHp}/{pokemon.maxHp}
-                  {pokemon.status && pokemon.status !== "normal"
-                    ? ` · ${copy.game.statusLabel[pokemon.status as keyof typeof copy.game.statusLabel] ?? pokemon.status}`
-                    : ""}
+                  {partyStatusSuffix(pokemon.status, copy.locale)}
                 </small>
               ) : null}
             </button>
@@ -874,6 +873,11 @@ export function BattleWaitingPanel({ copy }: { copy: PokeLoungeCopy }) {
       {copy.game.battleProcessing}
     </div>
   );
+}
+
+function partyStatusSuffix(status: string | null, locale: string): string {
+  const label = getPokemonStatusLabel(status, locale);
+  return label ? ` · ${label}` : "";
 }
 
 function BattleOptionButton({
