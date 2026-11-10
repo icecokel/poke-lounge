@@ -26,6 +26,18 @@ pub struct BattlePack {
     pub state_hash: String,
     pub required_player_ids: Vec<String>,
 }
+/// The worker's error code when it is a bounded SCREAMING_SNAKE label, for log fields.
+fn worker_code(body: &Value) -> &str {
+    body["code"]
+        .as_str()
+        .filter(|code| {
+            code.len() <= 64
+                && code
+                    .bytes()
+                    .all(|byte| byte.is_ascii_uppercase() || byte == b'_')
+        })
+        .unwrap_or("none")
+}
 impl Compute {
     pub fn new(url: String, token: String) -> AppResult<Self> {
         let parsed =
@@ -158,8 +170,7 @@ impl Compute {
                     ("engineVersion", body["engineVersion"] != ENGINE_VERSION.trim()),
                     ("protocolVersion", body["protocolVersion"] != 1),
                 ].into_iter().filter_map(|(name, bad)| bad.then_some(name)).collect();
-                let worker_code = body["code"].as_str().filter(|code| code.len() <= 64
-                    && code.bytes().all(|byte| byte.is_ascii_uppercase() || byte == b'_')).unwrap_or("none");
+                let worker_code = worker_code(&body);
                 tracing::error!(event="compute.response_invalid", compute_request_id=%request_id,
                     room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
                     worker_code, mismatched=%mismatched.join(","),
@@ -168,8 +179,7 @@ impl Compute {
             }
             if !status.is_success() || body["ok"] != true {
                 // Copy only bounded diagnostic labels from the internal worker, never its input.
-                let valid_label = |value: &str, max: usize| !value.is_empty() && value.len() <= max
-                    && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'));
+                let valid_label = crate::logging::valid_label;
                 let reason = body["diagnostic"]["reason"].as_str()
                     .filter(|value| valid_label(value, 64)).unwrap_or("unspecified");
                 let issues: Vec<Value> = body["diagnostic"]["issues"].as_array().into_iter().flatten().take(8)
@@ -185,8 +195,7 @@ impl Compute {
                 // The worker already strips paths and truncates; re-bound it here anyway.
                 let error_message: String = body["diagnostic"]["message"].as_str().unwrap_or("")
                     .chars().filter(|c| !c.is_control()).take(200).collect();
-                let worker_code = body["code"].as_str().filter(|code| code.len() <= 64
-                    && code.bytes().all(|byte| byte.is_ascii_uppercase() || byte == b'_')).unwrap_or("none");
+                let worker_code = worker_code(&body);
                 let invalid = body["code"] == "INVALID_INPUT";
                 if invalid {
                     tracing::warn!(event="compute.rejected", compute_request_id=%request_id,

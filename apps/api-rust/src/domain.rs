@@ -67,6 +67,8 @@ pub const ROUND_COUNT: u8 = 3;
 // Must match packages/poke-lounge-battle/src/tournament-bracket.ts TERMINAL_PROJECTION_PAGE_SIZE (pnpm check:rust-ts-constants).
 pub const TERMINAL_PAGE_SIZE: usize = 8;
 pub const MAX_COMMANDS: u64 = 16_384;
+// Each game round runs one single-elimination bracket, which plays one match fewer than entrants.
+const MAX_MATCHES: usize = ROUND_COUNT as usize * (MAX_PARTICIPANTS - 1);
 pub const ROOM_CODE_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const AI_DISPLAY_NAMES: [&str; 18] = [
     "반바지 꼬마 오성",
@@ -507,7 +509,7 @@ impl Room {
             || self.room_instance_id != id
             || normalize_code(&self.room_code).ok().as_deref() != Some(&self.room_code)
             || self.participants.len() > MAX_PARTICIPANTS
-            || self.matches.len() > 21
+            || self.matches.len() > MAX_MATCHES
             || self.pending_progressions.len() > MAX_PARTICIPANTS
             || self.accepted_commands > MAX_COMMANDS
             || self.created_at_ms.checked_add(SESSION_MAX_MS) != Some(self.hard_expires_at_ms)
@@ -1702,10 +1704,7 @@ impl Room {
             .iter()
             .map(|p| p.player_id.clone())
             .collect::<Vec<_>>();
-        let starting = self.status == Status::RoundStarted
-            && self.round.started_at_ms.is_none_or(|at| now < at);
-        let gathering =
-            self.status == Status::Tournament || self.round.ends_at_ms.is_some_and(|at| now >= at);
+        let (starting, gathering) = self.field_phase(now);
         let jobs=self.participants.iter().filter(|p|p.ai&&p.connected&&!faults.waiting(&p.player_id,now)).map(|p|{
             let id=p.player_id.clone();let difficulty=p.ai_difficulty;let party=self.parties.get(&id).map(|p|p.competitive_party.clone()).unwrap_or(Value::Null);
             let operation=json!({"kind":"ai-step","party":party,"adventure":self.adventures.get(&id),"nowMs":now,"roundIndex":self.round.index,"preparing":self.status==Status::RoundStarted&&!gathering&&!starting,"starting":starting,"gathering":gathering,"playerId":id,"playerIds":ids,"difficulty":difficulty,"startAtMs":self.round.started_at_ms,"roundDurationMs":self.round.duration_ms,"seed":format!("{}:{id}:{now}",self.room_instance_id)});
@@ -1777,6 +1776,15 @@ impl Room {
         }
         self.last_ai_step_ms = now;
         Ok(())
+    }
+    /// (starting, gathering): lined up before the round countdown ends, and called back to the
+    /// tournament once the field round is over.
+    fn field_phase(&self, now: u64) -> (bool, bool) {
+        let starting = self.status == Status::RoundStarted
+            && self.round.started_at_ms.is_none_or(|at| now < at);
+        let gathering =
+            self.status == Status::Tournament || self.round.ends_at_ms.is_some_and(|at| now >= at);
+        (starting, gathering)
     }
     pub fn active_matches(&self) -> Vec<Uuid> {
         if self.status != Status::Tournament {
@@ -1872,10 +1880,7 @@ impl Room {
         result
     }
     pub fn position(&self, player: &str, now: u64) -> Option<Value> {
-        let starting = self.status == Status::RoundStarted
-            && self.round.started_at_ms.is_none_or(|at| now < at);
-        let gathering =
-            self.status == Status::Tournament || self.round.ends_at_ms.is_some_and(|at| now >= at);
+        let (starting, gathering) = self.field_phase(now);
         if !starting && !gathering {
             return None;
         }

@@ -196,7 +196,7 @@ impl Bracket {
             .champion_player_id
             .clone()
             .ok_or(AppError::Internal("Tournament is unfinished"))?;
-        let mut scores = vec![(champion, 100)];
+        let mut scores = vec![(champion, SCORE_BY_RANK[0])];
         let mut rounds = self
             .eliminations
             .iter()

@@ -409,13 +409,7 @@ struct ClientError {
 
 async fn client_error(payload: Result<Json<ClientError>, JsonRejection>) -> AppResult<StatusCode> {
     let payload = body(payload)?;
-    let valid_label = |value: &str, max: usize| {
-        !value.is_empty()
-            && value.len() <= max
-            && value
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
-    };
+    let valid_label = crate::logging::valid_label;
     // Name the rejected field: a dropped report is otherwise invisible to operators.
     let invalid_field = [
         ("kind", !valid_label(&payload.kind, 32)),
