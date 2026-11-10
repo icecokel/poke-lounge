@@ -51,6 +51,7 @@ jobs:
           pnpm check:league-static
           pnpm check:poke-lounge-i18n
           pnpm check:poke-lounge-competitive-catalog
+          pnpm check:poke-lounge-rom-catalog
           pnpm check:poke-lounge-battle-resolution
           pnpm poke-lounge:audio:verify
 

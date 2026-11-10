@@ -20,6 +20,7 @@
     "generate:poke-lounge-i18n": "python3 scripts/poke-lounge/generate-runtime-i18n.py",
     "check:poke-lounge-i18n": "python3 scripts/poke-lounge/generate-runtime-i18n.py --check",
     "check:poke-lounge-competitive-catalog": "node scripts/poke-lounge/generate-competitive-catalog.mjs --check",
+    "check:poke-lounge-rom-catalog": "node scripts/poke-lounge/check-gen4-rom-catalog.mjs",
     "check:poke-lounge-battle-resolution": "node scripts/check-poke-lounge-battle-resolution.mjs types && pnpm build:poke-lounge-battle && node scripts/check-poke-lounge-battle-resolution.mjs runtime",
     "poke-lounge:audio:verify": "node scripts/poke-lounge/verify-audio-assets.mjs",
     "check:rust-room-contract": "node scripts/check-rust-room-contract.mjs",
