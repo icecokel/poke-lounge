@@ -668,10 +668,3 @@ export function MobileBattleMessageDeck({ copy, onAction, state }: DeckProps) {
     </div>
   );
 }
-export function MobileBattleWaitingDeck({ copy }: { copy: PokeLoungeCopy }) {
-  return (
-    <p className="p-4 text-base leading-[1.45]" role="status">
-      {copy.mobile.waiting}
-    </p>
-  );
-}

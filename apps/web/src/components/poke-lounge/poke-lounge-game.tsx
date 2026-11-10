@@ -8,7 +8,6 @@ import {
   MOBILE_PLAY_CHILDREN,
 } from "./mobile/mobile-play-shell";
 
-import { useGame } from "@/contexts/game-context";
 import { hydrateGameProgress } from "@/features/poke-lounge/application/persistence/hydrate-game-progress";
 import { useRouter } from "@/i18n/navigation";
 import { reportClientDiagnostic } from "@/lib/client-diagnostics";
@@ -139,7 +138,6 @@ function createPokeLoungeRoomShareUrlFromLocation(roomEntry: RoomEntryIntent): s
 }
 
 export function PokeLoungeGame() {
-  const { setGamePlaying } = useGame();
   const locale = useLocale();
   const router = useRouter();
   const { data: session, status } = useLocalTestSession();
@@ -646,51 +644,44 @@ export function PokeLoungeGame() {
     };
   }, []);
 
-  useEffect(
-    function runEffect() {
-      const gameRoot = pageRef.current?.querySelector<HTMLElement>("#game-root");
+  useEffect(function runEffect() {
+    const gameRoot = pageRef.current?.querySelector<HTMLElement>("#game-root");
 
-      if (!gameRoot) {
-        return;
+    if (!gameRoot) {
+      return;
+    }
+
+    const syncGameRuntimeState = () => {
+      const resourceStatus = gameRoot.dataset.pokeLoungeResourceStatus;
+      const isGameReady = resourceStatus === "ready";
+      const nextActiveScene = isGameReady
+        ? gameRoot.dataset.pokeLoungeActiveScene === "battle"
+          ? "battle"
+          : "world"
+        : null;
+      setGameRuntimeMounted(isGameReady);
+      setActiveGameScene(nextActiveScene);
+      if (nextActiveScene) {
+        setRuntimeState(function callback(current) {
+          return current.phase === "world" || current.phase === "battle"
+            ? { ...current, phase: nextActiveScene }
+            : current;
+        });
       }
+    };
 
-      const syncGameRuntimeState = () => {
-        const resourceStatus = gameRoot.dataset.pokeLoungeResourceStatus;
-        const isGameReady = resourceStatus === "ready";
-        const nextActiveScene = isGameReady
-          ? gameRoot.dataset.pokeLoungeActiveScene === "battle"
-            ? "battle"
-            : "world"
-          : null;
-        setGameRuntimeMounted(isGameReady);
-        setActiveGameScene(nextActiveScene);
-        if (nextActiveScene) {
-          setRuntimeState(function callback(current) {
-            return current.phase === "world" || current.phase === "battle"
-              ? { ...current, phase: nextActiveScene }
-              : current;
-          });
-        }
+    syncGameRuntimeState();
 
-        if (resourceStatus === "error") {
-          setGamePlaying(false);
-        }
-      };
+    const observer = new MutationObserver(syncGameRuntimeState);
+    observer.observe(gameRoot, {
+      attributes: true,
+      attributeFilter: ["data-poke-lounge-active-scene", "data-poke-lounge-resource-status"],
+    });
 
-      syncGameRuntimeState();
-
-      const observer = new MutationObserver(syncGameRuntimeState);
-      observer.observe(gameRoot, {
-        attributes: true,
-        attributeFilter: ["data-poke-lounge-active-scene", "data-poke-lounge-resource-status"],
-      });
-
-      return function callback() {
-        observer.disconnect();
-      };
-    },
-    [setGamePlaying],
-  );
+    return function callback() {
+      observer.disconnect();
+    };
+  }, []);
 
   const entryDocumentScroll = runtimeState.phase === "entry";
 
@@ -976,7 +967,6 @@ export function PokeLoungeGame() {
       let destroyGamePage: (() => void) | null = null;
       const idToken = accountId ? accountTokensRef.current.get(accountId) : undefined;
       setGameStartupErrorCode(null);
-      setGamePlaying(true);
       startedAtMsRef.current = Date.now();
       const cleanupGamePage = () => {
         if (cleanedUp) {
@@ -985,7 +975,6 @@ export function PokeLoungeGame() {
 
         cleanedUp = true;
         cancelled = true;
-        setGamePlaying(false);
 
         destroyGamePage?.();
         gamePageHandleRef.current = null;
@@ -1054,14 +1043,13 @@ export function PokeLoungeGame() {
               userCode,
             });
             setGameStartupErrorCode(userCode);
-            setGamePlaying(false);
           }
         }
       })();
 
       return cleanupGamePage;
     },
-    [accountId, gameHydrationReady, gameStartupAttempt, localTestModeActive, setGamePlaying],
+    [accountId, gameHydrationReady, gameStartupAttempt, localTestModeActive],
   );
 
   const handleResultRetry = useCallback(function memoizedCallback() {
