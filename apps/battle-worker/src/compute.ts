@@ -7,7 +7,10 @@ import {
   type CanonicalBattleState,
 } from "@poke-lounge/battle/canonical-state";
 import { createInitialBattleState } from "@poke-lounge/battle/ruleset";
-import { initializeGen4Canonical } from "@poke-lounge/battle/gen4/canonical";
+import {
+  Gen4CompetitiveActionRejectedError,
+  initializeGen4Canonical,
+} from "@poke-lounge/battle/gen4/canonical";
 import { createSeededRandom } from "@poke-lounge/battle/prng";
 import {
   COMPETITIVE_RULESET_V2,
@@ -51,6 +54,14 @@ import {
   getTournamentRewardParty,
   learnAvailableTournamentMoves,
 } from "@poke-lounge/battle/tournament-experience";
+
+/** The caller's input broke a rule; anything else thrown by a computation is an internal fault. */
+class ComputeInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ComputeInputError";
+  }
+}
 
 function state(value: unknown): CanonicalBattleState {
   const parsed = z
@@ -127,7 +138,7 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
             getStarterLevel(op.starterSelection, party.members[0]!.speciesId) ||
           !candidates.includes(party.members[0]!.speciesId)
         ) {
-          throw new Error("Invalid starter party");
+          throw new ComputeInputError("Invalid starter party");
         }
       }
       return op.restore ? restoreCompetitiveParty(party) : party;
@@ -165,12 +176,19 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
       );
       return pack(next);
     }
-    case "complete-progression":
-      return completeTournamentProgression(
-        normalizeCompetitiveParty(partySchema.parse(op.party)),
-        partySchema.parse(op.proposed),
-        op.previousLevels,
-      );
+    case "complete-progression": {
+      const party = normalizeCompetitiveParty(partySchema.parse(op.party));
+      const proposed = partySchema.parse(op.proposed);
+      try {
+        return completeTournamentProgression(party, proposed, op.previousLevels);
+      } catch (error) {
+        // It rejects a proposal with a plain Error; TypeError and the like remain internal faults.
+        if (!(error instanceof Error) || error.constructor !== Error) throw error;
+        const rejected = new ComputeInputError(error.message);
+        rejected.stack = error.stack;
+        throw rejected;
+      }
+    }
     case "initial-party": {
       await getContext();
       const random = createSeededRandom(op.seed);
@@ -317,14 +335,17 @@ async function run(raw: unknown): Promise<ComputeResponse> {
         }) + "\n",
       );
     }
+    const kind = input.operation.kind;
+    // Classified by error type, so an engine fault in any operation is reported as COMPUTE_FAILED.
     const invalid =
       error instanceof PartyAcceptanceError ||
-      (input.operation.kind === "accept-party" &&
-        error instanceof CompetitivePartyValidationError) ||
       error instanceof z.ZodError ||
-      input.operation.kind === "validate" ||
-      input.operation.kind === "complete-progression" ||
-      input.operation.kind === "normalize-party";
+      error instanceof ComputeInputError ||
+      (error instanceof CompetitivePartyValidationError &&
+        (kind === "accept-party" ||
+          kind === "normalize-party" ||
+          kind === "complete-progression")) ||
+      (error instanceof Gen4CompetitiveActionRejectedError && kind === "validate");
     return {
       ...identity,
       ok: false,
