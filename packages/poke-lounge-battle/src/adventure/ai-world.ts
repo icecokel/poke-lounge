@@ -315,9 +315,15 @@ function advanceWildBattle(
     return;
   }
   if (battle.phase === "party-select") {
-    const replacement = battle.player.party.find(
+    // After Baton Pass / U-turn the active Pokémon is still alive but is not a legal target.
+    const living = battle.player.party.filter(
       slot => slot.pokemon && slot.pokemon.currentHp > 0 && slot.pokemon.status !== "fainted",
     );
+    const switchSlots = battle.gen4Requests?.[0].switchSlots;
+    const replacement =
+      (switchSlots
+        ? living.find(slot => switchSlots.includes(slot.slotIndex))
+        : living.find(slot => slot.slotIndex !== battle.player.activePartySlotIndex)) ?? living[0];
     if (replacement) battle = choosePartySlot(battle, replacement.slotIndex);
   } else if (
     battle.opponent.pokemon.currentHp <= battle.opponent.pokemon.maxHp * 0.5 &&
