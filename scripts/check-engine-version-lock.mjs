@@ -9,6 +9,11 @@
 //   node scripts/check-engine-version-lock.mjs          compare with the recorded lock
 //   node scripts/check-engine-version-lock.mjs --write  re-record the lock
 //
+// Modelled on the league lock (scripts/league/checks/engine.mjs + league/engine-fingerprint.json,
+// which guards LEAGUE_ENGINE_REVISION). That lock overlaps most of these files but is keyed to the
+// league revision, omits gen4/canonical.ts, gen4/capture.ts and canonical-state.ts, and hashes raw
+// bytes; this one guards the competitive engine version. It never touches the league lock.
+//
 // Fingerprinted inputs:
 //   - competitive catalog hash and the canonical JSON of COMPETITIVE_RULESET_V2
 //   - the @pkmn/sim version and integrity resolved in pnpm-lock.yaml
@@ -47,15 +52,17 @@ try {
     );
   }
 
+  // Same shape as packages/poke-lounge-battle/src/league/engine-fingerprint.json
+  // ({ revision, simVersion, files }), keyed by the competitive engine version instead.
+  const sim = readResolvedSim();
   const current = {
     engineVersion,
+    simVersion: sim.version,
+    simIntegrity: sim.integrity,
+    competitiveCatalogHash: catalog.COMPETITIVE_CATALOG_HASH,
+    rulesetConfigHash: sha256(canonicalize(ruleset.COMPETITIVE_RULESET_V2)),
     normalizer: "typescript@" + ts.version + " transpile, comments removed",
-    inputs: {
-      competitiveCatalogHash: catalog.COMPETITIVE_CATALOG_HASH,
-      rulesetConfigHash: sha256(canonicalize(ruleset.COMPETITIVE_RULESET_V2)),
-      pkmnSim: readResolvedSim(),
-      sources: fingerprintSources(ts),
-    },
+    files: fingerprintSources(ts),
   };
 
   if (process.argv.includes("--write")) {
@@ -64,13 +71,13 @@ try {
       "engine version lock recorded for " +
         engineVersion +
         " (" +
-        Object.keys(current.inputs.sources).length +
+        Object.keys(current.files).length +
         " sources)",
     );
   } else {
     if (!existsSync(lockPath)) throw new Error("Missing " + relative(root, lockPath));
     const recorded = JSON.parse(read(lockPath));
-    const changes = diffInputs(recorded.inputs ?? {}, current.inputs);
+    const changes = diffInputs(recorded, current);
     if (recorded.engineVersion !== engineVersion) {
       throw new Error(
         "the engine version changed (" +
@@ -106,7 +113,7 @@ try {
       "engine version lock ok (" +
         engineVersion +
         ", " +
-        Object.keys(current.inputs.sources).length +
+        Object.keys(current.files).length +
         " sources)",
     );
   }
@@ -202,15 +209,16 @@ function diffInputs(recorded, current) {
   for (const name of ["competitiveCatalogHash", "rulesetConfigHash"]) {
     if (recorded[name] !== current[name]) changes.push(name);
   }
-  if (JSON.stringify(recorded.pkmnSim) !== JSON.stringify(current.pkmnSim)) {
-    changes.push(
-      "@pkmn/sim " + (recorded.pkmnSim?.version ?? "?") + " -> " + current.pkmnSim.version,
-    );
+  if (
+    recorded.simVersion !== current.simVersion ||
+    recorded.simIntegrity !== current.simIntegrity
+  ) {
+    changes.push("@pkmn/sim " + (recorded.simVersion ?? "?") + " -> " + current.simVersion);
   }
-  const before = recorded.sources ?? {};
-  for (const file of new Set([...Object.keys(before), ...Object.keys(current.sources)])) {
-    if (before[file] === current.sources[file]) continue;
-    const state = !(file in before) ? "added" : !(file in current.sources) ? "removed" : "changed";
+  const before = recorded.files ?? {};
+  for (const file of new Set([...Object.keys(before), ...Object.keys(current.files)])) {
+    if (before[file] === current.files[file]) continue;
+    const state = !(file in before) ? "added" : !(file in current.files) ? "removed" : "changed";
     changes.push("packages/poke-lounge-battle/" + file + " (" + state + ")");
   }
   return changes;
