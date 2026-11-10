@@ -668,7 +668,7 @@ async fn apply(
         .request(
             id,
             Operation::Command {
-                player: identity.player_id,
+                player: Some(identity.player_id),
                 session,
                 id: command_id(&headers)?,
                 expected,
@@ -1070,21 +1070,14 @@ async fn action(
         .rooms
         .resolve(&normalize_code(&code)?, instance(&headers)?)
         .await?;
-    let (_, room) = state.repository.read(id).await?;
-    let player = room
-        .participants
-        .iter()
-        .find(|p| p.session_hash == session && !p.ai)
-        .ok_or(AppError::Forbidden)?
-        .player_id
-        .clone();
     Ok(success(
         state
             .rooms
             .request(
                 id,
                 Operation::Command {
-                    player,
+                    // The actor maps the session to its participant from the state it already holds.
+                    player: None,
                     session,
                     id: b.client_command_id,
                     expected: None,

@@ -9,6 +9,7 @@ use crate::{
     error::{AppError, AppResult},
     repository::{Receipt, Repository, fingerprint},
 };
+use axum::extract::ws::Utf8Bytes;
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, HashMap},
@@ -56,7 +57,8 @@ pub enum Operation {
         match_id: Uuid,
     },
     Command {
-        player: String,
+        /// `None` resolves the human participant from the session inside the actor.
+        player: Option<String>,
         session: String,
         id: String,
         expected: Option<u64>,
@@ -91,7 +93,8 @@ struct Envelope {
 }
 pub struct RoomEvent {
     pub name: String,
-    pub text: Arc<str>,
+    /// Reference-counted frame text: every subscriber sends the same buffer without copying it.
+    pub text: Utf8Bytes,
 }
 #[derive(Clone)]
 pub struct Handle {
@@ -407,7 +410,7 @@ impl Rooms {
                             .request(
                                 room.room_instance_id,
                                 Operation::Command {
-                                    player: input.player_id.clone(),
+                                    player: Some(input.player_id.clone()),
                                     session: session.clone(),
                                     id: id.clone(),
                                     expected: None,
@@ -629,7 +632,7 @@ impl Actor {
             }
         } else if !check_version {
             self.tick_stage = "sync_clock";
-            self.sync_clock().await?;
+            self.sync_clock_at(now).await?;
         }
         self.tick_stage = "disconnect_stale";
         let stale = self
@@ -778,6 +781,17 @@ impl Actor {
                 command,
                 request_hash,
             } => {
+                let player = match player {
+                    Some(player) => player,
+                    None => self
+                        .room
+                        .participants
+                        .iter()
+                        .find(|p| p.session_hash == session && !p.ai)
+                        .ok_or(AppError::Forbidden)?
+                        .player_id
+                        .clone(),
+                };
                 let command_label = command.label();
                 let can_read_snapshot =
                     self.room.public || self.room.authorize(&player, &session).is_ok();
@@ -990,6 +1004,10 @@ impl Actor {
         }));
     }
     fn publish_room(&self) {
+        // Building the snapshot is the expensive part; skip it when no socket is subscribed.
+        if self.events.receiver_count() == 0 {
+            return;
+        }
         self.emit("room.snapshot", json!({"room":self.snapshot(None)}));
     }
     fn cursor(&self) -> Value {

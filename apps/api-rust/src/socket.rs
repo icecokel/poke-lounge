@@ -339,7 +339,7 @@ async fn serve(
                 Ok(event)=>{
                     *stage="forward_event";
                     let terminal=event.name=="room.expired"||event.name=="server.draining";
-                    send_message(socket,Message::Text(event.text.to_string().into())).await?;if terminal{return Ok(());}
+                    send_message(socket,Message::Text(event.text.clone())).await?;if terminal{return Ok(());}
                 }
                 Err(broadcast::error::RecvError::Lagged(skipped))=>{
                     // The client missed broadcast events; a full resync replaces them.
