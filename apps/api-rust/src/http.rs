@@ -69,7 +69,7 @@ static CONCURRENCY_LIMIT_LOGGED_S: std::sync::atomic::AtomicU64 =
 static CLIENT_TABLE_LIMIT_LOGGED_S: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
 /// True at most once per second per slot: overload rejections must not turn into log floods.
-fn first_this_second(slot: &std::sync::atomic::AtomicU64) -> bool {
+pub(crate) fn first_this_second(slot: &std::sync::atomic::AtomicU64) -> bool {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_secs());
@@ -680,8 +680,32 @@ async fn apply(
     record_activity(&state, visitor_id);
     Ok(success(value))
 }
+/// The address a per-address room cap may be charged to. A private or loopback address is local
+/// play or a proxy missing from RUST_API_TRUSTED_PROXIES, where one address stands for every
+/// player, so the cap is not applied to it.
+fn room_creator(state: &AppState, peer: SocketAddr, headers: &HeaderMap) -> Option<IpAddr> {
+    let ip = client_ip(peer.ip(), headers, &state.trusted_proxies);
+    let shared = match ip {
+        IpAddr::V4(ip) => {
+            ip.is_private()
+                || ip.is_loopback()
+                || ip.is_link_local()
+                || ip.is_unspecified()
+                // Carrier-grade NAT range 100.64.0.0/10, also used by overlay networks.
+                || (ip.octets()[0] == 100 && ip.octets()[1] & 0xC0 == 64)
+        }
+        IpAddr::V6(ip) => {
+            ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local()
+        }
+    };
+    (!shared).then_some(ip)
+}
 async fn create(
     State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     value: Result<Json<CreateRoom>, JsonRejection>,
 ) -> AppResult<Json<Value>> {
@@ -691,7 +715,11 @@ async fn create(
     let visitor_id = usage_visitor(&headers);
     let value = state
         .rooms
-        .create(body(value)?.normalize()?, command_id(&headers)?)
+        .create(
+            body(value)?.normalize()?,
+            command_id(&headers)?,
+            room_creator(&state, peer, &headers),
+        )
         .await?;
     record_activity(&state, visitor_id);
     Ok(success(value))
@@ -701,13 +729,18 @@ async fn public_rooms(State(state): State<AppState>) -> AppResult<Json<Value>> {
 }
 async fn quick_play(
     State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     value: Result<Json<CreateRoom>, JsonRejection>,
 ) -> AppResult<Json<Value>> {
     let visitor_id = usage_visitor(&headers);
     let value = state
         .rooms
-        .quick_play(body(value)?.normalize()?, command_id(&headers)?)
+        .quick_play(
+            body(value)?.normalize()?,
+            command_id(&headers)?,
+            room_creator(&state, peer, &headers),
+        )
         .await?;
     record_activity(&state, visitor_id);
     Ok(success(value))

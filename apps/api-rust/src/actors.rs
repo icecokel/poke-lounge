@@ -1,6 +1,6 @@
 use crate::{
     compute::Compute,
-    config::{MAILBOX_CAPACITY, MAX_ACTORS, REQUEST_TIMEOUT},
+    config::{MAILBOX_CAPACITY, MAX_ACTORS, MAX_LIVE_ROOMS_PER_IP, REQUEST_TIMEOUT},
     domain::{
         CreateRoom, DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y, FIELD_MAP_KEY, GameCommand, MAX_COMMANDS,
         MAX_PARTICIPANTS, PRESENCE_LEASE_MS, ROUND_PHASE_WAITING, Room, RoomFaults, RoomVisibility,
@@ -12,6 +12,7 @@ use crate::{
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, HashMap},
+    net::IpAddr,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
@@ -146,8 +147,14 @@ pub struct Rooms {
     shutdown: CancellationToken,
     tasks: TaskTracker,
     creation: Arc<Mutex<()>>,
+    /// Rooms created per client address, pruned against the active index when a limit is near.
+    /// In memory only: a restart forgets it, which errs on the side of letting players in.
+    created_by_ip: Arc<std::sync::Mutex<HashMap<IpAddr, Vec<Uuid>>>>,
     pub last_tick_ms: Arc<AtomicU64>,
 }
+// Bound on tracked addresses before every entry is pruned against the active index.
+const CREATOR_TABLE_PRUNE_AT: usize = 512;
+static CREATE_LIMIT_LOGGED_S: AtomicU64 = AtomicU64::new(0);
 impl Rooms {
     pub fn new(repository: Repository, compute: Compute, shutdown: CancellationToken) -> Self {
         Self {
@@ -157,6 +164,7 @@ impl Rooms {
             shutdown,
             tasks: TaskTracker::new(),
             creation: Arc::new(Mutex::new(())),
+            created_by_ip: Arc::new(std::sync::Mutex::new(HashMap::new())),
             last_tick_ms: Arc::new(AtomicU64::new(0)),
         }
     }
@@ -299,19 +307,65 @@ impl Rooms {
                 .collect::<Vec<_>>()
         }))
     }
-    pub async fn create(&self, input: CreateRoom, id: String) -> AppResult<Value> {
-        self.create_internal(input, id, false).await
+    /// `creator` is the client address the per-address room cap applies to, if any.
+    pub async fn create(
+        &self,
+        input: CreateRoom,
+        id: String,
+        creator: Option<IpAddr>,
+    ) -> AppResult<Value> {
+        self.create_internal(input, id, false, creator).await
     }
-    pub async fn quick_play(&self, mut input: CreateRoom, id: String) -> AppResult<Value> {
+    pub async fn quick_play(
+        &self,
+        mut input: CreateRoom,
+        id: String,
+        creator: Option<IpAddr>,
+    ) -> AppResult<Value> {
         input.visibility = RoomVisibility::Public;
         input.room_code = None;
-        self.create_internal(input, id, true).await
+        self.create_internal(input, id, true, creator).await
+    }
+    /// Rejects a new room when `ip` already has `MAX_LIVE_ROOMS_PER_IP` live rooms it created.
+    async fn admit_creator(&self, ip: IpAddr) -> AppResult<()> {
+        let needs_prune = {
+            let created = self.created_by_ip.lock().unwrap_or_else(|e| e.into_inner());
+            created.len() >= CREATOR_TABLE_PRUNE_AT
+                || created
+                    .get(&ip)
+                    .is_some_and(|rooms| rooms.len() >= MAX_LIVE_ROOMS_PER_IP)
+        };
+        if !needs_prune {
+            return Ok(());
+        }
+        // Closed, completed and expired rooms leave the active index and free their slot here.
+        let live = self.repository.active_ids().await?;
+        let mut created = self.created_by_ip.lock().unwrap_or_else(|e| e.into_inner());
+        created.retain(|_, rooms| {
+            rooms.retain(|id| live.contains(id));
+            !rooms.is_empty()
+        });
+        if created
+            .get(&ip)
+            .is_some_and(|rooms| rooms.len() >= MAX_LIVE_ROOMS_PER_IP)
+        {
+            if crate::http::first_this_second(&CREATE_LIMIT_LOGGED_S) {
+                tracing::warn!(
+                    event = "room.create_limited",
+                    limit = "live_rooms_per_ip",
+                    max = MAX_LIVE_ROOMS_PER_IP
+                );
+            }
+            return Err(AppError::Capacity);
+        }
+        Ok(())
     }
     async fn create_internal(
         &self,
         input: CreateRoom,
         id: String,
         match_existing_public: bool,
+        creator: Option<IpAddr>,
     ) -> AppResult<Value> {
         let public = input.visibility == RoomVisibility::Public;
         let session = session_hash(&input.session_id)?;
@@ -376,7 +430,18 @@ impl Rooms {
                         }
                     }
                 }
+                if let Some(ip) = creator {
+                    self.admit_creator(ip).await?;
+                }
                 let (room, _, _) = self.repository.create(input, public, &session, &id).await?;
+                if let Some(ip) = creator {
+                    let mut created = self.created_by_ip.lock().unwrap_or_else(|e| e.into_inner());
+                    let rooms = created.entry(ip).or_default();
+                    // A replayed create returns the room it made before; count it once.
+                    if !rooms.contains(&room.room_instance_id) {
+                        rooms.push(room.room_instance_id);
+                    }
+                }
                 tracing::info!(event="room.created",room_instance_id=%room.room_instance_id,room_code=%room.room_code,command_id=%id,public,revision=room.revision);
                 room.room_instance_id
             }

@@ -665,7 +665,20 @@ impl Room {
                     return Err(AppError::RoomRejoinBlocked);
                 }
                 p.connected = true;
-                p.presence_until_ms = now + PRESENCE_LEASE_MS;
+                if p.admitted {
+                    p.presence_until_ms = now + PRESENCE_LEASE_MS;
+                } else {
+                    // Never connected a socket: repeating Join may renew the short admission lease
+                    // when it is about to lapse, but only within one presence lease of the first
+                    // join, so a seat cannot be held without ever connecting.
+                    let renewed = (now + ADMISSION_MS).min(p.joined_at_ms + PRESENCE_LEASE_MS);
+                    if p.presence_until_ms >= now + ADMISSION_MS / 2
+                        || renewed <= p.presence_until_ms
+                    {
+                        return Ok(None);
+                    }
+                    p.presence_until_ms = renewed;
+                }
             } else {
                 if self.status != Status::Waiting {
                     return Err(AppError::RoomAlreadyStarted);
