@@ -3337,7 +3337,7 @@ export class BattleController {
         : "사용할 기술을 선택하세요.";
     } else if (!queuedMessage && this.state.phase === "move-replace-select") {
       const pending = this.getCurrentPendingMoveLearning();
-      const move = playerPokemon.moves[this.selectedMoveIndex];
+      const move = this.getMoveSelectionPokemon().moves[this.selectedMoveIndex];
       interactionSummary = pending
         ? `${withObjectParticle(pending.newMove.name)} 배우기 위해 ${withObjectParticle(move?.name ?? "기존 기술")} 잊도록 선택했습니다.`
         : "기술 교체를 확인하는 중입니다.";
