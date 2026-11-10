@@ -33,7 +33,7 @@ import type {
   CompetitivePartyInput,
   NormalizedCompetitiveParty,
 } from "@poke-lounge/battle/competitive-party";
-import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
+import { getPokeLoungeCopyForUrl, type PokeLoungeCopy } from "../../../poke-lounge-copy";
 import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-assets";
 import {
   canUseAuthoritativeStruggle,
@@ -146,6 +146,7 @@ import {
   animateRuntimeValue,
   clampUnit,
   lerp,
+  scheduleRuntimeFrameEnd,
   scheduleRuntimeTask,
   type RuntimeAnimation,
 } from "../runtime-animation";
@@ -488,6 +489,11 @@ export class BattleController {
   private messageAutoAdvanceTimer: RuntimeAnimation | null = null;
   private sceneLifecycleActive = false;
   private sceneGeneration = 0;
+  // Animation ticks only mark the presentation dirty; it is published once per frame.
+  private presentationDirty = false;
+  private reducedMotionQuery: MediaQueryList | null = null;
+  private mobileShellDetected = false;
+  private battleStatusCopy: { pathname: string; copy: PokeLoungeCopy["mobile"] } | null = null;
 
   private readonly battleUiStore: BattleUiStore;
   private readonly gameStateStore: GameStateStore;
@@ -509,6 +515,12 @@ export class BattleController {
     this.cleanupSceneLifecycle();
     this.sceneLifecycleActive = true;
     this.sceneGeneration += 1;
+    this.presentationDirty = false;
+    // A retained MediaQueryList keeps `matches` current without re-parsing the query per frame.
+    this.reducedMotionQuery =
+      this.ownerDocument.defaultView?.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
+    this.mobileShellDetected = false;
+    this.battleStatusCopy = null;
     this.competitivePreemptionQueued = false;
     this.localResultSettled = false;
     this.selectedCommandIndex = 0;
@@ -603,10 +615,7 @@ export class BattleController {
   update(): void {
     if (this.updateMoveLearningDeadline()) return;
     if (this.preemptLocalBattleForTournament(Date.now())) return;
-    if (
-      usesPokeLoungeMobileShell(this.ownerDocument) &&
-      hasPokeLoungeMobileFullscreenScene(this.ownerDocument)
-    ) {
+    if (this.usesMobileShell() && hasPokeLoungeMobileFullscreenScene(this.ownerDocument)) {
       this.keyboard.clearPresses();
       resetVirtualGamepad();
       return;
@@ -723,6 +732,17 @@ export class BattleController {
 
   private setBattleUiSceneMarker(active: boolean): void {
     setBattleSceneMarker(this.options.parent, active);
+  }
+
+  /** The shell wraps the game for its whole life, so a positive lookup is kept for the scene. */
+  private usesMobileShell(): boolean {
+    if (!this.mobileShellDetected)
+      this.mobileShellDetected = usesPokeLoungeMobileShell(this.ownerDocument);
+    return this.mobileShellDetected;
+  }
+
+  private prefersReducedMotion(): boolean {
+    return this.reducedMotionQuery?.matches ?? false;
   }
 
   private usesMobileBattleDeck(): boolean {
@@ -1061,6 +1081,7 @@ export class BattleController {
         : null,
     };
 
+    this.presentationDirty = false;
     this.battleUiStore.publish({
       controls: state,
       presentation: this.createBattlePresentationState(),
@@ -1068,7 +1089,23 @@ export class BattleController {
   }
 
   private publishBattlePresentationState(): void {
+    this.presentationDirty = false;
     this.battleUiStore.publishPresentation(this.createBattlePresentationState());
+  }
+
+  /**
+   * Called from animation ticks. Several tweens step in one frame (effect, HP, hit), so the
+   * presentation is rebuilt once after all of them instead of once per tween. State
+   * transitions keep publishing synchronously through render().
+   */
+  private markBattlePresentationDirty(): void {
+    if (this.presentationDirty) return;
+    this.presentationDirty = true;
+    const generation = this.sceneGeneration;
+    scheduleRuntimeFrameEnd(() => {
+      if (!this.presentationDirty || !this.isSceneLifecycleCurrent(generation)) return;
+      this.publishBattlePresentationState();
+    });
   }
 
   private createBattlePresentationState(): BattlePresentationState {
@@ -1170,9 +1207,7 @@ export class BattleController {
       },
     };
     const neutral = { player: presentation.player.sprite, opponent: presentation.opponent.sprite };
-    const reduced =
-      this.ownerDocument.defaultView?.matchMedia?.("(prefers-reduced-motion: reduce)").matches ??
-      false;
+    const reduced = this.prefersReducedMotion();
     for (const side of BATTLE_HP_SIDES) {
       const sprite = neutral[side];
       const motion = getEffectActorMotion(
@@ -1290,7 +1325,7 @@ export class BattleController {
   }
 
   private getShortcutGuideInputMode(): ShortcutGuideInputMode {
-    return usesPokeLoungeMobileShell(this.ownerDocument) ? "touch" : "keyboard";
+    return this.usesMobileShell() ? "touch" : "keyboard";
   }
 
   private createInitialState(data: unknown): BattleScreenState {
@@ -1976,6 +2011,7 @@ export class BattleController {
     this.moveLearningRemainingSeconds = null;
     this.multiplayerRoom?.setMoveLearningPending?.(false);
     this.sceneLifecycleActive = false;
+    this.presentationDirty = false;
     this.cancelBattleEffects();
     this.clearAuthoritativeSubscriptions();
     this.messageAutoAdvanceTimer?.stop();
@@ -2149,8 +2185,7 @@ export class BattleController {
           this.isHpAnimationPlaying() ||
           this.isHitAnimationPlaying() ||
           this.isStatusCommitPlaying() ||
-          (usesPokeLoungeMobileShell(this.ownerDocument) &&
-            hasPokeLoungeMobileFullscreenScene(this.ownerDocument)) ||
+          (this.usesMobileShell() && hasPokeLoungeMobileFullscreenScene(this.ownerDocument)) ||
           this.shortcutGuideOpen
         ) {
           this.scheduleBattleMessageAutoAdvance();
@@ -2234,7 +2269,7 @@ export class BattleController {
               this.displayedHp[side] =
                 displayedHp + (targetHp - displayedHp) * (1 - (1 - hpProgress) ** 3);
               this.animationFrameUpdateCount += 1;
-              this.publishBattlePresentationState();
+              this.markBattlePresentationDirty();
             },
             onComplete: () => {
               if (this.hpTweens[side] !== tween) {
@@ -2362,7 +2397,7 @@ export class BattleController {
           this.render();
         }
         this.animationFrameUpdateCount += 1;
-        this.publishBattlePresentationState();
+        this.markBattlePresentationDirty();
       },
       onComplete: () => {
         if (this.battleEffectTween !== tween || !this.isSceneLifecycleCurrent(generation)) return;
@@ -2480,7 +2515,7 @@ export class BattleController {
 
         hitEffect.progress = progress;
         this.animationFrameUpdateCount += 1;
-        this.publishBattlePresentationState();
+        this.markBattlePresentationDirty();
       },
       onComplete: () => {
         if (hitEffect.tween !== tween) {
@@ -2512,7 +2547,7 @@ export class BattleController {
 
         this.battleEntranceProgress = progress;
         this.animationFrameUpdateCount += 1;
-        this.publishBattlePresentationState();
+        this.markBattlePresentationDirty();
       },
       onComplete: () => {
         if (this.battleEntranceTween !== tween) {
@@ -2552,7 +2587,7 @@ export class BattleController {
 
         this.captureAnimationProgress = progress;
         this.animationFrameUpdateCount += 1;
-        this.publishBattlePresentationState();
+        this.markBattlePresentationDirty();
       },
       onComplete: () => {
         if (this.captureAnimationTween !== tween) {
@@ -2586,7 +2621,7 @@ export class BattleController {
 
         this.evolutionAnimationProgress = progress;
         this.animationFrameUpdateCount += 1;
-        this.publishBattlePresentationState();
+        this.markBattlePresentationDirty();
       },
       onComplete: () => {
         if (this.evolutionAnimationTween !== tween) {
@@ -3404,17 +3439,21 @@ export class BattleController {
   }
 
   private getBattleStatusCopy() {
-    return getPokeLoungeCopyForUrl(new URL(this.ownerDocument.location.href)).mobile;
+    // The locale comes from the route path, so the copy is only resolved again when it changes.
+    const pathname = this.ownerDocument.location.pathname;
+    if (this.battleStatusCopy?.pathname !== pathname) {
+      this.battleStatusCopy = {
+        pathname,
+        copy: getPokeLoungeCopyForUrl(new URL(this.ownerDocument.location.href)).mobile,
+      };
+    }
+    return this.battleStatusCopy.copy;
   }
 
   private getHitRenderEffect(side: BattleHpSide): { alpha: number; offsetX: number } {
     const effect = this.hitEffects[side];
     if (!effect.tween) return { alpha: 1, offsetX: 0 };
-    const reduced =
-      this.options.parent.ownerDocument.defaultView?.matchMedia?.(
-        "(prefers-reduced-motion: reduce)",
-      ).matches ?? false;
-    return getRomHitFrame(effect.progress * ROM_HIT_DURATION_MS, reduced);
+    return getRomHitFrame(effect.progress * ROM_HIT_DURATION_MS, this.prefersReducedMotion());
   }
 
   private getCaptureOpponentRenderEffect(): { alpha: number; scale: number } {
