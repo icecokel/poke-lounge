@@ -637,7 +637,13 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       latestState.participants.some(p => p.playerId === serverPlayerId && p.connected);
     dispatchServerRoomError(
       {
-        code: invalidParticipant ? "CURSOR_REGRESSION" : "ROOM_TRANSPORT_FAILED",
+        code: !invalidParticipant
+          ? "ROOM_TRANSPORT_FAILED"
+          : error.status === 401
+            ? "ROOM_SESSION_INVALID"
+            : error.serverCode === "POKE_LOUNGE_ROOM_IDENTITY_MISMATCH"
+              ? "ROOM_IDENTITY_MISMATCH"
+              : "ROOM_ACCESS_DENIED",
         message: error.message,
         disconnected: !socketConnected,
         recoverable,
@@ -2036,7 +2042,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   const applyCurrentAssignmentProjection = (projection: CompetitiveProjection) => {
     if (
-      !canApplyCurrentAssignmentProjection(projection) ||
+      !canReplayCompetitiveAssignment(projection) ||
       !isCompetitiveProjectionAtLeastAsCurrent(currentAssignmentProjection, projection)
     ) {
       return;
@@ -2061,11 +2067,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       emitTournamentProjection(latestState);
     }
   };
-
-  const canApplyCurrentAssignmentProjection = (projection: CompetitiveProjection): boolean =>
-    projection.status !== "completed" &&
-    latestState?.tournament.activeMatchAuthority === "server" &&
-    getReadyMatchIds(latestState.tournament).has(projection.bracketMatchId);
 
   const createTournamentProjectionPayload = (
     state: ServerRoomState,
@@ -3077,10 +3078,12 @@ function isRoomNotFoundRequestError(error: unknown): boolean {
   return (
     error instanceof ServerRoomRequestError &&
     error.status === 404 &&
-    error.responseBody !== null &&
-    typeof error.responseBody === "object" &&
-    "message" in error.responseBody &&
-    error.responseBody.message === "Poke Lounge room not found"
+    (error.serverCode === "ROOM_NOT_FOUND" ||
+      // Fallback for responses without a code.
+      (error.responseBody !== null &&
+        typeof error.responseBody === "object" &&
+        "message" in error.responseBody &&
+        error.responseBody.message === "Poke Lounge room not found"))
   );
 }
 
@@ -3415,13 +3418,13 @@ function parseServerRoomState(value: unknown): ServerRoomState {
     !Number.isFinite(room.expiresAtMs) ||
     !isServerRoomStatus(room.status) ||
     !Array.isArray(room.participants) ||
-    !room.partySnapshots ||
-    typeof room.partySnapshots !== "object" ||
+    !isRecordOfObjects(room.partySnapshots) ||
     !room.round ||
     typeof room.round !== "object" ||
     !room.tournament ||
     typeof room.tournament !== "object" ||
-    !Array.isArray(room.finalStandings)
+    !Array.isArray(room.finalStandings) ||
+    !room.finalStandings.every(isFinalStandingEntry)
   ) {
     throw new ServerRoomSchemaError();
   }
@@ -3480,6 +3483,29 @@ function parseServerRoomState(value: unknown): ServerRoomState {
   }
 
   return parsed;
+}
+
+/** partySnapshots is spread through as-is; only its use as a per-player map is guaranteed here. */
+function isRecordOfObjects(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.values(value).every(function testItem(entry) {
+      return entry !== null && typeof entry === "object" && !Array.isArray(entry);
+    })
+  );
+}
+
+/** Checks only what this module reads; the game state store validates rank and score. */
+function isFinalStandingEntry(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    typeof (value as Record<string, unknown>).playerId === "string" &&
+    (value as Record<string, unknown>).playerId !== ""
+  );
 }
 
 function isServerRoomStatus(value: unknown): value is ServerRoomState["status"] {
