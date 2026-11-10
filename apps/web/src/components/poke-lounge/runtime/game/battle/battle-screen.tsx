@@ -24,12 +24,8 @@ import {
   PixelPanel,
 } from "../../../ui/poke-lounge-ui-primitives";
 import { primePokeLoungeAudio } from "../audio/poke-lounge-audio";
-import {
-  localizeBattlePresentationState,
-  localizeMobileBattleUiState,
-  getPokemonStatusLabel,
-  localizeRuntimeText,
-} from "../i18n/runtime-game-localization";
+import { getPokemonStatusLabel, localizeRuntimeText } from "../i18n/runtime-game-localization";
+import { useLocalizedBattleUi } from "./use-localized-battle-ui";
 import type { GameStateStore } from "../state/game-state-store";
 import { TournamentBracketPanel } from "../tournament/tournament-bracket-panel";
 import type { MobileBattleUiAction, MobileBattleUiState } from "../ui/mobile-battle-ui";
@@ -72,17 +68,7 @@ export function BattleScreen({
   gameStateStore?: GameStateStore;
   uiStore: BattleUiStore;
 }) {
-  const snapshot = useSyncExternalStore(
-    uiStore.subscribe,
-    uiStore.getSnapshot,
-    uiStore.getSnapshot,
-  );
-  const presentation = snapshot.presentation
-    ? localizeBattlePresentationState(snapshot.presentation, copy.locale)
-    : null;
-  const controls = snapshot.controls
-    ? localizeMobileBattleUiState(snapshot.controls, copy.locale)
-    : null;
+  const { controls, presentation } = useLocalizedBattleUi(uiStore, copy.locale);
 
   useEffect(() => {
     if (!desktop) return;

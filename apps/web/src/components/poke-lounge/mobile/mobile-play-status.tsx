@@ -88,13 +88,14 @@ export function MobilePlayStatus({
   activeScene: "world" | "battle" | null;
   onMenu(): void;
 }) {
-  const snapshot = useSyncExternalStore(
+  // Select only the deadline: the battle store publishes on every animation frame.
+  const turnEndsAtMs = useSyncExternalStore(
     battleUiStore?.subscribe ?? noSubscription,
-    battleUiStore?.getSnapshot ?? noState,
+    () => battleUiStore?.getSnapshot().controls?.turnEndsAtMs ?? null,
     noState,
   );
   const [now, setNow] = useState(Date.now);
-  const deadline = activeScene === "battle" ? snapshot?.controls?.turnEndsAtMs : null;
+  const deadline = activeScene === "battle" ? turnEndsAtMs : null;
   const text = getMobileUiCopy(copy.locale);
   useEffect(() => {
     if (deadline == null) return;

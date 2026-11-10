@@ -1,7 +1,7 @@
 "use client";
 import { POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS } from "@poke-lounge/battle/timing";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PokeLoungeCopy } from "../poke-lounge-copy";
 import type {
   BattlePresentationState,
@@ -13,10 +13,10 @@ import type {
 } from "../runtime/game/ui/mobile-battle-ui";
 import { MoveLearningPanel, LearnedMoveNotice } from "../runtime/game/ui/move-learning-panel";
 import {
-  localizeBattlePresentationState,
   localizeMobileBattleUiState,
   localizeRuntimeText,
 } from "../runtime/game/i18n/runtime-game-localization";
+import { useLocalizedBattleUi } from "../runtime/game/battle/use-localized-battle-ui";
 import { primePokeLoungeAudio } from "../runtime/game/audio/poke-lounge-audio";
 import { getInventoryItemById } from "../runtime/game/state/game-state-store";
 import { OpponentPartyIndicator } from "../runtime/game/battle/opponent-party-indicator";
@@ -37,8 +37,6 @@ import {
 import { getMobileUiCopy } from "./mobile-ui-copy";
 import { getBattleMoveDetails } from "@/features/poke-lounge/presentation/battle/move-details";
 
-const subscribeToNothing = () => () => {};
-const emptySnapshot = () => null;
 interface DeckProps {
   copy: PokeLoungeCopy;
   onAction(action: MobileBattleUiAction): void;
@@ -118,17 +116,7 @@ export function MobileBattleDeck({
   copy: PokeLoungeCopy;
   uiStore?: BattleUiStore;
 }) {
-  const snapshot = useSyncExternalStore(
-    uiStore?.subscribe ?? subscribeToNothing,
-    uiStore?.getSnapshot ?? emptySnapshot,
-    emptySnapshot,
-  );
-  const state = snapshot?.controls
-    ? localizeMobileBattleUiState(snapshot.controls, copy.locale)
-    : null;
-  const presentation = snapshot?.presentation
-    ? localizeBattlePresentationState(snapshot.presentation, copy.locale)
-    : null;
+  const { controls: state, presentation } = useLocalizedBattleUi(uiStore, copy.locale);
   const [runContext, setRunContext] = useState<string | null>(null);
   const now = useBattleClock(state?.turnEndsAtMs);
   const text = getMobileUiCopy(copy.locale);
