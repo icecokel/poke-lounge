@@ -119,7 +119,7 @@ export function acceptPartySubmission(
     throw new PartyAcceptanceError("starter");
   }
 
-  const evolutionTable = trusted ? {} : normalizePokemonEvolutionTable(data);
+  const evolutionTable = trusted ? {} : getEvolutionTable(data);
   const entries = [...previousEntries];
   const partyIndices = new Set<number>();
   for (const member of party.members) {
@@ -330,4 +330,16 @@ function pickEffortValues(values: Gen4StatValues | undefined): Gen4StatValues {
 
 function totalEffortValues(values: Gen4StatValues): number {
   return GEN4_STAT_KEYS.reduce((sum, key) => sum + values[key], 0);
+}
+
+const evolutionTableByData = new WeakMap<object, PokemonEvolutionTable>();
+
+/** The loaded Pokémon data never changes, so its evolution table is derived once. */
+function getEvolutionTable(data: RomPersonalRecordCollection): PokemonEvolutionTable {
+  let table = evolutionTableByData.get(data);
+  if (!table) {
+    table = normalizePokemonEvolutionTable(data);
+    evolutionTableByData.set(data, table);
+  }
+  return table;
 }
