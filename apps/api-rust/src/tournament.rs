@@ -9,14 +9,14 @@ pub const SEED_ORDER_8: [usize; 8] = [1, 8, 4, 5, 3, 6, 2, 7];
 // Must match packages/poke-lounge-battle/src/tournament-scoring.ts DEFAULT_TOURNAMENT_SCORE_BY_RANK (pnpm check:rust-ts-constants).
 pub const SCORE_BY_RANK: [u64; 6] = [100, 70, 45, 30, 15, 5];
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Entrant {
     pub player_id: String,
     pub display_name: String,
     pub seed: usize,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BracketMatch {
     pub match_id: String,
@@ -31,7 +31,7 @@ pub struct BracketMatch {
     pub result_reason: Option<String>,
     pub completed_at_ms: Option<u64>,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Bye {
     pub bye_id: String,
@@ -39,7 +39,7 @@ pub struct Bye {
     pub slot_number: usize,
     pub entrant: Entrant,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase", deny_unknown_fields)]
 pub enum Slot {
     Match {
@@ -51,7 +51,7 @@ pub enum Slot {
         bye_id: String,
     },
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BracketRound {
     pub round_number: usize,
@@ -59,7 +59,7 @@ pub struct BracketRound {
     pub byes: Vec<Bye>,
     pub slots: Vec<Slot>,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Elimination {
     pub player_id: String,
@@ -69,7 +69,7 @@ pub struct Elimination {
     pub match_id: String,
     pub order: usize,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Bracket {
     pub version: u8,

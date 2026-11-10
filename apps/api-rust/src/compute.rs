@@ -18,7 +18,7 @@ pub struct Compute {
     capacity: Arc<Semaphore>,
     background: Arc<Semaphore>,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BattlePack {
     pub state: Value,

@@ -2,9 +2,9 @@ use crate::{
     compute::Compute,
     config::{MAILBOX_CAPACITY, MAX_ACTORS, REQUEST_TIMEOUT},
     domain::{
-        CreateRoom, DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y, FIELD_MAP_KEY, GameCommand, MAX_PARTICIPANTS,
-        PRESENCE_LEASE_MS, ROUND_PHASE_WAITING, Room, RoomFaults, RoomVisibility, Status,
-        session_hash,
+        CreateRoom, DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y, FIELD_MAP_KEY, GameCommand, MAX_COMMANDS,
+        MAX_PARTICIPANTS, PRESENCE_LEASE_MS, ROUND_PHASE_WAITING, Room, RoomFaults, RoomVisibility,
+        Status, session_hash,
     },
     error::{AppError, AppResult},
     repository::{Receipt, Repository, fingerprint},
@@ -29,6 +29,9 @@ const FULL_RELOAD_INTERVAL_MS: u64 = 5_000;
 const AI_CHECKPOINT_INTERVAL_MS: u64 = 2_000;
 const CONNECTION_STALE_MS: u64 = 30_000;
 const MIN_MOVE_INTERVAL: Duration = Duration::from_millis(50);
+// One participant may spend at most a quarter of the room's command budget, so a single client
+// cannot exhaust it for everyone. Counted in memory only; a restart resets it.
+const MAX_COMMANDS_PER_PARTICIPANT: u32 = (MAX_COMMANDS / 4) as u32;
 const TICK_INTERVAL: Duration = Duration::from_millis(250);
 // A failing tick repeats the same Redis and compute work; back off instead of retrying 4x/s.
 const TICK_BACKOFF_MAX_SHIFT: u32 = 4;
@@ -185,6 +188,7 @@ impl Rooms {
             shutdown: self.shutdown.clone(),
             world: BTreeMap::new(),
             last_move_accepted: HashMap::new(),
+            commands_by_player: HashMap::new(),
             connections: BTreeMap::new(),
             connection_seen: BTreeMap::new(),
             world_epoch: Uuid::new_v4(),
@@ -372,6 +376,8 @@ struct Actor {
     shutdown: CancellationToken,
     world: BTreeMap<String, Value>,
     last_move_accepted: HashMap<String, tokio::time::Instant>,
+    /// State-changing commands accepted per player, for `MAX_COMMANDS_PER_PARTICIPANT`.
+    commands_by_player: HashMap<String, u32>,
     connections: BTreeMap<Uuid, String>,
     connection_seen: BTreeMap<Uuid, u64>,
     world_epoch: Uuid,
@@ -716,10 +722,25 @@ impl Actor {
                         Box::new(self.snapshot(None)),
                     ));
                 }
+                // Leaving stays possible so an exhausted participant can still free the seat.
+                if !matches!(command, GameCommand::Join { .. } | GameCommand::Leave)
+                    && self
+                        .commands_by_player
+                        .get(&player)
+                        .is_some_and(|count| *count >= MAX_COMMANDS_PER_PARTICIPANT)
+                {
+                    return Err(AppError::CommandLimit);
+                }
                 let mut next = self.room.clone();
                 let response = next
                     .apply(command, &player, &session, self.now, &self.compute)
                     .await?;
+                // A command that changed nothing (e.g. a stale round-ready) costs no budget, no
+                // Redis write and no receipt; repeating it simply yields the current state again.
+                if next.revision == self.room.revision && next == self.room {
+                    tracing::debug!(event="room.command_noop",room_instance_id=%self.room.room_instance_id,command_id=%id,command=command_label,player_id=%player,revision=self.room.revision);
+                    return Ok(response.unwrap_or_else(|| self.snapshot(None)));
+                }
                 next.accepted_commands += 1;
                 let receipt = Receipt {
                     room_instance_id: next.room_instance_id,
@@ -749,6 +770,11 @@ impl Actor {
                 self.unpersisted = false;
                 if changed {
                     self.publish_room();
+                }
+                let spent = self.commands_by_player.entry(player.clone()).or_default();
+                *spent += 1;
+                if *spent == MAX_COMMANDS_PER_PARTICIPANT {
+                    tracing::warn!(event="room.participant_command_budget_exhausted",room_instance_id=%self.room.room_instance_id,player_id=%player,limit=MAX_COMMANDS_PER_PARTICIPANT);
                 }
                 if command_label == "party" {
                     tracing::debug!(event="room.command",room_instance_id=%self.room.room_instance_id,command_id=%id,command=command_label,player_id=%player,expected_revision=?expected,revision=self.room.revision);

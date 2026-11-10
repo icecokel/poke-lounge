@@ -128,14 +128,14 @@ pub enum RoomVisibility {
     Private,
     Public,
 }
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum StarterMode {
     #[default]
     Classic,
     Random,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CreateRoom {
     pub session_id: String,
@@ -220,7 +220,7 @@ impl GameCommand {
         }
     }
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Participant {
     pub player_id: String,
@@ -268,7 +268,7 @@ impl Participant {
         value
     }
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Round {
     pub index: u8,
@@ -277,7 +277,7 @@ pub struct Round {
     pub started_at_ms: Option<u64>,
     pub ends_at_ms: Option<u64>,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Party {
     pub competitive_party: Value,
@@ -285,14 +285,14 @@ pub struct Party {
     pub roster: Value,
     pub updated_at_ms: u64,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PendingProgression {
     pub match_id: Uuid,
     pub previous_levels: BTreeMap<String, u64>,
     pub expires_at_ms: u64,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Match {
     pub match_id: Uuid,
@@ -428,7 +428,7 @@ impl Match {
             "currentState":self.pack.public_state,"stateHash":self.pack.state_hash,"submittedPlayerIds":self.actions.keys().collect::<Vec<_>>(),"terminal":self.pack.state["terminal"]})
     }
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Room {
     pub schema_version: u32,
