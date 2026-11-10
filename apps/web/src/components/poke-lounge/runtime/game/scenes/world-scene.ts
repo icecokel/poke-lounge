@@ -1203,26 +1203,6 @@ export class WorldController {
     }
   }
 
-  private readVelocity(): { x: number; y: number; facing: PlayerFacing } {
-    const input = this.readMovementInput();
-    const horizontal = Number(input.right) - Number(input.left);
-    const vertical = Number(input.down) - Number(input.up);
-    return {
-      x: horizontal,
-      y: vertical,
-      facing:
-        Math.abs(horizontal) > Math.abs(vertical)
-          ? horizontal < 0
-            ? "left"
-            : "right"
-          : vertical < 0
-            ? "back"
-            : vertical > 0
-              ? "front"
-              : this.facing,
-    };
-  }
-
   private maybeSendMovement(time: number): void {
     if (time - this.lastSentAt < 90) {
       return;
