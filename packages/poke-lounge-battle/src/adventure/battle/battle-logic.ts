@@ -29,7 +29,11 @@ import type {
 import { applyInventoryItemEffect } from "../items/inventory-item-effects";
 import { BATTLE_PARTY_SLOT_COUNT, syncActivePartyPokemon } from "./battle-party";
 import { resolveGen4CaptureAttempt } from "./capture-logic";
-import { applyExperienceGain, calculateWildBattleExpGain } from "./experience";
+import {
+  applyExperienceGain,
+  calculateWildBattleExpGain,
+  getExperienceForLevel,
+} from "./experience";
 import { calculateGen4Damage, checkGen4Accuracy, getGen4FixedDamage } from "../../gen4-battle-math";
 import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
 import { calculateGen4TypeEffectiveness } from "../../gen4-type-chart";
@@ -1251,12 +1255,18 @@ function applyWildVictoryExperience(
     growthRate: playerPokemon.growthRate,
     gainedExperience: experienceGained,
   });
+  // 레벨은 100에서 멈추므로 누적 경험치도 토너먼트 정산과 같이 Lv.100 기준치에서 멈춘다.
+  const maximumExperience = getExperienceForLevel(100, playerPokemon.growthRate);
+  const experience =
+    maximumExperience > 0
+      ? Math.min(experienceResult.experience, maximumExperience)
+      : experienceResult.experience;
 
   if (experienceResult.level === playerPokemon.level) {
     return {
       pokemon: {
         ...playerPokemon,
-        experience: experienceResult.experience,
+        experience,
       },
       experienceGained,
       levelsGained: experienceResult.levelsGained,
@@ -1276,7 +1286,7 @@ function applyWildVictoryExperience(
     pokemon: {
       ...playerPokemon,
       level: experienceResult.level,
-      experience: experienceResult.experience,
+      experience,
       maxHp: nextStats.maxHp,
       currentHp:
         playerPokemon.currentHp === 0
