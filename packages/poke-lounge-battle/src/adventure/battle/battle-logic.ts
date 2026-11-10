@@ -19,34 +19,22 @@ import {
 } from "../items/runtime-items";
 import type { Gen4Action } from "../../gen4/types";
 import type {
-  BattleCaptureAttempt,
   BattleCommand,
   BattleMessageHpSnapshot,
   BattleMove,
   BattlePokemon,
   BattleScreenState,
 } from "./battle-types";
-import { applyInventoryItemEffect } from "../items/inventory-item-effects";
-import { BATTLE_PARTY_SLOT_COUNT, syncActivePartyPokemon } from "./battle-party";
+import { syncActivePartyPokemon } from "./battle-party";
 import { resolveGen4CaptureAttempt } from "./capture-logic";
 import {
   applyExperienceGain,
   calculateWildBattleExpGain,
   getExperienceForLevel,
 } from "./experience";
-import { calculateGen4Damage, checkGen4Accuracy, getGen4FixedDamage } from "../../gen4-battle-math";
 import { calculateGen4BattleStats } from "./gen4-pokemon-stats";
-import { calculateGen4TypeEffectiveness } from "../../gen4-type-chart";
-import { formatTypeEffectivenessMessage } from "./gen4-type-chart";
-import {
-  applyBattleStatStageDelta,
-  calculateBattleStageModifiedStat,
-  normalizeBattleStatStages,
-  type BattleStatStageKey,
-} from "../../battle-stat-stages";
 
 export const BATTLE_END_CONFIRM_MESSAGE = "전투가 종료되었다. 확인을 누르면 필드로 돌아간다.";
-export const BATTLE_RUN_FAILED_MESSAGE = "도망칠 수 없었다!";
 export const ULTRA_BALL_BONUS = 2;
 
 const STRUGGLE_MOVE: BattleMove = {
@@ -61,14 +49,6 @@ const STRUGGLE_MOVE: BattleMove = {
   accuracy: 0,
   power: 50,
 };
-
-const BATTLE_EFFECT_ITEM_IDS = [
-  "potion",
-  "superPotion",
-  "antidote",
-  "hyperPotion",
-  "revive",
-] as const;
 
 export interface RunChanceInput {
   playerSpeed: number;
@@ -155,20 +135,17 @@ export function chooseBattleCommand(
 
   if (!canPokemonBattle(state.player.pokemon)) return requirePlayerReplacement(state);
 
-  if (state.mechanicsVersion === 3) {
-    const req = state.gen4Requests?.[0];
-    const escape = state.gen4Session ? getGen4EscapeInfo(state.gen4Session) : null;
-    if (req && (req.recharge || req.forcedMoveId !== null))
-      return resolveGen4Action(state, { kind: "continue" }, options.random);
-    if (
-      command === "run" &&
-      (escape?.trapped ?? req?.trapped) &&
-      !(escape?.guaranteed ?? hasGuaranteedGen4Escape(state.player.pokemon))
-    )
-      return { ...state, messageQueue: ["도망칠 수 없다!"] };
-    if (command === "pokemon" && req?.trapped)
-      return { ...state, messageQueue: ["교체할 수 없다!"] };
-  }
+  const req = state.gen4Requests?.[0];
+  const escape = state.gen4Session ? getGen4EscapeInfo(state.gen4Session) : null;
+  if (req && (req.recharge || req.forcedMoveId !== null))
+    return resolveGen4Action(state, { kind: "continue" }, options.random);
+  if (
+    command === "run" &&
+    (escape?.trapped ?? req?.trapped) &&
+    !(escape?.guaranteed ?? hasGuaranteedGen4Escape(state.player.pokemon))
+  )
+    return { ...state, messageQueue: ["도망칠 수 없다!"] };
+  if (command === "pokemon" && req?.trapped) return { ...state, messageQueue: ["교체할 수 없다!"] };
   if (command === "run") {
     if (state.battleKind !== "wild") {
       return {
@@ -179,27 +156,25 @@ export function chooseBattleCommand(
       };
     }
 
-    const runAttempt =
-      state.mechanicsVersion === 3 &&
-      (state.gen4Session
+    const runAttempt = (
+      state.gen4Session
         ? getGen4EscapeInfo(state.gen4Session).guaranteed
-        : hasGuaranteedGen4Escape(state.player.pokemon))
-        ? {
-            escaped: true,
-            nextRunAttemptCount: state.runAttemptCount,
-            chanceByte: 256,
-            randomByte: null,
-          }
-        : resolveRunAttempt({
-            playerSpeed: state.player.pokemon.speed,
-            opponentSpeed: state.opponent.pokemon.speed,
-            runAttemptCount: state.runAttemptCount,
-            randomByte: options.randomByte?.(),
-          });
+        : hasGuaranteedGen4Escape(state.player.pokemon)
+    )
+      ? {
+          escaped: true,
+          nextRunAttemptCount: state.runAttemptCount,
+          chanceByte: 256,
+          randomByte: null,
+        }
+      : resolveRunAttempt({
+          playerSpeed: state.player.pokemon.speed,
+          opponentSpeed: state.opponent.pokemon.speed,
+          runAttemptCount: state.runAttemptCount,
+          randomByte: options.randomByte?.(),
+        });
 
     if (!runAttempt.escaped) {
-      if (state.mechanicsVersion !== 3)
-        return resolveFailedRunTurn(state, runAttempt.nextRunAttemptCount);
       const next = resolveGen4Action(state, { kind: "wait" }, options.random);
       return {
         ...next,
@@ -279,7 +254,7 @@ export function chooseBattleBagItem(
 
   if (!canPokemonBattle(state.player.pokemon)) return requirePlayerReplacement(state);
   const itemCount = normalizeInventoryCount(options.itemCount ?? 0);
-  if (state.mechanicsVersion === 3 && itemId !== "pokeball" && itemId !== "ultraBall") {
+  if (itemId !== "pokeball" && itemId !== "ultraBall") {
     const romId = RUNTIME_ITEM_ROM_IDS[itemId as RuntimeItemId];
     if (itemCount <= 0)
       return { ...state, messageQueue: ["아이템이 없다!"], usedInventoryItemId: null };
@@ -297,59 +272,12 @@ export function chooseBattleBagItem(
     };
   }
 
-  if (itemId === "pokeball") {
-    return chooseCaptureBallItem(state, options, {
-      itemId: "pokeball",
-      displayName: battleItemDisplayName("pokeball"),
-      ballBonus: 1,
-    });
-  }
-
-  if (itemId === "ultraBall") {
-    return chooseCaptureBallItem(state, options, {
-      itemId: "ultraBall",
-      displayName: battleItemDisplayName("ultraBall"),
-      ballBonus: ULTRA_BALL_BONUS,
-    });
-  }
-
-  if (!isBattleEffectItemId(itemId)) {
-    return {
-      ...state,
-      messageQueue: ["지금은 쓸 수 없다."],
-      result: null,
-      usedInventoryItemId: null,
-    };
-  }
-
-  if (itemCount <= 0) {
-    return {
-      ...state,
-      messageQueue: [`${withSubjectParticle(battleItemDisplayName(itemId))} 없다!`],
-      result: null,
-      usedInventoryItemId: null,
-    };
-  }
-
-  const effect = applyInventoryItemEffect(itemId, state.player.pokemon);
-
-  if (!effect.ok) {
-    return {
-      ...state,
-      messageQueue: [effect.message],
-      result: null,
-      usedInventoryItemId: null,
-    };
-  }
-
-  return resolveOpponentTurnAfterPlayerMessages(
-    {
-      ...state,
-      player: syncActivePartyPokemon(state.player, effect.pokemon),
-    },
-    effect.messages,
+  // 몬스터볼은 의도적으로 무제한이라 보유 수량(itemCount)을 확인하지 않는다.
+  return chooseCaptureBallItem(state, options, {
     itemId,
-  );
+    displayName: battleItemDisplayName(itemId),
+    ballBonus: itemId === "ultraBall" ? ULTRA_BALL_BONUS : 1,
+  });
 }
 
 function chooseCaptureBallItem(
@@ -367,7 +295,6 @@ function chooseCaptureBallItem(
   }
 
   const captureAttempt = resolveGen4CaptureAttempt({
-    cartridgeRules: state.mechanicsVersion === 3,
     maxHp: state.opponent.pokemon.maxHp,
     currentHp: state.opponent.pokemon.currentHp,
     catchRate: Math.min(
@@ -407,35 +334,27 @@ function chooseCaptureBallItem(
         winnerPlayerId: state.player.playerId,
         loserPlayerId: state.opponent.playerId,
         reason: "capture",
-        capturedPokemon:
-          state.mechanicsVersion === 3 ? restoreGen4FieldPokemon(state, 1) : state.opponent.pokemon,
+        capturedPokemon: restoreGen4FieldPokemon(state, 1),
       },
     };
   }
 
-  if (state.mechanicsVersion === 3) {
-    const resolved = resolveGen4Action(state, { kind: "wait" });
-    return {
-      ...resolved,
-      usedInventoryItemId: ball.itemId,
-      captureAttempt: { ballItemId: ball.itemId, caught: false, shakes: captureAttempt.shakes },
-      messageQueue: [
-        `${withObjectParticle(ball.displayName)} 던졌다!`,
-        "아쉽다! 포켓몬이 볼에서 빠져나왔다!",
-        ...resolved.messageQueue,
-      ],
-      messageHpSnapshots: [
-        createBattleMessageHpSnapshot(state.player.pokemon, state.opponent.pokemon),
-        createBattleMessageHpSnapshot(state.player.pokemon, state.opponent.pokemon),
-        ...(resolved.messageHpSnapshots ?? []),
-      ],
-    };
-  }
-  return resolveFailedCaptureTurn(state, ball, {
-    ballItemId: ball.itemId,
-    caught: false,
-    shakes: captureAttempt.shakes,
-  });
+  const resolved = resolveGen4Action(state, { kind: "wait" });
+  return {
+    ...resolved,
+    usedInventoryItemId: ball.itemId,
+    captureAttempt: { ballItemId: ball.itemId, caught: false, shakes: captureAttempt.shakes },
+    messageQueue: [
+      `${withObjectParticle(ball.displayName)} 던졌다!`,
+      "아쉽다! 포켓몬이 볼에서 빠져나왔다!",
+      ...resolved.messageQueue,
+    ],
+    messageHpSnapshots: [
+      createBattleMessageHpSnapshot(state.player.pokemon, state.opponent.pokemon),
+      createBattleMessageHpSnapshot(state.player.pokemon, state.opponent.pokemon),
+      ...(resolved.messageHpSnapshots ?? []),
+    ],
+  };
 }
 
 function requirePlayerReplacement(state: BattleScreenState): BattleScreenState {
@@ -463,60 +382,16 @@ export function choosePartySlot(state: BattleScreenState, slotIndex: number): Ba
     return state;
   }
 
-  if (state.mechanicsVersion === 3) {
-    if (state.pendingBattleItemId) {
-      const itemId = state.pendingBattleItemId;
-      const pokemon = state.player.party.find(slot => slot.slotIndex === slotIndex)?.pokemon;
-      const romId = RUNTIME_ITEM_ROM_IDS[itemId as RuntimeItemId];
-      if (!pokemon || !romId || !canUseGen4ItemOnMember(romId, pokemon))
-        return { ...state, messageQueue: ["효과가 없다."] };
-      const resolved = resolveGen4Action(state, { kind: "item", itemId: romId, slotIndex });
-      return { ...resolved, usedInventoryItemId: resolved.pendingBattleItemId ? null : itemId };
-    }
-    return resolveGen4Action(state, { kind: "switch", slotIndex });
+  if (state.pendingBattleItemId) {
+    const itemId = state.pendingBattleItemId;
+    const pokemon = state.player.party.find(slot => slot.slotIndex === slotIndex)?.pokemon;
+    const romId = RUNTIME_ITEM_ROM_IDS[itemId as RuntimeItemId];
+    if (!pokemon || !romId || !canUseGen4ItemOnMember(romId, pokemon))
+      return { ...state, messageQueue: ["효과가 없다."] };
+    const resolved = resolveGen4Action(state, { kind: "item", itemId: romId, slotIndex });
+    return { ...resolved, usedInventoryItemId: resolved.pendingBattleItemId ? null : itemId };
   }
-  if (!isValidBattlePartySlotIndex(slotIndex)) {
-    return blockPartySwitch(state, "교체할 수 없다.");
-  }
-
-  const partySlot = state.player.party.find(function findItem(slot) {
-    return slot.slotIndex === slotIndex;
-  });
-  const pokemon = partySlot?.pokemon;
-
-  if (!pokemon) {
-    return blockPartySwitch(state, "빈 슬롯이다.");
-  }
-
-  if (!canPokemonBattle(pokemon)) {
-    return blockPartySwitch(state, "쓰러진 포켓몬은 나올 수 없다.");
-  }
-
-  if (slotIndex === state.player.activePartySlotIndex) {
-    return blockPartySwitch(state, "이미 나와 있다.");
-  }
-
-  const shouldSkipOpponentTurn = isForcedPartySwitch(state);
-  const switchedState: BattleScreenState = {
-    ...state,
-    phase: "resolving",
-    selectedMoveId: null,
-    player: {
-      ...state.player,
-      pokemon,
-      activePartySlotIndex: slotIndex,
-      party: state.player.party.map(function mapItem(slot) {
-        return slot.slotIndex === slotIndex ? { ...slot, pokemon } : slot;
-      }),
-    },
-    messageQueue: [`${pokemon.name}, 부탁해!`],
-    usedInventoryItemId: null,
-    result: null,
-  };
-
-  return shouldSkipOpponentTurn
-    ? switchedState
-    : resolveOpponentTurnAfterPlayerMessages(switchedState, switchedState.messageQueue, null);
+  return resolveGen4Action(state, { kind: "switch", slotIndex });
 }
 
 export function calculateRunChanceByte({
@@ -581,648 +456,22 @@ export function choosePlayerMove(
   }
 
   if (!canPokemonBattle(state.player.pokemon)) return requirePlayerReplacement(state);
-  if (state.mechanicsVersion === 3) {
-    const request = state.gen4Requests?.[0];
-    if (request?.recharge || request?.forcedMoveId != null)
-      return resolveGen4Action(state, { kind: "continue" }, options.random);
-    const move = state.player.pokemon.moves[moveIndex];
-    const available = request?.moves.filter(m => !m.disabled && m.pp > 0) ?? [];
-    return resolveGen4Action(
-      state,
-      {
-        kind: "move",
-        moveId:
-          available.length === 1 && available[0]!.moveId === STRUGGLE_MOVE_ID
-            ? "struggle"
-            : (move?.id ?? "struggle"),
-      },
-      options.random,
-    );
-  }
-  const random = options.random ?? Math.random;
-  const selectedMove = state.player.pokemon.moves[moveIndex];
-  const playerMove =
-    selectedMove && isBattleMoveSelectable(selectedMove)
-      ? selectedMove
-      : resolveStruggle(state.player.pokemon.moves);
-
-  if (!playerMove) {
-    return {
-      ...state,
-      messageQueue: ["그 기술은 사용할 수 없다."],
-    };
-  }
-
-  const opponentMove = randomUsableMove(state.opponent.pokemon.moves, random);
-  const actions = orderTurnActions(
-    state.player.pokemon,
-    playerMove,
-    state.opponent.pokemon,
-    opponentMove,
-    random,
-  );
-  let playerPokemon = state.player.pokemon;
-  let opponentPokemon = state.opponent.pokemon;
-  const messageQueue: string[] = [];
-  const messageHpSnapshots: BattleMessageHpSnapshot[] = [];
-
-  for (const action of actions) {
-    if (action.side === "player") {
-      if (isFullyParalyzed(playerPokemon, random)) {
-        messageQueue.push(`${withTopicParticle(playerPokemon.name)} 몸이 저려서 움직일 수 없다!`);
-        appendBattleMessageHpSnapshots(
-          messageHpSnapshots,
-          1,
-          playerPokemon,
-          opponentPokemon,
-          null,
-          moveAnimationCue(action.move.id, "player", { damage: 0, blocked: true }),
-        );
-        continue;
-      }
-
-      const actionMessageStartIndex = messageQueue.length;
-      playerPokemon = {
-        ...playerPokemon,
-        moves: spendMovePp(playerPokemon.moves, action.move.id),
-      };
-      messageQueue.push(`${playerPokemon.name}의 ${action.move.name}!`);
-      const moveOutcome = resolveMoveOutcome(playerPokemon, opponentPokemon, action.move, random);
-      messageQueue.push(...moveOutcome.messages);
-      playerPokemon = moveOutcome.attacker;
-      opponentPokemon = applyDamage(moveOutcome.defender, moveOutcome.damage);
-      appendBattleMessageHpSnapshots(
-        messageHpSnapshots,
-        messageQueue.length - actionMessageStartIndex,
-        playerPokemon,
-        opponentPokemon,
-        moveOutcome.damage > 0 ? "opponent" : null,
-        moveAnimationCue(action.move.id, "player", moveOutcome),
-      );
-
-      if (playerPokemon.status === "fainted" && opponentPokemon.status === "fainted") {
-        const hasPlayerReplacement = state.player.party.some(function testItem(slot) {
-          return (
-            slot.slotIndex !== state.player.activePartySlotIndex &&
-            slot.pokemon !== null &&
-            canPokemonBattle(slot.pokemon)
-          );
-        });
-        const faintState = hasPlayerReplacement
-          ? createEndOfTurnFaintState({
-              state,
-              playerPokemon,
-              opponentPokemon,
-              messageQueue,
-              selectedMoveId: playerMove.id,
-              turn: state.turn + 1,
-              usedInventoryItemId: null,
-            })!
-          : createPlayerFaintState({
-              state,
-              playerPokemon,
-              opponentPokemon,
-              messageQueue,
-              selectedMoveId: playerMove.id,
-              turn: state.turn + 1,
-              usedInventoryItemId: null,
-            });
-
-        return withBattleMessageHpSnapshots(faintState, messageHpSnapshots);
-      }
-
-      if (playerPokemon.status === "fainted") {
-        return withBattleMessageHpSnapshots(
-          createPlayerFaintState({
-            state,
-            playerPokemon,
-            opponentPokemon,
-            messageQueue,
-            selectedMoveId: playerMove.id,
-            turn: state.turn + 1,
-            usedInventoryItemId: null,
-          }),
-          messageHpSnapshots,
-        );
-      }
-
-      if (opponentPokemon.status === "fainted") {
-        return withBattleMessageHpSnapshots(
-          createOpponentFaintState({
-            state,
-            playerPokemon,
-            opponentPokemon,
-            messageQueue,
-            selectedMoveId: playerMove.id,
-            turn: state.turn + 1,
-            usedInventoryItemId: null,
-          }),
-          messageHpSnapshots,
-        );
-      }
-
-      continue;
-    }
-
-    if (isFullyParalyzed(opponentPokemon, random)) {
-      messageQueue.push(`${withTopicParticle(opponentPokemon.name)} 몸이 저려서 움직일 수 없다!`);
-      appendBattleMessageHpSnapshots(
-        messageHpSnapshots,
-        1,
-        playerPokemon,
-        opponentPokemon,
-        null,
-        moveAnimationCue(action.move.id, "opponent", { damage: 0, blocked: true }),
-      );
-      continue;
-    }
-
-    const actionMessageStartIndex = messageQueue.length;
-    opponentPokemon = {
-      ...opponentPokemon,
-      moves: spendMovePp(opponentPokemon.moves, action.move.id),
-    };
-    messageQueue.push(`${opponentPokemon.name}의 ${action.move.name}!`);
-    const moveOutcome = resolveMoveOutcome(opponentPokemon, playerPokemon, action.move, random);
-    messageQueue.push(...moveOutcome.messages);
-    opponentPokemon = moveOutcome.attacker;
-    playerPokemon = applyDamage(moveOutcome.defender, moveOutcome.damage);
-    appendBattleMessageHpSnapshots(
-      messageHpSnapshots,
-      messageQueue.length - actionMessageStartIndex,
-      playerPokemon,
-      opponentPokemon,
-      moveOutcome.damage > 0 ? "player" : null,
-      moveAnimationCue(action.move.id, "opponent", moveOutcome),
-    );
-
-    if (playerPokemon.status === "fainted" && opponentPokemon.status === "fainted") {
-      return withBattleMessageHpSnapshots(
-        createEndOfTurnFaintState({
-          state,
-          playerPokemon,
-          opponentPokemon,
-          messageQueue,
-          selectedMoveId: playerMove.id,
-          turn: state.turn + 1,
-          usedInventoryItemId: null,
-        })!,
-        messageHpSnapshots,
-      );
-    }
-
-    if (opponentPokemon.status === "fainted") {
-      return withBattleMessageHpSnapshots(
-        createOpponentFaintState({
-          state,
-          playerPokemon,
-          opponentPokemon,
-          messageQueue,
-          selectedMoveId: playerMove.id,
-          turn: state.turn + 1,
-          usedInventoryItemId: null,
-        }),
-        messageHpSnapshots,
-      );
-    }
-
-    if (playerPokemon.status === "fainted") {
-      return withBattleMessageHpSnapshots(
-        createPlayerFaintState({
-          state,
-          playerPokemon,
-          opponentPokemon,
-          messageQueue,
-          selectedMoveId: playerMove.id,
-          turn: state.turn + 1,
-          usedInventoryItemId: null,
-        }),
-        messageHpSnapshots,
-      );
-    }
-  }
-
-  const endOfTurn = resolveEndOfTurnEffects({
+  const request = state.gen4Requests?.[0];
+  if (request?.recharge || request?.forcedMoveId != null)
+    return resolveGen4Action(state, { kind: "continue" }, options.random);
+  const move = state.player.pokemon.moves[moveIndex];
+  const available = request?.moves.filter(m => !m.disabled && m.pp > 0) ?? [];
+  return resolveGen4Action(
     state,
-    playerPokemon,
-    opponentPokemon,
-    messageQueue,
-    selectedMoveId: playerMove.id,
-    turn: state.turn + 1,
-    usedInventoryItemId: null,
-  });
-
-  if (endOfTurn.faintState) {
-    return withBattleMessageHpSnapshots(endOfTurn.faintState, messageHpSnapshots);
-  }
-
-  return withBattleMessageHpSnapshots(
     {
-      ...state,
-      phase: "resolving",
-      selectedMoveId: playerMove.id,
-      turn: state.turn + 1,
-      player: syncActivePartyPokemon(state.player, endOfTurn.playerPokemon),
-      opponent: syncActivePartyPokemon(state.opponent, endOfTurn.opponentPokemon),
-      messageQueue: endOfTurn.messageQueue,
-      usedInventoryItemId: null,
+      kind: "move",
+      moveId:
+        available.length === 1 && available[0]!.moveId === STRUGGLE_MOVE_ID
+          ? "struggle"
+          : (move?.id ?? "struggle"),
     },
-    messageHpSnapshots,
+    options.random,
   );
-}
-
-function resolveFailedRunTurn(
-  state: BattleScreenState,
-  runAttemptCount: number,
-): BattleScreenState {
-  const opponentMove = randomUsableMove(state.opponent.pokemon.moves);
-  const messageHpSnapshots: BattleMessageHpSnapshot[] = [];
-
-  if (!opponentMove) {
-    const messageQueue = [BATTLE_RUN_FAILED_MESSAGE];
-    appendBattleMessageHpSnapshots(
-      messageHpSnapshots,
-      messageQueue.length,
-      state.player.pokemon,
-      state.opponent.pokemon,
-    );
-    const endOfTurn = resolveEndOfTurnEffects({
-      state,
-      playerPokemon: state.player.pokemon,
-      opponentPokemon: state.opponent.pokemon,
-      messageQueue,
-      selectedMoveId: null,
-      turn: state.turn + 1,
-      usedInventoryItemId: null,
-      runAttemptCount,
-    });
-
-    if (endOfTurn.faintState) {
-      return withBattleMessageHpSnapshots(endOfTurn.faintState, messageHpSnapshots);
-    }
-
-    return withBattleMessageHpSnapshots(
-      {
-        ...state,
-        phase: "resolving",
-        turn: state.turn + 1,
-        runAttemptCount,
-        selectedMoveId: null,
-        player: syncActivePartyPokemon(state.player, endOfTurn.playerPokemon),
-        opponent: syncActivePartyPokemon(state.opponent, endOfTurn.opponentPokemon),
-        messageQueue: endOfTurn.messageQueue,
-        usedInventoryItemId: null,
-        result: null,
-      },
-      messageHpSnapshots,
-    );
-  }
-
-  let playerPokemon = state.player.pokemon;
-  let opponentPokemon = {
-    ...state.opponent.pokemon,
-    moves: spendMovePp(state.opponent.pokemon.moves, opponentMove.id),
-  };
-  const messageQueue = [BATTLE_RUN_FAILED_MESSAGE];
-  appendBattleMessageHpSnapshots(
-    messageHpSnapshots,
-    messageQueue.length,
-    playerPokemon,
-    opponentPokemon,
-  );
-  const actionMessageStartIndex = messageQueue.length;
-  messageQueue.push(`${opponentPokemon.name}의 ${opponentMove.name}!`);
-  const moveOutcome = isFullyParalyzed(opponentPokemon)
-    ? {
-        damage: 0,
-        attacker: opponentPokemon,
-        defender: playerPokemon,
-        blocked: true,
-        messages: [`${withTopicParticle(opponentPokemon.name)} 몸이 저려서 움직일 수 없다!`],
-      }
-    : resolveMoveOutcome(opponentPokemon, playerPokemon, opponentMove);
-
-  messageQueue.push(...moveOutcome.messages);
-  opponentPokemon = moveOutcome.attacker;
-  playerPokemon = applyDamage(moveOutcome.defender, moveOutcome.damage);
-  appendBattleMessageHpSnapshots(
-    messageHpSnapshots,
-    messageQueue.length - actionMessageStartIndex,
-    playerPokemon,
-    opponentPokemon,
-    moveOutcome.damage > 0 ? "player" : null,
-    moveAnimationCue(opponentMove.id, "opponent", moveOutcome),
-  );
-
-  const immediateFaintState = createEndOfTurnFaintState({
-    state,
-    playerPokemon,
-    opponentPokemon,
-    messageQueue,
-    selectedMoveId: null,
-    turn: state.turn + 1,
-    runAttemptCount,
-    usedInventoryItemId: null,
-  });
-  if (immediateFaintState) {
-    return withBattleMessageHpSnapshots(immediateFaintState, messageHpSnapshots);
-  }
-
-  const endOfTurn = resolveEndOfTurnEffects({
-    state,
-    playerPokemon,
-    opponentPokemon,
-    messageQueue,
-    selectedMoveId: null,
-    turn: state.turn + 1,
-    usedInventoryItemId: null,
-    runAttemptCount,
-  });
-
-  if (endOfTurn.faintState) {
-    return withBattleMessageHpSnapshots(endOfTurn.faintState, messageHpSnapshots);
-  }
-
-  return withBattleMessageHpSnapshots(
-    {
-      ...state,
-      phase: "resolving",
-      selectedMoveId: null,
-      turn: state.turn + 1,
-      runAttemptCount,
-      player: syncActivePartyPokemon(state.player, endOfTurn.playerPokemon),
-      opponent: syncActivePartyPokemon(state.opponent, endOfTurn.opponentPokemon),
-      messageQueue: endOfTurn.messageQueue,
-      usedInventoryItemId: null,
-      result: null,
-    },
-    messageHpSnapshots,
-  );
-}
-
-function resolveFailedCaptureTurn(
-  state: BattleScreenState,
-  ball: CaptureBallConfig,
-  captureAttempt: BattleCaptureAttempt,
-): BattleScreenState {
-  const opponentMove = randomUsableMove(state.opponent.pokemon.moves);
-  const captureMessages = [
-    `${withObjectParticle(ball.displayName)} 던졌다!`,
-    `${withSubjectParticle(state.opponent.pokemon.name)} 볼에서 나왔다!`,
-  ];
-  const messageHpSnapshots: BattleMessageHpSnapshot[] = [];
-  appendBattleMessageHpSnapshots(
-    messageHpSnapshots,
-    captureMessages.length,
-    state.player.pokemon,
-    state.opponent.pokemon,
-  );
-
-  if (!opponentMove) {
-    const endOfTurn = resolveEndOfTurnEffects({
-      state,
-      playerPokemon: state.player.pokemon,
-      opponentPokemon: state.opponent.pokemon,
-      messageQueue: captureMessages,
-      selectedMoveId: null,
-      turn: state.turn + 1,
-      usedInventoryItemId: ball.itemId,
-    });
-
-    if (endOfTurn.faintState) {
-      return withBattleMessageHpSnapshots(
-        { ...endOfTurn.faintState, captureAttempt },
-        messageHpSnapshots,
-      );
-    }
-
-    return withBattleMessageHpSnapshots(
-      {
-        ...state,
-        phase: "resolving",
-        selectedMoveId: null,
-        turn: state.turn + 1,
-        player: syncActivePartyPokemon(state.player, endOfTurn.playerPokemon),
-        opponent: syncActivePartyPokemon(state.opponent, endOfTurn.opponentPokemon),
-        messageQueue: endOfTurn.messageQueue,
-        usedInventoryItemId: ball.itemId,
-        captureAttempt,
-        result: null,
-      },
-      messageHpSnapshots,
-    );
-  }
-
-  let opponentPokemon = {
-    ...state.opponent.pokemon,
-    moves: spendMovePp(state.opponent.pokemon.moves, opponentMove.id),
-  };
-  let playerPokemon = state.player.pokemon;
-  const messageQueue = [...captureMessages];
-  const actionMessageStartIndex = messageQueue.length;
-  messageQueue.push(`${opponentPokemon.name}의 ${opponentMove.name}!`);
-  const moveOutcome = isFullyParalyzed(opponentPokemon)
-    ? {
-        damage: 0,
-        attacker: opponentPokemon,
-        defender: playerPokemon,
-        blocked: true,
-        messages: [`${withTopicParticle(opponentPokemon.name)} 몸이 저려서 움직일 수 없다!`],
-      }
-    : resolveMoveOutcome(opponentPokemon, playerPokemon, opponentMove);
-
-  messageQueue.push(...moveOutcome.messages);
-  opponentPokemon = moveOutcome.attacker;
-  playerPokemon = applyDamage(moveOutcome.defender, moveOutcome.damage);
-  appendBattleMessageHpSnapshots(
-    messageHpSnapshots,
-    messageQueue.length - actionMessageStartIndex,
-    playerPokemon,
-    opponentPokemon,
-    moveOutcome.damage > 0 ? "player" : null,
-    moveAnimationCue(opponentMove.id, "opponent", moveOutcome),
-  );
-
-  const immediateFaintState = createEndOfTurnFaintState({
-    state,
-    playerPokemon,
-    opponentPokemon,
-    messageQueue,
-    selectedMoveId: null,
-    turn: state.turn + 1,
-    usedInventoryItemId: ball.itemId,
-  });
-  if (immediateFaintState) {
-    return withBattleMessageHpSnapshots(
-      {
-        ...immediateFaintState,
-        captureAttempt,
-      },
-      messageHpSnapshots,
-    );
-  }
-
-  const endOfTurn = resolveEndOfTurnEffects({
-    state,
-    playerPokemon,
-    opponentPokemon,
-    messageQueue,
-    selectedMoveId: null,
-    turn: state.turn + 1,
-    usedInventoryItemId: ball.itemId,
-  });
-
-  if (endOfTurn.faintState) {
-    return withBattleMessageHpSnapshots(
-      { ...endOfTurn.faintState, captureAttempt },
-      messageHpSnapshots,
-    );
-  }
-
-  return withBattleMessageHpSnapshots(
-    {
-      ...state,
-      phase: "resolving",
-      selectedMoveId: null,
-      turn: state.turn + 1,
-      player: syncActivePartyPokemon(state.player, endOfTurn.playerPokemon),
-      opponent: syncActivePartyPokemon(state.opponent, endOfTurn.opponentPokemon),
-      messageQueue: endOfTurn.messageQueue,
-      usedInventoryItemId: ball.itemId,
-      captureAttempt,
-      result: null,
-    },
-    messageHpSnapshots,
-  );
-}
-
-function resolveOpponentTurnAfterPlayerMessages(
-  state: BattleScreenState,
-  startingMessages: string[],
-  usedInventoryItemId: string | null,
-): BattleScreenState {
-  const opponentMove = randomUsableMove(state.opponent.pokemon.moves);
-  const messageHpSnapshots: BattleMessageHpSnapshot[] = [];
-  appendBattleMessageHpSnapshots(
-    messageHpSnapshots,
-    startingMessages.length,
-    state.player.pokemon,
-    state.opponent.pokemon,
-  );
-
-  if (!opponentMove) {
-    const endOfTurn = resolveEndOfTurnEffects({
-      state,
-      playerPokemon: state.player.pokemon,
-      opponentPokemon: state.opponent.pokemon,
-      messageQueue: startingMessages,
-      selectedMoveId: null,
-      turn: state.turn + 1,
-      usedInventoryItemId,
-    });
-
-    if (endOfTurn.faintState) {
-      return withBattleMessageHpSnapshots(endOfTurn.faintState, messageHpSnapshots);
-    }
-
-    return withBattleMessageHpSnapshots(
-      {
-        ...state,
-        phase: "resolving",
-        selectedMoveId: null,
-        turn: state.turn + 1,
-        player: syncActivePartyPokemon(state.player, endOfTurn.playerPokemon),
-        opponent: syncActivePartyPokemon(state.opponent, endOfTurn.opponentPokemon),
-        messageQueue: endOfTurn.messageQueue,
-        usedInventoryItemId,
-        result: null,
-      },
-      messageHpSnapshots,
-    );
-  }
-
-  let opponentPokemon = {
-    ...state.opponent.pokemon,
-    moves: spendMovePp(state.opponent.pokemon.moves, opponentMove.id),
-  };
-  let playerPokemon = state.player.pokemon;
-  const messageQueue = [...startingMessages];
-  const actionMessageStartIndex = messageQueue.length;
-  messageQueue.push(`${opponentPokemon.name}의 ${opponentMove.name}!`);
-  const moveOutcome = isFullyParalyzed(opponentPokemon)
-    ? {
-        damage: 0,
-        attacker: opponentPokemon,
-        defender: playerPokemon,
-        blocked: true,
-        messages: [`${withTopicParticle(opponentPokemon.name)} 몸이 저려서 움직일 수 없다!`],
-      }
-    : resolveMoveOutcome(opponentPokemon, playerPokemon, opponentMove);
-
-  messageQueue.push(...moveOutcome.messages);
-  opponentPokemon = moveOutcome.attacker;
-  playerPokemon = applyDamage(moveOutcome.defender, moveOutcome.damage);
-  appendBattleMessageHpSnapshots(
-    messageHpSnapshots,
-    messageQueue.length - actionMessageStartIndex,
-    playerPokemon,
-    opponentPokemon,
-    moveOutcome.damage > 0 ? "player" : null,
-    moveAnimationCue(opponentMove.id, "opponent", moveOutcome),
-  );
-
-  const immediateFaintState = createEndOfTurnFaintState({
-    state,
-    playerPokemon,
-    opponentPokemon,
-    messageQueue,
-    selectedMoveId: null,
-    turn: state.turn + 1,
-    usedInventoryItemId,
-  });
-  if (immediateFaintState) {
-    return withBattleMessageHpSnapshots(immediateFaintState, messageHpSnapshots);
-  }
-
-  const endOfTurn = resolveEndOfTurnEffects({
-    state,
-    playerPokemon,
-    opponentPokemon,
-    messageQueue,
-    selectedMoveId: null,
-    turn: state.turn + 1,
-    usedInventoryItemId,
-  });
-
-  if (endOfTurn.faintState) {
-    return withBattleMessageHpSnapshots(endOfTurn.faintState, messageHpSnapshots);
-  }
-
-  return withBattleMessageHpSnapshots(
-    {
-      ...state,
-      phase: "resolving",
-      selectedMoveId: null,
-      turn: state.turn + 1,
-      player: syncActivePartyPokemon(state.player, endOfTurn.playerPokemon),
-      opponent: syncActivePartyPokemon(state.opponent, endOfTurn.opponentPokemon),
-      messageQueue: endOfTurn.messageQueue,
-      usedInventoryItemId,
-      result: null,
-    },
-    messageHpSnapshots,
-  );
-}
-
-function blockPartySwitch(state: BattleScreenState, message: string): BattleScreenState {
-  return {
-    ...state,
-    phase: "party-select",
-    selectedMoveId: null,
-    messageQueue: [message],
-    usedInventoryItemId: null,
-    result: null,
-  };
 }
 
 function appendBattleEndConfirmMessage(messages: string[]): string[] {
@@ -1325,73 +574,10 @@ function battleItemDisplayName(itemId: string): string {
   return getRuntimeGameItem(itemId)?.name ?? "아이템";
 }
 
-function isBattleEffectItemId(itemId: string): itemId is (typeof BATTLE_EFFECT_ITEM_IDS)[number] {
-  return (BATTLE_EFFECT_ITEM_IDS as readonly string[]).includes(itemId);
-}
-
 interface CaptureBallConfig {
   itemId: "pokeball" | "ultraBall";
   displayName: string;
   ballBonus: number;
-}
-
-function isValidBattlePartySlotIndex(slotIndex: number): boolean {
-  return (
-    Number.isFinite(slotIndex) &&
-    Number.isInteger(slotIndex) &&
-    slotIndex >= 0 &&
-    slotIndex < BATTLE_PARTY_SLOT_COUNT
-  );
-}
-
-type TurnAction = { side: "player"; move: BattleMove } | { side: "opponent"; move: BattleMove };
-
-function orderTurnActions(
-  player: BattlePokemon,
-  playerMove: BattleMove,
-  opponent: BattlePokemon,
-  opponentMove: BattleMove | null,
-  random: () => number = Math.random,
-): TurnAction[] {
-  const playerAction: TurnAction = { side: "player", move: playerMove };
-
-  if (!opponentMove) {
-    return [playerAction];
-  }
-
-  const opponentAction: TurnAction = { side: "opponent", move: opponentMove };
-  const playerPriority = getMovePriority(playerMove);
-  const opponentPriority = getMovePriority(opponentMove);
-
-  if (opponentPriority !== playerPriority) {
-    return opponentPriority > playerPriority
-      ? [opponentAction, playerAction]
-      : [playerAction, opponentAction];
-  }
-
-  const playerSpeed = calculateEffectiveBattleSpeed(player);
-  const opponentSpeed = calculateEffectiveBattleSpeed(opponent);
-
-  if (opponentSpeed !== playerSpeed) {
-    return opponentSpeed > playerSpeed
-      ? [opponentAction, playerAction]
-      : [playerAction, opponentAction];
-  }
-
-  return randomUnit(random) < 0.5 ? [playerAction, opponentAction] : [opponentAction, playerAction];
-}
-
-function randomUsableMove(
-  moves: BattleMove[],
-  random: () => number = Math.random,
-): BattleMove | null {
-  const usableMoves = moves.filter(isBattleMoveSelectable);
-
-  if (usableMoves.length === 0) {
-    return resolveStruggle(moves);
-  }
-
-  return usableMoves[Math.floor(randomUnit(random) * usableMoves.length)] ?? usableMoves[0];
 }
 
 function resolveStruggle(moves: BattleMove[]): BattleMove | null {
@@ -1405,81 +591,6 @@ function resolveStruggle(moves: BattleMove[]): BattleMove | null {
 
 export function isBattleMoveSelectable(move: BattleMove): boolean {
   return move.pp > 0 && move.competitiveEffectSupport !== "unsupported-primary";
-}
-
-function spendMovePp(moves: BattleMove[], moveId: number): BattleMove[] {
-  return moves.map(function mapItem(move) {
-    return move.id === moveId ? { ...move, pp: Math.max(0, move.pp - 1) } : move;
-  });
-}
-
-function appendBattleMessageHpSnapshots(
-  snapshots: BattleMessageHpSnapshot[],
-  messageCount: number,
-  playerPokemon: BattlePokemon,
-  opponentPokemon: BattlePokemon,
-  attackHitTarget: BattleMessageHpSnapshot["attackHitTarget"] = null,
-  animation?: BattleMessageHpSnapshot["animation"],
-): void {
-  for (let index = 0; index < messageCount; index += 1) {
-    snapshots.push({
-      ...createBattleMessageHpSnapshot(
-        playerPokemon,
-        opponentPokemon,
-        index === 0 ? attackHitTarget : null,
-      ),
-      ...(index === 0 && animation ? { animation } : {}),
-    });
-  }
-}
-
-function withBattleMessageHpSnapshots(
-  state: BattleScreenState,
-  snapshots: BattleMessageHpSnapshot[],
-): BattleScreenState {
-  const messageHpSnapshots = snapshots.slice(0, state.messageQueue.length);
-  const finalSnapshot = createBattleMessageHpSnapshot(state.player.pokemon, state.opponent.pokemon);
-
-  // Residual damage is separate from a move's hit; derive it from the resolved HP/status
-  // snapshots rather than the translated message text. Recoil already belongs to its move snapshot.
-  let previous = messageHpSnapshots.at(-1);
-  if (previous)
-    for (const side of ["player", "opponent"] as const) {
-      const hpKey = side === "player" ? "playerCurrentHp" : "opponentCurrentHp";
-      const statusKey = side === "player" ? "playerStatus" : "opponentStatus";
-      const status = previous[statusKey];
-      if (
-        messageHpSnapshots.length < state.messageQueue.length &&
-        previous[hpKey] > finalSnapshot[hpKey] &&
-        (status === "poisoned" || status === "burned")
-      ) {
-        const next: BattleMessageHpSnapshot = {
-          ...previous,
-          [hpKey]: finalSnapshot[hpKey],
-          [statusKey]: finalSnapshot[statusKey],
-          attackHitTarget: null,
-          animation: {
-            kind: "status",
-            source: side,
-            target: side,
-            moveId: 0,
-            status,
-            hit: false,
-            damage: previous[hpKey] - finalSnapshot[hpKey],
-          },
-        };
-        messageHpSnapshots.push(next);
-        previous = next;
-      }
-    }
-  while (messageHpSnapshots.length < state.messageQueue.length) {
-    messageHpSnapshots.push(finalSnapshot);
-  }
-
-  return {
-    ...state,
-    messageHpSnapshots,
-  };
 }
 
 function createBattleMessageHpSnapshot(
@@ -1496,352 +607,6 @@ function createBattleMessageHpSnapshot(
   };
 }
 
-interface MoveOutcome {
-  connected?: boolean;
-  blocked?: boolean;
-  damage: number;
-  attacker: BattlePokemon;
-  defender: BattlePokemon;
-  messages: string[];
-}
-
-function resolveMoveOutcome(
-  attacker: BattlePokemon,
-  defender: BattlePokemon,
-  move: BattleMove,
-  random: () => number = Math.random,
-): MoveOutcome {
-  if (!moveHits(attacker, defender, move, random)) {
-    return {
-      connected: false,
-      damage: 0,
-      attacker,
-      defender,
-      messages: [`${attacker.name}의 공격은 빗나갔다!`],
-    };
-  }
-
-  const fixedDamage = getGen4FixedDamage(move.effectCode);
-  const typeEffectiveness = calculateGen4TypeEffectiveness(move.typeId, defender.typeIds);
-
-  if (fixedDamage !== null) {
-    return {
-      connected: typeEffectiveness > 0,
-      damage: typeEffectiveness === 0 ? 0 : fixedDamage,
-      attacker,
-      defender,
-      messages:
-        typeEffectiveness === 0
-          ? [formatTypeEffectivenessMessage(typeEffectiveness)].filter(isString)
-          : [],
-    };
-  }
-
-  const critical = move.category === "status" || move.power <= 0 ? false : rollCriticalHit(random);
-  const damage = damageForMove(attacker, defender, move, {
-    critical,
-    randomFactor:
-      move.category === "status" || move.power <= 0 ? 100 : rollDamageRandomFactor(random),
-    typeEffectiveness,
-  });
-  const effectOutcome = resolveMoveEffect(attacker, defender, move, {
-    random,
-    damage,
-  });
-  const typeMessage =
-    move.category !== "status" && move.power > 0
-      ? formatTypeEffectivenessMessage(typeEffectiveness)
-      : null;
-  const struggleRecoil =
-    move.id === STRUGGLE_MOVE.id && damage > 0
-      ? Math.max(1, Math.floor(effectOutcome.attacker.maxHp / 4))
-      : 0;
-  const resolvedAttacker =
-    struggleRecoil > 0
-      ? applyDamage(effectOutcome.attacker, struggleRecoil)
-      : effectOutcome.attacker;
-  const messages = [
-    ...(critical && damage > 0 ? ["급소에 맞았다!"] : []),
-    ...[typeMessage].filter(isString),
-    ...effectOutcome.messages,
-    ...(struggleRecoil > 0
-      ? [`${withTopicParticle(resolvedAttacker.name)} 반동 데미지를 입었다!`]
-      : []),
-  ];
-
-  return {
-    damage,
-    connected: move.category === "status" || typeEffectiveness > 0,
-    attacker: resolvedAttacker,
-    defender: effectOutcome.defender,
-    messages,
-  };
-}
-
-function damageForMove(
-  attacker: BattlePokemon,
-  defender: BattlePokemon,
-  move: BattleMove,
-  modifiers: { critical: boolean; randomFactor: number; typeEffectiveness: number },
-): number {
-  const attackerStages = normalizeBattleStatStages(attacker.statStages);
-  const defenderStages = normalizeBattleStatStages(defender.statStages);
-  const rawOffensiveStat =
-    move.category === "special"
-      ? calculateBattleStageModifiedStat(attacker.specialAttack, attackerStages.specialAttack)
-      : calculateBattleStageModifiedStat(attacker.attack, attackerStages.attack);
-  const offensiveStat =
-    move.category === "physical" && attacker.status === "burned"
-      ? Math.max(1, Math.floor(rawOffensiveStat / 2))
-      : rawOffensiveStat;
-  const defensiveStat =
-    move.category === "special"
-      ? calculateBattleStageModifiedStat(defender.specialDefense, defenderStages.specialDefense)
-      : calculateBattleStageModifiedStat(defender.defense, defenderStages.defense);
-
-  return calculateGen4Damage({
-    level: attacker.level,
-    power: move.power,
-    attack: offensiveStat,
-    defense: defensiveStat,
-    moveTypeId: move.typeId,
-    attackerTypeIds: attacker.typeIds,
-    typeEffectiveness: modifiers.typeEffectiveness,
-    randomFactor: modifiers.randomFactor,
-    critical: modifiers.critical,
-    category: move.category,
-  });
-}
-
-function moveHits(
-  attacker: BattlePokemon,
-  defender: BattlePokemon,
-  move: BattleMove,
-  random: () => number = Math.random,
-): boolean {
-  const attackerStages = normalizeBattleStatStages(attacker.statStages);
-  const defenderStages = normalizeBattleStatStages(defender.statStages);
-
-  return checkGen4Accuracy({
-    accuracy: move.accuracy,
-    accuracyStage: attackerStages.accuracy,
-    evasionStage: defenderStages.evasion,
-    roll: rollAccuracy(random),
-  });
-}
-
-interface MoveEffectOutcome {
-  attacker: BattlePokemon;
-  defender: BattlePokemon;
-  messages: string[];
-}
-
-function resolveMoveEffect(
-  attacker: BattlePokemon,
-  defender: BattlePokemon,
-  move: BattleMove,
-  options: { random: () => number; damage: number },
-): MoveEffectOutcome {
-  if (move.effectCode === 66) {
-    return applyPoisonEffect(attacker, defender);
-  }
-
-  if (move.effectCode === 67) {
-    return applyParalysisEffect(attacker, defender);
-  }
-
-  if (
-    move.effectCode === 4 &&
-    options.damage > 0 &&
-    randomUnit(options.random) < (move.effectChance ?? 10) / 100
-  ) {
-    return applyBurnEffect(attacker, defender);
-  }
-
-  if (
-    move.effectCode === 6 &&
-    options.damage > 0 &&
-    randomUnit(options.random) < (move.effectChance ?? 10) / 100
-  ) {
-    return applyParalysisEffect(attacker, defender);
-  }
-
-  const statStageEffect = getStatStageEffect(move.effectCode);
-
-  if (statStageEffect) {
-    return applyStatStageEffect(attacker, defender, statStageEffect);
-  }
-
-  return { attacker, defender, messages: [] };
-}
-
-function applyPoisonEffect(attacker: BattlePokemon, defender: BattlePokemon): MoveEffectOutcome {
-  if (defender.status === "fainted") {
-    return { attacker, defender, messages: [] };
-  }
-
-  if (defender.status !== "normal") {
-    return {
-      attacker,
-      defender,
-      messages: [
-        defender.status === "poisoned"
-          ? `${withTopicParticle(defender.name)} 이미 독에 걸려 있다!`
-          : `${withTopicParticle(defender.name)} 이미 상태 이상이다!`,
-      ],
-    };
-  }
-
-  return {
-    attacker,
-    defender: {
-      ...defender,
-      status: "poisoned",
-    },
-    messages: [`${withTopicParticle(defender.name)} 독에 걸렸다!`],
-  };
-}
-
-function applyBurnEffect(attacker: BattlePokemon, defender: BattlePokemon): MoveEffectOutcome {
-  if (defender.status === "fainted") {
-    return { attacker, defender, messages: [] };
-  }
-
-  if (defender.status !== "normal") {
-    return {
-      attacker,
-      defender,
-      messages: [`${withTopicParticle(defender.name)} 이미 상태 이상이다!`],
-    };
-  }
-
-  return {
-    attacker,
-    defender: {
-      ...defender,
-      status: "burned",
-    },
-    messages: [`${withTopicParticle(defender.name)} 화상을 입었다!`],
-  };
-}
-
-function applyParalysisEffect(attacker: BattlePokemon, defender: BattlePokemon): MoveEffectOutcome {
-  if (defender.status === "fainted") {
-    return { attacker, defender, messages: [] };
-  }
-
-  if (defender.status !== "normal") {
-    return {
-      attacker,
-      defender,
-      messages: [`${withTopicParticle(defender.name)} 이미 상태 이상이다!`],
-    };
-  }
-
-  return {
-    attacker,
-    defender: {
-      ...defender,
-      status: "paralyzed",
-    },
-    messages: [`${withTopicParticle(defender.name)} 마비되어 기술이 나오기 어려워졌다!`],
-  };
-}
-
-function getStatStageEffect(effectCode: number): {
-  key: BattleStatStageKey;
-  delta: number;
-  label: string;
-  target: "attacker" | "defender";
-} | null {
-  switch (effectCode) {
-    case 18:
-      return { key: "attack", delta: -1, label: "공격", target: "defender" };
-    case 19:
-      return { key: "defense", delta: -1, label: "방어", target: "defender" };
-    case 20:
-      return { key: "speed", delta: -1, label: "스피드", target: "defender" };
-    case 23:
-      return { key: "accuracy", delta: -1, label: "명중률", target: "defender" };
-    case 60:
-      return { key: "speed", delta: -2, label: "스피드", target: "defender" };
-    case 156:
-      return { key: "defense", delta: 1, label: "방어", target: "attacker" };
-    default:
-      return null;
-  }
-}
-
-function applyStatStageEffect(
-  attacker: BattlePokemon,
-  defender: BattlePokemon,
-  effect: {
-    key: BattleStatStageKey;
-    delta: number;
-    label: string;
-    target: "attacker" | "defender";
-  },
-): MoveEffectOutcome {
-  const target = effect.target === "attacker" ? attacker : defender;
-  const currentStages = normalizeBattleStatStages(target.statStages);
-  const nextStages = applyBattleStatStageDelta(currentStages, effect.key, effect.delta);
-
-  if (nextStages[effect.key] === currentStages[effect.key]) {
-    return {
-      attacker,
-      defender,
-      messages: [
-        `${target.name}의 ${withTopicParticle(effect.label)} 더 이상 ${effect.delta > 0 ? "오르지" : "떨어지지"} 않는다!`,
-      ],
-    };
-  }
-
-  const updatedTarget = {
-    ...target,
-    statStages: nextStages,
-  };
-
-  return {
-    attacker: effect.target === "attacker" ? updatedTarget : attacker,
-    defender: effect.target === "defender" ? updatedTarget : defender,
-    messages: [
-      effect.delta > 0
-        ? `${target.name}의 ${withSubjectParticle(effect.label)} 올랐다!`
-        : effect.delta <= -2
-          ? `${target.name}의 ${withSubjectParticle(effect.label)} 크게 떨어졌다!`
-          : `${target.name}의 ${withSubjectParticle(effect.label)} 떨어졌다!`,
-    ],
-  };
-}
-
-function applyEndOfTurnEffects(
-  playerPokemon: BattlePokemon,
-  opponentPokemon: BattlePokemon,
-): { playerPokemon: BattlePokemon; opponentPokemon: BattlePokemon; messages: string[] } {
-  let nextPlayerPokemon = playerPokemon;
-  let nextOpponentPokemon = opponentPokemon;
-  const messages: string[] = [];
-  const playerPoison = applyPoisonResidualDamage(nextPlayerPokemon);
-  nextPlayerPokemon = playerPoison.pokemon;
-  messages.push(...playerPoison.messages);
-  const playerBurn = applyBurnResidualDamage(nextPlayerPokemon);
-  nextPlayerPokemon = playerBurn.pokemon;
-  messages.push(...playerBurn.messages);
-
-  const opponentPoison = applyPoisonResidualDamage(nextOpponentPokemon);
-  nextOpponentPokemon = opponentPoison.pokemon;
-  messages.push(...opponentPoison.messages);
-  const opponentBurn = applyBurnResidualDamage(nextOpponentPokemon);
-  nextOpponentPokemon = opponentBurn.pokemon;
-  messages.push(...opponentBurn.messages);
-
-  return {
-    playerPokemon: nextPlayerPokemon,
-    opponentPokemon: nextOpponentPokemon,
-    messages,
-  };
-}
-
 interface EndOfTurnResolutionInput {
   state: BattleScreenState;
   playerPokemon: BattlePokemon;
@@ -1851,56 +616,6 @@ interface EndOfTurnResolutionInput {
   turn: number;
   usedInventoryItemId: string | null;
   runAttemptCount?: number;
-}
-
-interface EndOfTurnResolution {
-  playerPokemon: BattlePokemon;
-  opponentPokemon: BattlePokemon;
-  messageQueue: string[];
-  faintState: BattleScreenState | null;
-}
-
-function resolveEndOfTurnEffects(input: EndOfTurnResolutionInput): EndOfTurnResolution {
-  const endOfTurn = applyEndOfTurnEffects(input.playerPokemon, input.opponentPokemon);
-  const messageQueue = [...input.messageQueue, ...endOfTurn.messages];
-  const faintState = createEndOfTurnFaintState({
-    ...input,
-    playerPokemon: endOfTurn.playerPokemon,
-    opponentPokemon: endOfTurn.opponentPokemon,
-    messageQueue,
-  });
-
-  return {
-    playerPokemon: endOfTurn.playerPokemon,
-    opponentPokemon: endOfTurn.opponentPokemon,
-    messageQueue,
-    faintState,
-  };
-}
-
-function createEndOfTurnFaintState(input: EndOfTurnResolutionInput): BattleScreenState | null {
-  if (input.opponentPokemon.status === "fainted" && input.playerPokemon.status === "fainted") {
-    const opponentFaintState = createOpponentFaintState(input);
-
-    if (!opponentFaintState.result) {
-      return createPlayerFaintState({
-        ...input,
-        state: opponentFaintState,
-        messageQueue: opponentFaintState.messageQueue,
-        opponentPokemon: opponentFaintState.opponent.pokemon,
-      });
-    }
-  }
-
-  if (input.opponentPokemon.status === "fainted") {
-    return createOpponentFaintState(input);
-  }
-
-  if (input.playerPokemon.status === "fainted") {
-    return createPlayerFaintState(input);
-  }
-
-  return null;
 }
 
 function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreenState {
@@ -1945,9 +660,7 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
       ? applyWildVictoryExperience(
           input.playerPokemon,
           input.opponentPokemon,
-          input.state.mechanicsVersion === 3 && input.playerPokemon.currentHp <= 0
-            ? 0
-            : experienceMultiplier,
+          input.playerPokemon.currentHp <= 0 ? 0 : experienceMultiplier,
         )
       : null;
   const resolvedPlayerPokemon = wildVictoryExperience?.pokemon ?? input.playerPokemon;
@@ -1959,7 +672,7 @@ function createOpponentFaintState(input: EndOfTurnResolutionInput): BattleScreen
           ...slot,
           pokemon: !slot.pokemon
             ? null
-            : input.state.mechanicsVersion === 3 && slot.pokemon.currentHp <= 0
+            : slot.pokemon.currentHp <= 0
               ? slot.pokemon
               : slot.slotIndex === player.activePartySlotIndex
                 ? resolvedPlayerPokemon
@@ -2085,108 +798,7 @@ export function canPokemonBattle(pokemon: BattlePokemon): boolean {
   return pokemon.status !== "fainted" && pokemon.currentHp > 0;
 }
 
-function applyPoisonResidualDamage(pokemon: BattlePokemon): {
-  pokemon: BattlePokemon;
-  messages: string[];
-} {
-  if (pokemon.status !== "poisoned" || pokemon.currentHp <= 0) {
-    return { pokemon, messages: [] };
-  }
-
-  const damage = Math.max(1, Math.floor(pokemon.maxHp / 8));
-  const nextPokemon = applyDamage(pokemon, damage);
-
-  return {
-    pokemon: nextPokemon,
-    messages: [`${withTopicParticle(pokemon.name)} 독 데미지를 입었다!`],
-  };
-}
-
-function applyBurnResidualDamage(pokemon: BattlePokemon): {
-  pokemon: BattlePokemon;
-  messages: string[];
-} {
-  if (pokemon.status !== "burned" || pokemon.currentHp <= 0) {
-    return { pokemon, messages: [] };
-  }
-
-  const damage = Math.max(1, Math.floor(pokemon.maxHp / 8));
-  const nextPokemon = applyDamage(pokemon, damage);
-
-  return {
-    pokemon: nextPokemon,
-    messages: [`${withTopicParticle(pokemon.name)} 화상 데미지를 입었다!`],
-  };
-}
-
-function calculateEffectiveBattleSpeed(pokemon: BattlePokemon): number {
-  const stages = normalizeBattleStatStages(pokemon.statStages);
-  const stagedSpeed = calculateBattleStageModifiedStat(pokemon.speed, stages.speed);
-
-  return pokemon.status === "paralyzed" ? Math.max(1, Math.floor(stagedSpeed / 4)) : stagedSpeed;
-}
-
-function isFullyParalyzed(pokemon: BattlePokemon, random: () => number = Math.random): boolean {
-  return pokemon.status === "paralyzed" && randomUnit(random) < 0.25;
-}
-
-function getMovePriority(move: BattleMove): number {
-  return move.priority ?? (move.effectCode === 103 ? 1 : 0);
-}
-
-function rollCriticalHit(random: () => number): boolean {
-  return randomUnit(random) < 1 / 16;
-}
-
-function rollDamageRandomFactor(random: () => number): number {
-  return 85 + Math.floor(randomUnit(random) * 16);
-}
-
-function rollAccuracy(random: () => number): number {
-  return 1 + Math.floor(randomUnit(random) * 100);
-}
-
-function randomUnit(random: () => number): number {
-  const value = random();
-
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.min(0.999999, value));
-}
-
-function isString(value: string | null): value is string {
-  return typeof value === "string";
-}
-
-function applyDamage(pokemon: BattlePokemon, damage: number): BattlePokemon {
-  const currentHp = Math.max(0, pokemon.currentHp - damage);
-
-  return {
-    ...pokemon,
-    currentHp,
-    status: currentHp === 0 ? "fainted" : pokemon.status,
-  };
-}
-
-function moveAnimationCue(
-  moveId: number,
-  source: "player" | "opponent",
-  result: Pick<MoveOutcome, "damage" | "connected" | "blocked">,
-): NonNullable<BattleMessageHpSnapshot["animation"]> {
-  return {
-    kind: result.blocked ? "status" : "move",
-    source,
-    target: result.blocked ? source : source === "player" ? "opponent" : "player",
-    moveId: result.blocked ? 0 : moveId,
-    status: result.blocked ? "paralyzed" : "normal",
-    hit: result.connected !== false && !result.blocked,
-    damage: result.damage,
-  };
-}
-
-/** Live battles share the cartridge-generation executor; legacy snapshots remain replayable. */
+/** 모든 모험 전투는 4세대 실행기로 처리한다. 세션이 없는 상태는 첫 행동에서 세션을 만든다. */
 function resolveGen4Action(
   input: BattleScreenState,
   action: Gen4Action,

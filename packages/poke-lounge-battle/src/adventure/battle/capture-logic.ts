@@ -1,8 +1,6 @@
 import { hgssCaptureValue, hgssShakeThreshold } from "../../gen4/capture";
-import { resolveCaptureAttempt } from "../../capture";
 
 export interface Gen4CaptureValueInput {
-  cartridgeRules?: boolean;
   maxHp: number;
   currentHp: number;
   catchRate: number;
@@ -24,7 +22,6 @@ export interface Gen4CaptureAttemptResult {
 export function resolveGen4CaptureAttempt(
   input: Gen4CaptureAttemptInput,
 ): Gen4CaptureAttemptResult {
-  if (!input.cartridgeRules) return resolveCaptureAttempt(input);
   const captureValue = hgssCaptureValue(input),
     shakeThreshold = hgssShakeThreshold(captureValue);
   if (captureValue >= 255) return { caught: true, shakes: 4, captureValue, shakeThreshold };
