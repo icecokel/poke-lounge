@@ -10,6 +10,7 @@ import type {
   PlayerCompetitiveStats,
   PlayerGuideState,
   PlayerInventory,
+  RemotePlayerState,
 } from "@/features/poke-lounge/contracts/game-state";
 import * as playerOperations from "@/features/poke-lounge/domain/player/operations";
 import { createVisibleTournamentStandings } from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
@@ -338,6 +339,10 @@ export function createGameStateStore(options: CreateGameStateStoreOptions = {}):
       });
     },
     upsertRemotePlayer(player) {
+      const existing = state.remotePlayers[player.sessionId];
+      if (existing && isSameRemotePlayerState(existing, player)) {
+        return;
+      }
       state = {
         ...state,
         remotePlayers: {
@@ -1154,6 +1159,21 @@ function resolveServerTournamentRoundPhase(
   }
 
   return "waiting";
+}
+
+function isSameRemotePlayerState(left: RemotePlayerState, right: RemotePlayerState): boolean {
+  return (
+    left.sessionId === right.sessionId &&
+    left.playerId === right.playerId &&
+    left.displayName === right.displayName &&
+    left.mapKey === right.mapKey &&
+    left.x === right.x &&
+    left.y === right.y &&
+    left.facing === right.facing &&
+    left.activePokemon?.speciesId === right.activePokemon?.speciesId &&
+    left.activePokemon?.name === right.activePokemon?.name &&
+    left.activePokemon?.level === right.activePokemon?.level
+  );
 }
 
 function hasSameCanonicalTournamentProjection(
