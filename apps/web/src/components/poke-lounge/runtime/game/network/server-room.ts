@@ -223,7 +223,8 @@ interface ServerRoomConflictResponse {
   statusCode: 409;
   code: typeof REVISION_CONFLICT_CODE | typeof IDEMPOTENCY_CONFLICT_CODE;
   message: string;
-  snapshot: ServerRoomState;
+  /** Absent when the server could not show the room to this caller, or when it was malformed. */
+  snapshot: ServerRoomState | null;
 }
 
 interface StoredServerRoomIdentity {
@@ -249,6 +250,8 @@ type InitialWorkflowStage = "open" | "competitive-seat" | "party" | "complete";
 
 class ServerRoomRequestError extends Error {
   readonly serverCode: string | null;
+  /** Parsed once by getServerRoomConflict; undefined until first requested. */
+  conflict?: ServerRoomConflictResponse | null;
 
   constructor(
     readonly status: number,
@@ -813,11 +816,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       } catch (error) {
         const conflict = getServerRoomConflict(error);
 
-        if (!conflict) {
-          throw error;
+        if (conflict?.snapshot) {
+          applySnapshot(conflict.snapshot);
+        } else if (conflict?.code === REVISION_CONFLICT_CODE && latestState) {
+          // No snapshot came with the conflict; refresh so a retry can use the current revision.
+          requestOnlineRecovery();
         }
-
-        applySnapshot(conflict.snapshot);
 
         throw error;
       }
@@ -840,7 +844,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         });
       } catch (error) {
         const conflict = getServerRoomConflict(error);
-        if (conflict) {
+        if (conflict?.snapshot) {
           applySnapshot(conflict.snapshot);
         }
         throw error;
@@ -3315,9 +3319,14 @@ function getServerRoomConflict(error: unknown): ServerRoomConflictResponse | nul
   if (!(error instanceof ServerRoomRequestError) || error.status !== 409) {
     return null;
   }
+  if (error.conflict === undefined) {
+    error.conflict = parseServerRoomConflict(error.responseBody);
+  }
 
-  const value = error.responseBody;
+  return error.conflict;
+}
 
+function parseServerRoomConflict(value: unknown): ServerRoomConflictResponse | null {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -3332,11 +3341,22 @@ function getServerRoomConflict(error: unknown): ServerRoomConflictResponse | nul
     return null;
   }
 
+  // The server omits the snapshot when the caller may not read the room. This runs inside catch
+  // blocks, so a missing or malformed snapshot must not replace the original 409.
+  let snapshot: ServerRoomState | null = null;
+  if (record.snapshot !== undefined && record.snapshot !== null) {
+    try {
+      snapshot = parseServerRoomState(record.snapshot);
+    } catch {
+      snapshot = null;
+    }
+  }
+
   return {
     statusCode: 409,
     code: record.code,
     message: record.message,
-    snapshot: parseServerRoomState(record.snapshot),
+    snapshot,
   };
 }
 
