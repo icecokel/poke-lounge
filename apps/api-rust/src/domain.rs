@@ -2,7 +2,7 @@ use crate::{
     compute::{BattlePack, Compute, ENGINE_VERSION},
     error::{AppError, AppResult},
     repository::hash_bytes,
-    tournament::{Bracket, Entrant},
+    tournament::{Bracket, BracketMatch, Entrant},
 };
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
@@ -43,6 +43,14 @@ pub const AI_ONLY_TURN_READY_MS: u64 = 500;
 pub const TOURNAMENT_BRIEFING_MS: u64 = 5_000;
 // Must match packages/poke-lounge-battle/src/timing.ts TOURNAMENT_RESULT_DURATION_MS (pnpm check:rust-ts-constants).
 pub const TOURNAMENT_RESULT_MS: u64 = 8_000;
+// Rust-only. A match step that fails is retried with exponential backoff up to the cap, which is
+// also the longest extra wait once an outage ends.
+const MATCH_RETRY_BASE_MS: u64 = 500;
+const MATCH_RETRY_MAX_MS: u64 = 8_000;
+// Rust-only. A match whose step keeps failing the same way is forfeited once both limits pass, so
+// one broken battle cannot hold the bracket until the session expires.
+const MATCH_SETTLE_AFTER_FAILURES: u32 = 6;
+const MATCH_SETTLE_AFTER_MS: u64 = 30_000;
 pub const TERMINAL_REASONS: [&str; 3] = ["faint", "forfeit", "timeout"];
 pub const FIELD_MAP_KEY: &str = "town";
 pub const DEFAULT_SPAWN_X: u64 = 624;
@@ -300,6 +308,62 @@ pub struct Match {
     #[serde(default)]
     pub progression_ends_at_ms: Option<u64>,
 }
+struct MatchFault {
+    failures: u32,
+    deterministic_failures: u32,
+    first_deterministic_ms: u64,
+    retry_at_ms: u64,
+}
+/// Retry state of the steps a room tick isolates. The room actor keeps it in memory; it is
+/// deliberately not part of the stored room.
+#[derive(Default)]
+pub struct RoomFaults {
+    /// Keyed by match ID, or by bracket match ID while the match cannot be created.
+    matches: FaultMap,
+    /// Keyed by AI player ID.
+    ai_steps: FaultMap,
+}
+#[derive(Default)]
+struct FaultMap(BTreeMap<String, MatchFault>);
+impl FaultMap {
+    fn waiting(&self, key: &str, now: u64) -> bool {
+        self.0.get(key).is_some_and(|fault| now < fault.retry_at_ms)
+    }
+    fn settle_due(&self, key: &str, now: u64) -> bool {
+        self.0.get(key).is_some_and(|fault| {
+            fault.deterministic_failures >= MATCH_SETTLE_AFTER_FAILURES
+                && now >= fault.first_deterministic_ms + MATCH_SETTLE_AFTER_MS
+        })
+    }
+    /// Returns the consecutive failure count and whether this failure should be logged.
+    fn record(&mut self, key: &str, now: u64, deterministic: bool) -> (u32, bool) {
+        let fault = self.0.entry(key.to_owned()).or_insert(MatchFault {
+            failures: 0,
+            deterministic_failures: 0,
+            first_deterministic_ms: now,
+            retry_at_ms: now,
+        });
+        fault.failures = fault.failures.saturating_add(1);
+        if deterministic {
+            if fault.deterministic_failures == 0 {
+                fault.first_deterministic_ms = now;
+            }
+            fault.deterministic_failures = fault.deterministic_failures.saturating_add(1);
+        }
+        let delay = MATCH_RETRY_BASE_MS
+            .saturating_mul(1 << (fault.failures - 1).min(16))
+            .min(MATCH_RETRY_MAX_MS);
+        fault.retry_at_ms = now + delay;
+        // First failure, then about once a minute at the capped retry interval.
+        (
+            fault.failures,
+            fault.failures == 1 || fault.failures.is_multiple_of(8),
+        )
+    }
+    fn clear(&mut self, key: &str) {
+        self.0.remove(key);
+    }
+}
 impl BattlePack {
     fn compact_terminal_state(&mut self) {
         let compacted = (|| {
@@ -340,6 +404,15 @@ impl Match {
             return Err(AppError::ActionConflict);
         }
         Ok(&self.pack.state)
+    }
+    /// The turn resolves once its deadline passes or every required action is in.
+    fn turn_due(&self, now: u64) -> bool {
+        now >= self.turn_started_at_ms + TURN_MS
+            || self
+                .pack
+                .required_player_ids
+                .iter()
+                .all(|p| self.actions.contains_key(p))
     }
     pub fn completed(&self) -> bool {
         !self.pack.state["terminal"].is_null()
@@ -949,7 +1022,18 @@ impl Room {
         self.touch(now);
         Ok(())
     }
-    pub async fn advance_game(&mut self, now: u64, compute: &Compute) -> AppResult<()> {
+    /// Room-level steps fail the whole call; a failing tournament match is rolled back and retried
+    /// on its own schedule through `faults` so the other matches still advance and commit.
+    pub async fn advance_game(
+        &mut self,
+        now: u64,
+        compute: &Compute,
+        faults: &mut RoomFaults,
+    ) -> AppResult<()> {
+        let faults = &mut faults.matches;
+        if self.status != Status::Tournament {
+            faults.0.clear();
+        }
         let expired = self
             .pending_progressions
             .iter()
@@ -1094,90 +1178,167 @@ impl Room {
         if self.status != Status::Tournament {
             return Ok(());
         }
-        self.ensure_matches(now, compute).await?;
+        self.ensure_matches(now, compute, faults).await;
         let ids = self.active_matches();
+        let ready = self
+            .bracket
+            .as_ref()
+            .map(Bracket::ready)
+            .unwrap_or_default();
+        faults.0.retain(|key, _| {
+            ids.iter().any(|id| id.to_string() == *key) || ready.iter().any(|m| m.match_id == *key)
+        });
         for id in ids {
-            let missing = self.matches[&id]
-                .players
-                .iter()
-                .find(|id| {
-                    !self
-                        .participants
-                        .iter()
-                        .any(|p| &p.player_id == *id && p.connected)
-                })
-                .cloned();
-            if let Some(loser) = missing {
-                let m = &self.matches[&id];
-                let pack = compute
-                    .battle(
-                        self.room_instance_id,
-                        self.storage_version,
-                        json!({"kind":"forfeit","state":m.engine_state()?,"loserPlayerId":loser}),
-                        &m.players,
-                    )
-                    .await?;
-                self.matches
-                    .get_mut(&id)
-                    .ok_or(AppError::ActionConflict)?
-                    .pack = pack;
-                self.finish_match(id, now, compute).await?;
+            let key = id.to_string();
+            if faults.waiting(&key, now) || !self.match_due(id, now) {
+                continue;
+            }
+            let settle = faults.settle_due(&key, now);
+            // A failed step must leave no half-applied result behind, e.g. a terminal pack without
+            // its bracket record would never be picked up again.
+            let backup = self.clone();
+            let result = if settle {
+                self.settle_stuck_match(id, now, compute).await
             } else {
-                let m = &self.matches[&id];
-                let ready_ms = if is_ai_only_match(&self.participants, m) {
-                    AI_ONLY_TURN_READY_MS
-                } else {
-                    1_000
-                };
-                if now >= m.turn_started_at_ms + ready_ms && now < m.turn_started_at_ms + TURN_MS {
-                    let ais = m
-                        .pack
-                        .required_player_ids
-                        .iter()
-                        .filter(|id| {
-                            !m.actions.contains_key(*id)
-                                && self
-                                    .participants
-                                    .iter()
-                                    .any(|p| p.player_id == **id && p.ai && p.connected)
-                        })
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    for player in ais {
-                        let difficulty = self
-                            .participants
-                            .iter()
-                            .find(|p| p.player_id == player)
-                            .map(|p| p.ai_difficulty)
-                            .unwrap_or_default();
-                        let decision_seed = format!(
-                            "{}:{}:{}",
-                            self.matches[&id].seed,
-                            player,
-                            self.matches[&id].turn()
-                        );
-                        let action=compute.run(self.room_instance_id,self.storage_version,json!({"kind":"choose-ai","state":self.matches[&id].engine_state()?,"playerId":player,"difficulty":difficulty,"seed":decision_seed})).await
-                            .inspect_err(|error| tracing::error!(event="match.ai_choice_failed",room_instance_id=%self.room_instance_id,match_id=%id,player_id=%player,turn=self.matches[&id].turn(),code=error.code(),error=%error,detail=?error.detail()))?;
-                        self.matches
-                            .get_mut(&id)
-                            .ok_or(AppError::ActionConflict)?
-                            .actions
-                            .insert(player, action);
-                        self.touch(now);
+                self.advance_match(id, now, compute).await
+            };
+            match result {
+                // A settled match keeps its entry until the commit removes it from the active list.
+                Ok(()) if settle => {
+                    tracing::error!(event = "match.settled_after_failures", room_instance_id = %self.room_instance_id, match_id = %id, round_index = self.round.index);
+                }
+                Ok(()) => faults.clear(&key),
+                Err(error) => {
+                    *self = backup;
+                    let (failures, log) = faults.record(&key, now, error.deterministic());
+                    if log {
+                        tracing::warn!(event = "match.step_failed", room_instance_id = %self.room_instance_id, match_id = %id, settle, failures, deterministic = error.deterministic(), code = error.code(), error = %error, detail = ?error.detail());
                     }
                 }
-                self.resolve_if_due(id, now, compute).await?;
             }
             if self.status != Status::Tournament {
                 break;
             }
         }
         if self.status == Status::Tournament {
-            self.ensure_matches(now, compute).await?;
+            self.ensure_matches(now, compute, faults).await;
         }
         Ok(())
     }
-    async fn ensure_matches(&mut self, now: u64, compute: &Compute) -> AppResult<()> {
+    fn absent_player(&self, battle: &Match) -> Option<String> {
+        battle
+            .players
+            .iter()
+            .find(|id| {
+                !self
+                    .participants
+                    .iter()
+                    .any(|p| &p.player_id == *id && p.connected)
+            })
+            .cloned()
+    }
+    /// AI players that still owe an action for the current turn and may choose now.
+    fn pending_ai_players(&self, battle: &Match, now: u64) -> Vec<String> {
+        let ready_ms = if is_ai_only_match(&self.participants, battle) {
+            AI_ONLY_TURN_READY_MS
+        } else {
+            1_000
+        };
+        if now < battle.turn_started_at_ms + ready_ms || now >= battle.turn_started_at_ms + TURN_MS
+        {
+            return Vec::new();
+        }
+        battle
+            .pack
+            .required_player_ids
+            .iter()
+            .filter(|id| {
+                !battle.actions.contains_key(*id)
+                    && self
+                        .participants
+                        .iter()
+                        .any(|p| p.player_id == **id && p.ai && p.connected)
+            })
+            .cloned()
+            .collect()
+    }
+    /// Whether `advance_match` would do anything for this match right now.
+    fn match_due(&self, id: Uuid, now: u64) -> bool {
+        self.matches.get(&id).is_some_and(|battle| {
+            self.absent_player(battle).is_some()
+                || battle.turn_due(now)
+                || !self.pending_ai_players(battle, now).is_empty()
+        })
+    }
+    async fn advance_match(&mut self, id: Uuid, now: u64, compute: &Compute) -> AppResult<()> {
+        let battle = self.matches.get(&id).ok_or(AppError::ActionConflict)?;
+        if let Some(loser) = self.absent_player(battle) {
+            return self.forfeit_match(id, &loser, now, compute).await;
+        }
+        for player in self.pending_ai_players(battle, now) {
+            let battle = self.matches.get(&id).ok_or(AppError::ActionConflict)?;
+            let difficulty = self
+                .participants
+                .iter()
+                .find(|p| p.player_id == player)
+                .map(|p| p.ai_difficulty)
+                .unwrap_or_default();
+            let decision_seed = format!("{}:{}:{}", battle.seed, player, battle.turn());
+            let action=compute.run(self.room_instance_id,self.storage_version,json!({"kind":"choose-ai","state":battle.engine_state()?,"playerId":player,"difficulty":difficulty,"seed":decision_seed})).await
+                .inspect_err(|error| tracing::error!(event="match.ai_choice_failed",room_instance_id=%self.room_instance_id,match_id=%id,player_id=%player,turn=battle.turn(),code=error.code(),error=%error,detail=?error.detail()))?;
+            self.matches
+                .get_mut(&id)
+                .ok_or(AppError::ActionConflict)?
+                .actions
+                .insert(player, action);
+            self.touch(now);
+        }
+        self.resolve_if_due(id, now, compute).await
+    }
+    async fn forfeit_match(
+        &mut self,
+        id: Uuid,
+        loser: &str,
+        now: u64,
+        compute: &Compute,
+    ) -> AppResult<()> {
+        let battle = self.matches.get(&id).ok_or(AppError::ActionConflict)?;
+        let pack = compute
+            .battle(
+                self.room_instance_id,
+                self.storage_version,
+                json!({"kind":"forfeit","state":battle.engine_state()?,"loserPlayerId":loser}),
+                &battle.players,
+            )
+            .await?;
+        self.matches
+            .get_mut(&id)
+            .ok_or(AppError::ActionConflict)?
+            .pack = pack;
+        self.finish_match(id, now, compute).await
+    }
+    /// Ends a match whose turn cannot be computed. No draw exists in a single-elimination bracket,
+    /// so an AI yields to a human and otherwise the match seed decides.
+    async fn settle_stuck_match(&mut self, id: Uuid, now: u64, compute: &Compute) -> AppResult<()> {
+        let battle = self.matches.get(&id).ok_or(AppError::ActionConflict)?;
+        let is_ai = |player: &String| {
+            self.participants
+                .iter()
+                .any(|p| p.player_id == *player && p.ai)
+        };
+        let loser = match (is_ai(&battle.players[0]), is_ai(&battle.players[1])) {
+            (true, false) => 0,
+            (false, true) => 1,
+            _ => {
+                let digest = hash_bytes(format!("{}:{}", battle.seed, battle.turn()).as_bytes());
+                usize::from(digest.as_bytes()[0] & 1)
+            }
+        };
+        let loser = battle.players[loser].clone();
+        tracing::error!(event = "match.settling_after_failures", room_instance_id = %self.room_instance_id, match_id = %id, turn = battle.turn(), loser_player_id = %loser);
+        self.forfeit_match(id, &loser, now, compute).await
+    }
+    async fn ensure_matches(&mut self, now: u64, compute: &Compute, faults: &mut FaultMap) {
         let ready = self
             .bracket
             .as_ref()
@@ -1198,35 +1359,23 @@ impl Room {
             {
                 continue;
             }
-            let mut players = bracket.participant_ids.clone();
-            players.sort();
-            let parties = players
-                .iter()
-                .map(|id| {
-                    self.parties
-                        .get(id)
-                        .map(|p| json!({"playerId":id,"party":p.competitive_party}))
-                        .ok_or(AppError::Internal("bracket entrant has no competitive party"))
-                })
-                .collect::<AppResult<Vec<_>>>()
-                .inspect_err(|_| {
-                    let missing: Vec<&String> =
-                        players.iter().filter(|id| !self.parties.contains_key(*id)).collect();
-                    tracing::error!(event = "match.party_missing", room_instance_id = %self.room_instance_id, bracket_match_id = %bracket.match_id, missing = ?missing);
-                })?;
-            let seed = Uuid::new_v4().to_string();
+            if faults.waiting(&bracket.match_id, now) {
+                continue;
+            }
+            // One pairing that cannot start must not keep the other pairings from starting.
+            let (players, seed, pack) = match self.initialize_match(&bracket, compute).await {
+                Ok(initialized) => initialized,
+                Err(error) => {
+                    let (failures, log) =
+                        faults.record(&bracket.match_id, now, error.deterministic());
+                    if log {
+                        tracing::error!(event = "match.initialize_failed", room_instance_id = %self.room_instance_id, bracket_match_id = %bracket.match_id, players = ?bracket.participant_ids, failures, code = error.code(), error = %error, detail = ?error.detail());
+                    }
+                    continue;
+                }
+            };
+            faults.clear(&bracket.match_id);
             let id = Uuid::new_v4();
-            let pack = compute
-                .battle(
-                    self.room_instance_id,
-                    self.storage_version,
-                    json!({"kind":"initialize","players":parties,"seed":seed}),
-                    &players,
-                )
-                .await
-                .inspect_err(|error| {
-                    tracing::error!(event = "match.initialize_failed", room_instance_id = %self.room_instance_id, bracket_match_id = %bracket.match_id, players = ?players, code = error.code(), error = %error, detail = ?error.detail());
-                })?;
             self.touch(now);
             self.matches.insert(
                 id,
@@ -1245,20 +1394,42 @@ impl Room {
                 },
             );
         }
-        Ok(())
+    }
+    async fn initialize_match(
+        &self,
+        bracket: &BracketMatch,
+        compute: &Compute,
+    ) -> AppResult<([String; 2], String, BattlePack)> {
+        let mut players = bracket.participant_ids.clone();
+        players.sort();
+        let parties = players
+            .iter()
+            .map(|id| {
+                self.parties
+                    .get(id)
+                    .map(|p| json!({"playerId":id,"party":p.competitive_party}))
+                    .ok_or(AppError::Internal(
+                        "bracket entrant has no competitive party",
+                    ))
+            })
+            .collect::<AppResult<Vec<_>>>()?;
+        let seed = Uuid::new_v4().to_string();
+        let pack = compute
+            .battle(
+                self.room_instance_id,
+                self.storage_version,
+                json!({"kind":"initialize","players":parties,"seed":seed}),
+                &players,
+            )
+            .await?;
+        Ok((players, seed, pack))
     }
     async fn resolve_if_due(&mut self, id: Uuid, now: u64, compute: &Compute) -> AppResult<()> {
         let m = self.matches.get(&id).ok_or(AppError::ActionConflict)?;
         if m.completed() {
             return Ok(());
         }
-        if now < m.turn_started_at_ms + TURN_MS
-            && !m
-                .pack
-                .required_player_ids
-                .iter()
-                .all(|p| m.actions.contains_key(p))
-        {
+        if !m.turn_due(now) {
             return Ok(());
         }
         let pack = compute
@@ -1498,10 +1669,19 @@ impl Room {
             }
         }
     }
-    pub async fn step_ai(&mut self, now: u64, compute: &Compute) -> AppResult<()> {
+    pub async fn step_ai(
+        &mut self,
+        now: u64,
+        compute: &Compute,
+        faults: &mut RoomFaults,
+    ) -> AppResult<()> {
         if self.terminal() || self.status == Status::Waiting || now < self.last_ai_step_ms + 250 {
             return Ok(());
         }
+        let faults = &mut faults.ai_steps;
+        faults
+            .0
+            .retain(|id, _| self.participants.iter().any(|p| p.player_id == *id));
         // Every participant, connected or not, so AI slots match `position()` and the web
         // (which both derive slots from the full sorted roster).
         let ids = self
@@ -1513,19 +1693,21 @@ impl Room {
             && self.round.started_at_ms.is_none_or(|at| now < at);
         let gathering =
             self.status == Status::Tournament || self.round.ends_at_ms.is_some_and(|at| now >= at);
-        let jobs=self.participants.iter().filter(|p|p.ai&&p.connected).map(|p|{
+        let jobs=self.participants.iter().filter(|p|p.ai&&p.connected&&!faults.waiting(&p.player_id,now)).map(|p|{
             let id=p.player_id.clone();let difficulty=p.ai_difficulty;let party=self.parties.get(&id).map(|p|p.competitive_party.clone()).unwrap_or(Value::Null);
             let operation=json!({"kind":"ai-step","party":party,"adventure":self.adventures.get(&id),"nowMs":now,"roundIndex":self.round.index,"preparing":self.status==Status::RoundStarted&&!gathering&&!starting,"starting":starting,"gathering":gathering,"playerId":id,"playerIds":ids,"difficulty":difficulty,"startAtMs":self.round.started_at_ms,"roundDurationMs":self.round.duration_ms,"seed":format!("{}:{id}:{now}",self.room_instance_id)});
             let revision=self.storage_version;let room=self.room_instance_id;
-            async move {compute.run(room,revision,operation).await.map(|value|(id,value))}
+            async move {(id,compute.run(room,revision,operation).await)}
         });
         let results = futures_util::future::join_all(jobs).await;
         let mut failures = 0;
         // Busy means the background compute lane was full and the step is simply retried next tick.
         let mut busy = 0;
         let mut first_failure: Option<&'static str> = None;
-        for result in results {
-            let (id, value) = match result {
+        // A failing AI is retried with backoff and reported on that schedule, not every tick.
+        let mut log_failures = false;
+        for (id, result) in results {
+            let value = match result {
                 Ok(v) => v,
                 Err(AppError::Busy) => {
                     busy += 1;
@@ -1534,14 +1716,17 @@ impl Room {
                 Err(error) => {
                     failures += 1;
                     first_failure.get_or_insert(error.code());
+                    log_failures |= faults.record(&id, now, error.deterministic()).1;
                     continue;
                 }
             };
             if let Some(adventure) = value.get("adventure").filter(|v| v.is_object()) {
                 self.adventures.insert(id.clone(), adventure.clone());
+                faults.clear(&id);
             } else {
                 failures += 1;
                 first_failure.get_or_insert("ADVENTURE_MISSING");
+                log_failures |= faults.record(&id, now, true).1;
                 continue;
             }
             if self.status == Status::RoundStarted {
@@ -1572,9 +1757,9 @@ impl Room {
                 }
             }
         }
-        if failures > 0 {
+        if failures > 0 && log_failures {
             tracing::warn!(event="room.ai_step_failed",room_instance_id=%self.room_instance_id,failures,busy,first_failure=first_failure.unwrap_or("none"),round_index=self.round.index);
-        } else if busy > 0 {
+        } else if failures == 0 && busy > 0 {
             tracing::debug!(event="room.ai_step_busy",room_instance_id=%self.room_instance_id,busy);
         }
         self.last_ai_step_ms = now;

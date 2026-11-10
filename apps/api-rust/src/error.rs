@@ -157,6 +157,20 @@ impl AppError {
             _ => "request",
         }
     }
+    /// True when retrying the same step with the same input fails the same way, as opposed to an
+    /// outage (worker restart, full queue, Redis) that clears on its own.
+    pub fn deterministic(&self) -> bool {
+        matches!(
+            self,
+            Self::ComputeFailed
+                | Self::ComputeInvalid(_)
+                | Self::ComputeRejected(_)
+                | Self::Invalid(_)
+                | Self::ActionConflict
+                | Self::Corrupt(_)
+                | Self::Internal(_)
+        )
+    }
     /// Internal cause safe to log. Redis errors are excluded: their text can echo the connection
     /// URL with credentials, so only their kind/flags are logged (see `log_with_storage!`).
     pub fn detail(&self) -> Option<String> {

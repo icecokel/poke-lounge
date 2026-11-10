@@ -3,7 +3,8 @@ use crate::{
     config::{MAILBOX_CAPACITY, MAX_ACTORS, REQUEST_TIMEOUT},
     domain::{
         CreateRoom, DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y, FIELD_MAP_KEY, GameCommand, MAX_PARTICIPANTS,
-        PRESENCE_LEASE_MS, ROUND_PHASE_WAITING, Room, RoomVisibility, Status, session_hash,
+        PRESENCE_LEASE_MS, ROUND_PHASE_WAITING, Room, RoomFaults, RoomVisibility, Status,
+        session_hash,
     },
     error::{AppError, AppResult},
     repository::{Receipt, Repository, fingerprint},
@@ -28,6 +29,14 @@ const FULL_RELOAD_INTERVAL_MS: u64 = 5_000;
 const AI_CHECKPOINT_INTERVAL_MS: u64 = 2_000;
 const CONNECTION_STALE_MS: u64 = 30_000;
 const MIN_MOVE_INTERVAL: Duration = Duration::from_millis(50);
+const TICK_INTERVAL: Duration = Duration::from_millis(250);
+// A failing tick repeats the same Redis and compute work; back off instead of retrying 4x/s.
+const TICK_BACKOFF_MAX_SHIFT: u32 = 4;
+const TICK_FAILURE_LOG_INTERVAL: Duration = Duration::from_secs(10);
+/// Delay before the next tick after `failures` consecutive failed ticks: 250ms, then 0.5s to 4s.
+fn tick_delay(failures: u32) -> Duration {
+    TICK_INTERVAL * (1 << failures.min(TICK_BACKOFF_MAX_SHIFT))
+}
 
 pub enum Operation {
     Snapshot {
@@ -188,6 +197,8 @@ impl Rooms {
             last_tick_ms: self.last_tick_ms.clone(),
             tick_stage: "idle",
             tick_failures: 0,
+            tick_failure_logged: None,
+            faults: RoomFaults::default(),
         };
         self.tasks.spawn(actor.run(receiver));
         Ok(h)
@@ -373,8 +384,11 @@ struct Actor {
     last_tick_ms: Arc<AtomicU64>,
     /// Step of `tick` currently running, reported when it fails.
     tick_stage: &'static str,
-    /// Consecutive failed ticks, to throttle repeated failure logs and report recovery.
+    /// Consecutive failed ticks, to back off, throttle repeated failure logs and report recovery.
     tick_failures: u32,
+    tick_failure_logged: Option<tokio::time::Instant>,
+    /// Retry state of AI and tournament match steps that failed; see `Room::advance_game`.
+    faults: RoomFaults,
 }
 impl Actor {
     fn snapshot(&self, after: Option<u64>) -> Value {
@@ -383,10 +397,8 @@ impl Actor {
         snapshot
     }
     async fn run(mut self, mut receiver: mpsc::Receiver<Envelope>) {
-        let mut ticker = tokio::time::interval_at(
-            tokio::time::Instant::now() + Duration::from_millis(250),
-            Duration::from_millis(250),
-        );
+        let mut ticker =
+            tokio::time::interval_at(tokio::time::Instant::now() + TICK_INTERVAL, TICK_INTERVAL);
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             tokio::select! {
@@ -404,6 +416,7 @@ impl Actor {
                             if self.tick_failures>0{
                                 tracing::info!(event="room.tick_recovered",room_instance_id=%self.room.room_instance_id,revision=self.room.revision,failures=self.tick_failures);
                                 self.tick_failures=0;
+                                self.tick_failure_logged=None;
                             }
                         }
                         Err(error@(AppError::NotFound|AppError::Unavailable))=>{
@@ -415,13 +428,14 @@ impl Actor {
                                 self.last_full_reload_ms=0;
                             }
                             self.tick_failures=self.tick_failures.saturating_add(1);
-                            // Ticks run every 250ms; log the first failure and then about every 10s.
-                            if self.tick_failures==1||self.tick_failures.is_multiple_of(40){
+                            // Log the first failure and then about every 10s while it keeps failing.
+                            if self.tick_failure_logged.is_none_or(|at|at.elapsed()>=TICK_FAILURE_LOG_INTERVAL){
+                                self.tick_failure_logged=Some(tokio::time::Instant::now());
                                 tracing::warn!(event="room.tick_failed",room_instance_id=%self.room.room_instance_id,revision=self.room.revision,status=?self.room.status,stage=self.tick_stage,failures=self.tick_failures,code=error.code(),error=%error,detail=?error.detail());
                             }
                         }
                     }
-                    ticker.reset();
+                    ticker.reset_after(tick_delay(self.tick_failures));
                 }
                 message=receiver.recv()=>{
                     let Some(message)=message else{break;};
@@ -540,9 +554,11 @@ impl Actor {
         }
         let mut next = self.room.clone();
         self.tick_stage = "ai_step";
-        next.step_ai(self.now, &self.compute).await?;
+        next.step_ai(self.now, &self.compute, &mut self.faults)
+            .await?;
         self.tick_stage = "advance_game";
-        next.advance_game(self.now, &self.compute).await?;
+        next.advance_game(self.now, &self.compute, &mut self.faults)
+            .await?;
         self.tick_stage = "commit";
         if next.revision != self.room.revision {
             let expected = self.room.storage_version;
