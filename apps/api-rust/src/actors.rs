@@ -164,6 +164,20 @@ impl Rooms {
         if self.shutdown.is_cancelled() {
             return Err(AppError::Unavailable);
         }
+        {
+            let mut actors = self.actors.lock().await;
+            actors.retain(|_, h| !h.sender.is_closed());
+            if let Some(h) = actors.get(&id) {
+                return Ok(h.clone());
+            }
+            if actors.len() >= MAX_ACTORS {
+                return Err(AppError::Busy);
+            }
+        }
+        // Read without the map lock so one slow Redis read cannot stall requests for every room.
+        let (now, room) = self.repository.read(id).await?;
+        // Re-check: the insert and spawn below stay under the lock, so a room never gets two
+        // actors. An actor started meanwhile is the authority and this read is discarded.
         let mut actors = self.actors.lock().await;
         actors.retain(|_, h| !h.sender.is_closed());
         if let Some(h) = actors.get(&id) {
@@ -172,7 +186,6 @@ impl Rooms {
         if actors.len() >= MAX_ACTORS {
             return Err(AppError::Busy);
         }
-        let (now, room) = self.repository.read(id).await?;
         let (sender, receiver) = mpsc::channel(MAILBOX_CAPACITY);
         let (events, _) = broadcast::channel(256);
         let h = Handle {
@@ -300,65 +313,75 @@ impl Rooms {
         id: String,
         match_existing_public: bool,
     ) -> AppResult<Value> {
-        let _guard = tokio::time::timeout(REQUEST_TIMEOUT, self.creation.lock())
-            .await
-            .map_err(|_| AppError::Busy)?;
         let public = input.visibility == RoomVisibility::Public;
         let session = session_hash(&input.session_id)?;
         let hash = fingerprint(&("create", public, &input))?;
-        if let Some(receipt) = self.repository.receipt(&session, &id).await? {
-            if receipt.request_hash != hash {
-                return Err(AppError::CommandConflict);
-            }
-            return self
-                .request(
-                    receipt.room_instance_id,
-                    Operation::Snapshot { after: None },
+        let room_id = {
+            // Only public rooms are serialized: two quick-play requests must not both miss a
+            // joinable room and open two. A private create is atomic in the create script, and the
+            // lock is released before the final snapshot request.
+            let _guard = if public {
+                Some(
+                    tokio::time::timeout(REQUEST_TIMEOUT, self.creation.lock())
+                        .await
+                        .map_err(|_| AppError::Busy)?,
                 )
-                .await;
-        }
-        if public && match_existing_public {
-            let mut candidates = Vec::new();
-            for room_id in self.repository.active_ids().await? {
-                if let Ok((now, room)) = self.repository.read(room_id).await
-                    && room.public
-                    && room.status == Status::Waiting
-                    && room.participants.len() < MAX_PARTICIPANTS
-                    && room.active_deadline() > now
-                {
-                    candidates.push(room);
+            } else {
+                None
+            };
+            if let Some(receipt) = self.repository.receipt(&session, &id).await? {
+                if receipt.request_hash != hash {
+                    return Err(AppError::CommandConflict);
                 }
-            }
-            candidates.sort_by_key(|r| r.created_at_ms);
-            for room in candidates {
-                let result = self
-                    .request(
-                        room.room_instance_id,
-                        Operation::Command {
-                            player: input.player_id.clone(),
-                            session: session.clone(),
-                            id: id.clone(),
-                            expected: None,
-                            command: GameCommand::Join {
-                                display_name: input
-                                    .display_name
-                                    .clone()
-                                    .unwrap_or_else(|| "플레이어".into()),
-                            },
-                            request_hash: Some(hash.clone()),
-                        },
-                    )
-                    .await;
-                match result {
-                    Ok(value) => return Ok(value),
-                    Err(AppError::Closed | AppError::RoomFull | AppError::NotFound) => continue,
-                    Err(e) => return Err(e),
+                receipt.room_instance_id
+            } else {
+                if public && match_existing_public {
+                    let mut candidates = Vec::new();
+                    for room_id in self.repository.active_ids().await? {
+                        if let Ok((now, room)) = self.repository.read(room_id).await
+                            && room.public
+                            && room.status == Status::Waiting
+                            && room.participants.len() < MAX_PARTICIPANTS
+                            && room.active_deadline() > now
+                        {
+                            candidates.push(room);
+                        }
+                    }
+                    candidates.sort_by_key(|r| r.created_at_ms);
+                    for room in candidates {
+                        let result = self
+                            .request(
+                                room.room_instance_id,
+                                Operation::Command {
+                                    player: input.player_id.clone(),
+                                    session: session.clone(),
+                                    id: id.clone(),
+                                    expected: None,
+                                    command: GameCommand::Join {
+                                        display_name: input
+                                            .display_name
+                                            .clone()
+                                            .unwrap_or_else(|| "플레이어".into()),
+                                    },
+                                    request_hash: Some(hash.clone()),
+                                },
+                            )
+                            .await;
+                        match result {
+                            Ok(value) => return Ok(value),
+                            Err(AppError::Closed | AppError::RoomFull | AppError::NotFound) => {
+                                continue;
+                            }
+                            Err(e) => return Err(e),
+                        }
+                    }
                 }
+                let (room, _, _) = self.repository.create(input, public, &session, &id).await?;
+                tracing::info!(event="room.created",room_instance_id=%room.room_instance_id,room_code=%room.room_code,command_id=%id,public,revision=room.revision);
+                room.room_instance_id
             }
-        }
-        let (room, _, _) = self.repository.create(input, public, &session, &id).await?;
-        tracing::info!(event="room.created",room_instance_id=%room.room_instance_id,room_code=%room.room_code,command_id=%id,public,revision=room.revision);
-        self.request(room.room_instance_id, Operation::Snapshot { after: None })
+        };
+        self.request(room_id, Operation::Snapshot { after: None })
             .await
     }
     pub async fn drain(&self) -> bool {
