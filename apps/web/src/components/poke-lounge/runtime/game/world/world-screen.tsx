@@ -34,26 +34,26 @@ import styles from "./world-screen.module.css";
 export function WorldScreen({
   atlas,
   competitiveRoundsEnabled,
-  showRankScoreHud = true,
   onPreparationReady,
   frameStore,
   gameStateStore,
   model,
   copy,
-  desktop,
   onResultLobby,
   onResultNewGame,
   uiStore,
 }: {
   atlas: WorldPlayerAtlasModel;
   competitiveRoundsEnabled: boolean;
+  /** @deprecated The desktop rank/score HUD was removed; this prop is ignored. */
   showRankScoreHud?: boolean;
   onPreparationReady?: (roundIndex: number) => Promise<void>;
   frameStore: WorldFrameStore;
   gameStateStore: GameStateStore;
   model: WorldMapModel;
   copy: PokeLoungeCopy;
-  desktop: boolean;
+  /** @deprecated The world screen has a single layout; this prop is ignored. */
+  desktop?: boolean;
   onResultLobby(): void;
   onResultNewGame(): void;
   uiStore: WorldUiStore;
@@ -190,9 +190,6 @@ export function WorldScreen({
       ) : null}
       <WorldUiLayer
         copy={copy}
-        competitiveRoundsEnabled={competitiveRoundsEnabled}
-        showRankScoreHud={showRankScoreHud}
-        desktop={desktop}
         gameStateStore={gameStateStore}
         onResultLobby={onResultLobby}
         onResultNewGame={onResultNewGame}

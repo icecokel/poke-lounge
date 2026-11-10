@@ -100,15 +100,8 @@ export interface PokeLoungeCopy {
     emptySlot: string;
     battleProcessing: string;
     currentBattler: string;
-    noUsableItems: string;
     moveReplacementUnavailable: string;
     empty: string;
-    pokemonDetails(name: string, level: number): string;
-    emptyPartySlot(slot: number): string;
-    experience: string;
-    status: string;
-    moves: string;
-    currentLead: string;
     leadUnavailable: string;
     effectUnsupported: string;
     secondaryEffectUnsupported: string;
@@ -383,15 +376,8 @@ const KOREAN_COPY: PokeLoungeCopy = {
     emptySlot: "빈 슬롯",
     battleProcessing: "전투 처리를 기다리는 중입니다.",
     currentBattler: "전투 중",
-    noUsableItems: "사용할 아이템이 없습니다.",
     moveReplacementUnavailable: "기술 교체 정보를 불러올 수 없습니다.",
     empty: "비어 있음",
-    pokemonDetails: (name, level) => `${name} Lv.${level} 상세`,
-    emptyPartySlot: slot => `빈 파티 슬롯 ${slot}`,
-    experience: "경험치",
-    status: "상태",
-    moves: "기술",
-    currentLead: "현재 선두",
     leadUnavailable: "선두 지정 불가",
     effectUnsupported: "효과 미지원",
     secondaryEffectUnsupported: "부가 효과 미지원",
@@ -697,15 +683,8 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     emptySlot: "Empty slot",
     battleProcessing: "Waiting for the battle to resolve.",
     currentBattler: "On field",
-    noUsableItems: "There are no usable items.",
     moveReplacementUnavailable: "Move replacement details are unavailable.",
     empty: "Empty",
-    pokemonDetails: (name, level) => `${name} Lv.${level} details`,
-    emptyPartySlot: slot => `Empty party slot ${slot}`,
-    experience: "Experience",
-    status: "Status",
-    moves: "Moves",
-    currentLead: "Current lead",
     leadUnavailable: "Cannot set as lead",
     effectUnsupported: "Effect unsupported",
     secondaryEffectUnsupported: "Secondary effect unsupported",
@@ -1013,15 +992,8 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     emptySlot: "空きスロット",
     battleProcessing: "バトル処理を待っています。",
     currentBattler: "バトル中",
-    noUsableItems: "使えるどうぐがありません。",
     moveReplacementUnavailable: "わざの入れ替え情報を読み込めません。",
     empty: "空き",
-    pokemonDetails: (name, level) => `${name} Lv.${level} 詳細`,
-    emptyPartySlot: slot => `空きパーティスロット ${slot}`,
-    experience: "経験値",
-    status: "状態",
-    moves: "わざ",
-    currentLead: "現在の先頭",
     leadUnavailable: "先頭にできません",
     effectUnsupported: "効果未対応",
     secondaryEffectUnsupported: "追加効果未対応",

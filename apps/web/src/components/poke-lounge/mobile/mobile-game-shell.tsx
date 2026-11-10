@@ -12,9 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import type { PokeLoungeCopy } from "../poke-lounge-copy";
-import { PixelButton } from "../ui/poke-lounge-ui-primitives";
 import { primePokeLoungeAudio } from "../runtime/game/audio/poke-lounge-audio";
 
 import type { BattleUiStore } from "../runtime/game/battle/battle-ui-store";
@@ -32,20 +30,9 @@ import {
   type VirtualGamepadController,
 } from "../runtime/game/input/virtual-gamepad";
 import { MobileBattleDeck } from "./mobile-battle-deck";
-export {
-  MobileBattleDeck,
-  MobileBattleCommandDeck,
-  MobileBattleMoveDeck,
-  MobileBattlePartyDeck,
-  MobileBattleBagDeck,
-  MobileBattleHelpDeck,
-  MobileBattleMessageDeck,
-  MobileBattleWaitingDeck,
-} from "./mobile-battle-deck";
 import { MobileTaskScreen } from "./mobile-task-screen";
 import { MobilePokemonCard, MobileItemRow, MobilePokemonThumbnail } from "./mobile-selection-cards";
 import { CircleDot, MessageSquare, Volume2, ChevronRight } from "lucide-react";
-import { HgssItemIcon } from "../ui/hgss-item-icon";
 import { MobilePlayStatus, MobileGameSummary } from "./mobile-play-status";
 import { getMobileUiCopy } from "./mobile-ui-copy";
 import { getRoomLobbyCopy } from "../runtime/game/ui/room-lobby-copy";
@@ -513,89 +500,23 @@ export function MobileWorldScreen({
   copy,
   onAction,
   state,
-  variant = "mobile",
   gameStateStore,
   competitive = false,
 }: {
   copy: PokeLoungeCopy;
   onAction(action: MobileWorldUiAction): void;
   state: MobileWorldUiState;
-  variant?: "desktop" | "mobile";
   gameStateStore?: GameStateStore;
   competitive?: boolean;
 }) {
-  if (variant === "mobile")
-    return (
-      <MobileWorldTask
-        copy={copy}
-        state={state}
-        onAction={onAction}
-        gameStateStore={gameStateStore}
-        competitive={competitive}
-      />
-    );
-  const close = () => onAction({ type: "close" });
-  const back = () => onAction({ type: "back" });
-  let content: ReactNode;
-  let footer: ReactNode = null;
-
-  if (state.screen === "help") {
-    content = <MobileWorldHelpScreen copy={copy} state={state} />;
-  } else if (state.screen === "inventory-items") {
-    content = <MobileInventoryItemList copy={copy} onAction={onAction} state={state} />;
-    footer = <MobileWorldSceneFooter copy={copy} onBack={back} />;
-  } else if (state.screen === "inventory-party") {
-    content = <MobileInventoryPartyTarget copy={copy} onAction={onAction} state={state} />;
-    footer = <MobileWorldSceneFooter copy={copy} onBack={back} />;
-  } else if (state.screen === "inventory-move-replace") {
-    content = <MobileInventoryMoveReplacement copy={copy} onAction={onAction} state={state} />;
-    footer = null;
-  } else if (state.screen === "pc") {
-    const confirmLabel = state.pcFocus === "party" ? copy.mobile.deposit : copy.mobile.withdraw;
-    content = <MobilePcPanel copy={copy} onAction={onAction} state={state} />;
-    footer = (
-      <div>
-        {state.message ? (
-          <div className="px-[max(16px,env(safe-area-inset-left))] pb-2.5">
-            <MobileWorldMessage message={state.message} />
-          </div>
-        ) : null}
-        <MobileWorldSceneFooter
-          copy={copy}
-          onBack={back}
-          onConfirm={function handleConfirm() {
-            return onAction({ type: "confirm-pc-selection" });
-          }}
-          confirmLabel={confirmLabel}
-        />
-      </div>
-    );
-  } else {
-    content = <MobilePartyPanel copy={copy} onAction={onAction} state={state} />;
-  }
-
   return (
-    <section
-      className={cn(
-        "absolute z-[100] grid min-h-0 w-full grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[#edf3e5] [background-image:var(--hg-stripes)] text-[var(--hg-ink)] shadow-[var(--hg-frame)] [inset:var(--poke-lounge-mobile-letterbox-top)_0_var(--poke-lounge-mobile-letterbox-bottom)]",
-        variant === "desktop" &&
-          "top-1/2 left-1/2 z-[1] h-[min(78%,480px)] min-h-[300px] w-[min(70%,560px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border-[3px] border-[#17231c] shadow-[0_6px_0_rgb(23_35_28_/_76%)]",
-      )}
-      aria-labelledby="poke-lounge-mobile-world-scene-title"
-      data-poke-lounge-ui="heartgold"
-      data-poke-lounge-world-surface={state.screen}
-    >
-      <MobileWorldSceneHeader
-        copy={copy}
-        onClose={close}
-        showClose={state.screen !== "inventory-move-replace"}
-        title={state.title}
-      />
-      <div className="flex min-h-0 flex-col gap-3 overflow-auto overscroll-contain px-[max(16px,env(safe-area-inset-left))] pt-4 pb-3.5 [scroll-padding-block:12px]">
-        {content}
-      </div>
-      {footer}
-    </section>
+    <MobileWorldTask
+      copy={copy}
+      state={state}
+      onAction={onAction}
+      gameStateStore={gameStateStore}
+      competitive={competitive}
+    />
   );
 }
 
@@ -617,98 +538,6 @@ export function MobileWorldHelpScreen({
         );
       })}
     </ul>
-  );
-}
-
-export function MobileInventoryItemList({
-  copy,
-  onAction,
-  state,
-}: {
-  copy: PokeLoungeCopy;
-  onAction(action: MobileWorldUiAction): void;
-  state: MobileWorldUiState;
-}) {
-  return (
-    <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3">
-      <div className="grid min-h-0 grid-cols-2 content-start gap-[9px] overflow-auto overscroll-contain px-[3px] pt-[3px] pb-1.5">
-        {state.items.map(function mapItem(item) {
-          return (
-            <PixelButton
-              key={item.id}
-              className="relative grid min-h-[104px] grid-rows-[minmax(42px,1fr)_auto] place-items-center gap-[7px] rounded-[7px] bg-[linear-gradient(#fffdf0_50%,#eee5c9_50%)] px-[7px] pt-2.5 pb-2 text-center"
-              data-poke-lounge-inventory-item={item.id}
-              selected={item.selected}
-              onClick={function handleClick() {
-                return onAction({ type: "select-inventory-item", index: item.index });
-              }}
-            >
-              <HgssItemIcon id={item.id} />
-              <span className="max-h-[2.3em] w-full overflow-hidden text-[0.68rem] leading-[1.15] whitespace-normal [overflow-wrap:anywhere]">
-                {item.name}
-              </span>
-              <small className="absolute top-1.5 right-1.5 min-w-6 rounded-full border border-[var(--pl-color-ink)] bg-[var(--pl-color-surface-raised)] px-1 py-0.5 text-[0.58rem] leading-none text-[var(--pl-color-ink)]">
-                ×{item.count}
-              </small>
-            </PixelButton>
-          );
-        })}
-      </div>
-      <div className="grid gap-[5px] border-t-2 border-[rgb(23_35_28_/_38%)] pt-2.5">
-        <p className="m-0 px-0.5 text-[0.74rem] leading-[1.35] font-bold text-[#4a5b4d]">
-          {state.selectedItemDescription || copy.game.noUsableItems}
-        </p>
-        <MobileWorldMessage message={state.message} />
-      </div>
-    </div>
-  );
-}
-
-export function MobileInventoryPartyTarget({
-  copy,
-  onAction,
-  state,
-}: {
-  copy: PokeLoungeCopy;
-  onAction(action: MobileWorldUiAction): void;
-  state: MobileWorldUiState;
-}) {
-  return (
-    <>
-      <p className="m-0 px-0.5 text-[0.74rem] leading-[1.35] font-bold text-[#4a5b4d]">
-        {state.selectedItemName}
-      </p>
-      <div className="grid min-h-0 shrink-0 content-start gap-2">
-        {state.party
-          .filter(function filterItem(pokemon) {
-            return !pokemon.isEmpty;
-          })
-          .map(function mapItem(pokemon) {
-            return (
-              <button
-                key={pokemon.slotIndex}
-                type="button"
-                className="grid min-h-[54px] touch-manipulation grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 rounded-[11px] border-2 border-[#17231c] bg-[#f8fbf0] px-[11px] py-[9px] text-left font-black text-[#17201a] shadow-[0_2px_0_#17231c] active:translate-y-[3px] active:shadow-none data-[selected=true]:bg-[#fff1a8] disabled:cursor-default disabled:opacity-60 [&>span]:overflow-hidden [&>span]:text-[0.8rem] [&>span]:text-ellipsis [&>span]:whitespace-nowrap [&>small]:overflow-hidden [&>small]:text-[0.64rem] [&>small]:font-extrabold [&>small]:text-ellipsis [&>small]:whitespace-nowrap [&>small]:text-[#4a5b4d]"
-                data-poke-lounge-inventory-party-slot={pokemon.slotIndex}
-                data-selected={pokemon.slotIndex === state.selectedPartySlotIndex}
-                onClick={function handleClick() {
-                  return onAction({ type: "select-inventory-party", slotIndex: pokemon.slotIndex });
-                }}
-              >
-                <span>{pokemon.name}</span>
-                <small>
-                  {formatMobileHp(
-                    pokemon.currentHp,
-                    pokemon.maxHp,
-                    getPokemonStatusLabel(pokemon.status, copy.locale),
-                  )}
-                </small>
-              </button>
-            );
-          })}
-      </div>
-      <MobileWorldMessage message={state.message} />
-    </>
   );
 }
 
@@ -864,116 +693,6 @@ export function MobilePcPanel({
         )}
       </div>
     </div>
-  );
-}
-
-export function MobilePartyPanel({
-  copy,
-  onAction,
-  state,
-}: {
-  copy: PokeLoungeCopy;
-  onAction(action: MobileWorldUiAction): void;
-  state: MobileWorldUiState;
-}) {
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-2">
-      {state.party
-        .filter(pokemon => !pokemon.isEmpty)
-        .map(pokemon => (
-          <MobilePokemonCard
-            key={pokemon.slotIndex}
-            copy={copy}
-            pokemon={pokemon}
-            slotIndex={pokemon.slotIndex}
-            purpose="party"
-            selected={pokemon.isActive}
-            badge={pokemon.isActive ? copy.partySlotLead : undefined}
-            disabled={!pokemon.canSetAsLead}
-            onSelect={() => onAction({ type: "set-party-lead", slotIndex: pokemon.slotIndex })}
-          />
-        ))}
-    </div>
-  );
-}
-
-function MobileWorldSceneHeader({
-  copy,
-  onClose,
-  showClose,
-  title,
-}: {
-  copy: PokeLoungeCopy;
-  onClose(): void;
-  showClose: boolean;
-  title: string;
-}) {
-  return (
-    <header className="grid min-h-[62px] grid-cols-[auto_minmax(0,1fr)] items-center gap-2.5 border-b-[3px] border-[#304550] bg-[linear-gradient(#d8e9ee_50%,#fffdf0_50%)] px-[max(14px,env(safe-area-inset-left))] py-2">
-      {showClose ? (
-        <button
-          type="button"
-          className="inline-flex min-h-10 touch-manipulation items-center gap-[3px] rounded-[10px] border-2 border-[#17231c] bg-[#f8fbf0] px-2.5 py-1.5 text-[0.7rem] font-black text-[#17201a] shadow-[0_2px_0_#17231c] active:translate-y-[3px] active:shadow-none [&>:first-child]:text-[1.35rem] [&>:first-child]:leading-[0.6]"
-          onClick={onClose}
-          aria-label={copy.mobile.back}
-          data-poke-lounge-mobile-deck-close="true"
-        >
-          <span aria-hidden="true">‹</span>
-          <span>{copy.mobile.back}</span>
-        </button>
-      ) : (
-        <span aria-hidden="true" />
-      )}
-      <strong
-        id="poke-lounge-mobile-world-scene-title"
-        className="overflow-hidden text-center text-base font-black text-ellipsis whitespace-nowrap text-[#35513a]"
-      >
-        {title}
-      </strong>
-    </header>
-  );
-}
-
-function MobileWorldSceneFooter({
-  backLabel,
-  confirmDisabled = false,
-  confirmLabel,
-  copy,
-  onBack,
-  onConfirm,
-}: {
-  backLabel?: string;
-  confirmDisabled?: boolean;
-  confirmLabel?: string;
-  copy: PokeLoungeCopy;
-  onBack(): void;
-  onConfirm?: () => void;
-}) {
-  return (
-    <footer
-      className={cn(
-        "grid gap-2.5 border-t-[3px] border-[#304550] bg-[#fffdf0] px-[max(16px,env(safe-area-inset-left))] pt-2.5 pb-3",
-        onConfirm ? "grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)]" : "grid-cols-1",
-      )}
-    >
-      <button
-        type="button"
-        className="min-h-12 touch-manipulation rounded-[7px] border-2 border-[#456778] bg-[#e1edf0] p-2 text-base font-black text-[#304550] shadow-[0_3px_0_#17231c] active:translate-y-[3px] active:shadow-none data-[selected=true]:bg-[linear-gradient(#5c93ad_50%,#3e708b_50%)] data-[selected=true]:text-[#fffdf0] data-[selected=true]:shadow-[inset_0_-4px_0_#efcb64]"
-        onClick={onBack}
-      >
-        ‹ {backLabel ?? copy.mobile.back}
-      </button>
-      {onConfirm && confirmLabel ? (
-        <button
-          type="button"
-          className="min-h-12 touch-manipulation rounded-[11px] border-2 border-[#17231c] bg-[#e57a55] px-2.5 py-2 text-[0.76rem] font-black text-[#fffdf4] shadow-[0_3px_0_#17231c] active:translate-y-[3px] active:shadow-none disabled:opacity-60"
-          disabled={confirmDisabled}
-          onClick={onConfirm}
-        >
-          {confirmLabel}
-        </button>
-      ) : null}
-    </footer>
   );
 }
 
