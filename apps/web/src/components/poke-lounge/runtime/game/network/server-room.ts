@@ -520,6 +520,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let worldEpoch: string | null = null;
   let worldSnapshotInitialized = false;
   let worldResyncRequested = false;
+  let worldSnapshotFailures = 0;
+  let worldResyncBlockedUntilMs = 0;
   const worldPlayers = new Map<string, PlayerSnapshot>();
   let freshTerminalBaselineInitialized = false;
   let roomSocket: ServerRoomSocket | null = null;
@@ -1473,6 +1475,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const requestWorldResync = () => {
     if (
       worldResyncRequested ||
+      Date.now() < worldResyncBlockedUntilMs ||
       !socketConnected ||
       !roomSocket ||
       activeRoomId === PENDING_ROOM_ID
@@ -1513,8 +1516,17 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       snapshot = parseSharedWorldSnapshot(event);
     } catch (error) {
       reportSocketEventInvalid("WS_WORLD_SNAPSHOT_SCHEMA_FAILED", error);
+      // The server would answer an immediate resync with the same snapshot. Back off and let the
+      // next world cursor or player event ask again once the delay has passed.
       worldResyncRequested = false;
-      requestWorldResync();
+      worldResyncBlockedUntilMs =
+        Date.now() +
+        exponentialBackoffDelayMs(
+          RECOVERY_INITIAL_DELAY_MS,
+          worldSnapshotFailures,
+          RECOVERY_MAX_DELAY_MS,
+        );
+      worldSnapshotFailures += 1;
       return;
     }
     if (snapshot.roomCode !== activeRoomId) {
@@ -1557,6 +1569,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     lastAppliedWorldSeq = snapshot.worldSeq;
     worldSnapshotInitialized = true;
     worldResyncRequested = false;
+    worldSnapshotFailures = 0;
+    worldResyncBlockedUntilMs = 0;
   };
 
   const handleWorldCursor = (event: unknown) => {
