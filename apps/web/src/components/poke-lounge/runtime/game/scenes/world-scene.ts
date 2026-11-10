@@ -156,6 +156,7 @@ export function resolveWorldSpawn(
 export class WorldController {
   private readonly viewedRoundResultKeys = new Set<string>();
   private previousRoundResultTimer: number | null = null;
+  private nurseHealTimer: number | null = null;
   private tournamentGatheringKey: string | null = null;
   private roundStartGatheringKey: string | null = null;
   private remotePlayerSnapshots = new Map<string, PlayerSnapshot>();
@@ -389,6 +390,8 @@ export class WorldController {
     for (const unsubscribe of this.unsubscribers) unsubscribe();
     this.unsubscribers = [];
     this.hud?.destroyPartyHud();
+    if (this.nurseHealTimer !== null) window.clearTimeout(this.nurseHealTimer);
+    this.nurseHealTimer = null;
     this.interactions.destroy();
     this.hud?.destroy();
     this.tournament?.destroy();
@@ -637,7 +640,11 @@ export class WorldController {
     _nursePosition: { x: number; y: number },
     onComplete: () => void,
   ): void {
-    window.setTimeout(onComplete, NURSE_HEAL_DURATION_MS);
+    if (this.nurseHealTimer !== null) window.clearTimeout(this.nurseHealTimer);
+    this.nurseHealTimer = window.setTimeout(() => {
+      this.nurseHealTimer = null;
+      onComplete();
+    }, NURSE_HEAL_DURATION_MS);
   }
 
   private bindRoom(): void {

@@ -20,6 +20,7 @@ import { setShortcutGuideTouchControlsSuppressed } from "../input/mobile-touch-c
 import { consumeVirtualGamepadPress } from "../input/virtual-gamepad";
 import { getRuntimeItemIds, type RuntimeItemId } from "../items/runtime-items";
 import { PLAYER_PARTY_SLOT_COUNT } from "../player/player-types";
+import { scheduleRuntimeTask, type RuntimeAnimation } from "../runtime-animation";
 import type { RuntimeKeyboard } from "../runtime-input";
 import {
   getInventoryItemById,
@@ -134,6 +135,8 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private nurseMessage = "";
   private nurseHealing = false;
   private nurseHealingEffectCount = 0;
+  private nurseHealGeneration = 0;
+  private nurseMessageTimer: RuntimeAnimation | null = null;
   private inventoryOpen = false;
   private inventoryFocus: InventoryFocus = "items";
   private inventorySelectedIndex = 0;
@@ -647,8 +650,15 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.closePcBox();
     this.closeShortcutGuide({ markViewed: false });
     this.closePokemonStatusPanel({ rerenderPartyHud: false });
-    this.nurseMessage = "";
-    this.nurseHealing = false;
+    // A heal still running belongs to the field that is closing.
+    this.nurseHealGeneration += 1;
+    this.nurseMessageTimer?.stop();
+    this.nurseMessageTimer = null;
+    if (this.nurseMessage || this.nurseHealing) {
+      this.nurseMessage = "";
+      this.nurseHealing = false;
+      this.publishNursePresentation();
+    }
     this.fieldHintText = "";
     this.areaAnnouncementExpiresAt = 0;
     this.lastEncounterAreaId = undefined;
@@ -943,25 +953,33 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       return;
     }
 
+    this.nurseMessageTimer?.stop();
+    this.nurseMessageTimer = null;
     this.gameStateStore.healCurrentParty();
     this.renderPartyHud();
     playPartyHealSound();
     this.nurseMessage = "포켓몬이 모두 회복됐다.";
-    this.renderNurseMessage();
     this.nurseHealing = true;
     this.nurseHealingEffectCount += 1;
     this.publishNursePresentation();
+    const generation = ++this.nurseHealGeneration;
     this.dependencies.playNurseHealingEffect(
       this.nursePosition,
       function callback(this: DefaultWorldSceneInteractions): void {
+        if (generation !== this.nurseHealGeneration) return;
         this.nurseHealing = false;
         this.publishNursePresentation();
+        // Leave the message up long enough to read, then free the field (deferred move offers wait on it).
+        this.nurseMessageTimer = scheduleRuntimeTask(
+          FIELD_AREA_ANNOUNCEMENT_DURATION_MS,
+          function clearNurseMessage(this: DefaultWorldSceneInteractions): void {
+            this.nurseMessageTimer = null;
+            this.nurseMessage = "";
+            this.publishNursePresentation();
+          }.bind(this),
+        );
       }.bind(this),
     );
-  }
-
-  private renderNurseMessage(): void {
-    this.publishNursePresentation();
   }
 
   private publishNursePresentation(): void {
