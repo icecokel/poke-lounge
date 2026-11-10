@@ -551,6 +551,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     matchId: null,
     status: "idle",
   };
+  // What the last snapshot wrote for resuming this room, so an unchanged one can skip the writes.
+  let persistedResume: { key: string; identityJson: string } | null = null;
   let leaveSent = false;
   let leavePromise: Promise<void> | null = null;
   let reconnectAttempt: Promise<boolean> | null = null;
@@ -1845,20 +1847,37 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         runId: roomRunId,
         ...(roomInstanceId ? { roomInstanceId } : {}),
       };
-      const cookieWritten =
-        state.serverNowMs !== undefined &&
-        writeRoomResumeCookie({ ...activeRoom, playerId: serverPlayerId }, state.serverNowMs);
-      writeStoredIdentity(
-        {
-          sessionId,
-          playerId: serverPlayerId,
-          activeRoom: {
-            ...activeRoom,
-            ...(cookieWritten ? { cookieVersion: 1 as const } : {}),
+      // Liveness probes, stale-recovery polls and reconnects repeat the same snapshot. Skip the
+      // writes only while both stores still hold exactly what this room wrote last time.
+      const resumeKey = `${activeRoom.roomCode}|${activeRoom.expiresAtMs}|${activeRoom.roomInstanceId ?? ""}`;
+      const resumeCookie = persistedResume?.key === resumeKey ? readRoomResumeCookie() : null;
+      const resumeUnchanged =
+        persistedResume !== null &&
+        resumeCookie !== null &&
+        resumeCookie.playerId === serverPlayerId &&
+        resumeCookie.roomCode === activeRoom.roomCode &&
+        resumeCookie.runId === activeRoom.runId &&
+        resumeCookie.expiresAtMs === activeRoom.expiresAtMs &&
+        resumeCookie.roomInstanceId === activeRoom.roomInstanceId &&
+        isStoredIdentityJson(persistedResume.identityJson, options.accountId);
+      if (!resumeUnchanged) {
+        const cookieWritten =
+          state.serverNowMs !== undefined &&
+          writeRoomResumeCookie({ ...activeRoom, playerId: serverPlayerId }, state.serverNowMs);
+        const identityJson = writeStoredIdentity(
+          {
+            sessionId,
+            playerId: serverPlayerId,
+            activeRoom: {
+              ...activeRoom,
+              ...(cookieWritten ? { cookieVersion: 1 as const } : {}),
+            },
           },
-        },
-        options.accountId,
-      );
+          options.accountId,
+        );
+        persistedResume =
+          cookieWritten && identityJson !== null ? { key: resumeKey, identityJson } : null;
+      }
     }
 
     if (
@@ -4059,18 +4078,34 @@ function parseStoredIdentity(stored: string | null): StoredServerRoomIdentity | 
   }
 }
 
-function writeStoredIdentity(identity: StoredServerRoomIdentity, accountId?: string): void {
+/** Returns the stored JSON, or null when it could not be written. */
+function writeStoredIdentity(
+  identity: StoredServerRoomIdentity,
+  accountId?: string,
+): string | null {
   if (typeof window === "undefined") {
-    return;
+    return null;
   }
 
   try {
-    window.localStorage.setItem(
-      getServerIdentityStorageKey(accountId),
-      JSON.stringify({ ...identity, version: RUST_IDENTITY_STORAGE_VERSION }),
-    );
+    const serialized = JSON.stringify({ ...identity, version: RUST_IDENTITY_STORAGE_VERSION });
+    window.localStorage.setItem(getServerIdentityStorageKey(accountId), serialized);
+    return serialized;
   } catch {
     // Ignore storage failures; generated identities still work for the current page lifetime.
+    return null;
+  }
+}
+
+function isStoredIdentityJson(serialized: string, accountId?: string): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    return window.localStorage.getItem(getServerIdentityStorageKey(accountId)) === serialized;
+  } catch {
+    return false;
   }
 }
 
