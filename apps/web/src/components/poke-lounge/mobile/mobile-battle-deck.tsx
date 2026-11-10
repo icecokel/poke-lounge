@@ -262,7 +262,7 @@ export function MobileBattleCommandDeck({ copy, onAction, state }: DeckProps) {
   const text = getMobileUiCopy(copy.locale);
   const labels = {
     fight: copy.mobile.fight,
-    bag: localizeRuntimeText("몬스터볼", copy.locale),
+    bag: text.bagCommand,
     pokemon: copy.mobile.party,
     run: text.runCommand,
   };
@@ -462,7 +462,7 @@ export function MobileBattlePartyDeck(props: DeckProps) {
     <MobileTaskScreen
       title={
         state.itemTargetName
-          ? `${state.itemTargetName} · ${copy.locale === "ko-KR" ? "대상 선택" : copy.locale === "ja-JP" ? "対象" : "Target"}`
+          ? `${state.itemTargetName} · ${text.itemTargetTitle}`
           : copy.mobile.chooseParty
       }
       name="battle-party"
@@ -493,12 +493,7 @@ export function MobileBattlePartyDeck(props: DeckProps) {
     >
       {state.itemTargetName ? (
         <p role="status">
-          {state.itemTargetName} ·{" "}
-          {copy.locale === "ko-KR"
-            ? "사용할 포켓몬을 선택하세요"
-            : copy.locale === "ja-JP"
-              ? "使うポケモンを選んでください"
-              : "Choose a target Pokémon"}
+          {state.itemTargetName} · {text.chooseItemTarget}
         </p>
       ) : null}
       {state.isForcedPartySwitch ? <p role="status">{text.forcedSwitch}</p> : null}
@@ -551,7 +546,7 @@ export function MobileBattleBagDeck(props: DeckProps) {
     : (presentation?.player.name ?? text.activeTarget);
   return (
     <MobileTaskScreen
-      title={localizeRuntimeText("몬스터볼", copy.locale)}
+      title={text.bagCommand}
       name="battle-bag"
       backLabel={copy.mobile.back}
       onBack={

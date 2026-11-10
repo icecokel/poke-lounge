@@ -588,7 +588,11 @@ export function MobilePcPanel({
     : state.box.find(slot => slot.selected);
   return (
     <div className="grid min-w-0 shrink-0 content-start gap-3" data-poke-lounge-pc-panel="true">
-      <div className="grid grid-cols-2 gap-2" role="group" aria-label="PC">
+      <div
+        className="grid grid-cols-2 gap-2"
+        role="group"
+        aria-label={getMobileUiCopy(copy.locale).pcLabel}
+      >
         <button
           type="button"
           className="min-h-12 touch-manipulation rounded-[7px] border-2 border-[#456778] bg-[#e1edf0] p-2 text-base font-black text-[#304550] shadow-[0_3px_0_#17231c] active:translate-y-[3px] active:shadow-none data-[selected=true]:bg-[linear-gradient(#5c93ad_50%,#3e708b_50%)] data-[selected=true]:text-[#fffdf0] data-[selected=true]:shadow-[inset_0_-4px_0_#efcb64]"
