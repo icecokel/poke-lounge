@@ -205,6 +205,14 @@ impl IntoResponse for AppError {
         } else if status.is_client_error() {
             tracing::warn!(event = "api.rejected", code, reason = %self, detail = ?self.detail());
         }
+        self.into_quiet_response()
+    }
+}
+impl AppError {
+    /// The response without the `api.error`/`api.rejected` log line, for callers that report the
+    /// rejection themselves at their own rate.
+    pub fn into_quiet_response(self) -> Response {
+        let (status, code) = self.classify();
         let message = if matches!(
             self,
             Self::Corrupt(_) | Self::Configuration(_) | Self::Internal(_)

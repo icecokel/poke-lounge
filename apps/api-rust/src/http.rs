@@ -219,6 +219,15 @@ pub(crate) fn client_ip(peer: IpAddr, headers: &HeaderMap, trusted: &[IpNet]) ->
     }
     client
 }
+/// Marks a 429 the limiter built itself. `http.limited` already reports those at a bounded rate,
+/// so neither `api.rejected` nor a warn-level `api.request` is written per rejected request.
+#[derive(Clone, Copy)]
+struct Limited;
+fn limited_response() -> Response {
+    let mut response = AppError::Busy.into_quiet_response();
+    response.extensions_mut().insert(Limited);
+    response
+}
 async fn limits(State(state): State<AppState>, request: Request, next: Next) -> Response {
     if state.shutdown.is_cancelled() {
         return AppError::Unavailable.into_response();
@@ -227,7 +236,7 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
         if first_this_second(&CONCURRENCY_LIMIT_LOGGED_S) {
             tracing::warn!(event = "http.limited", limit = "concurrent_requests", path = %request.uri().path());
         }
-        return AppError::Busy.into_response();
+        return limited_response();
     };
     if let Some(origin) = request.headers().get(header::ORIGIN)
         && !state.origins.contains(origin)
@@ -243,7 +252,7 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             if first_this_second(&CLIENT_TABLE_LIMIT_LOGGED_S) {
                 tracing::warn!(event = "http.limited", limit = "tracked_clients", path = %request.uri().path());
             }
-            return AppError::Busy.into_response();
+            return limited_response();
         }
         let budget = budgets.entry(ip).or_insert(Budget {
             since: Instant::now(),
@@ -305,7 +314,7 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             if discord_limit == Some(limit) {
                 return state.auth.discord_login_failed();
             }
-            return AppError::Busy.into_response();
+            return limited_response();
         }
     }
     // WebSocket upgrades return immediately. The connection has separate limits and deadlines.
@@ -366,6 +375,8 @@ async fn diagnostics(State(state): State<AppState>, request: Request, next: Next
     let duration_ms = start.elapsed().as_millis() as u64;
     if status >= 500 {
         tracing::error!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,room_code=?room_code,command_id=?command_id,release=%state.release,status,duration_ms);
+    } else if response.extensions().get::<Limited>().is_some() {
+        tracing::debug!(event="api.request",request_id=%id,%route,%method,release=%state.release,status,duration_ms,limited=true);
     } else if status >= 400 || duration_ms >= 1_000 {
         tracing::warn!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,room_code=?room_code,command_id=?command_id,release=%state.release,status,duration_ms);
     } else if method == Method::GET && route.starts_with("/health") {
