@@ -84,11 +84,18 @@ type SharedWorldCursor = {
   worldSeq: number;
 };
 type SharedWorldSnapshot = SharedWorldCursor & { players: PlayerSnapshot[] };
-type SharedWorldPlayerEvent = {
-  type: SharedWorldPlayerEventType;
-  snapshot: PlayerSnapshot;
-  cursor: SharedWorldCursor | null;
-};
+type SharedWorldPlayerEvent =
+  | {
+      type: SharedWorldPlayerEventType;
+      snapshot: PlayerSnapshot;
+      cursor: SharedWorldCursor | null;
+    }
+  | {
+      type: "PLAYER_LEFT";
+      sessionId: string;
+      playerId: string;
+      cursor: SharedWorldCursor | null;
+    };
 
 type ServerParticipant = Omit<RustRoomParticipant, "role"> & {
   role: RustRoomParticipant["role"] | "spectator";
@@ -1480,6 +1487,22 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     emit(type, snapshot);
   };
 
+  const applyWorldPlayerLeft = (sessionId: string, playerId: string) => {
+    worldPlayers.delete(sessionId);
+    if (playerId === serverPlayerId) {
+      return;
+    }
+    emit("PLAYER_LEFT", { sessionId });
+  };
+
+  const applySharedWorldPlayerEvent = (parsed: SharedWorldPlayerEvent) => {
+    if (parsed.type === "PLAYER_LEFT") {
+      applyWorldPlayerLeft(parsed.sessionId, parsed.playerId);
+      return;
+    }
+    applyWorldPlayerEvent(parsed.type, parsed.snapshot);
+  };
+
   const handleWorldSnapshot = (event: unknown) => {
     let snapshot: SharedWorldSnapshot;
     try {
@@ -1603,7 +1626,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
     if (!parsed.cursor) {
       if (!worldSnapshotInitialized) {
-        applyWorldPlayerEvent(parsed.type, parsed.snapshot);
+        applySharedWorldPlayerEvent(parsed);
       }
       return;
     }
@@ -1620,7 +1643,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
 
     lastAppliedWorldSeq = parsed.cursor.worldSeq;
-    applyWorldPlayerEvent(parsed.type, parsed.snapshot);
+    applySharedWorldPlayerEvent(parsed);
   };
 
   const handleSubscriptionError = () => {
@@ -3494,6 +3517,20 @@ function parseSharedWorldPlayerEvent(value: unknown): SharedWorldPlayerEvent | n
   const event = value as Record<string, unknown>;
   const type = event.type;
   const snapshot = event.snapshot;
+  if (type === "PLAYER_LEFT") {
+    // The server sends the departed player's last world snapshot; only its identity matters here.
+    if (!snapshot || typeof snapshot !== "object") {
+      return null;
+    }
+    const departed = snapshot as Record<string, unknown>;
+    const playerId = departed.playerId;
+    const sessionId = departed.sessionId ?? playerId;
+    if (typeof playerId !== "string" || !playerId || typeof sessionId !== "string" || !sessionId) {
+      return null;
+    }
+    const cursor = parseSharedWorldEventCursor(event);
+    return cursor === undefined ? null : { type, sessionId, playerId, cursor };
+  }
   if (
     (type !== "PLAYER_MOVED" &&
       type !== "PLAYER_MOVEMENT_ENDED" &&
@@ -3509,18 +3546,30 @@ function parseSharedWorldPlayerEvent(value: unknown): SharedWorldPlayerEvent | n
   if (!parsedSnapshot) {
     return null;
   }
-  const hasCursor =
-    event.roomCode !== undefined || event.worldEpoch !== undefined || event.worldSeq !== undefined;
-  let cursor: SharedWorldCursor | null = null;
-  if (hasCursor) {
-    try {
-      cursor = parseSharedWorldCursor(event);
-    } catch {
-      return null;
-    }
+  const cursor = parseSharedWorldEventCursor(event);
+  if (cursor === undefined) {
+    return null;
   }
 
   return { type, snapshot: parsedSnapshot, cursor };
+}
+
+/** Returns null for an event without a cursor and undefined for a malformed cursor. */
+function parseSharedWorldEventCursor(
+  event: Record<string, unknown>,
+): SharedWorldCursor | null | undefined {
+  if (
+    event.roomCode === undefined &&
+    event.worldEpoch === undefined &&
+    event.worldSeq === undefined
+  ) {
+    return null;
+  }
+  try {
+    return parseSharedWorldCursor(event);
+  } catch {
+    return undefined;
+  }
 }
 
 function parseSharedWorldSnapshot(value: unknown): SharedWorldSnapshot {
