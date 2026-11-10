@@ -1069,11 +1069,12 @@ export function PokeLoungeGame() {
 
     getDefaultGameStateStore().resetCompetitiveSession();
     setFinalResult(null);
-    if (returnsToRoomEntry) {
-      setGameStartupAttempt(function callback(attempt) {
-        return attempt + 1;
-      });
-    }
+    // The result replaced the runtime state with { phase: "result" } and nothing publishes a
+    // gameplay state again, so a solo retry must restart the runtime too; otherwise neither the
+    // world nor the control shell is mounted after the result panel closes.
+    setGameStartupAttempt(function callback(attempt) {
+      return attempt + 1;
+    });
   }, []);
 
   const handleResultLobby = useCallback(
