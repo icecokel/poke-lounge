@@ -132,8 +132,6 @@ pub fn router(state: AppState, config: &Config, league: Router<AppState>) -> Rou
         .route("/auth/discord/callback", get(crate::auth::discord_callback))
         .route("/auth/me", get(crate::auth::me))
         .route("/auth/logout", post(crate::auth::logout))
-        .route("/game/ranking", get(ranking))
-        .route("/game/result/{id}", get(result))
         .route("/game/result", post(account_disabled))
         .route(
             "/game/poke-lounge/state",
@@ -154,8 +152,8 @@ pub fn router(state: AppState, config: &Config, league: Router<AppState>) -> Rou
                 .allow_methods([
                     Method::GET,
                     Method::POST,
+                    // PUT is used by the league routes; no route accepts DELETE.
                     Method::PUT,
-                    Method::DELETE,
                     Method::OPTIONS,
                 ])
                 .allow_headers([
@@ -1095,20 +1093,6 @@ async fn action(
 }
 async fn rom(State(state): State<AppState>) -> Json<Value> {
     success(state.data.rom())
-}
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct RankQuery {
-    game_type: String,
-}
-async fn ranking(
-    State(state): State<AppState>,
-    Query(q): Query<RankQuery>,
-) -> AppResult<Json<Value>> {
-    Ok(success(state.data.ranking(&q.game_type).await?))
-}
-async fn result(State(state): State<AppState>, Path(id): Path<Uuid>) -> AppResult<Json<Value>> {
-    Ok(success(state.data.result(id).await?))
 }
 async fn account_disabled() -> AppError {
     AppError::AccountDisabled
