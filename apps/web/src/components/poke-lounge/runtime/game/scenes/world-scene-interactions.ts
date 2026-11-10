@@ -157,6 +157,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private fieldHintText = "";
   private lastEncounterAreaId: string | null | undefined;
   private areaAnnouncementExpiresAt = 0;
+  private mobileShellDetected = false;
 
   constructor(private readonly dependencies: WorldSceneInteractionsDependencies) {}
 
@@ -172,8 +173,14 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     return this.dependencies.isBattleIntroPlaying();
   }
 
+  /**
+   * Asked every field frame. The shell wraps the game for its whole life, so a positive
+   * lookup is kept until destroy(); a missing shell is looked up again.
+   */
   private usesMobileWorldDeck(): boolean {
-    return usesPokeLoungeMobileShell(this.document);
+    if (!this.mobileShellDetected)
+      this.mobileShellDetected = usesPokeLoungeMobileShell(this.document);
+    return this.mobileShellDetected;
   }
 
   handleUiAction(action: MobileWorldUiAction): void {
@@ -645,6 +652,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.fieldHintText = "";
     this.areaAnnouncementExpiresAt = 0;
     this.lastEncounterAreaId = undefined;
+    this.mobileShellDetected = false;
   }
 
   private renderPartyHud(): void {
