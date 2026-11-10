@@ -9,7 +9,10 @@ import {
 import { createInitialBattleState } from "@poke-lounge/battle/ruleset";
 import { initializeGen4Canonical } from "@poke-lounge/battle/gen4/canonical";
 import { createSeededRandom } from "@poke-lounge/battle/prng";
-import { COMPETITIVE_RULESET_VERSION } from "@poke-lounge/battle/competitive-ruleset-config";
+import {
+  COMPETITIVE_RULESET_V2,
+  COMPETITIVE_RULESET_VERSION,
+} from "@poke-lounge/battle/competitive-ruleset-config";
 import { validateCompetitiveAction, resolveTurn } from "@poke-lounge/battle/resolve-turn";
 import { getCompetitiveActionPlayerIds } from "@poke-lounge/battle/actions";
 import {
@@ -223,8 +226,8 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
         loserPlayerId: op.loserPlayerId,
         reason: "forfeit",
         scoreByPlayerId: createCanonicalIdRecord([
-          [winner, 100],
-          [op.loserPlayerId, 50],
+          [winner, COMPETITIVE_RULESET_V2.scores.win],
+          [op.loserPlayerId, COMPETITIVE_RULESET_V2.scores.loss],
         ]),
       };
       return pack(current);

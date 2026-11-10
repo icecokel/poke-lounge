@@ -1,4 +1,5 @@
 import { COMPETITIVE_MOVE_CATALOG } from "../competitive-catalog.generated";
+import { COMPETITIVE_RULESET_V2 } from "../competitive-ruleset-config";
 import { createDefaultBattleStatStages } from "../battle-stat-stages";
 import {
   createCanonicalIdRecord,
@@ -157,8 +158,8 @@ function applyFrame(
       loserPlayerId: loser,
       reason: "faint",
       scoreByPlayerId: createCanonicalIdRecord([
-        [winner, 100],
-        [loser, 50],
+        [winner, COMPETITIVE_RULESET_V2.scores.win],
+        [loser, COMPETITIVE_RULESET_V2.scores.loss],
       ]),
     };
   }
