@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useRef, useSyncExternalStore, type RefCallback } from "react";
+import { forwardRef, memo, useEffect, useRef, useSyncExternalStore, type RefCallback } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import {
   getAiActivityLabel,
@@ -228,7 +228,9 @@ export const WorldMap = forwardRef<
   );
 });
 
-export function WorldTileLayer({
+// The map is static: the camera moves the parent with a transform, so a layer only needs to
+// reconcile its (≈1,500 in total) tile elements again when the map model itself changes.
+export const WorldTileLayer = memo(function WorldTileLayer({
   depth,
   layer,
   model,
@@ -249,7 +251,7 @@ export function WorldTileLayer({
       })}
     </div>
   );
-}
+});
 
 export function TallGrassBaseLayer({ model }: { model: WorldMapModel }) {
   return <WorldGrassLayer depth={15} model={model} name="Tall Grass" tiles={model.tallGrassBase} />;
@@ -266,7 +268,7 @@ export function TallGrassForegroundLayer({ model }: { model: WorldMapModel }) {
   );
 }
 
-function WorldGrassLayer({
+const WorldGrassLayer = memo(function WorldGrassLayer({
   depth,
   model,
   name,
@@ -288,7 +290,7 @@ function WorldGrassLayer({
       })}
     </div>
   );
-}
+});
 
 function WorldTile({ model, tile }: { model: WorldMapModel; tile: WorldMapTile }) {
   const grass = getWorldGrassSource(tile, model.tallGrassCoordinates);
