@@ -97,10 +97,10 @@ export function TournamentResultPanel({
             </caption>
             <thead className="bg-[#dcebf0] text-xs text-[#405761]">
               <tr>
-                <th className="w-[18%] border-r border-[#b0bdab] px-1 py-1 text-center sm:py-2 sm:px-2">
+                <th className="w-[24%] border-r border-[#b0bdab] px-1 py-1 text-center whitespace-nowrap sm:w-[18%] sm:py-2 sm:px-2">
                   {labels.rank}
                 </th>
-                <th className="w-[42%] border-r border-[#b0bdab] px-1 py-1 text-left sm:py-2 sm:w-[40%] sm:px-2">
+                <th className="w-[44%] border-r border-[#b0bdab] px-1 py-1 text-left sm:py-2 sm:w-[40%] sm:px-2">
                   {labels.trainer}
                 </th>
                 <th className="hidden w-[20%] border-r border-[#b0bdab] px-2 py-1 text-right sm:py-2 sm:table-cell">
@@ -109,7 +109,7 @@ export function TournamentResultPanel({
                 <th className="hidden w-[22%] px-2 py-1 text-right sm:py-2 sm:table-cell">
                   {labels.cumulativeScore}
                 </th>
-                <th className="w-[40%] px-1 py-1 text-right sm:py-2 sm:hidden">{labels.score}</th>
+                <th className="w-[32%] px-1 py-1 text-right sm:py-2 sm:hidden">{labels.score}</th>
               </tr>
             </thead>
             <tbody>
@@ -122,7 +122,7 @@ export function TournamentResultPanel({
                     className="border-t border-[#c6d0c1] odd:bg-[#fffdf0] even:bg-[#eef2e5] data-[champion=true]:bg-[#fff3c5]"
                     data-champion={row.champion}
                   >
-                    <td className="border-r border-[#c6d0c1] px-1 py-1 text-center sm:py-2 font-black sm:px-2">
+                    <td className="border-r border-[#c6d0c1] px-1 py-1 text-center whitespace-nowrap sm:py-2 font-black sm:px-2">
                       {formatTournamentResultRank(row, locale)}
                     </td>
                     <td className="border-r border-[#c6d0c1] px-1 py-1 font-bold sm:px-2 sm:py-2">
@@ -132,7 +132,7 @@ export function TournamentResultPanel({
                             {labels.champion}
                           </span>
                         ) : null}
-                        <span className="min-w-0 truncate">
+                        <span className="min-w-0 whitespace-normal [overflow-wrap:anywhere]">
                           {localizeRuntimeText(row.displayName, locale)}
                         </span>
                       </span>
