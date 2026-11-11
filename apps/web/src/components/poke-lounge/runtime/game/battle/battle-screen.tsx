@@ -417,6 +417,9 @@ export function BattleHpPanel({
   side: "opponent" | "player";
 }) {
   const status = getBattleStatusTextView(combatant.status);
+  const statusLabel =
+    combatant.status === "normal" ? null : copy.game.statusLabel[combatant.status];
+  const separateStatus = copy.locale !== "ko-KR" && statusLabel;
   const hp = Math.max(0, Math.min(combatant.maxHp, Math.round(combatant.displayedHp)));
   const experience = side === "player" ? combatant.experience : undefined;
   const text = getMobileUiCopy(copy.locale);
@@ -431,10 +434,10 @@ export function BattleHpPanel({
       style={toBattleRectStyle(rect, layout)}
       aria-label={`${combatant.name} HP ${Math.round(combatant.displayedHp)}/${combatant.maxHp}`}
     >
-      <strong>
+      <strong className={separateStatus ? "col-[1/-1]" : undefined}>
         {combatant.name} <small>Lv.{combatant.level}</small>
       </strong>
-      {status ? (
+      {status && !separateStatus ? (
         <span style={{ color: status.color }}>{copy.game.statusLabel[combatant.status]}</span>
       ) : null}
       <div className="col-[1/-1] flex min-w-0 items-center gap-[0.45em]">
@@ -451,10 +454,19 @@ export function BattleHpPanel({
         </span>
       </div>
       <small
-        className="col-[1/-1] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--pl-color-ink-muted)] data-[poke-lounge-battle-trainer=player]:text-right"
+        className={`col-[1/-1] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--pl-color-ink-muted)] data-[poke-lounge-battle-trainer=player]:text-right ${separateStatus ? "flex items-center justify-between gap-[0.4em]" : ""}`}
         data-poke-lounge-battle-trainer={side}
       >
-        {combatant.displayName}
+        {separateStatus ? (
+          <>
+            <span className="min-w-0 truncate">{combatant.displayName}</span>
+            <span className="shrink-0" style={{ color: status?.color }}>
+              {statusLabel}
+            </span>
+          </>
+        ) : (
+          combatant.displayName
+        )}
       </small>
       {experience ? (
         <div
