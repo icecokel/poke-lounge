@@ -190,7 +190,7 @@ function workerOperationKinds(source) {
     const parts = [[]];
     for (let index = start; index < list.length; index++) {
       const token = list[index];
-      if (closing[token]) stack.push(closing[token]);
+      if (Object.hasOwn(closing, token)) stack.push(closing[token]);
       else if ([")", "]", "}"].includes(token)) {
         if (stack.pop() !== token) throw new Error("Unbalanced Rust compute operation");
         if (!stack.length) return parts;
