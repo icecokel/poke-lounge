@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { ComputeFailureDiagnostic } from "./diagnostics";
 import { STARTER_MODES } from "@poke-lounge/battle/starter-selection";
 import { AI_DIFFICULTIES } from "@poke-lounge/battle/ai-difficulty";
-import { PARTY_ROSTER_LIMIT } from "@poke-lounge/battle/party-acceptance";
+import { PARTY_EV_BUDGET_MAX, PARTY_ROSTER_LIMIT } from "@poke-lounge/battle/party-acceptance";
 import {
   GEN4_SPECIES_ID_MAX,
   GEN4_MOVE_ID_MAX,
@@ -37,6 +37,14 @@ const boundedId = z.string().min(1).max(160);
 const aiDifficulty = z.enum(AI_DIFFICULTIES);
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const starterSelection = z.strictObject({ mode: z.enum(STARTER_MODES), seed: boundedId });
+const ev = z.strictObject({
+  hp: integer.max(GEN4_EV_MAX),
+  attack: integer.max(GEN4_EV_MAX),
+  defense: integer.max(GEN4_EV_MAX),
+  specialAttack: integer.max(GEN4_EV_MAX),
+  specialDefense: integer.max(GEN4_EV_MAX),
+  speed: integer.max(GEN4_EV_MAX),
+});
 const rosterSchema = z.strictObject({
   version: z.literal(1),
   highWaterLevel: integer.min(1).max(100),
@@ -48,6 +56,14 @@ const rosterSchema = z.strictObject({
         level: integer.min(1).max(100),
         moveIds: z.array(integer.min(1).max(GEN4_MOVE_ID_MAX)).max(4),
         updatedAtMs: integer,
+        // Optional: rooms stored before trait tracking keep rosters without these fields.
+        levelUpdatedAtMs: integer.optional(),
+        natureId: integer.max(GEN4_NATURE_ID_MAX).optional(),
+        abilityId: integer.max(GEN4_ABILITY_ID_MAX).optional(),
+        heldItemId: integer.max(GEN4_ITEM_ID_MAX).optional(),
+        effortValues: ev.optional(),
+        evBudget: integer.max(PARTY_EV_BUDGET_MAX).optional(),
+        evBudgetAtMs: integer.optional(),
       }),
     )
     .max(PARTY_ROSTER_LIMIT),
@@ -152,14 +168,6 @@ const iv = z.strictObject({
   specialAttack: integer.max(GEN4_IV_MAX),
   specialDefense: integer.max(GEN4_IV_MAX),
   speed: integer.max(GEN4_IV_MAX),
-});
-const ev = z.strictObject({
-  hp: integer.max(GEN4_EV_MAX),
-  attack: integer.max(GEN4_EV_MAX),
-  defense: integer.max(GEN4_EV_MAX),
-  specialAttack: integer.max(GEN4_EV_MAX),
-  specialDefense: integer.max(GEN4_EV_MAX),
-  speed: integer.max(GEN4_EV_MAX),
 });
 // Explicit input fields. Calculated stats are not accepted from a browser.
 export const partySchema = z.object({

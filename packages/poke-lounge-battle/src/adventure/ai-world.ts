@@ -17,7 +17,10 @@ import {
   type RomRefinedMoveCollection,
 } from "./battle/wild-battle-factory";
 import { planLevelUpBattleProgression } from "./battle/level-up-progression";
-import { normalizePokemonEvolutionTable } from "./battle/pokemon-evolution";
+import {
+  normalizePokemonEvolutionTable,
+  type PokemonEvolutionTable,
+} from "./battle/pokemon-evolution";
 import { getRuntimePokemonSpeciesSummary } from "./data/game-data-json";
 import type { BattlePokemon, BattleScreenState } from "./battle/battle-types";
 import { healPokemon } from "./player/heal-pokemon";
@@ -170,13 +173,7 @@ export function advanceAiAdventure(
     return;
   }
   if (!state.path.length || (needsHeal && state.activity !== "recovering")) {
-    const grass = [...context.model.tallGrassCoordinates].filter(coordinate => {
-      const [x, y] = coordinate.split(",").map(Number);
-      return !worldPlayerCollides(
-        { x: (x + 0.5) * context.model.tileWidth, y: (y + 0.5) * context.model.tileHeight },
-        context.model,
-      );
-    });
+    const grass = getWalkableTallGrass(context.model);
     if (grass.length === 0) throw new Error("AI world has no tall grass");
     const coordinate = grass[Math.min(grass.length - 1, Math.floor(random() * grass.length))];
     const [x, y] = coordinate.split(",").map(Number);
@@ -283,7 +280,7 @@ function advanceWildBattle(
         previousLevel: previousLevels.get(slot.slotIndex) ?? slot.pokemon.level,
         personalRecords: context.pokemonData,
         moveRecords: context.moveData,
-        evolutionTable: normalizePokemonEvolutionTable(context.pokemonData),
+        evolutionTable: getEvolutionTable(context.pokemonData),
       });
       const pokemon = progression.pokemon;
       for (const pending of progression.pendingMoveLearnings) {
@@ -315,9 +312,15 @@ function advanceWildBattle(
     return;
   }
   if (battle.phase === "party-select") {
-    const replacement = battle.player.party.find(
+    // After Baton Pass / U-turn the active Pokémon is still alive but is not a legal target.
+    const living = battle.player.party.filter(
       slot => slot.pokemon && slot.pokemon.currentHp > 0 && slot.pokemon.status !== "fainted",
     );
+    const switchSlots = battle.gen4Requests?.[0].switchSlots;
+    const replacement =
+      (switchSlots
+        ? living.find(slot => switchSlots.includes(slot.slotIndex))
+        : living.find(slot => slot.slotIndex !== battle.player.activePartySlotIndex)) ?? living[0];
     if (replacement) battle = choosePartySlot(battle, replacement.slotIndex);
   } else if (
     battle.opponent.pokemon.currentHp <= battle.opponent.pokemon.maxHp * 0.5 &&
@@ -356,6 +359,36 @@ function advanceWildBattle(
     nowMs +
     Math.max(1, battle.messageQueue.length) * BATTLE_MESSAGE_AUTO_ADVANCE_MS +
     profile.wildActionDelayMs;
+}
+
+const evolutionTableByData = new WeakMap<object, PokemonEvolutionTable>();
+
+/** The loaded Pokémon data never changes, so its evolution table is derived once. */
+function getEvolutionTable(data: RomPersonalRecordCollection): PokemonEvolutionTable {
+  let table = evolutionTableByData.get(data);
+  if (!table) {
+    table = normalizePokemonEvolutionTable(data);
+    evolutionTableByData.set(data, table);
+  }
+  return table;
+}
+
+const walkableTallGrassByModel = new WeakMap<WorldMapModel, readonly string[]>();
+
+/** The map model is immutable, so its collision-free grass tiles are derived once. */
+function getWalkableTallGrass(model: WorldMapModel): readonly string[] {
+  let grass = walkableTallGrassByModel.get(model);
+  if (!grass) {
+    grass = [...model.tallGrassCoordinates].filter(coordinate => {
+      const [x, y] = coordinate.split(",").map(Number);
+      return !worldPlayerCollides(
+        { x: (x + 0.5) * model.tileWidth, y: (y + 0.5) * model.tileHeight },
+        model,
+      );
+    });
+    walkableTallGrassByModel.set(model, grass);
+  }
+  return grass;
 }
 
 function randomItem<T>(items: readonly T[], random: () => number): T | undefined {
