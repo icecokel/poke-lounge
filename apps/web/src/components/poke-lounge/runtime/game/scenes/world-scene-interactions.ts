@@ -1,8 +1,4 @@
-import {
-  withDirectionParticle,
-  withObjectParticle,
-  withSubjectParticle,
-} from "@poke-lounge/battle/battle-message-text";
+import { withDirectionParticle } from "@poke-lounge/battle/battle-message-text";
 import { transferPcPokemon } from "@/features/poke-lounge/application/world/pc-transfer";
 import type { DeferredMoveLearning } from "@/features/poke-lounge/contracts/game-state";
 import { getPokemonIdentityKey } from "@/features/poke-lounge/domain/player/player-helpers";
@@ -20,6 +16,7 @@ import { setShortcutGuideTouchControlsSuppressed } from "../input/mobile-touch-c
 import { consumeVirtualGamepadPress } from "../input/virtual-gamepad";
 import { getRuntimeItemIds, type RuntimeItemId } from "../items/runtime-items";
 import { PLAYER_PARTY_SLOT_COUNT } from "../player/player-types";
+import { scheduleRuntimeTask, type RuntimeAnimation } from "../runtime-animation";
 import type { RuntimeKeyboard } from "../runtime-input";
 import {
   getInventoryItemById,
@@ -54,7 +51,6 @@ import {
 import type { WorldUiStore } from "../world/world-ui-store";
 import type { ObjectLayerLookup } from "./world-scene";
 import type { PokemonStatusPanelSnapshot } from "./world-scene-hud";
-import { formatPokemonHp } from "./world-scene-hud";
 
 type KnownInventoryItemId = RuntimeItemId;
 type PcBoxFocus = "party" | "box";
@@ -134,6 +130,8 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private nurseMessage = "";
   private nurseHealing = false;
   private nurseHealingEffectCount = 0;
+  private nurseHealGeneration = 0;
+  private nurseMessageTimer: RuntimeAnimation | null = null;
   private inventoryOpen = false;
   private inventoryFocus: InventoryFocus = "items";
   private inventorySelectedIndex = 0;
@@ -141,8 +139,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private inventoryMoveReplaceIndex = 0;
   private inventoryMoveConfirmation: MoveReplacementConfirmation | null = null;
   private inventoryMoveReplacementDecisions: Array<number | null> = [];
-  private inventoryTargetItemId: KnownInventoryItemId | null = null;
-  private pendingInventoryItemId: string | null = null;
   private pendingInventoryMovePokemon: PlayerPokemon | null = null;
   private pendingInventoryMoveReplacements: PlayerPokemonMove[] = [];
   private deferredMoveLearning: DeferredMoveLearning | null = null;
@@ -157,6 +153,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private fieldHintText = "";
   private lastEncounterAreaId: string | null | undefined;
   private areaAnnouncementExpiresAt = 0;
+  private mobileShellDetected = false;
 
   constructor(private readonly dependencies: WorldSceneInteractionsDependencies) {}
 
@@ -172,8 +169,14 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     return this.dependencies.isBattleIntroPlaying();
   }
 
+  /**
+   * Asked every field frame. The shell wraps the game for its whole life, so a positive
+   * lookup is kept until destroy(); a missing shell is looked up again.
+   */
   private usesMobileWorldDeck(): boolean {
-    return usesPokeLoungeMobileShell(this.document);
+    if (!this.mobileShellDetected)
+      this.mobileShellDetected = usesPokeLoungeMobileShell(this.document);
+    return this.mobileShellDetected;
   }
 
   handleUiAction(action: MobileWorldUiAction): void {
@@ -209,22 +212,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       }
 
       this.closeMobileWorldSurface();
-      return;
-    }
-
-    if (action.type === "select-inventory-item") {
-      if (!this.inventoryOpen || this.inventoryFocus !== "items") {
-        return;
-      }
-
-      this.inventorySelectedIndex = clampSelectionIndex(
-        action.index,
-        this.getInventoryItemIds().length,
-      );
-      this.inventoryTargetItemId = null;
-      this.inventoryMessage = "";
-      playBattleConfirmSound();
-      this.confirmInventorySelection();
       return;
     }
 
@@ -270,22 +257,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
       playBattleCancelSound();
       this.skipInventoryMoveReplacement();
-      return;
-    }
-
-    if (action.type === "select-inventory-party") {
-      if (!this.inventoryOpen || this.inventoryFocus !== "party") {
-        return;
-      }
-
-      if (!this.getInventoryTargetSlotIndices().includes(action.slotIndex)) {
-        return;
-      }
-
-      this.inventoryPartySlotIndex = action.slotIndex;
-      this.inventoryMessage = "";
-      playBattleConfirmSound();
-      this.confirmInventorySelection();
       return;
     }
 
@@ -640,11 +611,19 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.closePcBox();
     this.closeShortcutGuide({ markViewed: false });
     this.closePokemonStatusPanel({ rerenderPartyHud: false });
-    this.nurseMessage = "";
-    this.nurseHealing = false;
+    // A heal still running belongs to the field that is closing.
+    this.nurseHealGeneration += 1;
+    this.nurseMessageTimer?.stop();
+    this.nurseMessageTimer = null;
+    if (this.nurseMessage || this.nurseHealing) {
+      this.nurseMessage = "";
+      this.nurseHealing = false;
+      this.publishNursePresentation();
+    }
     this.fieldHintText = "";
     this.areaAnnouncementExpiresAt = 0;
     this.lastEncounterAreaId = undefined;
+    this.mobileShellDetected = false;
   }
 
   private renderPartyHud(): void {
@@ -681,10 +660,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
   private getPartyPokemonBySlotIndex(slotIndex: number): PlayerPokemon | null {
     return this.dependencies.getPartyPokemonBySlotIndex(slotIndex);
-  }
-
-  private formatPokemonHp(pokemon: PlayerPokemon): string {
-    return formatPokemonHp(pokemon);
   }
 
   createStaticNpcs(map: ObjectLayerLookup): void {
@@ -935,25 +910,33 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       return;
     }
 
+    this.nurseMessageTimer?.stop();
+    this.nurseMessageTimer = null;
     this.gameStateStore.healCurrentParty();
     this.renderPartyHud();
     playPartyHealSound();
     this.nurseMessage = "포켓몬이 모두 회복됐다.";
-    this.renderNurseMessage();
     this.nurseHealing = true;
     this.nurseHealingEffectCount += 1;
     this.publishNursePresentation();
+    const generation = ++this.nurseHealGeneration;
     this.dependencies.playNurseHealingEffect(
       this.nursePosition,
       function callback(this: DefaultWorldSceneInteractions): void {
+        if (generation !== this.nurseHealGeneration) return;
         this.nurseHealing = false;
         this.publishNursePresentation();
+        // Leave the message up long enough to read, then free the field (deferred move offers wait on it).
+        this.nurseMessageTimer = scheduleRuntimeTask(
+          FIELD_AREA_ANNOUNCEMENT_DURATION_MS,
+          function clearNurseMessage(this: DefaultWorldSceneInteractions): void {
+            this.nurseMessageTimer = null;
+            this.nurseMessage = "";
+            this.publishNursePresentation();
+          }.bind(this),
+        );
       }.bind(this),
     );
-  }
-
-  private renderNurseMessage(): void {
-    this.publishNursePresentation();
   }
 
   private publishNursePresentation(): void {
@@ -972,23 +955,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     }
 
     return getInventoryItemById(itemId) ?? null;
-  }
-
-  private openInventory(): void {
-    this.mobileWorldView = "explore";
-    this.inventoryOpen = true;
-    this.inventoryFocus = "items";
-    this.inventorySelectedIndex = 0;
-    this.inventoryPartySlotIndex = this.gameStateStore.getCurrentLocalPlayer().activePartySlotIndex;
-    this.inventoryMoveReplaceIndex = 0;
-    this.inventoryMoveReplacementDecisions = [];
-    this.inventoryTargetItemId = null;
-    this.pendingInventoryItemId = null;
-    this.pendingInventoryMovePokemon = null;
-    this.pendingInventoryMoveReplacements = [];
-    this.inventoryMoveConfirmation = null;
-    this.inventoryMessage = "";
-    this.renderInventoryUi();
   }
 
   /** Offers one tournament move the player ran out of time to choose, reusing the move-replace screen. */
@@ -1030,8 +996,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.inventoryPartySlotIndex = slot.slotIndex;
     this.inventoryMoveReplaceIndex = 0;
     this.inventoryMoveReplacementDecisions = [];
-    this.inventoryTargetItemId = null;
-    this.pendingInventoryItemId = null;
     this.pendingInventoryMovePokemon = slot.pokemon;
     this.pendingInventoryMoveReplacements = [learning.move];
     this.inventoryMoveConfirmation = null;
@@ -1047,13 +1011,10 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.inventoryFocus = "items";
     this.inventoryMoveReplaceIndex = 0;
     this.inventoryMoveReplacementDecisions = [];
-    this.inventoryTargetItemId = null;
-    this.pendingInventoryItemId = null;
     this.pendingInventoryMovePokemon = null;
     this.pendingInventoryMoveReplacements = [];
     this.inventoryMoveConfirmation = null;
     this.inventoryMessage = "";
-    this.destroyInventoryUi();
     dispatchPokeLoungeAccessibleStatus(document, "필드 탐색");
     this.publishMobileWorldUiState();
   }
@@ -1061,14 +1022,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private cancelInventorySelection(): void {
     if (this.inventoryFocus === "move-replace") {
       this.skipInventoryMoveReplacement();
-      return;
-    }
-
-    if (this.inventoryFocus === "party") {
-      this.inventoryFocus = "items";
-      this.inventoryTargetItemId = null;
-      this.inventoryMessage = "";
-      this.renderInventoryUi();
       return;
     }
 
@@ -1090,110 +1043,11 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       this.renderInventoryUi();
       return;
     }
-
-    if (this.inventoryFocus === "party") {
-      const targetSlotIndices = this.getInventoryTargetSlotIndices();
-
-      if (targetSlotIndices.length === 0) {
-        return;
-      }
-
-      const currentIndex = Math.max(0, targetSlotIndices.indexOf(this.inventoryPartySlotIndex));
-      const nextIndex =
-        (currentIndex + delta + targetSlotIndices.length) % targetSlotIndices.length;
-      this.inventoryPartySlotIndex = targetSlotIndices[nextIndex];
-      this.inventoryMessage = "";
-      this.renderInventoryUi();
-      return;
-    }
-
-    const itemIds = this.getInventoryItemIds();
-
-    if (itemIds.length === 0) {
-      return;
-    }
-
-    this.inventorySelectedIndex =
-      (this.inventorySelectedIndex + delta + itemIds.length) % itemIds.length;
-    this.inventoryMessage = "";
-    this.renderInventoryUi();
   }
 
   private confirmInventorySelection(): void {
-    if (this.inventoryFocus === "move-replace") {
-      this.confirmInventoryMoveReplacement();
-      return;
-    }
-
-    const itemIds = this.getInventoryItemIds();
-    const selectedItemId = itemIds[this.inventorySelectedIndex] ?? itemIds[0];
-    const localPlayer = this.gameStateStore.getCurrentLocalPlayer();
-
-    if (!selectedItemId && this.inventoryFocus === "items") {
-      this.inventoryMessage = "사용할 아이템이 없다.";
-      this.renderInventoryUi();
-      return;
-    }
-
-    if (this.inventoryFocus === "items") {
-      const item = this.getKnownInventoryItem(selectedItemId);
-
-      if (!selectedItemId || (localPlayer.inventory[selectedItemId] ?? 0) <= 0) {
-        this.inventoryMessage = `${withSubjectParticle(item?.displayName ?? "아이템")} 없다!`;
-        this.renderInventoryUi();
-        return;
-      }
-
-      const targetSlotIndices = this.getInventoryTargetSlotIndices();
-
-      if (targetSlotIndices.length === 0) {
-        this.inventoryMessage = "대상 포켓몬이 없다.";
-        this.renderInventoryUi();
-        return;
-      }
-
-      this.inventoryFocus = "party";
-      this.inventoryTargetItemId = selectedItemId;
-      this.inventoryPartySlotIndex = targetSlotIndices.includes(localPlayer.activePartySlotIndex)
-        ? localPlayer.activePartySlotIndex
-        : targetSlotIndices[0];
-      this.inventoryMessage = `${withObjectParticle(item?.displayName ?? "아이템")} 사용할 대상을 선택해라.`;
-      this.renderInventoryUi();
-      return;
-    }
-
-    const itemId = this.inventoryTargetItemId;
-
-    if (!itemId) {
-      this.inventoryFocus = "items";
-      this.inventoryMessage = "사용할 아이템을 다시 선택해라.";
-      this.renderInventoryUi();
-      return;
-    }
-
-    const result = this.gameStateStore.useInventoryItemOnPartySlot(
-      itemId,
-      this.inventoryPartySlotIndex,
-    );
-
-    this.inventoryMessage = result.ok ? result.messages.join(" ") : result.message;
-    if (result.ok) {
-      this.pendingInventoryMoveReplacements = [...result.pendingMoveReplacements];
-      if (this.pendingInventoryMoveReplacements.length > 0) {
-        this.inventoryFocus = "move-replace";
-        this.inventoryMoveReplaceIndex = 0;
-        this.inventoryMoveReplacementDecisions = [];
-        this.pendingInventoryItemId = itemId;
-        this.pendingInventoryMovePokemon = result.pokemon;
-        this.showPendingInventoryMoveReplacement(this.inventoryMessage);
-        return;
-      }
-
-      this.renderPartyHud();
-      this.finishInventoryItemUse(itemId);
-      return;
-    }
-    this.renderInventoryUi();
+    // Items are gone; the only screen this controller still opens is the move replacement.
+    if (this.inventoryFocus === "move-replace") this.confirmInventoryMoveReplacement();
   }
 
   private confirmInventoryMoveReplacement(): void {
@@ -1202,7 +1056,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     const replacedMove = pokemon?.moves?.[this.inventoryMoveReplaceIndex];
 
     if (!pokemon || !pendingMove || !replacedMove) {
-      this.cancelInventoryMoveReplacement("기술 교체를 완료할 수 없다.");
+      this.cancelInventoryMoveReplacement();
       return;
     }
 
@@ -1250,7 +1104,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       return;
     }
 
-    this.completeInventoryMoveReplacement(outcomeMessage);
+    this.completeInventoryMoveReplacement();
   }
 
   private skipInventoryMoveReplacement(): void {
@@ -1262,7 +1116,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     const skippedMove = this.pendingInventoryMoveReplacements.shift();
 
     if (!skippedMove) {
-      this.cancelInventoryMoveReplacement("");
+      this.cancelInventoryMoveReplacement();
       return;
     }
 
@@ -1275,7 +1129,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       return;
     }
 
-    this.completeInventoryMoveReplacement(outcomeMessage);
+    this.completeInventoryMoveReplacement();
   }
 
   private showPendingInventoryMoveReplacement(prefix = ""): void {
@@ -1283,7 +1137,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     const pendingMove = this.pendingInventoryMoveReplacements[0];
 
     if (!pokemon || !pendingMove) {
-      this.cancelInventoryMoveReplacement(prefix);
+      this.cancelInventoryMoveReplacement();
       return;
     }
 
@@ -1291,7 +1145,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.renderInventoryUi();
   }
 
-  private completeInventoryMoveReplacement(fallbackMessage: string): void {
+  private completeInventoryMoveReplacement(): void {
     if (this.deferredMoveLearning) {
       // After the round locks the party the choice would miss the server, so keep it for the next field.
       if (this.dependencies.canOfferDeferredMoveLearning())
@@ -1303,64 +1157,12 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       this.renderPartyHud();
       return;
     }
-    const itemId = this.pendingInventoryItemId;
-    const result = itemId
-      ? this.gameStateStore.resolveInventoryItemMoveReplacements(
-          itemId,
-          this.inventoryPartySlotIndex,
-          this.inventoryMoveReplacementDecisions,
-        )
-      : null;
-    const message = result?.ok
-      ? (result.messages.at(-1) ?? fallbackMessage)
-      : (result?.message ?? "기술 교체를 완료할 수 없다.");
-
-    this.resetPendingInventoryMoveReplacement();
-    this.inventoryMessage = message;
-    if (result?.ok && itemId) {
-      this.renderPartyHud();
-      this.finishInventoryItemUse(itemId);
-      return;
-    }
-
-    this.inventoryFocus = "party";
-    this.renderInventoryUi();
+    this.closeInventory();
   }
 
-  private cancelInventoryMoveReplacement(message: string): void {
-    if (this.deferredMoveLearning) {
-      // The entry stays saved and is offered again on a later field frame.
-      this.closeInventory();
-      return;
-    }
-    this.resetPendingInventoryMoveReplacement();
-    this.inventoryFocus = "party";
-    this.inventoryMessage = message;
-    this.renderInventoryUi();
-  }
-
-  private finishInventoryItemUse(itemId: string): void {
-    if ((this.gameStateStore.getCurrentLocalPlayer().inventory[itemId] ?? 0) <= 0) {
-      this.inventoryFocus = "items";
-      this.inventoryTargetItemId = null;
-      this.inventorySelectedIndex = clampSelectionIndex(
-        this.inventorySelectedIndex,
-        this.getInventoryItemIds().length,
-      );
-    } else {
-      this.inventoryFocus = "party";
-    }
-
-    this.renderInventoryUi();
-  }
-
-  private resetPendingInventoryMoveReplacement(): void {
-    this.inventoryMoveReplacementDecisions = [];
-    this.pendingInventoryItemId = null;
-    this.pendingInventoryMovePokemon = null;
-    this.pendingInventoryMoveReplacements = [];
-    this.inventoryMoveConfirmation = null;
-    this.inventoryMoveReplaceIndex = 0;
+  /** A deferred entry stays saved and is offered again on a later field frame. */
+  private cancelInventoryMoveReplacement(): void {
+    this.closeInventory();
   }
 
   private getInventoryMoveReplacementPokemon(): PlayerPokemon | null {
@@ -1370,26 +1172,9 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     );
   }
 
-  private getInventoryTargetSlotIndices(): number[] {
-    return this.gameStateStore
-      .getCurrentLocalPlayer()
-      .party.filter(function filterItem(slot) {
-        return slot.pokemon;
-      })
-      .map(function mapItem(slot) {
-        return slot.slotIndex;
-      });
-  }
-
   private renderInventoryUi(): void {
     this.publishMobileWorldUiState();
   }
-
-  private renderInventoryMoveReplacementUi(): void {
-    this.publishMobileWorldUiState();
-  }
-
-  private destroyInventoryUi(): void {}
 
   private getInventoryItemIds(): KnownInventoryItemId[] {
     const inventory = this.gameStateStore.getCurrentLocalPlayer().inventory;
@@ -1426,7 +1211,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private closePcBox(): void {
     this.pcBoxOpen = false;
     this.pcBoxMessage = "";
-    this.destroyPcBoxUi();
     dispatchPokeLoungeAccessibleStatus(document, "필드 탐색");
     this.publishMobileWorldUiState();
   }
@@ -1474,12 +1258,6 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.publishMobileWorldUiState();
   }
 
-  private destroyPcBoxUi(): void {}
-
-  private formatPcBoxPokemonLabel(pokemon: PlayerPokemon): string {
-    return `${pokemon.name} Lv.${pokemon.level} ${this.formatPokemonHp(pokemon)}`;
-  }
-
   showInitialShortcutGuideIfNeeded(): void {
     // Startup/round changes never interrupt play. Help is explicitly opened with H/menu.
     this.publishMobileWorldUiState();
@@ -1499,13 +1277,10 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     }
     this.shortcutGuideOpen = false;
     setShortcutGuideTouchControlsSuppressed(false);
-    this.destroyShortcutGuideUi();
     this.publishMobileWorldUiState();
   }
 
   private renderShortcutGuideUi(): void {
     this.publishMobileWorldUiState();
   }
-
-  private destroyShortcutGuideUi(): void {}
 }
