@@ -60,6 +60,21 @@ export function getBattleStatusTextView(status: BattlePokemonStatus): BattleStat
         color: "#72548f",
         label: "독",
       };
+    case "badlyPoisoned":
+      return {
+        color: "#604075",
+        label: "맹독",
+      };
+    case "asleep":
+      return {
+        color: "#586a80",
+        label: "잠듦",
+      };
+    case "frozen":
+      return {
+        color: "#286f73",
+        label: "얼음",
+      };
     case "burned":
       return {
         color: "#a94e38",

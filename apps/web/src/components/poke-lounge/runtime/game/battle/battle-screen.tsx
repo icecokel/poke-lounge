@@ -454,7 +454,7 @@ export function BattleHpPanel({
         </span>
       </div>
       <small
-        className={`col-[1/-1] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--pl-color-ink-muted)] data-[poke-lounge-battle-trainer=player]:text-right ${separateStatus ? "flex items-center justify-between gap-[0.4em]" : ""}`}
+        className={`col-[1/-1] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[var(--pl-color-ink-muted)] data-[poke-lounge-battle-trainer=player]:text-right ${separateStatus ? "flex items-center justify-between gap-[0.4em] data-[poke-lounge-battle-trainer=player]:flex-row-reverse" : ""}`}
         data-poke-lounge-battle-trainer={side}
       >
         {separateStatus ? (
