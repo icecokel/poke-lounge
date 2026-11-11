@@ -15,7 +15,7 @@
     "src/competitive-ruleset-config.ts": "58d9a45ec3cc056370eb14ea9f00cb19e513fbad9ea433d60da34e7c7dec4197",
     "src/gen4-battle-math.ts": "e020e2f7eaa1884d344cf14a842c914f0ab677175d05635554bcac984241ce1a",
     "src/gen4/adventure.ts": "c2a128d7f7b6653bd61f9b8914d1d9587a316e47d7acb36dd0886aa4778cbd33",
-    "src/gen4/canonical.ts": "e4ce1f3006dd560a3803943201b77797a9a704995aa9da80ff192d79610ce5b6",
+    "src/gen4/canonical.ts": "f39eecba0814648bf788df6aa1703d470b2b236277c02f3f5edf170226c4f912",
     "src/gen4/capture.ts": "64abef204a15e60b5994aa4bddb06c2b7596d1434d93446869462725fba259d4",
     "src/gen4/engine.ts": "945a3ba04e6a9e9e83e8c2edaa6b9365947c1d4a30a644d1366fd7e3fa4316fe",
     "src/gen4/flow.ts": "6fcd7d0b859c2636c2eda0e9cfc784d69622bc27a274ef339d0e1099c9fdeaf8",
