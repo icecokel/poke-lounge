@@ -5,12 +5,13 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 // TypeScript sources are read through the compiler's parser so formatting never matters.
 const ts = createRequire(resolve(root, "packages/poke-lounge-battle/package.json"))("typescript");
+const rustTokenPattern =
+  /"(?:\\.|[^"\\])*"|\/\/[^\n]*|\/\*[\s\S]*?\*\/|[A-Za-z_][A-Za-z_0-9]*|[^\s]/g;
 
 try {
-  const rust = readFileSync(resolve(root, "apps/api-rust/src/domain.rs"), "utf8");
-  const types = readFileSync(
+  const rust = readRust("apps/api-rust/src/domain.rs");
+  const roomTypes = parseTs(
     resolve(root, "apps/web/src/features/poke-lounge/contracts/rust-room.ts"),
-    "utf8",
   );
 
   for (const [name, variable, prefix] of [
@@ -35,17 +36,18 @@ try {
       ...body.matchAll(new RegExp("\\b" + variable + '\\s*\\[\\s*"([^"]+)"\\s*\\]\\s*=', "g")),
     ].map(match => match[1]);
 
-    compare(prefix + "_KEYS", required, readTypeKeys(types, prefix + "_KEYS"));
-    compare(prefix + "_OPTIONAL_KEYS", optional, readTypeKeys(types, prefix + "_OPTIONAL_KEYS"));
+    compare(prefix + "_KEYS", required, tsStringArray(roomTypes, prefix + "_KEYS"));
+    compare(
+      prefix + "_OPTIONAL_KEYS",
+      optional,
+      tsStringArray(roomTypes, prefix + "_OPTIONAL_KEYS"),
+    );
   }
 
-  const tournament = readFileSync(resolve(root, "apps/api-rust/src/tournament.rs"), "utf8");
+  const tournament = readRust("apps/api-rust/src/tournament.rs");
   const battleSource = name =>
     parseTs(resolve(root, "packages/poke-lounge-battle/src", name + ".ts"));
   const bracketTypes = battleSource("tournament-bracket");
-  const roomTypes = parseTs(
-    resolve(root, "apps/web/src/features/poke-lounge/contracts/rust-room.ts"),
-  );
 
   // Nested snapshot shapes: Rust serde structs serialized into the snapshot vs TS interfaces.
   for (const [source, struct, file, name] of [
@@ -88,6 +90,11 @@ try {
 
   // Enum wire names: Rust serde names vs the TS arrays the worker validates against.
   compare(
+    "Status / RUST_ROOM_STATUSES",
+    rustEnum(rust, "Status").variants.map(variant => variant.name),
+    tsStringArray(roomTypes, "RUST_ROOM_STATUSES"),
+  );
+  compare(
     "AiDifficulty / AI_DIFFICULTIES",
     rustEnum(rust, "AiDifficulty").variants.map(variant => variant.name),
     tsStringArray(battleSource("ai-difficulty"), "AI_DIFFICULTIES"),
@@ -98,11 +105,8 @@ try {
     tsStringArray(battleSource("starter-selection"), "STARTER_MODES"),
   );
 
-  // Worker operations: every json!({"kind": "..."}) literal in domain.rs whose first key is
-  // "kind" is a compute operation, and the worker rejects kinds its request schema does not list.
-  const sentKinds = [
-    ...new Set([...rust.matchAll(/\bjson!\s*\(\s*\{\s*"kind"\s*:\s*"([^"\\]+)"/g)].map(m => m[1])),
-  ];
+  // Both compute.run and its battle wrapper take the operation as their third argument.
+  const sentKinds = workerOperationKinds(rust);
   if (sentKinds.length === 0) throw new Error("No worker operation kinds found in domain.rs");
   const workerKinds = tsZodKinds(
     parseTs(resolve(root, "apps/battle-worker/src/protocol.ts")),
@@ -137,7 +141,14 @@ function onlyMatch(source, pattern, label) {
 }
 
 function tokens(source) {
-  return source.matchAll(/"(?:\\.|[^"\\])*"|\/\/[^\n]*|\/\*[\s\S]*?\*\/|[{}]/g);
+  return source.matchAll(rustTokenPattern);
+}
+
+function readRust(path) {
+  const source = readFileSync(resolve(root, path), "utf8");
+  return source.replace(rustTokenPattern, token =>
+    token.startsWith("//") || token.startsWith("/*") ? " " : token,
+  );
 }
 
 function bracedBlock(source, start) {
@@ -155,8 +166,8 @@ function topLevelKeys(object) {
   const keys = [];
   let depth = 0;
   for (const token of tokens(object)) {
-    if (token[0] === "{") depth += 1;
-    else if (token[0] === "}") depth -= 1;
+    if (["{", "[", "("].includes(token[0])) depth += 1;
+    else if (["}", "]", ")"].includes(token[0])) depth -= 1;
     else if (
       depth === 1 &&
       token[0].startsWith('"') &&
@@ -168,17 +179,63 @@ function topLevelKeys(object) {
   return keys;
 }
 
-function readTypeKeys(source, name) {
-  const match = onlyMatch(
-    source,
-    new RegExp("export\\s+const\\s+" + name + "\\s*=\\s*\\[([^\\]]*)\\]\\s*as\\s+const", "g"),
-    name + " array",
-  );
-  const values = match[1];
-  if (values.replace(/"[^"\\]*"|[\s,]/g, "") !== "") {
-    throw new Error("Expected only string keys in " + name);
+function workerOperationKinds(source) {
+  const code = [...tokens(source)]
+    .map(token => token[0])
+    .filter(token => !token.startsWith("//") && !token.startsWith("/*"));
+  // Consume one balanced group; strings and comments have already been tokenized separately.
+  function group(list, start) {
+    const stack = [];
+    const closing = { "(": ")", "[": "]", "{": "}" };
+    const parts = [[]];
+    for (let index = start; index < list.length; index++) {
+      const token = list[index];
+      if (closing[token]) stack.push(closing[token]);
+      else if ([")", "]", "}"].includes(token)) {
+        if (stack.pop() !== token) throw new Error("Unbalanced Rust compute operation");
+        if (!stack.length) return parts;
+      }
+      if (index === start) continue;
+      if (token === "," && stack.length === 1) parts.push([]);
+      else parts.at(-1).push(token);
+    }
+    throw new Error("Unclosed Rust compute operation");
   }
-  return [...values.matchAll(/"([^"\\]*)"/g)].map(key => key[1]);
+  const kinds = [];
+  for (let index = 0; index < code.length; index++) {
+    if (
+      code[index] !== "compute" ||
+      code[index + 1] !== "." ||
+      !["run", "battle"].includes(code[index + 2]) ||
+      code[index + 3] !== "("
+    )
+      continue;
+    const args = group(code, index + 3).filter(part => part.length);
+    if (args.length !== (code[index + 2] === "battle" ? 4 : 3)) {
+      throw new Error("Unexpected arguments to compute." + code[index + 2]);
+    }
+    let operation = args[2];
+    if (operation.length === 1 && /^[A-Za-z_][A-Za-z_0-9]*$/.test(operation[0])) {
+      const declarations = code.flatMap((token, at) =>
+        token === operation[0] &&
+        (code[at - 1] === "let" || (code[at - 2] === "let" && code[at - 1] === "mut")) &&
+        code[at + 1] === "="
+          ? [at + 2]
+          : [],
+      );
+      if (declarations.length !== 1) throw new Error("Ambiguous compute operation " + operation[0]);
+      operation = code.slice(declarations[0]);
+    }
+    if (operation.slice(0, 4).join(" ") !== "json ! ( {") {
+      throw new Error("Expected a json! object for compute.run operation");
+    }
+    const fields = group(operation, 3).filter(field => field[0] === '"kind"' && field[1] === ":");
+    if (fields.length !== 1 || fields[0].length !== 3 || !fields[0][2].startsWith('"')) {
+      throw new Error("Expected one literal compute operation kind");
+    }
+    kinds.push(JSON.parse(fields[0][2]));
+  }
+  return [...new Set(kinds)];
 }
 
 function compare(name, rustKeys, typeKeys) {
@@ -200,7 +257,10 @@ function compare(name, rustKeys, typeKeys) {
 function rustDeclaration(source, keyword, name) {
   const match = onlyMatch(
     source,
-    new RegExp("((?:#\\[[^\\]]*\\]\\s*)*)pub\\s+" + keyword + "\\s+" + name + "\\s*\\{", "g"),
+    new RegExp(
+      "((?:#\\[[^\\]]*\\]\\s*)*)pub(?:\\([^)]*\\))?\\s+" + keyword + "\\s+" + name + "\\s*\\{",
+      "g",
+    ),
     "Rust " + keyword + " " + name,
   );
   const block = bracedBlock(source, match.index + match[0].length - 1);
@@ -354,7 +414,7 @@ function tsTaggedUnion(file, name, tag) {
   for (const member of ts.isUnionTypeNode(type) ? type.types : [type]) {
     if (!ts.isTypeLiteralNode(member)) throw new Error("Unsupported union member in " + name);
     const tagMember = member.members.find(
-      property => ts.isPropertySignature(property) && property.name.getText(file) === tag,
+      property => ts.isPropertySignature(property) && property.name.text === tag,
     );
     const literal = tagMember?.type;
     if (!literal || !ts.isLiteralTypeNode(literal) || !ts.isStringLiteral(literal.literal)) {
@@ -371,9 +431,12 @@ function tsZodKinds(file, schemaName) {
   function visit(node) {
     if (
       ts.isPropertyAssignment(node) &&
-      node.name.getText(file) === "kind" &&
+      node.name.text === "kind" &&
       ts.isCallExpression(node.initializer) &&
-      node.initializer.expression.getText(file) === "z.literal" &&
+      ts.isPropertyAccessExpression(node.initializer.expression) &&
+      node.initializer.expression.name.text === "literal" &&
+      ts.isIdentifier(node.initializer.expression.expression) &&
+      node.initializer.expression.expression.text === "z" &&
       node.initializer.arguments.length === 1 &&
       ts.isStringLiteral(node.initializer.arguments[0])
     ) {
