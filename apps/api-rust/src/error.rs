@@ -49,6 +49,12 @@ pub enum AppError {
     Unavailable,
     #[error("Battle computation unavailable")]
     ComputeUnavailable,
+    /// The worker ran the operation and its engine failed; the same input fails the same way.
+    #[error("Battle computation unavailable")]
+    ComputeFailed,
+    /// The worker answered, but its output failed the named server-side check.
+    #[error("Battle computation unavailable")]
+    ComputeInvalid(&'static str),
     /// The worker refused the input. The string is its bounded diagnostic reason (e.g. a party rule).
     #[error("Invalid battle or party input")]
     ComputeRejected(String),
@@ -62,7 +68,25 @@ pub enum AppError {
     Corrupt(#[from] serde_json::Error),
     #[error("Configuration error: {0}")]
     Configuration(&'static str),
+    /// A server-side invariant broke; the reason names the failed check and never reaches clients.
+    #[error("Internal invariant failed: {0}")]
+    Internal(&'static str),
 }
+/// Logs an event with the Redis diagnostics of `$error` that are safe to record: Redis error text
+/// can echo the connection URL with credentials, so only its kind and flags are emitted.
+macro_rules! log_fields {
+    ($level:ident, $error:expr, $($fields:tt)+) => {{
+        let storage = $error.storage_error();
+        tracing::$level!(
+            storage_kind = ?storage.map(redis::RedisError::kind),
+            storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
+            storage_timeout = ?storage.map(redis::RedisError::is_timeout),
+            $($fields)+
+        )
+    }};
+}
+pub(crate) use log_fields;
+static BUSY_LOGGED_S: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 impl AppError {
     pub fn storage_error(&self) -> Option<&redis::RedisError> {
         match self {
@@ -104,8 +128,10 @@ impl AppError {
             Self::Unavailable | Self::Storage(_) | Self::Database(_) => {
                 (StatusCode::SERVICE_UNAVAILABLE, "BACKEND_UNAVAILABLE")
             }
-            Self::ComputeUnavailable => (StatusCode::SERVICE_UNAVAILABLE, "COMPUTE_UNAVAILABLE"),
-            Self::Corrupt(_) | Self::Configuration(_) => {
+            Self::ComputeUnavailable | Self::ComputeFailed | Self::ComputeInvalid(_) => {
+                (StatusCode::SERVICE_UNAVAILABLE, "COMPUTE_UNAVAILABLE")
+            }
+            Self::Corrupt(_) | Self::Configuration(_) | Self::Internal(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR")
             }
         }
@@ -119,7 +145,11 @@ impl AppError {
         match self {
             Self::Storage(_) => "redis",
             Self::Database(_) => "postgres",
-            Self::ComputeUnavailable | Self::ComputeRejected(_) => "compute",
+            Self::ComputeUnavailable
+            | Self::ComputeFailed
+            | Self::ComputeInvalid(_)
+            | Self::ComputeRejected(_) => "compute",
+            Self::Internal(_) => "invariant",
             Self::Corrupt(_) => "stored_data",
             Self::Timeout => "timeout",
             Self::Unavailable => "backend",
@@ -128,12 +158,27 @@ impl AppError {
             _ => "request",
         }
     }
+    /// True when retrying the same step with the same input fails the same way, as opposed to an
+    /// outage (worker restart, full queue, Redis) that clears on its own.
+    pub fn deterministic(&self) -> bool {
+        matches!(
+            self,
+            Self::ComputeFailed
+                | Self::ComputeInvalid(_)
+                | Self::ComputeRejected(_)
+                | Self::Invalid(_)
+                | Self::ActionConflict
+                | Self::Corrupt(_)
+                | Self::Internal(_)
+        )
+    }
     /// Internal cause safe to log. Redis errors are excluded: their text can echo the connection
-    /// URL with credentials, so only their kind/flags are logged (see `log_fields`).
+    /// URL with credentials, so only their kind/flags are logged (see `log_fields!`).
     pub fn detail(&self) -> Option<String> {
         let text = match self {
             // Other variants already carry their whole cause in their display text.
             Self::ComputeRejected(reason) => reason.clone(),
+            Self::ComputeInvalid(check) => (*check).to_owned(),
             // Server message only; DETAIL/HINT can quote row values.
             Self::Database(error) => match error.as_db_error() {
                 Some(db) => format!("{}: {}", db.severity(), db.message()),
@@ -156,16 +201,26 @@ impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, code) = self.classify();
         if status.is_server_error() {
-            let storage = self.storage_error();
-            tracing::error!(event = "api.error", code, source = self.source_label(),
-                error = %self, detail = ?self.detail(), db_code = ?self.db_code(),
-                storage_kind = ?storage.map(redis::RedisError::kind),
-                storage_connection_refused = ?storage.map(redis::RedisError::is_connection_refusal),
-                storage_timeout = ?storage.map(redis::RedisError::is_timeout));
-        } else if status.is_client_error() {
+            log_fields!(error, self, event = "api.error", code, source = self.source_label(),
+                error = %self, detail = ?self.detail(), db_code = ?self.db_code());
+        } else if status.is_client_error()
+            && (status != StatusCode::TOO_MANY_REQUESTS
+                || crate::http::first_this_second(&BUSY_LOGGED_S))
+        {
             tracing::warn!(event = "api.rejected", code, reason = %self, detail = ?self.detail());
         }
-        let message = if matches!(self, Self::Corrupt(_) | Self::Configuration(_)) {
+        self.into_quiet_response()
+    }
+}
+impl AppError {
+    /// The response without the `api.error`/`api.rejected` log line, for callers that report the
+    /// rejection themselves at their own rate.
+    pub fn into_quiet_response(self) -> Response {
+        let (status, code) = self.classify();
+        let message = if matches!(
+            self,
+            Self::Corrupt(_) | Self::Configuration(_) | Self::Internal(_)
+        ) {
             "Internal server error".into()
         } else {
             self.to_string()

@@ -69,7 +69,7 @@ static CONCURRENCY_LIMIT_LOGGED_S: std::sync::atomic::AtomicU64 =
 static CLIENT_TABLE_LIMIT_LOGGED_S: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
 /// True at most once per second per slot: overload rejections must not turn into log floods.
-fn first_this_second(slot: &std::sync::atomic::AtomicU64) -> bool {
+pub(crate) fn first_this_second(slot: &std::sync::atomic::AtomicU64) -> bool {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_secs());
@@ -132,8 +132,6 @@ pub fn router(state: AppState, config: &Config, league: Router<AppState>) -> Rou
         .route("/auth/discord/callback", get(crate::auth::discord_callback))
         .route("/auth/me", get(crate::auth::me))
         .route("/auth/logout", post(crate::auth::logout))
-        .route("/game/ranking", get(ranking))
-        .route("/game/result/{id}", get(result))
         .route("/game/result", post(account_disabled))
         .route(
             "/game/poke-lounge/state",
@@ -154,8 +152,8 @@ pub fn router(state: AppState, config: &Config, league: Router<AppState>) -> Rou
                 .allow_methods([
                     Method::GET,
                     Method::POST,
+                    // PUT is used by the league routes; no route accepts DELETE.
                     Method::PUT,
-                    Method::DELETE,
                     Method::OPTIONS,
                 ])
                 .allow_headers([
@@ -227,7 +225,7 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
         if first_this_second(&CONCURRENCY_LIMIT_LOGGED_S) {
             tracing::warn!(event = "http.limited", limit = "concurrent_requests", path = %request.uri().path());
         }
-        return AppError::Busy.into_response();
+        return AppError::Busy.into_quiet_response();
     };
     if let Some(origin) = request.headers().get(header::ORIGIN)
         && !state.origins.contains(origin)
@@ -243,7 +241,7 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             if first_this_second(&CLIENT_TABLE_LIMIT_LOGGED_S) {
                 tracing::warn!(event = "http.limited", limit = "tracked_clients", path = %request.uri().path());
             }
-            return AppError::Busy.into_response();
+            return AppError::Busy.into_quiet_response();
         }
         let budget = budgets.entry(ip).or_insert(Budget {
             since: Instant::now(),
@@ -305,7 +303,7 @@ async fn limits(State(state): State<AppState>, request: Request, next: Next) -> 
             if discord_limit == Some(limit) {
                 return state.auth.discord_login_failed();
             }
-            return AppError::Busy.into_response();
+            return AppError::Busy.into_quiet_response();
         }
     }
     // WebSocket upgrades return immediately. The connection has separate limits and deadlines.
@@ -366,6 +364,8 @@ async fn diagnostics(State(state): State<AppState>, request: Request, next: Next
     let duration_ms = start.elapsed().as_millis() as u64;
     if status >= 500 {
         tracing::error!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,room_code=?room_code,command_id=?command_id,release=%state.release,status,duration_ms);
+    } else if status == StatusCode::TOO_MANY_REQUESTS.as_u16() {
+        tracing::debug!(event="api.request",request_id=%id,%route,%method,release=%state.release,status,duration_ms,limited=true);
     } else if status >= 400 || duration_ms >= 1_000 {
         tracing::warn!(event="api.request",request_id=%id,%route,%method,room_instance_id=?room_instance_id,room_code=?room_code,command_id=?command_id,release=%state.release,status,duration_ms);
     } else if method == Method::GET && route.starts_with("/health") {
@@ -400,13 +400,7 @@ struct ClientError {
 
 async fn client_error(payload: Result<Json<ClientError>, JsonRejection>) -> AppResult<StatusCode> {
     let payload = body(payload)?;
-    let valid_label = |value: &str, max: usize| {
-        !value.is_empty()
-            && value.len() <= max
-            && value
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
-    };
+    let valid_label = crate::logging::valid_label;
     // Name the rejected field: a dropped report is otherwise invisible to operators.
     let invalid_field = [
         ("kind", !valid_label(&payload.kind, 32)),
@@ -657,7 +651,7 @@ async fn apply(
         .request(
             id,
             Operation::Command {
-                player: identity.player_id,
+                player: Some(identity.player_id),
                 session,
                 id: command_id(&headers)?,
                 expected,
@@ -669,8 +663,32 @@ async fn apply(
     record_activity(&state, visitor_id);
     Ok(success(value))
 }
+/// The address a per-address room cap may be charged to. A private or loopback address is local
+/// play or a proxy missing from RUST_API_TRUSTED_PROXIES, where one address stands for every
+/// player, so the cap is not applied to it.
+fn room_creator(state: &AppState, peer: SocketAddr, headers: &HeaderMap) -> Option<IpAddr> {
+    let ip = client_ip(peer.ip(), headers, &state.trusted_proxies);
+    let shared = match ip {
+        IpAddr::V4(ip) => {
+            ip.is_private()
+                || ip.is_loopback()
+                || ip.is_link_local()
+                || ip.is_unspecified()
+                // Carrier-grade NAT range 100.64.0.0/10, also used by overlay networks.
+                || (ip.octets()[0] == 100 && ip.octets()[1] & 0xC0 == 64)
+        }
+        IpAddr::V6(ip) => {
+            ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local()
+        }
+    };
+    (!shared).then_some(ip)
+}
 async fn create(
     State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     value: Result<Json<CreateRoom>, JsonRejection>,
 ) -> AppResult<Json<Value>> {
@@ -680,7 +698,11 @@ async fn create(
     let visitor_id = usage_visitor(&headers);
     let value = state
         .rooms
-        .create(body(value)?.normalize()?, command_id(&headers)?)
+        .create(
+            body(value)?.normalize()?,
+            command_id(&headers)?,
+            room_creator(&state, peer, &headers),
+        )
         .await?;
     record_activity(&state, visitor_id);
     Ok(success(value))
@@ -690,13 +712,18 @@ async fn public_rooms(State(state): State<AppState>) -> AppResult<Json<Value>> {
 }
 async fn quick_play(
     State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     value: Result<Json<CreateRoom>, JsonRejection>,
 ) -> AppResult<Json<Value>> {
     let visitor_id = usage_visitor(&headers);
     let value = state
         .rooms
-        .quick_play(body(value)?.normalize()?, command_id(&headers)?)
+        .quick_play(
+            body(value)?.normalize()?,
+            command_id(&headers)?,
+            room_creator(&state, peer, &headers),
+        )
         .await?;
     record_activity(&state, visitor_id);
     Ok(success(value))
@@ -1026,21 +1053,14 @@ async fn action(
         .rooms
         .resolve(&normalize_code(&code)?, instance(&headers)?)
         .await?;
-    let (_, room) = state.repository.read(id).await?;
-    let player = room
-        .participants
-        .iter()
-        .find(|p| p.session_hash == session && !p.ai)
-        .ok_or(AppError::Forbidden)?
-        .player_id
-        .clone();
     Ok(success(
         state
             .rooms
             .request(
                 id,
                 Operation::Command {
-                    player,
+                    // The actor maps the session to its participant from the state it already holds.
+                    player: None,
                     session,
                     id: b.client_command_id,
                     expected: None,
@@ -1058,20 +1078,6 @@ async fn action(
 }
 async fn rom(State(state): State<AppState>) -> Json<Value> {
     success(state.data.rom())
-}
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct RankQuery {
-    game_type: String,
-}
-async fn ranking(
-    State(state): State<AppState>,
-    Query(q): Query<RankQuery>,
-) -> AppResult<Json<Value>> {
-    Ok(success(state.data.ranking(&q.game_type).await?))
-}
-async fn result(State(state): State<AppState>, Path(id): Path<Uuid>) -> AppResult<Json<Value>> {
-    Ok(success(state.data.result(id).await?))
 }
 async fn account_disabled() -> AppError {
     AppError::AccountDisabled

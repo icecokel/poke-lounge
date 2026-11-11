@@ -53,3 +53,13 @@ pub fn release() -> String {
         .filter(|value| value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
         .unwrap_or_else(|| "local".into())
 }
+
+/// Whether a string from a browser or the worker is a bounded identifier-like label that is safe
+/// to copy into a log field.
+pub fn valid_label(value: &str, max: usize) -> bool {
+    !value.is_empty()
+        && value.len() <= max
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+}

@@ -151,36 +151,6 @@ SELECT user_id FROM found UNION ALL SELECT user_id FROM linked
             .await?;
         Ok(())
     }
-    pub async fn ranking(&self, game_type: &str) -> AppResult<Value> {
-        if game_type == "POKE_LOUNGE" {
-            return Ok(json!([]));
-        }
-        if game_type != "SKY_DROP" {
-            return Err(AppError::Invalid("Invalid game type"));
-        }
-        let rows=self.client().await?.query(r#"
-WITH best AS (
- SELECT DISTINCT ON (h."userId") h.id,h.score,h."createdAt",h."userId"
- FROM game_history h
- WHERE h."gameType"='SKY_DROP' AND h.score BETWEEN 1 AND 100000
- AND (h."playTime" IS NULL OR (h."playTime" BETWEEN 1 AND 86400 AND h.score <= h."playTime"*2000))
- ORDER BY h."userId",h.score DESC,h."createdAt" ASC,h.id ASC
-)
-SELECT jsonb_build_object('score',b.score,'rank',row_number() OVER (ORDER BY b.score DESC,b."createdAt" ASC,b.id ASC),
- 'createdAt',to_char(b."createdAt" AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
- 'user',jsonb_build_object('displayName',concat(u."firstName",' ',u."lastName"))) AS value
-FROM best b JOIN "user" u ON u.id=b."userId" ORDER BY b.score DESC,b."createdAt" ASC,b.id ASC LIMIT 10
-"#,&[]).await?;
-        let values = rows
-            .iter()
-            .map(|r| r.try_get::<_, Value>("value"))
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(json!(values))
-    }
-    pub async fn result(&self, id: Uuid) -> AppResult<Value> {
-        let row=self.client().await?.query_opt(r#"SELECT jsonb_build_object('id',h.id,'score',h.score,'gameType',h."gameType",'createdAt',to_char(h."createdAt" AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),'user',jsonb_build_object('displayName',concat(u."firstName",' ',u."lastName"))) AS value FROM game_history h JOIN "user" u ON u.id=h."userId" WHERE h.id=$1"#,&[&id]).await?.ok_or(AppError::NotFound)?;
-        Ok(row.try_get("value")?)
-    }
 }
 
 // The existing importer uses JSON.stringify after sorting object properties.

@@ -21,7 +21,7 @@ subtle = "2.6"
 thiserror = "2.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "sync", "time"] }
 tokio-util = { version = "0.7", features = ["rt"] }
-tower-http = { version = "0.6", features = ["cors", "request-id", "sensitive-headers"] }
+tower-http = { version = "0.6", features = ["cors"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v4", "serde"] }

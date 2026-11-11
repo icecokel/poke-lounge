@@ -1,23 +1,26 @@
 use crate::{
     compute::Compute,
-    config::{MAILBOX_CAPACITY, MAX_ACTORS, REQUEST_TIMEOUT},
+    config::{MAILBOX_CAPACITY, MAX_ACTORS, MAX_LIVE_ROOMS_PER_IP, REQUEST_TIMEOUT},
     domain::{
         CreateRoom, DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y, FIELD_MAP_KEY, GameCommand, MAX_PARTICIPANTS,
-        PRESENCE_LEASE_MS, ROUND_PHASE_WAITING, Room, RoomVisibility, Status, session_hash,
+        PRESENCE_LEASE_MS, ROUND_PHASE_WAITING, Room, RoomFaults, RoomVisibility, Status,
+        session_hash,
     },
     error::{AppError, AppResult},
     repository::{Receipt, Repository, fingerprint},
 };
+use axum::extract::ws::Utf8Bytes;
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, HashMap},
+    net::IpAddr,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
     },
     time::Duration,
 };
-use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
+use tokio::sync::{Mutex, Semaphore, broadcast, mpsc, oneshot};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{Instrument, Span};
 use uuid::Uuid;
@@ -28,6 +31,14 @@ const FULL_RELOAD_INTERVAL_MS: u64 = 5_000;
 const AI_CHECKPOINT_INTERVAL_MS: u64 = 2_000;
 const CONNECTION_STALE_MS: u64 = 30_000;
 const MIN_MOVE_INTERVAL: Duration = Duration::from_millis(50);
+const TICK_INTERVAL: Duration = Duration::from_millis(250);
+// A failing tick repeats the same Redis and compute work; back off instead of retrying 4x/s.
+const TICK_BACKOFF_MAX_SHIFT: u32 = 4;
+const TICK_FAILURE_LOG_INTERVAL: Duration = Duration::from_secs(10);
+/// Delay before the next tick after `failures` consecutive failed ticks: 250ms, then 0.5s to 4s.
+fn tick_delay(failures: u32) -> Duration {
+    TICK_INTERVAL * (1 << failures.min(TICK_BACKOFF_MAX_SHIFT))
+}
 
 pub enum Operation {
     Snapshot {
@@ -43,7 +54,8 @@ pub enum Operation {
         match_id: Uuid,
     },
     Command {
-        player: String,
+        /// `None` resolves the human participant from the session inside the actor.
+        player: Option<String>,
         session: String,
         id: String,
         expected: Option<u64>,
@@ -78,7 +90,8 @@ struct Envelope {
 }
 pub struct RoomEvent {
     pub name: String,
-    pub text: Arc<str>,
+    /// Reference-counted frame text: every subscriber sends the same buffer without copying it.
+    pub text: Utf8Bytes,
 }
 #[derive(Clone)]
 pub struct Handle {
@@ -133,9 +146,15 @@ pub struct Rooms {
     actors: Arc<Mutex<HashMap<Uuid, Handle>>>,
     shutdown: CancellationToken,
     tasks: TaskTracker,
-    creation: Arc<Mutex<()>>,
+    creation: Arc<Semaphore>,
+    /// Rooms created per client address, pruned against the active index when a limit is near.
+    // shortcut: a restart forgets creator counts; persist them if a cross-restart cap is needed.
+    created_by_ip: Arc<std::sync::Mutex<HashMap<IpAddr, Vec<Uuid>>>>,
     pub last_tick_ms: Arc<AtomicU64>,
 }
+// Bound on tracked addresses before every entry is pruned against the active index.
+const CREATOR_TABLE_PRUNE_AT: usize = 512;
+static CREATE_LIMIT_LOGGED_S: AtomicU64 = AtomicU64::new(0);
 impl Rooms {
     pub fn new(repository: Repository, compute: Compute, shutdown: CancellationToken) -> Self {
         Self {
@@ -144,7 +163,8 @@ impl Rooms {
             actors: Arc::new(Mutex::new(HashMap::new())),
             shutdown,
             tasks: TaskTracker::new(),
-            creation: Arc::new(Mutex::new(())),
+            creation: Arc::new(Semaphore::new(1)),
+            created_by_ip: Arc::new(std::sync::Mutex::new(HashMap::new())),
             last_tick_ms: Arc::new(AtomicU64::new(0)),
         }
     }
@@ -152,7 +172,24 @@ impl Rooms {
         if self.shutdown.is_cancelled() {
             return Err(AppError::Unavailable);
         }
+        {
+            let mut actors = self.actors.lock().await;
+            actors.retain(|_, h| !h.sender.is_closed());
+            if let Some(h) = actors.get(&id) {
+                return Ok(h.clone());
+            }
+            if actors.len() >= MAX_ACTORS {
+                return Err(AppError::Busy);
+            }
+        }
+        // Read without the map lock so one slow Redis read cannot stall requests for every room.
+        let (now, room) = self.repository.read(id).await?;
+        // Re-check: the insert and spawn below stay under the lock, so a room never gets two
+        // actors. An actor started meanwhile is the authority and this read is discarded.
         let mut actors = self.actors.lock().await;
+        if self.shutdown.is_cancelled() {
+            return Err(AppError::Unavailable);
+        }
         actors.retain(|_, h| !h.sender.is_closed());
         if let Some(h) = actors.get(&id) {
             return Ok(h.clone());
@@ -160,7 +197,6 @@ impl Rooms {
         if actors.len() >= MAX_ACTORS {
             return Err(AppError::Busy);
         }
-        let (now, room) = self.repository.read(id).await?;
         let (sender, receiver) = mpsc::channel(MAILBOX_CAPACITY);
         let (events, _) = broadcast::channel(256);
         let h = Handle {
@@ -188,6 +224,8 @@ impl Rooms {
             last_tick_ms: self.last_tick_ms.clone(),
             tick_stage: "idle",
             tick_failures: 0,
+            tick_failure_logged: None,
+            faults: RoomFaults::default(),
         };
         self.tasks.spawn(actor.run(receiver));
         Ok(h)
@@ -271,79 +309,140 @@ impl Rooms {
                 .collect::<Vec<_>>()
         }))
     }
-    pub async fn create(&self, input: CreateRoom, id: String) -> AppResult<Value> {
-        self.create_internal(input, id, false).await
+    /// `creator` is the client address the per-address room cap applies to, if any.
+    pub async fn create(
+        &self,
+        input: CreateRoom,
+        id: String,
+        creator: Option<IpAddr>,
+    ) -> AppResult<Value> {
+        self.create_internal(input, id, false, creator).await
     }
-    pub async fn quick_play(&self, mut input: CreateRoom, id: String) -> AppResult<Value> {
+    pub async fn quick_play(
+        &self,
+        mut input: CreateRoom,
+        id: String,
+        creator: Option<IpAddr>,
+    ) -> AppResult<Value> {
         input.visibility = RoomVisibility::Public;
         input.room_code = None;
-        self.create_internal(input, id, true).await
+        self.create_internal(input, id, true, creator).await
+    }
+    /// Rejects a new room when `ip` already has `MAX_LIVE_ROOMS_PER_IP` live rooms it created.
+    async fn admit_creator(&self, ip: IpAddr) -> AppResult<()> {
+        let needs_prune = {
+            let created = self.created_by_ip.lock().unwrap_or_else(|e| e.into_inner());
+            created.len() >= CREATOR_TABLE_PRUNE_AT
+                || created
+                    .get(&ip)
+                    .is_some_and(|rooms| rooms.len() >= MAX_LIVE_ROOMS_PER_IP)
+        };
+        if !needs_prune {
+            return Ok(());
+        }
+        // Closed, completed and expired rooms leave the active index and free their slot here.
+        let live = self.repository.active_ids().await?;
+        let mut created = self.created_by_ip.lock().unwrap_or_else(|e| e.into_inner());
+        created.retain(|_, rooms| {
+            rooms.retain(|id| live.contains(id));
+            !rooms.is_empty()
+        });
+        if created
+            .get(&ip)
+            .is_some_and(|rooms| rooms.len() >= MAX_LIVE_ROOMS_PER_IP)
+        {
+            if crate::http::first_this_second(&CREATE_LIMIT_LOGGED_S) {
+                tracing::warn!(
+                    event = "room.create_limited",
+                    limit = "live_rooms_per_ip",
+                    max = MAX_LIVE_ROOMS_PER_IP
+                );
+            }
+            return Err(AppError::Capacity);
+        }
+        Ok(())
     }
     async fn create_internal(
         &self,
         input: CreateRoom,
         id: String,
         match_existing_public: bool,
+        creator: Option<IpAddr>,
     ) -> AppResult<Value> {
-        let _guard = tokio::time::timeout(REQUEST_TIMEOUT, self.creation.lock())
-            .await
-            .map_err(|_| AppError::Busy)?;
         let public = input.visibility == RoomVisibility::Public;
         let session = session_hash(&input.session_id)?;
         let hash = fingerprint(&("create", public, &input))?;
-        if let Some(receipt) = self.repository.receipt(&session, &id).await? {
-            if receipt.request_hash != hash {
-                return Err(AppError::CommandConflict);
-            }
-            return self
-                .request(
-                    receipt.room_instance_id,
-                    Operation::Snapshot { after: None },
-                )
-                .await;
-        }
-        if public && match_existing_public {
-            let mut candidates = Vec::new();
-            for room_id in self.repository.active_ids().await? {
-                if let Ok((now, room)) = self.repository.read(room_id).await
-                    && room.public
-                    && room.status == Status::Waiting
-                    && room.participants.len() < MAX_PARTICIPANTS
-                    && room.active_deadline() > now
-                {
-                    candidates.push(room);
+        let room_id = {
+            // One in-flight creation preserves quick-play matching and the IP cap, including
+            // private creates, without holding a data mutex across Redis I/O.
+            let _permit = tokio::time::timeout(REQUEST_TIMEOUT, self.creation.acquire())
+                .await
+                .map_err(|_| AppError::Busy)?
+                .map_err(|_| AppError::Unavailable)?;
+            if let Some(receipt) = self.repository.receipt(&session, &id).await? {
+                if receipt.request_hash != hash {
+                    return Err(AppError::CommandConflict);
                 }
-            }
-            candidates.sort_by_key(|r| r.created_at_ms);
-            for room in candidates {
-                let result = self
-                    .request(
-                        room.room_instance_id,
-                        Operation::Command {
-                            player: input.player_id.clone(),
-                            session: session.clone(),
-                            id: id.clone(),
-                            expected: None,
-                            command: GameCommand::Join {
-                                display_name: input
-                                    .display_name
-                                    .clone()
-                                    .unwrap_or_else(|| "플레이어".into()),
-                            },
-                            request_hash: Some(hash.clone()),
-                        },
-                    )
-                    .await;
-                match result {
-                    Ok(value) => return Ok(value),
-                    Err(AppError::Closed | AppError::RoomFull | AppError::NotFound) => continue,
-                    Err(e) => return Err(e),
+                receipt.room_instance_id
+            } else {
+                if public && match_existing_public {
+                    let mut candidates = Vec::new();
+                    for room_id in self.repository.active_ids().await? {
+                        if let Ok((now, room)) = self.repository.read(room_id).await
+                            && room.public
+                            && room.status == Status::Waiting
+                            && room.participants.len() < MAX_PARTICIPANTS
+                            && room.active_deadline() > now
+                        {
+                            candidates.push(room);
+                        }
+                    }
+                    candidates.sort_by_key(|r| r.created_at_ms);
+                    for room in candidates {
+                        let result = self
+                            .request(
+                                room.room_instance_id,
+                                Operation::Command {
+                                    player: Some(input.player_id.clone()),
+                                    session: session.clone(),
+                                    id: id.clone(),
+                                    expected: None,
+                                    command: GameCommand::Join {
+                                        display_name: input
+                                            .display_name
+                                            .clone()
+                                            .unwrap_or_else(|| "플레이어".into()),
+                                    },
+                                    request_hash: Some(hash.clone()),
+                                },
+                            )
+                            .await;
+                        match result {
+                            Ok(value) => return Ok(value),
+                            Err(AppError::Closed | AppError::RoomFull | AppError::NotFound) => {
+                                continue;
+                            }
+                            Err(e) => return Err(e),
+                        }
+                    }
                 }
+                if let Some(ip) = creator {
+                    self.admit_creator(ip).await?;
+                }
+                let (room, _, _) = self.repository.create(input, public, &session, &id).await?;
+                if let Some(ip) = creator {
+                    let mut created = self.created_by_ip.lock().unwrap_or_else(|e| e.into_inner());
+                    let rooms = created.entry(ip).or_default();
+                    // A replayed create returns the room it made before; count it once.
+                    if !rooms.contains(&room.room_instance_id) {
+                        rooms.push(room.room_instance_id);
+                    }
+                }
+                tracing::info!(event="room.created",room_instance_id=%room.room_instance_id,room_code=%room.room_code,command_id=%id,public,revision=room.revision);
+                room.room_instance_id
             }
-        }
-        let (room, _, _) = self.repository.create(input, public, &session, &id).await?;
-        tracing::info!(event="room.created",room_instance_id=%room.room_instance_id,room_code=%room.room_code,command_id=%id,public,revision=room.revision);
-        self.request(room.room_instance_id, Operation::Snapshot { after: None })
+        };
+        self.request(room_id, Operation::Snapshot { after: None })
             .await
     }
     pub async fn drain(&self) -> bool {
@@ -373,8 +472,11 @@ struct Actor {
     last_tick_ms: Arc<AtomicU64>,
     /// Step of `tick` currently running, reported when it fails.
     tick_stage: &'static str,
-    /// Consecutive failed ticks, to throttle repeated failure logs and report recovery.
+    /// Consecutive failed ticks, to back off, throttle repeated failure logs and report recovery.
     tick_failures: u32,
+    tick_failure_logged: Option<tokio::time::Instant>,
+    /// Retry state of AI and tournament match steps that failed; see `Room::advance_game`.
+    faults: RoomFaults,
 }
 impl Actor {
     fn snapshot(&self, after: Option<u64>) -> Value {
@@ -383,10 +485,8 @@ impl Actor {
         snapshot
     }
     async fn run(mut self, mut receiver: mpsc::Receiver<Envelope>) {
-        let mut ticker = tokio::time::interval_at(
-            tokio::time::Instant::now() + Duration::from_millis(250),
-            Duration::from_millis(250),
-        );
+        let mut ticker =
+            tokio::time::interval_at(tokio::time::Instant::now() + TICK_INTERVAL, TICK_INTERVAL);
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             tokio::select! {
@@ -404,6 +504,7 @@ impl Actor {
                             if self.tick_failures>0{
                                 tracing::info!(event="room.tick_recovered",room_instance_id=%self.room.room_instance_id,revision=self.room.revision,failures=self.tick_failures);
                                 self.tick_failures=0;
+                                self.tick_failure_logged=None;
                             }
                         }
                         Err(error@(AppError::NotFound|AppError::Unavailable))=>{
@@ -415,13 +516,14 @@ impl Actor {
                                 self.last_full_reload_ms=0;
                             }
                             self.tick_failures=self.tick_failures.saturating_add(1);
-                            // Ticks run every 250ms; log the first failure and then about every 10s.
-                            if self.tick_failures==1||self.tick_failures.is_multiple_of(40){
+                            // Log the first failure and then about every 10s while it keeps failing.
+                            if self.tick_failure_logged.is_none_or(|at|at.elapsed()>=TICK_FAILURE_LOG_INTERVAL){
+                                self.tick_failure_logged=Some(tokio::time::Instant::now());
                                 tracing::warn!(event="room.tick_failed",room_instance_id=%self.room.room_instance_id,revision=self.room.revision,status=?self.room.status,stage=self.tick_stage,failures=self.tick_failures,code=error.code(),error=%error,detail=?error.detail());
                             }
                         }
                     }
-                    ticker.reset();
+                    ticker.reset_after(tick_delay(self.tick_failures));
                 }
                 message=receiver.recv()=>{
                     let Some(message)=message else{break;};
@@ -521,7 +623,7 @@ impl Actor {
             }
         } else if !check_version {
             self.tick_stage = "sync_clock";
-            self.sync_clock().await?;
+            self.sync_clock_at(now).await?;
         }
         self.tick_stage = "disconnect_stale";
         let stale = self
@@ -540,9 +642,11 @@ impl Actor {
         }
         let mut next = self.room.clone();
         self.tick_stage = "ai_step";
-        next.step_ai(self.now, &self.compute).await?;
+        next.step_ai(self.now, &self.compute, &mut self.faults)
+            .await?;
         self.tick_stage = "advance_game";
-        next.advance_game(self.now, &self.compute).await?;
+        next.advance_game(self.now, &self.compute, &mut self.faults)
+            .await?;
         self.tick_stage = "commit";
         if next.revision != self.room.revision {
             let expected = self.room.storage_version;
@@ -668,6 +772,17 @@ impl Actor {
                 command,
                 request_hash,
             } => {
+                let player = match player {
+                    Some(player) => player,
+                    None => self
+                        .room
+                        .participants
+                        .iter()
+                        .find(|p| p.session_hash == session && !p.ai)
+                        .ok_or(AppError::Forbidden)?
+                        .player_id
+                        .clone(),
+                };
                 let command_label = command.label();
                 let can_read_snapshot =
                     self.room.public || self.room.authorize(&player, &session).is_ok();
@@ -704,6 +819,12 @@ impl Actor {
                 let response = next
                     .apply(command, &player, &session, self.now, &self.compute)
                     .await?;
+                // A command that changed nothing (e.g. a stale round-ready) costs no budget, no
+                // Redis write and no receipt; repeating it simply yields the current state again.
+                if next.revision == self.room.revision && next == self.room {
+                    tracing::debug!(event="room.command_noop",room_instance_id=%self.room.room_instance_id,command_id=%id,command=command_label,player_id=%player,revision=self.room.revision);
+                    return Ok(response.unwrap_or_else(|| self.snapshot(None)));
+                }
                 next.accepted_commands += 1;
                 let receipt = Receipt {
                     room_instance_id: next.room_instance_id,
@@ -860,6 +981,10 @@ impl Actor {
         }));
     }
     fn publish_room(&self) {
+        // Building the snapshot is the expensive part; skip it when no socket is subscribed.
+        if self.events.receiver_count() == 0 {
+            return;
+        }
         self.emit("room.snapshot", json!({"room":self.snapshot(None)}));
     }
     fn cursor(&self) -> Value {
