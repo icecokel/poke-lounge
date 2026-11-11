@@ -20,7 +20,7 @@ use std::{
     },
     time::Duration,
 };
-use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
+use tokio::sync::{Mutex, Semaphore, broadcast, mpsc, oneshot};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{Instrument, Span};
 use uuid::Uuid;
@@ -146,9 +146,9 @@ pub struct Rooms {
     actors: Arc<Mutex<HashMap<Uuid, Handle>>>,
     shutdown: CancellationToken,
     tasks: TaskTracker,
-    creation: Arc<Mutex<()>>,
+    creation: Arc<Semaphore>,
     /// Rooms created per client address, pruned against the active index when a limit is near.
-    /// In memory only: a restart forgets it, which errs on the side of letting players in.
+    // shortcut: a restart forgets creator counts; persist them if a cross-restart cap is needed.
     created_by_ip: Arc<std::sync::Mutex<HashMap<IpAddr, Vec<Uuid>>>>,
     pub last_tick_ms: Arc<AtomicU64>,
 }
@@ -163,7 +163,7 @@ impl Rooms {
             actors: Arc::new(Mutex::new(HashMap::new())),
             shutdown,
             tasks: TaskTracker::new(),
-            creation: Arc::new(Mutex::new(())),
+            creation: Arc::new(Semaphore::new(1)),
             created_by_ip: Arc::new(std::sync::Mutex::new(HashMap::new())),
             last_tick_ms: Arc::new(AtomicU64::new(0)),
         }
@@ -187,6 +187,9 @@ impl Rooms {
         // Re-check: the insert and spawn below stay under the lock, so a room never gets two
         // actors. An actor started meanwhile is the authority and this read is discarded.
         let mut actors = self.actors.lock().await;
+        if self.shutdown.is_cancelled() {
+            return Err(AppError::Unavailable);
+        }
         actors.retain(|_, h| !h.sender.is_closed());
         if let Some(h) = actors.get(&id) {
             return Ok(h.clone());
@@ -370,18 +373,12 @@ impl Rooms {
         let session = session_hash(&input.session_id)?;
         let hash = fingerprint(&("create", public, &input))?;
         let room_id = {
-            // Only public rooms are serialized: two quick-play requests must not both miss a
-            // joinable room and open two. A private create is atomic in the create script, and the
-            // lock is released before the final snapshot request.
-            let _guard = if public {
-                Some(
-                    tokio::time::timeout(REQUEST_TIMEOUT, self.creation.lock())
-                        .await
-                        .map_err(|_| AppError::Busy)?,
-                )
-            } else {
-                None
-            };
+            // One in-flight creation preserves quick-play matching and the IP cap, including
+            // private creates, without holding a data mutex across Redis I/O.
+            let _permit = tokio::time::timeout(REQUEST_TIMEOUT, self.creation.acquire())
+                .await
+                .map_err(|_| AppError::Busy)?
+                .map_err(|_| AppError::Unavailable)?;
             if let Some(receipt) = self.repository.receipt(&session, &id).await? {
                 if receipt.request_hash != hash {
                     return Err(AppError::CommandConflict);
