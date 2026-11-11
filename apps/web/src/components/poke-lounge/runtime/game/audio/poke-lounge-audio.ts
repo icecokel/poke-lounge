@@ -15,6 +15,7 @@ import type {
 export const POKE_LOUNGE_AUDIO_MANIFEST_CACHE_KEY = "pokeLoungeAudioManifest";
 export const POKE_LOUNGE_AUDIO_MANIFEST_PATH = "/assets/poke-lounge/audio/audio-manifest.json";
 const MAX_PRELOADED_BYTES = 750_000;
+const AUDIO_LOAD_RETRY_COOLDOWN_MS = 5_000;
 const POKE_LOUNGE_AUDIO_MANIFEST_VERSION = 2;
 
 const POKE_LOUNGE_SFX_IDS = [
@@ -62,6 +63,8 @@ const bufferPromises = new Map<PokeLoungeAudioItemId, Promise<AudioBuffer | null
 const preloadedAudioBytes = new Map<PokeLoungeAudioItemId, ArrayBuffer>();
 const htmlAudioElements = new Map<PokeLoungeAudioItemId, HTMLAudioElement>();
 const htmlAudioGains = new WeakMap<HTMLAudioElement, GainNode>();
+const htmlAudioSourceNodes = new WeakMap<HTMLAudioElement, MediaElementAudioSourceNode>();
+const audioLoadFailedAtMs = new Map<PokeLoungeAudioItemId, number>();
 const audioObjectUrls = new Map<PokeLoungeAudioItemId, string>();
 const activeBufferSources = new Set<AudioBufferSourceNode>();
 const activeHtmlAudioElements = new Set<HTMLAudioElement>();
@@ -221,6 +224,7 @@ export function stopAllPokeLoungeAudio(): void {
 
   for (const audio of activeHtmlAudioElements) {
     stopHtmlAudioElement(audio);
+    releaseHtmlAudioNodes(audio);
   }
   activeHtmlAudioElements.clear();
 
@@ -312,6 +316,7 @@ export function registerPreloadedPokeLoungeAudio(
   for (const item of manifest.sfx) {
     bufferPromises.delete(item.id);
   }
+  audioLoadFailedAtMs.clear();
 
   for (const audio of htmlAudioElements.values()) {
     if (activeBgm?.audio !== audio) {
@@ -385,46 +390,50 @@ async function playPokeLoungeBgmAsync(
   const baseVolume = options.volume ?? item.defaultVolume;
   if (context?.state === "running") {
     const buffer = await loadAudioBuffer(item);
-    if (
-      !buffer ||
-      generation !== playbackGeneration ||
-      requestGeneration !== bgmRequestGeneration
-    ) {
+    if (generation !== playbackGeneration || requestGeneration !== bgmRequestGeneration) {
       return;
     }
 
-    const previousBgm = detachActiveBgm();
-    if (previousBgm?.audio) {
-      stopActiveBgmPlayback(previousBgm);
-    }
-    if (previousBgm?.source) {
-      fadeOutWebAudioBgm(previousBgm, context);
+    if (buffer) {
+      const previousBgm = detachActiveBgm();
+      if (previousBgm?.audio) {
+        stopActiveBgmPlayback(previousBgm);
+      }
+      if (previousBgm?.source) {
+        fadeOutWebAudioBgm(previousBgm, context);
+      }
+
+      const source = context.createBufferSource();
+      const gain = context.createGain();
+      source.buffer = buffer;
+      source.loop = true;
+      gain.gain.setValueAtTime(0, context.currentTime);
+      gain.gain.linearRampToValueAtTime(
+        clampVolume(baseVolume),
+        context.currentTime + BGM_CROSSFADE_DURATION_SECONDS,
+      );
+      source.connect(gain);
+      gain.connect(getMasterGain(context) ?? context.destination);
+      activeBufferSources.add(source);
+      activeBgm = { id, audio: null, baseVolume, gain, source };
+      source.onended = function callback() {
+        activeBufferSources.delete(source);
+        source.disconnect();
+        gain.disconnect();
+        if (activeBgm?.source === source) {
+          activeBgm = null;
+        }
+      };
+      source.start();
+      markBgmRequestCompleted(id, requestGeneration);
+      return;
     }
 
-    const source = context.createBufferSource();
-    const gain = context.createGain();
-    source.buffer = buffer;
-    source.loop = true;
-    gain.gain.setValueAtTime(0, context.currentTime);
-    gain.gain.linearRampToValueAtTime(
-      clampVolume(baseVolume),
-      context.currentTime + BGM_CROSSFADE_DURATION_SECONDS,
-    );
-    source.connect(gain);
-    gain.connect(getMasterGain(context) ?? context.destination);
-    activeBufferSources.add(source);
-    activeBgm = { id, audio: null, baseVolume, gain, source };
-    source.onended = function callback() {
-      activeBufferSources.delete(source);
-      source.disconnect();
-      gain.disconnect();
-      if (activeBgm?.source === source) {
-        activeBgm = null;
-      }
-    };
-    source.start();
-    markBgmRequestCompleted(id, requestGeneration);
-    return;
+    // 버퍼를 받지 못했으면 요청을 걸어 둔 채 끝내지 않고 아래 HTML 오디오 경로로 재생한다.
+    if (activeBgm?.id === id && activeBgm.audio && !activeBgm.audio.paused) {
+      markBgmRequestCompleted(id, requestGeneration);
+      return;
+    }
   }
 
   const previousBgm = detachActiveBgm();
@@ -709,7 +718,11 @@ async function getManifestBgmItem(id: PokeLoungeBgmId): Promise<PokeLoungeBgmMan
 }
 
 function loadAudioManifest(): Promise<PokeLoungeAudioManifest> {
-  manifestPromise ??= fetch(POKE_LOUNGE_AUDIO_MANIFEST_PATH, { cache: "no-cache" }).then(
+  if (manifestPromise) {
+    return manifestPromise;
+  }
+
+  const promise = fetch(POKE_LOUNGE_AUDIO_MANIFEST_PATH, { cache: "no-cache" }).then(
     async function handleResolved(response) {
       if (!response.ok) {
         throw new Error(`Failed to load Poke Lounge audio manifest: ${response.status}`);
@@ -723,8 +736,15 @@ function loadAudioManifest(): Promise<PokeLoungeAudioManifest> {
       return manifest;
     },
   );
+  manifestPromise = promise;
+  // 실패한 요청을 계속 들고 있으면 이후 재생이 모두 무음이 되므로 다음 호출에서 다시 받는다.
+  promise.catch(function handleRejected() {
+    if (manifestPromise === promise) {
+      manifestPromise = null;
+    }
+  });
 
-  return manifestPromise;
+  return promise;
 }
 
 async function playWithWebAudio(
@@ -770,6 +790,11 @@ function loadAudioBuffer(item: PokeLoungeAudioManifestItem): Promise<AudioBuffer
     return cached;
   }
 
+  const failedAtMs = audioLoadFailedAtMs.get(item.id);
+  if (failedAtMs !== undefined && Date.now() - failedAtMs < AUDIO_LOAD_RETRY_COOLDOWN_MS) {
+    return Promise.resolve(null);
+  }
+
   const preloadedBytes = preloadedAudioBytes.get(item.id);
   const promise = preloadedBytes
     ? decodeAudioData(preloadedBytes.slice(0)).catch(function handleRejected() {
@@ -791,6 +816,18 @@ function loadAudioBuffer(item: PokeLoungeAudioManifestItem): Promise<AudioBuffer
         });
 
   bufferPromises.set(item.id, promise);
+  // 실패 결과는 캐시에서 빼서 잠시 뒤의 재생이 다시 시도하게 한다.
+  void promise.then(function handleResolved(buffer) {
+    if (bufferPromises.get(item.id) !== promise) {
+      return;
+    }
+    if (buffer) {
+      audioLoadFailedAtMs.delete(item.id);
+    } else {
+      bufferPromises.delete(item.id);
+      audioLoadFailedAtMs.set(item.id, Date.now());
+    }
+  });
 
   return promise;
 }
@@ -842,13 +879,23 @@ async function playWithHtmlAudio(
       "ended",
       function handleEvent() {
         activeHtmlAudioElements.delete(audio);
+        releaseHtmlAudioNodes(audio);
       },
       { once: true },
     );
   } catch (error) {
     activeHtmlAudioElements.delete(audio);
+    releaseHtmlAudioNodes(audio);
     throw error;
   }
+}
+
+/** 한 번 쓰고 버리는 효과음 요소가 AudioContext 그래프에 노드를 남기지 않게 한다. */
+function releaseHtmlAudioNodes(audio: HTMLAudioElement): void {
+  htmlAudioSourceNodes.get(audio)?.disconnect();
+  htmlAudioGains.get(audio)?.disconnect();
+  htmlAudioSourceNodes.delete(audio);
+  htmlAudioGains.delete(audio);
 }
 
 function getHtmlAudioElement(item: PokeLoungeAudioManifestItem): HTMLAudioElement {
@@ -996,12 +1043,19 @@ function getHtmlAudioGain(audio: HTMLAudioElement): GainNode | null {
   if (!context || !gain) {
     return null;
   }
+  // 멈춘 컨텍스트에 연결한 요소는 소리가 나지 않는다. 요소 음량을 직접 조절할 수 있는
+  // 브라우저에서는 컨텍스트가 돌 때까지 연결을 미룬다. iOS는 요소 음량이 고정이라 그대로 둔다.
+  if (context.state !== "running" && !shouldPreferAppleMobileHtmlAudio()) {
+    return null;
+  }
 
   try {
     const audioGain = context.createGain();
-    context.createMediaElementSource(audio).connect(audioGain);
+    const sourceNode = context.createMediaElementSource(audio);
+    sourceNode.connect(audioGain);
     audioGain.connect(gain);
     htmlAudioGains.set(audio, audioGain);
+    htmlAudioSourceNodes.set(audio, sourceNode);
 
     return audioGain;
   } catch {

@@ -379,6 +379,8 @@ export async function startGamePage(
         roomEntry,
       }),
     );
+    // Own the room before the remaining startup steps so a failure there disposes it.
+    activeMultiplayerRoom = multiplayerRoom;
     const competitiveRoundsEnabled = isCompetitiveRoomEntryMode(roomEntry.mode);
     const worldFrameStore = createWorldFrameStore();
     const worldModel = withStartupStep("world_model", () =>
@@ -406,7 +408,6 @@ export async function startGamePage(
       model: worldModel,
       uiStore: worldUiStore,
     };
-    activeMultiplayerRoom = multiplayerRoom;
     setBattleSceneMarker(mount, false);
     mount.dataset.pokeLoungeResourceStatus = "loading";
     let gameplayState: PokeLoungeGameplayRuntimeState = { battle, phase: initialScene, world };
