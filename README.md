@@ -156,7 +156,7 @@ PR 충돌은 feature 브랜치에 최신 `upstream/main`을 병합해 해결한�
 
 ### CI와 운영 배포 범위
 
-- [CI](.github/workflows/ci.yml)는 `main` push와 `main` 대상 PR에서 실행한다. `verify` job이 웹·워커·계약 정적 검사를, `rust` job이 Rust 정적 검사를 맡는다. PR이 없는 `feature/*` 브랜치는 CI를 수동 실행(workflow_dispatch)해 확인한다.
+- [CI](.github/workflows/ci.yml)는 `main`, `feature/*` push와 `main` 대상 PR에서 실행한다. `verify` job이 웹·워커·계약 정적 검사를, `rust` job이 Rust 정적 검사를 맡는다.
 - 운영 배포 조건은 `main`의 push 또는 `main`에서 CI 수동 실행이다.
 - CI 성공은 정적 검사·빌드 결과다. 실제 플레이 확인과 모든 버튼 확인의 완료 근거로 사용하지 않는다.
 - `pr-flow`는 PR 경로만 확인한다. 운영 배포는 `main`의 CI `verify`와 `rust` 성공 후에만 실행한다.
