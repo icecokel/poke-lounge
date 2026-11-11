@@ -1,4 +1,4 @@
-import { clonePlayerSnapshot } from "../network/player-snapshot-clone";
+import { cloneSnapshotParty } from "../network/player-snapshot-clone";
 import type { StarterSelection } from "@poke-lounge/battle/starter-selection";
 import { PLAYER_POSITION_PERSIST_INTERVAL_MS } from "@poke-lounge/battle/timing";
 import type { TournamentMatch } from "@poke-lounge/battle/tournament-bracket";
@@ -156,6 +156,7 @@ export function resolveWorldSpawn(
 export class WorldController {
   private readonly viewedRoundResultKeys = new Set<string>();
   private previousRoundResultTimer: number | null = null;
+  private nurseHealTimer: number | null = null;
   private tournamentGatheringKey: string | null = null;
   private roundStartGatheringKey: string | null = null;
   private remotePlayerSnapshots = new Map<string, PlayerSnapshot>();
@@ -389,6 +390,8 @@ export class WorldController {
     for (const unsubscribe of this.unsubscribers) unsubscribe();
     this.unsubscribers = [];
     this.hud?.destroyPartyHud();
+    if (this.nurseHealTimer !== null) window.clearTimeout(this.nurseHealTimer);
+    this.nurseHealTimer = null;
     this.interactions.destroy();
     this.hud?.destroy();
     this.tournament?.destroy();
@@ -637,7 +640,11 @@ export class WorldController {
     _nursePosition: { x: number; y: number },
     onComplete: () => void,
   ): void {
-    window.setTimeout(onComplete, NURSE_HEAL_DURATION_MS);
+    if (this.nurseHealTimer !== null) window.clearTimeout(this.nurseHealTimer);
+    this.nurseHealTimer = window.setTimeout(() => {
+      this.nurseHealTimer = null;
+      onComplete();
+    }, NURSE_HEAL_DURATION_MS);
   }
 
   private bindRoom(): void {
@@ -909,8 +916,11 @@ export class WorldController {
   }
 
   private upsertRemotePlayer(snapshot: PlayerSnapshot, movement: "interpolate" | "snap"): void {
-    const projection = this.gameStateStore.getState().tournament.serverProjection;
-    if (projection && isWaitingForRoundStart(projection, Date.now())) {
+    // Runs for every remote movement event: read the store and the clock once.
+    const state = this.gameStateStore.getState();
+    const nowMs = Date.now();
+    const projection = state.tournament.serverProjection;
+    if (projection && isWaitingForRoundStart(projection, nowMs)) {
       snapshot = {
         ...snapshot,
         ...getProjectedRoundStartPosition(projection, snapshot.playerId ?? snapshot.sessionId),
@@ -918,7 +928,7 @@ export class WorldController {
       };
       movement = "snap";
     }
-    const gathering = getTournamentGatheringContext(this.gameStateStore.getState(), Date.now());
+    const gathering = getTournamentGatheringContext(state, nowMs);
     if (gathering) {
       snapshot = {
         ...snapshot,
@@ -929,10 +939,11 @@ export class WorldController {
       };
       movement = "snap";
     }
-    this.remotePlayerSnapshots.set(
-      snapshot.sessionId,
-      clonePlayerSnapshot({ ...snapshot, party: snapshot.party ?? [] }),
-    );
+    this.remotePlayerSnapshots.set(snapshot.sessionId, {
+      ...snapshot,
+      activePokemon: snapshot.activePokemon ? { ...snapshot.activePokemon } : undefined,
+      party: cloneSnapshotParty(snapshot.party) ?? [],
+    });
     this.options.worldRuntime.upsertRemotePlayer(snapshot, movement, performance.now());
     this.gameStateStore.upsertRemotePlayer(toRemotePlayerState(snapshot));
   }
@@ -1190,26 +1201,6 @@ export class WorldController {
     for (const { type, payload } of pendingMessages) {
       this.room.send(type, payload);
     }
-  }
-
-  private readVelocity(): { x: number; y: number; facing: PlayerFacing } {
-    const input = this.readMovementInput();
-    const horizontal = Number(input.right) - Number(input.left);
-    const vertical = Number(input.down) - Number(input.up);
-    return {
-      x: horizontal,
-      y: vertical,
-      facing:
-        Math.abs(horizontal) > Math.abs(vertical)
-          ? horizontal < 0
-            ? "left"
-            : "right"
-          : vertical < 0
-            ? "back"
-            : vertical > 0
-              ? "front"
-              : this.facing,
-    };
   }
 
   private maybeSendMovement(time: number): void {

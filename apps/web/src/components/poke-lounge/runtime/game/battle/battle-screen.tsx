@@ -24,11 +24,8 @@ import {
   PixelPanel,
 } from "../../../ui/poke-lounge-ui-primitives";
 import { primePokeLoungeAudio } from "../audio/poke-lounge-audio";
-import {
-  localizeBattlePresentationState,
-  localizeMobileBattleUiState,
-  localizeRuntimeText,
-} from "../i18n/runtime-game-localization";
+import { getPokemonStatusLabel } from "../i18n/runtime-game-localization";
+import { useLocalizedBattleUi } from "./use-localized-battle-ui";
 import type { GameStateStore } from "../state/game-state-store";
 import { TournamentBracketPanel } from "../tournament/tournament-bracket-panel";
 import type { MobileBattleUiAction, MobileBattleUiState } from "../ui/mobile-battle-ui";
@@ -71,17 +68,7 @@ export function BattleScreen({
   gameStateStore?: GameStateStore;
   uiStore: BattleUiStore;
 }) {
-  const snapshot = useSyncExternalStore(
-    uiStore.subscribe,
-    uiStore.getSnapshot,
-    uiStore.getSnapshot,
-  );
-  const presentation = snapshot.presentation
-    ? localizeBattlePresentationState(snapshot.presentation, copy.locale)
-    : null;
-  const controls = snapshot.controls
-    ? localizeMobileBattleUiState(snapshot.controls, copy.locale)
-    : null;
+  const { controls, presentation } = useLocalizedBattleUi(uiStore, copy.locale);
 
   useEffect(() => {
     if (!desktop) return;
@@ -432,13 +419,10 @@ export function BattleHpPanel({
   const status = getBattleStatusTextView(combatant.status);
   const hp = Math.max(0, Math.min(combatant.maxHp, Math.round(combatant.displayedHp)));
   const experience = side === "player" ? combatant.experience : undefined;
+  const text = getMobileUiCopy(copy.locale);
   const expLabel = experience?.atMaxLevel
-    ? "EXP MAX"
-    : copy.locale === "ko-KR"
-      ? `다음 레벨까지 ${experience?.remaining ?? 0} EXP`
-      : copy.locale === "ja-JP"
-        ? `次のレベルまで ${experience?.remaining ?? 0} EXP`
-        : `${experience?.remaining ?? 0} EXP to next level`;
+    ? text.expMax
+    : text.expToNextLevel(experience?.remaining ?? 0);
   return (
     <PixelPanel
       className="absolute grid grid-cols-[1fr_auto] content-start gap-x-[0.4em] gap-y-[0.15em] overflow-hidden border-[max(1px,0.18cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface-raised)] px-[5%] py-[1%] text-[0.8em] leading-none shadow-[0.7cqw_0.7cqw_0_rgb(138_149_139_/_86%),inset_0_0_0_max(1px,0.08cqw)_#fff] data-[healing=true]:shadow-[0_0_2cqw_#b7d897] [&_strong]:overflow-hidden [&_strong]:whitespace-nowrap [&_small]:text-[0.72em] [&_small]:font-bold"
@@ -598,7 +582,7 @@ export function BattleCommandPanel({
   onAction(action: MobileBattleUiAction): void;
 }) {
   const labels = {
-    bag: localizeRuntimeText("몬스터볼", copy.locale),
+    bag: getMobileUiCopy(copy.locale).bagCommand,
     fight: copy.mobile.fight,
     pokemon: copy.mobile.party,
     run: copy.mobile.run,
@@ -737,7 +721,7 @@ export function BattlePartyPanel({
       <header>
         <strong>
           {controls.itemTargetName
-            ? `${controls.itemTargetName} · ${copy.locale === "ko-KR" ? "사용할 포켓몬" : copy.locale === "ja-JP" ? "使うポケモン" : "Choose target"}`
+            ? `${controls.itemTargetName} · ${getMobileUiCopy(copy.locale).itemTargetHeading}`
             : copy.game.chooseSwitchPokemon}
         </strong>
         <span>
@@ -776,9 +760,7 @@ export function BattlePartyPanel({
               {!pokemon.isEmpty ? (
                 <small>
                   Lv.{pokemon.level} · HP {pokemon.currentHp}/{pokemon.maxHp}
-                  {pokemon.status && pokemon.status !== "normal"
-                    ? ` · ${copy.game.statusLabel[pokemon.status as keyof typeof copy.game.statusLabel] ?? pokemon.status}`
-                    : ""}
+                  {partyStatusSuffix(pokemon.status, copy.locale)}
                 </small>
               ) : null}
             </button>
@@ -838,7 +820,7 @@ export function BattleBagPanel({
       {pageCount > 1 ? (
         <nav
           className="col-[1/-1] row-start-3 flex items-center justify-between gap-[0.4em] border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] px-[0.35em] py-[0.2em] text-[0.72em] text-[var(--pl-color-ink)] [&>button]:border-0 [&>button]:bg-transparent [&>button]:px-[0.4em] [&>button]:py-[0.25em] [&>button]:text-inherit [&>button:disabled]:cursor-default [&>button:disabled]:opacity-45"
-          aria-label={localizeRuntimeText("몬스터볼", copy.locale)}
+          aria-label={text.bagCommand}
         >
           <button
             type="button"
@@ -874,6 +856,11 @@ export function BattleWaitingPanel({ copy }: { copy: PokeLoungeCopy }) {
       {copy.game.battleProcessing}
     </div>
   );
+}
+
+function partyStatusSuffix(status: string | null, locale: string): string {
+  const label = getPokemonStatusLabel(status, locale);
+  return label ? ` · ${label}` : "";
 }
 
 function BattleOptionButton({

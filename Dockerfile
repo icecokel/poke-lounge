@@ -4,6 +4,8 @@ FROM node:22-bookworm-slim
 
 WORKDIR /app
 
+# Keep the pnpm that corepack prepares outside /root so the non-root runtime user can run it.
+ENV COREPACK_HOME=/usr/local/share/corepack
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -28,10 +30,16 @@ RUN pnpm check:poke-lounge-competitive-catalog
 RUN pnpm build:poke-lounge-battle
 RUN pnpm --filter @poke-lounge/battle-worker build
 RUN pnpm --filter @poke-lounge/league-judge build
-RUN pnpm --filter @poke-lounge/web build
+# Set runtime cache/page ownership in the build layer to avoid duplicating .next in another layer.
+RUN pnpm --filter @poke-lounge/web build \
+    && chown -R 10001:10001 /app/apps/web/.next
 RUN pnpm --filter @poke-lounge/db build
 
 ENV NODE_ENV=production
+
+RUN groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid 10001 --create-home --home-dir /home/app app
+USER 10001:10001
 
 EXPOSE 3000 3001 3021
 

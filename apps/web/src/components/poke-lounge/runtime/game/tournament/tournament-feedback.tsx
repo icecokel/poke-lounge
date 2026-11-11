@@ -7,6 +7,7 @@ import {
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import type { GameStateStore } from "../state/game-state-store";
+import { getTournamentCopy } from "./tournament-copy";
 import { getRoundCountdown, getTournamentCelebrationKey } from "./tournament-feedback-model";
 
 export function RoundCountdown({
@@ -30,33 +31,9 @@ export function RoundCountdown({
     return () => window.clearInterval(timer);
   }, []);
   const countdown = getRoundCountdown(state, now);
-  const text =
-    copy.locale === "ko-KR"
-      ? {
-          countdown: "탐험 남은 시간",
-          running: "토너먼트 진행 중",
-          result: "라운드 결과",
-          waiting: "라운드 대기",
-        }
-      : copy.locale === "ja-JP"
-        ? {
-            countdown: "探索の残り時間",
-            running: "トーナメント進行中",
-            result: "ラウンド結果",
-            waiting: "待機中",
-          }
-        : {
-            countdown: "Exploration remaining",
-            running: "Tournament in progress",
-            result: "Round results",
-            waiting: "Waiting for round",
-          };
+  const text = getTournamentCopy(copy.locale).round;
   const label = countdown.waitingForStart
-    ? copy.locale === "ko-KR"
-      ? "출발 준비"
-      : copy.locale === "ja-JP"
-        ? "出発準備"
-        : "Ready to start"
+    ? text.readyToStart
     : countdown.preparing
       ? text.countdown
       : state.round.phase === "tournament"

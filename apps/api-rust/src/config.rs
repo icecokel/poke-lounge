@@ -7,6 +7,9 @@ use std::{
 };
 pub const REDIS_PREFIX: &str = "poke-lounge:{rust-v2}";
 pub const MAX_ROOMS: usize = 30;
+// One public client address may keep this many live rooms it created, so a single address cannot
+// take every slot of MAX_ROOMS. Players behind one NAT usually share a room, not create one each.
+pub const MAX_LIVE_ROOMS_PER_IP: usize = 6;
 pub const MAX_ACTORS: usize = 64;
 pub const MAILBOX_CAPACITY: usize = 64;
 pub const IO_TIMEOUT: Duration = Duration::from_secs(2);

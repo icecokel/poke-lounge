@@ -250,6 +250,14 @@ async fn publish_state(socket: &mut WebSocket, value: Value) -> AppResult<()> {
     send(socket, "room.snapshot", json!({"room":value["room"]})).await?;
     send(socket, "room.world-snapshot", value["world"].clone()).await
 }
+/// A full room mailbox only delays the heartbeat: the next interval retries it, and the actor's
+/// stale-connection sweep still drops a socket whose heartbeats never arrive.
+async fn heartbeat(handle: &Handle, connection: Uuid) -> AppResult<()> {
+    match handle.request(Operation::Heartbeat { connection }).await {
+        Ok(_) | Err(AppError::Busy) => Ok(()),
+        Err(error) => Err(error),
+    }
+}
 async fn serve(
     socket: &mut WebSocket,
     state: &AppState,
@@ -276,7 +284,7 @@ async fn serve(
             _=interval.tick()=>{
                 if seen.elapsed()>Duration::from_secs(25){*stage="idle_timeout";return Err(AppError::Timeout);}
                 *stage="heartbeat";
-                handle.request(Operation::Heartbeat{connection}).await?;
+                heartbeat(handle,connection).await?;
                 *stage="ping";
                 send_message(socket,Message::Ping(Vec::new().into())).await?;
             }
@@ -309,7 +317,7 @@ async fn serve(
                                 publish_state(socket,current).await?;
                             }
                             "room.world-resync"=>{*stage="world_resync";publish_state(socket,handle.request(Operation::Resync{connection}).await?).await?}
-                            "room.heartbeat"=>{*stage="client_heartbeat";handle.request(Operation::Heartbeat{connection}).await?;},
+                            "room.heartbeat"=>{*stage="client_heartbeat";heartbeat(handle,connection).await?;},
                             "room.player-event"=>{
                                 *stage="player_event";
                                 let event=frame.payload["type"].as_str().ok_or(AppError::Invalid("Missing movement type"))?.to_string();
@@ -331,7 +339,7 @@ async fn serve(
                 Ok(event)=>{
                     *stage="forward_event";
                     let terminal=event.name=="room.expired"||event.name=="server.draining";
-                    send_message(socket,Message::Text(event.text.to_string().into())).await?;if terminal{return Ok(());}
+                    send_message(socket,Message::Text(event.text.clone())).await?;if terminal{return Ok(());}
                 }
                 Err(broadcast::error::RecvError::Lagged(skipped))=>{
                     // The client missed broadcast events; a full resync replaces them.

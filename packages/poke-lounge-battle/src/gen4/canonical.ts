@@ -1,4 +1,5 @@
 import { COMPETITIVE_MOVE_CATALOG } from "../competitive-catalog.generated";
+import { COMPETITIVE_RULESET_V2 } from "../competitive-ruleset-config";
 import { createDefaultBattleStatStages } from "../battle-stat-stages";
 import {
   createCanonicalIdRecord,
@@ -50,15 +51,31 @@ function currentFrame(state: CanonicalBattleState, random?: SeededRandom): Gen4F
     ? readGen4Battle(state.gen4Session)
     : createGen4Battle(parties(state), random ? () => random.next() : () => 0.5);
 }
+/** The submitted action is not legal for the current request; the battle state itself is fine. */
+export class Gen4CompetitiveActionRejectedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "Gen4CompetitiveActionRejectedError";
+  }
+}
 export function validateGen4CompetitiveAction(input: {
   state: CanonicalBattleState;
   playerId: string;
   action: CanonicalCompetitiveAction;
 }): void {
-  if (input.state.terminal) throw Error("Cannot act after battle has ended");
+  if (input.state.terminal)
+    throw new Gen4CompetitiveActionRejectedError("Cannot act after battle has ended");
   const index = input.state.participantIds.indexOf(input.playerId);
-  if (index < 0) throw Error("Unknown battle participant");
-  validateGen4Action(currentFrame(input.state).requests[index]!, input.action);
+  if (index < 0) throw new Gen4CompetitiveActionRejectedError("Unknown battle participant");
+  // Restoring the session is outside the try: a failure there is an engine fault, not a bad action.
+  const request = currentFrame(input.state).requests[index]!;
+  try {
+    validateGen4Action(request, input.action);
+  } catch (error) {
+    throw new Gen4CompetitiveActionRejectedError(
+      error instanceof Error ? error.message : "Illegal battle action",
+    );
+  }
 }
 export function resolveGen4CompetitiveTurn(input: {
   state: CanonicalBattleState;
@@ -157,8 +174,8 @@ function applyFrame(
       loserPlayerId: loser,
       reason: "faint",
       scoreByPlayerId: createCanonicalIdRecord([
-        [winner, 100],
-        [loser, 50],
+        [winner, COMPETITIVE_RULESET_V2.scores.win],
+        [loser, COMPETITIVE_RULESET_V2.scores.loss],
       ]),
     };
   }

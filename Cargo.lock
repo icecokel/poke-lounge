@@ -1865,7 +1865,6 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "url",
- "uuid",
 ]
 
 [[package]]

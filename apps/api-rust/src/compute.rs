@@ -1,13 +1,18 @@
 use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::{sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 use tokio::sync::Semaphore;
 use uuid::Uuid;
 
 const COMPUTE_CAPACITY: usize = 32;
 const BACKGROUND_CAPACITY: usize = 16;
 const INTERACTIVE_QUEUE_WAIT: Duration = Duration::from_secs(1);
+const FAILURE_LOG_INTERVAL: Duration = Duration::from_secs(60);
 
 pub const ENGINE_VERSION: &str = include_str!("../engine-version.txt");
 #[derive(Clone)]
@@ -17,14 +22,27 @@ pub struct Compute {
     token: Arc<str>,
     capacity: Arc<Semaphore>,
     background: Arc<Semaphore>,
+    failure_logged: Arc<Mutex<HashMap<Uuid, Instant>>>,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BattlePack {
     pub state: Value,
     pub public_state: Value,
     pub state_hash: String,
     pub required_player_ids: Vec<String>,
+}
+/// The worker's error code when it is a bounded SCREAMING_SNAKE label, for log fields.
+fn worker_code(body: &Value) -> &str {
+    body["code"]
+        .as_str()
+        .filter(|code| {
+            code.len() <= 64
+                && code
+                    .bytes()
+                    .all(|byte| byte.is_ascii_uppercase() || byte == b'_')
+        })
+        .unwrap_or("none")
 }
 impl Compute {
     pub fn new(url: String, token: String) -> AppResult<Self> {
@@ -50,7 +68,21 @@ impl Compute {
             token: token.into(),
             capacity: Arc::new(Semaphore::new(COMPUTE_CAPACITY)),
             background: Arc::new(Semaphore::new(BACKGROUND_CAPACITY)),
+            failure_logged: Arc::new(Mutex::new(HashMap::new())),
         })
+    }
+    fn log_failure(&self, id: Uuid) -> bool {
+        let mut logged = self
+            .failure_logged
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        logged.retain(|_, at| at.elapsed() < FAILURE_LOG_INTERVAL);
+        if let std::collections::hash_map::Entry::Vacant(entry) = logged.entry(id) {
+            entry.insert(Instant::now());
+            true
+        } else {
+            false
+        }
     }
     pub async fn ready(&self) -> AppResult<()> {
         let not_ready = |reason: &'static str| {
@@ -136,10 +168,12 @@ impl Compute {
                 .header("x-worker-token", self.token.as_ref())
                 .json(&json!({"protocolVersion":1,"requestId":request_id,"roomInstanceId":id,"stateRevision":revision,"engineVersion":ENGINE_VERSION.trim(),"operation":operation}))
                 .send().await.map_err(|error| {
-                    tracing::error!(event="compute.transport_failed", compute_request_id=%request_id,
-                        room_instance_id=%id, revision, operation=%kind,
-                        timeout=error.is_timeout(), connect=error.is_connect(),
-                        release=%crate::logging::release());
+                    if self.log_failure(id) {
+                        tracing::error!(event="compute.transport_failed", compute_request_id=%request_id,
+                            room_instance_id=%id, revision, operation=%kind,
+                            timeout=error.is_timeout(), connect=error.is_connect(),
+                            release=%crate::logging::release());
+                    }
                     (AppError::ComputeUnavailable, "transport")
                 })?;
             let status = response.status();
@@ -158,18 +192,18 @@ impl Compute {
                     ("engineVersion", body["engineVersion"] != ENGINE_VERSION.trim()),
                     ("protocolVersion", body["protocolVersion"] != 1),
                 ].into_iter().filter_map(|(name, bad)| bad.then_some(name)).collect();
-                let worker_code = body["code"].as_str().filter(|code| code.len() <= 64
-                    && code.bytes().all(|byte| byte.is_ascii_uppercase() || byte == b'_')).unwrap_or("none");
-                tracing::error!(event="compute.response_invalid", compute_request_id=%request_id,
-                    room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
-                    worker_code, mismatched=%mismatched.join(","),
-                    worker_engine_version=%body["engineVersion"], release=%crate::logging::release());
+                let worker_code = worker_code(&body);
+                if self.log_failure(id) {
+                    tracing::error!(event="compute.response_invalid", compute_request_id=%request_id,
+                        room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
+                        worker_code, mismatched=%mismatched.join(","),
+                        worker_engine_version=%body["engineVersion"], release=%crate::logging::release());
+                }
                 return Err((AppError::ComputeUnavailable, "identity"));
             }
             if !status.is_success() || body["ok"] != true {
                 // Copy only bounded diagnostic labels from the internal worker, never its input.
-                let valid_label = |value: &str, max: usize| !value.is_empty() && value.len() <= max
-                    && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'));
+                let valid_label = crate::logging::valid_label;
                 let reason = body["diagnostic"]["reason"].as_str()
                     .filter(|value| valid_label(value, 64)).unwrap_or("unspecified");
                 let issues: Vec<Value> = body["diagnostic"]["issues"].as_array().into_iter().flatten().take(8)
@@ -185,15 +219,14 @@ impl Compute {
                 // The worker already strips paths and truncates; re-bound it here anyway.
                 let error_message: String = body["diagnostic"]["message"].as_str().unwrap_or("")
                     .chars().filter(|c| !c.is_control()).take(200).collect();
-                let worker_code = body["code"].as_str().filter(|code| code.len() <= 64
-                    && code.bytes().all(|byte| byte.is_ascii_uppercase() || byte == b'_')).unwrap_or("none");
+                let worker_code = worker_code(&body);
                 let invalid = body["code"] == "INVALID_INPUT";
                 if invalid {
                     tracing::warn!(event="compute.rejected", compute_request_id=%request_id,
                         room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
                         worker_code, reason, error_name, error_message=%error_message,
                         issues=%json!(issues), frames=%json!(frames), release=%crate::logging::release());
-                } else {
+                } else if self.log_failure(id) {
                     tracing::error!(event="compute.rejected", compute_request_id=%request_id,
                         room_instance_id=%id, revision, operation=%kind, status=status.as_u16(),
                         worker_code, reason, error_name, error_message=%error_message,
@@ -201,20 +234,21 @@ impl Compute {
                 }
                 return Err(if invalid {
                     (AppError::ComputeRejected(reason.to_owned()), "rejected")
+                } else if body["code"] == "COMPUTE_FAILED" {
+                    (AppError::ComputeFailed, "worker_failed")
                 } else {
-                    (AppError::ComputeUnavailable, "worker_failed")
+                    (AppError::ComputeUnavailable, "worker_unavailable")
                 });
             }
-            body.get("data").cloned().ok_or((AppError::ComputeUnavailable, "data_missing"))
+            body.get("data").cloned().ok_or((AppError::ComputeInvalid("data_missing"), "data_missing"))
         }.await;
         let duration_ms = started.elapsed().as_millis() as u64;
         match result {
             Err((error, stage)) => {
-                if matches!(error, AppError::ComputeRejected(_)) {
-                    // Expected input rejections are already logged as compute.rejected at warn level.
-                    tracing::debug!(event="compute.failed",compute_request_id=%request_id,room_instance_id=%id,revision,operation=%kind,stage,code=error.code(),duration_ms);
-                } else {
+                if !matches!(error, AppError::ComputeRejected(_)) && self.log_failure(id) {
                     tracing::error!(event="compute.failed",compute_request_id=%request_id,room_instance_id=%id,revision,operation=%kind,stage,code=error.code(),duration_ms);
+                } else {
+                    tracing::debug!(event="compute.failed",compute_request_id=%request_id,room_instance_id=%id,revision,operation=%kind,stage,code=error.code(),duration_ms);
                 }
                 Err(error)
             }
@@ -236,9 +270,11 @@ impl Compute {
         let kind = operation["kind"].as_str().unwrap_or("unknown").to_owned();
         let result: BattlePack = serde_json::from_value(self.run(id, revision, operation).await?)
             .map_err(|error| {
-            tracing::error!(event = "compute.battle_invalid", room_instance_id = %id, revision,
-                    operation = %kind, check = "shape", detail = %error);
-            AppError::Corrupt(error)
+            if self.log_failure(id) {
+                tracing::error!(event = "compute.battle_invalid", room_instance_id = %id, revision,
+                        operation = %kind, check = "shape", detail = %error);
+            }
+            AppError::ComputeInvalid("battle_shape")
         })?;
         let failed_check = if result.state["participantIds"] != json!(players) {
             Some("state_participants")
@@ -260,9 +296,11 @@ impl Compute {
             None
         };
         if let Some(check) = failed_check {
-            tracing::error!(event = "compute.battle_invalid", room_instance_id = %id, revision,
-                operation = %kind, check);
-            return Err(AppError::ComputeUnavailable);
+            if self.log_failure(id) {
+                tracing::error!(event = "compute.battle_invalid", room_instance_id = %id, revision,
+                    operation = %kind, check);
+            }
+            return Err(AppError::ComputeInvalid(check));
         }
         Ok(result)
     }
@@ -281,6 +319,7 @@ impl Compute {
             }
             bytes.extend_from_slice(&chunk);
         }
-        serde_json::from_slice(&bytes).map_err(|error| (AppError::from(error), "json_parse"))
+        // A non-JSON body is a proxy or crash page, not stored data: report it as a compute outage.
+        serde_json::from_slice(&bytes).map_err(|_| (AppError::ComputeUnavailable, "json_parse"))
     }
 }

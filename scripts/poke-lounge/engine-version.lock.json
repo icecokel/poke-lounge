@@ -1,0 +1,28 @@
+{
+  "engineVersion": "gen4:3:e42604b7ba272d0ab93ebd5b4de302c4ab985c7ee1d41c98a683f023dae67097",
+  "simVersion": "0.10.11",
+  "simIntegrity": "sha512-v45jqIgFnEB3hc7e97QlWDnfkIef6mfZ0WjWHWw+f21cYyksGVLzxIEulR9xuOazeszA+ycDx6O6B3JOJAS5Xg==",
+  "competitiveCatalogHash": "29ef3804084c8ebbc2014c0799835f71667db37f3d1b620b1007b3014a78e952",
+  "rulesetConfigHash": "fa6c01f84d171cb1e2ad7d09fe446076a97bce4029088005b6efb80e1d10e612",
+  "normalizer": "typescript@5.9.3 transpile, comments removed",
+  "files": {
+    "src/battle-message-text.ts": "ee510ff11f2fbca9e4e29ee041f558319fb36a988f1114dfc7da059516d79f4f",
+    "src/battle-stat-stages.ts": "06c5b3ac4ed18dd69bc6324a018e646a4c4c50a8866487e32b32f681887d4f6a",
+    "src/canonical-json.ts": "e1fb303cd07ab1d515f947c5bb87b19ef36c781c310df86c7f9a707d8999bef8",
+    "src/canonical-state.ts": "8d6392455d7bf479ff4156107e692548a7373a837f2907a770dcf36a01a586d7",
+    "src/competitive-catalog.generated.ts": "b72259f7eabcb25fada35f2dabc4b58506a54b3ce8074f73a0e056545e4aa458",
+    "src/competitive-contract.ts": "f211d05d2414a1170bc6d1d6c137844fd58440980fdbfd922003a6f6c2675e73",
+    "src/competitive-ruleset-config.ts": "58d9a45ec3cc056370eb14ea9f00cb19e513fbad9ea433d60da34e7c7dec4197",
+    "src/gen4-battle-math.ts": "e020e2f7eaa1884d344cf14a842c914f0ab677175d05635554bcac984241ce1a",
+    "src/gen4/adventure.ts": "c2a128d7f7b6653bd61f9b8914d1d9587a316e47d7acb36dd0886aa4778cbd33",
+    "src/gen4/canonical.ts": "f39eecba0814648bf788df6aa1703d470b2b236277c02f3f5edf170226c4f912",
+    "src/gen4/capture.ts": "64abef204a15e60b5994aa4bddb06c2b7596d1434d93446869462725fba259d4",
+    "src/gen4/engine.ts": "945a3ba04e6a9e9e83e8c2edaa6b9365947c1d4a30a644d1366fd7e3fa4316fe",
+    "src/gen4/flow.ts": "6fcd7d0b859c2636c2eda0e9cfc784d69622bc27a274ef339d0e1099c9fdeaf8",
+    "src/gen4/request.ts": "36aeaaba9ad8ff51554f81c7ca8eda40d9f425ef9f11fd03b9ec7063d0e9fbc2",
+    "src/gen4/rom-catalog.generated.ts": "1c2dad8b9b744bcf355fccc4d6fc771ae9d10f298b8bac9541270a423c90e0d6",
+    "src/gen4/serialization.ts": "0f188836605856f666940ed6bfd7c3595044b1ccfad639a2dbb4b1fb6fd7bf35",
+    "src/gen4/traits.ts": "aa068d619477eac9b0fb8fd9bd12fa34051fcde6ca1900aa0110afcbd6e64e2f",
+    "src/gen4/types.ts": "c1f00c2b6c703d82c0c7d96455f27e630c30e4c41037f5f2cec667ac64dc1204"
+  }
+}

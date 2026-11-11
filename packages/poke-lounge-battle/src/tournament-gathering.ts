@@ -1,4 +1,10 @@
 import { FIELD_MAP } from "./adventure/world/field-map";
+import {
+  ROUND_SPAWN_BASE_X,
+  ROUND_SPAWN_BASE_Y,
+  ROUND_SPAWN_COLUMNS,
+  ROUND_SPAWN_STEP,
+} from "./round-start";
 
 /** Bracket announcement and gameplay cutoff share a single deadline. */
 export { TOURNAMENT_BRIEFING_DURATION_MS } from "./timing";
@@ -23,8 +29,8 @@ export function getTournamentGatherPosition(playerId: string, playerIds: readonl
   const index = ids.indexOf(playerId);
   return {
     map: FIELD_MAP.key,
-    x: FIELD_MAP.recoverySpawn.x - 48 + (index % 4) * 32,
-    y: FIELD_MAP.recoverySpawn.y + Math.floor(index / 4) * 32,
+    x: ROUND_SPAWN_BASE_X + (index % ROUND_SPAWN_COLUMNS) * ROUND_SPAWN_STEP,
+    y: ROUND_SPAWN_BASE_Y + Math.floor(index / ROUND_SPAWN_COLUMNS) * ROUND_SPAWN_STEP,
     facing: "back" as const,
   };
 }

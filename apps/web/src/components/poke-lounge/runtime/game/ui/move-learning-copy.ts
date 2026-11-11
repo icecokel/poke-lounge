@@ -1,6 +1,7 @@
 import { resolvePokeLoungeLocale } from "../../../poke-lounge-copy";
 const COPY = {
   "ko-KR": {
+    chooseTimer: (seconds: number) => `기술 선택: ${seconds}초`,
     title: "새로운 기술!",
     learned: "기술 습득 완료!",
     confirmTitle: "이 기술로 교체할까요?",
@@ -17,6 +18,7 @@ const COPY = {
     },
   },
   "en-US": {
+    chooseTimer: (seconds: number) => `Choose a move: ${seconds}s`,
     title: "A new move!",
     learned: "New move learned!",
     confirmTitle: "Replace this move?",
@@ -33,6 +35,7 @@ const COPY = {
     },
   },
   "ja-JP": {
+    chooseTimer: (seconds: number) => `技の選択: ${seconds}秒`,
     title: "新しい技！",
     learned: "技を覚えた！",
     confirmTitle: "この技を入れ替えますか？",

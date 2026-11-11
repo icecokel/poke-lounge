@@ -38,14 +38,22 @@ import {
 import { sortTournamentParticipantsByJoinOrder } from "@poke-lounge/battle/tournament-seeding";
 import { TERMINAL_PROJECTION_PAGE_SIZE } from "@poke-lounge/battle/tournament-bracket";
 import { createRustRoomSocket } from "./rust-room-socket";
-import { createRoomRunId, isRoomRunId } from "../room-run-id";
+import { isRoomRunId } from "../room-run-id";
 import {
   clearPendingRoomEntry,
-  clearRoomResumeCookie,
   readRoomResumeCookie,
   writeRoomResumeCookie,
 } from "./room-entry-cookie";
 import { createCompetitivePartySnapshot } from "./competitive-party-snapshot";
+import {
+  clearStoredServerRoomSession,
+  isStoredIdentityJson,
+  readStoredIdentity,
+  resolveServerIdentity,
+  resolveServerRoomRunId,
+  resolveUsageVisitorId,
+  writeStoredIdentity,
+} from "./server-room-identity";
 import {
   normalizeCompetitiveParty,
   type CompetitivePartyInput,
@@ -84,11 +92,18 @@ type SharedWorldCursor = {
   worldSeq: number;
 };
 type SharedWorldSnapshot = SharedWorldCursor & { players: PlayerSnapshot[] };
-type SharedWorldPlayerEvent = {
-  type: SharedWorldPlayerEventType;
-  snapshot: PlayerSnapshot;
-  cursor: SharedWorldCursor | null;
-};
+type SharedWorldPlayerEvent =
+  | {
+      type: SharedWorldPlayerEventType;
+      snapshot: PlayerSnapshot;
+      cursor: SharedWorldCursor | null;
+    }
+  | {
+      type: "PLAYER_LEFT";
+      sessionId: string;
+      playerId: string;
+      cursor: SharedWorldCursor | null;
+    };
 
 type ServerParticipant = Omit<RustRoomParticipant, "role"> & {
   role: RustRoomParticipant["role"] | "spectator";
@@ -132,6 +147,14 @@ export interface ServerRoomOptions {
   socketFactory?: ServerRoomSocketFactory;
   requestTimeoutMs?: number;
 }
+
+export {
+  clearStoredServerRoomResume,
+  clearStoredServerRoomSession,
+  consumeLegacyServerRoomIdentity,
+  readStoredServerRoomResume,
+  type StoredServerRoomResume,
+} from "./server-room-identity";
 
 export const POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT =
   "poke-lounge:server-room-fresh-session-required";
@@ -194,18 +217,6 @@ type ServerRoomSocketListener = (() => void) | ((event: unknown) => void);
 type ServerRoomSocketFactory = (url: string) => ServerRoomSocket;
 type RecoveryOrigin = "transport" | "online-probe";
 
-const SERVER_IDENTITY_STORAGE_KEY = "poke-lounge:rust-room-identity:v3";
-const USAGE_VISITOR_STORAGE_KEY = "poke-lounge:usage-visitor:v1";
-let memoryUsageVisitorId: string | null = null;
-const LEGACY_RUST_IDENTITY_STORAGE_KEY = "poke-lounge:rust-room-identity:v2";
-const RUST_IDENTITY_STORAGE_VERSION = 3;
-const RUST_IDENTITY_UUID_PATTERN =
-  "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
-const RUST_USAGE_VISITOR_PATTERN = new RegExp(`^${RUST_IDENTITY_UUID_PATTERN}$`, "i");
-const RUST_SESSION_ID_PATTERN = new RegExp(`^server-session-${RUST_IDENTITY_UUID_PATTERN}$`, "i");
-const RUST_PLAYER_ID_PATTERN = new RegExp(`^server-player-${RUST_IDENTITY_UUID_PATTERN}$`, "i");
-const SERVER_ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
-
 const MAX_RECENT_TERMINAL_PROJECTIONS = TERMINAL_PROJECTION_PAGE_SIZE;
 const PENDING_ROOM_ID = "server-pending";
 const REVISION_CONFLICT_CODE = "POKE_LOUNGE_REVISION_CONFLICT";
@@ -216,32 +227,16 @@ interface ServerRoomConflictResponse {
   statusCode: 409;
   code: typeof REVISION_CONFLICT_CODE | typeof IDEMPOTENCY_CONFLICT_CODE;
   message: string;
-  snapshot: ServerRoomState;
-}
-
-interface StoredServerRoomIdentity {
-  version?: number;
-  sessionId: string;
-  playerId: string;
-  activeRoom?: {
-    roomCode: string;
-    roomInstanceId?: string;
-    expiresAtMs: number;
-    cookieVersion?: 1;
-    runId: string;
-  };
-}
-
-export interface StoredServerRoomResume {
-  roomCode: string;
-  roomInstanceId?: string;
-  runId: string;
+  /** Absent when the server could not show the room to this caller, or when it was malformed. */
+  snapshot: ServerRoomState | null;
 }
 
 type InitialWorkflowStage = "open" | "competitive-seat" | "party" | "complete";
 
 class ServerRoomRequestError extends Error {
   readonly serverCode: string | null;
+  /** Parsed once by getServerRoomConflict; undefined until first requested. */
+  conflict?: ServerRoomConflictResponse | null;
 
   constructor(
     readonly status: number,
@@ -510,6 +505,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let worldEpoch: string | null = null;
   let worldSnapshotInitialized = false;
   let worldResyncRequested = false;
+  let worldSnapshotFailures = 0;
+  let worldResyncBlockedUntilMs = 0;
   const worldPlayers = new Map<string, PlayerSnapshot>();
   let freshTerminalBaselineInitialized = false;
   let roomSocket: ServerRoomSocket | null = null;
@@ -539,6 +536,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     matchId: null,
     status: "idle",
   };
+  // What the last snapshot wrote for resuming this room, so an unchanged one can skip the writes.
+  let persistedResume: { key: string; identityJson: string } | null = null;
   let leaveSent = false;
   let leavePromise: Promise<void> | null = null;
   let reconnectAttempt: Promise<boolean> | null = null;
@@ -623,7 +622,13 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       latestState.participants.some(p => p.playerId === serverPlayerId && p.connected);
     dispatchServerRoomError(
       {
-        code: invalidParticipant ? "CURSOR_REGRESSION" : "ROOM_TRANSPORT_FAILED",
+        code: !invalidParticipant
+          ? "ROOM_TRANSPORT_FAILED"
+          : error.status === 401
+            ? "ROOM_SESSION_INVALID"
+            : error.serverCode === "POKE_LOUNGE_ROOM_IDENTITY_MISMATCH"
+              ? "ROOM_IDENTITY_MISMATCH"
+              : "ROOM_ACCESS_DENIED",
         message: error.message,
         disconnected: !socketConnected,
         recoverable,
@@ -806,11 +811,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       } catch (error) {
         const conflict = getServerRoomConflict(error);
 
-        if (!conflict) {
-          throw error;
+        if (conflict?.snapshot) {
+          applySnapshot(conflict.snapshot);
+        } else if (conflict?.code === REVISION_CONFLICT_CODE && latestState) {
+          // No snapshot came with the conflict; refresh so a retry can use the current revision.
+          requestOnlineRecovery();
         }
-
-        applySnapshot(conflict.snapshot);
 
         throw error;
       }
@@ -833,7 +839,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         });
       } catch (error) {
         const conflict = getServerRoomConflict(error);
-        if (conflict) {
+        if (conflict?.snapshot) {
           applySnapshot(conflict.snapshot);
         }
         throw error;
@@ -1462,6 +1468,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   const requestWorldResync = () => {
     if (
       worldResyncRequested ||
+      Date.now() < worldResyncBlockedUntilMs ||
       !socketConnected ||
       !roomSocket ||
       activeRoomId === PENDING_ROOM_ID
@@ -1480,14 +1487,39 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     emit(type, snapshot);
   };
 
+  const applyWorldPlayerLeft = (sessionId: string, playerId: string) => {
+    worldPlayers.delete(sessionId);
+    if (playerId === serverPlayerId) {
+      return;
+    }
+    emit("PLAYER_LEFT", { sessionId });
+  };
+
+  const applySharedWorldPlayerEvent = (parsed: SharedWorldPlayerEvent) => {
+    if (parsed.type === "PLAYER_LEFT") {
+      applyWorldPlayerLeft(parsed.sessionId, parsed.playerId);
+      return;
+    }
+    applyWorldPlayerEvent(parsed.type, parsed.snapshot);
+  };
+
   const handleWorldSnapshot = (event: unknown) => {
     let snapshot: SharedWorldSnapshot;
     try {
       snapshot = parseSharedWorldSnapshot(event);
     } catch (error) {
       reportSocketEventInvalid("WS_WORLD_SNAPSHOT_SCHEMA_FAILED", error);
+      // The server would answer an immediate resync with the same snapshot. Back off and let the
+      // next world cursor or player event ask again once the delay has passed.
       worldResyncRequested = false;
-      requestWorldResync();
+      worldResyncBlockedUntilMs =
+        Date.now() +
+        exponentialBackoffDelayMs(
+          RECOVERY_INITIAL_DELAY_MS,
+          worldSnapshotFailures,
+          RECOVERY_MAX_DELAY_MS,
+        );
+      worldSnapshotFailures += 1;
       return;
     }
     if (snapshot.roomCode !== activeRoomId) {
@@ -1530,6 +1562,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     lastAppliedWorldSeq = snapshot.worldSeq;
     worldSnapshotInitialized = true;
     worldResyncRequested = false;
+    worldSnapshotFailures = 0;
+    worldResyncBlockedUntilMs = 0;
   };
 
   const handleWorldCursor = (event: unknown) => {
@@ -1603,7 +1637,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
     if (!parsed.cursor) {
       if (!worldSnapshotInitialized) {
-        applyWorldPlayerEvent(parsed.type, parsed.snapshot);
+        applySharedWorldPlayerEvent(parsed);
       }
       return;
     }
@@ -1620,7 +1654,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
 
     lastAppliedWorldSeq = parsed.cursor.worldSeq;
-    applyWorldPlayerEvent(parsed.type, parsed.snapshot);
+    applySharedWorldPlayerEvent(parsed);
   };
 
   const handleSubscriptionError = () => {
@@ -1804,20 +1838,37 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         runId: roomRunId,
         ...(roomInstanceId ? { roomInstanceId } : {}),
       };
-      const cookieWritten =
-        state.serverNowMs !== undefined &&
-        writeRoomResumeCookie({ ...activeRoom, playerId: serverPlayerId }, state.serverNowMs);
-      writeStoredIdentity(
-        {
-          sessionId,
-          playerId: serverPlayerId,
-          activeRoom: {
-            ...activeRoom,
-            ...(cookieWritten ? { cookieVersion: 1 as const } : {}),
+      // Liveness probes, stale-recovery polls and reconnects repeat the same snapshot. Skip the
+      // writes only while both stores still hold exactly what this room wrote last time.
+      const resumeKey = `${activeRoom.roomCode}|${activeRoom.expiresAtMs}|${activeRoom.roomInstanceId ?? ""}`;
+      const resumeCookie = persistedResume?.key === resumeKey ? readRoomResumeCookie() : null;
+      const resumeUnchanged =
+        persistedResume !== null &&
+        resumeCookie !== null &&
+        resumeCookie.playerId === serverPlayerId &&
+        resumeCookie.roomCode === activeRoom.roomCode &&
+        resumeCookie.runId === activeRoom.runId &&
+        resumeCookie.expiresAtMs === activeRoom.expiresAtMs &&
+        resumeCookie.roomInstanceId === activeRoom.roomInstanceId &&
+        isStoredIdentityJson(persistedResume.identityJson, options.accountId);
+      if (!resumeUnchanged) {
+        const cookieWritten =
+          state.serverNowMs !== undefined &&
+          writeRoomResumeCookie({ ...activeRoom, playerId: serverPlayerId }, state.serverNowMs);
+        const identityJson = writeStoredIdentity(
+          {
+            sessionId,
+            playerId: serverPlayerId,
+            activeRoom: {
+              ...activeRoom,
+              ...(cookieWritten ? { cookieVersion: 1 as const } : {}),
+            },
           },
-        },
-        options.accountId,
-      );
+          options.accountId,
+        );
+        persistedResume =
+          cookieWritten && identityJson !== null ? { key: resumeKey, identityJson } : null;
+      }
     }
 
     if (
@@ -1976,7 +2027,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
 
   const applyCurrentAssignmentProjection = (projection: CompetitiveProjection) => {
     if (
-      !canApplyCurrentAssignmentProjection(projection) ||
+      !canReplayCompetitiveAssignment(projection) ||
       !isCompetitiveProjectionAtLeastAsCurrent(currentAssignmentProjection, projection)
     ) {
       return;
@@ -2001,11 +2052,6 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       emitTournamentProjection(latestState);
     }
   };
-
-  const canApplyCurrentAssignmentProjection = (projection: CompetitiveProjection): boolean =>
-    projection.status !== "completed" &&
-    latestState?.tournament.activeMatchAuthority === "server" &&
-    getReadyMatchIds(latestState.tournament).has(projection.bracketMatchId);
 
   const createTournamentProjectionPayload = (
     state: ServerRoomState,
@@ -3017,10 +3063,12 @@ function isRoomNotFoundRequestError(error: unknown): boolean {
   return (
     error instanceof ServerRoomRequestError &&
     error.status === 404 &&
-    error.responseBody !== null &&
-    typeof error.responseBody === "object" &&
-    "message" in error.responseBody &&
-    error.responseBody.message === "Poke Lounge room not found"
+    (error.serverCode === "ROOM_NOT_FOUND" ||
+      // Fallback for responses without a code.
+      (error.responseBody !== null &&
+        typeof error.responseBody === "object" &&
+        "message" in error.responseBody &&
+        error.responseBody.message === "Poke Lounge room not found"))
   );
 }
 
@@ -3217,69 +3265,6 @@ function dispatchWindowEvent<T>(eventName: string, detail: T): void {
   window.dispatchEvent(new CustomEvent<T>(eventName, { detail }));
 }
 
-export function clearStoredServerRoomResume(accountId?: string): void {
-  clearRoomResumeCookie();
-  clearPendingRoomEntry();
-  const identity = readStoredIdentity(accountId);
-  if (!identity) {
-    return;
-  }
-
-  writeStoredIdentity(
-    {
-      sessionId: identity.sessionId,
-      playerId: identity.playerId,
-    },
-    accountId,
-  );
-}
-
-export function clearStoredServerRoomSession(accountId?: string): void {
-  clearRoomResumeCookie();
-  clearPendingRoomEntry();
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    for (const storage of [window.localStorage, window.sessionStorage]) {
-      storage?.removeItem(getServerIdentityStorageKey(accountId));
-      if (accountId?.trim()) {
-        storage?.removeItem(SERVER_IDENTITY_STORAGE_KEY);
-      }
-    }
-  } catch {
-    // A fresh identity is still generated when storage is unavailable.
-  }
-}
-
-export function consumeLegacyServerRoomIdentity(accountId?: string): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  try {
-    // v2 could contain URL-selected credentials, so only retire it; never copy it into v3.
-    const hadCurrentIdentity = readStoredIdentity(accountId) !== null;
-    const legacyKeys = new Set([
-      getServerIdentityStorageKeyFor(LEGACY_RUST_IDENTITY_STORAGE_KEY, accountId),
-      LEGACY_RUST_IDENTITY_STORAGE_KEY,
-    ]);
-    let hadLegacyIdentity = false;
-    for (const storage of [window.localStorage, window.sessionStorage]) {
-      for (const key of legacyKeys) {
-        if (storage.getItem(key) !== null) {
-          storage.removeItem(key);
-          hadLegacyIdentity = true;
-        }
-      }
-    }
-    return hadLegacyIdentity && !hadCurrentIdentity;
-  } catch {
-    return false;
-  }
-}
-
 function exponentialBackoffDelayMs(baseMs: number, attempt: number, maxMs: number): number {
   return Math.min(baseMs * 2 ** attempt, maxMs);
 }
@@ -3292,9 +3277,14 @@ function getServerRoomConflict(error: unknown): ServerRoomConflictResponse | nul
   if (!(error instanceof ServerRoomRequestError) || error.status !== 409) {
     return null;
   }
+  if (error.conflict === undefined) {
+    error.conflict = parseServerRoomConflict(error.responseBody);
+  }
 
-  const value = error.responseBody;
+  return error.conflict;
+}
 
+function parseServerRoomConflict(value: unknown): ServerRoomConflictResponse | null {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -3309,11 +3299,22 @@ function getServerRoomConflict(error: unknown): ServerRoomConflictResponse | nul
     return null;
   }
 
+  // The server omits the snapshot when the caller may not read the room. This runs inside catch
+  // blocks, so a missing or malformed snapshot must not replace the original 409.
+  let snapshot: ServerRoomState | null = null;
+  if (record.snapshot !== undefined && record.snapshot !== null) {
+    try {
+      snapshot = parseServerRoomState(record.snapshot);
+    } catch {
+      snapshot = null;
+    }
+  }
+
   return {
     statusCode: 409,
     code: record.code,
     message: record.message,
-    snapshot: parseServerRoomState(record.snapshot),
+    snapshot,
   };
 }
 
@@ -3339,13 +3340,13 @@ function parseServerRoomState(value: unknown): ServerRoomState {
     !Number.isFinite(room.expiresAtMs) ||
     !isServerRoomStatus(room.status) ||
     !Array.isArray(room.participants) ||
-    !room.partySnapshots ||
-    typeof room.partySnapshots !== "object" ||
+    !isRecordOfObjects(room.partySnapshots) ||
     !room.round ||
     typeof room.round !== "object" ||
     !room.tournament ||
     typeof room.tournament !== "object" ||
-    !Array.isArray(room.finalStandings)
+    !Array.isArray(room.finalStandings) ||
+    !room.finalStandings.every(isFinalStandingEntry)
   ) {
     throw new ServerRoomSchemaError();
   }
@@ -3404,6 +3405,29 @@ function parseServerRoomState(value: unknown): ServerRoomState {
   }
 
   return parsed;
+}
+
+/** partySnapshots is spread through as-is; only its use as a per-player map is guaranteed here. */
+function isRecordOfObjects(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.values(value).every(function testItem(entry) {
+      return entry !== null && typeof entry === "object" && !Array.isArray(entry);
+    })
+  );
+}
+
+/** Checks only what this module reads; the game state store validates rank and score. */
+function isFinalStandingEntry(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    typeof (value as Record<string, unknown>).playerId === "string" &&
+    (value as Record<string, unknown>).playerId !== ""
+  );
 }
 
 function isServerRoomStatus(value: unknown): value is ServerRoomState["status"] {
@@ -3494,6 +3518,20 @@ function parseSharedWorldPlayerEvent(value: unknown): SharedWorldPlayerEvent | n
   const event = value as Record<string, unknown>;
   const type = event.type;
   const snapshot = event.snapshot;
+  if (type === "PLAYER_LEFT") {
+    // The server sends the departed player's last world snapshot; only its identity matters here.
+    if (!snapshot || typeof snapshot !== "object") {
+      return null;
+    }
+    const departed = snapshot as Record<string, unknown>;
+    const playerId = departed.playerId;
+    const sessionId = departed.sessionId ?? playerId;
+    if (typeof playerId !== "string" || !playerId || typeof sessionId !== "string" || !sessionId) {
+      return null;
+    }
+    const cursor = parseSharedWorldEventCursor(event);
+    return cursor === undefined ? null : { type, sessionId, playerId, cursor };
+  }
   if (
     (type !== "PLAYER_MOVED" &&
       type !== "PLAYER_MOVEMENT_ENDED" &&
@@ -3509,18 +3547,30 @@ function parseSharedWorldPlayerEvent(value: unknown): SharedWorldPlayerEvent | n
   if (!parsedSnapshot) {
     return null;
   }
-  const hasCursor =
-    event.roomCode !== undefined || event.worldEpoch !== undefined || event.worldSeq !== undefined;
-  let cursor: SharedWorldCursor | null = null;
-  if (hasCursor) {
-    try {
-      cursor = parseSharedWorldCursor(event);
-    } catch {
-      return null;
-    }
+  const cursor = parseSharedWorldEventCursor(event);
+  if (cursor === undefined) {
+    return null;
   }
 
   return { type, snapshot: parsedSnapshot, cursor };
+}
+
+/** Returns null for an event without a cursor and undefined for a malformed cursor. */
+function parseSharedWorldEventCursor(
+  event: Record<string, unknown>,
+): SharedWorldCursor | null | undefined {
+  if (
+    event.roomCode === undefined &&
+    event.worldEpoch === undefined &&
+    event.worldSeq === undefined
+  ) {
+    return null;
+  }
+  try {
+    return parseSharedWorldCursor(event);
+  } catch {
+    return undefined;
+  }
 }
 
 function parseSharedWorldSnapshot(value: unknown): SharedWorldSnapshot {
@@ -3879,219 +3929,4 @@ function unwrapApiResponse<T>(value: unknown): T {
   }
 
   return value as T;
-}
-
-function resolveServerIdentity(options: ServerRoomOptions): {
-  sessionId: string;
-  playerId: string;
-} {
-  const stored = readStoredIdentity(options.accountId);
-  const identity = {
-    sessionId: stored?.sessionId ?? `server-session-${createIdentityToken()}`,
-    playerId: stored?.playerId ?? `server-player-${createIdentityToken()}`,
-  };
-
-  writeStoredIdentity(stored ? { ...stored, ...identity } : identity, options.accountId);
-
-  return identity;
-}
-
-function readStoredIdentity(accountId?: string): StoredServerRoomIdentity | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const storageKey = getServerIdentityStorageKey(accountId);
-    const sources: Array<{ storage: Storage; key: string }> = [
-      { storage: window.localStorage, key: storageKey },
-      { storage: window.sessionStorage, key: storageKey },
-      ...(accountId?.trim()
-        ? [
-            { storage: window.localStorage, key: SERVER_IDENTITY_STORAGE_KEY },
-            { storage: window.sessionStorage, key: SERVER_IDENTITY_STORAGE_KEY },
-          ]
-        : []),
-    ];
-
-    for (const source of sources) {
-      const identity = parseStoredIdentity(source.storage.getItem(source.key));
-      if (!identity) {
-        continue;
-      }
-      if (source.storage !== window.localStorage || source.key !== storageKey) {
-        writeStoredIdentity(identity, accountId);
-        try {
-          const migrated = parseStoredIdentity(window.localStorage.getItem(storageKey));
-          if (
-            migrated?.sessionId === identity.sessionId &&
-            migrated.playerId === identity.playerId
-          ) {
-            source.storage.removeItem(source.key);
-            if (accountId?.trim()) {
-              window.localStorage.removeItem(SERVER_IDENTITY_STORAGE_KEY);
-              window.sessionStorage.removeItem(SERVER_IDENTITY_STORAGE_KEY);
-            }
-          }
-        } catch {
-          // The source identity is still usable when old storage cannot be removed.
-        }
-      }
-      return identity;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-function parseStoredIdentity(stored: string | null): StoredServerRoomIdentity | null {
-  if (!stored) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(stored) as Partial<StoredServerRoomIdentity>;
-    if (typeof parsed.sessionId !== "string" || typeof parsed.playerId !== "string") {
-      return null;
-    }
-    // Earlier v3 builds did not write a version field, but did generate UUID v4 credentials.
-    if (
-      (parsed.version !== undefined && parsed.version !== RUST_IDENTITY_STORAGE_VERSION) ||
-      !RUST_SESSION_ID_PATTERN.test(parsed.sessionId) ||
-      !RUST_PLAYER_ID_PATTERN.test(parsed.playerId)
-    ) {
-      return null;
-    }
-
-    const activeRoom = parseStoredActiveRoom(parsed.activeRoom);
-    return {
-      sessionId: parsed.sessionId,
-      playerId: parsed.playerId,
-      ...(activeRoom ? { activeRoom } : {}),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredIdentity(identity: StoredServerRoomIdentity, accountId?: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(
-      getServerIdentityStorageKey(accountId),
-      JSON.stringify({ ...identity, version: RUST_IDENTITY_STORAGE_VERSION }),
-    );
-  } catch {
-    // Ignore storage failures; generated identities still work for the current page lifetime.
-  }
-}
-
-export function readStoredServerRoomResume(accountId?: string): StoredServerRoomResume | null {
-  const identity = readStoredIdentity(accountId);
-  if (!identity) return null;
-  const resumeCookie = readRoomResumeCookie();
-  if (resumeCookie?.playerId === identity.playerId) {
-    return {
-      roomCode: resumeCookie.roomCode,
-      runId: resumeCookie.runId,
-      ...(resumeCookie.roomInstanceId ? { roomInstanceId: resumeCookie.roomInstanceId } : {}),
-    };
-  }
-
-  const activeRoom = identity.activeRoom;
-  // The cookie owns expiry for new sessions; another tab's localStorage must not revive it.
-  if (!activeRoom || activeRoom.cookieVersion === 1) return null;
-  if (activeRoom.expiresAtMs <= Date.now()) {
-    writeStoredIdentity({ sessionId: identity.sessionId, playerId: identity.playerId }, accountId);
-    return null;
-  }
-  return {
-    roomCode: activeRoom.roomCode,
-    runId: activeRoom.runId,
-    ...(activeRoom.roomInstanceId ? { roomInstanceId: activeRoom.roomInstanceId } : {}),
-  };
-}
-
-function parseStoredActiveRoom(value: unknown): StoredServerRoomIdentity["activeRoom"] | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  const activeRoom = value as Record<string, unknown>;
-
-  if (
-    typeof activeRoom.roomCode !== "string" ||
-    !SERVER_ROOM_CODE_PATTERN.test(activeRoom.roomCode) ||
-    typeof activeRoom.expiresAtMs !== "number" ||
-    !Number.isFinite(activeRoom.expiresAtMs) ||
-    !isRoomRunId(activeRoom.runId)
-  ) {
-    return null;
-  }
-
-  return {
-    roomCode: activeRoom.roomCode,
-    expiresAtMs: activeRoom.expiresAtMs,
-    runId: activeRoom.runId,
-    ...(activeRoom.cookieVersion === 1 ? { cookieVersion: 1 as const } : {}),
-    ...(typeof activeRoom.roomInstanceId === "string" && isRoomRunId(activeRoom.roomInstanceId)
-      ? { roomInstanceId: activeRoom.roomInstanceId }
-      : {}),
-  };
-}
-
-function resolveServerRoomRunId(options: ServerRoomOptions): string {
-  if (options.roomRunId !== undefined) {
-    if (!isRoomRunId(options.roomRunId)) {
-      throw new Error("Poke Lounge server room requires a room run UUID");
-    }
-    return options.roomRunId;
-  }
-
-  if (options.resumeRoom) {
-    const activeRoom = readStoredIdentity(options.accountId)?.activeRoom;
-    if (activeRoom && (!options.roomId || activeRoom.roomCode === options.roomId)) {
-      return activeRoom.runId;
-    }
-  }
-
-  return createRoomRunId();
-}
-
-function getServerIdentityStorageKey(accountId?: string): string {
-  return getServerIdentityStorageKeyFor(SERVER_IDENTITY_STORAGE_KEY, accountId);
-}
-
-function getServerIdentityStorageKeyFor(baseKey: string, accountId?: string): string {
-  const normalizedAccountId = accountId?.trim();
-
-  return normalizedAccountId ? `${baseKey}:${encodeURIComponent(normalizedAccountId)}` : baseKey;
-}
-
-function createIdentityToken(): string {
-  if (typeof crypto === "undefined" || !("randomUUID" in crypto)) {
-    throw new Error("crypto.randomUUID is required for Poke Lounge room identity");
-  }
-  return crypto.randomUUID();
-}
-
-function resolveUsageVisitorId(playerId: string): string {
-  if (memoryUsageVisitorId) return memoryUsageVisitorId;
-  const previousPlayerId = playerId.slice("server-player-".length);
-  const visitorId = RUST_USAGE_VISITOR_PATTERN.test(previousPlayerId)
-    ? previousPlayerId
-    : createIdentityToken();
-  try {
-    const stored = window.localStorage.getItem(USAGE_VISITOR_STORAGE_KEY);
-    if (stored && RUST_USAGE_VISITOR_PATTERN.test(stored)) return (memoryUsageVisitorId = stored);
-    window.localStorage.setItem(USAGE_VISITOR_STORAGE_KEY, visitorId);
-    return (memoryUsageVisitorId = visitorId);
-  } catch {
-    return (memoryUsageVisitorId = visitorId);
-  }
 }

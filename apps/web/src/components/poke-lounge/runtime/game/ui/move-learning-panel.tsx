@@ -118,11 +118,7 @@ export function MoveLearningPanel({
       <header className="grid gap-1.5">
         {pending.remainingSeconds != null && (
           <p className="m-0 font-bold" role="timer">
-            {copy.locale === "en-US"
-              ? `Choose a move: ${pending.remainingSeconds}s`
-              : copy.locale === "ja-JP"
-                ? `技の選択: ${pending.remainingSeconds}秒`
-                : `기술 선택: ${pending.remainingSeconds}초`}
+            {text.chooseTimer(pending.remainingSeconds)}
           </p>
         )}
         <span className="w-fit rounded-md bg-[#28583c] px-2.5 py-[3px] font-extrabold text-white">

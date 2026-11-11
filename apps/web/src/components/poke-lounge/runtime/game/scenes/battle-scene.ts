@@ -33,7 +33,7 @@ import type {
   CompetitivePartyInput,
   NormalizedCompetitiveParty,
 } from "@poke-lounge/battle/competitive-party";
-import { getPokeLoungeCopyForUrl } from "../../../poke-lounge-copy";
+import { getPokeLoungeCopyForUrl, type PokeLoungeCopy } from "../../../poke-lounge-copy";
 import type { PokeLoungeRuntimeAssets } from "../assets/poke-lounge-runtime-assets";
 import {
   canUseAuthoritativeStruggle,
@@ -53,7 +53,6 @@ import {
   playWildBattleBgm,
   stopWildBattleBgm,
 } from "../battle/battle-audio";
-import { BATTLE_BAG_PAGE_SIZE, moveBattleBagSelection } from "../battle/battle-bag-selection";
 import {
   BATTLE_BACKGROUND_ASSET_KEY,
   BATTLE_WINDOW_FRAME_ASSET_KEY,
@@ -146,6 +145,7 @@ import {
   animateRuntimeValue,
   clampUnit,
   lerp,
+  scheduleRuntimeFrameEnd,
   scheduleRuntimeTask,
   type RuntimeAnimation,
 } from "../runtime-animation";
@@ -200,17 +200,6 @@ interface TournamentProgressionSave {
 }
 // Leaves room for the save request to reach the server before its progression deadline.
 const TOURNAMENT_PROGRESSION_SUBMIT_MARGIN_MS = 2_000;
-const BATTLE_BAG_ITEM_IDS = [
-  "potion",
-  "pokeball",
-  "antidote",
-  "superPotion",
-  "hyperPotion",
-  "revive",
-  "ultraBall",
-] as const satisfies readonly RuntimeItemId[];
-
-type BattleBagItemId = (typeof BATTLE_BAG_ITEM_IDS)[number];
 interface PendingMoveLearning {
   slotIndex: number;
   pokemonName: string;
@@ -424,7 +413,6 @@ export class BattleController {
   private selectedCommandIndex = 0;
   private selectedMoveIndex = 0;
   private selectedPartySlotIndex = 0;
-  private selectedBagItemIndex = 0;
   private shortcutGuideOpen = false;
   private returningToWorld = false;
   private localResultSettled = false;
@@ -488,6 +476,11 @@ export class BattleController {
   private messageAutoAdvanceTimer: RuntimeAnimation | null = null;
   private sceneLifecycleActive = false;
   private sceneGeneration = 0;
+  // Animation ticks only mark the presentation dirty; it is published once per frame.
+  private presentationDirty = false;
+  private reducedMotionQuery: MediaQueryList | null = null;
+  private mobileShellDetected = false;
+  private battleStatusCopy: { pathname: string; copy: PokeLoungeCopy["mobile"] } | null = null;
 
   private readonly battleUiStore: BattleUiStore;
   private readonly gameStateStore: GameStateStore;
@@ -509,12 +502,17 @@ export class BattleController {
     this.cleanupSceneLifecycle();
     this.sceneLifecycleActive = true;
     this.sceneGeneration += 1;
+    this.presentationDirty = false;
+    // A retained MediaQueryList keeps `matches` current without re-parsing the query per frame.
+    this.reducedMotionQuery =
+      this.ownerDocument.defaultView?.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
+    this.mobileShellDetected = false;
+    this.battleStatusCopy = null;
     this.competitivePreemptionQueued = false;
     this.localResultSettled = false;
     this.selectedCommandIndex = 0;
     this.selectedMoveIndex = 0;
     this.selectedPartySlotIndex = 0;
-    this.selectedBagItemIndex = 0;
     this.state = this.createInitialState(data);
     this.seenAnimationTurn = this.state.turn;
     this.battleEffectSequence = 0;
@@ -603,10 +601,7 @@ export class BattleController {
   update(): void {
     if (this.updateMoveLearningDeadline()) return;
     if (this.preemptLocalBattleForTournament(Date.now())) return;
-    if (
-      usesPokeLoungeMobileShell(this.ownerDocument) &&
-      hasPokeLoungeMobileFullscreenScene(this.ownerDocument)
-    ) {
+    if (this.usesMobileShell() && hasPokeLoungeMobileFullscreenScene(this.ownerDocument)) {
       this.keyboard.clearPresses();
       resetVirtualGamepad();
       return;
@@ -676,7 +671,6 @@ export class BattleController {
       this.state.messageQueue.length === 0
     ) {
       playBattleConfirmSound();
-      this.selectedBagItemIndex = 0;
       if (this.authoritativeProjection || this.state.battleKind !== "wild")
         this.setBattleState({
           ...this.state,
@@ -711,10 +705,6 @@ export class BattleController {
     if (this.state.phase === "party-select") {
       this.updatePartySelection();
     }
-
-    if (this.state.phase === "bag-select") {
-      this.updateBagSelection();
-    }
   }
 
   private consumeKeyboardConfirm(): boolean {
@@ -723,6 +713,17 @@ export class BattleController {
 
   private setBattleUiSceneMarker(active: boolean): void {
     setBattleSceneMarker(this.options.parent, active);
+  }
+
+  /** The shell wraps the game for its whole life, so a positive lookup is kept for the scene. */
+  private usesMobileShell(): boolean {
+    if (!this.mobileShellDetected)
+      this.mobileShellDetected = usesPokeLoungeMobileShell(this.ownerDocument);
+    return this.mobileShellDetected;
+  }
+
+  private prefersReducedMotion(): boolean {
+    return this.reducedMotionQuery?.matches ?? false;
   }
 
   private usesMobileBattleDeck(): boolean {
@@ -832,34 +833,6 @@ export class BattleController {
       this.confirmSelection();
       return;
     }
-
-    if (action.type === "change-item-page" && this.state.phase === "bag-select") {
-      if (action.direction !== -1 && action.direction !== 1) return;
-      const count = this.getBattleBagItemIds().length;
-      const page = Math.floor(this.selectedBagItemIndex / BATTLE_BAG_PAGE_SIZE);
-      const nextIndex = (page + action.direction) * BATTLE_BAG_PAGE_SIZE;
-      if (nextIndex < 0 || nextIndex >= count) return;
-      this.selectedBagItemIndex = nextIndex;
-      playBattleConfirmSound();
-      this.render();
-      return;
-    }
-
-    if (action.type === "select-item" && this.state.phase === "bag-select") {
-      const itemId = this.getBattleBagItemIds()[action.index];
-      const quantity = itemId
-        ? (this.gameStateStore.getCurrentLocalPlayer().inventory[itemId] ?? 0)
-        : 0;
-      if (!itemId || quantity <= 0) {
-        playBattleCancelSound();
-        this.render();
-        return;
-      }
-
-      this.selectedBagItemIndex = action.index;
-      playBattleConfirmSound();
-      this.confirmSelection();
-    }
   }
 
   private publishBattleUiState(): void {
@@ -881,7 +854,6 @@ export class BattleController {
       return;
     }
 
-    const inventory = this.gameStateStore.getCurrentLocalPlayer().inventory;
     const pendingMoveLearning = this.getCurrentPendingMoveLearning();
     const state: MobileBattleUiState = {
       selectionKey: [
@@ -1007,46 +979,8 @@ export class BattleController {
           sprite: slot.pokemon?.frontSprite ?? null,
         };
       }),
-      items: this.getBattleBagItemIds().map(
-        function mapItem(
-          this: BattleController,
-          itemId:
-            | "potion"
-            | "pokeball"
-            | "antidote"
-            | "superPotion"
-            | "hyperPotion"
-            | "revive"
-            | "ultraBall",
-          index: number,
-        ): {
-          index: number;
-          id:
-            | "potion"
-            | "pokeball"
-            | "antidote"
-            | "superPotion"
-            | "hyperPotion"
-            | "revive"
-            | "ultraBall";
-          name: string;
-          count: number;
-          selected: boolean;
-          disabled: boolean;
-        } {
-          const item = getInventoryItemById(itemId);
-          const count = inventory[itemId] ?? 0;
-
-          return {
-            index,
-            id: itemId,
-            name: item?.displayName ?? itemId,
-            count,
-            selected: index === this.selectedBagItemIndex,
-            disabled: count <= 0,
-          };
-        }.bind(this),
-      ),
+      // The ball is thrown straight from the command menu; the bag list is never opened.
+      items: [],
       moveReplacement: pendingMoveLearning
         ? {
             remainingSeconds: this.moveLearningRemainingSeconds ?? undefined,
@@ -1061,6 +995,7 @@ export class BattleController {
         : null,
     };
 
+    this.presentationDirty = false;
     this.battleUiStore.publish({
       controls: state,
       presentation: this.createBattlePresentationState(),
@@ -1068,7 +1003,23 @@ export class BattleController {
   }
 
   private publishBattlePresentationState(): void {
+    this.presentationDirty = false;
     this.battleUiStore.publishPresentation(this.createBattlePresentationState());
+  }
+
+  /**
+   * Called from animation ticks. Several tweens step in one frame (effect, HP, hit), so the
+   * presentation is rebuilt once after all of them instead of once per tween. State
+   * transitions keep publishing synchronously through render().
+   */
+  private markBattlePresentationDirty(): void {
+    if (this.presentationDirty) return;
+    this.presentationDirty = true;
+    const generation = this.sceneGeneration;
+    scheduleRuntimeFrameEnd(() => {
+      if (!this.presentationDirty || !this.isSceneLifecycleCurrent(generation)) return;
+      this.publishBattlePresentationState();
+    });
   }
 
   private createBattlePresentationState(): BattlePresentationState {
@@ -1170,9 +1121,7 @@ export class BattleController {
       },
     };
     const neutral = { player: presentation.player.sprite, opponent: presentation.opponent.sprite };
-    const reduced =
-      this.ownerDocument.defaultView?.matchMedia?.("(prefers-reduced-motion: reduce)").matches ??
-      false;
+    const reduced = this.prefersReducedMotion();
     for (const side of BATTLE_HP_SIDES) {
       const sprite = neutral[side];
       const motion = getEffectActorMotion(
@@ -1290,7 +1239,7 @@ export class BattleController {
   }
 
   private getShortcutGuideInputMode(): ShortcutGuideInputMode {
-    return usesPokeLoungeMobileShell(this.ownerDocument) ? "touch" : "keyboard";
+    return this.usesMobileShell() ? "touch" : "keyboard";
   }
 
   private createInitialState(data: unknown): BattleScreenState {
@@ -1471,18 +1420,6 @@ export class BattleController {
         );
       }
 
-      this.setBattleState(nextState);
-      return;
-    }
-
-    if (this.state.phase === "bag-select") {
-      const battleBagItemIds = this.getBattleBagItemIds();
-      const itemId = battleBagItemIds[this.selectedBagItemIndex] ?? battleBagItemIds[0];
-      if (!itemId) return;
-      const result = executeBattleChoice(this.state, { kind: "item", itemId }, this.gameStateStore);
-      const nextState = result.state;
-      if (result.selectedPartySlot !== undefined)
-        this.selectedPartySlotIndex = result.selectedPartySlot;
       this.setBattleState(nextState);
       return;
     }
@@ -1976,6 +1913,7 @@ export class BattleController {
     this.moveLearningRemainingSeconds = null;
     this.multiplayerRoom?.setMoveLearningPending?.(false);
     this.sceneLifecycleActive = false;
+    this.presentationDirty = false;
     this.cancelBattleEffects();
     this.clearAuthoritativeSubscriptions();
     this.messageAutoAdvanceTimer?.stop();
@@ -2149,8 +2087,7 @@ export class BattleController {
           this.isHpAnimationPlaying() ||
           this.isHitAnimationPlaying() ||
           this.isStatusCommitPlaying() ||
-          (usesPokeLoungeMobileShell(this.ownerDocument) &&
-            hasPokeLoungeMobileFullscreenScene(this.ownerDocument)) ||
+          (this.usesMobileShell() && hasPokeLoungeMobileFullscreenScene(this.ownerDocument)) ||
           this.shortcutGuideOpen
         ) {
           this.scheduleBattleMessageAutoAdvance();
@@ -2234,7 +2171,7 @@ export class BattleController {
               this.displayedHp[side] =
                 displayedHp + (targetHp - displayedHp) * (1 - (1 - hpProgress) ** 3);
               this.animationFrameUpdateCount += 1;
-              this.publishBattlePresentationState();
+              this.markBattlePresentationDirty();
             },
             onComplete: () => {
               if (this.hpTweens[side] !== tween) {
@@ -2362,7 +2299,7 @@ export class BattleController {
           this.render();
         }
         this.animationFrameUpdateCount += 1;
-        this.publishBattlePresentationState();
+        this.markBattlePresentationDirty();
       },
       onComplete: () => {
         if (this.battleEffectTween !== tween || !this.isSceneLifecycleCurrent(generation)) return;
@@ -2480,7 +2417,7 @@ export class BattleController {
 
         hitEffect.progress = progress;
         this.animationFrameUpdateCount += 1;
-        this.publishBattlePresentationState();
+        this.markBattlePresentationDirty();
       },
       onComplete: () => {
         if (hitEffect.tween !== tween) {
@@ -2512,7 +2449,7 @@ export class BattleController {
 
         this.battleEntranceProgress = progress;
         this.animationFrameUpdateCount += 1;
-        this.publishBattlePresentationState();
+        this.markBattlePresentationDirty();
       },
       onComplete: () => {
         if (this.battleEntranceTween !== tween) {
@@ -2552,7 +2489,7 @@ export class BattleController {
 
         this.captureAnimationProgress = progress;
         this.animationFrameUpdateCount += 1;
-        this.publishBattlePresentationState();
+        this.markBattlePresentationDirty();
       },
       onComplete: () => {
         if (this.captureAnimationTween !== tween) {
@@ -2586,7 +2523,7 @@ export class BattleController {
 
         this.evolutionAnimationProgress = progress;
         this.animationFrameUpdateCount += 1;
-        this.publishBattlePresentationState();
+        this.markBattlePresentationDirty();
       },
       onComplete: () => {
         if (this.evolutionAnimationTween !== tween) {
@@ -3263,28 +3200,6 @@ export class BattleController {
     this.render();
   }
 
-  private updateBagSelection(): void {
-    const count = this.getBattleBagItemIds().length;
-    const columns = usesPokeLoungeMobileShell(this.ownerDocument) ? 1 : 2;
-    const keys = {
-      up: ["ArrowUp", "KeyW"],
-      down: ["ArrowDown", "KeyS"],
-      left: ["ArrowLeft", "KeyA"],
-      right: ["ArrowRight", "KeyD"],
-    } as const;
-    for (const direction of ["up", "down", "left", "right"] as const) {
-      if (!consumeVirtualGamepadPress(direction) && !this.keyboard.consume(...keys[direction]))
-        continue;
-      this.selectedBagItemIndex = moveBattleBagSelection(
-        this.selectedBagItemIndex,
-        direction,
-        count,
-        columns,
-      );
-      this.render();
-    }
-  }
-
   private toggleShortcutGuide(): void {
     if (this.shortcutGuideOpen) {
       this.closeShortcutGuide();
@@ -3337,7 +3252,7 @@ export class BattleController {
         : "사용할 기술을 선택하세요.";
     } else if (!queuedMessage && this.state.phase === "move-replace-select") {
       const pending = this.getCurrentPendingMoveLearning();
-      const move = playerPokemon.moves[this.selectedMoveIndex];
+      const move = this.getMoveSelectionPokemon().moves[this.selectedMoveIndex];
       interactionSummary = pending
         ? `${withObjectParticle(pending.newMove.name)} 배우기 위해 ${withObjectParticle(move?.name ?? "기존 기술")} 잊도록 선택했습니다.`
         : "기술 교체를 확인하는 중입니다.";
@@ -3353,15 +3268,6 @@ export class BattleController {
       interactionSummary = isForcedPartySwitch(this.state)
         ? `선두 포켓몬이 쓰러져 반드시 교체해야 합니다. ${selectionSummary}`
         : selectionSummary;
-    } else if (!queuedMessage && this.state.phase === "bag-select") {
-      const itemId = this.getBattleBagItemIds()[this.selectedBagItemIndex];
-      const item = itemId ? getInventoryItemById(itemId) : undefined;
-      const quantity = itemId
-        ? (this.gameStateStore.getCurrentLocalPlayer().inventory[itemId] ?? 0)
-        : 0;
-      interactionSummary = item
-        ? `가방 ${item.displayName} 선택. 보유 ${quantity}개.`
-        : "사용할 아이템을 선택하세요.";
     }
 
     const nextStatus = `${healthSummary} ${interactionSummary}`.trim();
@@ -3404,17 +3310,21 @@ export class BattleController {
   }
 
   private getBattleStatusCopy() {
-    return getPokeLoungeCopyForUrl(new URL(this.ownerDocument.location.href)).mobile;
+    // The locale comes from the route path, so the copy is only resolved again when it changes.
+    const pathname = this.ownerDocument.location.pathname;
+    if (this.battleStatusCopy?.pathname !== pathname) {
+      this.battleStatusCopy = {
+        pathname,
+        copy: getPokeLoungeCopyForUrl(new URL(this.ownerDocument.location.href)).mobile,
+      };
+    }
+    return this.battleStatusCopy.copy;
   }
 
   private getHitRenderEffect(side: BattleHpSide): { alpha: number; offsetX: number } {
     const effect = this.hitEffects[side];
     if (!effect.tween) return { alpha: 1, offsetX: 0 };
-    const reduced =
-      this.options.parent.ownerDocument.defaultView?.matchMedia?.(
-        "(prefers-reduced-motion: reduce)",
-      ).matches ?? false;
-    return getRomHitFrame(effect.progress * ROM_HIT_DURATION_MS, reduced);
+    return getRomHitFrame(effect.progress * ROM_HIT_DURATION_MS, this.prefersReducedMotion());
   }
 
   private getCaptureOpponentRenderEffect(): { alpha: number; scale: number } {
@@ -3475,17 +3385,16 @@ export class BattleController {
       ? !request.moves.some(m => m.moveId === move.id && !m.disabled && m.pp > 0)
       : move.pp <= 0 || move.competitiveEffectSupport === "unsupported-primary";
   }
-  private getBattleBagItemIds(): BattleBagItemId[] {
-    const inventory = this.gameStateStore.getCurrentLocalPlayer().inventory;
-    const owned = BATTLE_BAG_ITEM_IDS.filter(itemId => (inventory[itemId] ?? 0) > 0);
-    this.selectedBagItemIndex = Math.min(this.selectedBagItemIndex, Math.max(0, owned.length - 1));
-    return owned;
-  }
-
   private throwPokeball(): BattleScreenState {
     const bagState = chooseBattleCommand(this.state, "bag");
-    return executeBattleChoice(bagState, { kind: "item", itemId: "pokeball" }, this.gameStateStore)
-      .state;
+    const thrown = executeBattleChoice(
+      bagState,
+      { kind: "item", itemId: "pokeball" },
+      this.gameStateStore,
+    ).state;
+    // A throw the rules refuse answers with a message only; without this the battle would
+    // stay on the bag list, which no longer has anything to pick.
+    return thrown.phase === "bag-select" ? { ...thrown, phase: "command" } : thrown;
   }
 }
 

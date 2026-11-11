@@ -7,25 +7,14 @@ import {
 import type { NormalizedCompetitiveParty } from "./competitive-party";
 import { COMPETITIVE_RULESET_VERSION } from "./competitive-ruleset-config";
 import { compareServerIds } from "./ordering";
-import {
-  getCompetitiveMoveDefinition as getMoveDefinition,
-  type CompetitiveResolvedMoveDefinition,
-} from "./ruleset-contract";
 
 export interface CompetitiveBattleParticipantInput {
   playerId: string;
   party: NormalizedCompetitiveParty;
 }
 
-export function getCompetitiveMoveDefinition(
-  moveId: number | "struggle",
-): CompetitiveResolvedMoveDefinition | undefined {
-  return getMoveDefinition(moveId);
-}
-
 export function createInitialBattleState(
   participants: readonly [CompetitiveBattleParticipantInput, CompetitiveBattleParticipantInput],
-  rulesetVersion: 2 | 3 = COMPETITIVE_RULESET_VERSION,
 ): CanonicalBattleState {
   if (
     participants.some(function testItem(participant) {
@@ -51,7 +40,7 @@ export function createInitialBattleState(
   );
 
   return {
-    rulesetVersion,
+    rulesetVersion: COMPETITIVE_RULESET_VERSION,
     turn: 0,
     participantIds,
     playersById,

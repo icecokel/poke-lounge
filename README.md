@@ -143,7 +143,7 @@ git switch -c feature/room-reconnect
 
 PR 충돌은 feature 브랜치에 최신 `upstream/main`을 병합해 해결한다. `main`에서 직접 커밋하거나 다른 작업의 미커밋 변경을 함께 스테이징하지 않는다.
 
-`main`에 병합되면 CI의 `verify` 성공 후 운영 배포가 실행된다. `main`에서 CI를 수동 실행한 경우에도 배포 조건을 만족한다. 배포 조건과 실행 절차는 [배포 가이드](apps/db/DEPLOY.md)를 따른다.
+`main`에 병합되면 CI의 `verify`와 `rust` 성공 후 운영 배포가 실행된다. `main`에서 CI를 수동 실행한 경우에도 배포 조건을 만족한다. 배포 조건과 실행 절차는 [배포 가이드](apps/db/DEPLOY.md)를 따른다.
 
 ### GitHub 저장소 설정
 
@@ -156,10 +156,10 @@ PR 충돌은 feature 브랜치에 최신 `upstream/main`을 병합해 해결한�
 
 ### CI와 운영 배포 범위
 
-- [CI](.github/workflows/ci.yml)와 [Rust 정적 검사](.github/workflows/rust.yml)는 `main`, `feature/*` push와 `main` 대상 PR에서 실행한다.
+- [CI](.github/workflows/ci.yml)는 `main`, `feature/*` push와 `main` 대상 PR에서 실행한다. `verify` job이 웹·워커·계약 정적 검사를, `rust` job이 Rust 정적 검사를 맡는다.
 - 운영 배포 조건은 `main`의 push 또는 `main`에서 CI 수동 실행이다.
 - CI 성공은 정적 검사·빌드 결과다. 실제 플레이 확인과 모든 버튼 확인의 완료 근거로 사용하지 않는다.
-- `pr-flow`는 PR 경로만 확인한다. 운영 배포는 `main`의 CI `verify` 성공 후에만 실행한다.
+- `pr-flow`는 PR 경로만 확인한다. 운영 배포는 `main`의 CI `verify`와 `rust` 성공 후에만 실행한다.
 
 ## 로컬 실행
 

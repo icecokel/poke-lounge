@@ -927,10 +927,21 @@ export function localizeItemDescription(
     : (catalog.items[canonicalName]?.[resolvedLocale].description ?? description);
 }
 
+const RUNTIME_TEXT_CACHE_LIMIT = 400;
+const runtimeTextCache: Record<RuntimeTranslationLocale, Map<string, string>> = {
+  "en-US": new Map(),
+  "ja-JP": new Map(),
+};
+
 export function localizeRuntimeText(text: string, locale?: string | null): string {
   const resolvedLocale = resolvePokeLoungeLocale(locale);
   if (resolvedLocale === "ko-KR" || !text) return text;
-  return text
+  // Battle and world UI re-localise the same lines on every render; matching one line costs
+  // about a hundred regex tests plus a scan of the whole term catalog, so remember recent results.
+  const cache = runtimeTextCache[resolvedLocale];
+  const cached = cache.get(text);
+  if (cached !== undefined) return cached;
+  const localized = text
     .split("\n")
     .map(function mapLine(line) {
       const exact = EXACT_RUNTIME_TEXT[line]?.[resolvedLocale];
@@ -944,6 +955,12 @@ export function localizeRuntimeText(text: string, locale?: string | null): strin
       return localizeKnownTerms(translated, resolvedLocale);
     })
     .join("\n");
+  if (cache.size >= RUNTIME_TEXT_CACHE_LIMIT) {
+    const oldest = cache.keys().next();
+    if (!oldest.done) cache.delete(oldest.value);
+  }
+  cache.set(text, localized);
+  return localized;
 }
 
 export function localizeMobileBattleUiState(
@@ -962,7 +979,6 @@ export function localizeMobileBattleUiState(
     party: state.party.map(pokemon => ({
       ...pokemon,
       name: localizePokemonName(pokemon.name, locale),
-      status: pokemon.status ? localizePokemonStatus(pokemon.status, locale) : null,
     })),
     items: state.items.map(item => ({ ...item, name: localizeItemName(item.name, locale) })),
     learnedMove: state.learnedMove
@@ -1028,12 +1044,10 @@ export function localizeMobileWorldUiState(
     party: state.party.map(pokemon => ({
       ...pokemon,
       name: localizePokemonName(pokemon.name, locale),
-      status: pokemon.status ? localizePokemonStatus(pokemon.status, locale) : null,
     })),
     box: state.box.map(pokemon => ({
       ...pokemon,
       name: localizePokemonName(pokemon.name, locale),
-      status: pokemon.status ? localizePokemonStatus(pokemon.status, locale) : null,
     })),
     moveReplacement: state.moveReplacement
       ? {
@@ -1052,6 +1066,17 @@ export function localizeMobileWorldUiState(
 export function localizePokemonStatus(status: string, locale?: string | null): string {
   const labels = getPokeLoungeCopy(locale).game.statusLabel;
   return labels[status as keyof typeof labels] ?? status;
+}
+
+/**
+ * UI state keeps the raw status key ("normal", "poisoned", …) so consumers can compare it.
+ * Call this only where the label is rendered; a healthy Pokémon has no label.
+ */
+export function getPokemonStatusLabel(
+  status: string | null | undefined,
+  locale?: string | null,
+): string | null {
+  return status && status !== "normal" ? localizePokemonStatus(status, locale) : null;
 }
 
 function pattern(
