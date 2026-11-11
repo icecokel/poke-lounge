@@ -2,6 +2,13 @@ import { resolvePokeLoungeLocale } from "../poke-lounge-copy";
 
 const COPY = {
   "ko-KR": {
+    bagCommand: "몬스터볼",
+    itemTargetTitle: "대상 선택",
+    itemTargetHeading: "사용할 포켓몬",
+    chooseItemTarget: "사용할 포켓몬을 선택하세요",
+    pcLabel: "PC",
+    expMax: "EXP MAX",
+    expToNextLevel: (remaining: number) => `다음 레벨까지 ${remaining} EXP`,
     selected: "선택됨",
     selectPokemon: "교체할 포켓몬을 선택하세요",
     switchPokemon: "이 포켓몬으로 교체",
@@ -40,6 +47,13 @@ const COPY = {
       "파티 카드는 선두 포켓몬을 바꾸는 메뉴입니다. 선두는 이미 선택되어 있습니다. 별도의 상세 화면은 제공하지 않습니다.",
   },
   "en-US": {
+    bagCommand: "Poké Ball",
+    itemTargetTitle: "Target",
+    itemTargetHeading: "Choose target",
+    chooseItemTarget: "Choose a target Pokémon",
+    pcLabel: "PC",
+    expMax: "EXP MAX",
+    expToNextLevel: (remaining: number) => `${remaining} EXP to next level`,
     selected: "Selected",
     selectPokemon: "Choose a Pokémon to switch in",
     switchPokemon: "Switch to this Pokémon",
@@ -78,6 +92,13 @@ const COPY = {
       "Choose a party card to change the lead Pokémon. The lead is already selected. A separate details screen is not available.",
   },
   "ja-JP": {
+    bagCommand: "モンスターボール",
+    itemTargetTitle: "対象",
+    itemTargetHeading: "使うポケモン",
+    chooseItemTarget: "使うポケモンを選んでください",
+    pcLabel: "PC",
+    expMax: "EXP MAX",
+    expToNextLevel: (remaining: number) => `次のレベルまで ${remaining} EXP`,
     selected: "選択中",
     selectPokemon: "交代するポケモンを選んでください",
     switchPokemon: "このポケモンに交代",

@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useRef, useSyncExternalStore, type RefCallback } from "react";
+import { forwardRef, memo, useEffect, useRef, useSyncExternalStore, type RefCallback } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import {
   getAiActivityLabel,
@@ -34,26 +34,26 @@ import styles from "./world-screen.module.css";
 export function WorldScreen({
   atlas,
   competitiveRoundsEnabled,
-  showRankScoreHud = true,
   onPreparationReady,
   frameStore,
   gameStateStore,
   model,
   copy,
-  desktop,
   onResultLobby,
   onResultNewGame,
   uiStore,
 }: {
   atlas: WorldPlayerAtlasModel;
   competitiveRoundsEnabled: boolean;
+  /** @deprecated The desktop rank/score HUD was removed; this prop is ignored. */
   showRankScoreHud?: boolean;
   onPreparationReady?: (roundIndex: number) => Promise<void>;
   frameStore: WorldFrameStore;
   gameStateStore: GameStateStore;
   model: WorldMapModel;
   copy: PokeLoungeCopy;
-  desktop: boolean;
+  /** @deprecated The world screen has a single layout; this prop is ignored. */
+  desktop?: boolean;
   onResultLobby(): void;
   onResultNewGame(): void;
   uiStore: WorldUiStore;
@@ -190,9 +190,6 @@ export function WorldScreen({
       ) : null}
       <WorldUiLayer
         copy={copy}
-        competitiveRoundsEnabled={competitiveRoundsEnabled}
-        showRankScoreHud={showRankScoreHud}
-        desktop={desktop}
         gameStateStore={gameStateStore}
         onResultLobby={onResultLobby}
         onResultNewGame={onResultNewGame}
@@ -228,7 +225,9 @@ export const WorldMap = forwardRef<
   );
 });
 
-export function WorldTileLayer({
+// The map is static: the camera moves the parent with a transform, so a layer only needs to
+// reconcile its (≈1,500 in total) tile elements again when the map model itself changes.
+export const WorldTileLayer = memo(function WorldTileLayer({
   depth,
   layer,
   model,
@@ -249,7 +248,7 @@ export function WorldTileLayer({
       })}
     </div>
   );
-}
+});
 
 export function TallGrassBaseLayer({ model }: { model: WorldMapModel }) {
   return <WorldGrassLayer depth={15} model={model} name="Tall Grass" tiles={model.tallGrassBase} />;
@@ -266,7 +265,7 @@ export function TallGrassForegroundLayer({ model }: { model: WorldMapModel }) {
   );
 }
 
-function WorldGrassLayer({
+const WorldGrassLayer = memo(function WorldGrassLayer({
   depth,
   model,
   name,
@@ -288,7 +287,7 @@ function WorldGrassLayer({
       })}
     </div>
   );
-}
+});
 
 function WorldTile({ model, tile }: { model: WorldMapModel; tile: WorldMapTile }) {
   const grass = getWorldGrassSource(tile, model.tallGrassCoordinates);

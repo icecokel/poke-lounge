@@ -29,11 +29,25 @@ export function usePokeLoungeAccessibleStatus(
   useEffect(
     function runEffect() {
       const store = getDefaultGameStateStore();
+      // The battle store publishes on every animation frame; the summary only reads the game
+      // state and the battler's name and level, so skip rebuilding it while those are unchanged.
+      let lastInputs: { state: unknown; name?: string; level?: number } | null = null;
       const syncSummary = () => {
         const battle = activeScene === "battle" ? battleUiStore?.getSnapshot().presentation : null;
-        const nextSummary = createAccessibleGameSummary(store.getState(), resolvedLocale, {
+        const battlePokemon =
+          battle && !battle.authoritative.spectating ? battle.player : undefined;
+        const state = store.getState();
+        if (
+          lastInputs &&
+          lastInputs.state === state &&
+          lastInputs.name === battlePokemon?.name &&
+          lastInputs.level === battlePokemon?.level
+        )
+          return;
+        lastInputs = { state, name: battlePokemon?.name, level: battlePokemon?.level };
+        const nextSummary = createAccessibleGameSummary(state, resolvedLocale, {
           omitMutablePartyState: activeScene === "battle",
-          battlePokemon: battle && !battle.authoritative.spectating ? battle.player : undefined,
+          battlePokemon,
         });
         setGameSummary(function callback(currentSummary) {
           return currentSummary === nextSummary ? currentSummary : nextSummary;

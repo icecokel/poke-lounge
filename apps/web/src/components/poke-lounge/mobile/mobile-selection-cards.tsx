@@ -4,6 +4,7 @@ import { CircleHelp } from "lucide-react";
 import { HgssItemIcon } from "../ui/hgss-item-icon";
 import type { PokeLoungeCopy } from "../poke-lounge-copy";
 import type { BattleSpriteRef } from "../runtime/game/battle/battle-types";
+import { getPokemonStatusLabel } from "../runtime/game/i18n/runtime-game-localization";
 import { getMobileUiCopy } from "./mobile-ui-copy";
 import { pokemonHealth } from "./mobile-selection-model";
 
@@ -39,11 +40,7 @@ export function MobilePokemonCard({
 }: PokemonCardProps) {
   const text = getMobileUiCopy(copy.locale);
   const health = pokemonHealth(pokemon.currentHp, pokemon.maxHp);
-  const status =
-    pokemon.status && pokemon.status !== "normal"
-      ? (copy.game.statusLabel[pokemon.status as keyof typeof copy.game.statusLabel] ??
-        pokemon.status)
-      : null;
+  const status = getPokemonStatusLabel(pokemon.status, copy.locale);
   return (
     <button
       type="button"

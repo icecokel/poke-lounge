@@ -18,6 +18,7 @@ import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import { localizeRuntimeText, localizeTrainerName } from "../i18n/runtime-game-localization";
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 import { ROUND_TOTAL_COUNT } from "../round/round-state";
+import { getTournamentCopy } from "./tournament-copy";
 
 interface OpeningPair {
   bye: boolean;
@@ -47,7 +48,8 @@ export function TournamentBracketPanel({
   const ownName = projection.participants.find(
     player => player.playerId === projection.ownPlayerId,
   )?.displayName;
-  const me = copy.locale === "ko-KR" ? "나" : copy.locale === "ja-JP" ? "自分" : "YOU";
+  const tournamentCopy = getTournamentCopy(copy.locale);
+  const me = tournamentCopy.me;
 
   const ownPosition = (
     <div
@@ -59,11 +61,7 @@ export function TournamentBracketPanel({
       <span>
         {preview?.ownPositionLabel
           ? localizeRuntimeText(preview.ownPositionLabel, copy.locale)
-          : copy.locale === "ko-KR"
-            ? "대진 배정 중"
-            : copy.locale === "ja-JP"
-              ? "組み合わせ待機中"
-              : "Waiting for bracket"}
+          : tournamentCopy.bracketPending}
       </span>
     </div>
   );
@@ -86,42 +84,7 @@ export function TournamentBracketPanel({
     (projection.roomRound.endsAtMs ?? now) + TOURNAMENT_BRIEFING_DURATION_MS - now,
   );
   const focused = projection.roomStatus !== "round-started" || remainingMs <= 3_800;
-  const labels =
-    copy.locale === "ko-KR"
-      ? {
-          reveal: "전체 대진 공개",
-          match: "내 첫 상대",
-          spectator: "관전 경기",
-          eliminated: "탈락 · 관전 중",
-          route: "우승까지",
-          next: "다음 상대 후보",
-          automatic: "잠시 후 자동으로 전투가 시작됩니다",
-          opponent: "상대",
-          waiting: "다음 경기를 기다립니다",
-        }
-      : copy.locale === "ja-JP"
-        ? {
-            reveal: "組み合わせ発表",
-            match: "最初の対戦相手",
-            spectator: "観戦試合",
-            eliminated: "敗退 · 観戦中",
-            route: "優勝への道",
-            next: "次の相手候補",
-            automatic: "まもなく自動でバトルが始まります",
-            opponent: "相手",
-            waiting: "次の試合を待っています",
-          }
-        : {
-            reveal: "Bracket revealed",
-            match: "Your first opponent",
-            spectator: "Spectator match",
-            eliminated: "Eliminated · spectating",
-            route: "Road to the trophy",
-            next: "Next opponent candidates",
-            automatic: "The battle starts automatically",
-            opponent: "Opponent",
-            waiting: "Waiting for the next match",
-          };
+  const labels = tournamentCopy.bracket;
   const displayMatch = preview.ownCanCompete
     ? preview.ownMatch
     : (preview.bracket.currentRound.matches.find(match => match.status === "ready") ?? null);
@@ -319,11 +282,7 @@ function TournamentBracketSide({
                   >
                     <b>
                       {participant.playerId === ownPlayerId
-                        ? copy.locale === "ko-KR"
-                          ? "나"
-                          : copy.locale === "ja-JP"
-                            ? "自分"
-                            : "YOU"
+                        ? getTournamentCopy(copy.locale).me
                         : `#${participant.seed}`}
                     </b>
                     <span>{localizeTrainerName(participant.displayName, copy.locale)}</span>

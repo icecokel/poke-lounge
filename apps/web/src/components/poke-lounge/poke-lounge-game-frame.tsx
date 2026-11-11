@@ -138,7 +138,6 @@ export function PokeLoungeGameFrame({
             <WorldScreen
               {...world}
               copy={copy}
-              desktop={false}
               onResultLobby={onResultLobby}
               onResultNewGame={onResultNewGame}
             />,
