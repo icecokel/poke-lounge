@@ -372,7 +372,9 @@ export function MobileBattleMoveDeck({ copy, onAction, state }: DeckProps) {
                 PP {move.pp}/{move.maxPp}
               </span>
             </small>
-            <small className="flex flex-wrap gap-x-1">
+            <small
+              className={`flex flex-wrap ${copy.locale === "en-US" ? "gap-x-0.5 text-[clamp(10px,2.8cqw,12px)]!" : "gap-x-1"}`}
+            >
               {getBattleMoveDetails(move, copy.locale)
                 .stats.split(" · ")
                 .map(stat => (
