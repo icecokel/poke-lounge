@@ -667,21 +667,12 @@ impl Room {
                 if !p.connected && self.status != Status::Waiting {
                     return Err(AppError::RoomRejoinBlocked);
                 }
-                p.connected = true;
-                if p.admitted {
-                    p.presence_until_ms = now + PRESENCE_LEASE_MS;
-                } else {
-                    // Never connected a socket: repeating Join may renew the short admission lease
-                    // when it is about to lapse, but only within one presence lease of the first
-                    // join, so a seat cannot be held without ever connecting.
-                    let renewed = (now + ADMISSION_MS).min(p.joined_at_ms + PRESENCE_LEASE_MS);
-                    if p.presence_until_ms >= now + ADMISSION_MS / 2
-                        || renewed <= p.presence_until_ms
-                    {
-                        return Ok(None);
-                    }
-                    p.presence_until_ms = renewed;
+                // Only a socket can extend the admission lease.
+                if !p.admitted {
+                    return Ok(None);
                 }
+                p.connected = true;
+                p.presence_until_ms = now + PRESENCE_LEASE_MS;
             } else {
                 if self.status != Status::Waiting {
                     return Err(AppError::RoomAlreadyStarted);
@@ -739,8 +730,10 @@ impl Room {
                 } else if self.status != Status::Waiting {
                     return Err(AppError::Invalid("Room is not waiting"));
                 }
-                self.participants[index].ready = ready;
-                self.touch(now);
+                if self.participants[index].ready != ready {
+                    self.participants[index].ready = ready;
+                    self.touch(now);
+                }
             }
             GameCommand::RoundReady { round_index } => {
                 if self.round.index > round_index
@@ -756,8 +749,10 @@ impl Room {
                 {
                     return Err(AppError::Invalid("Round readiness is not due"));
                 }
-                self.participants[index].ready = true;
-                self.touch(now);
+                if !self.participants[index].ready {
+                    self.participants[index].ready = true;
+                    self.touch(now);
+                }
             }
             GameCommand::Start => {
                 if self.status != Status::Waiting || self.host() != Some(player) {
@@ -947,6 +942,9 @@ impl Room {
             }
             GameCommand::Leave => {
                 let p = &mut self.participants[index];
+                if !p.connected {
+                    return Ok(None);
+                }
                 p.connected = false;
                 p.admitted = false;
                 p.ready = false;
