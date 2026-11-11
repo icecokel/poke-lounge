@@ -45,7 +45,7 @@ async fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             // Display only the safe wrapper, not Redis connection credentials in source errors.
-            error::log_with_storage!(error, error, event = "backend.exit", error = %error, stage,
+            error::log_fields!(error, error, event = "backend.exit", error = %error, stage,
                 uptime_ms = started.elapsed().as_millis() as u64,
                 release = %logging::release());
             ExitCode::FAILURE
@@ -106,7 +106,7 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
                             }
                             Err(error) => {
                                 failures += 1;
-                                error::log_with_storage!(warn, error, event = "backend.owner_renew_failed",
+                                error::log_fields!(warn, error, event = "backend.owner_renew_failed",
                                     failures, reason = %error,
                                     elapsed_ms = started.elapsed().as_millis() as u64,
                                     release = %logging::release());
@@ -151,7 +151,7 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
                     _ = timer.tick() => {
                         let started = Instant::now();
                         if let Err(error) = rooms.restore().await {
-                            error::log_with_storage!(warn, error, event = "backend.recovery_failed",
+                            error::log_fields!(warn, error, event = "backend.recovery_failed",
                                 reason = %error,
                                 elapsed_ms = started.elapsed().as_millis() as u64,
                                 release = %logging::release());

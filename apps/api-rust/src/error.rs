@@ -74,7 +74,7 @@ pub enum AppError {
 }
 /// Logs an event with the Redis diagnostics of `$error` that are safe to record: Redis error text
 /// can echo the connection URL with credentials, so only its kind and flags are emitted.
-macro_rules! log_with_storage {
+macro_rules! log_fields {
     ($level:ident, $error:expr, $($fields:tt)+) => {{
         let storage = $error.storage_error();
         tracing::$level!(
@@ -85,7 +85,8 @@ macro_rules! log_with_storage {
         )
     }};
 }
-pub(crate) use log_with_storage;
+pub(crate) use log_fields;
+static BUSY_LOGGED_S: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 impl AppError {
     pub fn storage_error(&self) -> Option<&redis::RedisError> {
         match self {
@@ -172,7 +173,7 @@ impl AppError {
         )
     }
     /// Internal cause safe to log. Redis errors are excluded: their text can echo the connection
-    /// URL with credentials, so only their kind/flags are logged (see `log_with_storage!`).
+    /// URL with credentials, so only their kind/flags are logged (see `log_fields!`).
     pub fn detail(&self) -> Option<String> {
         let text = match self {
             // Other variants already carry their whole cause in their display text.
@@ -200,9 +201,12 @@ impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, code) = self.classify();
         if status.is_server_error() {
-            log_with_storage!(error, self, event = "api.error", code, source = self.source_label(),
+            log_fields!(error, self, event = "api.error", code, source = self.source_label(),
                 error = %self, detail = ?self.detail(), db_code = ?self.db_code());
-        } else if status.is_client_error() {
+        } else if status.is_client_error()
+            && (status != StatusCode::TOO_MANY_REQUESTS
+                || crate::http::first_this_second(&BUSY_LOGGED_S))
+        {
             tracing::warn!(event = "api.rejected", code, reason = %self, detail = ?self.detail());
         }
         self.into_quiet_response()
