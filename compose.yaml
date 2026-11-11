@@ -15,7 +15,7 @@ x-db-environment: &db-environment
   DB_HOST: postgres
   DB_PORT: 5432
   DB_USERNAME: ${DB_USERNAME:-poke_lounge}
-  DB_PASSWORD: ${DB_PASSWORD:-poke_lounge}
+  DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
   DB_DATABASE: ${DB_DATABASE:-poke_lounge}
   DB_SYNCHRONIZE: "false"
 
@@ -26,7 +26,7 @@ services:
     logging: *bounded-logging
     environment:
       POSTGRES_USER: ${DB_USERNAME:-poke_lounge}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-poke_lounge}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
       POSTGRES_DB: ${DB_DATABASE:-poke_lounge}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
@@ -145,7 +145,7 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USERNAME: ${DB_USERNAME:-poke_lounge}
-      DB_PASSWORD: ${DB_PASSWORD:-poke_lounge}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE:-poke_lounge}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       RUST_API_TRUSTED_PROXIES: ${RUST_API_TRUSTED_PROXIES:-}

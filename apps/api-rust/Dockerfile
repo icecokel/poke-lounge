@@ -2,8 +2,17 @@
 FROM rust:1.98.1-bookworm AS builder
 WORKDIR /app
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+# Dependency layer: build every crate from Cargo.lock against a placeholder main so this layer is
+# reused until a manifest or the toolchain changes. Source edits only rebuild the last layer.
+COPY apps/api-rust/Cargo.toml apps/api-rust/Cargo.toml
+RUN mkdir -p apps/api-rust/src \
+    && echo 'fn main() {}' > apps/api-rust/src/main.rs \
+    && cargo build --locked --release --package poke-lounge-api-rust
 COPY apps/api-rust apps/api-rust
-RUN cargo build --locked --release --package poke-lounge-api-rust
+# COPY keeps the checkout's mtime, which can be older than the placeholder build; touch main.rs so
+# cargo always rebuilds the real binary.
+RUN touch apps/api-rust/src/main.rs \
+    && cargo build --locked --release --package poke-lounge-api-rust
 
 FROM debian:bookworm-slim
 RUN apt-get update \
