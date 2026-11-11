@@ -14,9 +14,9 @@ try {
     resolve(root, "apps/web/src/features/poke-lounge/contracts/rust-room.ts"),
   );
 
-  for (const [name, variable, prefix] of [
-    ["snapshot", "result", "RUST_ROOM_SNAPSHOT"],
-    ["public", "value", "RUST_PARTICIPANT"],
+  for (const [name, variable, prefix, interfaceName] of [
+    ["snapshot", "result", "RUST_ROOM_SNAPSHOT", "RustRoomSnapshot"],
+    ["public", "value", "RUST_PARTICIPANT", "RustRoomParticipant"],
   ]) {
     const signature = onlyMatch(
       rust,
@@ -41,6 +41,12 @@ try {
       prefix + "_OPTIONAL_KEYS",
       optional,
       tsStringArray(roomTypes, prefix + "_OPTIONAL_KEYS"),
+    );
+    compare(
+      name + " / " + interfaceName,
+      [...required, ...optional],
+      // Actor adds serverNowMs after Room::snapshot, outside domain.rs.
+      tsInterfaceKeys(roomTypes, interfaceName).filter(key => key !== "serverNowMs"),
     );
   }
 
