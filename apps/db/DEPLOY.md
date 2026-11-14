@@ -4,9 +4,20 @@
 
 ## 배포 경로
 
-[CI](../../.github/workflows/ci.yml)의 `verify`와 `rust`가 성공한 뒤 [Deploy](../../.github/workflows/deploy-api.yml)를 호출한다. `main`의 push 또는 `main`에서 CI를 수동 실행한 경우만 배포하며 PR 검증은 배포하지 않는다. runner는 `[self-hosted, macOS, ARM64, poke-lounge]` 라벨과 Docker Compose가 필요하다. 배포 체크아웃은 `github.sha`다.
+[CI](../../.github/workflows/ci.yml)의 `verify`와 `rust`가 성공한 뒤 [Deploy](../../.github/workflows/deploy-api.yml)를 호출한다. `main`의 push 또는 `main`에서 CI를 수동 실행한 경우만 배포하며 PR 검증은 배포하지 않는다. 배포 체크아웃은 `github.sha`다.
 
-운영 호스트는 Mac mini(Apple silicon)다. Docker 엔진은 OrbStack이고 runner는 로그인 사용자의 launchd 서비스로 실행한다. [setup-mac-mini-runner.sh](../../scripts/deploy/setup-mac-mini-runner.sh)로 runner를 설치·등록한다. runner는 OrbStack 소켓과 keychain `credsStore`가 없는 전용 Docker 설정을 사용한다. 배포 Compose 프로젝트 이름은 `poke-lounge-prod`라서 같은 Mac의 로컬 개발 스택(`poke-lounge`, `poke-lounge-rust-local*`)과 컨테이너·볼륨을 공유하지 않는다. 외부 주소는 Mac의 Cloudflare Tunnel이 `127.0.0.1`의 `WEB_PORT`/`API_PORT`로 전달한다. 터널 설정은 저장소 밖 운영 설정에서 관리한다. 로그인 세션이 있어야 runner·OrbStack·터널이 동작하므로 재부팅 후에는 로그인 상태를 확인한다.
+### 러너 선택
+
+| 저장소 variable             | 의미                                                                             | 비어 있을 때                                              |
+| --------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `POKE_LOUNGE_DEPLOY_RUNNER` | 배포 job의 runner 라벨 JSON 배열. 운영 호스트를 바꿀 때 이 값만 바꾼다.          | `["self-hosted","macOS","ARM64","poke-lounge"]`(Mac mini) |
+| `POKE_LOUNGE_CI_RUNNER`     | `verify`·`rust` job의 runner 라벨 JSON 배열. 같은 저장소의 push·PR에만 적용한다. | `"ubuntu-latest"`                                         |
+
+저장소가 공개라서 포크 PR은 변수와 상관없이 GitHub 호스팅 runner에서만 실행한다. 운영 호스트에서 외부 코드를 실행하지 않기 위해서다. 한 runner는 job을 하나씩 처리하므로 정적 검사와 배포가 같은 호스트에서 겹치지 않는다. 배포는 이미지를 하나씩 빌드하고(`COMPOSE_PARALLEL_LIMIT=1`), Linux 호스트에서는 끝난 뒤 dangling 이미지와 7일 지난 빌드 캐시만 정리한다. 볼륨과 태그된 이미지는 지우지 않는다.
+
+Linux ARM64 호스트는 [setup-oci-host.sh](../../scripts/deploy/setup-oci-host.sh)(root: Docker Engine·Compose·git·cloudflared)와 [setup-oci-runner.sh](../../scripts/deploy/setup-oci-runner.sh)(서비스 사용자: runner 등록·systemd)로 준비한다. 호스트에 Node·Rust를 설치하지 않는다. 배포 빌드는 Docker 안에서, `verify`는 `actions/setup-node`가 받은 Node로, `rust`는 `rust:1.98.1-bookworm` 컨테이너에서 실행한다. Mac mini runner는 [setup-mac-mini-runner.sh](../../scripts/deploy/setup-mac-mini-runner.sh)로 준비하며 OrbStack 소켓과 keychain `credsStore`가 없는 전용 Docker 설정을 쓴다.
+
+배포 Compose 프로젝트 이름은 `poke-lounge-prod`라서 같은 호스트의 로컬 개발 스택(`poke-lounge`, `poke-lounge-rust-local*`)과 컨테이너·볼륨을 공유하지 않는다. 외부 주소는 운영 호스트의 Cloudflare Tunnel이 `127.0.0.1`의 `WEB_PORT`/`API_PORT`로 전달한다. 터널 설정은 저장소 밖 운영 설정에서 관리한다.
 
 | 설정                       | 현재 소비 위치/의미                                                                                                                                                                                                |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

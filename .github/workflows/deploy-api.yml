@@ -24,8 +24,10 @@ concurrency:
 jobs:
   deploy:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    timeout-minutes: 30
-    runs-on: [self-hosted, macOS, ARM64, poke-lounge]
+    timeout-minutes: 60
+    # POKE_LOUNGE_DEPLOY_RUNNER (JSON label list) selects the production host's runner.
+    # Without it, the previous Mac mini runner labels apply.
+    runs-on: ${{ fromJSON(vars.POKE_LOUNGE_DEPLOY_RUNNER || '["self-hosted","macOS","ARM64","poke-lounge"]') }}
     env:
       COMPOSE_PROJECT_NAME: poke-lounge-prod
       BIND_ADDRESS: ${{ vars.BIND_ADDRESS || '127.0.0.1' }}
@@ -84,10 +86,17 @@ jobs:
       - name: Archive logs from the current containers
         run: bash scripts/deploy/archive-poke-lounge-logs.sh
 
+      # Build images one at a time so a small production host keeps CPU for the running game.
+      - name: Build images
+        env:
+          COMPOSE_PROFILES: ""
+          COMPOSE_PARALLEL_LIMIT: "1"
+        run: docker compose build
+
       - name: Deploy Docker Compose stack
         env:
           COMPOSE_PROFILES: ""
-        run: docker compose up --build --detach --remove-orphans --wait --wait-timeout 180
+        run: docker compose up --detach --remove-orphans --wait --wait-timeout 180
 
       - name: Start league judge
         if: env.LEAGUE_ENABLED == 'true'
@@ -117,3 +126,12 @@ jobs:
           fi
           docker compose exec -T api sh -c \
             'test -s "$RUST_API_LOG_DIR/api.jsonl" && test "$(stat -c %a "$RUST_API_LOG_DIR/api.jsonl")" = 600 && grep -Fq "$RELEASE_SHA" "$RUST_API_LOG_DIR/api.jsonl"'
+
+      # Linux hosts own their Docker engine; drop dangling images and old build cache so the
+      # boot volume does not fill up. Volumes and tagged images are never touched.
+      - name: Prune old build cache
+        if: runner.os == 'Linux'
+        run: |
+          docker image prune --force >/dev/null
+          docker builder prune --force --filter until=168h >/dev/null
+          df -h /
