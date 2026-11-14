@@ -13,8 +13,11 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Same-repository pushes and PRs may use the self-hosted OCI runner named by the
+    # POKE_LOUNGE_CI_RUNNER variable (a JSON label list). Fork PRs always stay on
+    # GitHub-hosted runners so untrusted code never runs on the production host.
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.POKE_LOUNGE_CI_RUNNER || '"ubuntu-latest"') || 'ubuntu-latest' }}
+    timeout-minutes: 40
     concurrency:
       group: ci-verify-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
@@ -70,9 +73,12 @@ jobs:
 
   # Required status check "rust". Keep the job id; the ruleset matches it by name.
   rust:
-    runs-on: ubuntu-latest
+    # Same-repository pushes and PRs may use the self-hosted OCI runner named by the
+    # POKE_LOUNGE_CI_RUNNER variable (a JSON label list). Fork PRs always stay on
+    # GitHub-hosted runners so untrusted code never runs on the production host.
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.POKE_LOUNGE_CI_RUNNER || '"ubuntu-latest"') || 'ubuntu-latest' }}
     container: rust:1.98.1-bookworm
-    timeout-minutes: 15
+    timeout-minutes: 45
     concurrency:
       group: ci-rust-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
@@ -88,9 +94,9 @@ jobs:
             /usr/local/cargo/registry/cache
             /usr/local/cargo/git/db
             target
-          key: rust-${{ runner.os }}-1.98.1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          key: rust-${{ runner.os }}-${{ runner.arch }}-1.98.1-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: |
-            rust-${{ runner.os }}-1.98.1-
+            rust-${{ runner.os }}-${{ runner.arch }}-1.98.1-
 
       # Player tests require observed UI input. This job only compiles and lints.
       - name: Format
@@ -104,6 +110,12 @@ jobs:
 
       - name: Build
         run: cargo build --workspace --release --locked
+
+      # The container runs as root. Hand the workspace back to the runner user so the next
+      # checkout on a self-hosted runner can clean it.
+      - name: Restore workspace ownership
+        if: always()
+        run: chown -R "$(stat -c '%u:%g' "$GITHUB_WORKSPACE/..")" "$GITHUB_WORKSPACE"
 
   deploy:
     needs: [verify, rust]
