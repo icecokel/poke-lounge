@@ -6,6 +6,10 @@
 
 [CI](../../.github/workflows/ci.yml)의 `verify`와 `rust`가 성공한 뒤 [Deploy](../../.github/workflows/deploy-api.yml)를 호출한다. `main`의 push 또는 `main`에서 CI를 수동 실행한 경우만 배포하며 PR 검증은 배포하지 않는다. 배포 체크아웃은 `github.sha`다.
 
+### 운영 호스트
+
+2026-11-14부터 운영 호스트는 춘천 OCI 2호기 `oci-poke-lounge-prod-01`(Ubuntu 24.04 ARM64, 2 OCPU·12GB)이다. Docker Engine·Compose, runner `oci-poke-lounge-prod-01`(systemd), Cloudflare Tunnel `poke-lounge-oci`(systemd)가 모두 부팅 시 자동으로 올라오며 모든 서비스는 `restart: unless-stopped`다. 저장소 variable `POKE_LOUNGE_DEPLOY_RUNNER`·`POKE_LOUNGE_CI_RUNNER`가 OCI 라벨 `["self-hosted","Linux","ARM64","poke-lounge","oci"]`을 가리킨다. 이전 운영 호스트였던 Mac mini 스택은 앱을 멈춘 채 복귀용으로 남겨 두었다. 터널 설정, 이관·복귀 절차와 호스트 운영 기록은 저장소 밖 운영 문서에서 관리한다.
+
 ### 러너 선택
 
 | 저장소 variable             | 의미                                                                             | 비어 있을 때                                              |
