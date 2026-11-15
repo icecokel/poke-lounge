@@ -7,7 +7,7 @@ x-logging: &bounded-logging
     max-file: "10"
 
 x-node-app: &node-app
-  image: poke-lounge-node:local
+  image: poke-lounge-node:${POKE_LOUNGE_IMAGE_TAG:-local}
   init: true
   logging: *bounded-logging
 
@@ -129,7 +129,7 @@ services:
     stop_grace_period: 15s
 
   api:
-    image: poke-lounge-api-rust:local
+    image: poke-lounge-api-rust:${POKE_LOUNGE_IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: apps/api-rust/Dockerfile
@@ -199,7 +199,7 @@ services:
       start_interval: 2s
     stop_grace_period: 45s
     ports:
-      - "${BIND_ADDRESS:-0.0.0.0}:${API_PORT:-3001}:3011"
+      - "${BIND_ADDRESS:-127.0.0.1}:${API_PORT:-3001}:3011"
 
   web:
     <<: *node-app
@@ -238,7 +238,7 @@ services:
       start_period: 30s
       start_interval: 2s
     ports:
-      - "${BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-3000}:3000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-3000}:3000"
 
 volumes:
   postgres-data:

@@ -6,6 +6,7 @@
 set -euo pipefail
 
 test "$(id -u)" = 0
+# shellcheck source=/dev/null
 . /etc/os-release
 test "$ID/$VERSION_CODENAME/$(dpkg --print-architecture)" = ubuntu/noble/arm64
 service_user=${SERVICE_USER:-ubuntu}

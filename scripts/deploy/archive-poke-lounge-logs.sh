@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Compose recreates containers on deploy. Preserve their bounded Docker logs
-# before that happens, in a separate volume that `compose down -v` cannot remove.
-archive_volume=poke-lounge-trace-archive
+# Preserve logs only when an application's image or Compose configuration will change.
+archive_volume=${POKE_LOUNGE_ARCHIVE_VOLUME:-poke-lounge-trace-archive}
 archive_image=alpine:3.20
 project=${COMPOSE_PROJECT_NAME:-poke-lounge}
-services=(api battle-worker web migrate postgres redis)
+services=(api battle-worker web)
+compose=(docker compose)
+if [[ "${LEAGUE_ENABLED:-}" == true ]]; then
+  services+=(league-judge)
+  compose+=(--profile league)
+fi
 
 existing=0
 for service in "${services[@]}"; do
@@ -25,6 +29,18 @@ stamp=$(date -u +%Y%m%dT%H%M%SZ)
 for service in "${services[@]}"; do
   container="${project}-${service}-1"
   if ! docker container inspect "$container" >/dev/null 2>&1; then
+    continue
+  fi
+  image=$("${compose[@]}" config --format json "$service" |
+    python3 -c 'import json, sys; print(json.load(sys.stdin)["services"][sys.argv[1]]["image"])' "$service")
+  # Compose compares platform images; build attestations can change only the image index.
+  platform=$(docker image inspect -f '{{.Os}}/{{.Architecture}}' "$image")
+  image_id=$(docker image inspect --platform "$platform" -f '{{.Id}}' "$image")
+  current_image_id=$(docker container inspect -f '{{index .Config.Labels "com.docker.compose.image"}}' "$container")
+  config_hash=$("${compose[@]}" config --hash "$service")
+  current_config_hash=$(docker container inspect -f '{{index .Config.Labels "com.docker.compose.config-hash"}}' "$container")
+  if [[ "$image_id" == "$current_image_id" && "${config_hash#* }" == "$current_config_hash" ]]; then
+    echo "Keeping ${service} container; no log archive needed"
     continue
   fi
   container_id=$(docker container inspect -f '{{.Id}}' "$container")
