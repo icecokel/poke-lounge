@@ -13,6 +13,8 @@ permissions:
 
 jobs:
   verify:
+    outputs:
+      deploy_required: ${{ steps.deploy-changes.outputs.required }}
     # Same-repository pushes and PRs may use the self-hosted OCI runner named by the
     # POKE_LOUNGE_CI_RUNNER variable (a JSON label list). Fork PRs always stay on
     # GitHub-hosted runners so untrusted code never runs on the production host.
@@ -27,6 +29,39 @@ jobs:
       LOCAL_TEST_AUTH_TOKEN: ""
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect deployment changes
+        id: deploy-changes
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          required=true
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            echo "Deployment required: manual workflow dispatch"
+          elif [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
+            echo "Deployment required: no previous push SHA"
+          elif ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            echo "Deployment required: previous push commit is unavailable"
+          else
+            git diff --name-only --no-renames -z "$BEFORE_SHA" "$GITHUB_SHA" > "$RUNNER_TEMP/deploy-changed-paths"
+            required=false
+            while IFS= read -r -d '' path; do
+              case "$path" in
+                *.md|docs/*|.github/ISSUE_TEMPLATE/*) ;;
+                *) required=true; break ;;
+              esac
+            done < "$RUNNER_TEMP/deploy-changed-paths"
+            if [[ "$required" == true ]]; then
+              echo "Deployment required: runtime or deployment files changed"
+            else
+              echo "Deployment skipped: only documentation or issue templates changed (or no changed paths)"
+            fi
+          fi
+          echo "required=$required" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         with:
@@ -119,6 +154,6 @@ jobs:
 
   deploy:
     needs: [verify, rust]
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.verify.outputs.deploy_required == 'true'
     uses: ./.github/workflows/deploy-api.yml
     secrets: inherit
