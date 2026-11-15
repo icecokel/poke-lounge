@@ -1785,6 +1785,7 @@ export class BattleController {
             turn,
             assignmentRevision,
             clientCommandId,
+            status,
             message,
           }: RoomEvent["COMPETITIVE_ACTION_FAILED"],
         ): void {
@@ -1802,6 +1803,19 @@ export class BattleController {
           }
           this.authoritativePendingCommandId = null;
           this.authoritativeRecoveryState = null;
+          if (status === 400 && this.authoritativeOwnPlayerId) {
+            this.authoritativeInputPending = false;
+            this.setBattleState({
+              ...this.toAuthoritativeSceneState(
+                projection,
+                this.authoritativeOwnPlayerId,
+                this.state.returnToWorld,
+                this.state,
+              ),
+              messageQueue: [message],
+            });
+            return;
+          }
           this.authoritativeInputPending = true;
           this.state = { ...this.state, phase: "resolving", messageQueue: [message] };
           this.render();

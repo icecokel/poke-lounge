@@ -1,4 +1,5 @@
 import { COMPETITIVE_MOVE_CATALOG } from "../competitive-catalog.generated";
+import { Battle } from "@pkmn/sim";
 import { COMPETITIVE_RULESET_V2 } from "../competitive-ruleset-config";
 import { createDefaultBattleStatStages } from "../battle-stat-stages";
 import {
@@ -19,7 +20,7 @@ import {
 } from "./engine";
 import { normalizeGen4Traits } from "./traits";
 import { GEN4_ROM_SPECIES } from "./rom-catalog.generated";
-import type { Gen4Action, Gen4Frame, Gen4Party } from "./types";
+import type { Gen4Action, Gen4ActionRequest, Gen4Frame, Gen4Party } from "./types";
 import type { ResolvedAnimationEvent } from "../battle-presentation";
 
 function parties(state: CanonicalBattleState): [Gen4Party, Gen4Party] {
@@ -51,6 +52,36 @@ function currentFrame(state: CanonicalBattleState, random?: SeededRandom): Gen4F
     ? readGen4Battle(state.gen4Session)
     : createGen4Battle(parties(state), random ? () => random.next() : () => 0.5);
 }
+function competitiveRequest(frame: Gen4Frame, index: number): Gen4ActionRequest {
+  const request = frame.requests[index]!;
+  if (request.kind !== "move") return request;
+  // The public simulator request hides trapping abilities and effects such as Imprison.
+  const battle = Battle.fromJSON(JSON.parse(frame.session.snapshot));
+  const pokemon = battle.sides[index]!.active[0]!;
+  const moves = pokemon.getMoves();
+  return {
+    ...request,
+    trapped: Boolean(pokemon.trapped),
+    switchSlots: pokemon.trapped ? [] : request.switchSlots,
+    moves: request.moves.map(move => ({
+      ...move,
+      disabled:
+        move.disabled ||
+        moves.some(m => battle.dex.moves.get(m.id).num === move.moveId && Boolean(m.disabled)),
+    })),
+  };
+}
+export function getGen4CompetitiveActionRequest(
+  state: CanonicalBattleState,
+  playerId: string,
+): Gen4ActionRequest {
+  const index = state.participantIds.indexOf(playerId);
+  if (index < 0) throw Error("Unknown battle participant");
+  return competitiveRequest(currentFrame(state), index);
+}
+function isChoiceRejected(error: unknown): boolean {
+  return error instanceof Error && /^\[(?:Unavailable|Invalid) choice\]/.test(error.message);
+}
 /** The submitted action is not legal for the current request; the battle state itself is fine. */
 export class Gen4CompetitiveActionRejectedError extends Error {
   constructor(message: string) {
@@ -68,7 +99,7 @@ export function validateGen4CompetitiveAction(input: {
   const index = input.state.participantIds.indexOf(input.playerId);
   if (index < 0) throw new Gen4CompetitiveActionRejectedError("Unknown battle participant");
   // Restoring the session is outside the try: a failure there is an engine fault, not a bad action.
-  const request = currentFrame(input.state).requests[index]!;
+  const request = getGen4CompetitiveActionRequest(input.state, input.playerId);
   try {
     validateGen4Action(request, input.action);
   } catch (error) {
@@ -103,7 +134,27 @@ export function resolveGen4CompetitiveTurn(input: {
     validateGen4Action(req, action);
     return action;
   }) as [Gen4Action | undefined, Gen4Action | undefined];
-  let after = advanceGen4Battle(before.session, actions);
+  let after: Gen4Frame;
+  try {
+    after = advanceGen4Battle(before.session, actions);
+  } catch (error) {
+    if (!isChoiceRejected(error)) throw error;
+    for (const index of [0, 1] as const) {
+      if (!actions[index]) continue;
+      const single: [Gen4Action | undefined, Gen4Action | undefined] = [undefined, undefined];
+      single[index] = actions[index];
+      try {
+        advanceGen4Battle(before.session, single);
+      } catch (rejection) {
+        if (!isChoiceRejected(rejection)) throw rejection;
+        const fallback = defaultGen4Action(competitiveRequest(before, index));
+        if (!fallback) throw rejection;
+        actions[index] = fallback;
+      }
+    }
+    // Every attempt restores the original snapshot, including its RNG and unspent choices.
+    after = advanceGen4Battle(before.session, actions);
+  }
   let rewardState = input.state;
   if (after.ended && after.winner === null) {
     // A draw restores HP for the rematch; keep knockouts from the finished turn first.
