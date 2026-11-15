@@ -50,6 +50,31 @@ try {
     );
   }
 
+  const partySubmission = onlyMatch(
+    rust,
+    /\bfn\s+party_submission_snapshot\([^)]*\)\s*->\s*AppResult<Option<Value>>\s*\{/g,
+    "party_submission_snapshot function",
+  );
+  const partySubmissionBody = bracedBlock(
+    rust,
+    partySubmission.index + partySubmission[0].length - 1,
+  );
+  const partyAcceptanceLiteral = onlyMatch(
+    partySubmissionBody,
+    /snapshot\s*\[\s*"partyAcceptance"\s*\]\s*=\s*json!\s*\(\s*\{/g,
+    "partyAcceptance json! literal",
+  );
+  compare(
+    "partyAcceptance / RustPartyAcceptance",
+    topLevelKeys(
+      bracedBlock(
+        partySubmissionBody,
+        partyAcceptanceLiteral.index + partyAcceptanceLiteral[0].length - 1,
+      ),
+    ),
+    tsInterfaceKeys(roomTypes, "RustPartyAcceptance"),
+  );
+
   const tournament = readRust("apps/api-rust/src/tournament.rs");
   const battleSource = name =>
     parseTs(resolve(root, "packages/poke-lounge-battle/src", name + ".ts"));

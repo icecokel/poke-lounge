@@ -10,7 +10,9 @@
 
 2026-11-14부터 운영 호스트는 춘천 OCI 2호기 `oci-poke-lounge-prod-01`(Ubuntu 24.04 ARM64, 2 OCPU·12GB)이다. Docker Engine·Compose, runner `oci-poke-lounge-prod-01`(systemd), Cloudflare Tunnel `poke-lounge-oci`(systemd)가 모두 부팅 시 자동으로 올라오며 모든 서비스는 `restart: unless-stopped`다. 이전 운영 호스트였던 Mac mini 스택은 멈춘 채 복귀용으로 남겨 두었다. 터널 설정, 이관·복귀 절차와 호스트 운영 기록은 저장소 밖 운영 문서에서 관리한다.
 
-호스트는 [setup-oci-host.sh](../../scripts/deploy/setup-oci-host.sh)(root: Docker Engine·Compose·git·cloudflared)와 [setup-oci-runner.sh](../../scripts/deploy/setup-oci-runner.sh)(서비스 사용자: runner 등록·systemd)로 준비한다. 호스트에 Node·Rust를 설치하지 않는다. 배포 빌드는 Docker 안에서 이뤄진다. Mac mini runner는 [setup-mac-mini-runner.sh](../../scripts/deploy/setup-mac-mini-runner.sh)로 준비한다.
+운영 작업용 접속은 전용 계정 `poke-lounge`(홈 `/srv/poke-lounge`, docker 그룹, sudo 없음)다. 배포 runner `oci-poke-lounge-prod-01`도 이 계정으로 `/srv/poke-lounge/.local/actions-runner`에서 실행되며, 배포 checkout은 그 아래 `_work/poke-lounge/poke-lounge`(배포마다 덮어씀)다. 패키지·systemd·터널·백업은 관리자 계정이 맡는다. docker 그룹은 root와 같은 권한이라, 볼륨 삭제·운영 컨테이너 수동 재생성·DB 쓰기·호스트 경로를 마운트하는 컨테이너 실행은 운영자 확인 없이 하지 않는다. 서버에서 직접 `docker compose up`·빌드를 하지 않고 배포는 아래 workflow로만 한다.
+
+호스트는 [setup-oci-host.sh](../../scripts/deploy/setup-oci-host.sh)(root: Docker Engine·Compose·git·cloudflared)와 [setup-oci-runner.sh](../../scripts/deploy/setup-oci-runner.sh)(서비스 사용자: runner 등록·systemd)로 준비한다. `setup-oci-runner.sh`는 아직 `ubuntu`·`~/actions-runner-poke-lounge` 기준이므로, 다시 설치할 때는 `poke-lounge` 계정·`/srv/poke-lounge/.local/actions-runner` 기준으로 고친 뒤 쓴다. 호스트에 Node·Rust를 설치하지 않는다. 배포 빌드는 Docker 안에서 이뤄진다. Mac mini runner는 [setup-mac-mini-runner.sh](../../scripts/deploy/setup-mac-mini-runner.sh)로 준비한다.
 
 ### 러너 선택
 
@@ -46,7 +48,7 @@
 
 1. 현재 `poke-lounge-node:local`·`poke-lounge-api-rust:local` 이미지를 `:prev`로 태그한다.
 2. 이미지를 하나씩 빌드한다(`COMPOSE_PARALLEL_LIMIT=1`). 실행 중인 앱은 그대로다.
-3. PostgreSQL·Redis를 확인한다(구성이 같으면 다시 만들지 않는다).
+3. PostgreSQL·Redis를 확인한다(`--no-recreate`로 기존 컨테이너를 유지한다).
 4. 앱을 바꾸기 전에 migrate를 따로 실행한다. 실패하면 여기서 끝나고 기존 앱이 계속 서비스한다.
 5. 바뀌기 전 컨테이너 로그를 보관하고 battle-worker·api·web을 교체한다. 리그가 켜져 있으면 league-judge도 교체한다.
 6. 헬스를 확인한다(각 요청 10초 제한·재시도): API `/health`·`/health/ready`·`/poke-lounge/rooms/public`, Web `/ko-KR`, 리그가 켜져 있으면 `/league/v1/status` 200, 디스코드 값 셋이 있으면 `/auth/me`의 `discord` 제공자. API 로그 파일의 배포 SHA도 확인한다.
@@ -75,6 +77,41 @@ docker compose up --build --detach --wait --wait-timeout 180
 
 운영 배포는 `COMPOSE_PROJECT_NAME=poke-lounge-prod`로 위 단계를 나눠 실행한다. 운영 컨테이너 이름은 `poke-lounge-prod-<서비스>-1`(예: `poke-lounge-prod-api-1`)이다. 로그 조회 등 직접 확인은 [운영 오류 추적](../../OBSERVABILITY.md)처럼 컨테이너 이름을 지정한다. 이미지 태그는 `POKE_LOUNGE_IMAGE_TAG`(기본 `local`)로 바꿀 수 있어 같은 호스트의 격리 테스트가 운영 태그를 덮지 않는다. PostgreSQL·Redis named volume을 유지한다. `docker compose down -v`는 데이터 삭제이므로 일반 재시작/복구 절차에 사용하지 않는다.
 
+### 이미지·액션 고정값 갱신
+
+외부 이미지는 `태그@sha256:인덱스`로 고정한다. `docker buildx imagetools inspect <태그>`의 최상위 `Digest`와 `linux/amd64`·`linux/arm64` 포함 여부를 확인하고, Dockerfile·Compose·워크플로·배포 스크립트·이 문서의 같은 참조를 함께 갱신한다. Dockerfile frontend와 Rust 런타임 Debian 이미지도 포함한다. PostgreSQL 검증 이미지는 [백업 스크립트](../../scripts/deploy/backup-postgres.sh)와 Compose가 같아야 한다.
+
+액션은 현재 메이저의 최신 정식 태그를 선택하고 `gh api repos/actions/<name>/git/ref/tags/<tag>`로 SHA를 확인한다. `object.type`이 `tag`면 `gh api repos/actions/<name>/git/tags/<sha>`를 따라가 최종 커밋 SHA로 고정하고 뒤에 버전 주석을 유지한다.
+
+배포 스크립트의 `up --no-recreate postgres redis`는 이미지 참조가 바뀌어도 기존 데이터 컨테이너를 재생성하지 않는다. 이후 앱 실행도 `--no-deps`이므로 데이터 서비스를 교체하지 않는다. 따라서 이 배포 경로에서는 고정값 적용으로 인한 DB·Redis 재시작이 없다. 별도로 일반 `docker compose up`을 실행하면 변경을 감지해 재생성할 수 있으며 잠시 중단된다. 볼륨은 유지된다. 운영 이미지 ID를 대조하기 전에는 현재 운영 이미지와 새 다이제스트의 내용이 같다고 판단할 수 없다.
+
+## PostgreSQL 백업과 Mac 사본
+
+[backup-postgres.sh](../../scripts/deploy/backup-postgres.sh)는 운영 호스트의 관리자 계정(`ubuntu`)으로 실행한다. 백업 파일은 관리자 홈에 있어 운영 작업 계정 `poke-lounge`는 접근할 수 없다. Bash·Docker·Python 3·`sha256sum`이 필요하다. 운영 호스트(Ubuntu Minimal)에는 cron이 없어 systemd 타이머로 실행한다. 현재 설치는 `/home/ubuntu/poke-lounge-ops/backup-postgres.sh`와 `poke-lounge-backup.service`(oneshot, `User=ubuntu`, `SupplementaryGroups=docker`)·`poke-lounge-backup.timer`(매일 18:17 UTC 전후, `Persistent=true`)다.
+
+```bash
+# 수동 실행과 상태 확인
+sudo systemctl start poke-lounge-backup.service
+systemctl list-timers poke-lounge-backup.timer
+tail ~/backups/poke-lounge/backup.log
+```
+
+컨테이너 `poke-lounge-prod-postgres-1`에서 `pg_dump -U poke_lounge -d poke_lounge -Fc --no-password`를 실행한다. Compose는 PostgreSQL 공식 이미지의 로컬 Unix 소켓 인증을 바꾸지 않으므로 비밀번호를 전달하지 않는다. TCP 접속의 비밀번호 설정과 별개다. 기존 볼륨의 `pg_hba.conf`를 수동 변경했다면 이 전제가 달라지므로 인증 정책을 먼저 확인한다. 인증 실패 시 백업은 실패로 종료하며 비밀번호를 명령줄·로그에 출력하지 않는다.
+
+덤프는 `~/backups/poke-lounge/postgres/`의 임시 파일에 받고, 크기와 고정된 PostgreSQL 이미지의 `--network none` 컨테이너에서 `pg_restore --list` 성공을 확인한 뒤 `poke_lounge-YYYYmmddTHHMMSSZ.dump`로 원자적으로 이동한다. 같은 이름 뒤에 `.sha256`을 붙인 파일에는 덤프의 SHA-256과 파일명만 기록한다. 검증 실패 시 임시 덤프를 삭제한다. 디렉터리는 700, 덤프·체크섬·로그는 600이다.
+
+가용 공간이 5GiB 미만이면 덤프·보관 정리를 시작하지 않고 실패한다. 최근 14개와 최근 8주(UTC 날짜 기준)의 각 일요일 마지막 백업 최대 8개를 합쳐 보관하고 나머지 덤프·체크섬을 삭제한다. Redis 방 상태는 최대 2시간 수명이므로 백업하지 않는다. 실행 결과는 `~/backups/poke-lounge/backup.log`에 한 줄로 남는다. 중복 실행은 `.postgres-backup.lock` 디렉터리로 차단한다. 호스트 강제 종료 후 잠금이 남으면 실행 중인 백업이 없음을 확인한 뒤 해당 빈 디렉터리만 제거한다.
+
+격리 확인에서는 `POKE_LOUNGE_POSTGRES_CONTAINER`와 `POKE_LOUNGE_BACKUP_DIR`로 컨테이너 이름과 백업 디렉터리를 바꾼다. 백업 로그와 잠금은 지정 디렉터리의 부모에 생성된다. 운영 컨테이너 이름을 격리 확인에 사용하지 않는다.
+
+Mac에서는 [pull-postgres-backups.sh](../../scripts/deploy/pull-postgres-backups.sh)에 사본을 저장할 폴더를 전달한다.
+
+```bash
+bash scripts/deploy/pull-postgres-backups.sh /원하는/로컬/백업/폴더
+```
+
+`ssh -F /Users/smlee/icecoke-ops/config/ssh-config oci-poke-lounge` 설정으로 원격 홈의 `backups/poke-lounge/postgres/`에서 scp로 덤프·체크섬을 가져온다(운영 호스트에 rsync가 없다). Python 3으로 모든 사본의 SHA-256과 짝 파일을 확인한다. 원격 파일과 원격 보관 정책으로 사라진 기존 Mac 사본은 삭제하지 않는다. 운영에서는 맥 LaunchAgent `kr.icecoke.poke-lounge-backup-pull`이 매일 04:40(맥이 켜져 있을 때, 로그인 시에도 한 번) 실행한다. 설치 위치는 저장소 밖 운영 문서에 있다. `pg_restore --list`는 아카이브 목록 검증이며 실제 복원·서비스 정상 동작 검증을 대신하지 않는다.
+
 ## 운영 로그 보관
 
 Rust API는 콘솔과 `poke-lounge-runtime-logs` 외부 볼륨의 `/var/log/poke-lounge/api.jsonl`에 같은 JSON 로그를 기록한다. 외부 볼륨이므로 컨테이너 재생성이나 Compose 볼륨 삭제 대상에 포함되지 않는다. 파일은 20MiB를 넘긴 완전한 JSON 행 단위로 순환하며 이전 파일 24개를 유지한다. 최신 두 순환 파일은 원문, 나머지는 gzip이며 전체 원문 기준 보관량은 약 500MiB다. 보관 기간은 발생량에 따라 달라진다.
@@ -83,7 +120,7 @@ Rust API는 콘솔과 `poke-lounge-runtime-logs` 외부 볼륨의 `/var/log/poke
 
 ```bash
 docker volume create poke-lounge-runtime-logs
-docker run --rm -v poke-lounge-runtime-logs:/logs alpine:3.20 \
+docker run --rm -v poke-lounge-runtime-logs:/logs alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc \
   sh -c 'chown 10001:10001 /logs && chmod 0700 /logs'
 ```
 
@@ -92,7 +129,7 @@ docker run --rm -v poke-lounge-runtime-logs:/logs alpine:3.20 \
 최신 API 파일 로그를 읽을 때는 읽기 전용 마운트를 사용한다.
 
 ```bash
-docker run --rm -v poke-lounge-runtime-logs:/logs:ro alpine:3.20 \
+docker run --rm -v poke-lounge-runtime-logs:/logs:ro alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc \
   tail -n 100 /logs/api.jsonl
 ```
 

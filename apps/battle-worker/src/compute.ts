@@ -146,17 +146,34 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
       }
       return op.restore ? restoreCompetitiveParty(party) : party;
     }
-    case "accept-party":
-      return acceptPartySubmission(
+    case "accept-party": {
+      const accepted = acceptPartySubmission(
         {
           proposed: partySchema.parse(op.party),
           roster: op.roster,
+          previousParty: op.previousParty,
           nowMs: op.nowMs,
           trusted: op.trusted,
           starterSelection: op.starterSelection,
         },
         (await getContext()).pokemonData,
       );
+      for (const rejection of accepted.rejections) {
+        process.stderr.write(
+          JSON.stringify({
+            level: "warn",
+            event: "compute.party_rejected",
+            timestamp: new Date().toISOString(),
+            requestId: input.requestId,
+            roomInstanceId: input.roomInstanceId,
+            operation: op.kind,
+            ...rejection,
+            partial: true,
+          }) + "\n",
+        );
+      }
+      return accepted;
+    }
     case "settle-tournament": {
       const next = settleTournamentExperience(state(op.state));
       next.tournamentRewardParties = Object.fromEntries(

@@ -4,7 +4,7 @@
 name: poke-lounge-rust-local
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
     command: [redis-server, --appendonly, "yes"]
     ports: ["127.0.0.1:${RUST_LOCAL_REDIS_PORT:-36379}:6379"]
     volumes: ["rust-local-redis:/data"]
@@ -14,7 +14,7 @@ services:
       timeout: 2s
       retries: 15
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:f377d590e5474681d4d7838635031a2b50647923b7abfa803ce9b5ff35d5c663
     environment:
       POSTGRES_USER: poke_rust_local
       POSTGRES_PASSWORD: ${RUST_LOCAL_DB_PASSWORD:?Set a development database password}
@@ -27,7 +27,7 @@ services:
       timeout: 2s
       retries: 15
   battle-worker:
-    image: node:22-bookworm-slim
+    image: node:22-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee
     user: "10001:10001"
     init: true
     working_dir: /workspace/apps/battle-worker
@@ -51,7 +51,7 @@ services:
       start_period: 5s
     stop_grace_period: 15s
   league-judge:
-    image: node:22-bookworm-slim
+    image: node:22-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee
     user: "10001:10001"
     init: true
     working_dir: /workspace/apps/league-judge
@@ -85,7 +85,7 @@ services:
       start_period: 5s
     stop_grace_period: 15s
   api-rust:
-    image: rust:1.98.1-bookworm
+    image: rust:1.98.1-bookworm@sha256:93ce27a88655056a51dbdd8f5f2d7ddc071c7b0070fb288a37b5a285fc83971e
     user: "10001:10001"
     init: true
     working_dir: /workspace

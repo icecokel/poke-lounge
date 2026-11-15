@@ -45,6 +45,49 @@ const ev = z.strictObject({
   specialDefense: integer.max(GEN4_EV_MAX),
   speed: integer.max(GEN4_EV_MAX),
 });
+const iv = z.strictObject({
+  hp: integer.max(GEN4_IV_MAX),
+  attack: integer.max(GEN4_IV_MAX),
+  defense: integer.max(GEN4_IV_MAX),
+  specialAttack: integer.max(GEN4_IV_MAX),
+  specialDefense: integer.max(GEN4_IV_MAX),
+  speed: integer.max(GEN4_IV_MAX),
+});
+// Explicit input fields. Calculated stats are not accepted from a browser.
+export const partySchema = z.object({
+  version: z.literal(2),
+  activeSlotIndex: integer.max(5),
+  members: z
+    .array(
+      z.object({
+        slotIndex: integer.max(5),
+        speciesId: integer.min(1).max(GEN4_SPECIES_ID_MAX),
+        level: integer.min(1).max(100),
+        experience: integer.optional(),
+        currentHp: integer.max(COMPETITIVE_CURRENT_HP_MAX),
+        status: z.enum(GEN4_STATUSES),
+        individualValues: iv,
+        moves: z
+          .array(
+            z.strictObject({
+              moveId: integer.min(1).max(GEN4_MOVE_ID_MAX),
+              pp: integer.max(COMPETITIVE_PP_MAX),
+            }),
+          )
+          .min(1)
+          .max(4),
+        gender: z.enum(["male", "female", "genderless"]).optional(),
+        natureId: integer.max(GEN4_NATURE_ID_MAX).optional(),
+        abilityId: integer.max(GEN4_ABILITY_ID_MAX).optional(),
+        heldItemId: integer.max(GEN4_ITEM_ID_MAX).optional(),
+        statusTurns: integer.max(GEN4_STATUS_TURNS_MAX).optional(),
+        happiness: integer.max(GEN4_HAPPINESS_MAX).optional(),
+        effortValues: ev.optional(),
+      }),
+    )
+    .min(1)
+    .max(6),
+});
 const rosterSchema = z.strictObject({
   version: z.literal(1),
   highWaterLevel: integer.min(1).max(100),
@@ -57,6 +100,7 @@ const rosterSchema = z.strictObject({
         moveIds: z.array(integer.min(1).max(GEN4_MOVE_ID_MAX)).max(4),
         updatedAtMs: integer,
         // Optional: rooms stored before trait tracking keep rosters without these fields.
+        acceptedMember: partySchema.shape.members.element.optional(),
         levelUpdatedAtMs: integer.optional(),
         natureId: integer.max(GEN4_NATURE_ID_MAX).optional(),
         abilityId: integer.max(GEN4_ABILITY_ID_MAX).optional(),
@@ -90,6 +134,7 @@ export const requestSchema = z.strictObject({
       kind: z.literal("accept-party"),
       party: z.unknown(),
       roster: rosterSchema.nullable(),
+      previousParty: partySchema.nullish(),
       nowMs: integer,
       trusted: z.boolean(),
       starterSelection: starterSelection.nullish(),
@@ -161,49 +206,6 @@ export type ComputeResponse = {
   | { ok: false; code: "INVALID_INPUT" | "COMPUTE_FAILED"; diagnostic: ComputeFailureDiagnostic }
 );
 
-const iv = z.strictObject({
-  hp: integer.max(GEN4_IV_MAX),
-  attack: integer.max(GEN4_IV_MAX),
-  defense: integer.max(GEN4_IV_MAX),
-  specialAttack: integer.max(GEN4_IV_MAX),
-  specialDefense: integer.max(GEN4_IV_MAX),
-  speed: integer.max(GEN4_IV_MAX),
-});
-// Explicit input fields. Calculated stats are not accepted from a browser.
-export const partySchema = z.object({
-  version: z.literal(2),
-  activeSlotIndex: integer.max(5),
-  members: z
-    .array(
-      z.object({
-        slotIndex: integer.max(5),
-        speciesId: integer.min(1).max(GEN4_SPECIES_ID_MAX),
-        level: integer.min(1).max(100),
-        experience: integer.optional(),
-        currentHp: integer.max(COMPETITIVE_CURRENT_HP_MAX),
-        status: z.enum(GEN4_STATUSES),
-        individualValues: iv,
-        moves: z
-          .array(
-            z.strictObject({
-              moveId: integer.min(1).max(GEN4_MOVE_ID_MAX),
-              pp: integer.max(COMPETITIVE_PP_MAX),
-            }),
-          )
-          .min(1)
-          .max(4),
-        gender: z.enum(["male", "female", "genderless"]).optional(),
-        natureId: integer.max(GEN4_NATURE_ID_MAX).optional(),
-        abilityId: integer.max(GEN4_ABILITY_ID_MAX).optional(),
-        heldItemId: integer.max(GEN4_ITEM_ID_MAX).optional(),
-        statusTurns: integer.max(GEN4_STATUS_TURNS_MAX).optional(),
-        happiness: integer.max(GEN4_HAPPINESS_MAX).optional(),
-        effortValues: ev.optional(),
-      }),
-    )
-    .min(1)
-    .max(6),
-});
 export const actionSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("move"),
