@@ -10,7 +10,9 @@
 
 2026-11-14부터 운영 호스트는 춘천 OCI 2호기 `oci-poke-lounge-prod-01`(Ubuntu 24.04 ARM64, 2 OCPU·12GB)이다. Docker Engine·Compose, runner `oci-poke-lounge-prod-01`(systemd), Cloudflare Tunnel `poke-lounge-oci`(systemd)가 모두 부팅 시 자동으로 올라오며 모든 서비스는 `restart: unless-stopped`다. 이전 운영 호스트였던 Mac mini 스택은 멈춘 채 복귀용으로 남겨 두었다. 터널 설정, 이관·복귀 절차와 호스트 운영 기록은 저장소 밖 운영 문서에서 관리한다.
 
-호스트는 [setup-oci-host.sh](../../scripts/deploy/setup-oci-host.sh)(root: Docker Engine·Compose·git·cloudflared)와 [setup-oci-runner.sh](../../scripts/deploy/setup-oci-runner.sh)(서비스 사용자: runner 등록·systemd)로 준비한다. 호스트에 Node·Rust를 설치하지 않는다. 배포 빌드는 Docker 안에서 이뤄진다. Mac mini runner는 [setup-mac-mini-runner.sh](../../scripts/deploy/setup-mac-mini-runner.sh)로 준비한다.
+운영 작업용 접속은 전용 계정 `poke-lounge`(홈 `/srv/poke-lounge`, docker 그룹, sudo 없음)다. 배포 runner `oci-poke-lounge-prod-01`도 이 계정으로 `/srv/poke-lounge/.local/actions-runner`에서 실행되며, 배포 checkout은 그 아래 `_work/poke-lounge/poke-lounge`(배포마다 덮어씀)다. 패키지·systemd·터널·백업은 관리자 계정이 맡는다. docker 그룹은 root와 같은 권한이라, 볼륨 삭제·운영 컨테이너 수동 재생성·DB 쓰기·호스트 경로를 마운트하는 컨테이너 실행은 운영자 확인 없이 하지 않는다. 서버에서 직접 `docker compose up`·빌드를 하지 않고 배포는 아래 workflow로만 한다.
+
+호스트는 [setup-oci-host.sh](../../scripts/deploy/setup-oci-host.sh)(root: Docker Engine·Compose·git·cloudflared)와 [setup-oci-runner.sh](../../scripts/deploy/setup-oci-runner.sh)(서비스 사용자: runner 등록·systemd)로 준비한다. `setup-oci-runner.sh`는 아직 `ubuntu`·`~/actions-runner-poke-lounge` 기준이므로, 다시 설치할 때는 `poke-lounge` 계정·`/srv/poke-lounge/.local/actions-runner` 기준으로 고친 뒤 쓴다. 호스트에 Node·Rust를 설치하지 않는다. 배포 빌드는 Docker 안에서 이뤄진다. Mac mini runner는 [setup-mac-mini-runner.sh](../../scripts/deploy/setup-mac-mini-runner.sh)로 준비한다.
 
 ### 러너 선택
 
@@ -85,7 +87,7 @@ docker compose up --build --detach --wait --wait-timeout 180
 
 ## PostgreSQL 백업과 Mac 사본
 
-[backup-postgres.sh](../../scripts/deploy/backup-postgres.sh)는 운영 호스트의 `ubuntu` 사용자로 실행한다. Bash·Docker·Python 3·`sha256sum`이 필요하다. 운영 호스트(Ubuntu Minimal)에는 cron이 없어 systemd 타이머로 실행한다. 현재 설치는 `/home/ubuntu/poke-lounge-ops/backup-postgres.sh`와 `poke-lounge-backup.service`(oneshot, `User=ubuntu`, `SupplementaryGroups=docker`)·`poke-lounge-backup.timer`(매일 18:17 UTC 전후, `Persistent=true`)다.
+[backup-postgres.sh](../../scripts/deploy/backup-postgres.sh)는 운영 호스트의 관리자 계정(`ubuntu`)으로 실행한다. 백업 파일은 관리자 홈에 있어 운영 작업 계정 `poke-lounge`는 접근할 수 없다. Bash·Docker·Python 3·`sha256sum`이 필요하다. 운영 호스트(Ubuntu Minimal)에는 cron이 없어 systemd 타이머로 실행한다. 현재 설치는 `/home/ubuntu/poke-lounge-ops/backup-postgres.sh`와 `poke-lounge-backup.service`(oneshot, `User=ubuntu`, `SupplementaryGroups=docker`)·`poke-lounge-backup.timer`(매일 18:17 UTC 전후, `Persistent=true`)다.
 
 ```bash
 # 수동 실행과 상태 확인
