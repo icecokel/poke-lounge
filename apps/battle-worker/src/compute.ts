@@ -9,8 +9,10 @@ import {
 import { createInitialBattleState } from "@poke-lounge/battle/ruleset";
 import {
   Gen4CompetitiveActionRejectedError,
+  getGen4CompetitiveActionRequest,
   initializeGen4Canonical,
 } from "@poke-lounge/battle/gen4/canonical";
+import { defaultGen4Action } from "@poke-lounge/battle/gen4/engine";
 import { createSeededRandom } from "@poke-lounge/battle/prng";
 import {
   COMPETITIVE_RULESET_V2,
@@ -90,7 +92,7 @@ function project(value: CanonicalBattleState) {
             playerId,
             activeSlotIndex: player.activeSlotIndex,
             ...(player.actionRequest
-              ? { actionRequest: structuredClone(player.actionRequest) }
+              ? { actionRequest: getGen4CompetitiveActionRequest(value, playerId) }
               : {}),
             team: player.team.map(member => ({
               speciesId: member.speciesId,
@@ -231,8 +233,16 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
         difficulty: op.difficulty,
         random: () => random.next(),
       });
-      validateCompetitiveAction({ state: current, playerId: op.playerId, action });
-      return action;
+      try {
+        validateCompetitiveAction({ state: current, playerId: op.playerId, action });
+        return action;
+      } catch (error) {
+        if (!(error instanceof Gen4CompetitiveActionRejectedError)) throw error;
+        const fallback = defaultGen4Action(getGen4CompetitiveActionRequest(current, op.playerId));
+        if (!fallback || fallback.kind === "item" || fallback.kind === "wait") throw error;
+        validateCompetitiveAction({ state: current, playerId: op.playerId, action: fallback });
+        return fallback;
+      }
     }
     case "forfeit": {
       const current = structuredClone(state(op.state));
