@@ -83,6 +83,34 @@ docker compose up --build --detach --wait --wait-timeout 180
 
 배포 스크립트의 `up --no-recreate postgres redis`는 이미지 참조가 바뀌어도 기존 데이터 컨테이너를 재생성하지 않는다. 이후 앱 실행도 `--no-deps`이므로 데이터 서비스를 교체하지 않는다. 따라서 이 배포 경로에서는 고정값 적용으로 인한 DB·Redis 재시작이 없다. 별도로 일반 `docker compose up`을 실행하면 변경을 감지해 재생성할 수 있으며 잠시 중단된다. 볼륨은 유지된다. 운영 이미지 ID를 대조하기 전에는 현재 운영 이미지와 새 다이제스트의 내용이 같다고 판단할 수 없다.
 
+## PostgreSQL 백업과 Mac 사본
+
+[backup-postgres.sh](../../scripts/deploy/backup-postgres.sh)는 운영 호스트의 `ubuntu` 사용자로 실행한다. Bash·Docker·Python 3·`sha256sum`이 필요하다. 스크립트를 고정 경로에 설치한 뒤 **ubuntu 사용자의** `crontab -e`에 매일 실행을 등록한다. 다음 명령은 설치 예시이며 저장소 루트에서 실행한다.
+
+```bash
+install -d -m 0700 "$HOME/bin"
+install -m 0700 scripts/deploy/backup-postgres.sh "$HOME/bin/backup-postgres.sh"
+# ubuntu의 crontab에 추가: 매일 03:15 UTC
+# 호스트 시간대가 UTC인지 timedatectl로 확인하고, 다르면 실행 시각을 조정한다.
+# 15 3 * * * /home/ubuntu/bin/backup-postgres.sh
+```
+
+컨테이너 `poke-lounge-prod-postgres-1`에서 `pg_dump -U poke_lounge -d poke_lounge -Fc --no-password`를 실행한다. Compose는 PostgreSQL 공식 이미지의 로컬 Unix 소켓 인증을 바꾸지 않으므로 비밀번호를 전달하지 않는다. TCP 접속의 비밀번호 설정과 별개다. 기존 볼륨의 `pg_hba.conf`를 수동 변경했다면 이 전제가 달라지므로 인증 정책을 먼저 확인한다. 인증 실패 시 백업은 실패로 종료하며 비밀번호를 명령줄·로그에 출력하지 않는다.
+
+덤프는 `~/backups/poke-lounge/postgres/`의 임시 파일에 받고, 크기와 고정된 PostgreSQL 이미지의 `--network none` 컨테이너에서 `pg_restore --list` 성공을 확인한 뒤 `poke_lounge-YYYYmmddTHHMMSSZ.dump`로 원자적으로 이동한다. 같은 이름 뒤에 `.sha256`을 붙인 파일에는 덤프의 SHA-256과 파일명만 기록한다. 검증 실패 시 임시 덤프를 삭제한다. 디렉터리는 700, 덤프·체크섬·로그는 600이다.
+
+가용 공간이 5GiB 미만이면 덤프·보관 정리를 시작하지 않고 실패한다. 최근 14개와 최근 8주(UTC 날짜 기준)의 각 일요일 마지막 백업 최대 8개를 합쳐 보관하고 나머지 덤프·체크섬을 삭제한다. Redis 방 상태는 최대 2시간 수명이므로 백업하지 않는다. 실행 결과는 `~/backups/poke-lounge/backup.log`에 한 줄로 남는다. 중복 실행은 `.postgres-backup.lock` 디렉터리로 차단한다. 호스트 강제 종료 후 잠금이 남으면 실행 중인 백업이 없음을 확인한 뒤 해당 빈 디렉터리만 제거한다.
+
+격리 확인에서는 `POKE_LOUNGE_POSTGRES_CONTAINER`와 `POKE_LOUNGE_BACKUP_DIR`로 컨테이너 이름과 백업 디렉터리를 바꾼다. 백업 로그와 잠금은 지정 디렉터리의 부모에 생성된다. 운영 컨테이너 이름을 격리 확인에 사용하지 않는다.
+
+Mac에서는 [pull-postgres-backups.sh](../../scripts/deploy/pull-postgres-backups.sh)에 사본을 저장할 폴더를 전달한다.
+
+```bash
+bash scripts/deploy/pull-postgres-backups.sh /원하는/로컬/백업/폴더
+```
+
+`ssh -F /Users/smlee/icecoke-ops/config/ssh-config oci-poke-lounge` 설정으로 원격 홈의 `backups/poke-lounge/postgres/`에서 rsync로 덤프·체크섬을 가져오고, rsync가 없으면 scp를 사용한다. Python 3으로 모든 사본의 SHA-256과 짝 파일을 확인한다. 원격 파일과 원격 보관 정책으로 사라진 기존 Mac 사본은 삭제하지 않는다. 설치·cron 등록·실제 원격 회수는 운영자가 별도로 수행한다. `pg_restore --list`는 아카이브 목록 검증이며 실제 복원·서비스 정상 동작 검증을 대신하지 않는다.
+
 ## 운영 로그 보관
 
 Rust API는 콘솔과 `poke-lounge-runtime-logs` 외부 볼륨의 `/var/log/poke-lounge/api.jsonl`에 같은 JSON 로그를 기록한다. 외부 볼륨이므로 컨테이너 재생성이나 Compose 볼륨 삭제 대상에 포함되지 않는다. 파일은 20MiB를 넘긴 완전한 JSON 행 단위로 순환하며 이전 파일 24개를 유지한다. 최신 두 순환 파일은 원문, 나머지는 gzip이며 전체 원문 기준 보관량은 약 500MiB다. 보관 기간은 발생량에 따라 달라진다.
