@@ -463,8 +463,8 @@ export class BattleController {
   private authoritativeOwnPlayerId: string | null = null;
   private authoritativeSpectating = false;
   private authoritativeInputPending = false;
+  private authoritativePendingCommandId: string | null = null;
   // A validated projection may arrive before CONNECTION_STATUS=online.
-  // Never unlock from the stale projection that predates a disconnect.
   private authoritativeRecoveryState: BattleScreenState | null = null;
   private authoritativeTerminalTransition: AuthoritativeTerminalTransition | null = null;
   private authoritativeConnectionStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"] =
@@ -1565,6 +1565,7 @@ export class BattleController {
       throw new Error("crypto.randomUUID is required for competitive battle commands");
     }
 
+    this.authoritativePendingCommandId = crypto.randomUUID();
     this.authoritativeInputPending = true;
     this.state = {
       ...this.state,
@@ -1576,9 +1577,35 @@ export class BattleController {
       matchId: projection.matchId,
       assignmentRevision: projection.assignmentRevision,
       turn: projection.currentTurn,
-      clientCommandId: crypto.randomUUID(),
+      clientCommandId: this.authoritativePendingCommandId,
       action,
     });
+  }
+
+  private restoreAuthoritativeState(): void {
+    const projection = this.authoritativeProjection;
+    const ownPlayerId = this.authoritativeOwnPlayerId;
+    if (
+      !projection ||
+      !ownPlayerId ||
+      this.authoritativeConnectionStatus !== "online" ||
+      this.competitivePreemptionQueued ||
+      this.returningToWorld
+    ) {
+      return;
+    }
+
+    const recoveredState =
+      this.authoritativeRecoveryState ??
+      this.toAuthoritativeSceneState(projection, ownPlayerId, this.state.returnToWorld, this.state);
+    this.authoritativeRecoveryState = null;
+    this.authoritativePendingCommandId = null;
+    this.authoritativeInputPending =
+      projection.status !== "completed" &&
+      (this.authoritativeSpectating ||
+        isWaitingForOpponentReplacement(projection, ownPlayerId) ||
+        projection.submittedPlayerIds.includes(ownPlayerId));
+    this.setBattleState(recoveredState);
   }
 
   private bindAuthoritativeRoom(): void {
@@ -1613,22 +1640,9 @@ export class BattleController {
             this.render();
           } else if (
             connectionStatus === "online" &&
-            this.authoritativeRecoveryState &&
-            this.authoritativeProjection &&
-            this.authoritativeOwnPlayerId &&
-            !this.competitivePreemptionQueued &&
-            !this.returningToWorld
+            (this.authoritativeRecoveryState || this.authoritativeInputPending)
           ) {
-            const recoveredState = this.authoritativeRecoveryState;
-            this.authoritativeRecoveryState = null;
-            const projection = this.authoritativeProjection;
-            const ownPlayerId = this.authoritativeOwnPlayerId;
-            this.authoritativeInputPending =
-              projection.status !== "completed" &&
-              (this.authoritativeSpectating ||
-                isWaitingForOpponentReplacement(projection, ownPlayerId) ||
-                projection.submittedPlayerIds.includes(ownPlayerId));
-            this.setBattleState(recoveredState);
+            this.restoreAuthoritativeState();
           }
         }.bind(this),
       ),
@@ -1638,20 +1652,20 @@ export class BattleController {
           const sceneGeneration = this.sceneGeneration;
           const nowMs = Date.now();
           const destination = this.state.returnToWorld;
-          const previousRoundIndex = this.gameStateStore.getState().round.roundIndex;
           const applied = this.gameStateStore.applyTournamentSnapshotFromRoom(payload, nowMs);
           const round = this.gameStateStore.getState().round;
 
+          if (this.authoritativeInputPending) this.restoreAuthoritativeState();
           if (this.competitivePreemptionQueued || !destination) return;
 
           if (
             applied.ok &&
-            this.authoritativeSpectating &&
             this.authoritativeTerminalTransition?.status === "visible" &&
-            ((payload.tournament.bracket?.status === "completed" &&
+            ((this.authoritativeSpectating &&
+              payload.tournament.bracket?.status === "completed" &&
               payload.tournament.bracket.gameRoundIndex === round.roundIndex &&
               (round.phase === "round-result" || round.phase === "game-result")) ||
-              round.roundIndex !== previousRoundIndex)
+              round.roundIndex > Number(this.authoritativeProjection?.bracketMatchId.split("-")[2]))
           ) {
             this.competitivePreemptionQueued = true;
             queueMicrotask(() => {
@@ -1711,6 +1725,7 @@ export class BattleController {
           }
 
           this.authoritativeProjection = projection;
+          this.authoritativePendingCommandId = null;
           const viewPlayerId = event.viewPlayerId ?? event.ownPlayerId;
           const spectating = event.spectating === true;
           this.authoritativeOwnPlayerId = viewPlayerId;
@@ -1765,12 +1780,42 @@ export class BattleController {
         "COMPETITIVE_ACTION_FAILED",
         function handleEvent(
           this: BattleController,
-          { matchId, message }: { matchId: string; status: number | null; message: string },
+          {
+            matchId,
+            turn,
+            assignmentRevision,
+            clientCommandId,
+            status,
+            message,
+          }: RoomEvent["COMPETITIVE_ACTION_FAILED"],
         ): void {
-          if (matchId !== this.authoritativeProjection?.matchId) {
+          const projection = this.authoritativeProjection;
+          if (
+            !projection ||
+            matchId !== projection.matchId ||
+            projection.status === "completed" ||
+            this.authoritativeTerminalTransition !== null ||
+            turn !== projection.currentTurn ||
+            assignmentRevision !== projection.assignmentRevision ||
+            clientCommandId !== this.authoritativePendingCommandId
+          ) {
             return;
           }
+          this.authoritativePendingCommandId = null;
           this.authoritativeRecoveryState = null;
+          if (status === 400 && this.authoritativeOwnPlayerId) {
+            this.authoritativeInputPending = false;
+            this.setBattleState({
+              ...this.toAuthoritativeSceneState(
+                projection,
+                this.authoritativeOwnPlayerId,
+                this.state.returnToWorld,
+                this.state,
+              ),
+              messageQueue: [message],
+            });
+            return;
+          }
           this.authoritativeInputPending = true;
           this.state = { ...this.state, phase: "resolving", messageQueue: [message] };
           this.render();
@@ -1779,9 +1824,15 @@ export class BattleController {
       this.multiplayerRoom.on(
         "COMPETITIVE_ASSIGNMENT",
         function handleEvent(this: BattleController, event: CompetitiveRoomProjectionEvent): void {
+          const current = this.authoritativeProjection;
           if (
-            !this.authoritativeSpectating ||
-            event.projection.matchId === this.authoritativeProjection?.matchId ||
+            !current ||
+            (!this.authoritativeSpectating &&
+              (current.status !== "completed" ||
+                event.projection.assignmentRevision <= current.assignmentRevision)) ||
+            event.projection.matchId === current.matchId ||
+            Number(event.projection.bracketMatchId.split("-")[2]) <
+              Number(current.bracketMatchId.split("-")[2]) ||
             !this.state.returnToWorld ||
             !isCompetitiveAssignmentForPlayer(event)
           ) {
@@ -1890,6 +1941,7 @@ export class BattleController {
 
   private clearAuthoritativeSubscriptions(): void {
     this.authoritativeRecoveryState = null;
+    this.authoritativePendingCommandId = null;
     this.authoritativeUnsubscribers.forEach(function visitItem(unsubscribe) {
       return unsubscribe();
     });

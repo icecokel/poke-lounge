@@ -121,9 +121,4 @@ jobs:
     needs: [verify, rust]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     uses: ./.github/workflows/deploy-api.yml
-    secrets:
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      BATTLE_WORKER_TOKEN: ${{ secrets.BATTLE_WORKER_TOKEN }}
-      DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
-      LEAGUE_JUDGE_TOKEN: ${{ secrets.LEAGUE_JUDGE_TOKEN }}
-      LEAGUE_AGENT_LOGIN_TOKEN: ${{ secrets.LEAGUE_AGENT_LOGIN_TOKEN }}
+    secrets: inherit

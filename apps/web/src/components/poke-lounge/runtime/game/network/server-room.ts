@@ -667,6 +667,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           throw new ServerRoomTransportError(
             new Error("Room snapshot changed during reconnection"),
           );
+        replayCompletedTerminalProjections(room);
         if (room.status === "completed") return true;
 
         // Confirm the existing socket subscription; never recreate a room or replay a battle action.
@@ -1183,6 +1184,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       );
       applyingSnapshot = true;
       const applied = applySnapshot(room);
+      if (applied) replayCompletedTerminalProjections(room);
       applyingSnapshot = false;
       recoverySucceeded = true;
       const terminalCursorAdvanced = lastAppliedTerminalRevision > terminalRevisionBeforeRecovery;
@@ -1807,7 +1809,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           reportPartyPublicationFailure(error);
         });
     }
-    // Terminal transitions are not replayed; their handler failures are only isolated and reported.
+    // Terminal handler failures are isolated; recovery can replay cached projections.
     const handlerFailuresBefore = roomEventHandlerFailures;
     lastAppliedRoomRevision = state.revision;
     activeRoomId = state.roomCode;
@@ -2010,6 +2012,26 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     for (const transition of recentTerminalProjections) {
       terminalEventIds.add(transition.terminalEventId);
       terminalMatchIds.add(transition.projection.matchId);
+    }
+  };
+
+  const replayTerminalProjection = (matchId: string): boolean => {
+    const transition = recentTerminalProjections.find(
+      cached => cached.projection.matchId === matchId,
+    );
+    if (!transition) return false;
+    emit("COMPETITIVE_STATE", createCompetitivePayload(transition.projection));
+    return true;
+  };
+
+  const replayCompletedTerminalProjections = (state: ServerRoomState): void => {
+    for (const transition of recentTerminalProjections) {
+      if (
+        hasCompletedBracketMatch(state, transition.projection.bracketMatchId) ||
+        Number(transition.projection.bracketMatchId.split("-")[2]) < state.round.index
+      ) {
+        emit("COMPETITIVE_STATE", createCompetitivePayload(transition.projection));
+      }
     }
   };
 
@@ -2362,11 +2384,16 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       projection.currentTurn === command.turn &&
       getServerNowMs() >= projection.turnEndsAtMs
     ) {
-      emit("COMPETITIVE_ACTION_FAILED", {
-        matchId: command.matchId,
-        status: null,
-        message: "서버 상태를 다시 불러오는 중...",
-      });
+      if (!replayTerminalProjection(command.matchId)) {
+        emit("COMPETITIVE_ACTION_FAILED", {
+          matchId: command.matchId,
+          turn: command.turn,
+          assignmentRevision: command.assignmentRevision,
+          clientCommandId: command.clientCommandId,
+          status: null,
+          message: "서버 상태를 다시 불러오는 중...",
+        });
+      }
       requestOnlineRecovery();
       return;
     }
@@ -2452,11 +2479,31 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       if (disposed || leaveSent) return;
       const snapshot = captureClientDiagnosticSnapshot(actionTrace);
       reportClientDiagnostic({ kind: "room", code: "COMPETITIVE_ACTION_FAILED", error, snapshot });
-      emit("COMPETITIVE_ACTION_FAILED", {
-        matchId: command.matchId,
-        status: error instanceof ServerRoomRequestError ? error.status : null,
-        message: "서버 상태를 다시 불러오는 중...",
-      });
+      if (
+        error instanceof ServerRoomRequestError &&
+        error.status === 400 &&
+        error.serverCode === "INVALID_INPUT"
+      ) {
+        emit("COMPETITIVE_ACTION_FAILED", {
+          matchId: command.matchId,
+          turn: command.turn,
+          assignmentRevision: command.assignmentRevision,
+          clientCommandId: command.clientCommandId,
+          status: error.status,
+          message: "선택한 행동을 사용할 수 없습니다.",
+        });
+        return;
+      }
+      if (!replayTerminalProjection(command.matchId)) {
+        emit("COMPETITIVE_ACTION_FAILED", {
+          matchId: command.matchId,
+          turn: command.turn,
+          assignmentRevision: command.assignmentRevision,
+          clientCommandId: command.clientCommandId,
+          status: error instanceof ServerRoomRequestError ? error.status : null,
+          message: "서버 상태를 다시 불러오는 중...",
+        });
+      }
       requestOnlineRecovery();
     }
   };
