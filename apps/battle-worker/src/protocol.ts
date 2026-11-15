@@ -50,7 +50,7 @@ const rosterSchema = z.strictObject({
   highWaterLevel: integer.min(1).max(100),
   entries: z
     .array(
-      z.strictObject({
+      z.object({
         ivKey: z.string().regex(/^(?:[0-9]|[12][0-9]|3[01])(?:-(?:[0-9]|[12][0-9]|3[01])){5}$/),
         speciesId: integer.min(1).max(GEN4_SPECIES_ID_MAX),
         level: integer.min(1).max(100),

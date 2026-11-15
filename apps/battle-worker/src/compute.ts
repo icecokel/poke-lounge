@@ -73,8 +73,9 @@ function state(value: unknown): CanonicalBattleState {
       participantIds: z.array(z.string()).length(2),
       playersById: z.record(z.string(), z.unknown()),
     })
-    .parse(value);
-  if (parsed.participantIds[0] === parsed.participantIds[1])
+    .safeParse(value);
+  if (!parsed.success) throw new Error("Invalid battle state", { cause: parsed.error });
+  if (parsed.data.participantIds[0] === parsed.data.participantIds[1])
     throw new Error("Duplicate participants");
   return value as CanonicalBattleState;
 }
