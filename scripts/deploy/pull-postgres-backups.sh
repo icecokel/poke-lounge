@@ -14,13 +14,9 @@ chmod 700 "$destination"
 destination=$(cd -- "$destination" && pwd)
 
 # Never delete remote backups, or local copies which remote retention has removed.
-if command -v rsync >/dev/null 2>&1; then
-  rsync -rt --chmod=D700,F600 -e "ssh -F $ssh_config" \
-    --include='*.dump' --include='*.dump.sha256' --exclude='*' \
-    "$remote/" "$destination/"
-else
-  scp -F "$ssh_config" "$remote/*.dump" "$remote/*.dump.sha256" "$destination/"
-fi
+# The production host has no rsync; dumps are small, so copy them with scp each time.
+scp -q -p -F "$ssh_config" "$remote/*.dump" "$remote/*.dump.sha256" "$destination/"
+find "$destination" -maxdepth 1 -type f \( -name '*.dump' -o -name '*.dump.sha256' \) -exec chmod 600 {} +
 
 python3 - "$destination" <<'PY'
 import hashlib
