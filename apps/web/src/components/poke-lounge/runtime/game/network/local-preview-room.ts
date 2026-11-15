@@ -107,7 +107,10 @@ export interface RoomEvent {
   COMPETITIVE_ASSIGNMENT: CompetitiveRoomProjectionEvent;
   COMPETITIVE_STATE: CompetitiveRoomProjectionEvent;
   COMPETITIVE_ACTION: CompetitiveActionCommand;
-  COMPETITIVE_ACTION_FAILED: { matchId: string; status: number | null; message: string };
+  COMPETITIVE_ACTION_FAILED: Pick<
+    CompetitiveActionCommand,
+    "matchId" | "turn" | "assignmentRevision" | "clientCommandId"
+  > & { status: number | null; message: string };
 }
 
 export type RoomMessage = keyof RoomEvent;
