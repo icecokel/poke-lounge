@@ -475,6 +475,11 @@ class DefaultWorldSceneTournament implements WorldSceneTournamentController {
       }
     }
 
+    if (projection.roomStatus === "tournament") {
+      this.setAnnouncement("상대의 선택을 기다리는 중...", "16px");
+      return;
+    }
+
     const briefing = createTournamentBriefingText(projection, nowMs);
     if (briefing) {
       this.setAnnouncement(briefing, "14px");

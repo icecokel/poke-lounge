@@ -124,7 +124,9 @@ export function TournamentBracketPanel({
       data-opening-focus={(focused && preview.ownCanCompete) || undefined}
       role="status"
     >
-      <span className="sr-only">{localizeRuntimeText(text, copy.locale)}</span>
+      <span className={projection.roomStatus === "tournament" ? undefined : "sr-only"}>
+        {localizeRuntimeText(text, copy.locale)}
+      </span>
       <div className="grid gap-2 whitespace-normal min-[769px]:gap-2">
         <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2.5 border-b-2 border-[#f1cc62] pb-[7px] text-left text-[9px] min-[769px]:text-xs [&_strong]:text-center [&_strong]:text-[15px] [&_strong]:text-[var(--pl-color-gold)] min-[769px]:[&_strong]:text-xl [&_span:last-child]:text-right">
           <span>
