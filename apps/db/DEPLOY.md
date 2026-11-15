@@ -85,14 +85,13 @@ docker compose up --build --detach --wait --wait-timeout 180
 
 ## PostgreSQL 백업과 Mac 사본
 
-[backup-postgres.sh](../../scripts/deploy/backup-postgres.sh)는 운영 호스트의 `ubuntu` 사용자로 실행한다. Bash·Docker·Python 3·`sha256sum`이 필요하다. 스크립트를 고정 경로에 설치한 뒤 **ubuntu 사용자의** `crontab -e`에 매일 실행을 등록한다. 다음 명령은 설치 예시이며 저장소 루트에서 실행한다.
+[backup-postgres.sh](../../scripts/deploy/backup-postgres.sh)는 운영 호스트의 `ubuntu` 사용자로 실행한다. Bash·Docker·Python 3·`sha256sum`이 필요하다. 운영 호스트(Ubuntu Minimal)에는 cron이 없어 systemd 타이머로 실행한다. 현재 설치는 `/home/ubuntu/poke-lounge-ops/backup-postgres.sh`와 `poke-lounge-backup.service`(oneshot, `User=ubuntu`, `SupplementaryGroups=docker`)·`poke-lounge-backup.timer`(매일 18:17 UTC 전후, `Persistent=true`)다.
 
 ```bash
-install -d -m 0700 "$HOME/bin"
-install -m 0700 scripts/deploy/backup-postgres.sh "$HOME/bin/backup-postgres.sh"
-# ubuntu의 crontab에 추가: 매일 03:15 UTC
-# 호스트 시간대가 UTC인지 timedatectl로 확인하고, 다르면 실행 시각을 조정한다.
-# 15 3 * * * /home/ubuntu/bin/backup-postgres.sh
+# 수동 실행과 상태 확인
+sudo systemctl start poke-lounge-backup.service
+systemctl list-timers poke-lounge-backup.timer
+tail ~/backups/poke-lounge/backup.log
 ```
 
 컨테이너 `poke-lounge-prod-postgres-1`에서 `pg_dump -U poke_lounge -d poke_lounge -Fc --no-password`를 실행한다. Compose는 PostgreSQL 공식 이미지의 로컬 Unix 소켓 인증을 바꾸지 않으므로 비밀번호를 전달하지 않는다. TCP 접속의 비밀번호 설정과 별개다. 기존 볼륨의 `pg_hba.conf`를 수동 변경했다면 이 전제가 달라지므로 인증 정책을 먼저 확인한다. 인증 실패 시 백업은 실패로 종료하며 비밀번호를 명령줄·로그에 출력하지 않는다.
@@ -109,7 +108,7 @@ Mac에서는 [pull-postgres-backups.sh](../../scripts/deploy/pull-postgres-backu
 bash scripts/deploy/pull-postgres-backups.sh /원하는/로컬/백업/폴더
 ```
 
-`ssh -F /Users/smlee/icecoke-ops/config/ssh-config oci-poke-lounge` 설정으로 원격 홈의 `backups/poke-lounge/postgres/`에서 rsync로 덤프·체크섬을 가져오고, rsync가 없으면 scp를 사용한다. Python 3으로 모든 사본의 SHA-256과 짝 파일을 확인한다. 원격 파일과 원격 보관 정책으로 사라진 기존 Mac 사본은 삭제하지 않는다. 설치·cron 등록·실제 원격 회수는 운영자가 별도로 수행한다. `pg_restore --list`는 아카이브 목록 검증이며 실제 복원·서비스 정상 동작 검증을 대신하지 않는다.
+`ssh -F /Users/smlee/icecoke-ops/config/ssh-config oci-poke-lounge` 설정으로 원격 홈의 `backups/poke-lounge/postgres/`에서 scp로 덤프·체크섬을 가져온다(운영 호스트에 rsync가 없다). Python 3으로 모든 사본의 SHA-256과 짝 파일을 확인한다. 원격 파일과 원격 보관 정책으로 사라진 기존 Mac 사본은 삭제하지 않는다. 운영에서는 맥 LaunchAgent `kr.icecoke.poke-lounge-backup-pull`이 매일 04:40(맥이 켜져 있을 때, 로그인 시에도 한 번) 실행한다. 설치 위치는 저장소 밖 운영 문서에 있다. `pg_restore --list`는 아카이브 목록 검증이며 실제 복원·서비스 정상 동작 검증을 대신하지 않는다.
 
 ## 운영 로그 보관
 
