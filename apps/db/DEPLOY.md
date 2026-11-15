@@ -1,43 +1,62 @@
 # Web·Rust API·계산 워커 배포와 환경
 
-구현 대조: `f42bf1c` · 2026-10-23 KST. 이 문서는 Git에서 제외된 내부 `docs/` 없이도 배포 조건을 확인할 수 있는 안내다. 운영 값·비밀번호·실제 방 ID는 기록하지 않는다.
+구현 대조: `81a696b` · 2026-11-15 KST. 이 문서는 Git에서 제외된 내부 `docs/` 없이도 배포 조건을 확인할 수 있는 안내다. 운영 값·비밀번호·실제 방 ID는 기록하지 않는다.
 
 ## 배포 경로
 
-[CI](../../.github/workflows/ci.yml)의 `verify`와 `rust`가 성공한 뒤 [Deploy](../../.github/workflows/deploy-api.yml)를 호출한다. `main`의 push 또는 `main`에서 CI를 수동 실행한 경우만 배포하며 PR 검증은 배포하지 않는다. 배포 체크아웃은 `github.sha`다.
+[CI](../../.github/workflows/ci.yml)의 `verify`와 `rust`가 성공한 뒤 [Deploy](../../.github/workflows/deploy-api.yml)를 호출한다. `main`의 push 또는 `main`에서 CI를 수동 실행한 경우만 배포하며 PR 검증은 배포하지 않는다. 배포 체크아웃은 `github.sha`다. 같은 커밋으로 다시 실행하면 이미지·환경이 같아 컨테이너를 교체하지 않는다. 커밋이 바뀌면 `RELEASE_SHA`가 바뀌므로 문서만 바꾼 병합도 api·web·계산 워커·리그 심판을 다시 띄운다(약 10초 중단).
 
 ### 운영 호스트
 
-2026-11-14부터 운영 호스트는 춘천 OCI 2호기 `oci-poke-lounge-prod-01`(Ubuntu 24.04 ARM64, 2 OCPU·12GB)이다. Docker Engine·Compose, runner `oci-poke-lounge-prod-01`(systemd), Cloudflare Tunnel `poke-lounge-oci`(systemd)가 모두 부팅 시 자동으로 올라오며 모든 서비스는 `restart: unless-stopped`다. 저장소 variable `POKE_LOUNGE_DEPLOY_RUNNER`·`POKE_LOUNGE_CI_RUNNER`가 OCI 라벨 `["self-hosted","Linux","ARM64","poke-lounge","oci"]`을 가리킨다. 이전 운영 호스트였던 Mac mini 스택은 앱을 멈춘 채 복귀용으로 남겨 두었다. 터널 설정, 이관·복귀 절차와 호스트 운영 기록은 저장소 밖 운영 문서에서 관리한다.
+2026-11-14부터 운영 호스트는 춘천 OCI 2호기 `oci-poke-lounge-prod-01`(Ubuntu 24.04 ARM64, 2 OCPU·12GB)이다. Docker Engine·Compose, runner `oci-poke-lounge-prod-01`(systemd), Cloudflare Tunnel `poke-lounge-oci`(systemd)가 모두 부팅 시 자동으로 올라오며 모든 서비스는 `restart: unless-stopped`다. 이전 운영 호스트였던 Mac mini 스택은 멈춘 채 복귀용으로 남겨 두었다. 터널 설정, 이관·복귀 절차와 호스트 운영 기록은 저장소 밖 운영 문서에서 관리한다.
+
+호스트는 [setup-oci-host.sh](../../scripts/deploy/setup-oci-host.sh)(root: Docker Engine·Compose·git·cloudflared)와 [setup-oci-runner.sh](../../scripts/deploy/setup-oci-runner.sh)(서비스 사용자: runner 등록·systemd)로 준비한다. 호스트에 Node·Rust를 설치하지 않는다. 배포 빌드는 Docker 안에서 이뤄진다. Mac mini runner는 [setup-mac-mini-runner.sh](../../scripts/deploy/setup-mac-mini-runner.sh)로 준비한다.
 
 ### 러너 선택
 
-| 저장소 variable             | 의미                                                                             | 비어 있을 때                                              |
-| --------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `POKE_LOUNGE_DEPLOY_RUNNER` | 배포 job의 runner 라벨 JSON 배열. 운영 호스트를 바꿀 때 이 값만 바꾼다.          | `["self-hosted","macOS","ARM64","poke-lounge"]`(Mac mini) |
-| `POKE_LOUNGE_CI_RUNNER`     | `verify`·`rust` job의 runner 라벨 JSON 배열. 같은 저장소의 push·PR에만 적용한다. | `"ubuntu-latest"`                                         |
+| 저장소 variable             | 현재 값                                               | 비어 있을 때                                              |
+| --------------------------- | ----------------------------------------------------- | --------------------------------------------------------- |
+| `POKE_LOUNGE_DEPLOY_RUNNER` | `["self-hosted","Linux","ARM64","poke-lounge","oci"]` | `["self-hosted","macOS","ARM64","poke-lounge"]`(Mac mini) |
+| `POKE_LOUNGE_CI_RUNNER`     | `"ubuntu-24.04-arm"`(GitHub 호스팅)                   | `"ubuntu-latest"`                                         |
 
-저장소가 공개라서 포크 PR은 변수와 상관없이 GitHub 호스팅 runner에서만 실행한다. 운영 호스트에서 외부 코드를 실행하지 않기 위해서다. 한 runner는 job을 하나씩 처리하므로 정적 검사와 배포가 같은 호스트에서 겹치지 않는다. 배포는 이미지를 하나씩 빌드하고(`COMPOSE_PARALLEL_LIMIT=1`), Linux 호스트에서는 끝난 뒤 dangling 이미지와 7일 지난 빌드 캐시만 정리한다. 볼륨과 태그된 이미지는 지우지 않는다.
+운영 호스트의 runner는 배포만 한다. `verify`·`rust`는 GitHub 호스팅 ARM64 runner에서 실행해 브랜치 코드·의존성 설치 스크립트·빌드 스크립트가 운영 호스트(docker 그룹 권한)에서 돌지 않게 한다. 저장소가 공개라서 포크 PR은 변수와 상관없이 `ubuntu-latest`에서만 실행한다.
 
-Linux ARM64 호스트는 [setup-oci-host.sh](../../scripts/deploy/setup-oci-host.sh)(root: Docker Engine·Compose·git·cloudflared)와 [setup-oci-runner.sh](../../scripts/deploy/setup-oci-runner.sh)(서비스 사용자: runner 등록·systemd)로 준비한다. 호스트에 Node·Rust를 설치하지 않는다. 배포 빌드는 Docker 안에서, `verify`는 `actions/setup-node`가 받은 Node로, `rust`는 `rust:1.98.1-bookworm` 컨테이너에서 실행한다. Mac mini runner는 [setup-mac-mini-runner.sh](../../scripts/deploy/setup-mac-mini-runner.sh)로 준비하며 OrbStack 소켓과 keychain `credsStore`가 없는 전용 Docker 설정을 쓴다.
+### 비밀값과 설정
 
-배포 Compose 프로젝트 이름은 `poke-lounge-prod`라서 같은 호스트의 로컬 개발 스택(`poke-lounge`, `poke-lounge-rust-local*`)과 컨테이너·볼륨을 공유하지 않는다. 외부 주소는 운영 호스트의 Cloudflare Tunnel이 `127.0.0.1`의 `WEB_PORT`/`API_PORT`로 전달한다. 터널 설정은 저장소 밖 운영 설정에서 관리한다.
+운영 비밀값은 GitHub `production` environment에만 있다. 이 environment는 배포 브랜치를 `main`으로 제한하고, deploy job만 `environment: production`을 선언한다. 저장소 단위 secret은 두지 않는다. 다른 브랜치의 워크플로는 운영 비밀값을 읽을 수 없다.
 
-| 설정                       | 현재 소비 위치/의미                                                                                                                                                                                                |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_API_URL`      | 저장소 variable. 브라우저가 실제 접근할 API 주소이며 이미지 빌드 인자로 들어간다. 변경 시 웹 이미지를 다시 빌드한다.                                                                                               |
-| `CORS_ORIGINS`             | 저장소 variable. 실제 웹 origin 목록.                                                                                                                                                                              |
-| `RUST_API_TRUSTED_PROXIES` | 선택. 앞단 리버스 프록시(및 Docker 게이트웨이) CIDR. 설정 시 X-Forwarded-For 오른쪽부터 첫 비신뢰 IP로 요청 한도를 센다. 비우면 접속 peer IP 기준. 프록시가 X-Forwarded-For를 덮어쓰거나 추가하도록 설정해야 한다. |
-| `DB_PASSWORD`              | 필수 저장소 secret. 문서·로그에 출력하지 않는다.                                                                                                                                                                   |
-| `BATTLE_WORKER_TOKEN`      | 필수 저장소 secret. Rust API와 계산 워커 사이 인증에 사용한다.                                                                                                                                                     |
-| `BIND_ADDRESS`             | 배포 workflow 기본 `127.0.0.1`. Compose 단독 실행 기본은 `0.0.0.0`이므로 외부 노출을 별도 확인한다.                                                                                                                |
-| `WEB_PORT` / `API_PORT`    | workflow 기본 3100/3101, Compose 단독 기본 3000/3001.                                                                                                                                                              |
+| 설정                       | 종류                      | 현재 소비 위치/의미                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DB_PASSWORD`              | `production` secret(필수) | PostgreSQL 비밀번호. 문서·로그에 출력하지 않는다.                                                                                                                                                                                                                                                                                                        |
+| `BATTLE_WORKER_TOKEN`      | `production` secret(필수) | Rust API와 계산 워커 사이 인증.                                                                                                                                                                                                                                                                                                                          |
+| `DISCORD_CLIENT_SECRET`    | `production` secret       | 디스코드 로그인. `DISCORD_CLIENT_ID`·`DISCORD_REDIRECT_URI` variable과 셋이 함께 있어야 한다.                                                                                                                                                                                                                                                            |
+| `LEAGUE_JUDGE_TOKEN`       | `production` secret       | Rust API와 리그 심판 사이 인증.                                                                                                                                                                                                                                                                                                                          |
+| `LEAGUE_AGENT_LOGIN_TOKEN` | `production` secret       | 운영 리그 테스트 계정 로그인.                                                                                                                                                                                                                                                                                                                            |
+| `NEXT_PUBLIC_API_URL`      | 저장소 variable           | 브라우저가 실제 접근할 API 주소이며 이미지 빌드 인자로 들어간다. 변경 시 웹 이미지를 다시 빌드한다.                                                                                                                                                                                                                                                      |
+| `CORS_ORIGINS`             | 저장소 variable           | 실제 웹 origin 목록.                                                                                                                                                                                                                                                                                                                                     |
+| `RUST_API_TRUSTED_PROXIES` | 저장소 variable           | 신뢰할 프록시 CIDR. 운영은 Compose 기본 네트워크 대역 `172.18.0.0/16`이다. 터널 → 호스트 포트 → 컨테이너를 거치면 접속 peer가 Docker 게이트웨이라서, 이 값이 없으면 모든 접속자가 한 IP로 보여 요청 한도·IP당 방 상한이 사이트 전체에 걸린다. 설정하면 X-Forwarded-For 오른쪽부터 첫 비신뢰 IP를 쓴다. 네트워크를 다시 만들어 대역이 바뀌면 함께 바꾼다. |
+| `BIND_ADDRESS`             | 저장소 variable           | `127.0.0.1`. Compose 단독 실행 기본도 `127.0.0.1`이다.                                                                                                                                                                                                                                                                                                   |
+| `WEB_PORT` / `API_PORT`    | 저장소 variable           | 3100/3101. Compose 단독 기본 3000/3001.                                                                                                                                                                                                                                                                                                                  |
 
-위 값은 템플릿/워크플로 기준이며 실제 운영 환경의 설정값을 조회한 결과가 아니다.
+리그 설정 variable(`LEAGUE_*`)과 `AUTH_WEB_ORIGIN`·`DISCORD_*`는 [deploy-api.yml](../../.github/workflows/deploy-api.yml)의 `env`를 따른다. 위 값은 워크플로·저장소 설정 기준이며 비밀값은 기록하지 않는다.
+
+### 배포 단계와 자동 롤백
+
+배포는 [deploy-stack.sh](../../scripts/deploy/deploy-stack.sh)가 수행한다.
+
+1. 현재 `poke-lounge-node:local`·`poke-lounge-api-rust:local` 이미지를 `:prev`로 태그한다.
+2. 이미지를 하나씩 빌드한다(`COMPOSE_PARALLEL_LIMIT=1`). 실행 중인 앱은 그대로다.
+3. PostgreSQL·Redis를 확인한다(구성이 같으면 다시 만들지 않는다).
+4. 앱을 바꾸기 전에 migrate를 따로 실행한다. 실패하면 여기서 끝나고 기존 앱이 계속 서비스한다.
+5. 바뀌기 전 컨테이너 로그를 보관하고 battle-worker·api·web을 교체한다. 리그가 켜져 있으면 league-judge도 교체한다.
+6. 헬스를 확인한다(각 요청 10초 제한·재시도): API `/health`·`/health/ready`·`/poke-lounge/rooms/public`, Web `/ko-KR`, 리그가 켜져 있으면 `/league/v1/status` 200, 디스코드 값 셋이 있으면 `/auth/me`의 `discord` 제공자. API 로그 파일의 배포 SHA도 확인한다.
+7. 5·6단계가 실패하면 `:prev`를 `:local`로 되돌리고 앱을 다시 띄운 뒤 배포를 실패로 끝낸다. 첫 배포처럼 `:prev`가 없으면 롤백 없이 실패한다.
+
+롤백은 애플리케이션 이미지만 되돌린다. 이미 적용한 DB 마이그레이션은 되돌리지 않으므로, 마이그레이션은 이전 버전 앱과 함께 동작하도록(추가 먼저, 제거는 다음 배포) 작성한다. Linux 호스트에서는 배포 뒤 dangling 이미지만 지우고 빌드 캐시를 15GB 이하로 줄인다. `:prev` 태그 이미지와 볼륨은 지우지 않는다.
 
 ## Compose 실행 순서
 
-[compose.yaml](../../compose.yaml)은 PostgreSQL·Redis·Node 마이그레이션·Node 계산 워커·Rust API·Web을 실행한다. 마이그레이션과 계산 워커는 Node 이미지를 공유하고 Rust API는 별도 이미지다.
+[compose.yaml](../../compose.yaml)은 PostgreSQL·Redis·Node 마이그레이션·Node 계산 워커·Rust API·Web(리그 프로필에서는 리그 심판)을 실행한다. 마이그레이션·계산 워커·Web·리그 심판은 Node 이미지를 공유하고 Rust API는 별도 이미지다.
 
 ```text
 PostgreSQL healthy → migrate: migration:run → rom-data:import
@@ -54,7 +73,7 @@ PostgreSQL healthy → migrate: migration:run → rom-data:import
 docker compose up --build --detach --wait --wait-timeout 180
 ```
 
-배포 workflow는 같은 명령에 `--remove-orphans`를 추가하고 `COMPOSE_PROJECT_NAME=poke-lounge-prod`로 실행한다. 운영 컨테이너 이름은 `poke-lounge-prod-<서비스>-1`(예: `poke-lounge-prod-api-1`)이다. 로그 조회 등 직접 확인은 [운영 오류 추적](../../OBSERVABILITY.md)처럼 컨테이너 이름을 지정한다. PostgreSQL·Redis named volume을 유지한다. `docker compose down -v`는 데이터 삭제이므로 일반 재시작/복구 절차에 사용하지 않는다.
+운영 배포는 `COMPOSE_PROJECT_NAME=poke-lounge-prod`로 위 단계를 나눠 실행한다. 운영 컨테이너 이름은 `poke-lounge-prod-<서비스>-1`(예: `poke-lounge-prod-api-1`)이다. 로그 조회 등 직접 확인은 [운영 오류 추적](../../OBSERVABILITY.md)처럼 컨테이너 이름을 지정한다. 이미지 태그는 `POKE_LOUNGE_IMAGE_TAG`(기본 `local`)로 바꿀 수 있어 같은 호스트의 격리 테스트가 운영 태그를 덮지 않는다. PostgreSQL·Redis named volume을 유지한다. `docker compose down -v`는 데이터 삭제이므로 일반 재시작/복구 절차에 사용하지 않는다.
 
 ## 운영 로그 보관
 
@@ -68,7 +87,7 @@ docker run --rm -v poke-lounge-runtime-logs:/logs alpine:3.20 \
   sh -c 'chown 10001:10001 /logs && chmod 0700 /logs'
 ```
 
-기존 컨테이너 로그의 배포 전 gzip 보관·30일 정리는 유지한다. 새 파일 로그는 재시작 후에도 이어 쓰며, 종료 시 큐를 비운다. 정상 health 요청은 debug, 4xx 또는 1초 이상 걸린 요청은 warn, 5xx는 error로 기록한다. 명령 ID·방 생성 회차·배포 SHA·요청 ID로 브라우저 오류와 서버 처리를 연결할 수 있다. 요청 본문·인증 토큰·원본 세션 ID는 수집하지 않는다.
+교체되는 컨테이너 로그는 배포 직전 `poke-lounge-trace-archive` 볼륨에 gzip으로 보관하고(리그 심판 포함) 30일 지나면 정리한다. 새 파일 로그는 재시작 후에도 이어 쓰며, 종료 시 큐를 비운다. 정상 health 요청은 debug, 4xx 또는 1초 이상 걸린 요청은 warn, 5xx는 error로 기록한다. 명령 ID·방 생성 회차·배포 SHA·요청 ID로 브라우저 오류와 서버 처리를 연결할 수 있다. 요청 본문·인증 토큰·원본 세션 ID는 수집하지 않는다.
 
 최신 API 파일 로그를 읽을 때는 읽기 전용 마운트를 사용한다.
 
@@ -111,7 +130,7 @@ CI는 정적 검사와 프로덕션 빌드만 수행한다. Storybook은 제거�
 
 ## 장애 확인·복구 경계
 
-`migrate` 실패라면 API를 강제로 먼저 띄우지 않는다. 어떤 마이그레이션 또는 ROM 문서가 실패했는지 확인하고 데이터 보존을 우선한다. 전투 계산이 멈추면 `battle-worker`의 준비 상태와 Rust API의 워커 연결·토큰 설정을 확인한다. AI 준비가 멈추면 Rust API의 Redis·ROM 데이터·계산 워커 연결을 확인한다. 웹 요청 실패는 브라우저용 API URL·CORS와 내부 컨테이너 주소를 구분한다.
+`migrate` 실패는 앱을 바꾸기 전에 멈추므로 기존 버전이 계속 서비스한다. API를 강제로 먼저 띄우지 않는다. 헬스 실패로 자동 롤백됐다면 배포 로그에서 실패한 확인 단계를 찾고, 이전 버전이 서비스 중인지 `/health/ready`로 확인한다. 어떤 마이그레이션 또는 ROM 문서가 실패했는지 확인하고 데이터 보존을 우선한다. 전투 계산이 멈추면 `battle-worker`의 준비 상태와 Rust API의 워커 연결·토큰 설정을 확인한다. AI 준비가 멈추면 Rust API의 Redis·ROM 데이터·계산 워커 연결을 확인한다. 웹 요청 실패는 브라우저용 API URL·CORS와 내부 컨테이너 주소를 구분한다.
 
 방은 Redis, ROM 문서는 PostgreSQL에 있으므로 한 저장소의 복원으로 전체 게임 상태가 복구된다고 가정하지 않는다. 애플리케이션 버전 롤백과 DB 복원은 별도 판단이다. 검증된 백업/복원 절차와 운영자 승인이 없이 `FLUSHDB`, 테이블 삭제, volume 삭제, migration 이력 조작을 실행하지 않는다.
 
