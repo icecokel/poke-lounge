@@ -134,7 +134,7 @@ export function startServerSaveSync(
     if (checkpoint) schedule();
   });
   const hidden = () => {
-    if (document.visibilityState === "hidden") void flush(true);
+    if (document.visibilityState === "hidden") void flush(true, true);
   };
   document.addEventListener("visibilitychange", hidden);
   const exiting = () => void flush(true, true);

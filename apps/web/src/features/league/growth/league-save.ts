@@ -155,13 +155,23 @@ export function readLeagueSave(runId: string, userId?: string): LeagueSaveEnvelo
   return candidates.sort((a, b) => b.savedAtMs - a.savedAtMs)[0] ?? null;
 }
 export function writeLeagueSave(save: LeagueSaveEnvelope): void {
-  for (const storage of storages()) {
+  const available = storages();
+  for (const storage of available) {
     try {
       storage.setItem(PREFIX + save.runId, JSON.stringify(save));
-      return;
     } catch {
       /* Try the next storage. */
+      continue;
     }
+    for (const stale of available) {
+      if (stale === storage) continue;
+      try {
+        stale.removeItem(PREFIX + save.runId);
+      } catch {
+        /* The latest copy was saved; reading still selects the newest timestamp. */
+      }
+    }
+    return;
   }
 }
 export function cleanLeagueSaves(currentRunId: string | null): void {
