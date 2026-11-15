@@ -9,7 +9,7 @@ use crate::{
 };
 use axum::{
     Extension, Json, Router,
-    extract::{Path, Query, Request, State},
+    extract::{ConnectInfo, Path, Query, Request, State},
     http::HeaderMap,
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -17,7 +17,10 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::Value;
-use std::sync::{Arc, atomic::AtomicU64};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, atomic::AtomicU64},
+};
 use uuid::Uuid;
 
 static BUSY_LOGGED_S: AtomicU64 = AtomicU64::new(0);
@@ -65,29 +68,42 @@ async fn user(
     league.limiter.check(user.0, kind)?;
     Ok(user)
 }
-async fn public_limit(state: &AppState, headers: &HeaderMap, league: &League) -> Result<()> {
+async fn public_limit(
+    state: &AppState,
+    headers: &HeaderMap,
+    league: &League,
+    peer: SocketAddr,
+) -> Result<()> {
     if let Some((id, _)) = current_user(state, headers)
         .await
         .map_err(|_| LeagueError::unavailable())?
     {
         league.limiter.check(id, Kind::Read)?;
+    } else {
+        league.limiter.check_ip(crate::http::client_ip(
+            peer.ip(),
+            headers,
+            &state.trusted_proxies,
+        ))?;
     }
     Ok(())
 }
 async fn status(
     State(state): State<AppState>,
     Extension(l): Extension<Arc<League>>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
 ) -> Result<Json<Value>> {
-    public_limit(&state, &headers, &l).await?;
+    public_limit(&state, &headers, &l, peer).await?;
     Ok(success(db::retry(|| l.status()).await?))
 }
 async fn standings(
     State(state): State<AppState>,
     Extension(l): Extension<Arc<League>>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
 ) -> Result<Json<Value>> {
-    public_limit(&state, &headers, &l).await?;
+    public_limit(&state, &headers, &l, peer).await?;
     Ok(success(db::retry(|| l.standings()).await?))
 }
 #[derive(Deserialize)]
@@ -98,10 +114,11 @@ struct HallQuery {
 async fn hall(
     State(state): State<AppState>,
     Extension(l): Extension<Arc<League>>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     query: std::result::Result<Query<HallQuery>, axum::extract::rejection::QueryRejection>,
 ) -> Result<Json<Value>> {
-    public_limit(&state, &headers, &l).await?;
+    public_limit(&state, &headers, &l, peer).await?;
     let Query(q) = query.map_err(|_| LeagueError::new(404, "LEAGUE_NOT_FOUND"))?;
     Ok(success(db::retry(|| l.hall_of_fame(q.season_id)).await?))
 }
@@ -111,12 +128,7 @@ async fn me(
     headers: HeaderMap,
 ) -> Result<Json<Value>> {
     let (id, name) = user(&state, &headers, &l, Kind::Read).await?;
-    let profile = super::growth::profile::get(&l, id).await?;
-    let name = profile["nickname"].as_str().unwrap_or(&name);
-    let mut data = db::retry(|| l.me(id, name)).await?;
-    data["user"]["nickname"] = profile["nickname"].clone();
-    data["user"]["nicknameChangeableAtMs"] = profile["changeableAtMs"].clone();
-    Ok(success(data))
+    Ok(success(db::retry(|| l.me(id, &name)).await?))
 }
 async fn seasons(
     State(state): State<AppState>,
@@ -153,10 +165,17 @@ async fn enter(
 ) -> Result<Json<Value>> {
     let (id, _) = user(&state, &headers, &l, Kind::Entry).await?;
     let Json(body) = body.map_err(|_| LeagueError::new(422, "LEAGUE_PARTY_INVALID"))?;
-    db::retry(|| l.growth_check_entry(id, body.run_id, body.entry_key, &body.party)).await?;
+    let checked =
+        db::retry(|| l.growth_check_entry(id, body.run_id, body.entry_key, &body.party)).await?;
     Ok(success(
-        l.enter_attempt(id, body.run_id, body.entry_key, &body.party)
-            .await?,
+        l.enter_attempt(
+            id,
+            body.run_id,
+            body.entry_key,
+            &body.party,
+            checked.as_ref(),
+        )
+        .await?,
     ))
 }
 

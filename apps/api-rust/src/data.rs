@@ -98,6 +98,16 @@ impl Data {
         ).await?;
         Ok(())
     }
+    pub async fn cleanup(&self) -> AppResult<()> {
+        let client = self.client().await?;
+        client
+            .execute(
+                "DELETE FROM poke_lounge_auth_session WHERE expires_at < now()",
+                &[],
+            )
+            .await?;
+        Ok(())
+    }
     /// Finds or creates the user linked to a provider account and refreshes its display name.
     pub async fn upsert_identity_user(
         &self,
@@ -121,12 +131,6 @@ SELECT user_id FROM found UNION ALL SELECT user_id FROM linked
     }
     pub async fn create_session(&self, token_hash: &str, user_id: Uuid) -> AppResult<()> {
         let client = self.client().await?;
-        client
-            .execute(
-                "DELETE FROM poke_lounge_auth_session WHERE expires_at < now()",
-                &[],
-            )
-            .await?;
         client.execute(
             "INSERT INTO poke_lounge_auth_session (token_hash, user_id, expires_at) VALUES ($1, $2, now() + interval '30 days')",
             &[&token_hash, &user_id],

@@ -178,6 +178,12 @@ impl Compute {
                 })?;
             let status = response.status();
             let body = self.read(response).await?;
+            // Request-schema rejections have no protocol identity to validate.
+            if status == reqwest::StatusCode::UNPROCESSABLE_ENTITY
+                && body["code"] == "INVALID_COMPUTE_REQUEST"
+            {
+                return Err((AppError::ComputeInvalid("invalid_compute_request"), "request_rejected"));
+            }
             if body["requestId"] != request_id.to_string()
                 || body["roomInstanceId"] != id.to_string()
                 || body["stateRevision"] != revision
@@ -236,6 +242,8 @@ impl Compute {
                     (AppError::ComputeRejected(reason.to_owned()), "rejected")
                 } else if body["code"] == "COMPUTE_FAILED" {
                     (AppError::ComputeFailed, "worker_failed")
+                } else if body["code"] == "COMPUTE_WORKER_UNAVAILABLE" && reason == "execution-timeout" {
+                    (AppError::ComputeTimedOut, "execution_timeout")
                 } else {
                     (AppError::ComputeUnavailable, "worker_unavailable")
                 });

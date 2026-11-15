@@ -95,7 +95,10 @@ impl Judge {
         .map_err(|_| health_failed(None, "", "health_timeout", unavailable()))?
     }
     pub async fn call(&self, engine: &str, op: Value) -> Result<Value> {
-        let _permit = self.permits.try_acquire().map_err(|_| unavailable())?;
+        let _permit = tokio::time::timeout(Duration::from_secs(5), self.permits.acquire())
+            .await
+            .map_err(|_| unavailable())?
+            .map_err(|_| unavailable())?;
         let id = Uuid::new_v4().to_string();
         let response = self
             .client

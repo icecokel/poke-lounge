@@ -204,6 +204,12 @@ impl Rooms {
             events: events.clone(),
         };
         actors.insert(id, h.clone());
+        // A freshly created room keeps its original admission deadline.
+        let presence_grace_until_ms = if room.storage_version == 0 {
+            0
+        } else {
+            now.saturating_add(90_000)
+        };
         let actor = Actor {
             room,
             repository: self.repository.clone(),
@@ -226,6 +232,7 @@ impl Rooms {
             tick_failures: 0,
             tick_failure_logged: None,
             faults: RoomFaults::default(),
+            presence_grace_until_ms,
         };
         self.tasks.spawn(actor.run(receiver));
         Ok(h)
@@ -477,6 +484,8 @@ struct Actor {
     tick_failure_logged: Option<tokio::time::Instant>,
     /// Retry state of AI and tournament match steps that failed; see `Room::advance_game`.
     faults: RoomFaults,
+    /// Fixed at actor restoration; reloads must not keep extending the reconnect window.
+    presence_grace_until_ms: u64,
 }
 impl Actor {
     fn snapshot(&self, after: Option<u64>) -> Value {
@@ -540,7 +549,7 @@ impl Actor {
         let (now, mut room) = self.repository.read(self.room.room_instance_id).await?;
         self.now = now;
         let previous = room.revision;
-        room.prepare_clock(now);
+        room.prepare_clock(now, self.presence_grace_until_ms);
         if room.revision != previous {
             let version = room.storage_version;
             self.repository.commit(version, &mut room, None).await?;
@@ -562,7 +571,7 @@ impl Actor {
         self.now = now;
         let mut room = self.room.clone();
         let previous = room.revision;
-        room.prepare_clock(now);
+        room.prepare_clock(now, self.presence_grace_until_ms);
         if room.revision != previous {
             self.repository
                 .commit(self.room.storage_version, &mut room, None)
@@ -645,8 +654,13 @@ impl Actor {
         next.step_ai(self.now, &self.compute, &mut self.faults)
             .await?;
         self.tick_stage = "advance_game";
-        next.advance_game(self.now, &self.compute, &mut self.faults)
-            .await?;
+        next.advance_game(
+            self.now,
+            &self.compute,
+            &mut self.faults,
+            self.presence_grace_until_ms,
+        )
+        .await?;
         self.tick_stage = "commit";
         if next.revision != self.room.revision {
             let expected = self.room.storage_version;

@@ -250,11 +250,11 @@ async fn publish_state(socket: &mut WebSocket, value: Value) -> AppResult<()> {
     send(socket, "room.snapshot", json!({"room":value["room"]})).await?;
     send(socket, "room.world-snapshot", value["world"].clone()).await
 }
-/// A full room mailbox only delays the heartbeat: the next interval retries it, and the actor's
+/// A full or slow room mailbox only delays the heartbeat: the next interval retries it, and the actor's
 /// stale-connection sweep still drops a socket whose heartbeats never arrive.
 async fn heartbeat(handle: &Handle, connection: Uuid) -> AppResult<()> {
     match handle.request(Operation::Heartbeat { connection }).await {
-        Ok(_) | Err(AppError::Busy) => Ok(()),
+        Ok(_) | Err(AppError::Busy | AppError::Timeout) => Ok(()),
         Err(error) => Err(error),
     }
 }

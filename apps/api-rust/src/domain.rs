@@ -311,6 +311,7 @@ pub struct Match {
 }
 struct MatchFault {
     failures: u32,
+    execution_timeouts: u32,
     deterministic_failures: u32,
     first_deterministic_ms: u64,
     retry_at_ms: u64,
@@ -337,14 +338,21 @@ impl FaultMap {
         })
     }
     /// Returns the consecutive failure count and whether this failure should be logged.
-    fn record(&mut self, key: &str, now: u64, deterministic: bool) -> (u32, bool) {
+    fn record(&mut self, key: &str, now: u64, error: &AppError) -> (u32, bool) {
         let fault = self.0.entry(key.to_owned()).or_insert(MatchFault {
             failures: 0,
+            execution_timeouts: 0,
             deterministic_failures: 0,
             first_deterministic_ms: now,
             retry_at_ms: now,
         });
         fault.failures = fault.failures.saturating_add(1);
+        fault.execution_timeouts = if matches!(error, AppError::ComputeTimedOut) {
+            fault.execution_timeouts.saturating_add(1)
+        } else {
+            0
+        };
+        let deterministic = error.deterministic() || fault.execution_timeouts >= 3;
         if deterministic {
             if fault.deterministic_failures == 0 {
                 fault.first_deterministic_ms = now;
@@ -582,7 +590,7 @@ impl Room {
         self.round.ends_at_ms = None;
         self.touch(now);
     }
-    pub fn prepare_clock(&mut self, now: u64) {
+    pub fn prepare_clock(&mut self, now: u64, presence_grace_until_ms: u64) {
         if self.terminal() {
             return;
         }
@@ -596,7 +604,8 @@ impl Room {
         }
         let mut changed = false;
         for p in &mut self.participants {
-            if !p.ai && p.connected && p.presence_until_ms <= now {
+            if !p.ai && p.connected && p.presence_until_ms <= now && now >= presence_grace_until_ms
+            {
                 p.connected = false;
                 p.admitted = false;
                 p.ready = false;
@@ -1043,6 +1052,7 @@ impl Room {
         now: u64,
         compute: &Compute,
         faults: &mut RoomFaults,
+        presence_grace_until_ms: u64,
     ) -> AppResult<()> {
         let faults = &mut faults.matches;
         if self.status != Status::Tournament {
@@ -1064,7 +1074,7 @@ impl Room {
             self.pending_progressions.remove(&id);
             self.touch(now);
         }
-        self.prepare_clock(now);
+        self.prepare_clock(now, presence_grace_until_ms);
         if self.terminal() {
             return Ok(());
         }
@@ -1221,7 +1231,7 @@ impl Room {
                 Ok(()) => faults.clear(&key),
                 Err(error) => {
                     *self = backup;
-                    let (failures, log) = faults.record(&key, now, error.deterministic());
+                    let (failures, log) = faults.record(&key, now, &error);
                     if log {
                         tracing::warn!(event = "match.step_failed", room_instance_id = %self.room_instance_id, match_id = %id, failures, deterministic = error.deterministic(), code = error.code(), error = %error, detail = ?error.detail());
                     }
@@ -1361,8 +1371,7 @@ impl Room {
             let (players, seed, pack) = match self.initialize_match(&bracket, compute).await {
                 Ok(initialized) => initialized,
                 Err(error) => {
-                    let (failures, log) =
-                        faults.record(&bracket.match_id, now, error.deterministic());
+                    let (failures, log) = faults.record(&bracket.match_id, now, &error);
                     if log {
                         tracing::error!(event = "match.initialize_failed", room_instance_id = %self.room_instance_id, bracket_match_id = %bracket.match_id, players = ?bracket.participant_ids, failures, code = error.code(), error = %error, detail = ?error.detail());
                     }
@@ -1712,7 +1721,7 @@ impl Room {
                 Err(error) => {
                     failures += 1;
                     first_failure.get_or_insert(error.code());
-                    log_failures |= faults.record(&id, now, error.deterministic()).1;
+                    log_failures |= faults.record(&id, now, &error).1;
                     continue;
                 }
             };
@@ -1722,7 +1731,9 @@ impl Room {
             } else {
                 failures += 1;
                 first_failure.get_or_insert("ADVENTURE_MISSING");
-                log_failures |= faults.record(&id, now, true).1;
+                log_failures |= faults
+                    .record(&id, now, &AppError::ComputeInvalid("adventure_missing"))
+                    .1;
                 continue;
             }
             if self.status == Status::RoundStarted {
