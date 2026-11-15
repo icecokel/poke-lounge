@@ -905,6 +905,7 @@ impl Room {
                             "kind":"accept-party",
                             "party":party,
                             "roster":self.parties.get(player).map(|p| p.roster.clone()).unwrap_or(Value::Null),
+                            "previousParty":self.parties.get(player).map(|p| &p.competitive_party),
                             "nowMs":now,
                             "trusted":false,
                             "starterSelection":if self.parties.contains_key(player) { Value::Null } else {
@@ -920,7 +921,28 @@ impl Room {
                         _ => {
                             tracing::error!(event = "room.party_submit_failed", room_instance_id = %self.room_instance_id, player_id = %player, code = error.code(), error = %error);
                         }
-                    })?;
+                    });
+                let accepted = match accepted {
+                    Ok(accepted) => accepted,
+                    Err(AppError::ComputeRejected(rule)) if self.parties.contains_key(player) => {
+                        // Malformed submissions cannot be merged; return the stored party for recovery.
+                        return self.party_submission_snapshot(
+                            player,
+                            now,
+                            json!([{"rule":rule}]),
+                            true,
+                        );
+                    }
+                    Err(error) => return Err(error),
+                };
+                let rejections = accepted
+                    .get("rejections")
+                    .filter(|value| value.is_array())
+                    .cloned()
+                    .unwrap_or_else(|| json!([]));
+                for rejection in rejections.as_array().into_iter().flatten() {
+                    tracing::warn!(event = "room.party_rejected", room_instance_id = %self.room_instance_id, player_id = %player, rule = rejection["rule"].as_str().unwrap_or("unknown"), slot_index = ?rejection["slotIndex"], partial = true, status = ?self.status, round_index = self.round.index);
+                }
                 let value = accepted
                     .get("party")
                     .filter(|party| party.is_object())
@@ -948,6 +970,12 @@ impl Room {
                 } else if let Some(current) = self.parties.get_mut(player) {
                     current.roster = roster;
                 }
+                return self.party_submission_snapshot(
+                    player,
+                    now,
+                    rejections,
+                    accepted["reset"].as_bool().unwrap_or(false),
+                );
             }
             GameCommand::Leave => {
                 let p = &mut self.participants[index];
@@ -1823,6 +1851,22 @@ impl Room {
             .ok_or(AppError::PartyLocked)?
             .competitive_party
             .clone();
+        Ok(Some(snapshot))
+    }
+    fn party_submission_snapshot(
+        &self,
+        player: &str,
+        now: u64,
+        rejections: Value,
+        reset: bool,
+    ) -> AppResult<Option<Value>> {
+        let mut snapshot = self.snapshot(None);
+        snapshot["serverNowMs"] = json!(now);
+        snapshot["partyAcceptance"] = json!({
+            "party": self.parties.get(player).ok_or(AppError::PartyLocked)?.competitive_party,
+            "rejections": rejections,
+            "reset": reset,
+        });
         Ok(Some(snapshot))
     }
     pub fn snapshot(&self, after: Option<u64>) -> Value {

@@ -42,6 +42,7 @@ export interface PokeLoungeCopy {
   hydrationDecideLater: string;
   hydrationIdentityError: string;
   noticeConfirm: string;
+  partySyncRecovered: string;
   settingsTitle: string;
   settingsDescription: string;
   settingsFullscreen: string;
@@ -318,6 +319,8 @@ const KOREAN_COPY: PokeLoungeCopy = {
   hydrationDecideLater: "나중에 결정",
   hydrationIdentityError: "계정 저장 식별 정보를 확인하지 못했습니다. 다시 로그인해 주세요.",
   noticeConfirm: "확인",
+  partySyncRecovered:
+    "일부 파티 변경을 확인하지 못해 마지막 승인 상태로 복구했습니다. 처음 제출한 포켓몬은 제외될 수 있습니다.",
   settingsTitle: "설정",
   settingsDescription: "화면과 소리를 조절하고 현재 방·저장 상태를 확인합니다.",
   settingsFullscreen: "전체화면",
@@ -625,6 +628,8 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   hydrationDecideLater: "Decide later",
   hydrationIdentityError: "We could not verify the account save identity. Sign in again.",
   noticeConfirm: "OK",
+  partySyncRecovered:
+    "Some party changes could not be verified and were restored to their last approved state. Newly submitted Pokémon may have been removed.",
   settingsTitle: "Settings",
   settingsDescription: "Adjust the display and sound, and check the current room and save status.",
   settingsFullscreen: "Fullscreen",
@@ -934,6 +939,8 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   hydrationIdentityError:
     "アカウント保存の識別情報を確認できません。もう一度ログインしてください。",
   noticeConfirm: "確認",
+  partySyncRecovered:
+    "一部のパーティー変更を確認できず、最後に承認された状態に戻しました。初めて送信したポケモンは除外される場合があります。",
   settingsTitle: "設定",
   settingsDescription: "画面と音を調整し、現在のルームと保存状況を確認します。",
   settingsFullscreen: "全画面表示",

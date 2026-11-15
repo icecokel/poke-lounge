@@ -210,3 +210,14 @@ export type RustProgressionSnapshot = RustRoomSnapshot & {
   progressionParty: NormalizedCompetitiveParty;
   serverNowMs: number;
 };
+
+/** Only the submitting player's command response carries the full accepted party. */
+export interface RustPartyAcceptance {
+  party: NormalizedCompetitiveParty;
+  rejections: Array<{ slotIndex?: number; rule: string }>;
+  reset: boolean;
+}
+
+export type RustPartySubmissionSnapshot = RustRoomSnapshot & {
+  partyAcceptance: RustPartyAcceptance;
+};

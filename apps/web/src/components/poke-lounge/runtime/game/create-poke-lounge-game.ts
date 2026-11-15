@@ -1,3 +1,6 @@
+import { reconcilePartySubmission } from "@/features/poke-lounge/application/player/reconcile-party-submission";
+import { getPokeLoungeCopyForUrl } from "../../poke-lounge-copy";
+import { dispatchPokeLoungeNotice } from "./ui/poke-lounge-ui-events";
 import { setClientDiagnosticScene } from "@/lib/client-diagnostics";
 import { persistTournamentRewardParty } from "@/features/poke-lounge/application/battle/settle-battle";
 import type { PokeLoungeRuntimeAssets } from "./assets/poke-lounge-runtime-assets";
@@ -8,7 +11,11 @@ import {
 import type { BattleUiStore } from "./battle/battle-ui-store";
 import type { InitialGameScene } from "./game-startup";
 import type { GameViewportDisplaySize } from "./game-viewport";
-import { createLocalPreviewRoom, type MultiplayerRoom } from "./network/local-preview-room";
+import {
+  createLocalPreviewRoom,
+  type MultiplayerRoom,
+  type RoomEvent,
+} from "./network/local-preview-room";
 import { RuntimeKeyboard } from "./runtime-input";
 import { BattleController } from "./scenes/battle-scene";
 import {
@@ -73,9 +80,23 @@ export function createPokeLoungeGame(
   let destroyed = false;
   let animationFrame = 0;
   let previousFrameTime = performance.now();
+  let pendingPartyAcceptance: RoomEvent["PARTY_ACCEPTED"] | null = null;
+  function applyPartyAcceptance() {
+    const acceptance = pendingPartyAcceptance;
+    pendingPartyAcceptance = null;
+    if (!acceptance) return;
+    reconcilePartySubmission(gameStateStore, acceptance);
+    if (acceptance.reset || acceptance.rejections.length > 0) {
+      dispatchPokeLoungeNotice(parent.ownerDocument, {
+        message: getPokeLoungeCopyForUrl(new URL(parent.ownerDocument.URL)).partySyncRecovered,
+        tone: "info",
+      });
+    }
+  }
   function startWorld(data: unknown = {}) {
     if (destroyed) return;
     battleController.stop();
+    applyPartyAcceptance();
     activeScene = "world";
     setClientDiagnosticScene("world");
     worldController.start(toWorldSceneCreateData(data));
@@ -83,6 +104,7 @@ export function createPokeLoungeGame(
   function startBattle(data: unknown = {}) {
     if (destroyed) return;
     worldController.shutdown();
+    applyPartyAcceptance();
     activeScene = "battle";
     setClientDiagnosticScene("battle");
     battleController.start(data);
@@ -123,6 +145,7 @@ export function createPokeLoungeGame(
   );
   const unsubscribeGameResult = subscribeToFinalGameResult(gameStateStore, options.onGameResult);
   const unsubscribeTournamentReward = multiplayerRoom.on("TOURNAMENT_REWARD", ({ party }) => {
+    applyPartyAcceptance();
     const local = gameStateStore.getCurrentLocalPlayer();
     if (
       party.members.some(member => {
@@ -137,6 +160,11 @@ export function createPokeLoungeGame(
       })
     )
       persistTournamentRewardParty(gameStateStore, party);
+  });
+  const unsubscribePartyAcceptance = multiplayerRoom.on("PARTY_ACCEPTED", acceptance => {
+    // A running battle still owns its settlement; reconcile before the next scene reads the party.
+    pendingPartyAcceptance = acceptance;
+    if (activeScene === "world" && worldController.isActive()) applyPartyAcceptance();
   });
   parent.dataset.pokeLoungeResourceStatus = "ready";
 
@@ -167,6 +195,7 @@ export function createPokeLoungeGame(
       stopAllPokeLoungeAudio();
       unsubscribeGameResult();
       unsubscribeTournamentReward();
+      unsubscribePartyAcceptance();
       multiplayerRoom.dispose();
       delete parent.dataset.pokeLoungeResourceStatus;
     },
