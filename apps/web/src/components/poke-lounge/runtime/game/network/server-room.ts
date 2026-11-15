@@ -2452,6 +2452,18 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       if (disposed || leaveSent) return;
       const snapshot = captureClientDiagnosticSnapshot(actionTrace);
       reportClientDiagnostic({ kind: "room", code: "COMPETITIVE_ACTION_FAILED", error, snapshot });
+      if (
+        error instanceof ServerRoomRequestError &&
+        error.status === 400 &&
+        error.serverCode === "INVALID_INPUT"
+      ) {
+        emit("COMPETITIVE_ACTION_FAILED", {
+          matchId: command.matchId,
+          status: error.status,
+          message: "선택한 행동을 사용할 수 없습니다.",
+        });
+        return;
+      }
       emit("COMPETITIVE_ACTION_FAILED", {
         matchId: command.matchId,
         status: error instanceof ServerRoomRequestError ? error.status : null,

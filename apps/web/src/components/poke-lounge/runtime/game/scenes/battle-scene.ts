@@ -1765,12 +1765,25 @@ export class BattleController {
         "COMPETITIVE_ACTION_FAILED",
         function handleEvent(
           this: BattleController,
-          { matchId, message }: { matchId: string; status: number | null; message: string },
+          { matchId, status, message }: { matchId: string; status: number | null; message: string },
         ): void {
           if (matchId !== this.authoritativeProjection?.matchId) {
             return;
           }
           this.authoritativeRecoveryState = null;
+          if (status === 400 && this.authoritativeOwnPlayerId) {
+            this.authoritativeInputPending = false;
+            this.setBattleState({
+              ...this.toAuthoritativeSceneState(
+                this.authoritativeProjection,
+                this.authoritativeOwnPlayerId,
+                this.state.returnToWorld,
+                this.state,
+              ),
+              messageQueue: [message],
+            });
+            return;
+          }
           this.authoritativeInputPending = true;
           this.state = { ...this.state, phase: "resolving", messageQueue: [message] };
           this.render();
