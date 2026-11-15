@@ -171,6 +171,9 @@ impl League {
             .read_only(true)
             .start()
             .await?;
+        let profile = super::growth::profile::get_with_client(&tx, user).await?;
+        let name = profile["nickname"].as_str().unwrap_or(name);
+        let user_view = json!({"displayName":name,"nickname":profile["nickname"],"nicknameChangeableAtMs":profile["changeableAtMs"]});
         let Some(s) = one(
             &tx,
             &format!("{SEASON} ORDER BY (settled_at IS NULL) DESC,id DESC LIMIT 1"),
@@ -178,7 +181,7 @@ impl League {
         )
         .await?
         else {
-            return Ok(json!({"user":{"displayName":name},"run":null,"attempt":null,"best":null}));
+            return Ok(json!({"user":user_view,"run":null,"attempt":null,"best":null}));
         };
         let id = views::integer(&s["id"])? as i32;
         let run = one(
@@ -198,7 +201,7 @@ impl League {
         let best = one(&tx, "SELECT jsonb_build_object('score',score,'bestRank',best_rank,'recordedAtMs',(extract(epoch from recorded_at)*1000)::bigint) AS value FROM poke_lounge_league_record WHERE season_id=$1 AND user_id=$2", &[&id,&user]).await?;
         tx.commit().await?;
         Ok(
-            json!({"user":{"displayName":name},"run":run.as_ref().map(views::run),"attempt":attempt.as_ref().map(views::summary),"best":best}),
+            json!({"user":user_view,"run":run.as_ref().map(views::run),"attempt":attempt.as_ref().map(views::summary),"best":best}),
         )
     }
     pub async fn personal_seasons(&self, user: Uuid) -> Result<Value> {
@@ -310,8 +313,9 @@ impl League {
         run: Uuid,
         key: Uuid,
         claim: &Value,
+        checked: Option<&Value>,
     ) -> Result<Value> {
-        let result = super::db::retry(|| self.enter_once(user, run, key, claim)).await;
+        let result = super::db::retry(|| self.enter_once(user, run, key, claim, checked)).await;
         match result {
             Err(e)
                 if matches!(
@@ -354,6 +358,7 @@ impl League {
         run_id: Uuid,
         key: Uuid,
         claim: &Value,
+        checked: Option<&Value>,
     ) -> Result<Value> {
         if let Some(existing) = self.entry_by_key(user, key).await? {
             return Ok(existing);
@@ -472,6 +477,12 @@ impl League {
             );
         }
         check_run(&run, user, season_id, self.config.badges_required())?;
+        // The external party check must still describe the run locked by this transaction.
+        if checked.is_none_or(|checked| {
+            checked["badges"] != run["badges"] || checked["checkpoint"] != run["checkpoint"]
+        }) {
+            return Err(LeagueError::unavailable());
+        }
         let rules = views::integer(&s["rules_version"])? as i16;
         let rev = views::integer(&s["standings_rev"])?;
         let engine = &health.engine;

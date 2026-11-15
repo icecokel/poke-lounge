@@ -3,11 +3,15 @@ use super::super::{
     error::{LeagueError, Result},
 };
 use serde_json::{Value, json};
+use tokio_postgres::GenericClient;
 use uuid::Uuid;
 
 pub async fn get(league: &League, user: Uuid) -> Result<Value> {
     let slot = league.db.client().await?;
-    let row = slot.as_ref().ok_or_else(LeagueError::unavailable)?.query_opt("SELECT nickname,(extract(epoch from updated_at + interval '7 days')*1000)::bigint AS changeable FROM poke_lounge_league_profile WHERE user_id=$1", &[&user]).await?;
+    get_with_client(slot.as_ref().ok_or_else(LeagueError::unavailable)?, user).await
+}
+pub async fn get_with_client<C: GenericClient + Sync>(client: &C, user: Uuid) -> Result<Value> {
+    let row = client.query_opt("SELECT nickname,(extract(epoch from updated_at + interval '7 days')*1000)::bigint AS changeable FROM poke_lounge_league_profile WHERE user_id=$1", &[&user]).await?;
     Ok(match row {
         Some(row) => {
             json!({"nickname":row.try_get::<_,String>("nickname")?,"changeableAtMs":row.try_get::<_,i64>("changeable")?})

@@ -1,6 +1,7 @@
 use super::error::{LeagueError, Result};
 use std::{
     collections::HashMap,
+    net::IpAddr,
     sync::{
         Mutex,
         atomic::{AtomicU64, Ordering},
@@ -35,13 +36,24 @@ struct Budget {
     growth: [u32; 4],
 }
 #[derive(Default)]
-pub struct Limiter(Mutex<HashMap<Uuid, Budget>>);
+pub struct Limiter(Mutex<HashMap<Subject, Budget>>);
+#[derive(Eq, PartialEq, Hash)]
+enum Subject {
+    User(Uuid),
+    Ip(IpAddr),
+}
 impl Limiter {
     pub fn check(&self, user: Uuid, kind: Kind) -> Result<()> {
+        self.check_subject(Subject::User(user), kind)
+    }
+    pub fn check_ip(&self, ip: IpAddr) -> Result<()> {
+        self.check_subject(Subject::Ip(ip), Kind::Read)
+    }
+    fn check_subject(&self, subject: Subject, kind: Kind) -> Result<()> {
         let mut table = self.0.lock().map_err(|_| LeagueError::unavailable())?;
         let now = Instant::now();
         table.retain(|_, b| now.duration_since(b.touched) < Duration::from_secs(600));
-        let b = table.entry(user).or_insert(Budget {
+        let b = table.entry(subject).or_insert(Budget {
             since: now,
             touched: now,
             all: 0,

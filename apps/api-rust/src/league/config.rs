@@ -83,7 +83,7 @@ impl Config {
             exp_multiplier_permille,
             judge_url,
             token,
-            db_max: number("LEAGUE_DB_MAX_CONNECTIONS", 2, 1, 4)? as usize,
+            db_max: number("LEAGUE_DB_MAX_CONNECTIONS", 4, 1, 4)? as usize,
             grace_hours: number("LEAGUE_SETTLE_GRACE_HOURS", 6, 0, 720)?,
             starts_at,
             starters,
