@@ -56,6 +56,8 @@ export interface PartyRosterEntry {
   moveIds: number[];
   /** Last time this Pokémon was part of an accepted party. */
   updatedAtMs: number;
+  /** Optional for rooms saved before member recovery was introduced. */
+  acceptedMember?: CompetitivePartyInput["members"][number];
   // The fields below are absent on entries stored before they existed. Such an entry is accepted
   // as-is once and that submission becomes its baseline.
   /** Last time the level changed; the growth allowance accrues from here. */
@@ -101,16 +103,30 @@ export function acceptPartySubmission(
     nowMs,
     trusted,
     starterSelection,
+    previousParty,
   }: {
     proposed: CompetitivePartyInput;
     roster: PartyRoster | null;
     nowMs: number;
     trusted: boolean;
     starterSelection?: StarterSelection | null;
+    previousParty?: CompetitivePartyInput | null;
   },
   data: RomPersonalRecordCollection,
-): { party: NormalizedCompetitiveParty; roster: PartyRoster } {
+): {
+  party: NormalizedCompetitiveParty;
+  roster: PartyRoster;
+  reset: boolean;
+  rejections: Array<{ slotIndex: number; rule: PartyAcceptanceError["rule"] }>;
+} {
   const party = normalizeCompetitiveParty(proposed, { requireBattleReady: false });
+  // The current server party also repairs legacy or delayed roster merges without trusting the proposal.
+  if (previousParty) {
+    roster = acceptPartySubmission(
+      { proposed: previousParty, roster, nowMs, trusted: true },
+      data,
+    ).roster;
+  }
   const previousEntries = roster?.entries ?? [];
   const highWaterLevel = roster?.highWaterLevel ?? 0;
   const starter = previousEntries.length === 0;
@@ -130,133 +146,177 @@ export function acceptPartySubmission(
   const entries = [...previousEntries];
   const partyIndices = new Set<number>();
   let catchLevelLimit = highWaterLevel;
-  const caughtLevels: number[] = [];
-  for (const member of party.members) {
+  const rejections: Array<{ slotIndex: number; rule: PartyAcceptanceError["rule"] }> = [];
+  const members: NormalizedCompetitiveParty["members"][number][] = [];
+  const matchedIndices = new Set<number>();
+  const submissions = party.members.map(member => {
     const ivKey = getIndividualValueKey(member.individualValues);
     const previousIndex = previousEntries.findIndex(
-      (entry, index) => entry.ivKey === ivKey && !partyIndices.has(index),
+      (entry, index) => entry.ivKey === ivKey && !matchedIndices.has(index),
     );
+    if (previousIndex >= 0) matchedIndices.add(previousIndex);
+    return { member, ivKey, previousIndex };
+  });
+  // Validate existing members first; a rejected level increase cannot authorize a catch.
+  submissions.sort(
+    (left, right) => Number(right.previousIndex >= 0) - Number(left.previousIndex >= 0),
+  );
+  for (const { member, ivKey, previousIndex } of submissions) {
     const previous = previousEntries[previousIndex];
     const moveIds = member.moves.map(move => move.moveId);
-    if (!trusted) {
-      let allowedMoves: Set<number> | undefined;
-      if (starter) {
-        allowedMoves = new Set(
-          getLevelUpMovesForSpecies(
-            member.speciesId,
-            0,
-            getStarterLevel(starterSelection, member.speciesId),
-          ).map(move => move.moveId),
-        );
-      } else if (previous) {
-        if (!isEvolutionDescendant(previous.speciesId, member.speciesId, evolutionTable)) {
-          throw new PartyAcceptanceError("species-lineage");
-        }
-        if (member.level < previous.level) throw new PartyAcceptanceError("level-decrease");
-        const growthAllowance =
-          PARTY_GROWTH_LEVELS_BASE +
-          Math.floor(
-            (nowMs - (previous.levelUpdatedAtMs ?? previous.updatedAtMs)) /
-              PARTY_GROWTH_MS_PER_LEVEL,
+    try {
+      if (!trusted) {
+        let allowedMoves: Set<number> | undefined;
+        if (starter) {
+          allowedMoves = new Set(
+            getLevelUpMovesForSpecies(
+              member.speciesId,
+              0,
+              getStarterLevel(starterSelection, member.speciesId),
+            ).map(move => move.moveId),
           );
-        if (member.level > Math.min(100, previous.level + growthAllowance)) {
-          throw new PartyAcceptanceError("level-growth");
+        } else if (previous) {
+          if (!isEvolutionDescendant(previous.speciesId, member.speciesId, evolutionTable)) {
+            throw new PartyAcceptanceError("species-lineage");
+          }
+          if (member.level < previous.level) throw new PartyAcceptanceError("level-decrease");
+          const growthAllowance =
+            PARTY_GROWTH_LEVELS_BASE +
+            Math.floor(
+              (nowMs - (previous.levelUpdatedAtMs ?? previous.updatedAtMs)) /
+                PARTY_GROWTH_MS_PER_LEVEL,
+            );
+          if (member.level > Math.min(100, previous.level + growthAllowance)) {
+            throw new PartyAcceptanceError("level-growth");
+          }
+          allowedMoves = new Set([
+            ...previous.moveIds,
+            ...getLevelUpMovesForSpecies(previous.speciesId, 0, member.level).map(
+              move => move.moveId,
+            ),
+            ...getLevelUpMovesForSpecies(member.speciesId, 0, member.level).map(
+              move => move.moveId,
+            ),
+          ]);
+        } else {
+          if (member.level > catchLevelLimit) throw new PartyAcceptanceError("catch-level");
+          const species = data.species?.[member.speciesId];
+          if (
+            !species ||
+            typeof species !== "object" ||
+            !("encounterable" in species) ||
+            species.encounterable !== true
+          ) {
+            throw new PartyAcceptanceError("catch-species");
+          }
         }
-        catchLevelLimit = Math.max(catchLevelLimit, member.level);
-        allowedMoves = new Set([
-          ...previous.moveIds,
-          ...getLevelUpMovesForSpecies(previous.speciesId, 0, member.level).map(
-            move => move.moveId,
-          ),
-          ...getLevelUpMovesForSpecies(member.speciesId, 0, member.level).map(move => move.moveId),
-        ]);
-      } else {
-        caughtLevels.push(member.level);
-        const species = data.species?.[member.speciesId];
-        if (
-          !species ||
-          typeof species !== "object" ||
-          !("encounterable" in species) ||
-          species.encounterable !== true
-        ) {
-          throw new PartyAcceptanceError("catch-species");
+        if (allowedMoves) {
+          const addedMoves = moveIds.filter(moveId => !allowedMoves.has(moveId));
+          const spentSketches =
+            (previous?.moveIds.filter(moveId => moveId === 166).length ?? 0) -
+            moveIds.filter(moveId => moveId === 166).length;
+          if (
+            addedMoves.length > Math.max(0, spentSketches) ||
+            addedMoves.some(moveId => !SKETCHABLE_MOVE_IDS.has(moveId))
+          ) {
+            throw new PartyAcceptanceError("move");
+          }
         }
       }
-      if (allowedMoves) {
-        const addedMoves = moveIds.filter(moveId => !allowedMoves.has(moveId));
-        const spentSketches =
-          (previous?.moveIds.filter(moveId => moveId === 166).length ?? 0) -
-          moveIds.filter(moveId => moveId === 166).length;
-        if (
-          addedMoves.length > Math.max(0, spentSketches) ||
-          addedMoves.some(moveId => !SKETCHABLE_MOVE_IDS.has(moveId))
-        ) {
-          throw new PartyAcceptanceError("move");
+      const natureId = member.natureId ?? 0;
+      const abilityId = member.abilityId ?? 0;
+      const heldItemId = member.heldItemId ?? 0;
+      const effortValues = pickEffortValues(member.effortValues);
+      const evBudget = refillEffortValueBudget(previous, nowMs);
+      const evGrowth = previous?.effortValues
+        ? GEN4_STAT_KEYS.reduce(
+            (sum, key) => sum + Math.max(0, effortValues[key] - previous.effortValues![key]),
+            0,
+          )
+        : previous
+          ? 0
+          : totalEffortValues(effortValues);
+      if (!trusted) {
+        // A reloaded client restores its Pokémon without stored traits, so every trait may fall
+        // back to its default (nature 0, first ability, no item, no effort values) at any time.
+        if (previous?.natureId !== undefined && natureId !== previous.natureId && natureId !== 0) {
+          throw new PartyAcceptanceError("nature");
         }
+        if (
+          previous?.abilityId !== undefined &&
+          abilityId !== (GEN4_ROM_SPECIES[member.speciesId]?.abilities[0] ?? 0) &&
+          !evolvedAbilityIds(previous.speciesId, previous.abilityId, evolutionTable).some(
+            candidate =>
+              candidate.speciesId === member.speciesId && candidate.abilityId === abilityId,
+          )
+        ) {
+          throw new PartyAcceptanceError("ability");
+        }
+        if (
+          heldItemId !== 0 &&
+          heldItemId !== previous?.heldItemId &&
+          !WILD_HELD_ITEM_IDS.has(heldItemId)
+        ) {
+          throw new PartyAcceptanceError("held-item");
+        }
+        if (evGrowth > evBudget.evBudget) throw new PartyAcceptanceError("effort-values");
+      }
+      const index = previous ? previousIndex : entries.length;
+      entries[index] = {
+        ivKey,
+        speciesId: member.speciesId,
+        level: member.level,
+        moveIds,
+        updatedAtMs: nowMs,
+        acceptedMember: { ...member, moves: [...member.moves] },
+        levelUpdatedAtMs:
+          previous && previous.level === member.level
+            ? (previous.levelUpdatedAtMs ?? previous.updatedAtMs)
+            : nowMs,
+        natureId,
+        abilityId,
+        heldItemId,
+        effortValues,
+        evBudget: trusted ? evBudget.evBudget : evBudget.evBudget - evGrowth,
+        evBudgetAtMs: evBudget.evBudgetAtMs,
+      };
+      partyIndices.add(index);
+      members.push(member);
+      if (previous) catchLevelLimit = Math.max(catchLevelLimit, member.level);
+    } catch (error) {
+      if (!(error instanceof PartyAcceptanceError) || starter) throw error;
+      rejections.push({ slotIndex: member.slotIndex, rule: error.rule });
+      if (previous?.acceptedMember) {
+        const restored = normalizeCompetitiveParty(
+          {
+            version: 2,
+            activeSlotIndex: member.slotIndex,
+            members: [{ ...previous.acceptedMember, slotIndex: member.slotIndex }],
+          },
+          { requireBattleReady: false },
+        ).members[0]!;
+        members.push(restored);
+        partyIndices.add(previousIndex);
       }
     }
-    const natureId = member.natureId ?? 0;
-    const abilityId = member.abilityId ?? 0;
-    const heldItemId = member.heldItemId ?? 0;
-    const effortValues = pickEffortValues(member.effortValues);
-    const evBudget = refillEffortValueBudget(previous, nowMs);
-    const evGrowth = previous?.effortValues
-      ? GEN4_STAT_KEYS.reduce(
-          (sum, key) => sum + Math.max(0, effortValues[key] - previous.effortValues![key]),
-          0,
-        )
-      : previous
-        ? 0
-        : totalEffortValues(effortValues);
-    if (!trusted) {
-      // A reloaded client restores its Pokémon without stored traits, so every trait may fall
-      // back to its default (nature 0, first ability, no item, no effort values) at any time.
-      if (previous?.natureId !== undefined && natureId !== previous.natureId && natureId !== 0) {
-        throw new PartyAcceptanceError("nature");
-      }
-      if (
-        previous?.abilityId !== undefined &&
-        abilityId !== (GEN4_ROM_SPECIES[member.speciesId]?.abilities[0] ?? 0) &&
-        !evolvedAbilityIds(previous.speciesId, previous.abilityId, evolutionTable).some(
-          candidate =>
-            candidate.speciesId === member.speciesId && candidate.abilityId === abilityId,
-        )
-      ) {
-        throw new PartyAcceptanceError("ability");
-      }
-      if (
-        heldItemId !== 0 &&
-        heldItemId !== previous?.heldItemId &&
-        !WILD_HELD_ITEM_IDS.has(heldItemId)
-      ) {
-        throw new PartyAcceptanceError("held-item");
-      }
-      if (evGrowth > evBudget.evBudget) throw new PartyAcceptanceError("effort-values");
-    }
-    const index = previous ? previousIndex : entries.length;
-    entries[index] = {
-      ivKey,
-      speciesId: member.speciesId,
-      level: member.level,
-      moveIds,
-      updatedAtMs: nowMs,
-      levelUpdatedAtMs:
-        previous && previous.level === member.level
-          ? (previous.levelUpdatedAtMs ?? previous.updatedAtMs)
-          : nowMs,
-      natureId,
-      abilityId,
-      heldItemId,
-      effortValues,
-      evBudget: trusted ? evBudget.evBudget : evBudget.evBudget - evGrowth,
-      evBudgetAtMs: evBudget.evBudgetAtMs,
+  }
+  if (members.length === 0) {
+    // Legacy off-party entries may have no snapshot; fail closed to the current server party.
+    if (!previousParty) throw new PartyAcceptanceError(rejections[0]!.rule);
+    return {
+      party: normalizeCompetitiveParty(previousParty, { requireBattleReady: false }),
+      roster: roster!,
+      rejections,
+      reset: true,
     };
-    partyIndices.add(index);
   }
-  // Check after existing members so slot order cannot hide a same-submission level increase.
-  if (caughtLevels.some(level => level > catchLevelLimit)) {
-    throw new PartyAcceptanceError("catch-level");
-  }
+  const acceptedParty = {
+    ...party,
+    activeSlotIndex: members.some(member => member.slotIndex === party.activeSlotIndex)
+      ? party.activeSlotIndex
+      : (members.find(member => member.currentHp > 0) ?? members[0]!).slotIndex,
+    members: members.sort((left, right) => left.slotIndex - right.slotIndex),
+  };
 
   const oldestUnused = entries
     .map((entry, index) => ({ entry, index }))
@@ -268,10 +328,15 @@ export function acceptPartySubmission(
       .map(({ index }) => index),
   );
   return {
-    party,
+    party: acceptedParty,
+    rejections,
+    reset: false,
     roster: {
       version: 1,
-      highWaterLevel: Math.max(highWaterLevel, ...party.members.map(member => member.level)),
+      highWaterLevel: Math.max(
+        highWaterLevel,
+        ...acceptedParty.members.map(member => member.level),
+      ),
       entries: entries.filter((_entry, index) => !removed.has(index)),
     },
   };

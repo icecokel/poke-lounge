@@ -16,6 +16,8 @@ import { ROOM_ERROR_CODES } from "../../../poke-lounge-error-codes";
 import { getServerRoomErrorMessage } from "../server-room-error-copy";
 import type {
   RustProgressionSnapshot,
+  RustPartyAcceptance,
+  RustPartySubmissionSnapshot,
   RustRoomParticipant,
   RustRoomSnapshot,
 } from "@/features/poke-lounge/contracts/rust-room";
@@ -118,7 +120,8 @@ interface ServerRoomState
       | "competitiveAssignments"
       | "competitive"
     >,
-    Partial<Pick<RustProgressionSnapshot, "progressionParty">> {
+    Partial<Pick<RustProgressionSnapshot, "progressionParty">>,
+    Partial<Pick<RustPartySubmissionSnapshot, "partyAcceptance">> {
   participants: ServerParticipant[];
   tournament: ServerTournamentState;
   competitiveTransitions: CompetitiveTerminalTransition[];
@@ -2287,7 +2290,26 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
             entry.idempotencyKey,
           );
           hasSynchronizedPartySnapshot = true;
-          if (pendingPartyPublication === entry) pendingPartyPublication = null;
+          if (pendingPartyPublication === entry) {
+            pendingPartyPublication = null;
+            if (nextState.partyAcceptance && !disposed && !leaveSent) {
+              emit("PARTY_ACCEPTED", {
+                submitted: createCompetitivePartySnapshot(entry.snapshot),
+                ...nextState.partyAcceptance,
+              });
+              if (nextState.partyAcceptance.rejections.length > 0) {
+                recordClientBreadcrumb("PARTY_SNAPSHOT_RECONCILED", { stage: "apply" });
+                reportClientDiagnostic({
+                  kind: "room",
+                  code: "PARTY_SNAPSHOT_RECONCILED",
+                  priority: "background",
+                  error: new Error(
+                    nextState.partyAcceptance.rejections.map(rejection => rejection.rule).join(","),
+                  ),
+                });
+              }
+            }
+          }
           applyExpectedTransitionSnapshot(nextState);
           return;
         } catch (error) {
@@ -2329,7 +2351,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           clearPartyRetryTimer();
         }
         reportStateApplyFailure("PARTY_SNAPSHOT_REJECTED", error);
-        return;
+        throw error;
       }
       const revisionConflict = isRevisionConflict(error);
       const retryable = error instanceof ServerRoomTransportError || revisionConflict;
@@ -3365,6 +3387,36 @@ function parseServerRoomConflict(value: unknown): ServerRoomConflictResponse | n
   };
 }
 
+function parsePartyAcceptance(value: unknown): RustPartyAcceptance {
+  if (!value || typeof value !== "object") throw new ServerRoomSchemaError();
+  const acceptance = value as Record<string, unknown>;
+  if (
+    typeof acceptance.reset !== "boolean" ||
+    !Array.isArray(acceptance.rejections) ||
+    acceptance.rejections.length > 6 ||
+    !acceptance.rejections.every(
+      rejection =>
+        rejection &&
+        typeof rejection === "object" &&
+        typeof rejection.rule === "string" &&
+        rejection.rule.length > 0 &&
+        rejection.rule.length <= 80 &&
+        (rejection.slotIndex === undefined ||
+          (Number.isSafeInteger(rejection.slotIndex) &&
+            rejection.slotIndex >= 0 &&
+            rejection.slotIndex <= 5)),
+    )
+  )
+    throw new ServerRoomSchemaError();
+  return {
+    party: normalizeCompetitiveParty(acceptance.party as CompetitivePartyInput, {
+      requireBattleReady: false,
+    }),
+    rejections: acceptance.rejections,
+    reset: acceptance.reset,
+  };
+}
+
 function parseServerRoomState(value: unknown): ServerRoomState {
   if (!value || typeof value !== "object") {
     throw new ServerRoomSchemaError();
@@ -3423,6 +3475,9 @@ function parseServerRoomState(value: unknown): ServerRoomState {
     tournament,
     competitiveTransitions: competitiveContract.competitiveTransitions,
     competitiveAssignments: competitiveContract.competitiveAssignments,
+    ...(room.partyAcceptance !== undefined
+      ? { partyAcceptance: parsePartyAcceptance(room.partyAcceptance) }
+      : {}),
     ...(room.progressionParty
       ? {
           progressionParty: normalizeCompetitiveParty(

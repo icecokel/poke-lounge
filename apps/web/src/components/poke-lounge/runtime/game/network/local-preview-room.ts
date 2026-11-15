@@ -90,6 +90,9 @@ export interface PlayerSnapshot {
 
 export interface RoomEvent {
   TOURNAMENT_REWARD: { party: NormalizedCompetitiveParty };
+  PARTY_ACCEPTED: import("@/features/poke-lounge/contracts/rust-room").RustPartyAcceptance & {
+    submitted: CompetitivePartyInput;
+  };
   CONNECTION_STATUS: {
     connectionStatus: "offline" | "connecting" | "online";
   };
