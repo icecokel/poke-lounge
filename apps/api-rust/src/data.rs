@@ -106,8 +106,6 @@ impl Data {
                 &[],
             )
             .await?;
-        // DAU/MAU use today and the preceding 29 Korean calendar dates.
-        client.execute("DELETE FROM poke_lounge_active_visitor WHERE activity_date < (now() AT TIME ZONE 'Asia/Seoul')::date - 29", &[]).await?;
         Ok(())
     }
     /// Finds or creates the user linked to a provider account and refreshes its display name.
