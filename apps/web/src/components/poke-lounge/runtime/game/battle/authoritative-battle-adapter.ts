@@ -169,15 +169,19 @@ export function toAuthoritativeBattleState(
     player: toBattleParticipant(ownPlayer, "Player", projection.rulesetVersion),
     opponent: toBattleParticipant(opponent, "Opponent", projection.rulesetVersion),
     messageQueue: result
-      ? [
-          result.winnerPlayerId === ownPlayerId ? "승리했습니다." : "패배했습니다.",
-          ...ownPlayer.team
-            .filter(member => (member.experienceGained ?? 0) > 0)
-            .map(member => {
-              const name = getRuntimePokemonSpeciesSummary(member.speciesId)!.name;
-              return `${name}: ${member.experienceGained} 경험치를 얻었다!${member.previousLevel !== undefined && member.level > member.previousLevel ? ` 레벨 ${member.previousLevel} → ${member.level}!` : ""}`;
-            }),
-        ]
+      ? previousState?.result &&
+        previousState.tournamentMatchId === projection.matchId &&
+        previousState.roundIndex === projection.assignmentRevision
+        ? previousState.messageQueue
+        : [
+            result.winnerPlayerId === ownPlayerId ? "승리했습니다." : "패배했습니다.",
+            ...ownPlayer.team
+              .filter(member => (member.experienceGained ?? 0) > 0)
+              .map(member => {
+                const name = getRuntimePokemonSpeciesSummary(member.speciesId)!.name;
+                return `${name}: ${member.experienceGained} 경험치를 얻었다!${member.previousLevel !== undefined && member.level > member.previousLevel ? ` 레벨 ${member.previousLevel} → ${member.level}!` : ""}`;
+              }),
+          ]
       : waiting
         ? [waitingForReplacement ? replacementMessage : waitingMessage]
         : [],

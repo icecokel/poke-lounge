@@ -1,3 +1,4 @@
+import { Dex } from "@pkmn/sim";
 import {
   normalizeCompetitiveParty,
   type CompetitivePartyInput,
@@ -40,6 +41,12 @@ const EV_YIELD_PER_VICTORY_MAX = Math.max(
 /** Items are no longer handed out; a party Pokémon can only hold what a wild Pokémon carried. */
 const WILD_HELD_ITEM_IDS = new Set(
   Object.values(GEN4_ROM_SPECIES).flatMap(species => species.heldItems),
+);
+const SKETCHABLE_MOVE_IDS = new Set(
+  Dex.forGen(4)
+    .moves.all()
+    .filter(move => move.num >= 1 && move.num <= 467 && !move.flags.nosketch)
+    .map(move => move.num),
 );
 
 export interface PartyRosterEntry {
@@ -122,6 +129,8 @@ export function acceptPartySubmission(
   const evolutionTable = trusted ? {} : getEvolutionTable(data);
   const entries = [...previousEntries];
   const partyIndices = new Set<number>();
+  let catchLevelLimit = highWaterLevel;
+  const caughtLevels: number[] = [];
   for (const member of party.members) {
     const ivKey = getIndividualValueKey(member.individualValues);
     const previousIndex = previousEntries.findIndex(
@@ -153,6 +162,7 @@ export function acceptPartySubmission(
         if (member.level > Math.min(100, previous.level + growthAllowance)) {
           throw new PartyAcceptanceError("level-growth");
         }
+        catchLevelLimit = Math.max(catchLevelLimit, member.level);
         allowedMoves = new Set([
           ...previous.moveIds,
           ...getLevelUpMovesForSpecies(previous.speciesId, 0, member.level).map(
@@ -161,7 +171,7 @@ export function acceptPartySubmission(
           ...getLevelUpMovesForSpecies(member.speciesId, 0, member.level).map(move => move.moveId),
         ]);
       } else {
-        if (member.level > highWaterLevel) throw new PartyAcceptanceError("catch-level");
+        caughtLevels.push(member.level);
         const species = data.species?.[member.speciesId];
         if (
           !species ||
@@ -172,8 +182,17 @@ export function acceptPartySubmission(
           throw new PartyAcceptanceError("catch-species");
         }
       }
-      if (allowedMoves && moveIds.some(moveId => !allowedMoves.has(moveId))) {
-        throw new PartyAcceptanceError("move");
+      if (allowedMoves) {
+        const addedMoves = moveIds.filter(moveId => !allowedMoves.has(moveId));
+        const spentSketches =
+          (previous?.moveIds.filter(moveId => moveId === 166).length ?? 0) -
+          moveIds.filter(moveId => moveId === 166).length;
+        if (
+          addedMoves.length > Math.max(0, spentSketches) ||
+          addedMoves.some(moveId => !SKETCHABLE_MOVE_IDS.has(moveId))
+        ) {
+          throw new PartyAcceptanceError("move");
+        }
       }
     }
     const natureId = member.natureId ?? 0;
@@ -233,6 +252,10 @@ export function acceptPartySubmission(
       evBudgetAtMs: evBudget.evBudgetAtMs,
     };
     partyIndices.add(index);
+  }
+  // Check after existing members so slot order cannot hide a same-submission level increase.
+  if (caughtLevels.some(level => level > catchLevelLimit)) {
+    throw new PartyAcceptanceError("catch-level");
   }
 
   const oldestUnused = entries

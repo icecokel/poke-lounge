@@ -62,7 +62,9 @@ bash scripts/deploy/archive-poke-lounge-logs.sh
 
 # Dependencies were prepared above; do not run migrate again or recreate data services.
 replace_started=1
-"${compose[@]}" up --detach --remove-orphans --wait --wait-timeout 180 --no-deps "${apps[@]}"
+"${compose[@]}" up --detach --remove-orphans --wait --wait-timeout 180 --no-deps battle-worker
+"${compose[@]}" up --detach --wait --wait-timeout 180 --no-deps api
+"${compose[@]}" up --detach --wait --wait-timeout 180 --no-deps web
 if [[ "${LEAGUE_ENABLED:-}" == true ]]; then
   "${compose[@]}" up --detach --wait --wait-timeout 180 --no-deps league-judge
 fi

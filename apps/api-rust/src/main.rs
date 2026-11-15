@@ -168,6 +168,25 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
             shutdown.cancel();
         })
     };
+    let cleanup_task = {
+        let data = data.clone();
+        let shutdown = shutdown.clone();
+        tokio::spawn(async move {
+            let mut timer = tokio::time::interval(Duration::from_secs(60 * 60));
+            timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                tokio::select! {
+                    biased;
+                    _ = shutdown.cancelled() => break,
+                    _ = timer.tick() => {
+                        if let Err(error) = tokio::time::timeout(config::IO_TIMEOUT, data.cleanup()).await.unwrap_or(Err(AppError::Timeout)) {
+                            error::log_fields!(warn, error, event = "database.cleanup_failed", code = error.code());
+                        }
+                    }
+                }
+            }
+        })
+    };
     let state = AppState {
         repository: repository.clone(),
         rooms: rooms.clone(),
@@ -205,6 +224,7 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
     *stage = "shutdown.drain";
     let drained = rooms.drain().await;
     let _ = recovery_task.await;
+    let _ = cleanup_task.await;
     signal_task.abort();
     lease_stop.cancel();
     let owner_lost = lease_task.await.unwrap_or(true);

@@ -21,7 +21,7 @@ import { Fraction } from "@poke-lounge/battle/league/fraction";
 
 export const MAX_BODY_BYTES = 1024 * 1024;
 export const JOB_TIMEOUT_MS = 7000;
-export const QUEUE_TIMEOUT_MS = 500;
+export const QUEUE_TIMEOUT_MS = 7500;
 export const MAX_QUEUE = 8;
 
 const integer = (min: number, max: number) => z.number().int().min(min).max(max);

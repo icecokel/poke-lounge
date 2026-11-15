@@ -20,7 +20,7 @@ impl Db {
             .iter()
             .map(|slot| Box::pin(slot.clone().lock_owned()));
         let (mut slot, _, pending) = tokio::time::timeout(
-            Duration::from_secs(1),
+            Duration::from_secs(3),
             futures_util::future::select_all(waiting),
         )
         .await

@@ -1,4 +1,5 @@
 import { normalizeGen4Traits } from "../gen4/traits";
+import { restoreGen4FieldPokemon } from "../gen4/adventure";
 import { AI_DIFFICULTY_PROFILES, DEFAULT_AI_DIFFICULTY, type AiDifficulty } from "../ai-difficulty";
 import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "../battle-presentation";
 import { estimateAiMoveDamage } from "../ai-policy";
@@ -276,7 +277,10 @@ function advanceWildBattle(
     state.party = state.party.map(slot => {
       if (!slot.pokemon) return slot;
       const progression = planLevelUpBattleProgression({
-        pokemon: slot.pokemon,
+        pokemon:
+          battle.mechanicsVersion === 3 && battle.gen4Session
+            ? restoreGen4FieldPokemon(battle, 0, slot.slotIndex)
+            : slot.pokemon,
         previousLevel: previousLevels.get(slot.slotIndex) ?? slot.pokemon.level,
         personalRecords: context.pokemonData,
         moveRecords: context.moveData,

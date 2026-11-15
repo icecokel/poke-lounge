@@ -474,7 +474,7 @@ impl League {
         id: Uuid,
         key: Uuid,
         claim: &Value,
-    ) -> Result<()> {
+    ) -> Result<Option<Value>> {
         let (r, s, records) = {
             let slot = self.db.client().await?;
             let c = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
@@ -485,7 +485,7 @@ impl League {
             .await?
             .is_some()
             {
-                return Ok(());
+                return Ok(None);
             }
             let Some(r) = one(
                 c,
@@ -494,12 +494,12 @@ impl League {
             )
             .await?
             else {
-                return Ok(());
+                return Ok(None);
             };
             if r["status"] != "active"
                 || views::integer(&r["badges"])? < i64::from(self.config.badges_required())
             {
-                return Ok(());
+                return Ok(Some(r));
             }
             let s = season(c, views::integer(&r["season_id"])? as i32, "").await?;
             (r, s, mons(c, id).await?)
@@ -507,7 +507,7 @@ impl League {
         views::validate_claim(claim)?;
         self.check_growth_party(&r, &s, claim, "entry", &records)
             .await?;
-        Ok(())
+        Ok(Some(r))
     }
     pub async fn growth_badge_start(
         &self,

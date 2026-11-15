@@ -44,7 +44,9 @@ export function TournamentResultPanel({
     ? localizeRuntimeText(panel.roundWinnerLabel, locale)
     : null;
   const rankingLabel = localizeRuntimeText(panel.rankingLabel, locale);
-  const statusLabel = localizeRuntimeText(panel.nextActionLabel, locale);
+  const statusLabel = final
+    ? localizeRuntimeText(panel.nextActionLabel, locale)
+    : copy.mobile.waiting;
   const actions = (
     <div className="grid grid-cols-2 gap-2 [&_button]:min-h-12 [&_button]:rounded-[7px] [&_button]:border-2 [&_button]:border-[#577781] [&_button]:bg-[linear-gradient(#fffdf0_50%,#dce7e2_50%)] [&_button]:font-bold [&_button]:text-[#304550] [&_button]:shadow-[inset_0_0_0_2px_#fffdf0,0_2px_0_#304550]">
       <Button type="button" variant="outline" onClick={onLobby}>
