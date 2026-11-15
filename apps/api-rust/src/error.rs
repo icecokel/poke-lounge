@@ -49,6 +49,9 @@ pub enum AppError {
     Unavailable,
     #[error("Battle computation unavailable")]
     ComputeUnavailable,
+    /// The worker exceeded its execution limit, rather than waiting in its queue.
+    #[error("Battle computation unavailable")]
+    ComputeTimedOut,
     /// The worker ran the operation and its engine failed; the same input fails the same way.
     #[error("Battle computation unavailable")]
     ComputeFailed,
@@ -128,9 +131,10 @@ impl AppError {
             Self::Unavailable | Self::Storage(_) | Self::Database(_) => {
                 (StatusCode::SERVICE_UNAVAILABLE, "BACKEND_UNAVAILABLE")
             }
-            Self::ComputeUnavailable | Self::ComputeFailed | Self::ComputeInvalid(_) => {
-                (StatusCode::SERVICE_UNAVAILABLE, "COMPUTE_UNAVAILABLE")
-            }
+            Self::ComputeUnavailable
+            | Self::ComputeTimedOut
+            | Self::ComputeFailed
+            | Self::ComputeInvalid(_) => (StatusCode::SERVICE_UNAVAILABLE, "COMPUTE_UNAVAILABLE"),
             Self::Corrupt(_) | Self::Configuration(_) | Self::Internal(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR")
             }
@@ -146,6 +150,7 @@ impl AppError {
             Self::Storage(_) => "redis",
             Self::Database(_) => "postgres",
             Self::ComputeUnavailable
+            | Self::ComputeTimedOut
             | Self::ComputeFailed
             | Self::ComputeInvalid(_)
             | Self::ComputeRejected(_) => "compute",
