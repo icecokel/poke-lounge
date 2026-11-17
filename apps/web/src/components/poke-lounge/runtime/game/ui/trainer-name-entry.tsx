@@ -194,8 +194,13 @@ export function TrainerNameEntry({
                 <input
                   id="poke-lounge-multiplayer-display-name"
                   type="text"
+                  name="nickname"
                   autoFocus={focusNameOnOpen}
                   autoComplete="nickname"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="next"
                   maxLength={12}
                   placeholder={text.multiplayerNamePlaceholder}
                   value={displayName}

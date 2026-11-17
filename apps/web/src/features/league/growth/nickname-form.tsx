@@ -66,11 +66,19 @@ export function NicknameForm({
           <label htmlFor="league-nickname">{copy.nickname}</label>
           <input
             id="league-nickname"
+            name="nickname"
             value={value}
-            onChange={e => setValue(e.target.value)}
-            autoComplete="off"
+            onChange={e => {
+              setValue(e.target.value);
+              setError("");
+            }}
+            autoComplete="nickname"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="done"
             maxLength={12}
-            aria-describedby="league-nickname-help"
+            aria-describedby={`league-nickname-help${error ? " league-nickname-error" : ""}`}
             required
           />
           <p id="league-nickname-help" className={styles.hint}>
@@ -78,7 +86,7 @@ export function NicknameForm({
           </p>
         </div>
         {error && (
-          <p role="alert" className={styles.message}>
+          <p id="league-nickname-error" role="alert" className={styles.message}>
             {error}
           </p>
         )}

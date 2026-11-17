@@ -638,17 +638,22 @@ function RoomEntryScreen({
                     <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 [&_button]:w-auto [&_button]:min-w-20">
                       <input
                         id="poke-lounge-private-room-code"
+                        name="roomCode"
                         type="text"
                         inputMode="text"
                         autoComplete="off"
                         autoCapitalize="characters"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        enterKeyHint="go"
                         maxLength={TEMPORARY_PASSWORD_LENGTH}
                         placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
                         value={privateRoomCode}
                         disabled={pending}
                         aria-invalid={
-                          privateRoomCode.length !== TEMPORARY_PASSWORD_LENGTH || undefined
+                          message === copy.roomEntry.temporaryPasswordRequired || undefined
                         }
+                        aria-describedby="poke-lounge-private-room-code-hint poke-lounge-room-entry-message"
                         onChange={function handleChange(event) {
                           setPrivateRoomCode(normalizeTemporaryPassword(event.currentTarget.value));
                           setMessage("");
@@ -733,14 +738,22 @@ function RoomEntryScreen({
                       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_button]:sm:min-w-40">
                         <input
                           id="poke-lounge-private-room-join-code"
+                          name="roomCode"
                           type="text"
                           inputMode="text"
                           autoComplete="off"
                           autoCapitalize="characters"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          enterKeyHint="go"
                           maxLength={TEMPORARY_PASSWORD_LENGTH}
                           placeholder={copy.roomEntry.temporaryPasswordPlaceholder}
                           value={joinPrivateRoomCode}
                           disabled={pending}
+                          aria-invalid={
+                            message === copy.roomEntry.temporaryPasswordRequired || undefined
+                          }
+                          aria-describedby="poke-lounge-private-room-join-code-hint poke-lounge-room-entry-message"
                           onChange={function handleChange(event) {
                             setJoinPrivateRoomCode(
                               normalizeTemporaryPassword(event.currentTarget.value),
@@ -832,6 +845,7 @@ function RoomEntryScreen({
             )}
 
             <p
+              id="poke-lounge-room-entry-message"
               className="m-0 min-h-[18px] text-sm font-black text-[#8d2f24]"
               role="alert"
               aria-live="assertive"
@@ -1070,7 +1084,9 @@ function LabeledField({
         {label}
       </label>
       {children}
-      <p className="m-0 text-xs font-bold leading-[1.45] text-[#4a5b4d]">{description}</p>
+      <p id={`${id}-hint`} className="m-0 text-xs font-bold leading-[1.45] text-[#4a5b4d]">
+        {description}
+      </p>
     </div>
   );
 }
