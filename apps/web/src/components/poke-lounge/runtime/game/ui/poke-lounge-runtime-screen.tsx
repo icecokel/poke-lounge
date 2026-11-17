@@ -34,6 +34,7 @@ import { usePublicRooms } from "./use-public-rooms";
 import { StarterSelectionScreen } from "./starter-selection-screen";
 import { STARTER_MODES, type StarterMode } from "@poke-lounge/battle/starter-selection";
 import { getStarterModeCopy } from "./starter-mode-copy";
+import { getRoomLobbyCopy } from "./room-lobby-copy";
 
 const FAN_NOTICE_SEEN_COOKIE = "poke_lounge_fan_notice_seen";
 const FAN_NOTICE_COOKIE_MAX_AGE = 14 * 24 * 60 * 60;
@@ -120,12 +121,14 @@ function RoomEntryScreen({
   const [fanNoticeVisible, setFanNoticeVisible] = useState(!state.openCreateRoom && !languageDraft);
   const fanNoticeDuration = useRef<number | null>(null);
   const [entryPanel, setEntryPanel] = useState<"create" | "join">("create");
-  const [roomVisibility, setRoomVisibility] = useState<"public" | "private">("public");
+  const [roomVisibility, setRoomVisibility] = useState<"public" | "private">("private");
   const [privateRoomCode, setPrivateRoomCode] = useState("");
   const [joinPrivateRoomCode, setJoinPrivateRoomCode] = useState("");
   const [roundDurationMs, setRoundDurationMs] =
     useState<(typeof ROUND_DURATION_OPTIONS_MS)[number]>(DEFAULT_ROUND_DURATION_MS);
   const [starterMode, setStarterMode] = useState<StarterMode>("classic");
+  const [aiFillEnabled, setAiFillEnabled] = useState(true);
+  const roomOptionsCopy = getRoomLobbyCopy(copy.locale);
   const starterCopy = getStarterModeCopy(copy.locale);
   const selectedRoundDurationIndex = ROUND_DURATION_OPTIONS_MS.indexOf(roundDurationMs);
   const {
@@ -276,6 +279,7 @@ function RoomEntryScreen({
         visibility: "public",
         roundDurationMs,
         starterMode,
+        aiFillEnabled,
       });
       return;
     }
@@ -301,6 +305,7 @@ function RoomEntryScreen({
         visibility: "private",
         roundDurationMs,
         starterMode,
+        aiFillEnabled,
       });
     } catch {
       setPending(false);
@@ -618,6 +623,27 @@ function RoomEntryScreen({
                   </label>
                 </fieldset>
 
+                <div
+                  className="rounded-md border-2 border-[#17231c] bg-[#fffef3] px-3 text-xs font-bold text-[#17201a]"
+                  data-room-entry-ai-fill
+                >
+                  <label className="flex min-h-12 cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="ai-fill"
+                      checked={aiFillEnabled}
+                      disabled={pending}
+                      aria-describedby="room-entry-ai-fill-hint"
+                      className="min-h-0! w-[1.25em]! p-0! accent-[#355c3f] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      onChange={event => setAiFillEnabled(event.currentTarget.checked)}
+                    />
+                    {roomOptionsCopy.aiFillLabel}
+                  </label>
+                  <p id="room-entry-ai-fill-hint" className="pb-2 text-[#66583a]">
+                    {roomOptionsCopy.aiFillHint}
+                  </p>
+                </div>
+
                 <p
                   className="-mt-1 m-0 rounded-md bg-[#fffef3] px-3 py-1.5 text-xs font-bold leading-[1.45] text-[#66583a]"
                   aria-live="polite"
@@ -895,6 +921,11 @@ function PublicRoomCard({
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-bold text-[#486164]">
           <span>{getStarterModeCopy(copy.locale).modes[room.starterMode]}</span>
+          <span>
+            {room.aiFillEnabled
+              ? getRoomLobbyCopy(copy.locale).aiFillOn
+              : getRoomLobbyCopy(copy.locale).aiFillOff}
+          </span>
           <span className="inline-flex items-center gap-1">
             <Users className="size-3.5" aria-hidden="true" />
             {copy.roomEntry.publicRoomPlayers(room.participantCount, room.maxParticipants)}

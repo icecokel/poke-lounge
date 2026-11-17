@@ -25,6 +25,7 @@ export interface RoomEntryIntent {
   roomInstanceId?: string;
   roundDurationMs?: RoomRoundDurationMs;
   starterMode?: StarterMode;
+  aiFillEnabled?: boolean;
 }
 
 export function normalizeRoomCode(value: string): string | null {

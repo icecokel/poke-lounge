@@ -84,6 +84,7 @@ export function writePendingRoomEntry(entry: PendingRoomEntry): void {
         visibility: selection.visibility,
         roundDurationMs: selection.roundDurationMs,
         starterMode: selection.starterMode,
+        aiFillEnabled: selection.aiFillEnabled,
         roomInstanceId: selection.roomInstanceId,
       },
     },
@@ -115,6 +116,7 @@ export function readPendingRoomEntry(accountId?: string): PendingRoomEntry | nul
     (selection.roundDurationMs !== undefined &&
       normalizeRoomRoundDurationMs(selection.roundDurationMs) === null) ||
     (selection.starterMode !== undefined && !isStarterMode(selection.starterMode)) ||
+    (selection.aiFillEnabled !== undefined && typeof selection.aiFillEnabled !== "boolean") ||
     (selection.roomInstanceId !== undefined &&
       !normalizeRoomInstanceId(selection.roomInstanceId)) ||
     typeof selection.displayName !== "string" ||
@@ -134,6 +136,7 @@ export function readPendingRoomEntry(accountId?: string): PendingRoomEntry | nul
       visibility: selection.visibility,
       roundDurationMs: selection.roundDurationMs,
       starterMode: selection.starterMode,
+      aiFillEnabled: selection.aiFillEnabled,
       roomInstanceId: selection.roomInstanceId,
     },
   };

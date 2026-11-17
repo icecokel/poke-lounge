@@ -141,6 +141,7 @@ export interface ServerRoomOptions {
   initialOpenCommandId?: string;
   roundDurationMs?: number;
   starterMode?: StarterMode;
+  aiFillEnabled?: boolean;
   sharedWorldOnly?: boolean;
   competitiveRoundsEnabled?: boolean;
   fetch?: typeof fetch;
@@ -2105,6 +2106,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       hostPlayerId: state.hostPlayerId ? mapServerPlayerIdForLocalStore(state.hostPlayerId) : null,
       roundIndex: state.round.index,
       roomStatus: state.status,
+      aiFillEnabled: state.aiFillEnabled,
       starterSelection: {
         mode: state.starterMode,
         seed: `${state.roomInstanceId}:${serverPlayerId}`,
@@ -2667,6 +2669,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       );
       applyExpectedTransitionSnapshot(state);
     },
+    async setAiFillEnabled(enabled) {
+      const state = await mutateRoom(
+        `/poke-lounge/rooms/${activeRoomId}/ai-fill`,
+        { playerId: serverPlayerId, sessionId, enabled },
+        getLatestRevision,
+      );
+      applyExpectedTransitionSnapshot(state);
+    },
     async setAiDifficulty(aiPlayerId, difficulty) {
       const state = await mutateRoom(
         `/poke-lounge/rooms/${activeRoomId}/ai-participants/${encodeURIComponent(aiPlayerId)}/difficulty`,
@@ -2945,6 +2955,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         : {}),
       ...(options.createRoom ? { visibility: options.visibility ?? "private" } : {}),
       ...(options.createRoom ? { starterMode: options.starterMode ?? "classic" } : {}),
+      ...(options.createRoom ? { aiFillEnabled: options.aiFillEnabled ?? true } : {}),
     };
 
     if (options.createRoom) {
@@ -3432,6 +3443,7 @@ function parseServerRoomState(value: unknown): ServerRoomState {
     typeof room.roomCode !== "string" ||
     (room.visibility !== "public" && room.visibility !== "private") ||
     (room.starterMode !== undefined && !isStarterMode(room.starterMode)) ||
+    (room.aiFillEnabled !== undefined && typeof room.aiFillEnabled !== "boolean") ||
     (room.hostPlayerId !== null && typeof room.hostPlayerId !== "string") ||
     !Number.isSafeInteger(room.revision) ||
     (room.revision as number) < 0 ||
@@ -3470,6 +3482,7 @@ function parseServerRoomState(value: unknown): ServerRoomState {
   const parsed: ServerRoomState = {
     ...(value as ServerRoomState),
     starterMode: room.starterMode === undefined ? "classic" : (room.starterMode as StarterMode),
+    aiFillEnabled: room.aiFillEnabled === undefined ? true : (room.aiFillEnabled as boolean),
     participants,
     round,
     tournament,
@@ -3785,6 +3798,7 @@ function hasSameCanonicalRoomProjection(left: ServerRoomState, right: ServerRoom
   return (
     left.roomCode === right.roomCode &&
     left.visibility === right.visibility &&
+    left.aiFillEnabled === right.aiFillEnabled &&
     left.hostPlayerId === right.hostPlayerId &&
     left.status === right.status &&
     stableJsonStringify(left.participants) === stableJsonStringify(right.participants) &&
