@@ -65,6 +65,8 @@ PostgreSQL healthy → migrate: migration:run → rom-data:import
 계산 워커 healthy + migrate 성공 + PostgreSQL/Redis healthy → Rust API ready → Web
 ```
 
+실행 이미지에는 패키지 관리자(npm·corepack·pnpm)를 남기지 않는다. 빌드에 쓴 뒤 지우고, 각 서비스는 `working_dir`와 `node <진입 파일>`로 시작한다(migrate: `node node_modules/typeorm/cli.js … migration:run` 후 `node dist/scripts/import-poke-lounge-rom-data.js`, 계산 워커·리그 심판: `node dist/main.js`, Web: `node node_modules/next/dist/bin/next start`). 패키지 관리자가 자기 안에 묶어 둔 오래된 의존성이 운영 이미지 취약점 검사에 걸리지 않게 하기 위해서다. 컨테이너 안에서 `pnpm` 명령은 쓸 수 없다.
+
 계산 워커는 `http://battle-worker:3021`에서 Rust API의 전투 계산 요청을 처리한다. Rust API는 Compose 내부 `0.0.0.0:3011`에서 실행하고 외부 `API_PORT`로 노출된다. 내부 워커 URL과 브라우저용 `NEXT_PUBLIC_API_URL`을 혼동하지 않는다. PostgreSQL과 Redis는 Compose 내부 호스트명 `postgres`, `redis`로 접근한다.
 
 로컬에서 전체 스택을 실행할 때:

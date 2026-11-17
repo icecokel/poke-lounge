@@ -37,10 +37,18 @@ RUN pnpm --filter @poke-lounge/db build
 
 ENV NODE_ENV=production
 
+# Ship no package manager in the runtime image: services start with node directly
+# (see compose.yaml). npm, corepack and the cached pnpm bundle their own old
+# dependencies (tar, minimatch, ...), which scanners flag even though nothing runs them.
+RUN rm -rf /usr/local/share/corepack /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/pnpm /usr/local/bin/pnpx \
+    /root/.cache /root/.npm
+
 RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid 10001 --create-home --home-dir /home/app app
 USER 10001:10001
 
 EXPOSE 3000 3001 3021
 
-CMD ["pnpm", "--filter", "@poke-lounge/web", "start"]
+WORKDIR /app/apps/web
+CMD ["node", "node_modules/next/dist/bin/next", "start"]
