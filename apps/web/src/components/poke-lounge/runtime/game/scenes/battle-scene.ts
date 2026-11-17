@@ -216,6 +216,8 @@ type AuthoritativeTerminalTransition = {
   status: "visible" | "acknowledged" | "transitioned";
 };
 
+const TOURNAMENT_RESULT_MIN_VISIBLE_MS = 3_000;
+
 interface BattleWorldPositionPolicy {
   persistWorldPosition?: boolean;
 }
@@ -467,6 +469,9 @@ export class BattleController {
   // A validated projection may arrive before CONNECTION_STATUS=online.
   private authoritativeRecoveryState: BattleScreenState | null = null;
   private authoritativeTerminalTransition: AuthoritativeTerminalTransition | null = null;
+  private tournamentResultVisibleAtMs: number | null = null;
+  private pendingCompetitiveAssignment: CompetitiveRoomProjectionEvent | null = null;
+  private pendingTournamentResultReturn = false;
   private authoritativeConnectionStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"] =
     "offline";
   private soloChallenge = false;
@@ -509,6 +514,9 @@ export class BattleController {
     this.mobileShellDetected = false;
     this.battleStatusCopy = null;
     this.competitivePreemptionQueued = false;
+    this.tournamentResultVisibleAtMs = null;
+    this.pendingCompetitiveAssignment = null;
+    this.pendingTournamentResultReturn = false;
     this.localResultSettled = false;
     this.selectedCommandIndex = 0;
     this.selectedMoveIndex = 0;
@@ -628,6 +636,20 @@ export class BattleController {
       this.keyboard.clearPresses();
       resetVirtualGamepad();
       return;
+    }
+
+    if (this.authoritativeTerminalTransition?.status === "visible") {
+      this.tournamentResultVisibleAtMs ??= Date.now();
+      if (Date.now() - this.tournamentResultVisibleAtMs >= TOURNAMENT_RESULT_MIN_VISIBLE_MS) {
+        if (this.pendingCompetitiveAssignment) {
+          this.restartForCompetitiveAssignment(this.pendingCompetitiveAssignment);
+          return;
+        }
+        if (this.pendingTournamentResultReturn) {
+          this.confirmSelection();
+          return;
+        }
+      }
     }
 
     if (consumeVirtualGamepadPress("help") || this.keyboard.consume("KeyH")) {
@@ -1667,13 +1689,7 @@ export class BattleController {
               (round.phase === "round-result" || round.phase === "game-result")) ||
               round.roundIndex > Number(this.authoritativeProjection?.bracketMatchId.split("-")[2]))
           ) {
-            this.competitivePreemptionQueued = true;
-            queueMicrotask(() => {
-              if (!this.isSceneLifecycleCurrent(sceneGeneration)) return;
-              // The confirmation path checks this guard before returning to the world.
-              this.competitivePreemptionQueued = false;
-              this.confirmSelection();
-            });
+            this.pendingTournamentResultReturn = true;
             return;
           }
 
@@ -1714,6 +1730,15 @@ export class BattleController {
         "COMPETITIVE_STATE",
         function handleEvent(this: BattleController, event: CompetitiveRoomProjectionEvent): void {
           const { projection } = event;
+          const pending = this.pendingCompetitiveAssignment?.projection;
+          if (
+            pending?.matchId === projection.matchId &&
+            pending.assignmentRevision === projection.assignmentRevision &&
+            projection.currentTurn >= pending.currentTurn
+          ) {
+            this.pendingCompetitiveAssignment = event;
+            return;
+          }
           const current = this.authoritativeProjection;
           if (
             !current ||
@@ -1749,6 +1774,7 @@ export class BattleController {
                 },
                 status: "visible",
               };
+              this.tournamentResultVisibleAtMs = null;
             }
             this.finishBattleEntranceAnimation();
           }
@@ -1825,8 +1851,10 @@ export class BattleController {
         "COMPETITIVE_ASSIGNMENT",
         function handleEvent(this: BattleController, event: CompetitiveRoomProjectionEvent): void {
           const current = this.authoritativeProjection;
+          const pending = this.pendingCompetitiveAssignment?.projection;
           if (
             !current ||
+            (pending && event.projection.assignmentRevision < pending.assignmentRevision) ||
             (!this.authoritativeSpectating &&
               (current.status !== "completed" ||
                 event.projection.assignmentRevision <= current.assignmentRevision)) ||
@@ -1839,17 +1867,27 @@ export class BattleController {
             return;
           }
 
-          this.options.onRestart({
-            battleKind: "authoritative",
-            ownPlayerId: event.viewPlayerId ?? event.ownPlayerId,
-            spectating: event.spectating === true,
-            persistWorldPosition: this.persistWorldPositionOnReturn,
-            projection: event.projection,
-            returnToWorld: this.state.returnToWorld,
-          });
+          // Keep the decided match visible even when the server has already assigned a spectator view.
+          if (this.authoritativeTerminalTransition?.status === "visible") {
+            this.pendingCompetitiveAssignment = event;
+            return;
+          }
+          this.restartForCompetitiveAssignment(event);
         }.bind(this),
       ),
     );
+  }
+
+  private restartForCompetitiveAssignment(event: CompetitiveRoomProjectionEvent): void {
+    if (!this.state.returnToWorld) return;
+    this.options.onRestart({
+      battleKind: "authoritative",
+      ownPlayerId: event.viewPlayerId ?? event.ownPlayerId,
+      spectating: event.spectating === true,
+      persistWorldPosition: this.persistWorldPositionOnReturn,
+      projection: event.projection,
+      returnToWorld: this.state.returnToWorld,
+    });
   }
 
   private preemptLocalBattleForTournament(nowMs: number): boolean {

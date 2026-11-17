@@ -81,6 +81,8 @@ export interface WorldSceneInteractionsController extends WorldSceneInteractions
 
 export interface WorldSceneInteractionsDependencies {
   gameStateStore: GameStateStore;
+  competitiveRoundsEnabled: boolean;
+  getExplorationGuideKey(): string;
   getDocument(): Document;
   keyboard: RuntimeKeyboard;
   getPlayerPosition(): WorldScenePlayerPosition | null;
@@ -153,6 +155,8 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private fieldHintText = "";
   private lastEncounterAreaId: string | null | undefined;
   private areaAnnouncementExpiresAt = 0;
+  private explorationGuideShown = false;
+  private explorationGuideEndsAtMs = 0;
   private mobileShellDetected = false;
 
   constructor(private readonly dependencies: WorldSceneInteractionsDependencies) {}
@@ -830,9 +834,33 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     if (areaId !== this.lastEncounterAreaId) {
       this.lastEncounterAreaId = areaId;
 
-      if (areaId && FIELD_AREA_LABELS[areaId]) {
+      if (areaId && FIELD_AREA_LABELS[areaId] && nowMs >= this.explorationGuideEndsAtMs) {
         this.renderAreaAnnouncement(FIELD_AREA_LABELS[areaId], nowMs);
       }
+    }
+
+    const round = this.gameStateStore.getState().round;
+    if (
+      this.dependencies.competitiveRoundsEnabled &&
+      !this.explorationGuideShown &&
+      round.roundIndex === 1 &&
+      round.phase === "preparation" &&
+      round.phaseStartedAtMs !== null &&
+      nowMs >= round.phaseStartedAtMs
+    ) {
+      this.explorationGuideShown = true;
+      try {
+        const storage = this.document.defaultView?.sessionStorage;
+        const key = "poke-lounge.exploration-guide.v1";
+        const run = this.dependencies.getExplorationGuideKey();
+        if (storage?.getItem(key) === run) return;
+        storage?.setItem(key, run);
+      } catch {
+        // Blocked storage still gets the controller's once-per-game guard.
+      }
+      this.explorationGuideEndsAtMs = nowMs + 5_000;
+      this.renderAreaAnnouncement("풀숲에 들어가 포켓몬을 만나 키우세요!", nowMs);
+      this.areaAnnouncementExpiresAt = this.explorationGuideEndsAtMs;
     }
 
     this.renderFieldHint(this.getNearbyInteractionHint(playerPosition));

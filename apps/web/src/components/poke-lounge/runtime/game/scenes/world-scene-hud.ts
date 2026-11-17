@@ -281,13 +281,13 @@ export function formatRoundHudText(
   const visibleRound = Math.max(1, round.roundIndex);
   if (round.phase === "preparation") {
     if (round.phaseStartedAtMs !== null && nowMs < round.phaseStartedAtMs)
-      return `라운드 ${visibleRound}/${round.totalRounds}\n출발 준비`;
+      return `라운드 ${visibleRound}/${round.totalRounds}\n탐험 시작까지 ${formatRoundTimer(round.phaseStartedAtMs - nowMs)}`;
     if (round.preparationEndsAtMs === null && round.phaseStartedAtMs === null)
       return `라운드 ${visibleRound}/${round.totalRounds}\n포켓몬 선택 대기`;
     if (getRoundRemainingMs(round, nowMs) === 0) {
       return `라운드 ${visibleRound}/${round.totalRounds}\n${roundWaitingText}`;
     }
-    return `라운드 ${visibleRound}/${round.totalRounds} 시작까지\n${formatRoundTimer(
+    return `라운드 ${visibleRound}/${round.totalRounds}\n탐험 남은 시간 ${formatRoundTimer(
       getRoundRemainingMs(round, nowMs),
     )}`;
   }
