@@ -61,11 +61,13 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
         NEXT_PUBLIC_RELEASE_SHA: ${RELEASE_SHA:-}
+    # The runtime image has no package manager; run the built entry points with node.
+    working_dir: /app/apps/db
     command:
       [
         "sh",
-        "-lc",
-        "pnpm --filter @poke-lounge/db migration:run && pnpm --filter @poke-lounge/db rom-data:import",
+        "-c",
+        "node node_modules/typeorm/cli.js -d dist/src/data-source.js migration:run && node dist/scripts/import-poke-lounge-rom-data.js",
       ]
     environment: *db-environment
     depends_on:
@@ -75,7 +77,8 @@ services:
   battle-worker:
     <<: *node-app
     restart: unless-stopped
-    command: ["pnpm", "--filter", "@poke-lounge/battle-worker", "start"]
+    working_dir: /app/apps/battle-worker
+    command: ["node", "dist/main.js"]
     environment:
       NODE_ENV: production
       BATTLE_WEB_ROOT: /app/apps/web
@@ -102,7 +105,8 @@ services:
     <<: *node-app
     profiles: ["league"]
     restart: unless-stopped
-    command: ["pnpm", "--filter", "@poke-lounge/league-judge", "start"]
+    working_dir: /app/apps/league-judge
+    command: ["node", "dist/main.js"]
     cpus: "1.0"
     mem_limit: 512m
     environment:
@@ -204,13 +208,11 @@ services:
   web:
     <<: *node-app
     restart: unless-stopped
+    working_dir: /app/apps/web
     command:
       [
-        "pnpm",
-        "--filter",
-        "@poke-lounge/web",
-        "exec",
-        "next",
+        "node",
+        "node_modules/next/dist/bin/next",
         "start",
         "--hostname",
         "0.0.0.0",
