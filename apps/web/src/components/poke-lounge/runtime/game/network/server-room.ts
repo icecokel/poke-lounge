@@ -560,6 +560,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let freshTerminalBaselineInitialized = false;
   let roomSocket: ServerRoomSocket | null = null;
   let socketConnected = false;
+  let socketHealth: RoomEvent["CONNECTION_STATUS"]["connectionStatus"] = "online";
   let connectionStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"] = "offline";
   let connectionStatusAnnounced = false;
   let subscriptionFailed = false;
@@ -606,6 +607,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   };
 
   const emitConnectionStatus = (nextStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"]) => {
+    if (!navigator.onLine) nextStatus = "offline";
+    else if (nextStatus === "online") nextStatus = socketHealth;
     if (connectionStatusAnnounced && connectionStatus === nextStatus) {
       return;
     }
@@ -1497,6 +1500,16 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     scheduleRecovery();
   };
 
+  const handleSocketHealth = (status: unknown) => {
+    if (disposed) return;
+    if (status !== "online" && status !== "offline" && status !== "connecting") return;
+    socketHealth = status;
+    if (status === "offline") emitConnectionStatus("offline");
+    else if (socketConnected) {
+      emitConnectionStatus(status === "online" && !subscriptionFailed ? "online" : "connecting");
+    }
+  };
+
   const handleSocketReplaced = () => {
     if (disposed) return;
     disposeRoom();
@@ -1783,6 +1796,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     roomSocket.on("connect", handleSocketConnect);
     roomSocket.on("connect_error", handleSocketConnectError);
     roomSocket.on("disconnect", handleSocketDisconnect);
+    roomSocket.on("connection-status", handleSocketHealth);
     roomSocket.on("room.connection-replaced", handleSocketReplaced);
     roomSocket.on("room.snapshot", handleSocketSnapshot);
     roomSocket.on("room.player-event", handleSharedWorldEvent);
@@ -2928,6 +2942,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       roomSocket.off("connect", handleSocketConnect);
       roomSocket.off("connect_error", handleSocketConnectError);
       roomSocket.off("disconnect", handleSocketDisconnect);
+      roomSocket.off("connection-status", handleSocketHealth);
       roomSocket.off("room.connection-replaced", handleSocketReplaced);
       roomSocket.off("room.snapshot", handleSocketSnapshot);
       roomSocket.off("room.player-event", handleSharedWorldEvent);

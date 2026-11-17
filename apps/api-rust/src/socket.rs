@@ -288,6 +288,7 @@ async fn serve(
                 if seen.elapsed()>Duration::from_secs(25){*stage="idle_timeout";return Err(AppError::Timeout);}
                 *stage="heartbeat";
                 heartbeat(handle,connection).await?;
+                send(socket,"room.heartbeat",json!({})).await?;
                 *stage="ping";
                 send_message(socket,Message::Ping(Vec::new().into())).await?;
             }

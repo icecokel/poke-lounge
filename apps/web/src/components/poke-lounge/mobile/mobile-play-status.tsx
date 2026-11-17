@@ -94,6 +94,11 @@ export function MobilePlayStatus({
     () => battleUiStore?.getSnapshot().controls?.turnEndsAtMs ?? null,
     noState,
   );
+  const connectionStatus = useSyncExternalStore(
+    gameStateStore?.subscribe ?? noSubscription,
+    () => gameStateStore?.getState().session.connectionStatus ?? null,
+    noState,
+  );
   const [now, setNow] = useState(Date.now);
   const deadline = activeScene === "battle" ? turnEndsAtMs : null;
   const text = getMobileUiCopy(copy.locale);
@@ -121,15 +126,26 @@ export function MobilePlayStatus({
           Poke Lounge
         </span>
       )}
-      <button
-        type="button"
-        className="grid min-h-12 min-w-12 shrink-0 touch-manipulation place-items-center border-0 bg-transparent p-2 font-bold focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3"
-        onClick={onMenu}
-        aria-label={copy.settingsOpenLabel}
-        data-poke-lounge-mobile-menu="true"
-      >
-        <Menu size={24} />
-      </button>
+      <div className="flex shrink-0 items-center gap-2">
+        {competitive && connectionStatus ? (
+          <span className="max-w-28 text-right text-xs leading-snug" role="status">
+            {connectionStatus === "online"
+              ? copy.connectionConnected
+              : connectionStatus === "connecting"
+                ? copy.connectionConnecting
+                : copy.connectionDisconnected}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          className="grid min-h-12 min-w-12 shrink-0 touch-manipulation place-items-center border-0 bg-transparent p-2 font-bold focus-visible:outline-3 focus-visible:outline-[#a45a14] focus-visible:outline-offset-3"
+          onClick={onMenu}
+          aria-label={copy.settingsOpenLabel}
+          data-poke-lounge-mobile-menu="true"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
     </header>
   );
 }
