@@ -90,6 +90,7 @@ struct Envelope {
 }
 pub struct RoomEvent {
     pub name: String,
+    pub connection: Option<Uuid>,
     /// Reference-counted frame text: every subscriber sends the same buffer without copying it.
     pub text: Utf8Bytes,
 }
@@ -886,14 +887,13 @@ impl Actor {
                 if self.room.status == Status::Closed || !self.room.participants[index].connected {
                     return Err(AppError::Closed);
                 }
-                if self.connections.len() >= 32
-                    || self
-                        .connections
-                        .values()
-                        .filter(|id| **id == player)
-                        .count()
-                        >= 4
-                {
+                let replaced = self
+                    .connections
+                    .iter()
+                    .filter(|(_, id)| **id == player)
+                    .map(|(id, _)| *id)
+                    .collect::<Vec<_>>();
+                if self.connections.len() - replaced.len() >= 32 {
                     return Err(AppError::Busy);
                 }
                 let mut next = self.room.clone();
@@ -914,6 +914,17 @@ impl Actor {
                 }
                 let changed = next.revision != self.room.revision;
                 self.room = next;
+                for old in replaced {
+                    self.connections.remove(&old);
+                    self.connection_seen.remove(&old);
+                    let _ = self.events.send(Arc::new(RoomEvent {
+                        name: "room.connection-replaced".into(),
+                        connection: Some(old),
+                        text: json!({"event":"room.connection-replaced","payload":{}})
+                            .to_string()
+                            .into(),
+                    }));
+                }
                 self.connections.insert(connection, player.clone());
                 self.connection_seen.insert(connection, self.now);
                 if changed {
@@ -991,6 +1002,7 @@ impl Actor {
         let text = json!({"event":event,"payload":payload}).to_string().into();
         let _ = self.events.send(Arc::new(RoomEvent {
             name: event.to_owned(),
+            connection: None,
             text,
         }));
     }

@@ -34,6 +34,7 @@ import { usePublicRooms } from "./use-public-rooms";
 import { StarterSelectionScreen } from "./starter-selection-screen";
 import { STARTER_MODES, type StarterMode } from "@poke-lounge/battle/starter-selection";
 import { getStarterModeCopy } from "./starter-mode-copy";
+import { RoomResumePanel } from "./room-resume-panel";
 
 const FAN_NOTICE_SEEN_COOKIE = "poke_lounge_fan_notice_seen";
 const FAN_NOTICE_COOKIE_MAX_AGE = 14 * 24 * 60 * 60;
@@ -360,6 +361,7 @@ function RoomEntryScreen({
             : `${menu.frame} grid w-full max-w-[820px] gap-4 overflow-auto p-4 [&_button]:min-h-11 [&_button]:rounded-md [&_button]:border-2 [&_button]:border-[#17231c] [&_button]:bg-[#fffdf0] [&_button]:px-3 [&_button]:font-black [&_button]:text-[#17201a] [&_button]:shadow-[0_3px_0_#17231c] [&_button:active]:translate-y-0.5 [&_button:active]:shadow-[0_1px_0_#17231c] [&_button:disabled]:cursor-default [&_button:disabled]:opacity-55 [&_input]:min-h-10 [&_input]:w-full [&_input]:rounded-md [&_input]:border-2 [&_input]:border-[#17231c] [&_input]:bg-[#fffef3] [&_input]:px-3 [&_input]:text-[#17201a] [&_input]:outline-none [&_input:focus-visible]:ring-2 [&_input:focus-visible]:ring-[#2f6b78]`
         }
       >
+        {state.roomResume ? <RoomResumePanel copy={copy} roomResume={state.roomResume} /> : null}
         {entryStep === "profile" ? (
           <TrainerNameEntry
             copy={copy}

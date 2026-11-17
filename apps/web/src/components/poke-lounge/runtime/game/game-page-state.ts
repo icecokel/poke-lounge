@@ -2,6 +2,7 @@ import type { GameBootstrapData, StarterPokemon } from "../types";
 import type { PokeLoungeErrorCode } from "../../poke-lounge-error-codes";
 import type { RoomEntryIntent } from "./network/room-entry";
 import type { RoomEntrySelection } from "./network/room-entry-screen";
+import type { StoredServerRoomResume } from "./network/server-room-identity";
 import type { WebRtcRoom } from "./network/web-rtc-room";
 import type { RoomLobbyRuntimeState } from "./ui/room-lobby-screen";
 import type { WorldFrameStore } from "./world/world-frame-store";
@@ -47,6 +48,12 @@ export type PokeLoungeRuntimeState =
       currentUrl: URL;
       initialDisplayName: string;
       openCreateRoom?: boolean;
+      roomResume?: {
+        resume: StoredServerRoomResume;
+        accountId?: string;
+        onResume(): void;
+        onDiscard(): void;
+      };
       localTestMode?: {
         active: boolean;
         onExit(): void;
