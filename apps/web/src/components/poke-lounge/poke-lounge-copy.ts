@@ -192,6 +192,14 @@ export interface PokeLoungeCopy {
     startDisabledReason: Record<"connection" | "party" | "ready" | "mutation", string>;
   };
   roomEntry: {
+    resumeTitle: string;
+    resumeDescription: string;
+    resumeAction: string;
+    resumeDiscard: string;
+    resumeChecking: string;
+    resumeUnavailable: string;
+    resumeCheckFailed: string;
+    playingElsewhere: string;
     title: string;
     languageLabel: string;
     fanNotice: string;
@@ -291,7 +299,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
   uiLarge: "UI 크게",
   uiNormal: "UI 보통",
   connectionConnected: "방 연결됨",
-  connectionConnecting: "방 연결 중",
+  connectionConnecting: "연결 확인 중",
   connectionDisconnected: "방 연결 끊김",
   autosaveLocal: "현재 탭에 자동 저장",
   autosaveLocalFallback: "계정 저장 중지 · 현재 탭에 저장",
@@ -488,6 +496,15 @@ const KOREAN_COPY: PokeLoungeCopy = {
     },
   },
   roomEntry: {
+    resumeTitle: "이어서 플레이할 게임",
+    resumeDescription:
+      "이 브라우저에서 참가한 게임이 진행 중입니다. 돌아가면 다른 탭의 연결은 종료됩니다.",
+    resumeAction: "진행 중인 게임으로 돌아가기",
+    resumeDiscard: "새로 시작",
+    resumeChecking: "진행 중인 게임을 확인하고 있습니다.",
+    resumeUnavailable: "게임이 이미 끝났거나 자리를 비운 시간이 길어 돌아갈 수 없습니다.",
+    resumeCheckFailed: "게임 상태를 확인하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
+    playingElsewhere: "다른 탭에서 이어서 플레이 중입니다. 이 탭의 연결은 종료되었습니다.",
     title: "멀티플레이",
     languageLabel: "언어",
     fanNotice:
@@ -600,7 +617,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   uiLarge: "Large UI",
   uiNormal: "Normal UI",
   connectionConnected: "Room connected",
-  connectionConnecting: "Connecting to room",
+  connectionConnecting: "Checking connection",
   connectionDisconnected: "Room disconnected",
   autosaveLocal: "Autosaved in this tab",
   autosaveLocalFallback: "Account save paused · saved in this tab",
@@ -797,6 +814,15 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     },
   },
   roomEntry: {
+    resumeTitle: "Continue your game",
+    resumeDescription:
+      "A game you joined in this browser is still in progress. Returning disconnects your other tab.",
+    resumeAction: "Return to the current game",
+    resumeDiscard: "Start fresh",
+    resumeChecking: "Checking your current game.",
+    resumeUnavailable: "The game has ended or you have been away too long to return.",
+    resumeCheckFailed: "Could not check your game. Check your connection and try again.",
+    playingElsewhere: "You are playing in another tab. This tab has been disconnected.",
     title: "Multiplayer",
     languageLabel: "Language",
     fanNotice:
@@ -910,7 +936,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   uiLarge: "UIを大きく",
   uiNormal: "UIを標準に",
   connectionConnected: "ルーム接続済み",
-  connectionConnecting: "ルーム接続中",
+  connectionConnecting: "接続を確認中",
   connectionDisconnected: "ルーム切断",
   autosaveLocal: "このタブに自動保存",
   autosaveLocalFallback: "アカウント保存を停止中・このタブに保存",
@@ -1108,6 +1134,16 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     },
   },
   roomEntry: {
+    resumeTitle: "ゲームを続ける",
+    resumeDescription:
+      "このブラウザーで参加したゲームが進行中です。戻ると、ほかのタブの接続が終了します。",
+    resumeAction: "進行中のゲームに戻る",
+    resumeDiscard: "新しく始める",
+    resumeChecking: "進行中のゲームを確認しています。",
+    resumeUnavailable: "ゲームが終了したか、離席時間が長いため戻れません。",
+    resumeCheckFailed:
+      "ゲームの状態を確認できませんでした。接続を確認して、もう一度お試しください。",
+    playingElsewhere: "ほかのタブでプレイを続けています。このタブの接続は終了しました。",
     title: "マルチプレイ",
     languageLabel: "言語",
     fanNotice:
