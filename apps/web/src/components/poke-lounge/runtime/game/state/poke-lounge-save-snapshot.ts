@@ -25,9 +25,7 @@ export const POKE_LOUNGE_SAVE_SNAPSHOT_VERSION = 1;
 export function buildPokeLoungeSaveSnapshot(
   gameStateStore: Pick<GameStateStore, "getState">,
 ): PokeLoungeSaveSnapshot {
-  const state = sanitizeLocalPlayersSaveState(
-    cloneJsonSerializableLocalPlayers(gameStateStore.getState()),
-  );
+  const state = sanitizeLocalPlayersSaveState(cloneLocalPlayers(gameStateStore.getState()));
   if (!state) {
     throw new Error("Cannot build an invalid Poke Lounge save snapshot");
   }
@@ -99,13 +97,11 @@ export function sanitizeLocalPlayersSaveState(value: unknown): LocalPlayersSaveS
   return { currentPlayerId, playersById };
 }
 
-function cloneJsonSerializableLocalPlayers(state: GameState): LocalPlayersSaveState {
-  return JSON.parse(
-    JSON.stringify({
-      currentPlayerId: state.currentPlayerId,
-      playersById: state.playersById,
-    }),
-  ) as LocalPlayersSaveState;
+function cloneLocalPlayers(state: GameState): LocalPlayersSaveState {
+  return structuredClone({
+    currentPlayerId: state.currentPlayerId,
+    playersById: state.playersById,
+  });
 }
 
 function sanitizeLocalPlayerState(
