@@ -105,7 +105,7 @@ export function DirectMultiplayerEntryScreen({
             </p>
           ) : null}
           <label
-            className="grid gap-2 font-semibold [&_input]:min-h-14 [&_input]:w-full [&_input]:rounded-xl [&_input]:border-2 [&_input]:border-[#8ea17e] [&_input]:bg-white [&_input]:p-3 [&_input]:text-base [&_input]:font-medium [&_input]:text-[#203329] [&_input]:focus-visible:outline-3 [&_input]:focus-visible:outline-[#985512] [&_input]:focus-visible:outline-offset-3 [&_input[aria-invalid=true]]:border-[#a94130] [&_small]:text-[0.8125rem] [&_small]:font-normal [&_small]:text-[#65745b]"
+            className="grid gap-2 font-semibold [&_input]:min-h-14 [&_input]:w-full [&_input]:rounded-xl [&_input]:border-2 [&_input]:border-[#7d916d] [&_input]:bg-white [&_input]:p-3 [&_input]:text-base [&_input]:font-medium [&_input]:text-[#203329] [&_input]:focus-visible:outline-3 [&_input]:focus-visible:outline-[#985512] [&_input]:focus-visible:outline-offset-3 [&_input[aria-invalid=true]]:border-[#a94130] [&_small]:text-[0.8125rem] [&_small]:font-normal [&_small]:text-[#65745b]"
             htmlFor={`${id}-name`}
           >
             {copy.roomEntry.multiplayerNameLabel}
@@ -113,8 +113,10 @@ export function DirectMultiplayerEntryScreen({
               ref={input}
               id={`${id}-name`}
               type="text"
-              autoComplete="off"
+              name="nickname"
+              autoComplete="nickname"
               autoCapitalize="off"
+              autoCorrect="off"
               spellCheck={false}
               enterKeyHint="go"
               maxLength={12}

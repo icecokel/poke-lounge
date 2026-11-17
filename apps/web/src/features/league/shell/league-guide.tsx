@@ -27,6 +27,7 @@ export function LeagueGuide({
             width={256}
             height={256}
             priority
+            fetchPriority="high"
             unoptimized
             className={entry.guide}
           />

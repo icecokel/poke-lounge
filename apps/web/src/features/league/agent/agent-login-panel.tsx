@@ -95,19 +95,27 @@ export function LeagueAgentLoginPanel({
       <h2 className={styles.panelTitle}>{text.title}</h2>
       <p className={styles.meta}>{text.note}</p>
       <div className={styles.agentFields}>
-        <label className={styles.field}>
+        <label className={styles.field} htmlFor="league-agent-token">
           <span>{text.token}</span>
           <input
+            id="league-agent-token"
+            name="token"
             type="password"
             autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="next"
             value={token}
             disabled={busy}
             onChange={event => setToken(event.target.value)}
           />
         </label>
-        <label className={styles.field}>
+        <label className={styles.field} htmlFor="league-agent-account">
           <span>{text.account}</span>
           <select
+            id="league-agent-account"
+            name="account"
             value={account}
             disabled={busy}
             onChange={event => setAccount(event.target.value)}

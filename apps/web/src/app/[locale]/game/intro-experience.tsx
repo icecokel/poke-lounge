@@ -359,6 +359,7 @@ export function IntroExperience() {
             alt={t("introHeroAlt")}
             fill
             priority
+            fetchPriority="high"
             sizes="100vw"
             className={styles.heroImage}
           />

@@ -578,8 +578,6 @@ async function pump(): Promise<void> {
   if (background) backgroundAttempts++;
   item.attempts++;
   persistQueue();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
   let retryable = false;
   let delivered = false;
   try {
@@ -590,7 +588,7 @@ async function pump(): Promise<void> {
       keepalive: true,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload(item)),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(5000),
     });
     if (response.ok) {
       stats.sent++;
@@ -602,8 +600,6 @@ async function pump(): Promise<void> {
   } catch {
     stats.failed++;
     retryable = true;
-  } finally {
-    clearTimeout(timeout);
   }
   if (retryable || (delivered && version !== item.version)) {
     item.nextAttemptAt =

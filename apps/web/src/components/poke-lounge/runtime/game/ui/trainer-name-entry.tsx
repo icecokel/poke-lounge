@@ -97,6 +97,7 @@ export function TrainerNameEntry({
           width={256}
           height={256}
           priority
+          fetchPriority="high"
           unoptimized
           className={styles.guide}
         />
@@ -194,8 +195,13 @@ export function TrainerNameEntry({
                 <input
                   id="poke-lounge-multiplayer-display-name"
                   type="text"
+                  name="nickname"
                   autoFocus={focusNameOnOpen}
                   autoComplete="nickname"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="next"
                   maxLength={12}
                   placeholder={text.multiplayerNamePlaceholder}
                   value={displayName}
