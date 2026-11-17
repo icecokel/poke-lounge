@@ -358,7 +358,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
   resultRetry: "다시 플레이",
   resultNewGame: "새 게임",
   resultRoomEntry: "새 방 선택",
-  resultLobby: "대기실로",
+  resultLobby: "처음으로",
   accessibleHelp: "게임 조작 도움말은 H 키 또는 물음표 버튼으로 열 수 있습니다.",
   game: {
     starterTitle: "첫 파트너 선택",
@@ -667,7 +667,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
   resultRetry: "Play again",
   resultNewGame: "New game",
   resultRoomEntry: "Choose another room",
-  resultLobby: "Game lobby",
+  resultLobby: "Back to start",
   accessibleHelp: "Open the controls guide with H or the question-mark button.",
   game: {
     starterTitle: "Choose your first partner",
@@ -978,7 +978,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
   resultRetry: "もう一度プレイ",
   resultNewGame: "新しいゲーム",
   resultRoomEntry: "別のルームを選ぶ",
-  resultLobby: "ゲームロビーへ",
+  resultLobby: "はじめに戻る",
   accessibleHelp: "Hキーまたは「？」ボタンで操作ガイドを開けます。",
   game: {
     starterTitle: "最初のパートナーを選ぶ",

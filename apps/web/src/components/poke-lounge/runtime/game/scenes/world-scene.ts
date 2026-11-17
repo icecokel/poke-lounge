@@ -217,6 +217,9 @@ export class WorldController {
     });
     this.interactions = createWorldSceneInteractions({
       gameStateStore: this.gameStateStore,
+      competitiveRoundsEnabled: this.competitiveRoundsEnabled,
+      getExplorationGuideKey: () =>
+        `${this.room.roomInstanceId ?? this.room.roomId}:${this.gameStateStore.getState().currentPlayerId}`,
       getDocument: () => this.options.ownerDocument,
       keyboard: this.options.keyboard,
       getPlayerPosition: () =>
