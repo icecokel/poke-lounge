@@ -48,6 +48,7 @@ import {
 } from "./room-entry-cookie";
 import { createCompetitivePartySnapshot } from "./competitive-party-snapshot";
 import {
+  clearStoredServerRoomResume,
   clearStoredServerRoomSession,
   isStoredIdentityJson,
   readStoredIdentity,
@@ -55,6 +56,7 @@ import {
   resolveServerRoomRunId,
   resolveUsageVisitorId,
   writeStoredIdentity,
+  type StoredServerRoomResume,
 } from "./server-room-identity";
 import {
   normalizeCompetitiveParty,
@@ -141,6 +143,7 @@ export interface ServerRoomOptions {
   initialOpenCommandId?: string;
   roundDurationMs?: number;
   starterMode?: StarterMode;
+  aiFillEnabled?: boolean;
   sharedWorldOnly?: boolean;
   competitiveRoundsEnabled?: boolean;
   fetch?: typeof fetch;
@@ -165,7 +168,7 @@ export const POKE_LOUNGE_SERVER_ROOM_ERROR_EVENT = "poke-lounge:server-room-erro
 
 export interface PokeLoungeFreshSessionRequiredDetail {
   roomCode: string | null;
-  reason?: "room-expired";
+  reason?: "room-expired" | "room-replaced";
 }
 
 export interface PokeLoungeServerRoomErrorDetail {
@@ -286,6 +289,50 @@ class ServerRoomSchemaError extends Error {
   constructor() {
     super("Poke Lounge room response is malformed");
   }
+}
+
+/** Read-only: checking the offer must never admit a participant or replace another tab. */
+export async function checkServerRoomResume(
+  resume: StoredServerRoomResume,
+  accountId?: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  const identity = readStoredIdentity(accountId);
+  if (!identity) return false;
+  const response = await fetch(`${getApiBaseUrl()}/poke-lounge/rooms/${resume.roomCode}`, {
+    cache: "no-store",
+    headers: {
+      "X-Player-Id": identity.playerId,
+      "X-Session-Id": identity.sessionId,
+      "X-Request-Id": createDiagnosticRequestId(),
+      ...(resume.roomInstanceId ? { "X-Room-Instance": resume.roomInstanceId } : {}),
+    },
+    signal,
+  });
+  const body = unwrapApiResponse<unknown>(parseResponseJson(await readResponseBody(response)));
+  if (!response.ok) {
+    const error = new ServerRoomRequestError(response.status, body);
+    if (
+      isRoomNotFoundRequestError(error) ||
+      [
+        "ROOM_EXPIRED",
+        "ROOM_REJOIN_BLOCKED",
+        "ROOM_IDENTITY_MISMATCH",
+        "ROOM_ACCESS_DENIED",
+        "ROOM_SESSION_INVALID",
+      ].includes(getRoomJoinFailureCode(error) ?? "")
+    )
+      return false;
+    throw error;
+  }
+  const room = parseServerRoomState(body);
+  return (
+    room.roomCode === resume.roomCode &&
+    (!resume.roomInstanceId || room.roomInstanceId === resume.roomInstanceId) &&
+    room.status !== "completed" &&
+    room.status !== "closed" &&
+    room.participants.some(p => p.playerId === identity.playerId && p.connected)
+  );
 }
 
 export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
@@ -514,6 +561,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   let freshTerminalBaselineInitialized = false;
   let roomSocket: ServerRoomSocket | null = null;
   let socketConnected = false;
+  let socketHealth: RoomEvent["CONNECTION_STATUS"]["connectionStatus"] = "online";
   let connectionStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"] = "offline";
   let connectionStatusAnnounced = false;
   let subscriptionFailed = false;
@@ -560,6 +608,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
   };
 
   const emitConnectionStatus = (nextStatus: RoomEvent["CONNECTION_STATUS"]["connectionStatus"]) => {
+    if (!navigator.onLine) nextStatus = "offline";
+    else if (nextStatus === "online") nextStatus = socketHealth;
     if (connectionStatusAnnounced && connectionStatus === nextStatus) {
       return;
     }
@@ -1451,6 +1501,25 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     scheduleRecovery();
   };
 
+  const handleSocketHealth = (status: unknown) => {
+    if (disposed) return;
+    if (status !== "online" && status !== "offline" && status !== "connecting") return;
+    socketHealth = status;
+    if (status === "offline") emitConnectionStatus("offline");
+    else if (socketConnected) {
+      emitConnectionStatus(status === "online" && !subscriptionFailed ? "online" : "connecting");
+    }
+  };
+
+  const handleSocketReplaced = () => {
+    if (disposed) return;
+    disposeRoom();
+    dispatchWindowEvent<PokeLoungeFreshSessionRequiredDetail>(
+      POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT,
+      { roomCode: activeRoomId, reason: "room-replaced" },
+    );
+  };
+
   const publishSharedWorldSnapshot = (
     type: "PLAYER_MOVED" | "PLAYER_MOVEMENT_ENDED" | "PLAYER_CHANGED_MAP",
   ) => {
@@ -1728,6 +1797,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     roomSocket.on("connect", handleSocketConnect);
     roomSocket.on("connect_error", handleSocketConnectError);
     roomSocket.on("disconnect", handleSocketDisconnect);
+    roomSocket.on("connection-status", handleSocketHealth);
+    roomSocket.on("room.connection-replaced", handleSocketReplaced);
     roomSocket.on("room.snapshot", handleSocketSnapshot);
     roomSocket.on("room.player-event", handleSharedWorldEvent);
     roomSocket.on("room.world-snapshot", handleWorldSnapshot);
@@ -1830,9 +1901,10 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
     }
     latestCompetitionKind = resolveCompetitionKind(state, latestCompetitionKind);
 
-    if (state.status === "closed") {
-      clearStoredServerRoomSession(options.accountId);
+    if (state.status === "closed" || state.status === "completed") {
+      clearStoredServerRoomResume(options.accountId, roomRunId);
     } else if (
+      readStoredIdentity(options.accountId)?.dismissedRoomRunId !== roomRunId &&
       state.participants.some(function testItem(participant) {
         return participant.playerId === serverPlayerId;
       })
@@ -2105,6 +2177,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       hostPlayerId: state.hostPlayerId ? mapServerPlayerIdForLocalStore(state.hostPlayerId) : null,
       roundIndex: state.round.index,
       roomStatus: state.status,
+      aiFillEnabled: state.aiFillEnabled,
       starterSelection: {
         mode: state.starterMode,
         seed: `${state.roomInstanceId}:${serverPlayerId}`,
@@ -2667,6 +2740,14 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       );
       applyExpectedTransitionSnapshot(state);
     },
+    async setAiFillEnabled(enabled) {
+      const state = await mutateRoom(
+        `/poke-lounge/rooms/${activeRoomId}/ai-fill`,
+        { playerId: serverPlayerId, sessionId, enabled },
+        getLatestRevision,
+      );
+      applyExpectedTransitionSnapshot(state);
+    },
     async setAiDifficulty(aiPlayerId, difficulty) {
       const state = await mutateRoom(
         `/poke-lounge/rooms/${activeRoomId}/ai-participants/${encodeURIComponent(aiPlayerId)}/difficulty`,
@@ -2871,6 +2952,8 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
       roomSocket.off("connect", handleSocketConnect);
       roomSocket.off("connect_error", handleSocketConnectError);
       roomSocket.off("disconnect", handleSocketDisconnect);
+      roomSocket.off("connection-status", handleSocketHealth);
+      roomSocket.off("room.connection-replaced", handleSocketReplaced);
       roomSocket.off("room.snapshot", handleSocketSnapshot);
       roomSocket.off("room.player-event", handleSharedWorldEvent);
       roomSocket.off("room.world-snapshot", handleWorldSnapshot);
@@ -2912,6 +2995,12 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
           return participant.playerId === serverPlayerId;
         })
       ) {
+        if (
+          current.status !== "waiting" &&
+          !current.participants.some(p => p.playerId === serverPlayerId && p.connected)
+        ) {
+          throw new ServerRoomRequestError(410, { code: "POKE_LOUNGE_ROOM_REJOIN_BLOCKED" });
+        }
         return current;
       }
       if (current.status !== "waiting") {
@@ -2945,6 +3034,7 @@ export function createServerRoom(options: ServerRoomOptions): MultiplayerRoom {
         : {}),
       ...(options.createRoom ? { visibility: options.visibility ?? "private" } : {}),
       ...(options.createRoom ? { starterMode: options.starterMode ?? "classic" } : {}),
+      ...(options.createRoom ? { aiFillEnabled: options.aiFillEnabled ?? true } : {}),
     };
 
     if (options.createRoom) {
@@ -3432,6 +3522,7 @@ function parseServerRoomState(value: unknown): ServerRoomState {
     typeof room.roomCode !== "string" ||
     (room.visibility !== "public" && room.visibility !== "private") ||
     (room.starterMode !== undefined && !isStarterMode(room.starterMode)) ||
+    (room.aiFillEnabled !== undefined && typeof room.aiFillEnabled !== "boolean") ||
     (room.hostPlayerId !== null && typeof room.hostPlayerId !== "string") ||
     !Number.isSafeInteger(room.revision) ||
     (room.revision as number) < 0 ||
@@ -3470,6 +3561,7 @@ function parseServerRoomState(value: unknown): ServerRoomState {
   const parsed: ServerRoomState = {
     ...(value as ServerRoomState),
     starterMode: room.starterMode === undefined ? "classic" : (room.starterMode as StarterMode),
+    aiFillEnabled: room.aiFillEnabled === undefined ? true : (room.aiFillEnabled as boolean),
     participants,
     round,
     tournament,
@@ -3785,6 +3877,7 @@ function hasSameCanonicalRoomProjection(left: ServerRoomState, right: ServerRoom
   return (
     left.roomCode === right.roomCode &&
     left.visibility === right.visibility &&
+    left.aiFillEnabled === right.aiFillEnabled &&
     left.hostPlayerId === right.hostPlayerId &&
     left.status === right.status &&
     stableJsonStringify(left.participants) === stableJsonStringify(right.participants) &&

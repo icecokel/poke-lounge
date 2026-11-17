@@ -80,6 +80,10 @@ const AI_TRAINER_NAMES: Record<string, LocalizedTerm> = {
 };
 
 const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
+  "풀숲에 들어가 포켓몬을 만나 키우세요!": {
+    "en-US": "Enter the tall grass to meet and train Pokémon!",
+    "ja-JP": "草むらに入ってポケモンと出会い、育てましょう！",
+  },
   "공격이 빗나갔다!": { "en-US": "The attack missed!", "ja-JP": "攻撃は外れた！" },
   "효과가 없다!": { "en-US": "It had no effect!", "ja-JP": "効果がない！" },
   "하지만 실패했다!": { "en-US": "But it failed!", "ja-JP": "しかし失敗した！" },
@@ -743,6 +747,16 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     /^라운드 (\d+)\/(\d+) 시작까지$/,
     (_, round, total) => `Round ${round}/${total} starts in`,
     (_, round, total) => `ラウンド ${round}/${total} 開始まで`,
+  ),
+  pattern(
+    /^탐험 시작까지 (.+)$/,
+    (_, time) => `Exploration starts in ${time}`,
+    (_, time) => `探索開始まで ${time}`,
+  ),
+  pattern(
+    /^탐험 남은 시간 (.+)$/,
+    (_, time) => `Exploration remaining ${time}`,
+    (_, time) => `探索の残り時間 ${time}`,
   ),
   pattern(
     /^라운드 (\d+)\/(\d+)$/,

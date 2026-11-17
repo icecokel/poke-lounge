@@ -31,6 +31,7 @@ interface StoredServerRoomIdentity {
   version?: number;
   sessionId: string;
   playerId: string;
+  dismissedRoomRunId?: string;
   activeRoom?: {
     roomCode: string;
     roomInstanceId?: string;
@@ -44,13 +45,14 @@ export interface StoredServerRoomResume {
   roomCode: string;
   roomInstanceId?: string;
   runId: string;
+  requiresConfirmation: boolean;
 }
 
-export function clearStoredServerRoomResume(accountId?: string): void {
-  clearRoomResumeCookie();
+export function clearStoredServerRoomResume(accountId?: string, roomRunId?: string): void {
+  if (!roomRunId || readRoomResumeCookie()?.runId === roomRunId) clearRoomResumeCookie();
   clearPendingRoomEntry();
   const identity = readStoredIdentity(accountId);
-  if (!identity) {
+  if (!identity || (roomRunId && identity.activeRoom?.runId !== roomRunId)) {
     return;
   }
 
@@ -58,6 +60,7 @@ export function clearStoredServerRoomResume(accountId?: string): void {
     {
       sessionId: identity.sessionId,
       playerId: identity.playerId,
+      dismissedRoomRunId: identity.activeRoom?.runId ?? identity.dismissedRoomRunId,
     },
     accountId,
   );
@@ -197,6 +200,9 @@ function parseStoredIdentity(stored: string | null): StoredServerRoomIdentity | 
     return {
       sessionId: parsed.sessionId,
       playerId: parsed.playerId,
+      ...(isRoomRunId(parsed.dismissedRoomRunId)
+        ? { dismissedRoomRunId: parsed.dismissedRoomRunId }
+        : {}),
       ...(activeRoom ? { activeRoom } : {}),
     };
   } catch {
@@ -239,24 +245,27 @@ export function readStoredServerRoomResume(accountId?: string): StoredServerRoom
   const identity = readStoredIdentity(accountId);
   if (!identity) return null;
   const resumeCookie = readRoomResumeCookie();
-  if (resumeCookie?.playerId === identity.playerId) {
+  if (
+    resumeCookie?.playerId === identity.playerId &&
+    resumeCookie.runId !== identity.dismissedRoomRunId
+  ) {
     return {
       roomCode: resumeCookie.roomCode,
       runId: resumeCookie.runId,
+      requiresConfirmation: !window.performance
+        .getEntriesByType("navigation")
+        .some(entry => (entry as PerformanceNavigationTiming).type === "reload"),
       ...(resumeCookie.roomInstanceId ? { roomInstanceId: resumeCookie.roomInstanceId } : {}),
     };
   }
 
   const activeRoom = identity.activeRoom;
-  // The cookie owns expiry for new sessions; another tab's localStorage must not revive it.
-  if (!activeRoom || activeRoom.cookieVersion === 1) return null;
-  if (activeRoom.expiresAtMs <= Date.now()) {
-    writeStoredIdentity({ sessionId: identity.sessionId, playerId: identity.playerId }, accountId);
-    return null;
-  }
+  // Shared storage is only an offer to resume; the server owns room and participant expiry.
+  if (!activeRoom) return null;
   return {
     roomCode: activeRoom.roomCode,
     runId: activeRoom.runId,
+    requiresConfirmation: true,
     ...(activeRoom.roomInstanceId ? { roomInstanceId: activeRoom.roomInstanceId } : {}),
   };
 }

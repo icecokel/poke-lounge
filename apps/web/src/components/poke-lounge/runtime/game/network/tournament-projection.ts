@@ -66,6 +66,7 @@ export interface TournamentRoomRound {
 
 export interface TournamentStateRoomPayload {
   starterSelection?: StarterSelection;
+  aiFillEnabled?: boolean;
   revision: number;
   roomCode: string;
   hostPlayerId: string | null;

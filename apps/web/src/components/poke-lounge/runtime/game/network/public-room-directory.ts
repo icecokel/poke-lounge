@@ -26,6 +26,7 @@ export interface PublicRoomSummary {
   maxParticipants: number;
   roundDurationMs: RoomRoundDurationMs;
   starterMode: StarterMode;
+  aiFillEnabled: boolean;
   createdAtMs: number;
   updatedAtMs: number;
   expiresAtMs: number;
@@ -141,6 +142,7 @@ function parsePublicRoomSummary(value: unknown): PublicRoomSummary {
     !status ||
     roundDurationMs === null ||
     (value.starterMode !== undefined && !isStarterMode(value.starterMode)) ||
+    (value.aiFillEnabled !== undefined && typeof value.aiFillEnabled !== "boolean") ||
     typeof value.revision !== "number" ||
     !Number.isSafeInteger(value.revision) ||
     value.revision < 0 ||
@@ -167,6 +169,7 @@ function parsePublicRoomSummary(value: unknown): PublicRoomSummary {
     maxParticipants: value.maxParticipants,
     roundDurationMs,
     starterMode: value.starterMode === undefined ? "classic" : (value.starterMode as StarterMode),
+    aiFillEnabled: value.aiFillEnabled === undefined ? true : (value.aiFillEnabled as boolean),
     createdAtMs: value.createdAtMs,
     updatedAtMs: value.updatedAtMs,
     expiresAtMs: value.expiresAtMs,

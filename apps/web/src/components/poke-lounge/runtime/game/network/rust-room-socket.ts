@@ -27,9 +27,22 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
   let attempt = 0;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let openTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastMessageAt = 0;
   const notify = (event: string, payload?: unknown) => {
     for (const listener of listeners.get(event) ?? []) listener(payload);
   };
+  const publishHealth = () => {
+    if (disposed) return;
+    notify(
+      "connection-status",
+      !navigator.onLine
+        ? "offline"
+        : socket?.readyState === WebSocket.OPEN && Date.now() - lastMessageAt <= 15_000
+          ? "online"
+          : "connecting",
+    );
+  };
+  const healthTimer = setInterval(publishHealth, 1_000);
   const clearOpenTimer = () => {
     if (openTimer !== null) clearTimeout(openTimer);
     openTimer = null;
@@ -68,6 +81,7 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
     current.onopen = () => {
       if (disposed || socket !== current) return;
       clearOpenTimer();
+      lastMessageAt = 0;
       notify("connect");
     };
     current.onmessage = event => {
@@ -110,11 +124,13 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
         return;
       }
       if (frame.event === "room.snapshot") attempt = 0;
+      lastMessageAt = Date.now();
       if (frame.event === "server.draining" || frame.event === "room.expired") {
         current.close(1000);
         return;
       }
       notify(frame.event, frame.payload);
+      publishHealth();
     };
     current.onerror = () => {
       if (!disposed && socket === current) {
@@ -188,15 +204,19 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
       if (retryTimer !== null) clearTimeout(retryTimer);
       retryTimer = null;
       clearOpenTimer();
+      clearInterval(healthTimer);
       const old = socket;
       socket = null;
       old?.close(1000);
       listeners.clear();
       window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", publishHealth);
+      document.removeEventListener("visibilitychange", publishHealth);
       return adapter;
     },
   };
   const onOnline = () => {
+    publishHealth();
     if (disposed || adapter.connected) return;
     if (retryTimer !== null) clearTimeout(retryTimer);
     retryTimer = null;
@@ -207,6 +227,8 @@ export function createRustRoomSocket(baseUrl: string): SocketAdapter {
     connect();
   };
   window.addEventListener("online", onOnline);
+  window.addEventListener("offline", publishHealth);
+  document.addEventListener("visibilitychange", publishHealth);
   // Match socket.io: listeners are attached by the caller before connect fires.
   queueMicrotask(connect);
   return adapter;

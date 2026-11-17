@@ -95,6 +95,7 @@ pub fn router(state: AppState, config: &Config, league: Router<AppState>) -> Rou
         .route("/poke-lounge/rooms/{code}/round-ready", post(round_ready))
         .route("/poke-lounge/rooms/{code}/start", post(start))
         .route("/poke-lounge/rooms/{code}/ai-participants", post(add_ai))
+        .route("/poke-lounge/rooms/{code}/ai-fill", post(set_ai_fill))
         .route(
             "/poke-lounge/rooms/{code}/ai-participants/{player}/difficulty",
             post(set_ai_difficulty),
@@ -899,6 +900,36 @@ struct AiDifficultyBody {
     player_id: String,
     session_id: String,
     difficulty: AiDifficulty,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AiFillBody {
+    player_id: String,
+    session_id: String,
+    enabled: bool,
+}
+async fn set_ai_fill(
+    State(state): State<AppState>,
+    Path(code): Path<String>,
+    headers: HeaderMap,
+    value: Result<Json<AiFillBody>, JsonRejection>,
+) -> AppResult<Json<Value>> {
+    let expected = revision(&headers)?;
+    let body = body(value)?;
+    apply(
+        state,
+        code,
+        headers,
+        Identity {
+            player_id: body.player_id,
+            session_id: body.session_id,
+        },
+        GameCommand::SetAiFill {
+            enabled: body.enabled,
+        },
+        Some(expected),
+    )
+    .await
 }
 async fn set_ai_difficulty(
     State(state): State<AppState>,

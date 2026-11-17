@@ -54,6 +54,7 @@ import type { MultiplayerRoom } from "./network/local-preview-room";
 import { createMultiplayerRoom } from "./network/multiplayer-room-factory";
 import {
   clearPendingRoomEntry,
+  clearRoomResumeCookie,
   readPendingRoomEntry,
   readPrivateRoomAccess,
   writePendingRoomEntry,
@@ -505,7 +506,7 @@ export async function startGamePage(
       }),
     );
     activeGame = game;
-    const returnToRoomEntry = (preserveDisplayName?: string) => {
+    const returnToRoomEntry = (preserveDisplayName?: string, preserveRoomProgress = false) => {
       starterSelectionRequestId += 1;
       starterState = null;
       removeFreshSessionListener?.();
@@ -524,7 +525,8 @@ export async function startGamePage(
       privateRoomAccess = undefined;
       writePrivateRoomAccess(undefined);
       resumingStoredRoom = false;
-      restoreOwnerGameState(true);
+      game?.destroy();
+      restoreOwnerGameState(!preserveRoomProgress);
       if (preserveDisplayName) {
         const localPlayer = gameStateStore.getCurrentLocalPlayer();
         gameStateStore.upsertLocalPlayer({
@@ -534,7 +536,6 @@ export async function startGamePage(
       }
       clearRoomEntrySearchParams(currentUrl);
       replaceBrowserUrl(currentUrl);
-      game?.destroy();
       if (activeGame === game) {
         activeGame = null;
       }
@@ -568,14 +569,17 @@ export async function startGamePage(
     leaveRoomForResultAction = leaveAndReturnToRoomEntry;
     const handleFreshSessionRequired = (event: Event) => {
       const detail = (event as CustomEvent<PokeLoungeFreshSessionRequiredDetail>).detail;
+      if (detail?.reason === "room-replaced") clearRoomResumeCookie();
       dispatchPokeLoungeNotice(mount.ownerDocument, {
         message:
           detail?.reason === "room-expired"
             ? getServerRoomErrorMessage(copy.locale, "ROOM_EXPIRED")
-            : copy.roomEntry.freshSession,
+            : detail?.reason === "room-replaced"
+              ? copy.roomEntry.playingElsewhere
+              : copy.roomEntry.freshSession,
         tone: "warning",
       });
-      returnToRoomEntry();
+      returnToRoomEntry(undefined, detail?.reason === "room-replaced");
     };
     window.addEventListener(POKE_LOUNGE_FRESH_SESSION_REQUIRED_EVENT, handleFreshSessionRequired);
     removeFreshSessionListener = function callback() {
@@ -589,6 +593,9 @@ export async function startGamePage(
 
       if (!detail || roomEntry.mode !== "server-room") {
         return;
+      }
+      if (resumingStoredRoom && !detail.recoverable) {
+        clearStoredServerRoomResume(dependencies.accountId, activeRoomRunId ?? undefined);
       }
 
       const shouldReturnPublicDirectory =
@@ -605,7 +612,7 @@ export async function startGamePage(
           tone: "warning",
         });
         const displayName = gameStateStore.getCurrentLocalPlayer().displayName;
-        clearStoredServerRoomResume(dependencies.accountId);
+        clearStoredServerRoomResume(dependencies.accountId, activeRoomRunId ?? undefined);
         returnToRoomEntry(displayName);
         return;
       }
@@ -887,11 +894,30 @@ export async function startGamePage(
     selectedRoomEntry = { mode: "unset", roomCode: null };
     const openCreateRoom = openCreateRoomOnEntry;
     openCreateRoomOnEntry = false;
+    const resume = !localTestModeState.active
+      ? readStoredServerRoomResume(dependencies.accountId)
+      : null;
     emitRuntimeState({
       phase: "entry",
       screen: "room",
       currentUrl: new URL(currentUrl.href),
       openCreateRoom,
+      ...(resume
+        ? {
+            roomResume: {
+              resume,
+              accountId: dependencies.accountId,
+              onResume: () => {
+                if (destroyed || roomEntrySelectionPending) return;
+                resumeStoredRoom(resume);
+              },
+              onDiscard: () => {
+                clearStoredServerRoomResume(dependencies.accountId, resume.runId);
+                showRoomEntry();
+              },
+            },
+          }
+        : {}),
       localTestMode: localTestModeState.available
         ? {
             active: localTestModeState.active,
@@ -964,6 +990,19 @@ export async function startGamePage(
       onSelect: selectRoomEntry,
     });
   };
+  const resumeStoredRoom = (resume: NonNullable<ReturnType<typeof readStoredServerRoomResume>>) => {
+    activateRoomRun(resume.runId);
+    temporaryRoomCode = resume.roomCode;
+    privateRoomAccess = readPrivateRoomAccess(resume.roomCode);
+    resumingStoredRoom = true;
+    selectedRoomEntry = {
+      mode: "server-room",
+      roomCode: resume.roomCode,
+      roomInstanceId: resume.roomInstanceId,
+    };
+    roomEntrySelectionPending = true;
+    startGameAfterStarterSelection(selectedRoomEntry);
+  };
   const continueToSelectedRoomOrEntry = () => {
     const storedLocalTestStartRequested = consumeLocalTestModeStart(currentUrl);
     clearRoomEntrySearchParams(currentUrl);
@@ -1010,18 +1049,12 @@ export async function startGamePage(
           roomEntry.roomCode === storedResume.roomCode &&
           (!roomEntry.roomInstanceId || roomEntry.roomInstanceId === storedResume.roomInstanceId)));
 
-    if (canResumeStoredRoom && storedResume) {
-      activateRoomRun(storedResume.runId);
-      temporaryRoomCode = storedResume.roomCode;
-      privateRoomAccess = readPrivateRoomAccess(storedResume.roomCode);
-      resumingStoredRoom = true;
-      selectedRoomEntry = {
-        mode: "server-room",
-        roomCode: storedResume.roomCode,
-        roomInstanceId: storedResume.roomInstanceId,
-      };
-      roomEntrySelectionPending = true;
-      startGameAfterStarterSelection(selectedRoomEntry);
+    if (canResumeStoredRoom && storedResume && !storedResume.requiresConfirmation) {
+      resumeStoredRoom(storedResume);
+      return;
+    }
+    if (canResumeStoredRoom) {
+      showRoomEntry();
       return;
     }
 

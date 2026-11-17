@@ -151,6 +151,11 @@ pub struct CreateRoom {
     pub visibility: RoomVisibility,
     #[serde(default)]
     pub starter_mode: StarterMode,
+    #[serde(default = "default_ai_fill_enabled")]
+    pub ai_fill_enabled: bool,
+}
+fn default_ai_fill_enabled() -> bool {
+    true
 }
 impl CreateRoom {
     pub fn normalize(mut self) -> AppResult<Self> {
@@ -185,6 +190,9 @@ pub enum GameCommand {
     },
     Start,
     AddAi,
+    SetAiFill {
+        enabled: bool,
+    },
     SetAiDifficulty {
         player_id: String,
         difficulty: AiDifficulty,
@@ -213,6 +221,7 @@ impl GameCommand {
             Self::RoundReady { .. } => "round-ready",
             Self::Start => "start",
             Self::AddAi => "add-ai",
+            Self::SetAiFill { .. } => "set-ai-fill",
             Self::SetAiDifficulty { .. } => "set-ai-difficulty",
             Self::RemoveAi { .. } => "remove-ai",
             Self::Party { .. } => "party",
@@ -449,6 +458,8 @@ pub struct Room {
     pub public: bool,
     #[serde(default)]
     pub starter_mode: StarterMode,
+    #[serde(default = "default_ai_fill_enabled")]
+    pub ai_fill_enabled: bool,
     pub revision: u64,
     pub accepted_commands: u64,
     pub created_at_ms: u64,
@@ -486,6 +497,7 @@ impl Room {
             }),
             public,
             starter_mode: input.starter_mode,
+            ai_fill_enabled: input.ai_fill_enabled,
             revision: 0,
             accepted_commands: 1,
             created_at_ms: now,
@@ -774,9 +786,15 @@ impl Room {
                         "All participants must connect and become ready",
                     ));
                 }
-                let target = if self.participants.len() < 4 { 4 } else { 8 };
-                while self.participants.len() < target {
-                    self.add_ai(now, compute).await?;
+                if self.ai_fill_enabled {
+                    let target = if self.participants.len() < 4 { 4 } else { 8 };
+                    while self.participants.len() < target {
+                        self.add_ai(now, compute).await?;
+                    }
+                } else if self.participants.iter().filter(|p| !p.ai).count() < 2 {
+                    return Err(AppError::Invalid(
+                        "At least two humans are required without AI fill",
+                    ));
                 }
                 self.status = Status::RoundStarted;
                 self.round.phase = ROUND_PHASE_STARTED.into();
@@ -791,7 +809,26 @@ impl Room {
                 if self.status != Status::Waiting || self.host() != Some(player) {
                     return Err(AppError::Forbidden);
                 }
+                if !self.ai_fill_enabled {
+                    return Err(AppError::Invalid("AI fill is disabled"));
+                }
                 self.add_ai(now, compute).await?;
+            }
+            GameCommand::SetAiFill { enabled } => {
+                if self.status != Status::Waiting || self.host() != Some(player) {
+                    return Err(AppError::Forbidden);
+                }
+                if self.ai_fill_enabled != enabled {
+                    self.ai_fill_enabled = enabled;
+                    if !enabled {
+                        for p in self.participants.iter().filter(|p| p.ai) {
+                            self.parties.remove(&p.player_id);
+                            self.adventures.remove(&p.player_id);
+                        }
+                        self.participants.retain(|p| !p.ai);
+                    }
+                    self.touch(now);
+                }
             }
             GameCommand::SetAiDifficulty {
                 player_id,
@@ -1909,7 +1946,7 @@ impl Room {
             let members=p.competitive_party["members"].as_array()?;let active=members.iter().find(|m|m["slotIndex"]==p.competitive_party["activeSlotIndex"])?;
             Some((id.clone(),json!({"playerId":id,"displayName":self.participants.iter().find(|p|&p.player_id==id).map(|p|p.display_name.as_str()).unwrap_or(id),"representativePokemon":{"speciesId":active["speciesId"],"level":active["level"],"currentHp":active["currentHp"],"maxHp":active["maxHp"]},"partySize":members.len(),"updatedAtMs":p.updated_at_ms})))
         }).collect::<BTreeMap<_,_>>();
-        let mut result = json!({"roomCode":self.room_code,"roomInstanceId":self.room_instance_id,"backend":"rust","starterMode":self.starter_mode,"visibility":if self.public{"public"}else{"private"},"status":self.status,"createdAtMs":self.created_at_ms,"updatedAtMs":self.updated_at_ms,"revision":self.revision,"expiresAtMs":if self.terminal(){self.retention_deadline()}else{self.active_deadline()},"hostPlayerId":self.host(),"participants":self.participants.iter().map(Participant::public).collect::<Vec<_>>(),"partySnapshots":parties,"round":self.round,"tournament":{"version":2,"bracket":self.bracket,"activeMatchId":ready.first().map(|m|m.match_id.as_str()),"activeMatchAuthority":if !ready.is_empty(){Some("server")}else{None},"cumulativeScores":self.cumulative_scores},"finalStandings":self.final_standings,"competitiveAssignments":assignments,"competitiveTransitions":terminal.iter().map(|m|json!({"terminalEventId":m.terminal_event_id,"terminalRoomRevision":m.terminal_room_revision,"projection":m.projection()})).collect::<Vec<_>>()});
+        let mut result = json!({"roomCode":self.room_code,"roomInstanceId":self.room_instance_id,"backend":"rust","starterMode":self.starter_mode,"aiFillEnabled":self.ai_fill_enabled,"visibility":if self.public{"public"}else{"private"},"status":self.status,"createdAtMs":self.created_at_ms,"updatedAtMs":self.updated_at_ms,"revision":self.revision,"expiresAtMs":if self.terminal(){self.retention_deadline()}else{self.active_deadline()},"hostPlayerId":self.host(),"participants":self.participants.iter().map(Participant::public).collect::<Vec<_>>(),"partySnapshots":parties,"round":self.round,"tournament":{"version":2,"bracket":self.bracket,"activeMatchId":ready.first().map(|m|m.match_id.as_str()),"activeMatchAuthority":if !ready.is_empty(){Some("server")}else{None},"cumulativeScores":self.cumulative_scores},"finalStandings":self.final_standings,"competitiveAssignments":assignments,"competitiveTransitions":terminal.iter().map(|m|json!({"terminalEventId":m.terminal_event_id,"terminalRoomRevision":m.terminal_room_revision,"projection":m.projection()})).collect::<Vec<_>>()});
         if let Some(projection) = assignments.first() {
             result["competitive"] = projection.clone();
         }

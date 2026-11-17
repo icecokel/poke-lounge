@@ -217,6 +217,9 @@ async fn connection(
                     )
                     .await
                     {
+                        if matches!(error, AppError::Forbidden) {
+                            let _ = send(&mut socket, "room.connection-replaced", json!({})).await;
+                        }
                         tracing::warn!(event="socket.disconnected_error",connection_id=%id,room_instance_id=%room_id,player_id=%subscription.player_id,stage,code=error.code(),error=%error,duration_ms=connected_at.elapsed().as_millis() as u64);
                     }
                 }
@@ -285,6 +288,7 @@ async fn serve(
                 if seen.elapsed()>Duration::from_secs(25){*stage="idle_timeout";return Err(AppError::Timeout);}
                 *stage="heartbeat";
                 heartbeat(handle,connection).await?;
+                send(socket,"room.heartbeat",json!({})).await?;
                 *stage="ping";
                 send_message(socket,Message::Ping(Vec::new().into())).await?;
             }
@@ -337,8 +341,9 @@ async fn serve(
             }
             received=events.recv()=>match received {
                 Ok(event)=>{
+                    if event.connection.is_some_and(|target|target!=connection){continue;}
                     *stage="forward_event";
-                    let terminal=event.name=="room.expired"||event.name=="server.draining";
+                    let terminal=event.name=="room.expired"||event.name=="server.draining"||event.name=="room.connection-replaced";
                     send_message(socket,Message::Text(event.text.clone())).await?;if terminal{return Ok(());}
                 }
                 Err(broadcast::error::RecvError::Lagged(skipped))=>{

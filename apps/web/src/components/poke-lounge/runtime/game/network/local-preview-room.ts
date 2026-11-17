@@ -136,6 +136,7 @@ export interface MultiplayerRoom {
   startChampionship(): Promise<void>;
   addAiParticipant(): Promise<void>;
   setAiDifficulty(aiPlayerId: string, difficulty: AiDifficulty): Promise<void>;
+  setAiFillEnabled?(enabled: boolean): Promise<void>;
   removeAiParticipant(aiPlayerId: string): Promise<void>;
   leave?(): Promise<void>;
   dispose(): void;
