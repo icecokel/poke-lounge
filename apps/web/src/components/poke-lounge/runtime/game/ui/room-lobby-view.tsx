@@ -66,6 +66,7 @@ export function RoomLobbyScreen({
   const titleId = useId();
   const infoId = useId();
   const statusId = useId();
+  const aiFillHintId = useId();
   const [showInfo, setShowInfo] = useState(false);
   const { mutation, failed, runMutation } = useRoomLobbyCommands();
   const errorMessage = failed ? copy.mutationFailed : "";
@@ -75,6 +76,7 @@ export function RoomLobbyScreen({
   const participants = state.projection.participants.filter(p => p.role === "participant");
   const readyCount = participants.filter(p => p.connected && p.ready).length;
   const own = participants.find(p => p.playerId === state.projection.ownPlayerId);
+  const aiFillEnabled = state.projection.aiFillEnabled !== false;
   const seconds = Math.max(0, Math.floor(state.projection.roomRound.durationMs / 1000));
   const duration = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
@@ -96,13 +98,15 @@ export function RoomLobbyScreen({
       ? text.spectatorHint
       : !own.connected
         ? copy.startDisabledReason.connection
-        : !own.ready
-          ? text.ownNotReady
-          : view.isHost
-            ? view.startDisabledReason
-              ? copy.startDisabledReason[view.startDisabledReason]
-              : copy.hostReady
-            : copy.guestWaiting;
+        : view.startDisabledReason === "humans"
+          ? text.humansRequired
+          : !own.ready
+            ? text.ownNotReady
+            : view.isHost
+              ? view.startDisabledReason
+                ? copy.startDisabledReason[view.startDisabledReason]
+                : copy.hostReady
+              : copy.guestWaiting;
   const shareText = roomShareLabel === fullCopy.settingsShare ? text.invite : roomShareLabel;
   const closeInfo = () => {
     setShowInfo(false);
@@ -282,7 +286,7 @@ export function RoomLobbyScreen({
                   }
                 />
               ))}
-              {view.isHost && view.participantCount < 8 ? (
+              {view.isHost && aiFillEnabled && view.participantCount < 8 ? (
                 <li>
                   <button
                     type="button"
@@ -309,10 +313,33 @@ export function RoomLobbyScreen({
                 <li className="p-6 text-center text-[#617154]">{text.empty}</li>
               ) : null}
             </ul>
-            <p className="flex items-center gap-1.5 py-1.5 text-[0.6875rem] text-[#5a6b50]">
-              <Bot size={16} aria-hidden="true" />
-              {text.autoFill}
-            </p>
+            <div className="text-[0.6875rem] text-[#5a6b50]" data-room-lobby-ai-fill>
+              {state.onChangeAiFillEnabled && view.isHost ? (
+                <label className="flex min-h-12 cursor-pointer items-center gap-2 font-bold">
+                  <input
+                    type="checkbox"
+                    name="ai-fill"
+                    checked={aiFillEnabled}
+                    disabled={mutation !== null || !own?.connected}
+                    aria-describedby={aiFillHintId}
+                    className="size-[1.25em] accent-[#355c3f] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    onChange={event => {
+                      const enabled = event.currentTarget.checked;
+                      void runMutation("ai-fill", () => state.onChangeAiFillEnabled!(enabled));
+                    }}
+                  />
+                  {aiFillEnabled ? text.aiFillOn : text.aiFillOff}
+                </label>
+              ) : (
+                <p className="flex items-center gap-1.5 py-1.5">
+                  <Bot size={16} aria-hidden="true" />
+                  {aiFillEnabled ? text.aiFillOn : text.aiFillOff}
+                </p>
+              )}
+              <p id={aiFillHintId} className="pb-1.5">
+                {text.aiFillHint}
+              </p>
+            </div>
           </section>
         </div>
         <footer

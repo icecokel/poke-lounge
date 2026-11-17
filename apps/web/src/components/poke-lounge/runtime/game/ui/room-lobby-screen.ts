@@ -1,7 +1,8 @@
 import type { AiDifficulty } from "@poke-lounge/battle/ai-difficulty";
 import type { TournamentStateRoomPayload } from "../network/tournament-projection";
 
-export type RoomLobbyMutation = "ready" | "start" | "ai-add" | "ai-difficulty" | "ai-remove" | null;
+export type RoomLobbyMutation =
+  "ready" | "start" | "ai-add" | "ai-difficulty" | "ai-remove" | "ai-fill" | null;
 
 export interface RoomLobbyViewState {
   participantCount: number;
@@ -9,7 +10,7 @@ export interface RoomLobbyViewState {
   ownPartyReady: boolean;
   isHost: boolean;
   readyDisabled: boolean;
-  startDisabledReason: "connection" | "ready" | "mutation" | null;
+  startDisabledReason: "connection" | "ready" | "mutation" | "humans" | null;
 }
 
 export interface RoomLobbyRuntimeState {
@@ -18,6 +19,7 @@ export interface RoomLobbyRuntimeState {
   onSetReady(ready: boolean): Promise<void>;
   onStart(): Promise<void>;
   onAddAi(): Promise<void>;
+  onChangeAiFillEnabled?(enabled: boolean): Promise<void>;
   onChangeAiDifficulty(aiPlayerId: string, difficulty: AiDifficulty): Promise<void>;
   onRemoveAi(aiPlayerId: string): Promise<void>;
 }
@@ -35,15 +37,18 @@ export function createRoomLobbyViewState(
   const startDisabledReason =
     mutation !== null
       ? "mutation"
-      : participants.some(function testItem(participant) {
-            return !participant.connected;
-          })
-        ? "connection"
+      : projection.aiFillEnabled === false &&
+          participants.filter(p => p.controller !== "ai" && p.connected).length < 2
+        ? "humans"
         : participants.some(function testItem(participant) {
-              return !participant.ready;
+              return !participant.connected;
             })
-          ? "ready"
-          : null;
+          ? "connection"
+          : participants.some(function testItem(participant) {
+                return !participant.ready;
+              })
+            ? "ready"
+            : null;
 
   return {
     participantCount: participants.length,

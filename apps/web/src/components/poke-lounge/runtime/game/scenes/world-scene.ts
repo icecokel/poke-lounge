@@ -1151,6 +1151,7 @@ export class WorldController {
       onSetReady: ready => this.room.setLobbyReady(ready),
       onStart: () => this.room.startChampionship(),
       onAddAi: () => this.room.addAiParticipant(),
+      onChangeAiFillEnabled: this.room.setAiFillEnabled?.bind(this.room),
       onChangeAiDifficulty: (aiPlayerId, difficulty) =>
         this.room.setAiDifficulty(aiPlayerId, difficulty),
       onRemoveAi: aiPlayerId => this.room.removeAiParticipant(aiPlayerId),

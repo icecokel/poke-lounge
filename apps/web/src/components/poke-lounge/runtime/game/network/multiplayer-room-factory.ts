@@ -38,6 +38,7 @@ export function createMultiplayerRoom(options: MultiplayerRoomFactoryOptions): M
       visibility: roomEntry.visibility,
       roundDurationMs: roomEntry.roundDurationMs,
       starterMode: roomEntry.starterMode,
+      aiFillEnabled: roomEntry.aiFillEnabled,
       idToken: options.idToken,
       getIdToken: options.getIdToken,
       resumeRoom: options.resumeRoom,

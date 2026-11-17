@@ -14,6 +14,7 @@ export const RUST_ROOM_SNAPSHOT_KEYS = [
   "roomInstanceId",
   "backend",
   "starterMode",
+  "aiFillEnabled",
   "visibility",
   "status",
   "createdAtMs",
@@ -186,6 +187,7 @@ export interface RustRoomSnapshot {
   roomInstanceId: string;
   backend: "rust";
   starterMode: StarterMode;
+  aiFillEnabled: boolean;
   visibility: "public" | "private";
   status: (typeof RUST_ROOM_STATUSES)[number];
   createdAtMs: number;
