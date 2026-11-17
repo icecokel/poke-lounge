@@ -97,6 +97,7 @@ export function TrainerNameEntry({
           width={256}
           height={256}
           priority
+          fetchPriority="high"
           unoptimized
           className={styles.guide}
         />
