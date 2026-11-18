@@ -175,6 +175,7 @@ export interface PokeLoungeServerRoomErrorDetail {
   code:
     | "ROOM_CREATE_FAILED"
     | "ROOM_CODE_IN_USE"
+    | "ROOM_CREATE_LIMIT"
     | "ROOM_JOIN_FAILED"
     | "ROOM_PARTY_SYNC_FAILED"
     | "ROOM_READY_FAILED"
@@ -3249,7 +3250,7 @@ function isRecoverableInitialWorkflowError(error: unknown): boolean {
   ) {
     return false;
   }
-  if (isRoomFullRequestError(error)) {
+  if (isRoomFullRequestError(error) || isRoomCreateLimitRequestError(error)) {
     return false;
   }
 
@@ -3286,6 +3287,28 @@ function createInitialWorkflowErrorDetail(
       code: "ROOM_CODE_IN_USE",
       message: getServerRoomErrorMessage("ko-KR", "ROOM_CODE_IN_USE"),
       recoverable: false,
+    };
+  }
+
+  if (stage === "open" && creatingRoom && isRoomCreateLimitRequestError(error)) {
+    return {
+      code: "ROOM_CREATE_LIMIT",
+      message: getServerRoomErrorMessage("ko-KR", "ROOM_CREATE_LIMIT"),
+      recoverable: false,
+    };
+  }
+
+  // Any other 429 is server load, not a connection problem; the automatic retry keeps running.
+  if (
+    stage === "open" &&
+    creatingRoom &&
+    error instanceof ServerRoomRequestError &&
+    error.status === 429
+  ) {
+    return {
+      code: "ROOM_SERVER_BUSY",
+      message: getServerRoomErrorMessage("ko-KR", "ROOM_SERVER_BUSY"),
+      recoverable,
     };
   }
 
@@ -3369,6 +3392,14 @@ function getRoomJoinFailureCode(error: unknown): PokeLoungeServerRoomErrorDetail
     default:
       return error.status >= 500 ? "ROOM_SERVER_UNAVAILABLE" : null;
   }
+}
+
+function isRoomCreateLimitRequestError(error: unknown): boolean {
+  return (
+    error instanceof ServerRoomRequestError &&
+    error.status === 429 &&
+    error.serverCode === "POKE_LOUNGE_ROOM_CREATE_LIMIT"
+  );
 }
 
 function isRoomFullRequestError(error: unknown): boolean {
