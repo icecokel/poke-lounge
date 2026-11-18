@@ -7,7 +7,7 @@ import type {
   LeaguePublicMember,
   LeagueSeed,
 } from "@poke-lounge/battle/league/contract";
-import type { AttemptSummary, MeView, StatusView } from "../contract";
+import type { AttemptSummary, MeView, SeasonView, StatusView } from "../contract";
 import { leagueRequest } from "./core";
 
 export type StandingEntry = LeagueOpponentMeta & {
@@ -16,6 +16,7 @@ export type StandingEntry = LeagueOpponentMeta & {
 };
 export interface StandingsView {
   seasonId: number | null;
+  season: SeasonView | null;
   rev: number;
   entries: StandingEntry[];
 }

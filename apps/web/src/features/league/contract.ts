@@ -19,10 +19,12 @@ export interface LeagueRuntime {
 export type SeasonPhase = "scheduled" | "open" | "closing" | "settled";
 export interface SeasonView {
   id: number;
+  displayName: Record<LeagueLocale, string>;
+  openEnded: boolean;
   phase: SeasonPhase;
   startsAtMs: number;
-  closesAtMs: number;
-  settleDeadlineMs: number;
+  closesAtMs: number | null;
+  settleDeadlineMs: number | null;
   starterSpeciesIds: number[];
   starterLevel: number;
 }
@@ -61,6 +63,7 @@ export interface AttemptSummary {
 }
 export interface MeView {
   user: { displayName: string; nickname?: string | null; nicknameChangeableAtMs?: number | null }; // F2 병합 전에는 nickname 없음
+  season: SeasonView | null;
   run: RunView | null;
   attempt: AttemptSummary | null;
   best: { score: number; bestRank: number | null; recordedAtMs: number } | null;

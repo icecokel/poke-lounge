@@ -7,9 +7,20 @@ const messages = {
   title: ["리그", "League", "リーグ"],
   loading: ["불러오는 중…", "Loading…", "読み込み中…"],
   demo: [
-    "리그 모드는 데모 버전입니다. 진행 상황과 기록이 예고 없이 초기화될 수 있어요.",
-    "League mode is a demo. Progress and records may be reset without notice.",
-    "リーグモードはデモ版です。進行状況と記録は予告なく初期化されることがあります。",
+    "프리리그 · 마감 없음. 정식 시즌이 시작되면 기록이 초기화됩니다",
+    "Pre-league · No deadline. Records will be reset when the official season begins.",
+    "プレリーグ · 締切なし。正式シーズンが始まると記録はリセットされます。",
+  ],
+  noDeadline: ["마감 없음", "No deadline", "締切なし"],
+  preLeagueReset: [
+    "정식 시즌이 시작되면 기록이 초기화됩니다",
+    "Records will be reset when the official season begins.",
+    "正式シーズンが始まると記録はリセットされます。",
+  ],
+  preLeagueNoSettlement: [
+    "프리리그는 정산하지 않아 명예의 전당과 최종 순위를 남기지 않습니다",
+    "The pre-league is not settled, so it has no hall of fame or final ranks.",
+    "プレリーグは集計を行わないため、殿堂入りと最終順位は記録されません。",
   ],
   demoClose: ["안내 닫기", "Dismiss notice", "お知らせを閉じる"],
   closed: ["리그가 열려 있지 않습니다", "The league is not open.", "リーグは開催されていません。"],

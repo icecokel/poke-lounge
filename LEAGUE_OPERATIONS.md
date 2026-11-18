@@ -41,6 +41,12 @@ docker stop poke-lounge-prod-league-judge-1
 
 ## 2. 시즌 일정
 
+현재 운영 시즌 1(시작 `2026-11-02T00:00:00+09:00`)은 **프리리그 · 마감 없음**이다. `1795651200000-open-ended-pre-league` 마이그레이션은 `open_ended boolean NOT NULL DEFAULT false`를 추가하고, 이미 존재하는 `id=1 AND settled_at IS NULL` 행의 `open_ended`만 `true`로 바꾼다. 다른 행·표의 게임 데이터와 기존 `closes_at=2026-11-29T18:00:00+09:00`·`settle_deadline=2026-11-30T00:00:00+09:00`는 보존한다. 배포 migrate 단계에서 한 번 적용하며 수동 운영 SQL은 필요 없다.
+
+`open_ended=true`이면 보존된 마감·대기 기한을 사용하지 않는다. 시즌 틱은 다음 계획 확인·마감 경고·정산·다음 시즌 생성을 건너뛰고, 성장 시작·발급·배지·리그 입장·진행 중 도전 제출·포기·갱신은 마감 때문에 막히거나 만료되지 않는다. 기존 엔진 변경에 따른 도전 무효화 규칙은 그대로다. API `status`·`me`·`standings`의 `season`에는 `openEnded`와 한·영·일 `displayName`이 있으며, 프리리그의 `closesAtMs`·`settleDeadlineMs`는 `null`이다. 프리리그에는 최종 순위와 명예의 전당을 확정하지 않는다.
+
+새 DB 부트스트랩·다음 시즌 생성은 `open_ended=false`가 기본이다. 마이그레이션을 적용한 뒤 빈 시즌 표에서 새로 생성하는 시즌 1도 정식 시즌이다. 테스트 모드와 `LEAGUE_DEV_SEASON_MINUTES`의 짧은 시즌도 기존 마감을 유지한다. 아래 일정은 **정식 시즌에만** 적용한다. 마이그레이션 `down()`은 열만 제거하므로 이전 서버로 되돌리면 보존된 마감이 다시 유효해진다. 프리리그 롤백은 리그를 끈 상태에서 검토한다.
+
 | 시점              | KST 일정                                                     |
 | ----------------- | ------------------------------------------------------------ |
 | 첫 시작           | 지정한 월요일 00:00                                          |
@@ -378,7 +384,7 @@ WHERE r.season_id = :season;
 
 ## 11. 데모 기록 초기화
 
-데모로 연 리그를 정식 시즌 전에 처음 상태로 되돌린다. 시즌·성장·발급·배지전·도전·경기·기록·명예의 전당을 모두 지우고 시즌 1부터 다시 만든다. 닉네임(`poke_lounge_league_profile`), 다음 시즌 스타터 계획(`poke_lounge_league_season_plan`), 감사 표, 계정·세션은 남긴다. 기존 멀티플레이 표·Redis는 건드리지 않는다.
+데모·프리리그로 연 리그를 정식 시즌 전에 처음 상태로 되돌린다. 시즌·성장·발급·배지전·도전·경기·기록·명예의 전당을 모두 지우고 시즌 1부터 다시 만든다. 닉네임(`poke_lounge_league_profile`), 다음 시즌 스타터 계획(`poke_lounge_league_season_plan`), 감사 표, 계정·세션은 남긴다. 기존 멀티플레이 표·Redis는 건드리지 않는다.
 
 1. GitHub Variable `LEAGUE_ENABLED`를 비우고 main 배포를 다시 실행한다. [1장 끄기](#1-활성화비활성화)대로 판정 컨테이너도 중지한다. `/league/v1/status`가 404인지 확인한다. 리그가 켜진 채로 지우면 시즌 갱신이 동시에 돌 수 있다.
 2. 운영 DB에서 아래를 실행한다. 지우기 전 건수를 감사 표에 남긴다.
@@ -412,7 +418,7 @@ SELECT season_id, starter_species_ids FROM poke_lounge_league_season_plan ORDER 
 4. `LEAGUE_SEASON1_STARTS_AT`을 정식 시작 시각(월요일 00:00 KST)으로, 필요하면 `LEAGUE_SEASON1_STARTERS`도 바꾼다. `LEAGUE_ENABLED=true`로 되돌리고 main 배포를 다시 실행한다. 리그가 켜지면 서버가 비어 있는 시즌 표에 시즌 1을 새로 만든다.
 5. `/league/v1/status`의 `season.id`가 1이고 시작 시각·스타터가 새 값인지 확인한다. 브라우저로 리그에 들어가 스타터 선택부터 새로 시작되는지 확인한다. 데모 때 브라우저에 남은 리그 세이브는 서버에 없는 진행이므로 이어지지 않는다.
 
-데모 종료 공지 토스트(`apps/web/src/features/league/shell/league-demo-toast.tsx`)는 정식 시즌을 열 때 별도 PR로 제거한다.
+프리리그 안내 토스트(`apps/web/src/features/league/shell/league-demo-toast.tsx`)는 `season.openEnded=true`일 때만 표시되므로 정식 시즌에서는 표시되지 않는다.
 
 ## 12. 운영 테스트 계정
 
@@ -440,3 +446,13 @@ openssl rand -hex 32 | tr -d '\n' | tee output/league-agent-token.secret | gh se
 DELETE FROM poke_lounge_auth_session
 WHERE user_id BETWEEN 'a9e70000-0000-4000-8000-000000000000' AND 'a9e70000-0000-4000-8000-0000000000ff';
 ```
+
+## 13. 프리리그 종료와 정식 시즌 시작
+
+이 절은 나중에 정식 시즌을 여는 운영 절차이며, 프리리그 전환 배포에서 실행하지 않는다. 프리리그는 **정산 없이 종료하고 초기화**한다. `open_ended`만 해제하면 지난 마감이 즉시 유효해져 정산·자동 다음 시즌 생성이 시작될 수 있으므로, 실행 중인 리그에서 해제하지 않는다.
+
+1. 정식 시작 시각(월요일 00:00 KST)과 스타터를 확정하고 기록 초기화를 안내한다. 진행 중 성장·배지전·리그 도전도 초기화 대상이므로 플레이를 마칠 시간을 둔다. 일반 멀티플레이 방은 대상이 아니다.
+2. [11장](#11-데모-기록-초기화) 1단계대로 리그를 끄고 판정 서비스를 중지한다. 리그가 꺼졌는지 확인한 뒤 진행한다. 이 시점에 프리리그를 정산 없이 종료하며 `settled_at`이나 `open_ended`를 수동 갱신하지 않는다.
+3. [11장](#11-데모-기록-초기화) 2~3단계의 감사 기록·초기화 트랜잭션을 실행하고 시즌 표 0건을 확인한다. 닉네임·계정·세션·감사·스타터 계획은 남고, 성장·배지·도전·순위·명예의 전당은 지워진다. [12장](#12-운영-테스트-계정)의 계정도 같은 초기화 대상이며 필요하면 해당 절차로 로그인 토큰을 교체한다.
+4. [11장](#11-데모-기록-초기화) 4단계대로 `LEAGUE_SEASON1_STARTS_AT`·스타터를 정식 값으로 지정하고 리그를 다시 켜 배포한다. 기존 프리리그 마이그레이션을 재실행하거나 되돌리지 않는다. 빈 표에서 새 시즌 1을 만들므로 `open_ended=false`가 된다.
+5. `status`·`me`·`standings`의 `season`에서 `openEnded=false`, 새 시작 시각, 유한한 `closesAtMs`·`settleDeadlineMs`를 확인한다. 브라우저에서 프리리그·초기화 안내가 사라지고 시즌 이름·마감 카운트다운이 표시되는지, 스타터부터 새로 시작하는지 확인한다. 명예의 전당과 최종 순위는 새 정식 시즌 정산 후 생성된다.

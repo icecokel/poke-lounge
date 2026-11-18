@@ -233,7 +233,7 @@ export function RecordsScreen({
           ) : (
             <>
               <h3 className="font-bold">
-                {copy.season} {standings.seasonId}
+                {standings.season?.displayName[locale] ?? `${copy.season} ${standings.seasonId}`}
               </h3>
               {standings.entries.map(entry => (
                 <PartyCard
@@ -252,6 +252,9 @@ export function RecordsScreen({
           )
         ) : (
           <>
+            {status.season?.openEnded && (
+              <p className={styles.meta}>{text.preLeagueNoSettlement}</p>
+            )}
             {pending && <p role="status">{text.loading}</p>}
             {error != null && (
               <div className="grid gap-2" role="alert">
@@ -309,11 +312,17 @@ export function RecordsScreen({
                     {seasons.map(season => (
                       <tr key={season.seasonId} className="border-t">
                         <th scope="row" className="p-2">
-                          {season.seasonId}
+                          {season.seasonId === status.season?.id
+                            ? status.season.displayName[locale]
+                            : season.seasonId}
                         </th>
                         <td className="p-2">{season.bestScore}</td>
                         <td className="p-2">{season.bestRank ?? copy.outside}</td>
-                        <td className="p-2">{season.finalRank ?? copy.unsettled}</td>
+                        <td className="p-2">
+                          {season.seasonId === status.season?.id && status.season.openEnded
+                            ? "—"
+                            : (season.finalRank ?? copy.unsettled)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

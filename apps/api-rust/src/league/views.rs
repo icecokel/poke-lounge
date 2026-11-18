@@ -22,21 +22,30 @@ pub fn hash(value: &Value, len: usize) -> bool {
     })
 }
 pub fn season(s: &Value) -> Result<Value> {
+    let id = integer(&s["id"])?;
+    let open_ended = s["open_ended"].as_bool().ok_or_else(LeagueError::corrupt)?;
     let now = integer(&s["now_ms"])?;
     let starts = integer(&s["starts_ms"])?;
-    let closes = integer(&s["closes_ms"])?;
     let phase = if !s["settled_at"].is_null() {
         "settled"
     } else if now < starts {
         "scheduled"
-    } else if now < closes {
+    } else if open_ended || now < integer(&s["closes_ms"])? {
         "open"
     } else {
         "closing"
     };
+    let display_name = if open_ended {
+        json!({"ko-KR":"프리리그","en-US":"Pre-league","ja-JP":"プレリーグ"})
+    } else {
+        json!({"ko-KR":format!("시즌 {id}"),"en-US":format!("Season {id}"),"ja-JP":format!("シーズン {id}")})
+    };
     Ok(
-        json!({"id":s["id"],"phase":phase,"startsAtMs":starts,"closesAtMs":closes,"settleDeadlineMs":s["deadline_ms"],"starterSpeciesIds":s["starter_species_ids"],"starterLevel":s["starter_level"]}),
+        json!({"id":id,"displayName":display_name,"openEnded":open_ended,"phase":phase,"startsAtMs":starts,"closesAtMs":s["closes_ms"],"settleDeadlineMs":s["deadline_ms"],"starterSpeciesIds":s["starter_species_ids"],"starterLevel":s["starter_level"]}),
     )
+}
+pub fn deadline_passed(s: &Value) -> Result<bool> {
+    Ok(s["open_ended"] != true && integer(&s["now_ms"])? > integer(&s["deadline_ms"])?)
 }
 pub fn run(r: &Value) -> Value {
     json!({"id":r["id"],"status":r["status"],"starterSpeciesId":r["starter_species_id"],"badges":r["badges"],"createdAtMs":r["created_ms"]})
