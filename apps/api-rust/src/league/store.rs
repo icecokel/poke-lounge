@@ -123,6 +123,9 @@ impl League {
                 .map(str::to_owned)
         });
         let mut status = json!({"enabled":true,"contractVersion":1,"engineVersion":engine,"rulesVersion":self.config.rules_version,"nowMs":now(client).await?,"season":season.as_ref().map(views::season).transpose()?});
+        status["guestAllowed"] = Value::Bool(
+            status["season"]["openEnded"] == true && status["season"]["phase"] == "open",
+        );
         if let Some(test) = &self.config.test {
             status["test"] = test.view();
         }
@@ -175,7 +178,14 @@ impl League {
             .await?;
         let profile = super::growth::profile::get_with_client(&tx, user).await?;
         let name = profile["nickname"].as_str().unwrap_or(name);
-        let user_view = json!({"displayName":name,"nickname":profile["nickname"],"nicknameChangeableAtMs":profile["changeableAtMs"]});
+        let is_guest: bool = tx
+            .query_one(
+                "SELECT is_guest FROM poke_lounge_user WHERE id=$1",
+                &[&user],
+            )
+            .await?
+            .try_get(0)?;
+        let user_view = json!({"displayName":name,"isGuest":is_guest,"nickname":profile["nickname"],"nicknameChangeableAtMs":profile["changeableAtMs"]});
         let Some(s) = one(
             &tx,
             &format!("{SEASON} ORDER BY (settled_at IS NULL) DESC,id DESC LIMIT 1"),

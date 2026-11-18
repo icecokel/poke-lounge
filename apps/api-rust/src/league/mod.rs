@@ -3,6 +3,7 @@ pub mod config;
 pub mod db;
 pub mod error;
 pub mod growth;
+mod guest;
 pub mod judge;
 pub mod limiter;
 mod routes;

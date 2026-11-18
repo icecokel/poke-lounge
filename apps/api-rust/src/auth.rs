@@ -273,7 +273,7 @@ async fn complete_discord_login(
 pub async fn current_user(
     state: &AppState,
     headers: &HeaderMap,
-) -> AppResult<Option<(uuid::Uuid, String)>> {
+) -> AppResult<Option<(uuid::Uuid, String, bool)>> {
     match session_token(headers) {
         Some(token) => state.data.session_user(&hash_bytes(token.as_bytes())).await,
         None => Ok(None),
@@ -295,9 +295,17 @@ pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> AppResult<
     } else {
         &[]
     };
+    let guest_allowed = match &state.league {
+        Some(league) => league
+            .guest_allowed()
+            .await
+            .map_err(|_| AppError::Unavailable)?,
+        None => false,
+    };
     Ok(success(json!({
+        "guestAllowed": guest_allowed,
         "providers": providers,
-        "user": user.map(|(id, name)| json!({"id": id, "displayName": name})),
+        "user": user.map(|(id, name, is_guest)| json!({"id": id, "displayName": name, "isGuest": is_guest})),
     })))
 }
 
@@ -313,7 +321,7 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Respon
     let mut response = success(Value::Null).into_response();
     set_cookie(
         &mut response,
-        &cookie(SESSION_COOKIE, "", "/", 0, state.auth.secure_cookie()),
+        &cookie(SESSION_COOKIE, "", "/", 0, secure_session_cookie(&state)),
     );
     response
 }
@@ -329,9 +337,16 @@ pub(crate) fn set_session_cookie(state: &AppState, response: &mut Response, sess
             session,
             "/",
             SESSION_MAX_AGE_S,
-            state.auth.secure_cookie(),
+            secure_session_cookie(state),
         ),
     );
+}
+fn secure_session_cookie(state: &AppState) -> bool {
+    state.auth.secure_cookie()
+        || state
+            .origins
+            .iter()
+            .all(|origin| origin.as_bytes().starts_with(b"https://"))
 }
 fn session_token(headers: &HeaderMap) -> Option<&str> {
     read_cookie(headers, SESSION_COOKIE)

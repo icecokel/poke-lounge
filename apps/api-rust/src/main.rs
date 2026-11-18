@@ -195,6 +195,7 @@ async fn run(stage: &mut &'static str) -> AppResult<()> {
         compute,
         data,
         auth,
+        league: league.clone(),
         sockets: Arc::new(Semaphore::new(128)),
         pending_sockets: Arc::new(Semaphore::new(socket::PENDING_SOCKET_CAPACITY)),
         pending_by_ip: Arc::new(std::sync::Mutex::new(HashMap::new())),
