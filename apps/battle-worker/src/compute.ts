@@ -217,6 +217,7 @@ async function calculate(input: ComputeRequest): Promise<unknown> {
     case "initialize": {
       const players = op.players.map(p => ({
         playerId: p.playerId,
+        seed: p.seed,
         party: restoreCompetitiveParty(
           normalizeCompetitiveParty(partySchema.parse(p.party), { requireBattleReady: false }),
         ),

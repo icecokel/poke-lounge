@@ -73,6 +73,7 @@ export interface ChooseBattleCommandOptions {
 }
 
 export interface ChooseBattleBagItemOptions {
+  random?: () => number;
   itemCount?: number;
   captureRandom16?: () => number;
   captureRateMultiplier?: number;
@@ -339,7 +340,7 @@ function chooseCaptureBallItem(
     };
   }
 
-  const resolved = resolveGen4Action(state, { kind: "wait" });
+  const resolved = resolveGen4Action(state, { kind: "wait" }, options.random);
   return {
     ...resolved,
     usedInventoryItemId: ball.itemId,
@@ -377,7 +378,11 @@ export function isForcedPartySwitch(state: BattleScreenState): boolean {
   );
 }
 
-export function choosePartySlot(state: BattleScreenState, slotIndex: number): BattleScreenState {
+export function choosePartySlot(
+  state: BattleScreenState,
+  slotIndex: number,
+  random: () => number = Math.random,
+): BattleScreenState {
   if (state.phase !== "party-select") {
     return state;
   }
@@ -388,10 +393,10 @@ export function choosePartySlot(state: BattleScreenState, slotIndex: number): Ba
     const romId = RUNTIME_ITEM_ROM_IDS[itemId as RuntimeItemId];
     if (!pokemon || !romId || !canUseGen4ItemOnMember(romId, pokemon))
       return { ...state, messageQueue: ["효과가 없다."] };
-    const resolved = resolveGen4Action(state, { kind: "item", itemId: romId, slotIndex });
+    const resolved = resolveGen4Action(state, { kind: "item", itemId: romId, slotIndex }, random);
     return { ...resolved, usedInventoryItemId: resolved.pendingBattleItemId ? null : itemId };
   }
-  return resolveGen4Action(state, { kind: "switch", slotIndex });
+  return resolveGen4Action(state, { kind: "switch", slotIndex }, random);
 }
 
 export function calculateRunChanceByte({
@@ -808,7 +813,15 @@ function resolveGen4Action(
   try {
     validateGen4Action(ready.gen4Requests![0], action);
   } catch {
-    return { ...input, messageQueue: ["지금은 그 행동을 할 수 없다."], usedInventoryItemId: null };
+    return {
+      ...ready,
+      messageQueue: [
+        action.kind === "switch" && ready.gen4Requests![0].trapped
+          ? "교체할 수 없다!"
+          : "지금은 그 행동을 할 수 없다.",
+      ],
+      usedInventoryItemId: null,
+    };
   }
   const resolved = resolveGen4Adventure(ready, action, random);
   let state = resolved.state;

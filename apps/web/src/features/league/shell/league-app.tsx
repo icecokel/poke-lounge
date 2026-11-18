@@ -231,7 +231,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       </RoomMenuHeader>
       <LeagueTestModeBanner locale={locale} test={status?.test} />
       <div ref={screenBody} className={frame.body}>
-        <LeagueDemoToast locale={locale} />
+        {status?.season?.openEnded && <LeagueDemoToast locale={locale} />}
         {screen === "boot" && (
           <div className={frame.content}>
             <section className={`${frame.panel} ${frame.menuPanel}`} role="status">

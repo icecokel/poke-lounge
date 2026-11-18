@@ -3,6 +3,7 @@ import {
   advanceGen4Battle,
   createGen4Battle,
   defaultGen4Action,
+  readGen4Battle,
   validateGen4Action,
 } from "./engine";
 import { normalizeGen4Traits } from "./traits";
@@ -55,7 +56,8 @@ export function ensureGen4Adventure(
   state: BattleScreenState,
   random: () => number = Math.random,
 ): BattleScreenState {
-  if (state.gen4Session) return state;
+  if (state.gen4Session)
+    return { ...state, gen4Requests: readGen4Battle(state.gen4Session).requests };
   const f = createGen4Battle([toGen4Party(state.player), toGen4Party(state.opponent)], random, {
     wild: state.battleKind === "wild",
   });

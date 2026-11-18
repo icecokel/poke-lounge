@@ -50,6 +50,7 @@ export interface RomRefinedMoveCollection {
 }
 
 export interface CreateWildBattleStateInput {
+  random?: () => number;
   sharePartyExperience?: boolean;
   partyExperienceRatio?: 0 | 0.75 | 0.8 | 1;
   experienceMultiplier?: 1 | 1.25 | 2 | 2.5;
@@ -67,6 +68,7 @@ const PLAYER_NAME = "치코리타";
 const PLAYER_LEVEL = 10;
 
 export function createWildBattleState({
+  random = Math.random,
   sharePartyExperience = false,
   partyExperienceRatio,
   experienceMultiplier = 1,
@@ -79,6 +81,7 @@ export function createWildBattleState({
   returnToWorld,
 }: CreateWildBattleStateInput): BattleScreenState {
   const playerBattleSetup = createPlayerBattleSetup({
+    random,
     activePartySlotIndex: storedActivePartySlotIndex,
     moveRecords,
     personalRecords,
@@ -86,11 +89,13 @@ export function createWildBattleState({
     playerPokemon: storedPlayerPokemon,
   });
   const opponentPokemon = createBattlePokemon({
+    random,
     traits: {
-      ...createGen4Traits(encounter.speciesId),
+      ...createGen4Traits(encounter.speciesId, random),
       heldItemId: sampleGen4WildHeldItem(
         encounter.speciesId,
         playerBattleSetup.pokemon.abilityId === 14,
+        random,
       ),
     },
     level: encounter.level,
@@ -101,47 +106,52 @@ export function createWildBattleState({
     speciesId: encounter.speciesId,
   });
 
-  return initializeGen4Adventure({
-    battleKind: "wild",
-    sharePartyExperience,
-    ...(partyExperienceRatio !== undefined ? { partyExperienceRatio } : {}),
-    experienceMultiplier,
-    phase: "intro",
-    roundIndex: 0,
-    matchIndex: 0,
-    turn: 1,
-    runAttemptCount: 0,
-    player: {
-      playerId: "player-1",
-      displayName: "Player 1",
-      pokemon: playerBattleSetup.pokemon,
-      party: playerBattleSetup.party,
-      activePartySlotIndex: playerBattleSetup.activePartySlotIndex,
+  return initializeGen4Adventure(
+    {
+      battleKind: "wild",
+      sharePartyExperience,
+      ...(partyExperienceRatio !== undefined ? { partyExperienceRatio } : {}),
+      experienceMultiplier,
+      phase: "intro",
+      roundIndex: 0,
+      matchIndex: 0,
+      turn: 1,
+      runAttemptCount: 0,
+      player: {
+        playerId: "player-1",
+        displayName: "Player 1",
+        pokemon: playerBattleSetup.pokemon,
+        party: playerBattleSetup.party,
+        activePartySlotIndex: playerBattleSetup.activePartySlotIndex,
+      },
+      opponent: {
+        playerId: "wild",
+        displayName: `야생 ${encounter.name}`,
+        pokemon: opponentPokemon,
+        party: createBattleParty(opponentPokemon),
+        activePartySlotIndex: 0,
+      },
+      messageQueue: [
+        formatWildAppearedMessage(opponentPokemon.name),
+        `가랏! ${playerBattleSetup.pokemon.name}!`,
+      ],
+      selectedMoveId: null,
+      result: null,
+      ...(returnToWorld ? { returnToWorld } : {}),
     },
-    opponent: {
-      playerId: "wild",
-      displayName: `야생 ${encounter.name}`,
-      pokemon: opponentPokemon,
-      party: createBattleParty(opponentPokemon),
-      activePartySlotIndex: 0,
-    },
-    messageQueue: [
-      formatWildAppearedMessage(opponentPokemon.name),
-      `가랏! ${playerBattleSetup.pokemon.name}!`,
-    ],
-    selectedMoveId: null,
-    result: null,
-    ...(returnToWorld ? { returnToWorld } : {}),
-  });
+    random,
+  );
 }
 
 function createPlayerBattleSetup({
+  random,
   activePartySlotIndex,
   moveRecords,
   personalRecords,
   playerParty,
   playerPokemon,
 }: {
+  random: () => number;
   activePartySlotIndex?: number;
   moveRecords: RomRefinedMoveCollection;
   personalRecords: RomPersonalRecordCollection;
@@ -158,6 +168,7 @@ function createPlayerBattleSetup({
       activePartySlotIndex,
     );
     const party = createStoredBattleParty({
+      random,
       moveRecords,
       personalRecords,
       playerParty,
@@ -176,6 +187,7 @@ function createPlayerBattleSetup({
   }
 
   const pokemon = createBattlePokemon({
+    random,
     traits: playerPokemon ? normalizeGen4Traits(playerPokemon.speciesId, playerPokemon) : undefined,
     currentHp: playerPokemon?.currentHp,
     gender: playerPokemon?.gender,
@@ -198,10 +210,12 @@ function createPlayerBattleSetup({
 }
 
 function createStoredBattleParty({
+  random,
   moveRecords,
   personalRecords,
   playerParty,
 }: {
+  random: () => number;
   moveRecords: RomRefinedMoveCollection;
   personalRecords: RomPersonalRecordCollection;
   playerParty: Array<PlayerPokemonSlot<PlayerPokemon>>;
@@ -215,6 +229,7 @@ function createStoredBattleParty({
       slotIndex,
       pokemon: storedPokemon
         ? createStoredBattlePokemon({
+            random,
             moveRecords,
             personalRecords,
             pokemon: storedPokemon,
@@ -225,15 +240,18 @@ function createStoredBattleParty({
 }
 
 export function createStoredBattlePokemon({
+  random,
   moveRecords,
   personalRecords,
   pokemon,
 }: {
+  random?: () => number;
   moveRecords: RomRefinedMoveCollection;
   personalRecords: RomPersonalRecordCollection;
   pokemon: PlayerPokemon;
 }): BattlePokemon {
   return createBattlePokemon({
+    random,
     traits: normalizeGen4Traits(pokemon.speciesId, pokemon),
     currentHp: pokemon.currentHp,
     gender: pokemon.gender,
@@ -277,6 +295,7 @@ function resolveStoredActivePartySlotIndex(
 }
 
 function createBattlePokemon({
+  random = Math.random,
   traits: storedTraits,
   level,
   currentHp,
@@ -291,6 +310,7 @@ function createBattlePokemon({
   status,
   moveIds,
 }: {
+  random?: () => number;
   traits?: import("../../gen4/types").Gen4Traits;
   level: number;
   currentHp?: number;
@@ -309,8 +329,11 @@ function createBattlePokemon({
   if (!personalRecord) {
     throw new Error(`Missing ROM personal record for species ${speciesId}`);
   }
-  const individualValues = normalizeIndividualValues(storedIndividualValues);
-  const traits = normalizeGen4Traits(speciesId, storedTraits ?? createGen4Traits(speciesId));
+  const individualValues = normalizeIndividualValues(storedIndividualValues, random);
+  const traits = normalizeGen4Traits(
+    speciesId,
+    storedTraits ?? createGen4Traits(speciesId, random),
+  );
   const stats = calculateGen4BattleStats(
     personalRecord.base_stats,
     level,
@@ -328,7 +351,7 @@ function createBattlePokemon({
     speciesId,
     name,
     level,
-    gender: storedGender ?? createPokemonGenderFromRatio(personalRecord.gender_ratio),
+    gender: storedGender ?? createPokemonGenderFromRatio(personalRecord.gender_ratio, random),
     catchRate: personalRecord.catch_rate,
     baseExpYield: personalRecord.base_exp,
     growthRate,

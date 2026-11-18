@@ -1476,7 +1476,14 @@ impl Room {
             .map(|id| {
                 self.parties
                     .get(id)
-                    .map(|p| json!({"playerId":id,"party":p.competitive_party}))
+                    .map(|p| {
+                        let entrant = if id == &bracket.participant_a.player_id {
+                            &bracket.participant_a
+                        } else {
+                            &bracket.participant_b
+                        };
+                        json!({"playerId":id,"seed":entrant.seed,"party":p.competitive_party})
+                    })
                     .ok_or(AppError::Internal(
                         "bracket entrant has no competitive party",
                     ))

@@ -429,18 +429,24 @@ function request(b: Battle, side: Side): Gen4ActionRequest {
     active.moves.length === 1 &&
     active.moves[0]!.pp === undefined &&
     active.moves[0]!.id !== "struggle";
+  const pokemon = side.active[0]!;
+  const trapped = Boolean(pokemon.trapped);
+  // Public requests hide ability traps and Imprison; choices must use the actual legal moves.
+  const moves = recharge || forced ? active.moves : pokemon.getMoves();
   return {
     kind: "move",
-    trapped: Boolean(active.trapped),
-    switchSlots: active.trapped ? [] : switches,
+    trapped,
+    switchSlots: trapped ? [] : switches,
     recharge,
     forcedMoveId: forced && !recharge ? b.dex.moves.get(active.moves[0]!.id).num : null,
-    moves: active.moves.map(m => ({
-      moveId: m.id === "recharge" ? 0 : b.dex.moves.get(m.id).num,
-      pp: m.pp ?? 1,
-      maxPp: m.maxpp ?? 1,
-      disabled: Boolean(m.disabled),
-    })),
+    moves: moves.length
+      ? moves.map(m => ({
+          moveId: m.id === "recharge" ? 0 : b.dex.moves.get(m.id).num,
+          pp: m.pp ?? 1,
+          maxPp: m.maxpp ?? 1,
+          disabled: Boolean(m.disabled),
+        }))
+      : [{ moveId: STRUGGLE_MOVE_ID, pp: 1, maxPp: 1, disabled: false }],
   };
 }
 function exportParty(b: Battle, s: Side): Gen4Party {

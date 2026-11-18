@@ -1,6 +1,9 @@
 import { COMPETITIVE_MOVE_CATALOG } from "../competitive-catalog.generated";
-import { Battle } from "@pkmn/sim";
-import { COMPETITIVE_RULESET_V2 } from "../competitive-ruleset-config";
+import {
+  COMPETITIVE_MAX_DRAW_REMATCHES,
+  COMPETITIVE_RULESET_V2,
+} from "../competitive-ruleset-config";
+import { Fraction } from "../league/fraction";
 import { createDefaultBattleStatStages } from "../battle-stat-stages";
 import {
   createCanonicalIdRecord,
@@ -52,32 +55,13 @@ function currentFrame(state: CanonicalBattleState, random?: SeededRandom): Gen4F
     ? readGen4Battle(state.gen4Session)
     : createGen4Battle(parties(state), random ? () => random.next() : () => 0.5);
 }
-function competitiveRequest(frame: Gen4Frame, index: number): Gen4ActionRequest {
-  const request = frame.requests[index]!;
-  if (request.kind !== "move") return request;
-  // The public simulator request hides trapping abilities and effects such as Imprison.
-  const battle = Battle.fromJSON(JSON.parse(frame.session.snapshot));
-  const pokemon = battle.sides[index]!.active[0]!;
-  const moves = pokemon.getMoves();
-  return {
-    ...request,
-    trapped: Boolean(pokemon.trapped),
-    switchSlots: pokemon.trapped ? [] : request.switchSlots,
-    moves: request.moves.map(move => ({
-      ...move,
-      disabled:
-        move.disabled ||
-        moves.some(m => battle.dex.moves.get(m.id).num === move.moveId && Boolean(m.disabled)),
-    })),
-  };
-}
 export function getGen4CompetitiveActionRequest(
   state: CanonicalBattleState,
   playerId: string,
 ): Gen4ActionRequest {
   const index = state.participantIds.indexOf(playerId);
   if (index < 0) throw Error("Unknown battle participant");
-  return competitiveRequest(currentFrame(state), index);
+  return currentFrame(state).requests[index]!;
 }
 function isChoiceRejected(error: unknown): boolean {
   return error instanceof Error && /^\[(?:Unavailable|Invalid) choice\]/.test(error.message);
@@ -131,7 +115,14 @@ export function resolveGen4CompetitiveTurn(input: {
     }
     const action = input.actionsByPlayerId[id] ?? defaultGen4Action(req);
     if (!action) throw Error("Missing legal battle action");
-    validateGen4Action(req, action);
+    try {
+      validateGen4Action(req, action);
+    } catch (error) {
+      // A stored room may contain a choice accepted before hidden constraints were exposed.
+      const fallback = defaultGen4Action(req);
+      if (!fallback) throw error;
+      return fallback;
+    }
     return action;
   }) as [Gen4Action | undefined, Gen4Action | undefined];
   let after: Gen4Frame;
@@ -147,7 +138,7 @@ export function resolveGen4CompetitiveTurn(input: {
         advanceGen4Battle(before.session, single);
       } catch (rejection) {
         if (!isChoiceRejected(rejection)) throw rejection;
-        const fallback = defaultGen4Action(competitiveRequest(before, index));
+        const fallback = defaultGen4Action(before.requests[index]!);
         if (!fallback) throw rejection;
         actions[index] = fallback;
       }
@@ -156,26 +147,37 @@ export function resolveGen4CompetitiveTurn(input: {
     after = advanceGen4Battle(before.session, actions);
   }
   let rewardState = input.state;
+  let terminalReason: CanonicalTerminalResult["reason"] = "faint";
   if (after.ended && after.winner === null) {
-    // A draw restores HP for the rematch; keep knockouts from the finished turn first.
-    rewardState = {
-      ...input.state,
-      tournamentRewards: recordTournamentKnockouts(input.state, after),
-    };
-    const rematch = parties(input.state).map(p => ({
-      ...p,
-      members: p.members.map(m => ({
-        ...m,
-        currentHp: m.maxHp,
-        status: "normal" as const,
-        statusTurns: 0,
-        statStages: createDefaultBattleStatStages(),
-        moves: m.moves.map(move => ({ ...move, pp: COMPETITIVE_MOVE_CATALOG[move.moveId]!.maxPp })),
-      })),
-    })) as [Gen4Party, Gen4Party];
-    after = createGen4Battle(rematch, () => input.random.next());
+    if ((input.state.gen4RematchCount ?? 0) >= COMPETITIVE_MAX_DRAW_REMATCHES) {
+      after = { ...after, winner: drawWinner(input.state, after) };
+      terminalReason = "timeout";
+    } else {
+      rewardState = {
+        ...input.state,
+        gen4RematchCount: (input.state.gen4RematchCount ?? 0) + 1,
+        tournamentRewards: recordTournamentKnockouts(input.state, after),
+      };
+      // Ended frames export baseMoveSlots, stripping Transform and Mimic before the rematch.
+      const rematch = after.parties.map(p => ({
+        ...p,
+        members: p.members.map(m => ({
+          ...m,
+          currentHp: m.maxHp,
+          status: "normal" as const,
+          statusTurns: 0,
+          statStages: createDefaultBattleStatStages(),
+          moves: m.moves.map(move => ({
+            ...move,
+            pp: move.maxPp ?? COMPETITIVE_MOVE_CATALOG[move.moveId]!.maxPp,
+          })),
+        })),
+      })) as [Gen4Party, Gen4Party];
+      const restarted = createGen4Battle(rematch, () => input.random.next());
+      after = { ...restarted, steps: [...after.steps, ...restarted.steps] };
+    }
   }
-  const state = applyFrame(rewardState, after, input.state.turn + 1);
+  const state = applyFrame(rewardState, after, input.state.turn + 1, terminalReason);
   return {
     turn: input.state.turn,
     state,
@@ -183,10 +185,30 @@ export function resolveGen4CompetitiveTurn(input: {
     terminal: state.terminal,
   };
 }
+function drawWinner(state: CanonicalBattleState, frame: Gen4Frame): 0 | 1 {
+  const remaining = frame.parties.map(party => {
+    const alive = party.members.filter(member => member.currentHp! > 0);
+    return {
+      count: alive.length,
+      hp: alive.reduce(
+        (sum, member) => sum.add(new Fraction(member.currentHp!, member.maxHp!)),
+        new Fraction(0),
+      ),
+    };
+  });
+  const hp = remaining[0]!.hp.compare(remaining[1]!.hp);
+  if (hp !== 0) return hp > 0 ? 0 : 1;
+  const count = remaining[0]!.count - remaining[1]!.count;
+  if (count !== 0) return count > 0 ? 0 : 1;
+  const [first, second] = state.participantIds.map(id => state.playersById[id]!.seed);
+  // Old room snapshots have no bracket seed; their canonical participant order breaks the tie.
+  return (first ?? Number.MAX_SAFE_INTEGER) <= (second ?? Number.MAX_SAFE_INTEGER) ? 0 : 1;
+}
 function applyFrame(
   previous: CanonicalBattleState,
   frame: Gen4Frame,
   revision: number,
+  terminalReason: CanonicalTerminalResult["reason"] = "faint",
 ): CanonicalBattleState {
   const ids = previous.participantIds;
   const players = createCanonicalIdRecord<CanonicalPlayerState>(
@@ -223,7 +245,7 @@ function applyFrame(
     terminal = {
       winnerPlayerId: winner,
       loserPlayerId: loser,
-      reason: "faint",
+      reason: terminalReason,
       scoreByPlayerId: createCanonicalIdRecord([
         [winner, COMPETITIVE_RULESET_V2.scores.win],
         [loser, COMPETITIVE_RULESET_V2.scores.loss],

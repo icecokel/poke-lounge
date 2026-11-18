@@ -97,10 +97,13 @@ async fn tick(
     let snapshot = {
         let slot = league.db.client().await?;
         let client = slot.as_ref().ok_or_else(LeagueError::unavailable)?;
-        let season = client.query_opt("SELECT id,starter_species_ids,(extract(epoch FROM closes_at-now())*1000)::bigint AS until_close,now()<settle_deadline AS before_deadline FROM poke_lounge_league_season WHERE settled_at IS NULL", &[]).await?;
+        let season = client.query_opt("SELECT id,open_ended,starter_species_ids,(extract(epoch FROM closes_at-now())*1000)::bigint AS until_close,now()<settle_deadline AS before_deadline FROM poke_lounge_league_season WHERE settled_at IS NULL", &[]).await?;
         match season {
             None => None,
             Some(season) => {
+                if season.try_get::<_, bool>("open_ended")? {
+                    return Ok(());
+                }
                 let id: i32 = season.try_get("id")?;
                 let next_id = id.checked_add(1).ok_or_else(LeagueError::corrupt)?;
                 let previous: Vec<i16> = season.try_get("starter_species_ids")?;

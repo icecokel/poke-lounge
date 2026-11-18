@@ -54,18 +54,19 @@ export function LeagueHome({
         ? null
         : now < season.startsAtMs
           ? "scheduled"
-          : now < season.closesAtMs
+          : season.openEnded || (season.closesAtMs !== null && now < season.closesAtMs)
             ? "open"
             : "closing";
+  // Keep the received phase's countdown at zero until the player reloads.
   const target =
-    season &&
-    // Keep the received phase's countdown at zero until the player reloads.
-    (season.phase === "scheduled"
-      ? season.startsAtMs
-      : season.phase === "open"
-        ? season.closesAtMs
-        : season.settleDeadlineMs);
-  const seconds = target ? Math.max(0, Math.ceil((target - now) / 1000)) : 0;
+    season && !season.openEnded
+      ? season.phase === "scheduled"
+        ? season.startsAtMs
+        : season.phase === "open"
+          ? season.closesAtMs
+          : season.settleDeadlineMs
+      : null;
+  const seconds = target !== null ? Math.max(0, Math.ceil((target - now) / 1000)) : 0;
   const activeAttempt = me.attempt?.status === "active";
   const activeRun = me.run?.status === "active";
   const requiredBadges = status.test?.badgesRequired ?? 8;
@@ -237,7 +238,8 @@ export function LeagueHome({
         <section className={styles.panel} aria-labelledby="league-season">
           <h2 id="league-season" className={styles.panelTitle}>
             <span>
-              {leagueText(locale, "시즌", "Season", "シーズン")} {season?.id ?? "—"}
+              {season?.displayName[locale] ?? "—"}
+              {season?.openEnded && ` · ${text.noDeadline}`}
             </span>
             <span className={styles.tag} data-tone={phase === "open" ? undefined : "muted"}>
               {season ? phaseLabel : text.closed}
@@ -245,7 +247,8 @@ export function LeagueHome({
           </h2>
           {season && (
             <>
-              {phase !== "settled" && (
+              {season.openEnded && <p className={styles.meta}>{text.preLeagueReset}</p>}
+              {!season.openEnded && phase !== "settled" && (
                 <div>
                   <p className={styles.meta}>
                     {phase === "scheduled"
@@ -261,10 +264,17 @@ export function LeagueHome({
                 </div>
               )}
               <p className={styles.meta}>
-                <span className="inline-block">{formatKst(season.startsAtMs, locale)}</span>
-                {" → "}
-                <span className="inline-block">{formatKst(season.closesAtMs, locale)}</span>
-                {(phase === "open" || phase === "closing") && (
+                <span className="inline-block">
+                  {season.openEnded && `${leagueText(locale, "시작", "Started", "開始")} `}
+                  {formatKst(season.startsAtMs, locale)}
+                </span>
+                {season.closesAtMs !== null && (
+                  <>
+                    {" → "}
+                    <span className="inline-block">{formatKst(season.closesAtMs, locale)}</span>
+                  </>
+                )}
+                {season.settleDeadlineMs !== null && (phase === "open" || phase === "closing") && (
                   <>
                     <br />
                     {phase === "closing" && (
@@ -282,7 +292,7 @@ export function LeagueHome({
                   </>
                 )}
               </p>
-              {phase !== "settled" && seconds === 0 && (
+              {target !== null && phase !== "settled" && seconds === 0 && (
                 <div className={styles.actions}>
                   <p role="status" className={styles.meta}>
                     {leagueText(
