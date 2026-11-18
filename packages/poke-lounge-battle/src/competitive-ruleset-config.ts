@@ -4,6 +4,7 @@ export const COMPETITIVE_RULESET_VERSION = 3;
 export const COMPETITIVE_STRUGGLE_MOVE_ID = "struggle" as const;
 // 4세대 기술 번호 165 = 발버둥. COMPETITIVE_STRUGGLE_MOVE_ID는 경쟁 프로토콜용 문자열.
 export const STRUGGLE_MOVE_ID = 165 as const;
+export const COMPETITIVE_MAX_DRAW_REMATCHES = 3;
 
 function deepFreeze<T>(value: T): Readonly<T> {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
@@ -73,9 +74,9 @@ export function isLegacyCompetitiveMoveEffectSelectable(
   return move.power !== 1 || getGen4FixedDamage(move.effectCode) !== null;
 }
 
-// canonical JSON({ catalogHash, ruleset: COMPETITIVE_RULESET_V2 })의 SHA-256이다.
+// 경쟁 엔진 리비전의 SHA-256 라벨. 실제 실행 입력은 engine-version.lock.json으로 잠근다.
 export const COMPETITIVE_RULESET_HASH =
-  "e42604b7ba272d0ab93ebd5b4de302c4ab985c7ee1d41c98a683f023dae67097";
+  "b758ad5cc340d1b8d300ec3f2521c4041b474c1e36a5c799ae15b73d6b5417e5";
 export const LEGACY_COMPETITIVE_RULESET_HASH =
   "caa92057632c9a8d0767cf517d250181ab97b57cad4227cfe73e67966277f065";
 
