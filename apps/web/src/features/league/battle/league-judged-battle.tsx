@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BattleScreen } from "@/components/poke-lounge/runtime/game/battle/battle-screen";
 import { createBattleUiStore } from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
+import { RuntimeKeyboard } from "@/components/poke-lounge/runtime/game/runtime-input";
 import { MobileBattleDeck } from "@/components/poke-lounge/mobile/mobile-battle-deck";
 import { getPokeLoungeCopy } from "@/components/poke-lounge/poke-lounge-copy";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
   const [error, setError] = useState(false);
   const [desktop, setDesktop] = useState(false);
   const [store] = useState(createBattleUiStore);
+  const battleRoot = useRef<HTMLDivElement>(null);
   const callbacks = useRef(props);
   callbacks.current = props;
   const copy = getPokeLoungeCopy(runtime.locale);
@@ -33,7 +35,9 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
     return () => media.removeEventListener("change", update);
   }, []);
   useEffect(() => {
-    if (!selection) return;
+    if (!selection || !battleRoot.current) return;
+    const keyboard = new RuntimeKeyboard(battleRoot.current);
+    let frame = 0;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
@@ -48,10 +52,18 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
         onFinished: result => callbacks.current.onFinished(result),
         onError: () => setError(true),
       });
+      const update = () => {
+        controller?.updateKeyboard(keyboard);
+        keyboard.clearPresses();
+        frame = requestAnimationFrame(update);
+      };
+      frame = requestAnimationFrame(update);
     } catch {
       setError(true);
     }
     return () => {
+      cancelAnimationFrame(frame);
+      keyboard.destroy();
       controller?.dispose();
       window.removeEventListener("beforeunload", warn);
     };
@@ -92,7 +104,7 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
       />
     );
   return (
-    <div className="poke-lounge-runtime grid gap-3">
+    <div ref={battleRoot} tabIndex={-1} className="poke-lounge-runtime grid gap-3">
       <h2 className="font-bold">
         {matchLabel} · {opponent.className && `${opponent.className} `}
         {opponent.displayName}
