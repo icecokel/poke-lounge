@@ -186,6 +186,7 @@ export function LeagueHome({
             {text.retired}
           </p>
         )}
+        {status.guestAllowed && <p className={styles.meta}>{text.guestNotice}</p>}
         <section className={styles.panel} aria-labelledby="league-trainer-card">
           <h2 id="league-trainer-card" className={styles.panelTitle}>
             <span>{name ?? text.unnamed}</span>

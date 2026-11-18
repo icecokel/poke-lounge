@@ -40,6 +40,15 @@ export function leagueErrorMessage(error: unknown, locale: LeagueLocale, retryin
         "The response is unknown. You can resubmit the same request.",
         "応答を確認できませんでした。同じリクエストを再送信できます。",
       );
+    case "LEAGUE_GUEST_RATE_LIMITED":
+      return leagueText(
+        locale,
+        "게스트 시작 요청이 많습니다. 한 시간 뒤 다시 시도하거나 Discord로 로그인해 주세요.",
+        "Too many guests have started. Try again in an hour or log in with Discord.",
+        "ゲストの開始が多すぎます。1時間後に再試行するか、Discordでログインしてください。",
+      );
+    case "LEAGUE_NOT_FOUND":
+      return text.closed;
     case "LEAGUE_RATE_LIMITED":
       return leagueText(
         locale,

@@ -31,6 +31,7 @@ import { LeagueJudgedBattle } from "../battle/league-judged-battle";
 import { EntryScreen } from "../attempt/entry-screen";
 import { AttemptFlow } from "../attempt/attempt-flow";
 import { clearEntryKey } from "../attempt/entry-key";
+import { LeagueGuestLoginPanel } from "../guest/guest-login-panel";
 import { LeagueHome } from "./league-home";
 import { LeagueDemoToast } from "./league-demo-toast";
 import { LeagueAccountScreen } from "./league-account-screen";
@@ -255,8 +256,15 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         )}
         {screen === "login" && (
           <>
-            <LeagueGuide locale={locale} lead={guideText.welcome} line={guideText.register} />
+            <LeagueGuide
+              locale={locale}
+              lead={guideText.welcome}
+              line={status?.guestAllowed ? text.guestRegister : guideText.register}
+            />
             <div className={frame.content}>
+              {status?.guestAllowed && (
+                <LeagueGuestLoginPanel locale={locale} onLogin={() => boot()} />
+              )}
               <div className={frame.panel}>
                 <p className={frame.meta}>{guideText.discordWhy}</p>
                 <DiscordAccountButton locale={locale} />
@@ -277,6 +285,8 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
                 <LeagueAccountScreen
                   locale={locale}
                   displayName={me.user.displayName}
+                  isGuest={me.user.isGuest}
+                  guestAllowed={status?.guestAllowed ?? false}
                   onHome={home}
                 />
               </div>

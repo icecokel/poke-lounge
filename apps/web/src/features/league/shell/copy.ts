@@ -11,6 +11,39 @@ const messages = {
     "Pre-league · No deadline. Records will be reset when the official season begins.",
     "プレリーグ · 締切なし。正式シーズンが始まると記録はリセットされます。",
   ],
+  guest: ["게스트", "Guest", "ゲスト"],
+  guestStart: ["로그인 없이 시작", "Start without logging in", "ログインせずに始める"],
+  guestStarting: ["시작하는 중…", "Starting…", "開始中…"],
+  guestRegister: [
+    "로그인 없이 시작하거나 디스코드로 트레이너 등록을 할 수 있어.",
+    "You can start without logging in or register with Discord.",
+    "ログインせずに始めるか、Discordでトレーナー登録ができるよ。",
+  ],
+  guestNotice: [
+    "프리리그는 로그인 없이 플레이할 수 있어요. 진행은 이 브라우저에만 저장되어, 브라우저 데이터를 지우거나 다른 기기에서는 이어서 할 수 없어요. 정식 시즌이 시작되면 기록이 초기화됩니다.",
+    "You can play the pre-league without logging in. Your progress is tied to this browser, so you cannot continue after clearing browser data or on another device. Records will be reset when the official season begins.",
+    "プレリーグはログインせずにプレイできます。進行はこのブラウザーにのみ保存されるため、ブラウザーのデータを削除したり、別の端末を使ったりすると続きからプレイできません。正式シーズンが始まると記録はリセットされます。",
+  ],
+  guestAccountNotice: [
+    "이 브라우저에서만 이어서 할 수 있어요. 데이터 삭제·로그아웃 후에는 복구할 수 없고, 정식 시즌이 시작되면 초기화돼요.",
+    "You can continue only in this browser. Clearing browser data or logging out loses access. Records reset when the official season begins.",
+    "続きからプレイできるのはこのブラウザーだけです。データの削除やログアウト後は戻れず、正式シーズンが始まると記録はリセットされます。",
+  ],
+  guestDiscordNotice: [
+    "Discord로 로그인하면 별도 진행으로 시작돼요.",
+    "Logging in with Discord starts separate progress.",
+    "Discordでログインすると、ゲストとは別の進行で始まります。",
+  ],
+  guestLogoutTitle: [
+    "게스트에서 로그아웃할까요?",
+    "Log out as a guest?",
+    "ゲストからログアウトしますか？",
+  ],
+  guestLogoutDescription: [
+    "로그아웃하면 이 게스트 진행을 다시 이어서 할 수 없어요.",
+    "Once you log out, you cannot return to this guest's progress.",
+    "ログアウトすると、このゲストの進行には戻れません。",
+  ],
   noDeadline: ["마감 없음", "No deadline", "締切なし"],
   preLeagueReset: [
     "정식 시즌이 시작되면 기록이 초기화됩니다",

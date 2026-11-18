@@ -26,6 +26,7 @@ import {
 const messages = {
   "ko-KR": {
     login: "디스코드로 로그인",
+    guest: "게스트로 플레이 중입니다.",
     logout: (name: string) => `디스코드 로그아웃 (${name})`,
     checking: "로그인 상태 확인 중…",
     signedIn: (name: string) => `로그인됨: ${name}`,
@@ -41,6 +42,7 @@ const messages = {
   },
   "en-US": {
     login: "Log in with Discord",
+    guest: "Playing as a guest.",
     logout: (name: string) => `Log out of Discord (${name})`,
     checking: "Checking login status…",
     signedIn: (name: string) => `Logged in: ${name}`,
@@ -56,6 +58,7 @@ const messages = {
   },
   "ja-JP": {
     login: "Discordでログイン",
+    guest: "ゲストでプレイ中です。",
     logout: (name: string) => `Discordからログアウト（${name}）`,
     checking: "ログイン状態を確認中…",
     signedIn: (name: string) => `ログイン中：${name}`,
@@ -73,6 +76,7 @@ const messages = {
   PokeLoungeLocale,
   {
     login: string;
+    guest: string;
     logout: (name: string) => string;
     checking: string;
     signedIn: (name: string) => string;
@@ -170,12 +174,14 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
           ? text.checking
           : session
             ? session.user
-              ? text.signedIn(session.user.displayName)
+              ? session.user.isGuest
+                ? text.guest
+                : text.signedIn(session.user.displayName)
               : text.signedOut
             : text.sessionFailed}
       </p>
-      {session && !session.discordEnabled ? <p>{text.preparing}</p> : null}
-      {session?.user ? (
+      {session && !session.discordEnabled && !session.guestAllowed ? <p>{text.preparing}</p> : null}
+      {session?.user && !session.user.isGuest ? (
         <Button
           ref={trigger}
           type="button"

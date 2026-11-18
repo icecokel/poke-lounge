@@ -3,10 +3,12 @@ import { getApiBaseUrl } from "@/lib/constants";
 export interface AccountUser {
   id: string;
   displayName: string;
+  isGuest: boolean;
 }
 
 export interface AccountSession {
   discordEnabled: boolean;
+  guestAllowed: boolean;
   user: AccountUser | null;
 }
 
@@ -50,19 +52,25 @@ function parseAccountSession(value: unknown): AccountSession | null {
   if (!isRecord(value) || value.success !== true || !isRecord(value.data)) {
     return null;
   }
-  const { providers, user } = value.data;
-  if (!Array.isArray(providers)) {
+  const { providers, user, guestAllowed } = value.data;
+  if (!Array.isArray(providers) || typeof guestAllowed !== "boolean") {
     return null;
   }
   if (user === null) {
-    return { discordEnabled: providers.includes("discord"), user: null };
+    return { discordEnabled: providers.includes("discord"), guestAllowed, user: null };
   }
-  if (!isRecord(user) || typeof user.id !== "string" || typeof user.displayName !== "string") {
+  if (
+    !isRecord(user) ||
+    typeof user.id !== "string" ||
+    typeof user.displayName !== "string" ||
+    typeof user.isGuest !== "boolean"
+  ) {
     return null;
   }
   return {
     discordEnabled: providers.includes("discord"),
-    user: { id: user.id, displayName: user.displayName },
+    guestAllowed,
+    user: { id: user.id, displayName: user.displayName, isGuest: user.isGuest },
   };
 }
 
