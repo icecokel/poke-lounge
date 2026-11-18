@@ -43,7 +43,7 @@ docker stop poke-lounge-prod-league-judge-1
 
 프리리그에서 `POST /league/v1/guest`로 로그인 없이 시작할 수 있다. 열린 미정산 시즌이 `open_ended=true`일 때만 허용하며 정식 시즌·리그 비활성화에서는 거부한다. 게스트는 `poke_lounge_user.is_guest=true`이고 외부 제공자 연결이 없다. 기존 `pl_session`(30일, HttpOnly·SameSite=Lax, HTTPS 환경 Secure)을 사용하며 유효한 세션이 있으면 새 사용자를 만들지 않는다. 브라우저 데이터 삭제·로그아웃·만료·다른 기기에서는 이어서 할 수 없고, Discord 로그인은 별도 계정 진행으로 전환된다. 게스트 진행 이전 기능은 없다. 게스트 기록은 순위에 포함하며 운영 테스트 계정의 제외 정책은 그대로다.
 
-생성은 신뢰 프록시 설정(`RUST_API_TRUSTED_PROXIES`)으로 판별한 IP당 최근 1시간 5개, 전체 최근 1시간 500개로 제한한다. 한 DB 트랜잭션의 advisory lock으로 여러 API 인스턴스에서도 합산한다. `poke_lounge_guest_creation`에는 IP의 SHA-256과 생성 시각을 보관하고, 생성 시와 기존 시간별 정리 작업에서 1시간 지난 행을 지운다. 원시 IP는 저장·로그하지 않는다. 게스트 요청은 허용 Origin과 빈 JSON 객체가 필수다. `/auth/me`는 `user.isGuest`·`guestAllowed`, 리그 `status`는 `isGuest`·`guestAllowed`, 리그 `me`는 `user.isGuest`를 반환한다. 만료 세션은 기존 정리 작업의 대상이며 게스트 사용자 자체는 프리리그 중 자동 삭제하지 않는다.
+생성은 신뢰 프록시 설정(`RUST_API_TRUSTED_PROXIES`)으로 판별한 IP당 최근 1시간 20개(통신사 공유 IP·학교망 고려), 전체 최근 1시간 500개로 제한한다. 한 DB 트랜잭션의 advisory lock으로 여러 API 인스턴스에서도 합산한다. `poke_lounge_guest_creation`에는 IP의 SHA-256과 생성 시각을 보관하고, 생성 시와 기존 시간별 정리 작업에서 1시간 지난 행을 지운다. 원시 IP는 저장·로그하지 않는다. 게스트 요청은 허용 Origin과 빈 JSON 객체가 필수다. `/auth/me`는 `user.isGuest`·`guestAllowed`, 리그 `status`는 `isGuest`·`guestAllowed`, 리그 `me`는 `user.isGuest`를 반환한다. 만료 세션은 기존 정리 작업의 대상이며 게스트 사용자 자체는 프리리그 중 자동 삭제하지 않는다.
 
 현재 운영 시즌 1(시작 `2026-11-02T00:00:00+09:00`)은 **프리리그 · 마감 없음**이다. `1795651200000-open-ended-pre-league` 마이그레이션은 `open_ended boolean NOT NULL DEFAULT false`를 추가하고, 이미 존재하는 `id=1 AND settled_at IS NULL` 행의 `open_ended`만 `true`로 바꾼다. 다른 행·표의 게임 데이터와 기존 `closes_at=2026-11-29T18:00:00+09:00`·`settle_deadline=2026-11-30T00:00:00+09:00`는 보존한다. 배포 migrate 단계에서 한 번 적용하며 수동 운영 SQL은 필요 없다.
 

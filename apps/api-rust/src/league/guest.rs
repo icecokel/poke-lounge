@@ -87,7 +87,7 @@ pub(super) async fn start(
     )
     .await?;
     let budget = tx.query_one("SELECT count(*) AS total, count(*) FILTER (WHERE ip_hash=$1) AS per_ip FROM poke_lounge_guest_creation", &[&ip_hash]).await?;
-    if budget.try_get::<_, i64>("total")? >= 500 || budget.try_get::<_, i64>("per_ip")? >= 5 {
+    if budget.try_get::<_, i64>("total")? >= 500 || budget.try_get::<_, i64>("per_ip")? >= 20 {
         return Err(LeagueError::new(429, "LEAGUE_GUEST_RATE_LIMITED")
             .detail(json!({"retryAfterMs":3_600_000})));
     }
