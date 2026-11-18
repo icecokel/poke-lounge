@@ -112,9 +112,9 @@ function RoomEntryScreen({
       )
     );
   });
-  // A language switch or a create-room link means the player is already past the purpose question.
+  // Restore the actual purpose choice; a name draft can also come from the purpose screen.
   const [friendsChosen, setFriendsChosen] = useState(
-    () => Boolean(languageDraft?.profile) || Boolean(state.openCreateRoom),
+    () => languageDraft?.profile?.friendsChosen ?? Boolean(state.openCreateRoom),
   );
   const [entryStep, setEntryStep] = useState<"profile" | "rooms">(
     state.openCreateRoom && !languageDraft ? "rooms" : "profile",

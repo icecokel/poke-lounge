@@ -82,7 +82,7 @@ export function TrainerNameEntry({
               copy={copy}
               displayName={displayName}
               disabled={pending}
-              profile={{ mode, customName }}
+              profile={{ mode, customName, friendsChosen }}
               onLanguageSwitch={onLanguageSwitch}
             />
           ) : null}
