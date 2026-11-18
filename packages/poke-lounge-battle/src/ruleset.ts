@@ -10,6 +10,7 @@ import { compareServerIds } from "./ordering";
 
 export interface CompetitiveBattleParticipantInput {
   playerId: string;
+  seed?: number;
   party: NormalizedCompetitiveParty;
 }
 
@@ -61,6 +62,7 @@ function createCanonicalPlayerState(
 
   return {
     playerId,
+    ...(participant.seed !== undefined ? { seed: participant.seed } : {}),
     activeSlotIndex: party.activeSlotIndex,
     team: [...party.members]
       .sort(function compareItems(left, right) {

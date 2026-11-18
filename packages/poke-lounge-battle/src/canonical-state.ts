@@ -49,6 +49,7 @@ export interface CanonicalCombatantState extends Gen4Traits {
 
 export interface CanonicalPlayerState {
   actionRequest?: import("./gen4/types").Gen4ActionRequest;
+  seed?: number;
   playerId: string;
   activeSlotIndex: number;
   team: readonly CanonicalCombatantState[];
@@ -74,6 +75,7 @@ export interface CanonicalBattleState {
   rulesetVersion: 2 | 3;
   gen4Session?: import("./gen4/types").Gen4Session;
   gen4Turn?: number;
+  gen4RematchCount?: number;
   turn: number;
   participantIds: readonly [string, string];
   playersById: CanonicalIdRecord<CanonicalPlayerState>;

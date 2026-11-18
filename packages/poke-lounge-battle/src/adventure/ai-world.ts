@@ -236,6 +236,7 @@ export function advanceAiAdventure(
       });
       if (!encounter) continue;
       state.battle = createWildBattleState({
+        random,
         encounter,
         sharePartyExperience: context.sharePartyExperience,
         partyExperienceRatio: context.partyExperienceRatio,
@@ -325,12 +326,13 @@ function advanceWildBattle(
       (switchSlots
         ? living.find(slot => switchSlots.includes(slot.slotIndex))
         : living.find(slot => slot.slotIndex !== battle.player.activePartySlotIndex)) ?? living[0];
-    if (replacement) battle = choosePartySlot(battle, replacement.slotIndex);
+    if (replacement) battle = choosePartySlot(battle, replacement.slotIndex, random);
   } else if (
     battle.opponent.pokemon.currentHp <= battle.opponent.pokemon.maxHp * 0.5 &&
     !partyFull
   ) {
     battle = chooseBattleBagItem({ ...battle, phase: "bag-select" }, "pokeball", {
+      random,
       captureRandom16: () => Math.floor(random() * 65536),
       captureRateMultiplier: profile.captureRateMultiplier,
     });

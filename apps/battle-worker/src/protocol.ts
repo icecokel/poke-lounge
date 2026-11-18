@@ -141,7 +141,15 @@ export const requestSchema = z.strictObject({
     }),
     z.strictObject({
       kind: z.literal("initialize"),
-      players: z.array(z.strictObject({ playerId: boundedId, party: z.unknown() })).length(2),
+      players: z
+        .array(
+          z.strictObject({
+            playerId: boundedId,
+            seed: z.number().int().min(1).max(8).optional(),
+            party: z.unknown(),
+          }),
+        )
+        .length(2),
       seed: boundedId,
     }),
     z.strictObject({
