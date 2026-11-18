@@ -190,7 +190,7 @@ export function LeagueHome({
         {status.isGuest && <p className={styles.meta}>{text.guestNotice}</p>}
         <section className={styles.panel} aria-labelledby="league-trainer-card">
           <h2 id="league-trainer-card" className={styles.panelTitle}>
-            <span>{name ?? text.unnamed}</span>
+            <span>{name ?? (me.user.isGuest ? text.guest : text.unnamed)}</span>
             <PixelButton className={styles.small} onClick={onAccount}>
               {text.account}
             </PixelButton>
