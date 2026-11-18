@@ -27,6 +27,7 @@ import {
 import type { LeagueBattleParty, LeagueJudgedBattleProps, LeagueRuntime } from "../contract";
 import { LeagueJudgedBattle } from "../battle/league-judged-battle";
 import { leagueRoleLabel } from "../records/role";
+import { leagueOpponentName } from "../npc-name";
 import { MatchResult } from "./match-result";
 import { FailedResult, FinalResult } from "./final-result";
 import { getLeagueCopy, leagueText } from "../shell/copy";
@@ -309,7 +310,7 @@ export function AttemptFlow({
           runtime={runtime}
           init={init}
           opponent={{
-            displayName: opponent.meta.displayName,
+            displayName: leagueOpponentName(opponent.meta, locale),
             className: leagueRoleLabel(opponent.meta.position, opponent.meta.kind, locale),
           }}
           matchLabel={`${current!.index + 1} / 5`}
@@ -377,7 +378,9 @@ export function AttemptFlow({
           beforeRecovery={pending?.finished.progress.frame.parties[0]}
           afterRecovery={response.next?.carryParty}
           nextName={
-            response.next ? attempt.opponents[response.next.index]?.meta.displayName : undefined
+            response.next && attempt.opponents[response.next.index]
+              ? leagueOpponentName(attempt.opponents[response.next.index].meta, locale)
+              : undefined
           }
           onContinue={() => {
             if (response.final) setPhase("final");

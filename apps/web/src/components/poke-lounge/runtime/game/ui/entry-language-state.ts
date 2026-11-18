@@ -6,6 +6,7 @@ const MAX_AGE_MS = 5 * 60 * 1000;
 export interface EntryLanguageProfile {
   mode: "recommended" | "custom";
   customName: string;
+  friendsChosen: boolean;
 }
 
 interface EntryLanguageDraft {
@@ -40,7 +41,8 @@ function readDraft(): EntryLanguageDraft | null {
       (draft.profile !== undefined &&
         (!draft.profile ||
           (draft.profile.mode !== "recommended" && draft.profile.mode !== "custom") ||
-          !isName(draft.profile.customName)))
+          !isName(draft.profile.customName) ||
+          typeof draft.profile.friendsChosen !== "boolean"))
     )
       return null;
     return draft as EntryLanguageDraft;

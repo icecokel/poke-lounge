@@ -26,6 +26,7 @@ import {
 import { getPokemonIdentityKey } from "@/features/poke-lounge/domain/player/player-helpers";
 import { getRuntimePokemonData } from "@poke-lounge/battle/adventure/data/game-data-json";
 import { LeagueApiError, withLeagueRetry } from "../api/core";
+import { localizeGymName } from "./gym-name";
 import {
   startLeagueBadge,
   submitLeagueBadge,
@@ -304,7 +305,7 @@ export function BadgeFlow({
         opponent: battle.npc.party,
         rules: LEAGUE_MATCH_RULES,
       }}
-      opponent={{ displayName: battle.npc.displayName }}
+      opponent={{ displayName: localizeGymName(battle.npc.displayName, runtime.locale) }}
       matchLabel={`${copy.badges} ${battle.badgeIndex + 1}/8`}
       onFinished={result => {
         setFinished(result);

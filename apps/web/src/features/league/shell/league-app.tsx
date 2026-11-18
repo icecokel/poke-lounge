@@ -284,7 +284,9 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
               <div className={`${frame.panel} ${frame.menuPanel}`}>
                 <LeagueAccountScreen
                   locale={locale}
-                  displayName={me.user.displayName}
+                  displayName={
+                    me.user.nickname ?? (me.user.isGuest ? text.guest : me.user.displayName)
+                  }
                   isGuest={me.user.isGuest}
                   guestAllowed={status?.guestAllowed ?? false}
                   onHome={home}

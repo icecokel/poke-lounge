@@ -8,6 +8,7 @@ import type { LeagueLocale, MeView, StatusView } from "../contract";
 import type { StandingsView } from "../api/league";
 import { getLeagueCopy, leagueText } from "./copy";
 import { formatKst } from "./kst";
+import { leagueOpponentName } from "../npc-name";
 import styles from "./league-frame.module.css";
 
 export function LeagueHome({
@@ -189,7 +190,7 @@ export function LeagueHome({
         {status.isGuest && <p className={styles.meta}>{text.guestNotice}</p>}
         <section className={styles.panel} aria-labelledby="league-trainer-card">
           <h2 id="league-trainer-card" className={styles.panelTitle}>
-            <span>{name ?? text.unnamed}</span>
+            <span>{name ?? (me.user.isGuest ? text.guest : text.unnamed)}</span>
             <PixelButton className={styles.small} onClick={onAccount}>
               {text.account}
             </PixelButton>
@@ -323,7 +324,7 @@ export function LeagueHome({
               <li className={styles.standing} key={entry.position} data-position={entry.position}>
                 <span className={styles.rank}>{entry.position}</span>
                 <span className={styles.standingName}>
-                  {entry.displayName}
+                  {leagueOpponentName(entry, locale)}
                   {entry.kind === "npc" && <small>NPC</small>}
                   <small>
                     {entry.score} {text.score}

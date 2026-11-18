@@ -10,6 +10,8 @@ import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "@poke-lounge/battle/timing";
 import { getRuntimePokemonMoveDetails } from "@/components/poke-lounge/runtime/game/data/game-data-json";
 import { getBattlePokemonAssets } from "@/components/poke-lounge/runtime/game/battle/battle-pokemon-assets";
 import { BATTLE_LAYOUT } from "@/components/poke-lounge/runtime/game/battle/battle-layout";
+import { moveBattlePartySelection } from "@/components/poke-lounge/runtime/game/battle/battle-party-select";
+import type { RuntimeKeyboard } from "@/components/poke-lounge/runtime/game/runtime-input";
 import type {
   BattleCombatantPresentation,
   BattleUiStore,
@@ -39,6 +41,9 @@ export function createJudgedBattleController({
   let phase: Phase = "command";
   let message: string | null = null;
   let helpOpen = false;
+  let selectedCommand = 0;
+  let selectedMove = 0;
+  let selectedParty = 0;
   let stepIndex = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let disposed = false;
@@ -91,7 +96,7 @@ export function createJudgedBattleController({
       items: [],
       commands: (["fight", "pokemon", "bag", "run"] as const).map((id, i) => ({
         id,
-        selected: i === 0,
+        selected: i === selectedCommand,
       })),
       moves:
         choices.kind === "move"
@@ -110,7 +115,7 @@ export function createJudgedBattleController({
                 effectCode: details?.effectCode ?? 0,
                 effectChance: details?.effectChance ?? 0,
                 effectNotice: null,
-                selected: index === 0,
+                selected: index === selectedMove,
                 disabled: move.disabled || (move.pp <= 0 && move.moveId !== 165),
               };
             })
@@ -122,7 +127,7 @@ export function createJudgedBattleController({
         currentHp: member.currentHp!,
         maxHp: member.maxHp!,
         status: member.status ?? "normal",
-        selected: false,
+        selected: member.slotIndex === selectedParty,
         isCurrent: member.slotIndex === progress.frame.parties[0].activeSlotIndex,
         isFainted: member.currentHp! <= 0,
         isEmpty: false,
@@ -215,6 +220,7 @@ export function createJudgedBattleController({
       return;
     }
     if (action.type === "select-command" && phase === "command" && choices.kind === "move") {
+      selectedCommand = action.index;
       if (action.index === 0) phase = "move-select";
       else if (action.index === 1) phase = "party-select";
       publish();
@@ -224,6 +230,7 @@ export function createJudgedBattleController({
       if (action.type === "select-move" && phase === "move-select" && choices.kind === "move") {
         const move = choices.moves[action.index];
         if (!move || move.disabled || (move.pp <= 0 && move.moveId !== 165)) return;
+        selectedMove = action.index;
         progress = applyPlayerInput(progress, ["m", move.moveId]);
       } else if (
         action.type === "select-party" &&
@@ -231,6 +238,7 @@ export function createJudgedBattleController({
         choices.kind !== "none" &&
         choices.switchSlots.includes(action.index)
       ) {
+        selectedParty = action.index;
         progress = applyPlayerInput(progress, ["s", action.index]);
       } else return;
       rememberParticipants();
@@ -245,6 +253,57 @@ export function createJudgedBattleController({
   store.setActionHandler(handle);
   nextMessage();
   return {
+    updateKeyboard(keyboard: RuntimeKeyboard) {
+      if (disposed || finished) return;
+      const confirm = () => keyboard.consume("Enter", "Space", "KeyZ");
+      const back = () => keyboard.consume("Escape", "Backspace", "KeyX");
+      if (phase !== "resolving" && keyboard.consume("KeyH")) {
+        handle({ type: "toggle-help" });
+        return;
+      }
+      if (helpOpen) {
+        if (confirm() || back()) handle({ type: "toggle-help" });
+        return;
+      }
+      if (message) {
+        if (confirm()) handle({ type: "confirm-message" });
+        return;
+      }
+      if (phase === "resolving") return;
+      if (back()) {
+        handle({ type: "go-back" });
+        return;
+      }
+      const directions = [
+        ["left", "ArrowLeft", "KeyA"],
+        ["right", "ArrowRight", "KeyD"],
+        ["up", "ArrowUp", "KeyW"],
+        ["down", "ArrowDown", "KeyS"],
+      ] as const;
+      for (const [direction, arrow, letter] of directions) {
+        if (!keyboard.consume(arrow, letter)) continue;
+        if (phase === "party-select") {
+          selectedParty = moveBattlePartySelection(selectedParty, direction);
+        } else {
+          const index = phase === "command" ? selectedCommand : selectedMove;
+          const choices = getPlayerChoices(progress);
+          const max =
+            phase === "command" ? 3 : choices.kind === "move" ? choices.moves.length - 1 : 0;
+          let next = index;
+          if (direction === "left" && index % 2 === 1) next--;
+          if (direction === "right" && index % 2 === 0) next = Math.min(max, index + 1);
+          if (direction === "up" && index >= 2) next -= 2;
+          if (direction === "down" && index < 2) next = Math.min(max, index + 2);
+          if (phase === "command") selectedCommand = next;
+          else selectedMove = next;
+        }
+        publish();
+      }
+      if (!confirm()) return;
+      if (phase === "command") handle({ type: "select-command", index: selectedCommand });
+      else if (phase === "move-select") handle({ type: "select-move", index: selectedMove });
+      else if (phase === "party-select") handle({ type: "select-party", index: selectedParty });
+    },
     dispose() {
       disposed = true;
       clearTimeout(timer);
