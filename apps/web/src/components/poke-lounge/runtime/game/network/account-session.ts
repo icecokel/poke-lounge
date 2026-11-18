@@ -52,25 +52,22 @@ function parseAccountSession(value: unknown): AccountSession | null {
   if (!isRecord(value) || value.success !== true || !isRecord(value.data)) {
     return null;
   }
-  const { providers, user, guestAllowed } = value.data;
-  if (!Array.isArray(providers) || typeof guestAllowed !== "boolean") {
+  const { providers, user } = value.data;
+  // Tolerate an older API during a rolling deploy: missing guest fields mean "not a guest".
+  const guestAllowed = value.data.guestAllowed === true;
+  if (!Array.isArray(providers)) {
     return null;
   }
   if (user === null) {
     return { discordEnabled: providers.includes("discord"), guestAllowed, user: null };
   }
-  if (
-    !isRecord(user) ||
-    typeof user.id !== "string" ||
-    typeof user.displayName !== "string" ||
-    typeof user.isGuest !== "boolean"
-  ) {
+  if (!isRecord(user) || typeof user.id !== "string" || typeof user.displayName !== "string") {
     return null;
   }
   return {
     discordEnabled: providers.includes("discord"),
     guestAllowed,
-    user: { id: user.id, displayName: user.displayName, isGuest: user.isGuest },
+    user: { id: user.id, displayName: user.displayName, isGuest: user.isGuest === true },
   };
 }
 

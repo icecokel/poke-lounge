@@ -296,10 +296,8 @@ pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> AppResult<
         &[]
     };
     let guest_allowed = match &state.league {
-        Some(league) => league
-            .guest_allowed()
-            .await
-            .map_err(|_| AppError::Unavailable)?,
+        // The lobby must not lose its account view when the league database is unavailable.
+        Some(league) => league.guest_allowed().await.unwrap_or(false),
         None => false,
     };
     Ok(success(json!({
