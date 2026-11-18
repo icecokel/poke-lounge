@@ -38,6 +38,8 @@ export interface LeagueTestModeView {
 }
 export interface StatusView {
   enabled: true;
+  guestAllowed: boolean;
+  isGuest: boolean;
   contractVersion: number;
   engineVersion: string | null;
   rulesVersion: number;
@@ -62,7 +64,12 @@ export interface AttemptSummary {
   failReason: string | null;
 }
 export interface MeView {
-  user: { displayName: string; nickname?: string | null; nicknameChangeableAtMs?: number | null }; // F2 병합 전에는 nickname 없음
+  user: {
+    displayName: string;
+    isGuest: boolean;
+    nickname?: string | null;
+    nicknameChangeableAtMs?: number | null;
+  }; // F2 병합 전에는 nickname 없음
   season: SeasonView | null;
   run: RunView | null;
   attempt: AttemptSummary | null;

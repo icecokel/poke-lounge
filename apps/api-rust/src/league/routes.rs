@@ -28,6 +28,7 @@ static BUSY_LOGGED_S: AtomicU64 = AtomicU64::new(0);
 pub fn router(league: Arc<League>) -> Router<AppState> {
     Router::new()
         .route("/league/v1/status", get(status))
+        .route("/league/v1/guest", post(super::guest::start))
         .route("/league/v1/standings", get(standings))
         .route("/league/v1/hall-of-fame", get(hall))
         .route("/league/v1/me", get(me))
@@ -66,7 +67,7 @@ async fn user(
         .map_err(|_| LeagueError::unavailable())?
         .ok_or_else(|| LeagueError::new(401, "LEAGUE_UNAUTHORIZED"))?;
     league.limiter.check(user.0, kind)?;
-    Ok(user)
+    Ok((user.0, user.1))
 }
 async fn public_limit(
     state: &AppState,
@@ -74,7 +75,7 @@ async fn public_limit(
     league: &League,
     peer: SocketAddr,
 ) -> Result<()> {
-    if let Some((id, _)) = current_user(state, headers)
+    if let Some((id, _, _)) = current_user(state, headers)
         .await
         .map_err(|_| LeagueError::unavailable())?
     {
@@ -95,7 +96,14 @@ async fn status(
     headers: HeaderMap,
 ) -> Result<Json<Value>> {
     public_limit(&state, &headers, &l, peer).await?;
-    Ok(success(db::retry(|| l.status()).await?))
+    let mut status = db::retry(|| l.status()).await?;
+    status["isGuest"] = Value::Bool(
+        current_user(&state, &headers)
+            .await
+            .map_err(|_| LeagueError::unavailable())?
+            .is_some_and(|user| user.2),
+    );
+    Ok(success(status))
 }
 async fn standings(
     State(state): State<AppState>,

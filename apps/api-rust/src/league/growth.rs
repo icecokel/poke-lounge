@@ -35,7 +35,7 @@ pub fn routes() -> Router<AppState> {
         .route("/league/v1/badge-battles/{id}/result", post(badge_result))
 }
 async fn user(state: &AppState, headers: &HeaderMap, l: &League, kind: Kind) -> Result<Uuid> {
-    let (id, _) = current_user(state, headers)
+    let (id, _, _) = current_user(state, headers)
         .await
         .map_err(|_| LeagueError::unavailable())?
         .ok_or_else(|| LeagueError::new(401, "LEAGUE_UNAUTHORIZED"))?;

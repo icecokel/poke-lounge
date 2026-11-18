@@ -44,6 +44,7 @@ pub struct AppState {
     pub compute: Compute,
     pub data: Data,
     pub auth: crate::auth::Auth,
+    pub league: Option<Arc<crate::league::League>>,
     pub shutdown: CancellationToken,
     pub started: Instant,
     pub requests: Arc<Semaphore>,

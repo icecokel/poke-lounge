@@ -106,6 +106,10 @@ impl Data {
                 &[],
             )
             .await?;
+        client.execute(
+            "DELETE FROM poke_lounge_guest_creation WHERE created_at <= now() - interval '1 hour'",
+            &[],
+        ).await?;
         Ok(())
     }
     /// Finds or creates the user linked to a provider account and refreshes its display name.
@@ -137,13 +141,19 @@ SELECT user_id FROM found UNION ALL SELECT user_id FROM linked
         ).await?;
         Ok(())
     }
-    pub async fn session_user(&self, token_hash: &str) -> AppResult<Option<(Uuid, String)>> {
+    pub async fn session_user(&self, token_hash: &str) -> AppResult<Option<(Uuid, String, bool)>> {
         let row = self.client().await?.query_opt(
-            "SELECT u.id, u.display_name FROM poke_lounge_auth_session s JOIN poke_lounge_user u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.expires_at > now()",
+            "SELECT u.id, u.display_name, u.is_guest FROM poke_lounge_auth_session s JOIN poke_lounge_user u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.expires_at > now()",
             &[&token_hash],
         ).await?;
-        row.map(|row| -> AppResult<_> { Ok((row.try_get("id")?, row.try_get("display_name")?)) })
-            .transpose()
+        row.map(|row| -> AppResult<_> {
+            Ok((
+                row.try_get("id")?,
+                row.try_get("display_name")?,
+                row.try_get("is_guest")?,
+            ))
+        })
+        .transpose()
     }
     pub async fn delete_session(&self, token_hash: &str) -> AppResult<()> {
         self.client()
