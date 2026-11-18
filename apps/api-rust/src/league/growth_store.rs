@@ -8,7 +8,7 @@ use tokio_postgres::{GenericClient, types::ToSql};
 use uuid::Uuid;
 
 const RUN: &str = "SELECT to_jsonb(r)||jsonb_build_object('created_ms',(extract(epoch from created_at)*1000)::bigint,'now_ms',(extract(epoch from now())*1000)::bigint) AS value FROM poke_lounge_league_run r";
-const SEASON: &str = "SELECT to_jsonb(s)||jsonb_build_object('starts_ms',(extract(epoch from starts_at)*1000)::bigint,'closes_ms',(extract(epoch from closes_at)*1000)::bigint,'deadline_ms',(extract(epoch from settle_deadline)*1000)::bigint,'now_ms',(extract(epoch from now())*1000)::bigint) AS value FROM poke_lounge_league_season s";
+const SEASON: &str = "SELECT to_jsonb(s)||jsonb_build_object('starts_ms',(extract(epoch from starts_at)*1000)::bigint,'closes_ms',CASE WHEN open_ended THEN NULL ELSE (extract(epoch from closes_at)*1000)::bigint END,'deadline_ms',CASE WHEN open_ended THEN NULL ELSE (extract(epoch from settle_deadline)*1000)::bigint END,'now_ms',(extract(epoch from now())*1000)::bigint) AS value FROM poke_lounge_league_season s";
 async fn one<C: GenericClient + Sync>(
     c: &C,
     sql: &str,

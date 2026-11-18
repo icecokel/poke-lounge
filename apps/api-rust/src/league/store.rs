@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use tokio_postgres::{GenericClient, IsolationLevel, types::ToSql};
 use uuid::Uuid;
 
-const SEASON: &str = "SELECT to_jsonb(s) || jsonb_build_object('starts_ms',(extract(epoch from starts_at)*1000)::bigint,'closes_ms',(extract(epoch from closes_at)*1000)::bigint,'deadline_ms',(extract(epoch from settle_deadline)*1000)::bigint,'now_ms',(extract(epoch from now())*1000)::bigint) AS value FROM poke_lounge_league_season s";
+const SEASON: &str = "SELECT to_jsonb(s) || jsonb_build_object('starts_ms',(extract(epoch from starts_at)*1000)::bigint,'closes_ms',CASE WHEN open_ended THEN NULL ELSE (extract(epoch from closes_at)*1000)::bigint END,'deadline_ms',CASE WHEN open_ended THEN NULL ELSE (extract(epoch from settle_deadline)*1000)::bigint END,'now_ms',(extract(epoch from now())*1000)::bigint) AS value FROM poke_lounge_league_season s";
 const RUN: &str = "SELECT to_jsonb(r) || jsonb_build_object('created_ms',(extract(epoch from created_at)*1000)::bigint) AS value FROM poke_lounge_league_run r";
 const ATTEMPT: &str = "SELECT to_jsonb(a) || jsonb_build_object('entered_ms',(extract(epoch from entered_at)*1000)::bigint,'updated_ms',(extract(epoch from updated_at)*1000)::bigint) AS value FROM poke_lounge_league_attempt a";
 async fn one<C: GenericClient + Sync>(
@@ -144,7 +144,7 @@ impl League {
         )
         .await?
         else {
-            return Ok(json!({"seasonId":null,"rev":0,"entries":[]}));
+            return Ok(json!({"seasonId":null,"season":null,"rev":0,"entries":[]}));
         };
         let entries = standings::top(&tx, &s)
             .await?
@@ -152,7 +152,9 @@ impl League {
             .map(|e| e.view())
             .collect::<Vec<_>>();
         tx.commit().await?;
-        Ok(json!({"seasonId":s["id"],"rev":s["standings_rev"],"entries":entries}))
+        Ok(
+            json!({"seasonId":s["id"],"season":views::season(&s)?,"rev":s["standings_rev"],"entries":entries}),
+        )
     }
     pub async fn hall_of_fame(&self, id: Option<i32>) -> Result<Value> {
         let slot = self.db.client().await?;
@@ -181,7 +183,9 @@ impl League {
         )
         .await?
         else {
-            return Ok(json!({"user":user_view,"run":null,"attempt":null,"best":null}));
+            return Ok(
+                json!({"user":user_view,"season":null,"run":null,"attempt":null,"best":null}),
+            );
         };
         let id = views::integer(&s["id"])? as i32;
         let run = one(
@@ -201,7 +205,7 @@ impl League {
         let best = one(&tx, "SELECT jsonb_build_object('score',score,'bestRank',best_rank,'recordedAtMs',(extract(epoch from recorded_at)*1000)::bigint) AS value FROM poke_lounge_league_record WHERE season_id=$1 AND user_id=$2", &[&id,&user]).await?;
         tx.commit().await?;
         Ok(
-            json!({"user":user_view,"run":run.as_ref().map(views::run),"attempt":attempt.as_ref().map(views::summary),"best":best}),
+            json!({"user":user_view,"season":views::season(&s)?,"run":run.as_ref().map(views::run),"attempt":attempt.as_ref().map(views::summary),"best":best}),
         )
     }
     pub async fn personal_seasons(&self, user: Uuid) -> Result<Value> {
@@ -561,7 +565,7 @@ impl League {
         if a["status"] != "active" || a["current_match"] != index {
             return Ok(Some(stored_match(&tx, id, index, lead, inputs_hash).await?));
         }
-        if views::integer(&season["now_ms"])? > views::integer(&season["deadline_ms"])? {
+        if views::deadline_passed(&season)? {
             tx.rollback().await?;
             drop(slot);
             self.expire_attempt(id).await?;
@@ -725,7 +729,7 @@ impl League {
             )
             .await;
         }
-        if views::integer(&season["now_ms"])? > views::integer(&season["deadline_ms"])? {
+        if views::deadline_passed(&season)? {
             tx.rollback().await?;
             drop(slot);
             self.expire_attempt(id).await?;
@@ -805,7 +809,7 @@ impl League {
         lock_run(&tx, views::uuid(&original["run_id"])?).await?;
         let a = attempt(&tx, id, user, "FOR UPDATE").await?;
         if a["status"] == "active" {
-            if views::integer(&season["now_ms"])? > views::integer(&season["deadline_ms"])? {
+            if views::deadline_passed(&season)? {
                 tx.rollback().await?;
                 drop(slot);
                 self.expire_attempt(id).await?;
@@ -859,7 +863,7 @@ impl League {
         if a["status"] != "active" {
             return Ok(false);
         }
-        let expired = views::integer(&s["now_ms"])? > views::integer(&s["deadline_ms"])?;
+        let expired = views::deadline_passed(&s)?;
         let retired = engine.is_some_and(|version| a["engine_version"] != version);
         if !expired && !retired {
             return Ok(false);
@@ -947,7 +951,8 @@ impl League {
         let client = slot.as_mut().ok_or_else(LeagueError::unavailable)?;
         let tx = client.transaction().await?;
         let s = self::season_id(&tx, id, "FOR UPDATE").await?;
-        if !s["settled_at"].is_null()
+        if s["open_ended"] == true
+            || !s["settled_at"].is_null()
             || views::integer(&s["now_ms"])? < views::integer(&s["closes_ms"])?
         {
             return Ok(false);
