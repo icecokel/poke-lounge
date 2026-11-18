@@ -264,7 +264,10 @@ export function LeagueHome({
                 </div>
               )}
               <p className={styles.meta}>
-                <span className="inline-block">{formatKst(season.startsAtMs, locale)}</span>
+                <span className="inline-block">
+                  {season.openEnded && `${leagueText(locale, "시작", "Started", "開始")} `}
+                  {formatKst(season.startsAtMs, locale)}
+                </span>
                 {season.closesAtMs !== null && (
                   <>
                     {" → "}
