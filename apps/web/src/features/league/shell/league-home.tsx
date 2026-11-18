@@ -8,6 +8,7 @@ import type { LeagueLocale, MeView, StatusView } from "../contract";
 import type { StandingsView } from "../api/league";
 import { getLeagueCopy, leagueText } from "./copy";
 import { formatKst } from "./kst";
+import { leagueOpponentName } from "../npc-name";
 import styles from "./league-frame.module.css";
 
 export function LeagueHome({
@@ -323,7 +324,7 @@ export function LeagueHome({
               <li className={styles.standing} key={entry.position} data-position={entry.position}>
                 <span className={styles.rank}>{entry.position}</span>
                 <span className={styles.standingName}>
-                  {entry.displayName}
+                  {leagueOpponentName(entry, locale)}
                   {entry.kind === "npc" && <small>NPC</small>}
                   <small>
                     {entry.score} {text.score}

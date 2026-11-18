@@ -5,6 +5,7 @@ import { PokemonIcon, speciesName, moveName } from "../battle/lead-picker";
 import { getLeagueCopy } from "../shell/copy";
 import { getRecordsCopy } from "./copy";
 import { leagueRoleLabel } from "./role";
+import { leagueOpponentName } from "../npc-name";
 
 export function PartyCard({
   entry,
@@ -22,7 +23,7 @@ export function PartyCard({
     <section className={`${menu.panel} grid min-w-0 gap-3 p-3`}>
       <h3 className="flex flex-wrap items-center gap-2 font-bold [overflow-wrap:anywhere]">
         <span>
-          {entry.position}. {entry.displayName}
+          {entry.position}. {leagueOpponentName(entry, locale)}
         </span>
         {isMe && <span className="rounded border px-2 text-sm">{getRecordsCopy(locale).me}</span>}
       </h3>
