@@ -90,7 +90,7 @@ const messages = {
   enter: ["리그 입장", "Enter league", "リーグに入場"],
   grow: ["성장 시작", "Start training", "育成を開始"],
   continueGrowth: ["성장 계속", "Continue training", "育成を続ける"],
-  unnamed: ["미설정", "Not set", "未設定"],
+  unnamed: ["이름 없음", "No name", "名前なし"],
   badges: ["배지", "Badges", "バッジ"],
   best: [
     "시즌 최고 점수 / 최고 순위",

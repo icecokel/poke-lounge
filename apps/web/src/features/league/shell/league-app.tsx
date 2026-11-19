@@ -285,7 +285,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
                 <LeagueAccountScreen
                   locale={locale}
                   displayName={
-                    me.user.nickname ?? (me.user.isGuest ? text.guest : me.user.displayName)
+                    me.user.nickname ?? (me.user.isGuest ? text.unnamed : me.user.displayName)
                   }
                   isGuest={me.user.isGuest}
                   guestAllowed={status?.guestAllowed ?? false}
