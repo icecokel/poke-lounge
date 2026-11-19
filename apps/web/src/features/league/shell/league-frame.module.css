@@ -70,6 +70,10 @@
   flex: 1;
 }
 
+.body:has(.loginSummary) > .scene {
+  min-height: 100px;
+}
+
 .body:has(> .dialogue):not(:has(.agentLogin)) > .content {
   flex: 0;
 }
@@ -673,4 +677,49 @@
    so they should not show a focus ring. */
 .frame [tabindex="-1"]:focus {
   outline: none;
+}
+
+.loginSummary {
+  text-align: center;
+}
+
+.details {
+  min-height: 32px;
+  padding: 4px 8px;
+  color: var(--pl-color-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.details:focus-visible {
+  outline: 3px solid var(--pl-color-focus);
+  outline-offset: 2px;
+}
+
+.modalForm {
+  display: grid;
+  gap: 12px;
+}
+
+/* Keep the resume form above the keyboard; longer content can scroll inside. */
+.entryDialog.entryDialog {
+  top: 16px !important;
+  bottom: auto !important;
+  max-height: calc(100dvh - 32px);
+  border-bottom: 3px solid #304550;
+  border-radius: 16px;
+  overscroll-behavior: contain;
+}
+
+.codeWarnings {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+  color: var(--pl-color-ink-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  list-style: disc;
 }

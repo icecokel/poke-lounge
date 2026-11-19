@@ -24,11 +24,19 @@ const messages = {
     "You can play the pre-league without logging in. Your progress is linked to this browser. Save a resume code from the account menu to continue on another device. Records will be reset when the official season begins.",
     "プレリーグはログインせずにプレイできます。進行はこのブラウザーに紐づきます。アカウントメニューで再開コードを控えておくと、別の端末でも続きからプレイできます。正式シーズンが始まると記録はリセットされます。",
   ],
-  guestAccountNotice: [
-    "이어하기 코드를 받아 두면 다른 기기에서도 최신 진행을 이어 할 수 있어요. 브라우저 데이터와 코드를 모두 잃으면 복구할 수 없고, 정식 시즌이 시작되면 기록과 코드가 초기화돼요.",
-    "Save a resume code to continue your latest progress on another device. If you lose both browser data and the code, access cannot be recovered. Records and codes reset when the official season begins.",
-    "再開コードを控えておくと、別の端末でも最新の進行から再開できます。ブラウザーのデータとコードを両方失うと復旧できません。正式シーズンが始まると記録とコードはリセットされます。",
+  guestSummary: [
+    "프리리그는 로그인 없이 바로 플레이할 수 있어요.",
+    "Play the pre-league without logging in.",
+    "プレリーグはログインなしですぐ遊べます。",
   ],
+  guestAccountNotice: [
+    "코드를 받아 두면 다른 기기에서도 이어 할 수 있어요.",
+    "Save a code to continue on another device.",
+    "コードを控えると別の端末でも再開できます。",
+  ],
+  details: ["자세히", "Details", "詳しく"],
+  loginInfo: ["로그인과 진행 저장", "Login and saved progress", "ログインと進行の保存"],
+  close: ["닫기", "Close", "閉じる"],
   guestResumeInput: ["이어하기 코드 입력", "Enter resume code", "再開コードを入力"],
   guestResumeHelp: [
     "영문·숫자 12자예요. 하이픈·공백이 있어도 돼요. 최신 진행에서 이어 해요.",
@@ -60,9 +68,9 @@ const messages = {
     "新しいコードを取得すると、以前のコードは使えなくなります。",
   ],
   guestCodeOnce: [
-    "이 화면을 떠나면 코드를 다시 볼 수 없어요. 지금 복사해 안전한 곳에 보관해 주세요.",
-    "You cannot view this code again after leaving this screen. Copy it now and store it safely.",
-    "この画面を離れるとコードは再表示できません。今コピーして安全な場所に保管してください。",
+    "이 창을 닫으면 코드를 다시 볼 수 없어요. 지금 복사해 안전한 곳에 보관해 주세요.",
+    "You cannot view this code again after closing this dialog. Copy it now and store it safely.",
+    "このウィンドウを閉じるとコードは再表示できません。今コピーして安全な場所に保管してください。",
   ],
   guestCodeConfirm: [
     "새 코드를 받을까요?",

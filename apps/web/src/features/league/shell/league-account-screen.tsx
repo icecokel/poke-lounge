@@ -78,7 +78,7 @@ export function LeagueAccountScreen({
           <p className={styles.meta}>{text.guestAccountNotice}</p>
           <GuestResumeCode locale={locale} hasResumeCode={hasResumeCode} />
           <p className={styles.meta}>{text.guestDiscordNotice}</p>
-          <DiscordAccountButton locale={locale} />
+          <DiscordAccountButton locale={locale} compact />
         </>
       )}
       {failed && (

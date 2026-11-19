@@ -3,16 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { issueGuestResumeCode } from "../api/league";
 import type { LeagueLocale } from "../contract";
 import { getLeagueCopy } from "../shell/copy";
@@ -30,7 +28,8 @@ export function GuestResumeCode({
   const [issued, setIssued] = useState(hasResumeCode);
   const [code, setCode] = useState("");
   const [pending, setPending] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const dialogOpen = useRef(false);
   const [error, setError] = useState<unknown>(null);
   const [copyMessage, setCopyMessage] = useState("");
   const codeField = useRef<HTMLInputElement>(null);
@@ -79,12 +78,11 @@ export function GuestResumeCode({
     setCopyMessage("");
     try {
       const result = await issueGuestResumeCode();
-      setCode(result.code);
+      if (dialogOpen.current) setCode(result.code);
       setIssued(true);
     } catch (error) {
       setError(error);
     } finally {
-      setConfirmOpen(false);
       setPending(false);
       inFlight.current = false;
     }
@@ -92,81 +90,91 @@ export function GuestResumeCode({
 
   const buttonText = pending ? text.loading : issued ? text.guestCodeNew : text.guestCodeGet;
   return (
-    <div className={styles.panel}>
-      {issued ? (
-        <AlertDialog open={confirmOpen} onOpenChange={open => !pending && setConfirmOpen(open)}>
-          <AlertDialogTrigger asChild>
-            <PixelButton className={styles.secondary} disabled={pending}>
-              {buttonText}
-            </PixelButton>
-          </AlertDialogTrigger>
-          <AlertDialogContent className={styles.dialog}>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{text.guestCodeConfirm}</AlertDialogTitle>
-              <AlertDialogDescription>{text.guestCodeRotateNotice}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={pending}>{text.cancel}</AlertDialogCancel>
-              <AlertDialogAction
-                disabled={pending}
-                onClick={event => {
-                  event.preventDefault();
-                  void issue();
-                }}
-              >
-                {buttonText}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      ) : (
-        <PixelButton className={styles.secondary} disabled={pending} onClick={() => void issue()}>
+    <Dialog
+      open={open}
+      onOpenChange={next => {
+        dialogOpen.current = next;
+        setOpen(next);
+        setCode("");
+        setError(null);
+        setCopyMessage("");
+        clearTimeout(copyTimer.current);
+      }}
+    >
+      <DialogTrigger asChild>
+        <PixelButton type="button" className={styles.secondary} disabled={pending}>
           {buttonText}
         </PixelButton>
-      )}
-      <p className={styles.meta}>{text.guestCodeRotateNotice}</p>
-      {code && (
-        <>
-          <div className={styles.field}>
-            <label htmlFor="league-issued-code">{text.guestCodeLabel}</label>
-            <input
-              ref={codeField}
-              id="league-issued-code"
-              className={styles.resumeCode}
-              type="text"
-              value={code}
-              readOnly
-              autoComplete="off"
-              spellCheck={false}
-              aria-describedby="league-code-warning league-code-once"
-            />
-          </div>
+      </DialogTrigger>
+      <DialogContent className={styles.dialog} showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>
+            {code ? text.guestCodeLabel : issued ? text.guestCodeConfirm : text.guestCodeGet}
+          </DialogTitle>
+          <DialogDescription>
+            {code
+              ? text.guestCodeOnce
+              : issued
+                ? text.guestCodeRotateNotice
+                : text.guestCodeWarning}
+          </DialogDescription>
+        </DialogHeader>
+        {code ? (
+          <>
+            <div className={styles.field}>
+              <label htmlFor="league-issued-code">{text.guestCodeLabel}</label>
+              <input
+                ref={codeField}
+                id="league-issued-code"
+                className={styles.resumeCode}
+                type="text"
+                value={code}
+                readOnly
+                autoComplete="off"
+                spellCheck={false}
+                aria-describedby="league-code-warning league-code-rotate"
+              />
+            </div>
+            <PixelButton
+              type="button"
+              className={styles.secondary}
+              {...{ command: "--copy", commandfor: "league-issued-code" }}
+              onClick={() => {
+                if (!("CommandEvent" in window)) void copy();
+              }}
+            >
+              {text.guestCodeCopy}
+            </PixelButton>
+            <p role="status" className={styles.meta}>
+              {copyMessage}
+            </p>
+            <ul className={styles.codeWarnings}>
+              <li id="league-code-warning">{text.guestCodeWarning}</li>
+              <li id="league-code-rotate">{text.guestCodeRotateNotice}</li>
+              <li>{text.guestCodeOnce}</li>
+            </ul>
+          </>
+        ) : (
           <PixelButton
             type="button"
-            className={styles.secondary}
-            {...{ command: "--copy", commandfor: "league-issued-code" }}
-            onClick={() => {
-              if (!("CommandEvent" in window)) void copy();
-            }}
+            className={styles.primary}
+            disabled={pending}
+            onClick={() => void issue()}
           >
-            {text.guestCodeCopy}
+            {buttonText}
           </PixelButton>
-        </>
-      )}
-      <p role="status" className={styles.meta}>
-        {copyMessage}
-      </p>
-      <p id="league-code-warning" className={styles.meta}>
-        {text.guestCodeWarning}
-      </p>
-      <p id="league-code-once" className={styles.meta}>
-        {text.guestCodeOnce}
-      </p>
-      {error !== null && (
-        <p role="alert" className={styles.message}>
-          {leagueErrorMessage(error, locale)}
-        </p>
-      )}
-    </div>
+        )}
+        {error !== null && (
+          <p role="alert" className={styles.message}>
+            {leagueErrorMessage(error, locale)}
+          </p>
+        )}
+        <DialogClose asChild>
+          <PixelButton type="button" className={styles.secondary}>
+            {text.close}
+          </PixelButton>
+        </DialogClose>
+      </DialogContent>
+    </Dialog>
   );
 }

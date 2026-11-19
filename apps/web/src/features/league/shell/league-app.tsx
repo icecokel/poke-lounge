@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { DiscordAccountButton } from "@/components/poke-lounge/ui/discord-account-button";
 import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
 import { sameLeagueEngine } from "../test-mode/engine";
 import { LeagueTestModeBanner } from "../test-mode/banner";
@@ -262,13 +261,11 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
               line={status?.guestAllowed ? text.guestRegister : guideText.register}
             />
             <div className={frame.content}>
-              {status?.guestAllowed && (
-                <LeagueGuestLoginPanel locale={locale} onLogin={() => boot(false)} />
-              )}
-              <div className={frame.panel}>
-                <p className={frame.meta}>{guideText.discordWhy}</p>
-                <DiscordAccountButton locale={locale} />
-              </div>
+              <LeagueGuestLoginPanel
+                locale={locale}
+                guestAllowed={status?.guestAllowed ?? false}
+                onLogin={() => boot(false)}
+              />
               <LeagueTestLoginPanel locale={locale} test={status?.test} onLogin={() => boot()} />
               <LeagueAgentLoginPanel
                 locale={locale}
