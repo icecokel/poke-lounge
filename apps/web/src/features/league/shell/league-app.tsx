@@ -231,7 +231,8 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       </RoomMenuHeader>
       <LeagueTestModeBanner locale={locale} test={status?.test} />
       <div ref={screenBody} className={frame.body}>
-        {status?.season?.openEnded && <LeagueDemoToast locale={locale} />}
+        {/* The login screen explains the pre-league in its info dialog and must fit one mobile screen. */}
+        {status?.season?.openEnded && screen !== "login" && <LeagueDemoToast locale={locale} />}
         {screen === "boot" && (
           <div className={frame.content}>
             <section className={`${frame.panel} ${frame.menuPanel}`} role="status">

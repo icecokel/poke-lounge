@@ -137,7 +137,7 @@ export function GuestResumeCode({
             </div>
             <PixelButton
               type="button"
-              className={styles.secondary}
+              className={styles.primary}
               {...{ command: "--copy", commandfor: "league-issued-code" }}
               onClick={() => {
                 if (!("CommandEvent" in window)) void copy();
@@ -151,7 +151,6 @@ export function GuestResumeCode({
             <ul className={styles.codeWarnings}>
               <li id="league-code-warning">{text.guestCodeWarning}</li>
               <li id="league-code-rotate">{text.guestCodeRotateNotice}</li>
-              <li>{text.guestCodeOnce}</li>
             </ul>
           </>
         ) : (
