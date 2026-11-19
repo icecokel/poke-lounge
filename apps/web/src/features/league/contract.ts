@@ -69,6 +69,7 @@ export interface MeView {
   user: {
     displayName: string;
     isGuest: boolean;
+    hasResumeCode: boolean;
     provider?: AccountProvider;
     nickname?: string | null;
     nicknameChangeableAtMs?: number | null;

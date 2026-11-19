@@ -263,7 +263,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
             />
             <div className={frame.content}>
               {status?.guestAllowed && (
-                <LeagueGuestLoginPanel locale={locale} onLogin={() => boot()} />
+                <LeagueGuestLoginPanel locale={locale} onLogin={() => boot(false)} />
               )}
               <div className={frame.panel}>
                 <p className={frame.meta}>{guideText.discordWhy}</p>
@@ -289,6 +289,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
                     me.user.nickname ?? (me.user.isGuest ? text.unnamed : me.user.displayName)
                   }
                   isGuest={me.user.isGuest}
+                  hasResumeCode={me.user.hasResumeCode}
                   provider={me.user.provider}
                   guestAllowed={status?.guestAllowed ?? false}
                   onHome={home}
