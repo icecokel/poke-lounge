@@ -86,7 +86,13 @@ const messages = {
 >;
 
 /** Account controls for the league page, separate from multiplayer. */
-export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
+export function DiscordAccountButton({
+  locale,
+  compact = false,
+}: {
+  locale: PokeLoungeLocale;
+  compact?: boolean;
+}) {
   const [session, setSession] = useState<AccountSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -163,7 +169,12 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
 
   return (
     <>
-      <p ref={status} tabIndex={-1} role="status" className="text-muted-foreground break-words">
+      <p
+        ref={status}
+        tabIndex={-1}
+        role="status"
+        className={compact ? "sr-only" : "text-muted-foreground break-words"}
+      >
         {loading
           ? text.checking
           : session
@@ -196,7 +207,7 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
           variant="outline"
           disabled={pending}
           onClick={handleLogin}
-          className="h-auto min-h-12 w-full bg-[var(--pl-color-gold)] whitespace-normal rounded-[4px] border-2 border-[var(--pl-color-ink)] font-black text-[var(--pl-color-ink)] shadow-[0_3px_0_var(--pl-color-ink)] font-[inherit] hover:bg-[var(--pl-color-gold-soft)] active:translate-y-[2px] active:shadow-[0_1px_0_var(--pl-color-ink)]"
+          className={`h-auto min-h-12 w-full ${compact ? "bg-[var(--pl-color-surface-raised)]" : "bg-[var(--pl-color-gold)]"} whitespace-normal rounded-[4px] border-2 border-[var(--pl-color-ink)] font-black text-[var(--pl-color-ink)] shadow-[0_3px_0_var(--pl-color-ink)] font-[inherit] hover:bg-[var(--pl-color-gold-soft)] active:translate-y-[2px] active:shadow-[0_1px_0_var(--pl-color-ink)]`}
         >
           <LogIn size={20} aria-hidden="true" />
           {text.login}
