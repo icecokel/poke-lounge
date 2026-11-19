@@ -99,8 +99,19 @@ export function LeagueMobileDock({
   const activePokemon = state?.party.find(pokemon => pokemon.isActive && !pokemon.isEmpty);
   return (
     <section
-      className="relative z-40 grid min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden border-t-2 border-[rgb(23_35_28_/_66%)] bg-[radial-gradient(circle_at_12%_20%,rgb(255_255_255_/_54%)_0_1px,transparent_1.5px),linear-gradient(180deg,#e9f1df_0%,#d6e5d1_100%)] bg-[length:12px_12px,auto] text-[#17201a] [container-name:poke-controller] [container-type:inline-size]"
+      className="relative z-40 grid min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden border-t-2 border-[rgb(23_35_28_/_66%)] bg-[radial-gradient(circle_at_12%_20%,rgb(255_255_255_/_54%)_0_1px,transparent_1.5px),linear-gradient(180deg,#e9f1df_0%,#d6e5d1_100%)] bg-[length:12px_12px,auto] text-[#17201a] [&_[data-selected=true]]:outline-3 [&_[data-selected=true]]:outline-[#18364d] [&_[data-selected=true]]:outline-offset-[-5px] [container-name:poke-controller] [container-type:inline-size]"
       data-poke-lounge-mobile-control-dock="true"
+      onKeyDownCapture={event => {
+        if (
+          !battle ||
+          !battleStore.getSnapshot().controls?.isHelpOpen ||
+          !["KeyH", "Enter", "Space", "KeyZ", "Escape", "Backspace", "KeyX"].includes(event.code)
+        )
+          return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (!event.repeat) battleStore.dispatch({ type: "toggle-help" });
+      }}
       aria-label={battle ? props.copy.mobile.battleDeckLabel : props.copy.mobile.exploreDeckLabel}
     >
       {battle ? (
