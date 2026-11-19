@@ -11,6 +11,7 @@ import { getRuntimePokemonMoveDetails } from "@/components/poke-lounge/runtime/g
 import { getBattlePokemonAssets } from "@/components/poke-lounge/runtime/game/battle/battle-pokemon-assets";
 import { BATTLE_LAYOUT } from "@/components/poke-lounge/runtime/game/battle/battle-layout";
 import { moveBattlePartySelection } from "@/components/poke-lounge/runtime/game/battle/battle-party-select";
+import { moveBattlePadCommandSelection } from "@/features/poke-lounge/presentation/battle/command-pad-model";
 import type { RuntimeKeyboard } from "@/components/poke-lounge/runtime/game/runtime-input";
 import type {
   BattleCombatantPresentation,
@@ -23,6 +24,7 @@ import type {
 import type { LeagueJudgedBattleProps } from "../contract";
 
 type Phase = "command" | "move-select" | "party-select" | "resolving" | "ended";
+const COMMANDS = ["fight", "pokemon", "bag", "run"] as const;
 export function createJudgedBattleController({
   init,
   store,
@@ -94,7 +96,7 @@ export function createJudgedBattleController({
       isForcedPartySwitch: choices.kind === "switch",
       moveReplacement: null,
       items: [],
-      commands: (["fight", "pokemon", "bag", "run"] as const).map((id, i) => ({
+      commands: COMMANDS.map((id, i) => ({
         id,
         selected: i === selectedCommand,
       })),
@@ -253,7 +255,7 @@ export function createJudgedBattleController({
   store.setActionHandler(handle);
   nextMessage();
   return {
-    updateKeyboard(keyboard: RuntimeKeyboard) {
+    updateKeyboard(keyboard: RuntimeKeyboard, usesCommandPad: boolean) {
       if (disposed || finished) return;
       const confirm = () => keyboard.consume("Enter", "Space", "KeyZ");
       const back = () => keyboard.consume("Escape", "Backspace", "KeyX");
@@ -284,6 +286,8 @@ export function createJudgedBattleController({
         if (!keyboard.consume(arrow, letter)) continue;
         if (phase === "party-select") {
           selectedParty = moveBattlePartySelection(selectedParty, direction);
+        } else if (phase === "command" && usesCommandPad) {
+          selectedCommand = moveBattlePadCommandSelection(COMMANDS, selectedCommand, direction);
         } else {
           const index = phase === "command" ? selectedCommand : selectedMove;
           const choices = getPlayerChoices(progress);

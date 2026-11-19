@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import styles from "../runtime/game/ui/trainer-name-entry.module.css";
 import { Button } from "@/components/ui/button";
+import { getAccountLogoutCopy } from "./account-logout-copy";
 import type { PokeLoungeLocale } from "../poke-lounge-copy";
 import {
   DISCORD_LOGIN_FAILED_HASH,
@@ -33,8 +34,6 @@ const messages = {
     signedOut: "로그인하지 않은 상태입니다.",
     preparing: "리그 준비 중",
     sessionFailed: "로그인 상태를 확인하지 못했습니다.",
-    title: "디스코드에서 로그아웃할까요?",
-    description: "이 브라우저의 디스코드 계정 세션을 종료합니다.",
     cancel: "취소",
     confirm: "로그아웃",
     loginFailed: "디스코드 로그인을 완료하지 못했습니다. 같은 브라우저에서 다시 시도해 주세요.",
@@ -49,8 +48,6 @@ const messages = {
     signedOut: "You are not logged in.",
     preparing: "League coming soon",
     sessionFailed: "Could not check login status.",
-    title: "Log out of Discord?",
-    description: "This ends your Discord account session in this browser.",
     cancel: "Cancel",
     confirm: "Log out",
     loginFailed: "Discord login did not complete. Please try again in the same browser.",
@@ -65,8 +62,6 @@ const messages = {
     signedOut: "ログインしていません。",
     preparing: "リーグ準備中",
     sessionFailed: "ログイン状態を確認できませんでした。",
-    title: "Discordからログアウトしますか？",
-    description: "このブラウザーのDiscordアカウントセッションを終了します。",
     cancel: "キャンセル",
     confirm: "ログアウト",
     loginFailed: "Discordログインを完了できませんでした。同じブラウザーでもう一度お試しください。",
@@ -83,8 +78,6 @@ const messages = {
     signedOut: string;
     preparing: string;
     sessionFailed: string;
-    title: string;
-    description: string;
     cancel: string;
     confirm: string;
     loginFailed: string;
@@ -103,6 +96,7 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
   const status = useRef<HTMLParagraphElement>(null);
   const focusAfterLogout = useRef(false);
   const text = messages[locale];
+  const logoutText = getAccountLogoutCopy(locale, session?.user?.provider ?? "discord");
 
   useEffect(
     function runEffect() {
@@ -191,7 +185,9 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
           className="h-auto min-h-12 w-full bg-[var(--pl-color-surface-raised)] whitespace-normal break-words rounded-[4px] border-2 border-[var(--pl-color-ink)] font-black text-[var(--pl-color-ink)] shadow-[0_3px_0_var(--pl-color-ink)] font-[inherit] hover:bg-[var(--pl-color-gold-soft)] active:translate-y-[2px] active:shadow-[0_1px_0_var(--pl-color-ink)]"
         >
           <LogOut size={20} aria-hidden="true" />
-          {text.logout(session.user.displayName)}
+          {session.user.provider === "discord"
+            ? text.logout(session.user.displayName)
+            : `${text.confirm} (${session.user.displayName})`}
         </Button>
       ) : session?.discordEnabled ? (
         <Button
@@ -220,8 +216,8 @@ export function DiscordAccountButton({ locale }: { locale: PokeLoungeLocale }) {
           }}
         >
           <AlertDialogHeader>
-            <AlertDialogTitle>{text.title}</AlertDialogTitle>
-            <AlertDialogDescription>{text.description}</AlertDialogDescription>
+            <AlertDialogTitle>{logoutText.title}</AlertDialogTitle>
+            <AlertDialogDescription>{logoutText.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pending}>{text.cancel}</AlertDialogCancel>

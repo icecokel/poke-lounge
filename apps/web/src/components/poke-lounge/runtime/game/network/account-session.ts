@@ -1,9 +1,12 @@
 import { getApiBaseUrl } from "@/lib/constants";
 
+export type AccountProvider = "discord" | "guest" | "agent" | "test";
+
 export interface AccountUser {
   id: string;
   displayName: string;
   isGuest: boolean;
+  provider: AccountProvider;
 }
 
 export interface AccountSession {
@@ -67,7 +70,17 @@ function parseAccountSession(value: unknown): AccountSession | null {
   return {
     discordEnabled: providers.includes("discord"),
     guestAllowed,
-    user: { id: user.id, displayName: user.displayName, isGuest: user.isGuest === true },
+    user: {
+      id: user.id,
+      displayName: user.displayName,
+      isGuest: user.isGuest === true,
+      provider:
+        user.provider === "agent" || user.provider === "test" || user.provider === "guest"
+          ? user.provider
+          : user.isGuest === true
+            ? "guest"
+            : "discord",
+    },
   };
 }
 

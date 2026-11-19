@@ -123,6 +123,8 @@ impl League {
                 .map(str::to_owned)
         });
         let mut status = json!({"enabled":true,"contractVersion":1,"engineVersion":engine,"rulesVersion":self.config.rules_version,"nowMs":now(client).await?,"season":season.as_ref().map(views::season).transpose()?});
+        status["agentAccounts"] =
+            json!(self.config.agent.as_ref().map_or(0, |agent| agent.accounts));
         status["guestAllowed"] = Value::Bool(
             status["season"]["openEnded"] == true && status["season"]["phase"] == "open",
         );
@@ -185,7 +187,7 @@ impl League {
             )
             .await?
             .try_get(0)?;
-        let user_view = json!({"displayName":name,"isGuest":is_guest,"nickname":profile["nickname"],"nicknameChangeableAtMs":profile["changeableAtMs"]});
+        let user_view = json!({"displayName":name,"isGuest":is_guest,"provider":crate::auth::account_provider(user, is_guest),"nickname":profile["nickname"],"nicknameChangeableAtMs":profile["changeableAtMs"]});
         let Some(s) = one(
             &tx,
             &format!("{SEASON} ORDER BY (settled_at IS NULL) DESC,id DESC LIMIT 1"),

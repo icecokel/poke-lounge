@@ -53,7 +53,12 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
         onError: () => setError(true),
       });
       const update = () => {
-        controller?.updateKeyboard(keyboard);
+        controller?.updateKeyboard(
+          keyboard,
+          Boolean(
+            battleRoot.current?.querySelector("[data-poke-lounge-command-layout='heartgold']"),
+          ),
+        );
         keyboard.clearPresses();
         frame = requestAnimationFrame(update);
       };

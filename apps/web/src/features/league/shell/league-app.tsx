@@ -272,6 +272,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
               <LeagueTestLoginPanel locale={locale} test={status?.test} onLogin={() => boot()} />
               <LeagueAgentLoginPanel
                 locale={locale}
+                accounts={status?.agentAccounts ?? 0}
                 forceVisible={agentLinkFailed}
                 onLogin={() => void boot()}
               />
@@ -288,6 +289,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
                     me.user.nickname ?? (me.user.isGuest ? text.unnamed : me.user.displayName)
                   }
                   isGuest={me.user.isGuest}
+                  provider={me.user.provider}
                   guestAllowed={status?.guestAllowed ?? false}
                   onHome={home}
                 />

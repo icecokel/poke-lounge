@@ -33,7 +33,7 @@ pub const NOT_AGENT: &str = "user_id NOT BETWEEN 'a9e70000-0000-4000-8000-000000
 
 pub struct AgentConfig {
     token: String,
-    accounts: i16,
+    pub accounts: i16,
 }
 
 impl AgentConfig {

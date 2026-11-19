@@ -9,6 +9,7 @@ import type {
 } from "@poke-lounge/battle/league/contract";
 import type { LeagueMatchInit, LeagueMatchProgress } from "@poke-lounge/battle/league/match";
 import type { LeagueGrowthView } from "@poke-lounge/battle/league/growth/contract";
+import type { AccountProvider } from "@/components/poke-lounge/runtime/game/network/account-session";
 
 export type LeagueLocale = "ko-KR" | "en-US" | "ja-JP";
 export interface LeagueRuntime {
@@ -38,6 +39,7 @@ export interface LeagueTestModeView {
 }
 export interface StatusView {
   enabled: true;
+  agentAccounts?: number;
   guestAllowed: boolean;
   isGuest: boolean;
   contractVersion: number;
@@ -67,6 +69,7 @@ export interface MeView {
   user: {
     displayName: string;
     isGuest: boolean;
+    provider?: AccountProvider;
     nickname?: string | null;
     nicknameChangeableAtMs?: number | null;
   }; // F2 병합 전에는 nickname 없음

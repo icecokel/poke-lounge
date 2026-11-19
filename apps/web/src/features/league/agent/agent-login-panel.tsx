@@ -49,10 +49,12 @@ export function agentLoginErrorMessage(error: unknown, locale: LeagueLocale): st
 /** Shown on `/league?agent` or after a failed login link; the server token is the actual gate. */
 export function LeagueAgentLoginPanel({
   locale,
+  accounts,
   forceVisible = false,
   onLogin,
 }: {
   locale: LeagueLocale;
+  accounts: number;
   forceVisible?: boolean;
   onLogin(): void;
 }) {
@@ -65,7 +67,7 @@ export function LeagueAgentLoginPanel({
   useEffect(() => {
     setVisible(new URLSearchParams(window.location.search).has("agent"));
   }, []);
-  if (!visible && !forceVisible) return null;
+  if ((!visible && !forceVisible) || accounts < 1) return null;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -120,7 +122,7 @@ export function LeagueAgentLoginPanel({
             disabled={busy}
             onChange={event => setAccount(event.target.value)}
           >
-            {Array.from({ length: 8 }, (_, index) => String(index + 1)).map(value => (
+            {Array.from({ length: accounts }, (_, index) => String(index + 1)).map(value => (
               <option key={value} value={value}>
                 {value}
               </option>

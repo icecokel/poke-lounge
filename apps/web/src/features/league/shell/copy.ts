@@ -34,16 +34,6 @@ const messages = {
     "Logging in with Discord starts separate progress.",
     "Discordでログインすると、ゲストとは別の進行で始まります。",
   ],
-  guestLogoutTitle: [
-    "게스트에서 로그아웃할까요?",
-    "Log out as a guest?",
-    "ゲストからログアウトしますか？",
-  ],
-  guestLogoutDescription: [
-    "로그아웃하면 이 게스트 진행을 다시 이어서 할 수 없어요.",
-    "Once you log out, you cannot return to this guest's progress.",
-    "ログアウトすると、このゲストの進行には戻れません。",
-  ],
   noDeadline: ["마감 없음", "No deadline", "締切なし"],
   preLeagueReset: [
     "정식 시즌이 시작되면 기록이 초기화됩니다",
@@ -61,16 +51,6 @@ const messages = {
   home: ["홈으로", "League home", "ホームへ"],
   account: ["계정 / 로그아웃", "Account / log out", "アカウント / ログアウト"],
   logout: ["로그아웃", "Log out", "ログアウト"],
-  logoutTitle: [
-    "디스코드에서 로그아웃할까요?",
-    "Log out of Discord?",
-    "Discordからログアウトしますか？",
-  ],
-  logoutDescription: [
-    "이 브라우저의 디스코드 계정 세션을 종료합니다.",
-    "This ends your Discord account session in this browser.",
-    "このブラウザーのDiscordアカウントセッションを終了します。",
-  ],
   loggingOut: ["로그아웃 중…", "Logging out…", "ログアウト中…"],
   logoutFailed: [
     "로그아웃하지 못했습니다. 다시 시도해 주세요.",
