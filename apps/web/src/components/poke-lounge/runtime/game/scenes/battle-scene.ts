@@ -10,6 +10,7 @@ import { getPokemonIdentityKey } from "@/features/poke-lounge/domain/player/play
 import { materializeResolvedWildBattleReward } from "@/features/poke-lounge/application/battle/settle-interrupted-battle";
 import { createOpponentPartySummary } from "@/features/poke-lounge/presentation/battle/opponent-party";
 import { formatBattleResultMessage } from "@/features/poke-lounge/presentation/battle/result-message";
+import { moveBattlePadCommandSelection } from "@/features/poke-lounge/presentation/battle/command-pad-model";
 import { PLAYER_PARTY_SLOT_COUNT } from "@poke-lounge/battle/adventure/player/player-types";
 import { BATTLE_MESSAGE_AUTO_ADVANCE_MS } from "@poke-lounge/battle/battle-presentation";
 import {
@@ -3206,6 +3207,25 @@ export class BattleController {
   }
 
   private updateCommandSelection(): void {
+    if (this.usesMobileBattleDeck()) {
+      const directions = [
+        ["left", "ArrowLeft", "KeyA"],
+        ["right", "ArrowRight", "KeyD"],
+        ["up", "ArrowUp", "KeyW"],
+        ["down", "ArrowDown", "KeyS"],
+      ] as const;
+      for (const [direction, arrow, letter] of directions) {
+        if (!consumeVirtualGamepadPress(direction) && !this.keyboard.consume(arrow, letter))
+          continue;
+        this.selectedCommandIndex = moveBattlePadCommandSelection(
+          COMMANDS.map(command => command.command),
+          this.selectedCommandIndex,
+          direction,
+        );
+        this.render();
+      }
+      return;
+    }
     if (consumeVirtualGamepadPress("left") || this.keyboard.consume("ArrowLeft", "KeyA")) {
       this.selectedCommandIndex =
         this.selectedCommandIndex % 2 === 1
