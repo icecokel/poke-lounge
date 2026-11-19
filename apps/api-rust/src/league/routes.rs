@@ -29,6 +29,8 @@ pub fn router(league: Arc<League>) -> Router<AppState> {
     Router::new()
         .route("/league/v1/status", get(status))
         .route("/league/v1/guest", post(super::guest::start))
+        .route("/league/v1/guest/code", post(super::guest::issue_code))
+        .route("/league/v1/guest/resume", post(super::guest::resume))
         .route("/league/v1/standings", get(standings))
         .route("/league/v1/hall-of-fame", get(hall))
         .route("/league/v1/me", get(me))
