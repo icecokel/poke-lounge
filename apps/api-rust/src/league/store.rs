@@ -185,7 +185,7 @@ impl League {
             )
             .await?
             .try_get(0)?;
-        let user_view = json!({"displayName":name,"isGuest":is_guest,"nickname":profile["nickname"],"nicknameChangeableAtMs":profile["changeableAtMs"]});
+        let user_view = json!({"displayName":name,"isGuest":is_guest,"provider":crate::auth::account_provider(user, is_guest),"nickname":profile["nickname"],"nicknameChangeableAtMs":profile["changeableAtMs"]});
         let Some(s) = one(
             &tx,
             &format!("{SEASON} ORDER BY (settled_at IS NULL) DESC,id DESC LIMIT 1"),

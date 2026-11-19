@@ -280,6 +280,21 @@ pub async fn current_user(
     }
 }
 
+pub(crate) fn account_provider(id: uuid::Uuid, is_guest: bool) -> &'static str {
+    if is_guest {
+        "guest"
+    } else if crate::league::agent::is_agent(id) {
+        "agent"
+    } else if id
+        .to_string()
+        .starts_with("7e570000-0000-4000-8000-0000000000")
+    {
+        "test"
+    } else {
+        "discord"
+    }
+}
+
 pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> AppResult<Json<Value>> {
     let user = match session_token(&headers) {
         Some(token) => {
@@ -303,7 +318,7 @@ pub async fn me(State(state): State<AppState>, headers: HeaderMap) -> AppResult<
     Ok(success(json!({
         "guestAllowed": guest_allowed,
         "providers": providers,
-        "user": user.map(|(id, name, is_guest)| json!({"id": id, "displayName": name, "isGuest": is_guest})),
+        "user": user.map(|(id, name, is_guest)| json!({"id": id, "displayName": name, "isGuest": is_guest, "provider": account_provider(id, is_guest)})),
     })))
 }
 

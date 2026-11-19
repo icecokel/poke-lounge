@@ -1,7 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { logoutAccount } from "@/components/poke-lounge/runtime/game/network/account-session";
+import {
+  logoutAccount,
+  type AccountProvider,
+} from "@/components/poke-lounge/runtime/game/network/account-session";
+import { getAccountLogoutCopy } from "@/components/poke-lounge/ui/account-logout-copy";
 import { DiscordAccountButton } from "@/components/poke-lounge/ui/discord-account-button";
 import { ChevronRight } from "lucide-react";
 import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
@@ -24,16 +28,19 @@ export function LeagueAccountScreen({
   locale,
   displayName,
   isGuest,
+  provider = isGuest ? "guest" : "discord",
   guestAllowed,
   onHome,
 }: {
   locale: LeagueLocale;
   displayName: string;
   isGuest: boolean;
+  provider?: AccountProvider;
   guestAllowed: boolean;
   onHome(): void;
 }) {
   const text = getLeagueCopy(locale);
+  const logoutText = getAccountLogoutCopy(locale, provider);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -88,12 +95,8 @@ export function LeagueAccountScreen({
         </AlertDialogTrigger>
         <AlertDialogContent className={styles.dialog}>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {isGuest ? text.guestLogoutTitle : text.logoutTitle}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {isGuest ? text.guestLogoutDescription : text.logoutDescription}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{logoutText.title}</AlertDialogTitle>
+            <AlertDialogDescription>{logoutText.description}</AlertDialogDescription>
           </AlertDialogHeader>
           {pending && <p role="status">{text.loggingOut}</p>}
           <AlertDialogFooter>
