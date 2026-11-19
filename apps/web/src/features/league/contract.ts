@@ -39,6 +39,7 @@ export interface LeagueTestModeView {
 }
 export interface StatusView {
   enabled: true;
+  agentAccounts?: number;
   guestAllowed: boolean;
   isGuest: boolean;
   contractVersion: number;

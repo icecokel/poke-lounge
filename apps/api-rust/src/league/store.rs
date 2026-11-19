@@ -123,6 +123,8 @@ impl League {
                 .map(str::to_owned)
         });
         let mut status = json!({"enabled":true,"contractVersion":1,"engineVersion":engine,"rulesVersion":self.config.rules_version,"nowMs":now(client).await?,"season":season.as_ref().map(views::season).transpose()?});
+        status["agentAccounts"] =
+            json!(self.config.agent.as_ref().map_or(0, |agent| agent.accounts));
         status["guestAllowed"] = Value::Bool(
             status["season"]["openEnded"] == true && status["season"]["phase"] == "open",
         );

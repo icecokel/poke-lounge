@@ -272,6 +272,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
               <LeagueTestLoginPanel locale={locale} test={status?.test} onLogin={() => boot()} />
               <LeagueAgentLoginPanel
                 locale={locale}
+                accounts={status?.agentAccounts ?? 0}
                 forceVisible={agentLinkFailed}
                 onLogin={() => void boot()}
               />
