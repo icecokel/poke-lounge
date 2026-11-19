@@ -110,6 +110,10 @@ impl Data {
             "DELETE FROM poke_lounge_guest_creation WHERE created_at <= now() - interval '1 hour'",
             &[],
         ).await?;
+        client.execute(
+            "DELETE FROM poke_lounge_guest_resume_failure WHERE created_at <= now() - interval '1 hour'",
+            &[],
+        ).await?;
         Ok(())
     }
     /// Finds or creates the user linked to a provider account and refreshes its display name.

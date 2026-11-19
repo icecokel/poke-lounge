@@ -47,6 +47,10 @@ export function leagueErrorMessage(error: unknown, locale: LeagueLocale, retryin
         "Too many guests have started. Try again in an hour or log in with Discord.",
         "ゲストの開始が多すぎます。1時間後に再試行するか、Discordでログインしてください。",
       );
+    case "LEAGUE_GUEST_RESUME_INVALID":
+      return text.guestResumeInvalid;
+    case "LEAGUE_GUEST_RESUME_RATE_LIMITED":
+      return text.guestResumeRateLimited;
     case "LEAGUE_NOT_FOUND":
       return text.closed;
     case "LEAGUE_RATE_LIMITED":

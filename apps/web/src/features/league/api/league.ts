@@ -68,6 +68,10 @@ export interface MatchResponse {
   final?: FinalView;
 }
 export const startGuest = () => leagueRequest("/guest", { method: "POST", body: {} });
+export const issueGuestResumeCode = () =>
+  leagueRequest<{ code: string }>("/guest/code", { method: "POST", body: {} });
+export const resumeGuest = (code: string) =>
+  leagueRequest("/guest/resume", { method: "POST", body: { code } });
 export const getStatus = () => leagueRequest<StatusView>("/status");
 export const getMe = () => leagueRequest<MeView>("/me");
 export const getStandings = () => leagueRequest<StandingsView>("/standings");

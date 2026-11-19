@@ -180,14 +180,15 @@ impl League {
             .await?;
         let profile = super::growth::profile::get_with_client(&tx, user).await?;
         let name = profile["nickname"].as_str().unwrap_or(name);
-        let is_guest: bool = tx
+        let account = tx
             .query_one(
-                "SELECT is_guest FROM poke_lounge_user WHERE id=$1",
+                "SELECT is_guest, resume_code_hash IS NOT NULL AS has_resume_code FROM poke_lounge_user WHERE id=$1",
                 &[&user],
             )
-            .await?
-            .try_get(0)?;
-        let user_view = json!({"displayName":name,"isGuest":is_guest,"provider":crate::auth::account_provider(user, is_guest),"nickname":profile["nickname"],"nicknameChangeableAtMs":profile["changeableAtMs"]});
+            .await?;
+        let is_guest: bool = account.try_get("is_guest")?;
+        let has_resume_code: bool = account.try_get("has_resume_code")?;
+        let user_view = json!({"displayName":name,"isGuest":is_guest,"hasResumeCode":is_guest && has_resume_code,"provider":crate::auth::account_provider(user, is_guest),"nickname":profile["nickname"],"nicknameChangeableAtMs":profile["changeableAtMs"]});
         let Some(s) = one(
             &tx,
             &format!("{SEASON} ORDER BY (settled_at IS NULL) DESC,id DESC LIMIT 1"),

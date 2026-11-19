@@ -17,9 +17,9 @@ const messages = {
   guest: {
     title: ["게스트에서 로그아웃할까요?", "Log out as a guest?", "ゲストからログアウトしますか？"],
     description: [
-      "로그아웃하면 이 게스트 진행을 다시 이어서 할 수 없어요.",
-      "Once you log out, you cannot return to this guest's progress.",
-      "ログアウトすると、このゲストの進行には戻れません。",
+      "이어하기 코드를 받아 두지 않았다면 이 게스트 진행을 다시 이어서 할 수 없어요.",
+      "Without a saved resume code, you cannot return to this guest's progress.",
+      "再開コードを控えていない場合、このゲストの進行には戻れません。",
     ],
   },
   agent: {

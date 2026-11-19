@@ -23,11 +23,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { LeagueLocale } from "../contract";
 import { getLeagueCopy } from "./copy";
+import { GuestResumeCode } from "../guest/guest-resume-code";
 
 export function LeagueAccountScreen({
   locale,
   displayName,
   isGuest,
+  hasResumeCode,
   provider = isGuest ? "guest" : "discord",
   guestAllowed,
   onHome,
@@ -35,6 +37,7 @@ export function LeagueAccountScreen({
   locale: LeagueLocale;
   displayName: string;
   isGuest: boolean;
+  hasResumeCode: boolean;
   provider?: AccountProvider;
   guestAllowed: boolean;
   onHome(): void;
@@ -73,6 +76,7 @@ export function LeagueAccountScreen({
       {isGuest && guestAllowed && (
         <>
           <p className={styles.meta}>{text.guestAccountNotice}</p>
+          <GuestResumeCode locale={locale} hasResumeCode={hasResumeCode} />
           <p className={styles.meta}>{text.guestDiscordNotice}</p>
           <DiscordAccountButton locale={locale} />
         </>
