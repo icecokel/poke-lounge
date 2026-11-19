@@ -87,7 +87,15 @@ export function MobileTaskScreen({
         owner.querySelector('[role="alertdialog"], [role="dialog"][aria-modal="true"]')
       )
         return;
-      if (event.key === "Escape") {
+      if (
+        event.key === "Escape" ||
+        (name === "world-help" &&
+          event.code === "KeyH" &&
+          !event.altKey &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.isComposing)
+      ) {
         event.preventDefault();
         event.stopImmediatePropagation();
         if (!event.repeat) backRef.current?.();
@@ -114,7 +122,7 @@ export function MobileTaskScreen({
           target.focus({ preventScroll: true });
       });
     };
-  }, [returnFocusSelector, target]);
+  }, [name, returnFocusSelector, target]);
 
   const handleKey = (event: KeyboardEvent<HTMLElement>) => {
     // Prevent the same Enter/Space from also activating the runtime keyboard.
