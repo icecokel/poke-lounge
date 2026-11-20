@@ -5,6 +5,19 @@ import type { LeagueLocale, LeagueTestModeView } from "../contract";
 import { LeagueTestModeChip } from "../test-mode/banner";
 import type { GrowthCopy } from "./copy";
 import type { LeagueSaveStorage } from "./league-save";
+import type { GymBearing, GymRegion } from "./gym-roam";
+
+const BEARING_ARROWS: Record<GymBearing, string> = {
+  n: "↑",
+  ne: "↗",
+  e: "→",
+  se: "↘",
+  s: "↓",
+  sw: "↙",
+  w: "←",
+  nw: "↖",
+  near: "●",
+};
 function saveStatusLabel(copy: GrowthCopy, status: string) {
   return status === "too-large"
     ? copy.saveTooLarge
@@ -22,6 +35,8 @@ interface GrowthStatusProps {
   status: string;
   nextGym?: string;
   gymPresent?: boolean;
+  gymRegion?: GymRegion | null;
+  gymBearing?: GymBearing | null;
   onExit(): void;
 }
 
@@ -31,6 +46,8 @@ export function GrowthMobileStatus({
   status,
   nextGym,
   gymPresent,
+  gymRegion,
+  gymBearing,
   onExit,
   locale,
   test,
@@ -48,7 +65,9 @@ export function GrowthMobileStatus({
     save.league.rejectedMints.length === 0 &&
     status !== "too-large" &&
     status !== "error";
-  const summary = `${copy.badges} ${save.league.badges}/8${nextGym ? ` · ${copy.gym} ${nextGym}${gymPresent ? ` ${copy.gymPresent}` : ""}` : ""}`;
+  const where = gymPresent && gymRegion ? copy.gymRegion[gymRegion] : "";
+  const bearing = gymPresent && gymBearing ? copy.gymBearingLabel(copy.gymBearing[gymBearing]) : "";
+  const summary = `${copy.badges} ${save.league.badges}/8${nextGym ? ` · ${copy.gym} ${nextGym}${gymPresent ? ` ${copy.gymPresent}` : ""}${where ? ` · ${where}` : ""}${bearing ? ` (${bearing})` : ""}` : ""}`;
   const saving = `${saveStatusLabel(copy, status)} · ${copy.pending} ${save.league.pendingMints.length}`;
   return (
     <header
@@ -77,6 +96,17 @@ export function GrowthMobileStatus({
               {copy.gym}{" "}
             </span>
             {nextGym} {gymPresent && <span className="text-[#ab4d3e]">{copy.gymPresent}</span>}
+            {where && (
+              <span data-league-gym-hint="true" className="text-[#ab4d3e]">
+                {" "}
+                · {where}
+                {gymBearing && (
+                  <span role="img" aria-label={bearing} title={bearing} className="ml-1">
+                    {BEARING_ARROWS[gymBearing]}
+                  </span>
+                )}
+              </span>
+            )}
           </>
         )}
       </p>

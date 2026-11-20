@@ -61,11 +61,14 @@ export function BattleScreen({
   copy,
   desktop,
   gameStateStore,
+  moveDescriptions = false,
   uiStore,
 }: {
   copy: PokeLoungeCopy;
   desktop: boolean;
   gameStateStore?: GameStateStore;
+  /** Print each move's effect on its own button, so a pointer user reads it before choosing. */
+  moveDescriptions?: boolean;
   uiStore: BattleUiStore;
 }) {
   const { controls, presentation } = useLocalizedBattleUi(uiStore, copy.locale);
@@ -117,6 +120,7 @@ export function BattleScreen({
         copy={copy}
         controls={controls}
         desktop={desktop}
+        moveDescriptions={moveDescriptions}
         onAction={onAction}
         presentation={presentation}
       />
@@ -183,12 +187,14 @@ export function BattleStage({
   copy,
   controls,
   desktop,
+  moveDescriptions = false,
   onAction,
   presentation,
 }: {
   copy: PokeLoungeCopy;
   controls: MobileBattleUiState;
   desktop: boolean;
+  moveDescriptions?: boolean;
   onAction(action: MobileBattleUiAction): void;
   presentation: BattlePresentationState;
 }) {
@@ -261,6 +267,7 @@ export function BattleStage({
         copy={copy}
         controls={controls}
         desktop={desktop}
+        moveDescriptions={moveDescriptions}
         onAction={onAction}
         presentation={presentation}
       />
@@ -497,12 +504,14 @@ export function BattleSurfaceRouter({
   copy,
   controls,
   desktop,
+  moveDescriptions = false,
   onAction,
   presentation,
 }: {
   copy: PokeLoungeCopy;
   controls: MobileBattleUiState;
   desktop: boolean;
+  moveDescriptions?: boolean;
   onAction(action: MobileBattleUiAction): void;
   presentation: BattlePresentationState;
 }) {
@@ -541,7 +550,14 @@ export function BattleSurfaceRouter({
     return <BattleCommandPanel copy={copy} controls={controls} onAction={onAction} />;
   }
   if (presentation.phase === "move-select") {
-    return <BattleMovePanel copy={copy} controls={controls} onAction={onAction} />;
+    return (
+      <BattleMovePanel
+        copy={copy}
+        controls={controls}
+        descriptions={moveDescriptions}
+        onAction={onAction}
+      />
+    );
   }
   if (presentation.phase === "move-replace-select") {
     return <BattleMoveReplacementPanel copy={copy} controls={controls} onAction={onAction} />;
@@ -632,10 +648,12 @@ export function BattleCommandPanel({
 export function BattleMovePanel({
   copy,
   controls,
+  descriptions = false,
   onAction,
 }: {
   copy: PokeLoungeCopy;
   controls: MobileBattleUiState;
+  descriptions?: boolean;
   onAction(action: MobileBattleUiAction): void;
 }) {
   const selectedMove = controls.moves.find(move => move.selected);
@@ -654,6 +672,7 @@ export function BattleMovePanel({
       <div
         className="absolute bottom-0 left-0 m-0 h-[30.208333%] w-full rounded-none border-[max(1px,0.3cqw)] border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] p-[2.34375%] font-[inherit] text-[var(--pl-color-ink)] shadow-[inset_0_0_0_max(1px,0.12cqw)_#fff,inset_0_0_0_max(2px,0.45cqw)_rgb(139_149_136_/_65%)] z-20 grid grid-cols-2 grid-rows-2 gap-x-[1.5625%] gap-y-[2.083333%] [&>button]:relative [&>button]:flex [&>button]:min-w-0 [&>button]:items-center [&>button]:justify-between [&>button]:gap-[0.4em] [&>button]:px-[0.75em] [&>button]:py-[0.2em] [&>button]:text-left [&>button]:text-[var(--pl-color-ink)] [&>button[data-selected=true]]:bg-[var(--pl-color-gold-soft)] [&>button[data-selected=true]]:shadow-[inset_max(2px,0.75cqw)_0_var(--pl-color-johto)] [&>button:disabled]:cursor-default [&>button:disabled]:text-[#7a827c] [&>button:disabled]:opacity-[0.62] [&_small]:text-[0.62em] [&_small]:whitespace-nowrap [&_small]:text-[var(--pl-color-ink-muted)]"
         data-poke-lounge-battle-surface="moves"
+        data-poke-lounge-move-descriptions={descriptions || undefined}
       >
         {Array.from({ length: 4 }, function callback(_, index) {
           const move = controls.moves[index];
@@ -668,6 +687,11 @@ export function BattleMovePanel({
                   : undefined
               }
               selected={Boolean(move?.selected)}
+              detail={
+                descriptions && move
+                  ? getBattleMoveDetails(move, copy.locale).description
+                  : undefined
+              }
               onClick={function handleClick() {
                 return move && onAction({ type: "select-move", index: move.index });
               }}
@@ -876,18 +900,37 @@ function partyStatusSuffix(status: string | null, locale: string): string {
 }
 
 function BattleOptionButton({
+  detail,
   disabled = false,
   label,
   meta,
   onClick,
   selected,
 }: {
+  detail?: string;
   disabled?: boolean;
   label: string;
   meta?: string;
   onClick(): void;
   selected: boolean;
 }) {
+  if (detail !== undefined)
+    return (
+      <PixelButton selected={selected} disabled={disabled} onClick={onClick} title={detail}>
+        <span className="grid min-w-0 flex-1 gap-[0.1em]">
+          <span className="flex min-w-0 items-baseline justify-between gap-[0.4em]">
+            <span className="truncate">
+              {selected ? "▶ " : ""}
+              {label}
+            </span>
+            {meta ? <small>{meta}</small> : null}
+          </span>
+          <small className="line-clamp-2 text-[max(10px,0.62em)]! leading-[1.2] whitespace-normal!">
+            {detail}
+          </small>
+        </span>
+      </PixelButton>
+    );
   return (
     <PixelButton selected={selected} disabled={disabled} onClick={onClick}>
       <span>

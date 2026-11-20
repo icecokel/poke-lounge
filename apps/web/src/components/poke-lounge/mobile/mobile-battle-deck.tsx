@@ -111,9 +111,12 @@ export function MobileBattleContext({
 
 export function MobileBattleDeck({
   copy,
+  moveDescriptions = false,
   uiStore,
 }: {
   copy: PokeLoungeCopy;
+  /** Print each move's effect on its card; see BattleScreen. */
+  moveDescriptions?: boolean;
   uiStore?: BattleUiStore;
 }) {
   const { controls: state, presentation } = useLocalizedBattleUi(uiStore, copy.locale);
@@ -250,7 +253,7 @@ export function MobileBattleDeck({
           )}
         </div>
       ) : state.phase === "move-select" ? (
-        <MobileBattleMoveDeck {...props} />
+        <MobileBattleMoveDeck {...props} descriptions={moveDescriptions} />
       ) : (
         <MobileBattleCommandDeck {...props} onAction={dispatchCommand} />
       )}
@@ -322,7 +325,12 @@ export function MobileBattleCommandDeck({ copy, onAction, state }: DeckProps) {
   );
 }
 
-export function MobileBattleMoveDeck({ copy, onAction, state }: DeckProps) {
+export function MobileBattleMoveDeck({
+  copy,
+  descriptions = false,
+  onAction,
+  state,
+}: DeckProps & { descriptions?: boolean }) {
   useEffect(() => {
     const handleBack = (event: globalThis.KeyboardEvent) => {
       if (event.key !== "Escape" || !state.canGoBack || event.defaultPrevented) return;
@@ -383,6 +391,15 @@ export function MobileBattleMoveDeck({ copy, onAction, state }: DeckProps) {
                   </span>
                 ))}
             </small>
+            {descriptions ? (
+              <small
+                data-poke-lounge-move-description="true"
+                className="line-clamp-2 text-[#3f4d42]"
+                title={getBattleMoveDetails(move, copy.locale).description}
+              >
+                {getBattleMoveDetails(move, copy.locale).description}
+              </small>
+            ) : null}
             {move.pp <= 0 || move.effectNotice ? (
               <small>{move.pp <= 0 ? text.ppEmpty : move.effectNotice}</small>
             ) : null}

@@ -42,13 +42,13 @@ import { createWorldMapModel } from "@/components/poke-lounge/runtime/game/world
 import { localizeGymName } from "./gym-name";
 import { BadgeFlow, BadgeMoveLearning } from "./badge-flow";
 import { nextGym, withGymNpc, gymFrameUrl } from "./gym-npc";
-import { createGymRoam, gymRoamTiming } from "./gym-roam";
+import { createGymRoam, gymRoamTiming, type GymRoamSnapshot } from "./gym-roam";
 import { LeagueMobileFieldShell } from "./mobile-field-shell";
 import { GymChallengePanel } from "./gym-challenge-panel";
 import { growthCopy } from "./copy";
 
 let preloadedGymFrames: HTMLImageElement[] = [];
-const absentGym = { visible: false, appearance: 0 };
+const absentGym: GymRoamSnapshot = { visible: false, appearance: 0, region: null, bearing: null };
 const subscribeAbsentGym = () => () => {};
 const getAbsentGym = () => absentGym;
 
@@ -396,6 +396,8 @@ export function LeagueGrowthScreen(props: LeagueGrowthScreenProps) {
           status={saving}
           nextGym={gym ? localizeGymName(gym.displayName, runtime.locale) : undefined}
           gymPresent={gymSnapshot.visible}
+          gymRegion={gymSnapshot.region}
+          gymBearing={gymSnapshot.bearing}
           onExit={() => onExit("home")}
           locale={runtime.locale}
           test={status.test}

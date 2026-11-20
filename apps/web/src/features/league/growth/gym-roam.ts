@@ -50,6 +50,25 @@ export function gymRoamTiming(status: StatusView): GymRoamTiming {
 }
 
 type Position = { x: number; y: number };
+/** Map third of the gym leader's spawn tile, row then column ("north-east" etc.). */
+export type GymRegion =
+  | "north-west"
+  | "north"
+  | "north-east"
+  | "west"
+  | "center"
+  | "east"
+  | "south-west"
+  | "south"
+  | "south-east";
+/** Direction from the player to the gym leader, or "near" within talking reach of a few tiles. */
+export type GymBearing = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw" | "near";
+export interface GymRoamSnapshot {
+  visible: boolean;
+  appearance: number;
+  region: GymRegion | null;
+  bearing: GymBearing | null;
+}
 type Tile = { tx: number; ty: number };
 type AttachedField = { world: WorldRuntime; frame: WorldFrameStore; mount: HTMLElement };
 export interface GymRoam {
@@ -59,7 +78,7 @@ export interface GymRoam {
   setFieldActive(active: boolean): void;
   endAppearance(): void;
   subscribe(listener: () => void): () => void;
-  getSnapshot(): { visible: boolean; appearance: number };
+  getSnapshot(): GymRoamSnapshot;
 }
 const PARKED = -1000;
 const DIRECTIONS: Array<Tile & { facing: PlayerFacing }> = [
@@ -71,6 +90,24 @@ const DIRECTIONS: Array<Tile & { facing: PlayerFacing }> = [
 const tileKey = ({ tx, ty }: Tile) => `${tx},${ty}`;
 const randomMs = ([min, max]: [number, number]) => min + Math.random() * (max - min);
 const choose = <T>(values: readonly T[]): T => values[Math.floor(Math.random() * values.length)]!;
+const BEARINGS: GymBearing[] = ["e", "se", "s", "sw", "w", "nw", "n", "ne"];
+
+export function gymRegion(tile: Tile, width: number, height: number): GymRegion {
+  const third = (value: number, size: number) =>
+    value < size / 3 ? 0 : value >= (size * 2) / 3 ? 2 : 1;
+  const row = (["north", "", "south"] as const)[third(tile.ty, height)];
+  const column = (["west", "", "east"] as const)[third(tile.tx, width)];
+  return (row && column ? `${row}-${column}` : row || column || "center") as GymRegion;
+}
+
+export function gymBearing(from: Position, to: Position, nearPx: number): GymBearing {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (Math.hypot(dx, dy) <= nearPx) return "near";
+  // Screen y grows downward, so atan2 runs clockwise from east.
+  const octant = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
+  return BEARINGS[(octant + 8) % 8]!;
+}
 
 export function computeGymWalkableTiles(model: WorldMapModel): Tile[] {
   const toTile = (point: Position): Tile => ({
@@ -143,7 +180,12 @@ export function createGymRoam({
     imageUrl: GYM_SPRITES[gym.npcKey]!,
     ...(fallback ? GYM_NPC_POSITION : { x: PARKED, y: PARKED }),
   };
-  let snapshot = { visible: fallback, appearance: fallback ? 1 : 0 };
+  let snapshot: GymRoamSnapshot = {
+    visible: fallback,
+    appearance: fallback ? 1 : 0,
+    region: null,
+    bearing: null,
+  };
   const listeners = new Set<() => void>();
   let attached: AttachedField | null = null;
   let active = true;
@@ -168,7 +210,38 @@ export function createGymRoam({
     y: ty * model.tileHeight + model.tileHeight - 2,
   });
   function publish(visible: boolean) {
-    snapshot = { visible, appearance: snapshot.appearance + (visible ? 1 : 0) };
+    snapshot = {
+      visible,
+      appearance: snapshot.appearance + (visible ? 1 : 0),
+      region: visible ? npcRegion() : null,
+      bearing: visible ? currentBearing() : null,
+    };
+    listeners.forEach(listener => listener());
+  }
+  // The leash keeps the leader near its spawn, so the spawn's map third stays accurate.
+  function npcRegion(): GymRegion {
+    const at = {
+      tx: Math.floor(npc.x / model.tileWidth),
+      ty: Math.floor((npc.y - 1) / model.tileHeight),
+    };
+    return gymRegion(at, model.width, model.height);
+  }
+  function currentBearing(): GymBearing | null {
+    if (!attached) return null;
+    const npcCenter = { x: npc.x, y: npc.y - FIELD_MAP.npcs.soloChallenger.displaySize.height / 2 };
+    return gymBearing(
+      attached.world.readLocalPlayer().position,
+      npcCenter,
+      timing.approachDistancePx * 2,
+    );
+  }
+  // The bearing only changes at octant boundaries, so listeners re-render rarely.
+  function refreshBearing() {
+    if (!snapshot.visible) return;
+    const bearing = currentBearing();
+    if (bearing === snapshot.bearing && snapshot.region) return;
+    // The fixed fallback position is visible from the start, without an appear() call.
+    snapshot = { ...snapshot, bearing, region: snapshot.region ?? npcRegion() };
     listeners.forEach(listener => listener());
   }
   function paint() {
@@ -356,6 +429,7 @@ export function createGymRoam({
       else if (!fallback || waiting) move(elapsedMs, waiting);
     }
     refreshContact();
+    refreshBearing();
     paint();
     schedule();
   }

@@ -306,7 +306,8 @@ export function BadgeFlow({
         rules: LEAGUE_MATCH_RULES,
       }}
       opponent={{ displayName: localizeGymName(battle.npc.displayName, runtime.locale) }}
-      matchLabel={`${copy.badges} ${battle.badgeIndex + 1}/8`}
+      // Not "badge N/8": the badge is only earned by winning this battle.
+      matchLabel={copy.gymTitle(battle.badgeIndex)}
       onFinished={result => {
         setFinished(result);
         void submit(result);

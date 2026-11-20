@@ -115,9 +115,9 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
         {opponent.displayName}
       </h2>
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg">
-        <BattleScreen copy={copy} desktop={desktop} uiStore={store} />
+        <BattleScreen copy={copy} desktop={desktop} uiStore={store} moveDescriptions />
       </div>
-      {!desktop && <MobileBattleDeck copy={copy} uiStore={store} />}
+      {!desktop && <MobileBattleDeck copy={copy} uiStore={store} moveDescriptions />}
     </div>
   );
 }
