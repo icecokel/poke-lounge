@@ -237,7 +237,8 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   const reception = screen === "boot" || screen === "login";
   return (
     <>
-      <LeagueTestModeBanner locale={locale} test={status?.test} />
+      {/* Wait for the server status so a test build does not flash the mismatch warning. */}
+      {status && <LeagueTestModeBanner locale={locale} test={status.test} />}
       <div
         ref={screenBody}
         className={reception ? `${frame.body} ${frame.reception}` : frame.body}
