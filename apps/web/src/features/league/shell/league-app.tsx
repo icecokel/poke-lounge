@@ -1,18 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
 import { sameLeagueEngine } from "../test-mode/engine";
 import { LeagueTestModeBanner } from "../test-mode/banner";
 import { LeagueTestLoginPanel } from "../test-mode/login-panel";
 import { agentLoginErrorMessage, LeagueAgentLoginPanel } from "../agent/agent-login-panel";
-import { consumeAgentLoginLink, hasAgentLoginLink } from "../agent/agent-auto-login";
+import { hasAgentLoginLink } from "../agent/agent-auto-login";
 import { LeagueApiError } from "../api/core";
 import {
   getCurrentAttempt,
   getMe,
   getStandings,
-  getStatus,
   type AttemptView,
   type StandingsView,
 } from "../api/league";
@@ -24,6 +22,7 @@ import type {
   StatusView,
 } from "../contract";
 import { getLeagueCopy } from "./copy";
+import { takeLeagueBoot } from "./league-boot";
 import { loadLeagueRuntime } from "./load-runtime";
 import { LeagueGrowthScreen } from "../growth/league-growth-screen";
 import { LeagueJudgedBattle } from "../battle/league-judged-battle";
@@ -34,11 +33,11 @@ import { LeagueGuestLoginPanel } from "../guest/guest-login-panel";
 import { LeagueHome } from "./league-home";
 import { LeagueDemoToast } from "./league-demo-toast";
 import { LeagueAccountScreen } from "./league-account-screen";
-import { LeagueGuide } from "./league-guide";
+import { LeagueGuide, LeagueGuideScene } from "./league-guide";
+import { LeagueBootPanel } from "./league-loading";
 import { getGuideCopy } from "./guide-copy";
 import frame from "./league-frame.module.css";
 import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
-import { RoomMenuHeader } from "@/components/poke-lounge/ui/room-menu-header";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
 import { RecordsScreen, type RecordsCache } from "../records/records-screen";
 
@@ -97,11 +96,13 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       setScreen("boot");
       setError(null);
       setAttemptNeedsRefresh(false);
+      const initial = takeLeagueBoot();
       let nextStatus: StatusView;
       try {
-        nextStatus = await getStatus();
+        const result = await initial.status;
+        nextStatus = result.value;
         setStatus(nextStatus);
-        setReceivedAt(performance.now());
+        setReceivedAt(result.receivedAt);
       } catch (error) {
         if (!(error instanceof LeagueApiError) || error.status === 404 || error.status === 0)
           setScreen("closed");
@@ -112,23 +113,31 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         return;
       }
       try {
-        const linkError = await consumeAgentLoginLink();
+        const linkError = await initial.login;
         if (linkError) {
           setAgentLinkFailed(true);
           setNotice(agentLoginErrorMessage(linkError, locale));
         }
-        const { user } = await fetchAccountSession();
+        const { user } = await initial.account;
         if (!user) {
           showLogin();
           return;
         }
         if (recordsUserId.current !== user.id) recordsCache.current = {};
         recordsUserId.current = user.id;
+        const currentRequest = resume
+          ? getCurrentAttempt().then(
+              value => ({ value }),
+              (error: unknown) => ({ error }),
+            )
+          : null;
         const [nextMe, nextStandings] = await Promise.all([getMe(), getStandings()]);
         setMe(nextMe);
         setStandings(nextStandings);
         if (resume && nextMe.attempt?.status === "active") {
-          const current = await getCurrentAttempt();
+          const result = await currentRequest!;
+          if ("error" in result) throw result.error;
+          const current = result.value;
           if (current?.id === nextMe.attempt.id && current.status === "active") {
             if (nextMe.run) clearEntryKey(nextMe.run.id);
             if (!sameLeagueEngine(current.engineVersion)) {
@@ -224,23 +233,21 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   }, [mismatch, text.version, text.refresh, text.cancel]);
   // The growth screen widens itself (via :has) only once the field is showing.
   const wide = screen === "attempt" || screen === "entry";
+  // Home keeps its compact layout on mobile; only boot and login share the guide scene.
+  const reception = screen === "boot" || screen === "login";
   return (
-    <div className={wide ? `${frame.frame} ${frame.wide}` : frame.frame}>
-      <RoomMenuHeader locale={locale} className={frame.header}>
-        <a href={`/${locale}/game/poke-lounge`}>{text.firstScreen}</a>
-      </RoomMenuHeader>
-      <LeagueTestModeBanner locale={locale} test={status?.test} />
-      <div ref={screenBody} className={frame.body}>
+    <>
+      {/* Wait for the server status so a test build does not flash the mismatch warning. */}
+      {status && <LeagueTestModeBanner locale={locale} test={status.test} />}
+      <div
+        ref={screenBody}
+        className={reception ? `${frame.body} ${frame.reception}` : frame.body}
+        data-league-screen-wide={wide || undefined}
+      >
+        {reception && <LeagueGuideScene locale={locale} />}
         {/* The login screen explains the pre-league in its info dialog and must fit one mobile screen. */}
         {status?.season?.openEnded && screen !== "login" && <LeagueDemoToast locale={locale} />}
-        {screen === "boot" && (
-          <div className={frame.content}>
-            <section className={`${frame.panel} ${frame.menuPanel}`} role="status">
-              <h2 className={frame.panelTitle}>{text.title}</h2>
-              <p className={frame.meta}>{text.loading}</p>
-            </section>
-          </div>
-        )}
+        {screen === "boot" && <LeagueBootPanel locale={locale} />}
         {screen === "closed" && (
           <div className={frame.content}>
             <section className={`${frame.panel} ${frame.menuPanel}`}>
@@ -257,7 +264,6 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         {screen === "login" && (
           <>
             <LeagueGuide
-              locale={locale}
               lead={guideText.welcome}
               line={status?.guestAllowed ? text.guestRegister : guideText.register}
             />
@@ -374,6 +380,6 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

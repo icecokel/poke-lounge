@@ -5,42 +5,37 @@ import { leagueText } from "./copy";
 import styles from "./league-frame.module.css";
 import entry from "@/components/poke-lounge/runtime/game/ui/trainer-name-entry.module.css";
 
-/** The lounge guide at the league front desk, with one dialogue box under the scene. */
-export function LeagueGuide({
-  locale,
-  lead,
-  line,
-}: {
-  locale: LeagueLocale;
-  lead?: ReactNode;
-  line: ReactNode;
-}) {
+export function LeagueGuideScene({ locale }: { locale: LeagueLocale }) {
   const label = leagueText(locale, "라운지 안내원", "Lounge guide", "ラウンジ案内人");
   return (
-    <>
-      <div className={`${entry.scene} ${styles.scene}`}>
-        <div className={entry.horizon} aria-hidden="true" />
-        <div className={styles.portrait}>
-          <Image
-            src="/assets/poke-lounge/lounge-guide.png"
-            alt={label}
-            width={256}
-            height={256}
-            priority
-            fetchPriority="high"
-            unoptimized
-            className={entry.guide}
-          />
-        </div>
-        <span className={entry.guideLabel}>{label}</span>
+    <div className={`${entry.scene} ${styles.scene}`}>
+      <div className={entry.horizon} aria-hidden="true" />
+      <div className={styles.portrait}>
+        <Image
+          src="/assets/poke-lounge/lounge-guide.png"
+          alt={label}
+          width={256}
+          height={256}
+          priority
+          fetchPriority="high"
+          unoptimized
+          className={entry.guide}
+        />
       </div>
-      <div className={`${entry.dialogue} ${styles.dialogue}`} aria-live="polite">
-        {lead ? <p>{lead}</p> : null}
-        <h2>{line}</h2>
-        <span className={entry.advance} aria-hidden="true">
-          ▼
-        </span>
-      </div>
-    </>
+      <span className={entry.guideLabel}>{label}</span>
+    </div>
+  );
+}
+
+/** The dialogue changes while the front desk scene stays mounted. */
+export function LeagueGuide({ lead, line }: { lead?: ReactNode; line: ReactNode }) {
+  return (
+    <div className={`${entry.dialogue} ${styles.dialogue}`} aria-live="polite">
+      {lead ? <p>{lead}</p> : null}
+      <h2>{line}</h2>
+      <span className={entry.advance} aria-hidden="true">
+        ▼
+      </span>
+    </div>
   );
 }
