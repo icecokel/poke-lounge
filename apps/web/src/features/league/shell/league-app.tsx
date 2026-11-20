@@ -233,7 +233,8 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   }, [mismatch, text.version, text.refresh, text.cancel]);
   // The growth screen widens itself (via :has) only once the field is showing.
   const wide = screen === "attempt" || screen === "entry";
-  const reception = screen === "boot" || screen === "login" || screen === "home";
+  // Home keeps its compact layout on mobile; only boot and login share the guide scene.
+  const reception = screen === "boot" || screen === "login";
   return (
     <>
       <LeagueTestModeBanner locale={locale} test={status?.test} />
