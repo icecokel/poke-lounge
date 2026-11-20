@@ -33,11 +33,11 @@ import { LeagueGuestLoginPanel } from "../guest/guest-login-panel";
 import { LeagueHome } from "./league-home";
 import { LeagueDemoToast } from "./league-demo-toast";
 import { LeagueAccountScreen } from "./league-account-screen";
-import { LeagueGuide } from "./league-guide";
+import { LeagueGuide, LeagueGuideScene } from "./league-guide";
+import { LeagueBootPanel } from "./league-loading";
 import { getGuideCopy } from "./guide-copy";
 import frame from "./league-frame.module.css";
 import { PixelButton } from "@/components/poke-lounge/ui/poke-lounge-ui-primitives";
-import { RoomMenuHeader } from "@/components/poke-lounge/ui/room-menu-header";
 import { leagueErrorMessage, useRateLimitCooldown } from "./league-errors";
 import { RecordsScreen, type RecordsCache } from "../records/records-screen";
 
@@ -233,23 +233,19 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
   }, [mismatch, text.version, text.refresh, text.cancel]);
   // The growth screen widens itself (via :has) only once the field is showing.
   const wide = screen === "attempt" || screen === "entry";
+  const reception = screen === "boot" || screen === "login" || screen === "home";
   return (
-    <div className={wide ? `${frame.frame} ${frame.wide}` : frame.frame}>
-      <RoomMenuHeader locale={locale} className={frame.header}>
-        <a href={`/${locale}/game/poke-lounge`}>{text.firstScreen}</a>
-      </RoomMenuHeader>
+    <>
       <LeagueTestModeBanner locale={locale} test={status?.test} />
-      <div ref={screenBody} className={frame.body}>
+      <div
+        ref={screenBody}
+        className={reception ? `${frame.body} ${frame.reception}` : frame.body}
+        data-league-screen-wide={wide || undefined}
+      >
+        {reception && <LeagueGuideScene locale={locale} />}
         {/* The login screen explains the pre-league in its info dialog and must fit one mobile screen. */}
         {status?.season?.openEnded && screen !== "login" && <LeagueDemoToast locale={locale} />}
-        {screen === "boot" && (
-          <div className={frame.content}>
-            <section className={`${frame.panel} ${frame.menuPanel}`} role="status">
-              <h2 className={frame.panelTitle}>{text.title}</h2>
-              <p className={frame.meta}>{text.loading}</p>
-            </section>
-          </div>
-        )}
+        {screen === "boot" && <LeagueBootPanel locale={locale} />}
         {screen === "closed" && (
           <div className={frame.content}>
             <section className={`${frame.panel} ${frame.menuPanel}`}>
@@ -266,7 +262,6 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         {screen === "login" && (
           <>
             <LeagueGuide
-              locale={locale}
               lead={guideText.welcome}
               line={status?.guestAllowed ? text.guestRegister : guideText.register}
             />
@@ -383,6 +378,6 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
