@@ -21,7 +21,7 @@ export function GymChallengePanel({
 }) {
   return (
     <MobileTaskScreen
-      title={`${copy.gym} ${localizeGymName(gym.displayName, locale)}`}
+      title={`${copy.gymTitle(badges)} · ${localizeGymName(gym.displayName, locale)}`}
       name="gym-challenge"
       className="[&>[data-poke-lounge-task-body]]:grid [&>[data-poke-lounge-task-body]]:items-center"
       backLabel={copy.back}

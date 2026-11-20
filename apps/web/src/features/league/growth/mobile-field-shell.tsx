@@ -9,7 +9,10 @@ import { bindMobileViewport } from "@/components/poke-lounge/mobile/mobile-viewp
 import { GAME_FULLSCREEN_STATE_EVENT } from "@/components/poke-lounge/runtime/web-fullscreen";
 import { primePokeLoungeAudio } from "@/components/poke-lounge/runtime/game/audio/poke-lounge-audio";
 import { virtualGamepadController } from "@/components/poke-lounge/runtime/game/input/virtual-gamepad";
-import { localizeMobileWorldUiState } from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
+import {
+  localizeMobileWorldUiState,
+  localizeRuntimeText,
+} from "@/components/poke-lounge/runtime/game/i18n/runtime-game-localization";
 import type { BattleUiStore } from "@/components/poke-lounge/runtime/game/battle/battle-ui-store";
 import type { WorldUiStore } from "@/components/poke-lounge/runtime/game/world/world-ui-store";
 import type { MobileWorldUiAction } from "@/components/poke-lounge/runtime/game/ui/mobile-world-ui";
@@ -17,6 +20,7 @@ import type { PokeLoungeCopy } from "@/components/poke-lounge/poke-lounge-copy";
 import type { GameStateStore } from "@/features/poke-lounge/contracts/game-state";
 
 import { cn } from "@/lib/utils";
+import { growthCopy } from "./copy";
 import {
   MOBILE_SHELL_BASE,
   MOBILE_SHELL_POSITION,
@@ -97,6 +101,20 @@ export function LeagueMobileDock({
 }) {
   const { state, dispatch } = useMobileWorld(props);
   const activePokemon = state?.party.find(pokemon => pokemon.isActive && !pokemon.isEmpty);
+  const prompt = useSyncExternalStore(
+    props.uiStore.subscribe,
+    () => props.uiStore.getSnapshot().interactionPrompt,
+    () => null,
+  );
+  const growth = growthCopy(props.copy.locale);
+  // The prompt reads "<key> · <target>"; the target alone says who the talk button reaches.
+  const target = prompt?.split(" · ").slice(1).join(" · ").trim();
+  const interactStatus = prompt
+    ? {
+        ready: true,
+        label: target ? localizeRuntimeText(target, props.copy.locale) : growth.talkReady,
+      }
+    : { ready: false, label: growth.talkNone };
   return (
     <section
       className="relative z-40 grid min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden border-t-2 border-[rgb(23_35_28_/_66%)] bg-[radial-gradient(circle_at_12%_20%,rgb(255_255_255_/_54%)_0_1px,transparent_1.5px),linear-gradient(180deg,#e9f1df_0%,#d6e5d1_100%)] bg-[length:12px_12px,auto] text-[#17201a] [&_[data-selected=true]]:outline-3 [&_[data-selected=true]]:outline-[#18364d] [&_[data-selected=true]]:outline-offset-[-5px] [container-name:poke-controller] [container-type:inline-size]"
@@ -122,6 +140,7 @@ export function LeagueMobileDock({
           input={virtualGamepadController}
           onAction={dispatch}
           activePokemon={activePokemon}
+          interactStatus={interactStatus}
         />
       )}
       {children}

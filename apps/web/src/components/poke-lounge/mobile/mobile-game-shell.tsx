@@ -265,11 +265,14 @@ export function MobileExploreDeck({
   activePokemon,
   copy,
   input,
+  interactStatus,
   onAction,
 }: {
   copy: PokeLoungeCopy;
   input: VirtualGamepadController;
   activePokemon?: PokeLoungePartySlotSummary;
+  /** Optional line under the talk button; omitted, the button renders as before. */
+  interactStatus?: { ready: boolean; label: string };
   onAction(action: MobileWorldUiAction): void;
 }) {
   return (
@@ -298,12 +301,26 @@ export function MobileExploreDeck({
         <div className="grid min-w-0 flex-1 gap-2">
           <TouchHoldButton
             control="confirm"
-            className="flex min-h-16 touch-manipulation items-center justify-center gap-[5px] rounded-[9px] border-2 border-[var(--hg-ink)] bg-[linear-gradient(#d96950_50%,#ab4d3e_50%)] p-2 font-black text-[#fffdf4] shadow-[var(--hg-button)] data-[pressed=true]:translate-y-[3px] data-[pressed=true]:shadow-none [&>span]:text-base [&>span]:leading-[1.3] [&>span]:[overflow-wrap:anywhere] [&>small]:text-[0.64rem]"
-            ariaLabel={copy.mobile.interact}
+            className="flex min-h-16 touch-manipulation items-center justify-center gap-[5px] rounded-[9px] border-2 border-[var(--hg-ink)] bg-[linear-gradient(#d96950_50%,#ab4d3e_50%)] p-2 font-black text-[#fffdf4] shadow-[var(--hg-button)] data-[pressed=true]:translate-y-[3px] data-[pressed=true]:shadow-none data-[ready=false]:bg-[linear-gradient(#c78d80_50%,#a2766c_50%)] [&>span]:text-base [&>span]:leading-[1.3] [&>span]:[overflow-wrap:anywhere] [&>small]:text-[0.64rem]"
+            ariaLabel={
+              interactStatus
+                ? `${copy.mobile.interact} · ${interactStatus.label}`
+                : copy.mobile.interact
+            }
             input={input}
+            ready={interactStatus?.ready}
           >
             <MessageSquare size={24} aria-hidden="true" />
-            <span>{copy.mobile.interact}</span>
+            {interactStatus ? (
+              <span className="grid justify-items-start">
+                <span>{copy.mobile.interact}</span>
+                <small className="text-[0.68rem] leading-[1.2] font-bold">
+                  {interactStatus.label}
+                </small>
+              </span>
+            ) : (
+              <span>{copy.mobile.interact}</span>
+            )}
           </TouchHoldButton>
           <button
             type="button"
@@ -854,12 +871,14 @@ function TouchHoldButton({
   className,
   control,
   input,
+  ready,
 }: {
   ariaLabel: string;
   children: ReactNode;
   className: string;
   control: VirtualGamepadButton;
   input: VirtualGamepadController;
+  ready?: boolean;
 }) {
   const [pressed, setPressed] = useState(false);
   const activePointerId = useRef<number | null>(null);
@@ -890,6 +909,7 @@ function TouchHoldButton({
       aria-label={ariaLabel}
       data-mobile-control={control}
       data-pressed={pressed || undefined}
+      data-ready={ready === undefined ? undefined : String(ready)}
       onPointerDown={function handlePointerDown(event) {
         event.preventDefault();
         activePointerId.current = event.pointerId;
