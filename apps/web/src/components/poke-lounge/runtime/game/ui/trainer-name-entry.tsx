@@ -1,5 +1,9 @@
 import Image from "next/image";
-import { useLeagueAvailability } from "@/features/league/entry-link/league-entry-link";
+import { useRouter } from "next/navigation";
+import {
+  prepareLeagueEntry,
+  useLeagueAvailability,
+} from "@/features/league/entry-link/league-entry-link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
@@ -39,6 +43,7 @@ export function TrainerNameEntry({
   onSubmit(event: FormEvent): void;
 }) {
   const text = copy.roomEntry;
+  const router = useRouter();
   const [names] = useState(() =>
     Array.from(
       new Set([
@@ -68,9 +73,19 @@ export function TrainerNameEntry({
   const probing = step === "purpose" && league === null;
   useEffect(() => {
     if (step !== "league") return;
-    const timer = window.setTimeout(() => window.location.assign(`/${copy.locale}/league`), 700);
-    return () => window.clearTimeout(timer);
-  }, [step, copy.locale]);
+    const href = `/${copy.locale}/league`;
+    router.prefetch(href);
+    const discard = prepareLeagueEntry();
+    let navigating = false;
+    const timer = window.setTimeout(() => {
+      navigating = true;
+      router.push(href);
+    }, 700);
+    return () => {
+      window.clearTimeout(timer);
+      if (!navigating) discard();
+    };
+  }, [step, copy.locale, router]);
 
   return (
     <div className={styles.introduction}>

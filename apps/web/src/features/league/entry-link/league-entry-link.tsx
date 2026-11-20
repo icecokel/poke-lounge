@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { getApiBaseUrl } from "@/lib/constants";
+import { prepareLeagueBoot } from "../shell/league-boot";
+
+export function prepareLeagueEntry() {
+  void import("../shell/league-app").catch(() => {});
+  return prepareLeagueBoot();
+}
 
 const CACHE_KEY = "poke-lounge-league:v1:status-probe";
 const CACHE_MS = 10 * 60 * 1000;

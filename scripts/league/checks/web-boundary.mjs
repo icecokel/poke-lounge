@@ -133,8 +133,14 @@ for (const path of files(source)) {
   }
   if (name === entryLink) {
     for (const target of targets) {
-      if (target !== "react" && target !== "@/lib/constants")
-        errors.push(`${name}: entry link may only import React and getApiBaseUrl (${target})`);
+      if (
+        !["react", "@/lib/constants", "../shell/league-boot", "../shell/league-app"].includes(
+          target,
+        )
+      )
+        errors.push(
+          `${name}: entry link import is outside its probe/prefetch boundary (${target})`,
+        );
     }
   }
   if (!name.startsWith(leaguePrefix)) continue;

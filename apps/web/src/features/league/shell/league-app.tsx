@@ -22,7 +22,7 @@ import type {
   StatusView,
 } from "../contract";
 import { getLeagueCopy } from "./copy";
-import { startLeagueBoot } from "./league-boot";
+import { takeLeagueBoot } from "./league-boot";
 import { loadLeagueRuntime } from "./load-runtime";
 import { LeagueGrowthScreen } from "../growth/league-growth-screen";
 import { LeagueJudgedBattle } from "../battle/league-judged-battle";
@@ -96,7 +96,7 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       setScreen("boot");
       setError(null);
       setAttemptNeedsRefresh(false);
-      const initial = startLeagueBoot();
+      const initial = takeLeagueBoot();
       let nextStatus: StatusView;
       try {
         const result = await initial.status;
