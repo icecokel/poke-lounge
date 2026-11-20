@@ -1,18 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { fetchAccountSession } from "@/components/poke-lounge/runtime/game/network/account-session";
 import { sameLeagueEngine } from "../test-mode/engine";
 import { LeagueTestModeBanner } from "../test-mode/banner";
 import { LeagueTestLoginPanel } from "../test-mode/login-panel";
 import { agentLoginErrorMessage, LeagueAgentLoginPanel } from "../agent/agent-login-panel";
-import { consumeAgentLoginLink, hasAgentLoginLink } from "../agent/agent-auto-login";
+import { hasAgentLoginLink } from "../agent/agent-auto-login";
 import { LeagueApiError } from "../api/core";
 import {
   getCurrentAttempt,
   getMe,
   getStandings,
-  getStatus,
   type AttemptView,
   type StandingsView,
 } from "../api/league";
@@ -24,6 +22,7 @@ import type {
   StatusView,
 } from "../contract";
 import { getLeagueCopy } from "./copy";
+import { startLeagueBoot } from "./league-boot";
 import { loadLeagueRuntime } from "./load-runtime";
 import { LeagueGrowthScreen } from "../growth/league-growth-screen";
 import { LeagueJudgedBattle } from "../battle/league-judged-battle";
@@ -97,11 +96,13 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
       setScreen("boot");
       setError(null);
       setAttemptNeedsRefresh(false);
+      const initial = startLeagueBoot();
       let nextStatus: StatusView;
       try {
-        nextStatus = await getStatus();
+        const result = await initial.status;
+        nextStatus = result.value;
         setStatus(nextStatus);
-        setReceivedAt(performance.now());
+        setReceivedAt(result.receivedAt);
       } catch (error) {
         if (!(error instanceof LeagueApiError) || error.status === 404 || error.status === 0)
           setScreen("closed");
@@ -112,23 +113,31 @@ export default function LeagueApp({ locale }: { locale: LeagueLocale }) {
         return;
       }
       try {
-        const linkError = await consumeAgentLoginLink();
+        const linkError = await initial.login;
         if (linkError) {
           setAgentLinkFailed(true);
           setNotice(agentLoginErrorMessage(linkError, locale));
         }
-        const { user } = await fetchAccountSession();
+        const { user } = await initial.account;
         if (!user) {
           showLogin();
           return;
         }
         if (recordsUserId.current !== user.id) recordsCache.current = {};
         recordsUserId.current = user.id;
+        const currentRequest = resume
+          ? getCurrentAttempt().then(
+              value => ({ value }),
+              (error: unknown) => ({ error }),
+            )
+          : null;
         const [nextMe, nextStandings] = await Promise.all([getMe(), getStandings()]);
         setMe(nextMe);
         setStandings(nextStandings);
         if (resume && nextMe.attempt?.status === "active") {
-          const current = await getCurrentAttempt();
+          const result = await currentRequest!;
+          if ("error" in result) throw result.error;
+          const current = result.value;
           if (current?.id === nextMe.attempt.id && current.status === "active") {
             if (nextMe.run) clearEntryKey(nextMe.run.id);
             if (!sameLeagueEngine(current.engineVersion)) {
