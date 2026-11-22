@@ -133,7 +133,7 @@ export function LeagueMobileDock({
       aria-label={battle ? props.copy.mobile.battleDeckLabel : props.copy.mobile.exploreDeckLabel}
     >
       {battle ? (
-        <MobileBattleDeck copy={props.copy} uiStore={battleStore} />
+        <MobileBattleDeck copy={props.copy} uiStore={battleStore} moveDescriptions="compact" />
       ) : (
         <MobileExploreDeck
           copy={props.copy}
