@@ -20,6 +20,12 @@ export function formatBattleResultMessage(
     ].join("\n");
   }
   const summary =
-    result.reason === "run" ? "무사히 도망쳤다!" : won ? "승리했습니다." : "패배했습니다.";
+    result.reason === "run"
+      ? result.escapedSide === "opponent"
+        ? "야생 포켓몬이 도망쳤다!"
+        : "무사히 도망쳤다!"
+      : won
+        ? "승리했습니다."
+        : "패배했습니다.";
   return [summary, "확인을 누르면 필드로 돌아갑니다."].join("\n");
 }

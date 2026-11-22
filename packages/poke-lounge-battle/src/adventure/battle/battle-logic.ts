@@ -835,6 +835,7 @@ function resolveGen4Action(
         winnerPlayerId: state.player.playerId,
         loserPlayerId: state.opponent.playerId,
         reason: "run",
+        escapedSide: resolved.escapedBy === 1 ? "opponent" : "player",
       },
     };
   if (resolved.winner === null) {

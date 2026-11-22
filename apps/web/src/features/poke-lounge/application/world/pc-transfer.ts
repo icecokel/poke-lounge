@@ -10,6 +10,8 @@ export type PcTransferResult =
   | { kind: "deposited"; name: string; boxIndex: number; slotIndex: number }
   | { kind: "withdrawn"; name: string; boxIndex: number; slotIndex: number }
   | { kind: "swapped"; name: string }
+  /** The party is full: the player must pick which party Pokémon goes to the box. */
+  | { kind: "choose-party"; name: string; boxIndex: number }
   | {
       kind: "rejected";
       reason:
@@ -22,9 +24,20 @@ export type PcTransferResult =
     };
 export function transferPcPokemon(
   store: PcTransferPort,
-  selection: { focus: "party" | "box"; partySlot: number; boxIndex: number },
+  selection: {
+    focus: "party" | "box";
+    partySlot: number;
+    boxIndex: number;
+    /** Box Pokémon waiting to be swapped into the chosen party slot. */
+    swapBoxIndex?: number | null;
+  },
 ): PcTransferResult {
   const player = store.getCurrentLocalPlayer();
+  if (selection.focus === "party" && selection.swapBoxIndex != null) {
+    const incoming = player.pokemonBox[selection.swapBoxIndex];
+    if (!incoming) return { kind: "rejected", reason: "empty-box" };
+    return swap(store, selection.partySlot, selection.swapBoxIndex, incoming.name);
+  }
   if (selection.focus === "party") {
     const pokemon = player.party.find(p => p.slotIndex === selection.partySlot)?.pokemon;
     const result = store.movePartyPokemonToBox(selection.partySlot);
@@ -54,8 +67,18 @@ export function transferPcPokemon(
       ),
     };
   if (result.reason !== "party-full") return { kind: "rejected", reason: "invalid-box" };
-  const swapped = store.swapPartyPokemonWithBox(selection.partySlot, selection.boxIndex);
-  if (swapped.ok) return { kind: "swapped", name: pokemon.name };
+  // Never swap silently: the remembered party slot is not visible while the box is focused.
+  return { kind: "choose-party", name: pokemon.name, boxIndex: selection.boxIndex };
+}
+
+function swap(
+  store: PcTransferPort,
+  partySlot: number,
+  boxIndex: number,
+  name: string,
+): PcTransferResult {
+  const swapped = store.swapPartyPokemonWithBox(partySlot, boxIndex);
+  if (swapped.ok) return { kind: "swapped", name };
   return {
     kind: "rejected",
     reason:

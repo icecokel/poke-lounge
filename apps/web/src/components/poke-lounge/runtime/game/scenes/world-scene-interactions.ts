@@ -150,6 +150,9 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private pcBoxPartySlotIndex = 0;
   private pcBoxBoxIndex = 0;
   private pcBoxMessage = "";
+  // Full-party withdraw: the box Pokémon waiting for an explicitly chosen party slot.
+  private pcBoxSwapBoxIndex: number | null = null;
+  private pcBoxSwapChosen = false;
   private shortcutGuideOpen = false;
   private mobileWorldView: "explore" | "party" = "explore";
   private fieldHintText = "";
@@ -271,6 +274,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
       this.pcBoxFocus = action.focus;
       this.pcBoxMessage = "";
+      this.cancelPcSwap();
       this.renderPcBoxUi();
       return;
     }
@@ -282,6 +286,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
       this.pcBoxFocus = "party";
       this.pcBoxPartySlotIndex = action.slotIndex;
+      this.pcBoxSwapChosen = true;
       this.pcBoxMessage = "";
       this.renderPcBoxUi();
       return;
@@ -297,6 +302,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       this.pcBoxFocus = "box";
       this.pcBoxBoxIndex = action.boxIndex;
       this.pcBoxMessage = "";
+      this.cancelPcSwap();
       this.renderPcBoxUi();
       return;
     }
@@ -550,13 +556,16 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       moveReplacement,
       party,
       pcFocus: this.pcBoxFocus,
+      pcSwapPending: this.pcBoxSwapBoxIndex !== null,
       screen,
       selectedItemDescription: selectedItem?.description ?? "",
       selectedItemName: selectedItem?.name ?? "",
       selectedPartySlotIndex:
         this.inventoryFocus === "party" || this.inventoryFocus === "move-replace"
           ? this.inventoryPartySlotIndex
-          : this.pcBoxPartySlotIndex,
+          : this.pcBoxSwapBoxIndex !== null && !this.pcBoxSwapChosen
+            ? -1
+            : this.pcBoxPartySlotIndex,
       title,
     };
 
@@ -1224,6 +1233,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.closePokemonStatusPanel({ rerenderPartyHud: false });
     this.pcBoxOpen = true;
     this.pcBoxFocus = "party";
+    this.cancelPcSwap();
     this.pcBoxPartySlotIndex = clampSelectionIndex(
       this.pcBoxPartySlotIndex,
       PLAYER_PARTY_SLOT_COUNT,
@@ -1239,6 +1249,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private closePcBox(): void {
     this.pcBoxOpen = false;
     this.pcBoxMessage = "";
+    this.cancelPcSwap();
     dispatchPokeLoungeAccessibleStatus(document, "필드 탐색");
     this.publishMobileWorldUiState();
   }
@@ -1249,6 +1260,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     if (this.pcBoxFocus === "party") {
       this.pcBoxPartySlotIndex =
         (this.pcBoxPartySlotIndex + delta + PLAYER_PARTY_SLOT_COUNT) % PLAYER_PARTY_SLOT_COUNT;
+      this.pcBoxSwapChosen = true;
     } else {
       const boxItemCount = Math.max(1, localPlayer.pokemonBox.length);
       this.pcBoxBoxIndex = (this.pcBoxBoxIndex + delta + boxItemCount) % boxItemCount;
@@ -1258,19 +1270,37 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.renderPcBoxUi();
   }
 
+  private cancelPcSwap(): void {
+    this.pcBoxSwapBoxIndex = null;
+    this.pcBoxSwapChosen = false;
+  }
+
   private togglePcBoxFocus(): void {
     this.pcBoxFocus = this.pcBoxFocus === "party" ? "box" : "party";
     this.pcBoxMessage = "";
+    this.cancelPcSwap();
     this.renderPcBoxUi();
   }
 
   private confirmPcBoxSelection(): void {
-    const result = transferPcPokemon(this.gameStateStore, {
-      focus: this.pcBoxFocus,
-      partySlot: this.pcBoxPartySlotIndex,
-      boxIndex: this.pcBoxBoxIndex,
-    });
+    const swapping = this.pcBoxFocus === "party" && this.pcBoxSwapBoxIndex !== null;
+    const result =
+      swapping && !this.pcBoxSwapChosen
+        ? ({ kind: "rejected", reason: "select-party" } as const)
+        : transferPcPokemon(this.gameStateStore, {
+            focus: this.pcBoxFocus,
+            partySlot: this.pcBoxPartySlotIndex,
+            boxIndex: this.pcBoxBoxIndex,
+            swapBoxIndex: swapping ? this.pcBoxSwapBoxIndex : null,
+          });
     this.pcBoxMessage = formatPcTransferResult(result);
+    if (result.kind === "choose-party") {
+      this.pcBoxFocus = "party";
+      this.pcBoxSwapBoxIndex = result.boxIndex;
+      this.pcBoxSwapChosen = false;
+    } else if (result.kind !== "rejected") {
+      this.cancelPcSwap();
+    }
     if (result.kind === "deposited") {
       this.pcBoxPartySlotIndex = clampSelectionIndex(result.slotIndex, PLAYER_PARTY_SLOT_COUNT);
       this.pcBoxBoxIndex = result.boxIndex;

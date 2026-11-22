@@ -66,6 +66,8 @@ export interface MobileWorldUiState {
   moveReplacement: MobileWorldMoveReplacementState | null;
   party: MobileWorldPartyOption[];
   pcFocus: "party" | "box";
+  /** A box Pokémon waits for the player to pick a party slot to swap with. */
+  pcSwapPending: boolean;
   screen: MobileWorldUiScreen;
   selectedItemDescription: string;
   selectedItemName: string;
