@@ -1045,7 +1045,12 @@ function MobileWorldTask({
   } else if (state.screen === "pc") {
     body = <MobilePcPanel copy={copy} state={state} onAction={onAction} />;
     confirm = () => onAction({ type: "confirm-pc-selection" });
-    confirmLabel = state.pcFocus === "party" ? copy.mobile.deposit : copy.mobile.withdraw;
+    confirmLabel =
+      state.pcFocus === "box"
+        ? copy.mobile.withdraw
+        : state.pcSwapPending
+          ? copy.mobile.pcSwap
+          : copy.mobile.deposit;
     disabled = state.pcFocus === "party" ? !pokemon : !state.box.some(slot => slot.selected);
   } else {
     body = <MobileWorldHelpScreen copy={copy} state={state} />;

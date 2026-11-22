@@ -11,6 +11,8 @@ export function formatPcTransferResult(result: PcTransferResult): string {
       return `${withObjectParticle(result.name)} 파티로 데려왔다.`;
     case "swapped":
       return `${withConjunctionParticle(result.name)} 파티 포켓몬을 교체했다.`;
+    case "choose-party":
+      return `파티가 가득 찼다. ${withConjunctionParticle(result.name)} 바꿀 파티 포켓몬을 골라라.`;
     case "rejected":
       return {
         "last-pokemon": "마지막 포켓몬은 보관할 수 없다.",

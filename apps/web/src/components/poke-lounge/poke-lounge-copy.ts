@@ -144,6 +144,7 @@ export interface PokeLoungeCopy {
     use: string;
     deposit: string;
     withdraw: string;
+    pcSwap: string;
     setLead: string;
     pcParty: string;
     pcBox: string;
@@ -441,6 +442,7 @@ const KOREAN_COPY: PokeLoungeCopy = {
     use: "사용",
     deposit: "보관",
     withdraw: "데려오기",
+    pcSwap: "교체하기",
     setLead: "선두로 지정",
     pcParty: "파티",
     pcBox: "박스",
@@ -759,6 +761,7 @@ const ENGLISH_COPY: PokeLoungeCopy = {
     use: "Use",
     deposit: "Store",
     withdraw: "Take out",
+    pcSwap: "Swap",
     setLead: "Set lead",
     pcParty: "Party",
     pcBox: "Box",
@@ -1079,6 +1082,7 @@ const JAPANESE_COPY: PokeLoungeCopy = {
     use: "使う",
     deposit: "預ける",
     withdraw: "連れ出す",
+    pcSwap: "入れ替える",
     setLead: "先頭にする",
     pcParty: "手持ち",
     pcBox: "ボックス",

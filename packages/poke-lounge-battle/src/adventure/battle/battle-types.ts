@@ -88,6 +88,8 @@ export interface BattleResult {
   winnerPlayerId: string;
   loserPlayerId: string;
   reason: BattleResultReason;
+  /** With reason "run": who left. A wild Pokémon can flee too (e.g. Teleport); absent means the player. */
+  escapedSide?: "player" | "opponent";
   capturedPokemon?: BattlePokemon;
   experienceGained?: number;
   levelsGained?: number;

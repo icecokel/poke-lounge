@@ -137,6 +137,10 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
   "도망칠 수 없었다!": { "en-US": "Couldn't escape!", "ja-JP": "逃げられなかった！" },
   "도망칠 수 없다!": { "en-US": "Can't escape!", "ja-JP": "逃げられない！" },
   "무사히 도망쳤다!": { "en-US": "Got away safely!", "ja-JP": "無事に逃げ切れた！" },
+  "야생 포켓몬이 도망쳤다!": {
+    "en-US": "The wild Pokémon fled!",
+    "ja-JP": "野生のポケモンは逃げ出した！",
+  },
   "아직 사용할 수 없다.": { "en-US": "You can't use that yet.", "ja-JP": "まだ使えません。" },
   "지금은 쓸 수 없다.": { "en-US": "You can't use that now.", "ja-JP": "今は使えません。" },
   "효과가 없다.": { "en-US": "It had no effect.", "ja-JP": "効果がありません。" },
@@ -690,6 +694,11 @@ const RUNTIME_TEXT_PATTERNS: readonly RuntimeTextPattern[] = [
     /^(.+)(?:을\(를\)|[을를]) 파티로 데려왔다\.$/,
     (_, name) => `Added ${name} to your party.`,
     (_, name) => `${name}を手持ちに加えました。`,
+  ),
+  pattern(
+    /^파티가 가득 찼다\. (.+)(?:와\(과\)|[와과]) 바꿀 파티 포켓몬을 골라라\.$/,
+    (_, name) => `Your party is full. Choose a party Pokémon to swap with ${name}.`,
+    (_, name) => `手持ちがいっぱいです。${name}と入れ替えるポケモンを選んでください。`,
   ),
   pattern(
     /^(.+)(?:와\(과\)|[와과]) 파티 포켓몬을 교체했다\.$/,
