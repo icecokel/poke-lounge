@@ -400,7 +400,9 @@
   font-size: 20px;
 }
 
-@media (orientation: landscape) and (max-height: 500px) {
+/* Landscape phone layouts also need a phone-landscape width: an open on-screen keyboard
+   leaves a portrait phone shorter than it is wide, which alone would match "landscape". */
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 560px) {
   .page {
     padding: 12px;
   }
@@ -463,7 +465,7 @@
   margin-top: auto;
 }
 
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 560px) {
   .content > section[aria-labelledby="league-trainer-card"] {
     gap: 6px;
     padding: 10px;
@@ -502,12 +504,16 @@
 .nicknameForm {
   composes: panel;
   display: flex;
+  /* The form is also the frame's .content, which grows; the card should hug its fields. */
+  flex: 0 0 auto;
   flex-direction: column;
   margin: 0 14px;
 }
 
+/* The button follows the input, like the menu panels; pinning it to the card bottom left
+   a tall empty gap on phones. */
 .nicknameForm > button {
-  margin-top: auto;
+  margin-top: 4px;
 }
 
 .tabs {
@@ -562,7 +568,7 @@
   }
 }
 
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 560px) {
   .body > .demoToast {
     grid-column: 1 / -1;
     font-size: 12px;
@@ -652,7 +658,7 @@
   order: 1;
 }
 
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 560px) {
   .body:has(> .demoToast) .menuIntro {
     display: flex;
     align-items: baseline;
@@ -672,7 +678,7 @@
   }
 }
 
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 560px) {
   .frame:has([data-screen="league-starter-selection"]) {
     max-width: none;
   }
