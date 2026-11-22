@@ -114,6 +114,7 @@
   margin: 0 14px;
 }
 .leagueScreen > .panel {
+  align-self: start;
   height: auto;
-  min-height: calc(100dvh - 132px);
+  min-height: 0;
 }

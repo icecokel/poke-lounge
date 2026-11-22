@@ -36,6 +36,8 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
   }, []);
   useEffect(() => {
     if (!selection || !battleRoot.current) return;
+    // The page header and notices sit above the battle; bring the battle itself into view.
+    battleRoot.current.scrollIntoView({ block: "start" });
     const keyboard = new RuntimeKeyboard(battleRoot.current);
     let frame = 0;
     const warn = (event: BeforeUnloadEvent) => {
@@ -114,7 +116,9 @@ export function LeagueJudgedBattle(props: LeagueJudgedBattleProps) {
         {matchLabel} · {opponent.className && `${opponent.className} `}
         {opponent.displayName}
       </h2>
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg">
+      {/* The battle scrolls to the top when it starts; the 4:3 frame is capped by the height left
+          under its title, so a short landscape screen sees the whole battle and its panel. */}
+      <div className="relative mx-auto aspect-[4/3] w-full max-w-[max(280px,calc((100dvh-3.5rem)*4/3))] overflow-hidden rounded-lg">
         <BattleScreen copy={copy} desktop={desktop} uiStore={store} moveDescriptions />
       </div>
       {!desktop && <MobileBattleDeck copy={copy} uiStore={store} moveDescriptions />}

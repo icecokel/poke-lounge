@@ -378,6 +378,16 @@
 .dialog {
   composes: dialog from "../../../components/poke-lounge/runtime/game/ui/trainer-name-entry.module.css";
 }
+/* Centre the sheet by its edges instead of left:50% + translate + width:100vw: when 100vw
+   resolves wider than the visible viewport the sheet overflowed both sides and clipped text. */
+.dialog.dialog {
+  right: 0 !important;
+  left: 0 !important;
+  width: auto !important;
+  max-width: min(480px, 100%) !important;
+  margin-inline: auto;
+  translate: none !important;
+}
 .demoToast {
   display: flex;
   flex-shrink: 0;
@@ -650,8 +660,10 @@
   margin: 0;
 }
 
+/* The panel hugs its content: forcing it to the screen height centred three short cards
+   between two large gaps and pushed the start button below the first screen. */
 .body [data-screen="league-starter-selection"] > [data-starter-panel] {
-  min-height: calc(100dvh - 56px);
+  min-height: 0;
 }
 
 .body:has([data-screen="league-starter-selection"]) > .demoToast {

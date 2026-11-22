@@ -115,8 +115,9 @@ export function MobileBattleDeck({
   uiStore,
 }: {
   copy: PokeLoungeCopy;
-  /** Print each move's effect on its card; see BattleScreen. */
-  moveDescriptions?: boolean;
+  /** Print each move's effect on its card; see BattleScreen. "compact" keeps it to one line
+   *  for a fixed-height dock. */
+  moveDescriptions?: boolean | "compact";
   uiStore?: BattleUiStore;
 }) {
   const { controls: state, presentation } = useLocalizedBattleUi(uiStore, copy.locale);
@@ -330,7 +331,7 @@ export function MobileBattleMoveDeck({
   descriptions = false,
   onAction,
   state,
-}: DeckProps & { descriptions?: boolean }) {
+}: DeckProps & { descriptions?: boolean | "compact" }) {
   useEffect(() => {
     const handleBack = (event: globalThis.KeyboardEvent) => {
       if (event.key !== "Escape" || !state.canGoBack || event.defaultPrevented) return;
@@ -394,7 +395,7 @@ export function MobileBattleMoveDeck({
             {descriptions ? (
               <small
                 data-poke-lounge-move-description="true"
-                className="line-clamp-2 text-[#3f4d42]"
+                className={`${descriptions === "compact" ? "line-clamp-1" : "line-clamp-2"} text-[#3f4d42]`}
                 title={getBattleMoveDetails(move, copy.locale).description}
               >
                 {getBattleMoveDetails(move, copy.locale).description}
