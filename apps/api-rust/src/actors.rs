@@ -361,13 +361,19 @@ impl Rooms {
             .is_some_and(|rooms| rooms.len() >= MAX_LIVE_ROOMS_PER_IP)
         {
             if crate::http::first_this_second(&CREATE_LIMIT_LOGGED_S) {
+                // Raw addresses are never logged; the hash prefix tells distinct addresses apart.
+                // Private and loopback addresses never get here (see `room_creator`).
+                let creator = crate::repository::hash_bytes(ip.to_string().as_bytes());
                 tracing::warn!(
                     event = "room.create_limited",
                     limit = "live_rooms_per_ip",
-                    max = MAX_LIVE_ROOMS_PER_IP
+                    max = MAX_LIVE_ROOMS_PER_IP,
+                    creator = &creator[..12],
+                    creators = created.len(),
+                    live_rooms = live.len()
                 );
             }
-            return Err(AppError::Capacity);
+            return Err(AppError::CreatorLimit);
         }
         Ok(())
     }

@@ -29,6 +29,10 @@ pub enum AppError {
     RoomRejoinBlocked,
     #[error("Room capacity reached")]
     Capacity,
+    /// One client address already keeps `MAX_LIVE_ROOMS_PER_IP` live rooms; waiting on the server
+    /// does not help, so clients must not retry this like `Capacity`.
+    #[error("Too many live rooms created from this address")]
+    CreatorLimit,
     #[error("Room revision conflict")]
     RevisionConflict,
     #[error("Idempotency key was reused with different input")]
@@ -126,6 +130,10 @@ impl AppError {
             Self::Capacity | Self::Busy | Self::CommandLimit => {
                 (StatusCode::TOO_MANY_REQUESTS, "BACKEND_BUSY")
             }
+            Self::CreatorLimit => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "POKE_LOUNGE_ROOM_CREATE_LIMIT",
+            ),
             Self::Timeout => (StatusCode::GATEWAY_TIMEOUT, "OUTCOME_UNKNOWN"),
             Self::AccountDisabled => (StatusCode::SERVICE_UNAVAILABLE, "ACCOUNT_AUTH_DISABLED"),
             Self::Unavailable | Self::Storage(_) | Self::Database(_) => {
@@ -159,7 +167,7 @@ impl AppError {
             Self::Timeout => "timeout",
             Self::Unavailable => "backend",
             Self::Configuration(_) => "configuration",
-            Self::Busy | Self::Capacity | Self::CommandLimit => "capacity",
+            Self::Busy | Self::Capacity | Self::CommandLimit | Self::CreatorLimit => "capacity",
             _ => "request",
         }
     }

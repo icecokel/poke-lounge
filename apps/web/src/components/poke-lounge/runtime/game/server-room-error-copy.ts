@@ -21,7 +21,7 @@ const SERVER_ROOM_ERROR_MESSAGES = {
       "서버가 참가 요청 형식을 거절했습니다. 페이지를 새로고침한 뒤 다시 참가해 주세요.",
     ROOM_REQUEST_CONFLICT:
       "방 상태나 이전 참가 요청과 충돌했습니다. 최신 상태를 확인한 뒤 다시 참가해 주세요.",
-    ROOM_SERVER_BUSY: "서버가 참가 요청을 처리할 여유가 없습니다. 잠시 후 다시 시도해 주세요.",
+    ROOM_SERVER_BUSY: "서버가 요청을 처리할 여유가 없습니다. 잠시 후 다시 시도해 주세요.",
     ROOM_SERVER_UNAVAILABLE:
       "서버에서 참가 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
     ROOM_REQUEST_TIMEOUT:
@@ -32,6 +32,8 @@ const SERVER_ROOM_ERROR_MESSAGES = {
       "서버 응답이 예상한 형식과 다릅니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.",
     ROOM_CREATE_FAILED: "서버 방을 만들지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
     ROOM_CODE_IN_USE: "이미 사용 중인 방 코드입니다. 다른 코드를 입력해 주세요.",
+    ROOM_CREATE_LIMIT:
+      "이 네트워크에서 동시에 열어 둘 수 있는 방 수를 넘었습니다. 열려 있는 방이 끝난 뒤 다시 만들거나, 기존 방에 참가해 주세요.",
     ROOM_JOIN_FAILED:
       "서버 방에 참가하지 못했습니다. 방 코드와 연결을 확인한 뒤 다시 시도해 주세요.",
     ROOM_PARTY_SYNC_FAILED: "파티 정보를 서버와 동기화하지 못했습니다. 다시 시도해 주세요.",
@@ -58,7 +60,7 @@ const SERVER_ROOM_ERROR_MESSAGES = {
       "The server rejected the join request. Reload the page and try joining again.",
     ROOM_REQUEST_CONFLICT:
       "The request conflicted with the room state or a previous request. Check the latest state and join again.",
-    ROOM_SERVER_BUSY: "The server cannot handle the join request right now. Try again shortly.",
+    ROOM_SERVER_BUSY: "The server cannot handle the request right now. Try again shortly.",
     ROOM_SERVER_UNAVAILABLE: "The server could not process the join request. Try again shortly.",
     ROOM_REQUEST_TIMEOUT:
       "The server did not respond within the time limit. Check your connection and try again.",
@@ -68,6 +70,8 @@ const SERVER_ROOM_ERROR_MESSAGES = {
       "The server response did not match the expected format. Reload the page and try again.",
     ROOM_CREATE_FAILED: "Couldn't create the server room. Check your connection and try again.",
     ROOM_CODE_IN_USE: "This room code is already in use. Enter a different code.",
+    ROOM_CREATE_LIMIT:
+      "This network already has the maximum number of open rooms. Create a room after one of them ends, or join an existing room.",
     ROOM_JOIN_FAILED:
       "Couldn't join the server room. Check the room code and your connection, then try again.",
     ROOM_PARTY_SYNC_FAILED: "Couldn't sync your party with the server. Try again.",
@@ -96,8 +100,7 @@ const SERVER_ROOM_ERROR_MESSAGES = {
       "サーバーが参加リクエストを拒否しました。ページを再読み込みして、もう一度参加してください。",
     ROOM_REQUEST_CONFLICT:
       "ルームの状態または以前のリクエストと競合しました。最新の状態を確認して、もう一度参加してください。",
-    ROOM_SERVER_BUSY:
-      "現在、参加リクエストを処理できません。少し待ってから、もう一度お試しください。",
+    ROOM_SERVER_BUSY: "現在、リクエストを処理できません。少し待ってから、もう一度お試しください。",
     ROOM_SERVER_UNAVAILABLE:
       "サーバーが参加リクエストを処理できませんでした。少し待ってから、もう一度お試しください。",
     ROOM_REQUEST_TIMEOUT:
@@ -109,6 +112,8 @@ const SERVER_ROOM_ERROR_MESSAGES = {
     ROOM_CREATE_FAILED:
       "サーバールームを作成できませんでした。接続を確認して、もう一度お試しください。",
     ROOM_CODE_IN_USE: "このルームコードは使用中です。別のコードを入力してください。",
+    ROOM_CREATE_LIMIT:
+      "このネットワークから同時に開けるルーム数の上限に達しました。開いているルームが終了してから作成するか、既存のルームに参加してください。",
     ROOM_JOIN_FAILED:
       "サーバールームに参加できませんでした。ルームコードと接続を確認して、もう一度お試しください。",
     ROOM_PARTY_SYNC_FAILED:
@@ -140,6 +145,7 @@ const SERVER_ROOM_ERROR_TITLES = {
     ROOM_RESPONSE_INVALID: "서버 응답을 해석할 수 없습니다",
     ROOM_CREATE_FAILED: "방을 만들지 못했습니다",
     ROOM_CODE_IN_USE: "이미 사용 중인 방 코드입니다",
+    ROOM_CREATE_LIMIT: "방을 더 만들 수 없습니다",
     ROOM_JOIN_FAILED: "방에 참가하지 못했습니다",
     ROOM_PARTY_SYNC_FAILED: "파티 정보를 동기화하지 못했습니다",
     ROOM_READY_FAILED: "준비 상태를 반영하지 못했습니다",
@@ -165,6 +171,7 @@ const SERVER_ROOM_ERROR_TITLES = {
     ROOM_RESPONSE_INVALID: "The server response is invalid",
     ROOM_CREATE_FAILED: "Couldn't create the room",
     ROOM_CODE_IN_USE: "Room code already in use",
+    ROOM_CREATE_LIMIT: "Room limit reached",
     ROOM_JOIN_FAILED: "Couldn't join the room",
     ROOM_PARTY_SYNC_FAILED: "Couldn't sync your party",
     ROOM_READY_FAILED: "Couldn't update your readiness",
@@ -190,6 +197,7 @@ const SERVER_ROOM_ERROR_TITLES = {
     ROOM_RESPONSE_INVALID: "サーバーの応答を読み取れません",
     ROOM_CREATE_FAILED: "ルームを作成できませんでした",
     ROOM_CODE_IN_USE: "使用中のルームコードです",
+    ROOM_CREATE_LIMIT: "これ以上ルームを作成できません",
     ROOM_JOIN_FAILED: "ルームに参加できませんでした",
     ROOM_PARTY_SYNC_FAILED: "パーティーを同期できませんでした",
     ROOM_READY_FAILED: "準備状態を更新できませんでした",
