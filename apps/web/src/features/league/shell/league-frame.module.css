@@ -2,7 +2,9 @@
 
 .page {
   min-height: 100dvh;
-  padding: 12px;
+  /* The league route uses viewport-fit=cover; keep content clear of the notch and home bar. */
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   background: var(--rom-screen-background, var(--pl-color-ink));
 }
 
@@ -414,7 +416,8 @@
    leaves a portrait phone shorter than it is wide, which alone would match "landscape". */
 @media (orientation: landscape) and (max-height: 500px) and (min-width: 560px) {
   .page {
-    padding: 12px;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   }
   .frame {
     max-width: 820px;
@@ -554,7 +557,8 @@
 
 @media (max-height: 700px) {
   .page {
-    padding: 8px;
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
   }
   .frame {
     min-height: calc(100dvh - 16px);
@@ -639,7 +643,8 @@
 }
 
 .page:has([data-screen="league-starter-selection"]) {
-  padding: 16px 0;
+  padding: max(16px, env(safe-area-inset-top)) env(safe-area-inset-right)
+    max(16px, env(safe-area-inset-bottom)) env(safe-area-inset-left);
   background: #17201a;
 }
 
