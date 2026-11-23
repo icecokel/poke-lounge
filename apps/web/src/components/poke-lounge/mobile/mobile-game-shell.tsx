@@ -1045,9 +1045,13 @@ function MobileWorldTask({
   } else if (state.screen === "pc") {
     body = <MobilePcPanel copy={copy} state={state} onAction={onAction} />;
     confirm = () => onAction({ type: "confirm-pc-selection" });
+    const boxTarget = state.box.find(slot => slot.selected);
+    // The footer stays in view while the grid scrolls, so it names what will be taken out.
     confirmLabel =
       state.pcFocus === "box"
-        ? copy.mobile.withdraw
+        ? boxTarget
+          ? `${copy.mobile.withdraw} · ${boxTarget.name}`
+          : copy.mobile.withdraw
         : state.pcSwapPending
           ? copy.mobile.pcSwap
           : copy.mobile.deposit;

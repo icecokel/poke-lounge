@@ -46,7 +46,15 @@ export function LeagueMobileFieldShell({
     const binding = bindMobileViewport(shell.current, {
       fullscreenEvent: GAME_FULLSCREEN_STATE_EVENT,
     });
-    return () => binding.dispose();
+    // Mobile browsers paint the page background under their toolbars (and where they slide
+    // away); keep that area the shell colour instead of a white strip below the game.
+    const root = shell.current.ownerDocument.documentElement;
+    const previousBackground = root.style.backgroundColor;
+    root.style.backgroundColor = "#17201a";
+    return () => {
+      binding.dispose();
+      root.style.backgroundColor = previousBackground;
+    };
   }, []);
   return (
     <>
@@ -66,6 +74,7 @@ export function LeagueMobileFieldShell({
         data-poke-lounge-mobile-shell="true"
         data-poke-lounge-play-layout={playing ? "true" : undefined}
         data-poke-lounge-league-mobile-field="true"
+        data-poke-lounge-controller-fill="true"
       >
         {children}
       </div>

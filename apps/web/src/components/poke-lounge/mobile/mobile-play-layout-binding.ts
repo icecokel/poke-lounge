@@ -49,6 +49,7 @@ export function bindMobilePlayLayout(page: HTMLElement) {
       height: page.clientHeight - px(style.paddingTop) - px(style.paddingBottom),
       statusHeight: bar?.getBoundingClientRect().height ?? 56,
       fontSize: px(win.getComputedStyle(owner.documentElement).fontSize),
+      fillController: page.hasAttribute("data-poke-lounge-controller-fill"),
     });
     setPixels("width", layout.width);
     setPixels("frame-width", layout.frameWidth);

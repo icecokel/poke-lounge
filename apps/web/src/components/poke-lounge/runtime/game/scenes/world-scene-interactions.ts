@@ -149,6 +149,9 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
   private pcBoxFocus: PcBoxFocus = "party";
   private pcBoxPartySlotIndex = 0;
   private pcBoxBoxIndex = 0;
+  // A box Pokémon counts as selected only after the player picked it (tap or cursor move);
+  // the remembered index alone must not enable "withdraw" or carry over to the next one.
+  private pcBoxBoxChosen = false;
   private pcBoxMessage = "";
   // Full-party withdraw: the box Pokémon waiting for an explicitly chosen party slot.
   private pcBoxSwapBoxIndex: number | null = null;
@@ -301,6 +304,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
 
       this.pcBoxFocus = "box";
       this.pcBoxBoxIndex = action.boxIndex;
+      this.pcBoxBoxChosen = true;
       this.pcBoxMessage = "";
       this.cancelPcSwap();
       this.renderPcBoxUi();
@@ -513,7 +517,8 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
           level: pokemon.level,
           maxHp: pokemon.maxHp ?? null,
           name: pokemon.name,
-          selected: this.pcBoxFocus === "box" && boxIndex === this.pcBoxBoxIndex,
+          selected:
+            this.pcBoxFocus === "box" && this.pcBoxBoxChosen && boxIndex === this.pcBoxBoxIndex,
           status: pokemon.status ?? null,
         };
       }.bind(this),
@@ -1233,6 +1238,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     this.closePokemonStatusPanel({ rerenderPartyHud: false });
     this.pcBoxOpen = true;
     this.pcBoxFocus = "party";
+    this.pcBoxBoxChosen = false;
     this.cancelPcSwap();
     this.pcBoxPartySlotIndex = clampSelectionIndex(
       this.pcBoxPartySlotIndex,
@@ -1263,7 +1269,10 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
       this.pcBoxSwapChosen = true;
     } else {
       const boxItemCount = Math.max(1, localPlayer.pokemonBox.length);
-      this.pcBoxBoxIndex = (this.pcBoxBoxIndex + delta + boxItemCount) % boxItemCount;
+      // The first cursor press selects the slot under the cursor instead of skipping past it.
+      if (this.pcBoxBoxChosen)
+        this.pcBoxBoxIndex = (this.pcBoxBoxIndex + delta + boxItemCount) % boxItemCount;
+      this.pcBoxBoxChosen = true;
     }
 
     this.pcBoxMessage = "";
@@ -1287,12 +1296,14 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     const result =
       swapping && !this.pcBoxSwapChosen
         ? ({ kind: "rejected", reason: "select-party" } as const)
-        : transferPcPokemon(this.gameStateStore, {
-            focus: this.pcBoxFocus,
-            partySlot: this.pcBoxPartySlotIndex,
-            boxIndex: this.pcBoxBoxIndex,
-            swapBoxIndex: swapping ? this.pcBoxSwapBoxIndex : null,
-          });
+        : this.pcBoxFocus === "box" && !this.pcBoxBoxChosen
+          ? ({ kind: "rejected", reason: "select-box" } as const)
+          : transferPcPokemon(this.gameStateStore, {
+              focus: this.pcBoxFocus,
+              partySlot: this.pcBoxPartySlotIndex,
+              boxIndex: this.pcBoxBoxIndex,
+              swapBoxIndex: swapping ? this.pcBoxSwapBoxIndex : null,
+            });
     this.pcBoxMessage = formatPcTransferResult(result);
     if (result.kind === "choose-party") {
       this.pcBoxFocus = "party";
@@ -1307,6 +1318,7 @@ class DefaultWorldSceneInteractions implements WorldSceneInteractionsController 
     } else if (result.kind === "withdrawn") {
       this.pcBoxPartySlotIndex = result.slotIndex;
       this.pcBoxBoxIndex = result.boxIndex;
+      this.pcBoxBoxChosen = false;
     }
     this.renderPartyHud();
     this.renderPcBoxUi();

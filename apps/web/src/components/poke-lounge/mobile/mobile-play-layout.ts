@@ -8,6 +8,9 @@ export interface MobilePlayLayoutInput {
   height: number;
   statusHeight: number;
   fontSize?: number;
+  /** Stacked layout: give every pixel left under the full-size frame to the controller,
+   *  instead of capping it and letterboxing the frame. */
+  fillController?: boolean;
 }
 
 export interface MobilePlayLayout {
@@ -78,7 +81,9 @@ export function calculateMobilePlayLayout(input: MobilePlayLayoutInput): MobileP
     frameWidth: stackedFrameWidth,
     frameHeight,
     controllerWidth: stackWidth,
-    controllerHeight: Math.min(preferredController, Math.max(0, stackBodyHeight - frameHeight)),
+    controllerHeight: input.fillController
+      ? Math.max(0, stackBodyHeight - frameHeight)
+      : Math.min(preferredController, Math.max(0, stackBodyHeight - frameHeight)),
     statusHeight,
     gap,
   };
