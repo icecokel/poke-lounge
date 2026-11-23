@@ -3,6 +3,9 @@ import styles from "@/features/league/shell/league-frame.module.css";
 import type { PokeLoungeLocale } from "@/components/poke-lounge/poke-lounge-copy";
 import { RoomMenuHeader } from "@/components/poke-lounge/ui/room-menu-header";
 import { getLeagueCopy } from "@/features/league/shell/copy";
+import { GAME_VIEWPORT } from "@/lib/viewport/game-viewport";
+
+export const viewport = GAME_VIEWPORT;
 
 export default async function LeaguePage({
   params,
