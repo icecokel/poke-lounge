@@ -15,7 +15,7 @@ import { BattleMoveEffects } from "./battle-move-effects";
 
 import { createTournamentBriefingText } from "@/features/poke-lounge/presentation/tournament/tournament-view-model";
 import { POKE_LOUNGE_CLOCK_REFRESH_INTERVAL_MS } from "@poke-lounge/battle/timing";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { PokeLoungeCopy } from "../../../poke-lounge-copy";
 import {
   HealthBar,
@@ -662,7 +662,9 @@ export function BattleMovePanel({
     <>
       {selectedMove && details ? (
         <div
-          className="pointer-events-none absolute right-0 bottom-[30.208333%] left-0 z-20 border-[max(1px,0.3cqw)] border-b-0 border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] px-[2.34375%] py-[0.5%] text-[0.68em] leading-[1.25] text-[var(--pl-color-ink)]"
+          // The X back button floats over this strip's right end while going back is possible;
+          // keep the text clear of it so the summary's last words stay readable.
+          className={`pointer-events-none absolute right-0 bottom-[30.208333%] left-0 z-20 border-[max(1px,0.3cqw)] border-b-0 border-[var(--pl-color-ink)] bg-[var(--pl-color-surface)] py-[0.5%] pl-[2.34375%] text-[0.68em] leading-[1.25] text-[var(--pl-color-ink)] ${controls.canGoBack ? "pr-[16%]" : "pr-[2.34375%]"}`}
           aria-live="polite"
         >
           <strong>{selectedMove.name}</strong> · {details.stats} · {details.effect}
@@ -795,8 +797,18 @@ export function BattlePartyPanel({
               <strong>{pokemon.isEmpty ? `- ${copy.game.emptySlot}` : pokemon.name}</strong>
               {!pokemon.isEmpty ? (
                 <small>
-                  Lv.{pokemon.level} · HP {pokemon.currentHp}/{pokemon.maxHp}
-                  {partyStatusSuffix(pokemon.status, copy.locale)}
+                  {pokemon.isFainted ? (
+                    // HP 0/max adds nothing and pushed the fainted label out of the narrow card.
+                    <>
+                      Lv.{pokemon.level}
+                      {partyStatusSuffix("fainted", copy.locale)}
+                    </>
+                  ) : (
+                    <>
+                      Lv.{pokemon.level} · HP {pokemon.currentHp}/{pokemon.maxHp}
+                      {partyStatusSuffix(pokemon.status, copy.locale)}
+                    </>
+                  )}
                 </small>
               ) : null}
             </button>
@@ -958,6 +970,18 @@ export function BattleShortcutGuide({
   const seconds =
     turnEndsAtMs === null ? null : Math.max(0, Math.ceil((turnEndsAtMs - now) / 1000));
   const timerCopy = getMobileUiCopy(copy.locale);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  // Not role="dialog": the battle keyboard ignores keys while a dialog exists, and H/Esc must
+  // still close this guide. Keep Tab inside it so focus cannot reach the page behind.
+  useEffect(() => {
+    const trapTab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !closeButton.current) return;
+      event.preventDefault();
+      closeButton.current.focus({ preventScroll: true });
+    };
+    window.addEventListener("keydown", trapTab, true);
+    return () => window.removeEventListener("keydown", trapTab, true);
+  }, []);
   return (
     <section
       className="absolute top-[15.625%] left-[18.75%] z-[800] min-h-[68.75%] w-[77.34375%] border-[max(2px,0.4cqw)] border-[#2b3742] bg-[#f4f7e3] px-[4.7%] py-[4%] text-[0.82em] shadow-[0.7cqw_0.7cqw_0_#8b9588,inset_0_0_0_max(1px,0.15cqw)_#fff] [&_header]:flex [&_header]:justify-between [&_header]:gap-[1em] [&_header_button]:border-0 [&_header_button]:bg-transparent [&_header_button]:p-0 [&_header_button]:text-[0.8em] [&_dl]:my-[1em] [&_dl]:grid [&_dl]:gap-[0.5em] [&_dl>div]:flex [&_dl>div]:justify-between [&_dl>div]:gap-[1em] [&_dt]:text-[#4b554f] [&_dd]:m-0 [&_p]:m-0 [&_p]:text-[0.78em] [&_p]:text-[#4b554f]"
@@ -965,7 +989,7 @@ export function BattleShortcutGuide({
     >
       <header>
         <strong>{createShortcutGuideTitle("battle", state.help.inputMode, copy.locale)}</strong>
-        <button type="button" onClick={onClose}>
+        <button ref={closeButton} type="button" onClick={onClose}>
           {copy.settingsClose}
         </button>
       </header>

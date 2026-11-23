@@ -20,6 +20,7 @@ export function formatPcTransferResult(result: PcTransferResult): string {
         "empty-box": "박스가 비어 있다.",
         "invalid-box": "선택한 박스 슬롯이 비어 있다.",
         "select-party": "교체할 파티 포켓몬을 선택해라.",
+        "select-box": "데려올 포켓몬을 선택해라.",
         "fainted-active-replacement": "기절한 포켓몬은 선두 슬롯으로 교체할 수 없다.",
       }[result.reason];
   }

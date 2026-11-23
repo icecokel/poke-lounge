@@ -250,6 +250,10 @@ const EXACT_RUNTIME_TEXT: Record<string, LocalizedTerm> = {
     "ja-JP": "選んだ手持ちスロットは空です。",
   },
   "박스가 비어 있다.": { "en-US": "The Box is empty.", "ja-JP": "ボックスは空です。" },
+  "데려올 포켓몬을 선택해라.": {
+    "en-US": "Choose a Pokémon to take out.",
+    "ja-JP": "連れ出すポケモンを選んでください。",
+  },
   "교체할 파티 포켓몬을 선택해라.": {
     "en-US": "Choose a party Pokémon to swap.",
     "ja-JP": "入れ替える手持ちポケモンを選んでください。",

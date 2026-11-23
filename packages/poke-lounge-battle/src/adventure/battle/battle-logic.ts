@@ -557,6 +557,37 @@ function applyWildVictoryExperience(
   };
 }
 
+/**
+ * Recalculate stored stats after effort values change. The next battle rebuilds stats from
+ * them anyway, so without this the field showed a max HP one point below the battle's.
+ * Damage taken is kept: current HP rises only by the max HP increase.
+ */
+function withRefreshedStats(pokemon: BattlePokemon): BattlePokemon {
+  const stats = calculateGen4BattleStats(
+    pokemon.baseStats,
+    pokemon.level,
+    pokemon.individualValues,
+    pokemon.effortValues,
+    pokemon.natureId,
+  );
+  // Shedinja always has 1 HP (see createBattlePokemon).
+  const maxHp = pokemon.speciesId === 292 ? 1 : stats.maxHp;
+  const currentHp =
+    pokemon.currentHp === 0
+      ? 0
+      : Math.min(maxHp, pokemon.currentHp + Math.max(0, maxHp - pokemon.maxHp));
+  return {
+    ...pokemon,
+    maxHp,
+    currentHp,
+    attack: stats.attack,
+    defense: stats.defense,
+    specialAttack: stats.specialAttack,
+    specialDefense: stats.specialDefense,
+    speed: stats.speed,
+  };
+}
+
 function normalizeRunAttemptCount(runAttemptCount: number): number {
   return Math.max(0, Math.floor(runAttemptCount));
 }
@@ -857,13 +888,13 @@ function resolveGen4Action(
         slot.pokemon &&
         slot.pokemon.currentHp > 0 &&
         state.participatedPartySlots?.includes(slot.slotIndex)
-          ? {
+          ? withRefreshedStats({
               ...slot.pokemon,
               effortValues: awardGen4EffortValues(
                 slot.pokemon.effortValues,
                 state.opponent.pokemon.speciesId,
               ),
-            }
+            })
           : slot.pokemon,
     }));
     state = {

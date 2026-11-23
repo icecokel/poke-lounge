@@ -20,6 +20,7 @@ export type PcTransferResult =
         | "empty-box"
         | "invalid-box"
         | "select-party"
+        | "select-box"
         | "fainted-active-replacement";
     };
 export function transferPcPokemon(
