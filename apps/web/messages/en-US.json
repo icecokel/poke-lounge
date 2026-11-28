@@ -1,4 +1,48 @@
 {
+  "MultiplayerGuide": {
+    "title": "Multiplayer mode",
+    "summary": "Explore the same village with friends or AI trainers, catch and train Pokémon, then enter a tournament. Play through three rounds in all.",
+    "start": "Start multiplayer",
+    "back": "Back to introduction",
+    "league": "Explore League mode",
+    "lobby": {
+      "title": "Create or join a room",
+      "description": "You can create a room without signing in. Rooms are private by default. Share an invite code or link with friends, or pick a room from the public list.",
+      "participants": "Up to eight human and AI trainers can play together.",
+      "aiFill": "AI fill is on by default. At the start, AI fills the roster to four if there are fewer than four participants, or to eight if there are four or more. If the host turns it off, two to eight human players can play.",
+      "exploreTime": "When you create the room, choose each round’s exploration time. The default is 90 seconds, with options for 3 or 5 minutes."
+    },
+    "starter": {
+      "title": "Choose your first partner",
+      "description": "Get ready in the lobby. When the host starts the game, pick your first Pokémon. Exploration time starts after everyone gathers in the field and the countdown ends."
+    },
+    "explore": {
+      "title": "Explore the village and train your party",
+      "description": "Meet wild Pokémon in tall grass, battle them, or catch them with a Poké Ball. Train your party in battle, use the PC Box to store Pokémon and organize your party, and heal your party in the village."
+    },
+    "tournament": {
+      "title": "Battle in the tournament",
+      "description": "When exploration ends, compete in a tournament with the party you trained. Battles use numerical ROM data and a Generation IV rules engine (@pkmn/sim). After each of the first two tournaments, return to the village to explore in the next round."
+    },
+    "results": {
+      "title": "Final standings after three rounds",
+      "description": "Earn points based on your tournament placement each round. After round three, total points determine the final standings. Trainers with equal totals share a rank."
+    },
+    "controls": {
+      "title": "Keyboard and touch controls",
+      "description": "Use the keyboard on desktop, or the on-screen pad and buttons on a phone."
+    },
+    "images": {
+      "lobby": "Lobby with human and AI trainers and the AI fill setting",
+      "starter": "Bulbasaur selected from six possible first partners",
+      "field": "Trainers starting to explore together in the same village",
+      "wild": "Battle against a wild Wurmple with the Poké Ball command available",
+      "tournament": "Semifinal bracket showing the player’s first opponent",
+      "battle": "World’s Bulbasaur facing Lounge’s Charmander in a tournament battle",
+      "results": "Final standings showing round and total scores after round three",
+      "mobile": "Phone screen with the movement pad, Talk button, and Pokémon button"
+    }
+  },
   "Game": {
     "pokeLoungeLoading": "Loading Poke Lounge...",
     "pokeLoungeDesc": "Invite friends with a room code to catch and train Pokémon in the same village. Bring your own teams to a three-round championship.",
@@ -11,6 +55,13 @@
     "introMotionPause": "Motion off",
     "introLanguages": "Choose a language",
     "introFinalTitle": "Who will be our champion?",
+    "introModesTitle": "Two ways to play",
+    "introModesMultiplayerTitle": "Multiplayer",
+    "introModesMultiplayerDescription": "Catch and train Pokémon in the same village as friends or AI trainers, then compete in three rounds of tournaments.",
+    "introModesMultiplayerLink": "Explore multiplayer",
+    "introModesLeagueTitle": "League mode",
+    "introModesLeagueDescription": "Train a party on your own, collect eight Badges, and challenge the Elite Four and Champion. The top finisher becomes Champion and ranks two through five become the Elite Four to face the next challengers.",
+    "introModesLeagueLink": "Explore League mode",
     "introFinalDescription": "Create a room and send your friends the invite code. An adventure in the same village becomes your very own Pokémon showdown.",
     "introFanNotice": "An unofficial fan game made with love and respect for Pokémon. All related rights belong to their respective owners.",
     "introVideoEyebrow": "30 seconds of gameplay",
