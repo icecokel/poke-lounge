@@ -146,6 +146,12 @@ function ModeSection({ mode, children }: { mode: Mode; children?: ReactNode }) {
     <section id={`intro-${mode}`} className={styles.mode} data-mode={mode} tabIndex={-1}>
       <div className={styles.shell}>
         <h2>{t(title)}</h2>
+        {mode === "league" && (
+          <div className={styles.modeLead}>
+            <p className={styles.modeHeadline}>{t("introLeagueHeadline")}</p>
+            <p>{t("introLeagueHeadlineNote")}</p>
+          </div>
+        )}
         <ul className={styles.benefits}>
           {benefits.map(([heading, description, Icon]) => (
             <li key={heading}>
