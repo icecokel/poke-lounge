@@ -1,10 +1,25 @@
 "use client";
 
-import Image from "next/image";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import NextLink from "next/link";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowDown, ArrowRight, Pause, Play, Trophy } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  ArrowDown,
+  ArrowRight,
+  Clock,
+  Gamepad2,
+  Info,
+  Link2,
+  Pause,
+  Play,
+  Shuffle,
+  Target,
+  Timer,
+  Trophy,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -21,36 +36,82 @@ function DrawLoading() {
     </div>
   );
 }
+
 const RandomDraw = dynamic(() => import("./intro-random-draw"), {
   ssr: false,
   loading: DrawLoading,
 });
-const steps = [
-  { id: "lobby", number: "01", width: 464, height: 713 },
-  { id: "starter-selection", number: "02", width: 480, height: 824 },
-  { id: "world", number: "03", width: 480, height: 823 },
-  { id: "battle", number: "04", width: 480, height: 823 },
-] as const;
 
-function StartLink({ compact = false }: { compact?: boolean }) {
+const modes = {
+  league: {
+    title: "introModesLeagueTitle",
+    guide: "introModesLeagueLink",
+    route: "introLeagueRoute",
+    benefits: [
+      ["introLeagueDefenseTitle", "introLeagueDefenseDescription", Trophy],
+      ["introLeaguePaceTitle", "introLeaguePaceDescription", Clock],
+      ["introLeagueScoreTitle", "introLeagueScoreDescription", Target],
+      ["introLeagueGuestTitle", "introLeagueGuestDescription", UserRound],
+    ],
+    steps: [
+      ["starter", "introLeagueStarter", "introLeagueStarterAlt", 456, 460],
+      ["growth", "introLeagueGrowth", "introLeagueGrowthAlt", 480, 360],
+      ["badge", "introLeagueBadge", "introLeagueBadgeAlt", 480, 417],
+      ["entry", "introLeagueEntry", "introLeagueEntryAlt", 862, 544],
+      ["battle", "introLeagueBattle", "introLeagueBattleAlt", 862, 687],
+    ],
+  },
+  multiplayer: {
+    title: "introModesMultiplayerTitle",
+    guide: "introModesMultiplayerLink",
+    route: "introMultiplayerRoute",
+    benefits: [
+      ["introMultiInviteTitle", "introMultiInviteDescription", Link2],
+      ["introMultiAiTitle", "introMultiAiDescription", Users],
+      ["introMultiRoundsTitle", "introMultiRoundsDescription", Timer],
+      ["introMultiStarterTitle", "introMultiStarterDescription", Shuffle],
+    ],
+    steps: [
+      ["lobby", "introMultiLobby", "introMultiLobbyAlt", 464, 616],
+      ["starter", "introMultiPartner", "introMultiPartnerAlt", 456, 802],
+      ["field", "introMultiExplore", "introMultiExploreAlt", 480, 360],
+      ["tournament", "introMultiTournament", "introMultiTournamentAlt", 444, 344],
+      ["results", "introMultiResults", "introMultiResultsAlt", 480, 336],
+    ],
+  },
+} as const;
+
+type Mode = keyof typeof modes;
+
+function StartLink({ mode }: { mode: Mode }) {
   const t = useTranslations("Game");
-  return (
-    <Button asChild className={`${styles.primaryCta} ${compact ? styles.compactCta : ""}`}>
+  const locale = useLocale();
+
+  return mode === "league" ? (
+    <Button asChild className={styles.cta} data-mode="league">
+      <NextLink href={`/${locale}/league`} prefetch={false}>
+        <Trophy aria-hidden="true" />
+        {t("introPlayLeague")}
+      </NextLink>
+    </Button>
+  ) : (
+    <Button asChild className={styles.cta} data-mode="multiplayer">
       <Link href="/game/poke-lounge" prefetch={false}>
-        <span>{t("introPlayTogether")}</span>
-        <span className={styles.buttonKey} aria-hidden="true">
-          {t("introActionKey")}
-        </span>
+        <Gamepad2 aria-hidden="true" />
+        {t("introPlayTogether")}
       </Link>
     </Button>
   );
 }
 
-function Languages() {
+function Languages({ footer = false }: { footer?: boolean }) {
   const t = useTranslations("Game");
   const locale = useLocale();
   return (
-    <nav className={styles.languages} aria-label={t("introLanguages")}>
+    <nav
+      className={styles.languages}
+      aria-label={t(footer ? "introFooterLanguages" : "introLanguages")}
+    >
       {routing.locales.map(language => (
         <Link
           key={language}
@@ -76,64 +137,58 @@ function Brand() {
   );
 }
 
-const modes = [
-  {
-    path: "multiplayer",
-    image: "/assets/poke-lounge/guide/multiplayer/field.webp",
-    title: "introModesMultiplayerTitle",
-    description: "introModesMultiplayerDescription",
-    link: "introModesMultiplayerLink",
-  },
-  {
-    path: "league",
-    image: "/assets/poke-lounge/guide/league/card.webp",
-    title: "introModesLeagueTitle",
-    description: "introModesLeagueDescription",
-    link: "introModesLeagueLink",
-  },
-] as const;
-
-function ModeCards() {
+function ModeSection({ mode, children }: { mode: Mode; children?: ReactNode }) {
   const t = useTranslations("Game");
   const locale = useLocale();
+  const { title, benefits, route, steps, guide } = modes[mode];
 
   return (
-    <section className={styles.modes} aria-labelledby="intro-modes-title">
-      <h2 id="intro-modes-title">{t("introModesTitle")}</h2>
-      <div className={styles.modeCards}>
-        {modes.map(mode => (
-          <article className={styles.modeCard} key={mode.path}>
-            <div className={styles.modeImage} style={{ backgroundImage: `url(${mode.image})` }} />
-            <div className={styles.modeCopy}>
-              <h3>{t(mode.title)}</h3>
-              <p>{t(mode.description)}</p>
-              <NextLink className={styles.modeLink} href={`/${locale}/guide/${mode.path}`}>
-                {t(mode.link)} <ArrowRight size={16} aria-hidden="true" />
-              </NextLink>
-            </div>
-          </article>
-        ))}
+    <section id={`intro-${mode}`} className={styles.mode} data-mode={mode} tabIndex={-1}>
+      <div className={styles.shell}>
+        <h2>{t(title)}</h2>
+        <ul className={styles.benefits}>
+          {benefits.map(([heading, description, Icon]) => (
+            <li key={heading}>
+              <Icon size={26} aria-hidden="true" />
+              <div>
+                <h3>{t(heading)}</h3>
+                <p>{t(description)}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {mode === "league" && (
+          <p className={styles.modeNote}>
+            <Info size={18} aria-hidden="true" />
+            {t("introLeaguePartyNote")}
+          </p>
+        )}
+        <div className={styles.route}>
+          <h3>{t(route)}</h3>
+          <ol className={styles.steps}>
+            {steps.map(([image, label, alt, width, height]) => (
+              <li key={image}>
+                <Image
+                  src={`/assets/poke-lounge/guide/${mode}/${image}.webp`}
+                  alt={t(alt)}
+                  width={width}
+                  height={height}
+                  unoptimized
+                />
+                <span>{t(label)}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        {children}
+        <div className={styles.actions}>
+          <StartLink mode={mode} />
+          <NextLink className={styles.guideLink} href={`/${locale}/guide/${mode}`}>
+            {t(guide)} <ArrowRight size={18} aria-hidden="true" />
+          </NextLink>
+        </div>
       </div>
     </section>
-  );
-}
-
-function TrainerLine({ slots = false }: { slots?: boolean }) {
-  const t = useTranslations("Game");
-  return (
-    <div className={slots ? styles.lobbySlots : styles.trainerLine} aria-hidden="true">
-      {Array.from({ length: 8 }, (_, index) => (
-        <span
-          className={styles.trainerSlot}
-          key={index}
-          data-ai={index > 4}
-          style={{ "--slot-index": index } as CSSProperties}
-        >
-          {!slots && index === 7 ? <b>{t("introQuestion")}</b> : <i className={styles.trainer} />}
-          {slots && <small>{t(index > 4 ? "introAi" : "introFriend")}</small>}
-        </span>
-      ))}
-    </div>
   );
 }
 
@@ -162,14 +217,12 @@ function PartnerPreview() {
   const t = useTranslations("Game");
   const { ref, nearby } = useNearby();
   return (
-    <section ref={ref} className={styles.drawSection} aria-labelledby="intro-draw-title">
+    <section ref={ref} className={styles.drawSection}>
       <div className={styles.drawIntro}>
-        <p className={styles.eyebrow}>{t("introDrawEyebrow")}</p>
-        <h2 id="intro-draw-title">{t("introDrawTitle")}</h2>
+        <h3>{t("introDrawTitle")}</h3>
         <p>{t("introDrawDescription")}</p>
         <div className={styles.levelNote}>
           <span>{t("introKnownLevel")}</span>
-          <ArrowRight size={16} aria-hidden="true" />
           <strong>{t("introMysteryLevel")}</strong>
         </div>
         <p className={styles.mysteryNote}>{t("introMysteryRule")}</p>
@@ -179,92 +232,88 @@ function PartnerPreview() {
   );
 }
 
-function ExploreTimer({ active, paused }: { active: boolean; paused: boolean }) {
-  const t = useTranslations("Game");
-  const [remaining, setRemaining] = useState(90);
-  useEffect(() => {
-    setRemaining(90);
-    if (!active || paused) return;
-    const timers = [1, 2, 3].map(second =>
-      window.setTimeout(() => setRemaining(90 - second), second * 1000),
-    );
-    return () => timers.forEach(window.clearTimeout);
-  }, [active, paused]);
-  return (
-    <div className={styles.timer}>
-      <span>{t("introTimerLabel")}</span>
-      <strong aria-hidden="true">
-        {t("introTimerValue", {
-          seconds: (paused ? 27 : remaining - 60).toString().padStart(2, "0"),
-        })}
-      </strong>
-      <small>{t("introTimerNote")}</small>
-    </div>
-  );
-}
+const videoPath = "/assets/poke-lounge/video/gameplay.mp4";
 
-function Scoreboard() {
+function GameplayVideo({ motionPaused }: { motionPaused: boolean }) {
   const t = useTranslations("Game");
-  const rows = [
-    { name: "introTrainerBrave", score: 100, total: 245 },
-    { name: "introTrainerQuick", score: 70, total: 215 },
-    { name: "introTrainerAi", score: 45, total: 160 },
-  ];
+  const video = useRef<HTMLVideoElement>(null);
+  const film = useNearby();
+  const [playing, setPlaying] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (motionPaused) video.current?.pause();
+  }, [motionPaused]);
+
+  const showVideoError = () => {
+    setPlaying(false);
+    setError(true);
+  };
+
+  const toggleVideo = () => {
+    const player = video.current;
+    if (!player) return;
+
+    setError(false);
+    if (player.error) player.load();
+    if (!player.paused) player.pause();
+    else
+      void player.play().catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === "AbortError")) showVideoError();
+      });
+  };
+
   return (
-    <div className={styles.scoreboard}>
-      <div className={styles.panelHeading}>
-        <span>{t("introScoreboardTitle")}</span>
-        <Trophy size={20} aria-hidden="true" />
+    <section className={styles.videoSection}>
+      <div className={styles.videoCopy}>
+        <h3>{t("introVideoTitle")}</h3>
+        <p>{t("introVideoDescription")}</p>
+        <button
+          type="button"
+          className={styles.textLink}
+          onClick={toggleVideo}
+          aria-controls="intro-video"
+        >
+          {playing ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
+          {t(playing ? "introPauseVideo" : "introWatch")}
+        </button>
+        {error && (
+          <p role="alert">
+            {t("introVideoError")} <a href={videoPath}>{t("introVideoFallback")}</a>
+          </p>
+        )}
       </div>
-      <table>
-        <caption>{t("introScoreExample")}</caption>
-        <thead>
-          <tr>
-            {["Rank", "Trainer", "Round", "Total"].map(key => (
-              <th scope="col" key={key}>
-                {t(`introScore${key}`)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={row.name}>
-              <td>
-                <span className={styles.rank}>{index + 1}</span>
-              </td>
-              <th scope="row">{t(row.name)}</th>
-              <td>{row.score}</td>
-              <td>
-                <strong>{row.total}</strong>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className={styles.scoreBadges}>
-        {[100, 70, 45, 15].map(score => (
-          <span key={score}>{t(`introScoreBadge${score}`)}</span>
-        ))}
-      </div>
-    </div>
+      <figure ref={film.ref} className={styles.film}>
+        <video
+          ref={video}
+          id="intro-video"
+          src={videoPath}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onEnded={() => setPlaying(false)}
+          onError={showVideoError}
+          width={480}
+          height={824}
+          controls
+          playsInline
+          muted
+          preload="none"
+          poster={film.nearby ? "/assets/poke-lounge/video/gameplay-poster.jpg" : undefined}
+          aria-label={t("introVideoLabel")}
+        >
+          <a href={videoPath}>{t("introVideoFallback")}</a>
+        </video>
+        <figcaption>{t("introVideoCaption")}</figcaption>
+      </figure>
+    </section>
   );
 }
 
 export function IntroExperience() {
   const t = useTranslations("Game");
   const locale = useLocale();
-  const hero = useRef<HTMLElement>(null);
-  const timeline = useRef<HTMLDivElement>(null);
-  const video = useRef<HTMLVideoElement>(null);
-  const film = useNearby();
   const [motionOff, setMotionOff] = useState(false);
   const [systemReduced, setSystemReduced] = useState(true);
-  const [headerCta, setHeaderCta] = useState(false);
-  const [activeStep, setActiveStep] = useState(-1);
-  const [lineHeight, setLineHeight] = useState(0);
-  const [videoPlaying, setVideoPlaying] = useState(false);
-  const [videoError, setVideoError] = useState(false);
   const paused = motionOff || systemReduced;
 
   useEffect(() => {
@@ -280,68 +329,6 @@ export function IntroExperience() {
     return () => preference.removeEventListener("change", syncPreference);
   }, []);
 
-  useEffect(() => {
-    const element = hero.current;
-    if (!element) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setHeaderCta(!entry.isIntersecting && entry.boundingClientRect.bottom <= 70);
-      },
-      { rootMargin: "-70px 0px 0px 0px" },
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const element = timeline.current;
-    if (!element) return;
-    const stages = Array.from(element.querySelectorAll<HTMLElement>("[data-intro-step]"));
-    let current = -1;
-    const updateLine = () => {
-      const badge = stages[current]?.querySelector<HTMLElement>("[data-step-number]");
-      if (badge)
-        setLineHeight(
-          Math.max(
-            0,
-            badge.getBoundingClientRect().top -
-              element.getBoundingClientRect().top +
-              badge.offsetHeight / 2 -
-              28,
-          ),
-        );
-    };
-    const observer = new IntersectionObserver(
-      entries => {
-        const visible = entries.filter(entry => entry.isIntersecting);
-        if (!visible.length) return;
-        visible.sort(
-          (a, b) =>
-            Math.abs(
-              a.boundingClientRect.top + a.boundingClientRect.height / 2 - window.innerHeight / 2,
-            ) -
-            Math.abs(
-              b.boundingClientRect.top + b.boundingClientRect.height / 2 - window.innerHeight / 2,
-            ),
-        );
-        current = stages.indexOf(visible[0].target as HTMLElement);
-        setActiveStep(current);
-        updateLine();
-      },
-      { rootMargin: "-42% 0px -42% 0px" },
-    );
-    stages.forEach(stage => observer.observe(stage));
-    window.addEventListener("resize", updateLine);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateLine);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (paused) video.current?.pause();
-  }, [paused]);
-
   const toggleMotion = () => {
     const next = !motionOff;
     setMotionOff(next);
@@ -351,20 +338,14 @@ export function IntroExperience() {
       /* Keep the current preference for this page even without storage. */
     }
   };
-  const toggleVideo = () => {
-    const player = video.current;
-    if (!player) return;
-    setVideoError(false);
-    if (!player.paused) player.pause();
-    else void player.play().catch(() => setVideoError(true));
-  };
+
   return (
-    <div className={styles.page} data-motion={paused ? "paused" : "playing"}>
-      <a href="#intro-main" className={styles.skipLink}>
+    <div className={styles.page} lang={locale} data-motion={paused ? "paused" : "playing"}>
+      <NextLink href="#intro-main" className={styles.skipLink}>
         {t("introSkipToContent")}
-      </a>
+      </NextLink>
       <header className={styles.header}>
-        <div className={styles.headerInner} data-compact={headerCta}>
+        <div className={`${styles.shell} ${styles.headerInner}`}>
           <Brand />
           <div className={styles.headerTools}>
             <Languages />
@@ -378,16 +359,10 @@ export function IntroExperience() {
               onClick={toggleMotion}
               aria-describedby={systemReduced ? "intro-motion-system" : undefined}
             >
-              <Pause size={14} aria-hidden="true" />
               <span>{t("introMotionPause")}</span>
               <span className={styles.toggleTrack} aria-hidden="true" />
             </Button>
           </div>
-          {headerCta && (
-            <div className={styles.headerCta}>
-              <StartLink compact />
-            </div>
-          )}
         </div>
         {systemReduced && (
           <span id="intro-motion-system" className={styles.srOnly}>
@@ -396,7 +371,7 @@ export function IntroExperience() {
         )}
       </header>
       <main id="intro-main" tabIndex={-1}>
-        <section ref={hero} className={styles.hero} aria-labelledby="intro-title">
+        <section className={styles.hero}>
           <Image
             src="/assets/poke-lounge/intro/autumn-village.webp"
             alt={t("introHeroAlt")}
@@ -406,226 +381,48 @@ export function IntroExperience() {
             sizes="100vw"
             className={styles.heroImage}
           />
-          <div className={styles.heroInner}>
+          <div className={styles.shell}>
             <div className={styles.dialogue}>
-              <p className={styles.dialogueEyebrow}>{t("introFinalEyebrow")}</p>
-              <div className={styles.dialogueBody}>
-                <h1 id="intro-title">{t("introTitle")}</h1>
-                <p className={styles.heroDescription} key={locale}>
-                  <span className={styles.srOnly}>{t("introDescription")}</span>
-                  <span aria-hidden="true">
-                    {Array.from(t("introDescription")).map((character, index) => (
-                      <span
-                        className={styles.typingChar}
-                        key={index}
-                        style={{ "--character-index": index } as CSSProperties}
-                      >
-                        {character}
-                      </span>
-                    ))}
-                  </span>
-                </p>
-                <StartLink />
-                <p className={styles.playNote}>{t("introPlayNote")}</p>
-                <span className={styles.dialogueArrow} aria-hidden="true">
-                  {t("introDown")}
-                </span>
+              <h1>{t("introTitle")}</h1>
+              <p>{t("introDescription")}</p>
+              <div className={styles.actions}>
+                <StartLink mode="league" />
+                <StartLink mode="multiplayer" />
               </div>
             </div>
-            <div className={styles.heroMini} aria-hidden="true">
-              <p>{t("introHeroMiniTitle")}</p>
-              <div className={styles.miniGrid}>
-                {Array.from({ length: 6 }, (_, index) => (
-                  <span key={index}>
-                    {index === 5 ? t("introQuestion") : <i className={styles.brandMark} />}
-                  </span>
-                ))}
-              </div>
-              <span>{t("introHeroMiniNote")}</span>
-            </div>
-          </div>
-          <a href="#intro-adventure" className={styles.scrollHint}>
-            <ArrowDown size={16} aria-hidden="true" />
-            {t("introScroll")}
-          </a>
-        </section>
-        <ModeCards />
-        <section
-          id="intro-adventure"
-          className={styles.adventure}
-          aria-labelledby="intro-adventure-title"
-        >
-          <div className={styles.sectionHeading}>
-            <p className={styles.eyebrow}>{t("introJourneyEyebrow")}</p>
-            <h2 id="intro-adventure-title">{t("introJourneyTitle")}</h2>
-            <p>{t("introJourneyDescription")}</p>
-            <div className={styles.roundRoute}>
-              <span>{t("introExploreLabel")}</span>
-              <ArrowRight size={18} aria-hidden="true" />
-              <span>{t("introTournamentLabel")}</span>
-              <b>{t("introThreeRounds")}</b>
-            </div>
-          </div>
-          <div
-            ref={timeline}
-            className={styles.timeline}
-            style={{ "--line-height": `${lineHeight}px` } as CSSProperties}
-          >
-            {steps.map((step, index) => (
-              <div key={step.id}>
-                <article
-                  className={styles.step}
-                  data-reverse={index % 2 === 1}
-                  data-intro-step={index}
-                  data-active={paused || activeStep >= index}
-                  data-current={activeStep === index}
-                >
-                  <span className={styles.stepNumber} data-step-number>
-                    {step.number}
-                  </span>
-                  <div className={styles.stepCopy}>
-                    <p className={styles.eyebrow}>{t(`introStep${step.number}Eyebrow`)}</p>
-                    <h3>{t(`introStep${step.number}Title`)}</h3>
-                    <p>{t(`introStep${step.number}Description`)}</p>
-                    {index === 0 && (
-                      <>
-                        <TrainerLine slots />
-                        <p className={styles.stepNote}>{t("introRoomNote")}</p>
-                      </>
-                    )}
-                    {index === 1 && (
-                      <div className={styles.modeTags}>
-                        <span>{t("introClassicLabel")}</span>
-                        <span>{t("introRandomLabel")}</span>
-                      </div>
-                    )}
-                    {index === 2 && <ExploreTimer active={activeStep >= 2} paused={paused} />}
-                    {index === 3 && (
-                      <div
-                        className={styles.bracket}
-                        role="img"
-                        aria-label={t("introBracketLabel")}
-                      >
-                        <div className={styles.bracketEntrants}>
-                          {Array.from({ length: 8 }, (_, i) => (
-                            <span key={i} />
-                          ))}
-                        </div>
-                        <div className={styles.bracketQuarter}>
-                          {Array.from({ length: 4 }, (_, i) => (
-                            <span key={i} />
-                          ))}
-                        </div>
-                        <div className={styles.bracketSemi}>
-                          <span />
-                          <span />
-                        </div>
-                        <div className={styles.bracketFinal}>
-                          <span />
-                        </div>
-                        <Trophy size={24} aria-hidden="true" />
-                      </div>
-                    )}
-                  </div>
-                  <figure className={styles.scene}>
-                    <div className={styles.sceneTop}>
-                      <span>{t("introBrand")}</span>
-                      <span>{step.number}</span>
-                    </div>
-                    <Image
-                      src={`/assets/poke-lounge/guide/${step.id}.webp`}
-                      alt={t(`introStep${step.number}Alt`)}
-                      width={step.width}
-                      height={step.height}
-                      loading="lazy"
-                      sizes="(max-width: 600px) 260px, 300px"
-                    />
-                    <figcaption>
-                      <span aria-hidden="true" />
-                      {t("introActualScreen")}
-                    </figcaption>
-                  </figure>
-                </article>
-                {index === 1 && <PartnerPreview />}
-              </div>
-            ))}
-            <article
-              className={`${styles.step} ${styles.finalStep}`}
-              data-intro-step="4"
-              data-active={paused || activeStep >= 4}
-              data-current={activeStep === 4}
-            >
-              <span className={styles.stepNumber} data-step-number>
-                {t("introFinalStepNumber")}
-              </span>
-              <div className={styles.stepCopy}>
-                <p className={styles.eyebrow}>{t("introStep05Eyebrow")}</p>
-                <h3>{t("introStep05Title")}</h3>
-                <p>{t("introStep05Description")}</p>
-              </div>
-              <Scoreboard />
-            </article>
           </div>
         </section>
-        <section className={styles.videoSection} aria-labelledby="intro-video-title">
-          <div className={styles.videoCopy}>
-            <p className={styles.eyebrow}>{t("introVideoEyebrow")}</p>
-            <h2 id="intro-video-title">{t("introVideoTitle")}</h2>
-            <p>{t("introVideoDescription")}</p>
-            <button
-              type="button"
-              className={styles.textLink}
-              onClick={toggleVideo}
-              aria-controls="intro-video"
-            >
-              {videoPlaying ? (
-                <Pause size={16} aria-hidden="true" />
-              ) : (
-                <Play size={16} aria-hidden="true" />
-              )}
-              {t(videoPlaying ? "introPauseVideo" : "introWatch")}
-            </button>
-            {videoError && <p role="alert">{t("introVideoError")}</p>}
+        <nav className={styles.modeNav} aria-label={t("introModesTitle")}>
+          <div className={styles.shell}>
+            <NextLink href="#intro-league">
+              <Trophy size={20} aria-hidden="true" />
+              {t("introModesLeagueTitle")} <ArrowDown size={16} aria-hidden="true" />
+            </NextLink>
+            <NextLink href="#intro-multiplayer">
+              <Users size={20} aria-hidden="true" />
+              {t("introModesMultiplayerTitle")} <ArrowDown size={16} aria-hidden="true" />
+            </NextLink>
           </div>
-          <figure ref={film.ref} className={styles.film} id="intro-film">
-            <div className={styles.filmHeading}>
-              <span>{t("introBrand")}</span>
-              <span className={styles.rec}>{t("introRec")}</span>
-            </div>
-            <video
-              ref={video}
-              id="intro-video"
-              onPlay={() => setVideoPlaying(true)}
-              onPause={() => setVideoPlaying(false)}
-              onEnded={() => setVideoPlaying(false)}
-              onError={() => setVideoError(true)}
-              width={480}
-              height={824}
-              controls
-              playsInline
-              muted
-              preload="none"
-              poster={film.nearby ? "/assets/poke-lounge/video/gameplay-poster.jpg" : undefined}
-              aria-label={t("introVideoLabel")}
-            >
-              <source src="/assets/poke-lounge/video/gameplay.mp4" type="video/mp4" />
-              <a href="/assets/poke-lounge/video/gameplay.mp4">{t("introVideoFallback")}</a>
-            </video>
-            <figcaption>{t("introVideoCaption")}</figcaption>
-          </figure>
-        </section>
-        <section className={styles.finalCta} aria-labelledby="intro-final-title">
-          <p className={styles.eyebrow}>{t("introFinalEyebrow")}</p>
-          <h2 id="intro-final-title">{t("introFinalTitle")}</h2>
-          <p>{t("introFinalDescription")}</p>
-          <StartLink />
-          <TrainerLine />
+        </nav>
+        <ModeSection mode="league" />
+        <ModeSection mode="multiplayer">
+          <PartnerPreview />
+          <GameplayVideo motionPaused={paused} />
+        </ModeSection>
+        <section className={styles.finalCta}>
+          <h2>{t("introFinalTitle")}</h2>
+          <div className={styles.actions}>
+            <StartLink mode="league" />
+            <StartLink mode="multiplayer" />
+          </div>
         </section>
       </main>
       <footer className={styles.footer}>
-        <Brand />
-        <p>{t("introFanNotice")}</p>
-        <Languages />
+        <div className={styles.shell}>
+          <Brand />
+          <p>{t("introFanNotice")}</p>
+          <Languages footer />
+        </div>
       </footer>
     </div>
   );
