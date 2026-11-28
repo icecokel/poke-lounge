@@ -634,6 +634,26 @@
   color: var(--mode-accent);
 }
 
+.modeLead {
+  max-width: 46rem;
+  margin-block-start: clamp(14px, 2.4vw, 22px);
+}
+
+.modeHeadline {
+  color: var(--paper);
+  font-size: clamp(26px, 5vw, 46px);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.modeLead p:not(.modeHeadline) {
+  margin-block-start: 12px;
+  color: var(--mode-muted);
+  font:
+    400 clamp(15px, 1.9vw, 18px) / 1.65 system-ui,
+    sans-serif;
+}
+
 .mode h3,
 .finalCta h2 {
   text-wrap: balance;
