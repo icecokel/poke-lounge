@@ -30,7 +30,8 @@ export function NicknameForm({
           setPending(true);
           setError("");
           try {
-            const result = await setLeagueNickname(value);
+            // Some keyboards send decomposed Hangul; the server compares composed text.
+            const result = await setLeagueNickname(value.normalize("NFC"));
             onSaved(result.nickname);
           } catch (error) {
             const detail = error instanceof LeagueApiError ? error.detail : undefined;

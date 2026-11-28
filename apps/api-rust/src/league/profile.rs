@@ -27,7 +27,8 @@ pub async fn display_name(league: &League, user: Uuid, fallback: &str) -> Result
 }
 pub async fn set_nickname(league: &League, user: Uuid, nickname: &str) -> Result<Value> {
     let mut reasons = Vec::new();
-    if !(2..=12).contains(&nickname.chars().count()) {
+    // 2–12 characters; "월" is the single one-character exception (also in the DB check).
+    if !(2..=12).contains(&nickname.chars().count()) && nickname != "월" {
         reasons.push("LENGTH");
     }
     if !nickname.chars().all(|c| {
