@@ -22,7 +22,7 @@
     },
     "tournament": {
       "title": "Battle in the tournament",
-      "description": "When exploration ends, compete in a tournament with the party you trained. Battles use numerical ROM data and a Generation IV rules engine (@pkmn/sim). After each of the first two tournaments, return to the village to explore in the next round."
+      "description": "When exploration ends, compete in a tournament with the party you trained. Battles follow Generation IV rules. After each of the first two tournaments, return to the village to explore in the next round."
     },
     "results": {
       "title": "Final standings after three rounds",
@@ -199,7 +199,7 @@
     "officialBody": "Pre-league records reset when the official season starts. Official seasons last four weeks and require Discord sign-in.",
     "media": {
       "reception": "The guide at the Poke Lounge League front desk",
-      "starter": "Three starter candidates for the season",
+      "starter": "The starter candidates set for this season",
       "growth": "Paths and tall grass in the League field",
       "badge": "A notice announcing that a Gym Leader has appeared",
       "entry": "A full party of six Pokémon ready to enter the League",
