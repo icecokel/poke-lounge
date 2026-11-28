@@ -1871,3 +1871,74 @@
     min-height: 330px;
   }
 }
+
+.modes {
+  inline-size: min(1136px, calc(100% - 40px));
+  margin-inline: auto;
+  padding-block: clamp(40px, 6vw, 80px);
+}
+
+.modes h2 {
+  margin-block-end: 24px;
+  text-align: center;
+}
+
+.modeCards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(16px, 3vw, 32px);
+}
+
+.modeCard {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  background: #e7edcd;
+  box-shadow: 0 4px 0 #17251c;
+}
+
+.modeImage {
+  aspect-ratio: 2;
+  border-block-end: 3px solid var(--ink);
+  border-radius: 5px 5px 0 0;
+  background: #d6dfbf center / cover no-repeat;
+}
+
+.modeCopy {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  align-items: start;
+  gap: 8px;
+  padding: clamp(16px, 3vw, 28px);
+}
+
+.modeCopy h3 {
+  color: var(--green);
+  font-size: 1.375rem;
+  font-weight: bold;
+}
+
+.modeCopy p {
+  color: var(--muted);
+  font-family: system-ui, sans-serif;
+  font-size: 0.9375rem;
+}
+
+.modeLink {
+  display: inline-flex;
+  min-block-size: 44px;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  color: var(--green);
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 640px) {
+  .modeCards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

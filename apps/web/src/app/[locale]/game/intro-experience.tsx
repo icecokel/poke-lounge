@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import NextLink from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ArrowDown, ArrowRight, Pause, Play, Trophy } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -72,6 +73,48 @@ function Brand() {
       <span className={styles.brandMark} aria-hidden="true" />
       {t("introBrand")}
     </Link>
+  );
+}
+
+const modes = [
+  {
+    path: "multiplayer",
+    image: "/assets/poke-lounge/guide/multiplayer/field.webp",
+    title: "introModesMultiplayerTitle",
+    description: "introModesMultiplayerDescription",
+    link: "introModesMultiplayerLink",
+  },
+  {
+    path: "league",
+    image: "/assets/poke-lounge/guide/league/card.webp",
+    title: "introModesLeagueTitle",
+    description: "introModesLeagueDescription",
+    link: "introModesLeagueLink",
+  },
+] as const;
+
+function ModeCards() {
+  const t = useTranslations("Game");
+  const locale = useLocale();
+
+  return (
+    <section className={styles.modes} aria-labelledby="intro-modes-title">
+      <h2 id="intro-modes-title">{t("introModesTitle")}</h2>
+      <div className={styles.modeCards}>
+        {modes.map(mode => (
+          <article className={styles.modeCard} key={mode.path}>
+            <div className={styles.modeImage} style={{ backgroundImage: `url(${mode.image})` }} />
+            <div className={styles.modeCopy}>
+              <h3>{t(mode.title)}</h3>
+              <p>{t(mode.description)}</p>
+              <NextLink className={styles.modeLink} href={`/${locale}/guide/${mode.path}`}>
+                {t(mode.link)} <ArrowRight size={16} aria-hidden="true" />
+              </NextLink>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -406,6 +449,7 @@ export function IntroExperience() {
             {t("introScroll")}
           </a>
         </section>
+        <ModeCards />
         <section
           id="intro-adventure"
           className={styles.adventure}
